@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+	{% if user.is_authenticated %}
+		{% if user.is_staff == True %}
+		<!-- show the list of all users if user is staff/admin -->
+		<small class="bg-green">You are seeing this page because you are a Staff/Admin</small> <br>
+			Welcome back, <b>{{request.user.staff_id}}!</b> <br>
+			<hr>
+			<div class="card">
+				<h3>Users List</h3>
+				{% for user in users %}
+					{% if user.profile.last_name and user.profile.first_name %}
+						<p><a href="{% url 'profile' user.staff_id %}"> {{user.profile.last_name}}, {{user.profile.first_name}}</a></p>
+					{% else %}
+						<p><a href="{% url 'profile' user.staff_id %}">{{user.staff_id}}</a><small>( <-- If user has profile: "profile". Otherwise, "staff_id".)</small></p>
+					{% endif %}
+				{% endfor %}
+				<hr>
+				listing all the users <br>
+				can be modified to just show who's under who. Like a Manager's views or something  (we'll need to modify url routing for that)<br>
+				for now, let's leave this as is. We'll figure-out what to display once everything's working as intended <br>
+			</div>
+		{% else %}
+			<!-- This is already working so, good job! -->
+			<h3>Sorry, only Staffs/Admins have permissions to view this page.</h3>
+			<small><a href="/">Go back</a></small>
+		{% endif %}
+	{% else %}
+		<!-- This is already working so, good job! -->
+		<small class="bg-red">User is not authenticated. Please <a href="/login">log-in to</a> view the page.</small>
+		<h3>Sorry, you do not have permissions to view this page.</h3>
+		<small><a href="/">Go back</a></small>
+	{% endif %}
+{% endblock %}
+

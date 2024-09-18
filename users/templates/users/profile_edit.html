@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+<div class="container col-4" style="padding-top: 1em">
+  <!-- FORM STARTS HERE -->
+  <form method="POST" enctype="multipart/form-data"> <!-- enctype="multipart/form-data" IS IMPORTANT for the image to save -->
+    
+    {% csrf_token %} <!-- this is a required line for added security -->
+    
+
+    <fieldset class="form-group">
+      <legend class="border-bottom mb-1">Edit your Profile Info</legend>
+      <small><i>Fields with * are required.</i></small>
+      {% for field in form %}
+          <p>
+          {% for error in field.errors %}
+          <p style="color: red">{{ error }}</p>
+          {% endfor %}
+          </p>
+      {% endfor %}
+      {{ form.media }}
+      {{ u_form|crispy }}
+    </fieldset>
+
+    <div class="form-group">
+      <button class="btn btn-outline-success p-2 mb-2" type="submit">
+        Save changes
+      </button>
+    </div>
+  </form>
+</div>
+
+
+{% endblock %}

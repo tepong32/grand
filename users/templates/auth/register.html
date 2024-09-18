@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+
+{% block content %}
+<section id="home" style="min-height: 100vh">
+  <div class="row" style="justify-content: space-around;"> 
+  <div class="col-md-5">
+    <div class="position-relative" style="min-height: 300px;">
+        <div class="col">
+          <div class="card card-primary">
+            <div class="card-header">
+              <h3 class="card-title">Join us!</small></h3>
+            </div>
+            
+            <!-- /.card-header -->
+            <!-- form start -->
+            <form method="POST">
+              <div class="card-body bg-dark">
+                {% csrf_token %}
+                <fieldset class="form-group">
+                  {{ form|crispy }}
+                </fieldset>
+                <button type="submit" class="btn btn-primary">Sign up</button>
+                <div class="border-top pt-3">
+                  <small class="text-muted">
+                    Already have an account? <a class="ml-2" href="{% url 'login' %}">Log in here</a>
+                  </small>
+                  <div class="social-auth-links text-center">
+                    <p>OR</p>
+                    <a href="/accounts/google/login/?process=login" class="btn btn-block btn-danger socialaccount_provider google">
+                      <i class="fab fa-google-plus mr-2"></i>
+                      Sign up using Google+
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </form>
+
+          </div>
+        </div>
+    </div>
+  </div>
+  </div>
+</section>
+
+
+{% endblock content %}
+
+
+
+
+
+
+
