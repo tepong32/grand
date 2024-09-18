@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<hr />
+<div class="content-section" style="padding-top: 5em">
+  <form method="POST">
+    {% csrf_token %}
+    <!-- this is a required line for added security -->
+    <fieldset class="form-group">
+      <legend class="border-bottom mb-1"><b> Cancel Leave application. </b></legend>
+      <h6>You cannot undo this action.</h6>
+      Reminder: Leave applications are time-stamped and are decided on a "first-come, first-served" basis.
+
+    </fieldset>
+
+    <div class="form-group">
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'forum-home' %}">
+        No
+      </a>
+      <button class="btn btn-sm btn-outline-danger" type="submit">
+        Yes
+      </button>
+    </div>
+  </form>
+</div>
+<hr />
+{% endblock content %}

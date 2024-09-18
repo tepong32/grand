@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- REAL CONTENT -->
+{% if user_leaves.count == 0 %}
+  <p> You have not filed for a leave request yet. Don't be shy. Work-Life balance, Man! </p>
+{% endif %}
+{% if user_leaves %} <!-- only displaying this section if there is the logged-in user's leave instances -->
+<div class="card-body col-lg-4 col-md-6 col-sm-12">
+  {% for leave in user_leaves %}
+    {% if leave.status == "approved" %}
+	<div class="card card-success">
+		<div class="card-header">
+			<h3 class="card-title">{{leave.leave_type}} - <small><b>{{leave.status.title}}</b></small></h3>
+			<div class="card-tools">
+				<button type="button" class="btn btn-tool" data-card-widget="collapse">
+				<i class="fas fa-minus"></i>
+				</button>
+				<!-- place link to cancel "Pending" leaves here -->
+				<button type="button" class="btn btn-tool" data-card-widget="remove">
+				<i class="fas fa-times"></i>
+			</div>
+		</div>
+
+		<div class="card-body" style="display: block;">
+		{{leave.start_date}} - {{leave.end_date}}<br>
+		note: {{leave.note}} <br>
+		<small class="float-right">submitted: {{leave.created}} 
+		{% if not leave.created == leave.modified %} modified {{leave.modified}} {% endif %}</small>
+		</div>
+	</div>
+
+
+
+    {% elif leave.status == "rejected" %}
+    <div class="card card-danger">
+		<div class="card-header">
+			<h3 class="card-title">{{leave.leave_type}} - <small>{{leave.status.title}}</small></h3>
+			<div class="card-tools">
+				<button type="button" class="btn btn-tool" data-card-widget="collapse">
+				<i class="fas fa-minus"></i>
+				<!-- place link to cancel "Pending" leaves here -->
+				<button type="button" class="btn btn-tool" data-card-widget="remove">
+				<i class="fas fa-times"></i>
+				</button>
+			</div>
+		</div>
+
+		<div class="card-body" style="display: block;">
+		{{leave.start_date}} - {{leave.end_date}}<br>
+		note: {{leave.note}} <br>
+		<small class="float-right">submitted: {{leave.created}} 
+		{% if not leave.created == leave.modified %} modified {{leave.modified}} {% endif %}</small>
+		</div>
+	</div>
+    {% elif leave.status == "pending" %}
+    <div class="card card-gray">
+		<div class="card-header">
+			<h3 class="card-title">{{leave.leave_type}} - <small>{{leave.status.title}}</small></h3>
+			<div class="card-tools">
+				<button type="button" class="btn btn-tool" data-card-widget="collapse">
+				<i class="fas fa-minus"></i>
+				<!-- place link to cancel "Pending" leaves here -->
+				<button type="button" class="btn btn-tool" data-card-widget="remove">
+				<i class="fas fa-times"></i>
+				</button>
+			</div>
+
+		</div>
+
+		<div class="card-body" style="display: block;">
+		{{leave.start_date}} - {{leave.end_date}}<br>
+		note: {{leave.note}} <br>
+		<small class="float-right">submitted: {{leave.created}} 
+		{% if not leave.created == leave.modified %} modified {{leave.modified}} {% endif %}</small>
+		</div>
+	</div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+ <!-- /REAL CONTENT -->
+
+
+
+
+<section>
+testing filters: <br>
+<h4>advisors list</h4>
+<p>Kung need mo ay User info:</p>
+<p>
+	all users: <b>user.objects.all()</b> or <b>advisors</b><br>
+	<b>advisors</b>: user.objects.filter(is_advisor=True)<br>
+    <b>tls</b>: user.objects.filter(is_team_leader=True)<br>
+    <b>oms</b>: user.objects.filter(is_operations_manager=True),<br>
+    <b>instances_used_this_year</b>: <br>
+    <b>instances_used_this_quarter</b>: <br>
+</p>
+<hr>
+
+<p>naka for loop to na <b>advisors</b> list. Display == last_name, first_name: <br>
+<small>by default, kahit TL or OM, advisor din since yun ung default pag nagregister pero pwede iedit sa admin. Boolean lang naman yun</small> <br>
+{% for adv in advisors %}
+	{% if adv.last_name and adv.first_name %}
+		<a href="{% url 'profile' adv.staff_id %}"> {{adv}} </a>
+		<br>	
+	{% else %}
+		<a href="{% url 'profile' adv.staff_id %}">{{adv}}</a>
+		<small>( <-- this user has no profile yet so, staff ID!)</small>
+	{% endif %}
+{% endfor %}
+</p>
+
+<hr>
+<p>naka for loop to na <b>tls</b> list. Display == last_name, first_name: <br>
+{% for tl in tls %}
+<a href="{% url 'profile' tl.staff_id %}"> {{tl}}</a> <br>
+{% endfor %}
+</p>
+<hr>
+
+<p>naka for loop to na <b>oms</b> list. Display == last_name, first_name: <br>
+{% for om in oms %}
+<a href="{% url 'profile' om.staff_id %}">{{om}}</a>
+{% endfor %}
+</p>
+<hr>
+
+<p><b>Logged-in user</b>'s instances-used counter: <br>
+{% if instances_used_this_year and instances_used_this_quarter %}
+    <p>Instances used this year: {{ instances_used_this_year }}</p>
+    <p>Instances used this quarter: {{ instances_used_this_quarter }}</p>
+{% else %}
+    <p>No leave counter data available for this user.</p>
+{% endif %}
+</p>
+<hr>
+
+<p>leave counter per employee:
+<small>this displays counters for all employees
+Apply filters to display all employees, leaves, statuses and counters </small><br>
+{% for leave_counter in adv_all_leaves %}
+    <p><a href="{% url 'profile' leave_counter.employee.staff_id %}">{{ leave_counter.employee.staff_id }}</a>: This Quarter: {{ leave_counter.instances_used_this_quarter }},
+    This Year (total):{{ leave_counter.instances_used_this_year }}</p>
+{% endfor %}
+</p>
+<hr>
+
+<p><b>Leave</b> instances: <br>
+{% for leave in leaves %}
+	<div class="card border-danger p-2">
+	from: {{leave.start_date}} to: {{leave.end_date}} - {{leave.leave_type}} - {{leave.employee}} - Status: {{leave.status}} <br>
+	submitted: {{leave.created}}, modified {{leave.modified}} <br>
+	note: {{leave.note}}
+	</div>
+{% endfor %}
+	
+</p>
+
+<div class="card float-right col-2 elevation-3">SERVER TIME: {{server_time}} </div>
+</section>
+{% endblock content %}

@@ -1,0 +1,36 @@
+<div class="col-lg-6 col-sm-12 border border-warning p-2">
+  <!-- This separates the view of Advisors, TLs and OMs -->
+  <!-- OMs -->
+  {% if request.user.is_operations_manager %}
+    <h4 class="p-2">Dashboard View: Operations Manager</h4>
+  {% elif request.user.is_team_leader %}
+    <h4 class="p-2">Dashboard View: Team Leader</h4>
+  {% elif request.user.is_advisor %}
+    <h4 class="p-2">Dashboard View: Advisor</h4>
+  {% else %}
+  {% endif %}
+
+  {% if user.is_authenticated %}
+    <!-- leave count card -->
+    <div class="row elevation-1 mr-1 ml-1">
+      <div class="card-body">
+        Leave count for {{server_time.year}}: 
+      </div>
+      <div class="card-body">
+        Taken this year: <b>{{instances_used_this_year}}/{{leave_counter.max_instances_per_year}}</b>
+      </div>
+      <div class="card-body">
+        Taken this quarter: <b>{{instances_used_this_quarter}}/{{leave_counter.max_instances_per_quarter}}</b> 
+      </div>
+    </div>
+  {% endif %}
+
+</div><!-- /.col -->
+<div class="col-sm float-right">
+  <!-- alerts/notifs here -->
+  {% if messages %}
+    {% for message in messages %}
+        <i class="alert alert-{{ message.tags }}">{{ message }}</i>
+    {% endfor %}
+  {% endif %}
+</div><!-- /.col -->

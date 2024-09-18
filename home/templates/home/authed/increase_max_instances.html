@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class="col col-lg-3 col-md-4 col-sm-12">
+<form method="post">
+    {% csrf_token %}
+    {{ form|crispy }}
+    <p><button type="submit">Adjust Max Instances for Everyone</button></p>
+    <p><small class="text-info">Negative numbers work so, do not be afraid of over-addition. ;P</small></p>
+
+</form>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Manual Trigger for reset_counters()</h2>
+
+<form action="/check_reset_date/" method="post">
+    {% csrf_token %}
+    <input type="submit" value="Trigger">
+</form>
+
+</body>
+</html>

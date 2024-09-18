@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="card p-3 bg-gray">
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <!-- this is a required line for added security -->
+    <fieldset class="form-group">
+      <legend class="border-bottom mb-1">Change Leave Request</legend>
+      {{ form.as_p }}
+      <!-- {{ form.media }} -->
+      <!-- {{ form|crispy }} -->
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {% for error in form.non_field_errors %}
+                {{ error }}
+            {% endfor %}
+        </div>
+      {% endif %}
+      
+    </fieldset>
+    {{form.errors}}
+    <small>
+      <p>These max values can be overriden/changed by site administrators</p>
+      <p>Total instances per year: <b class="text-dark">{{ leave_counter.max_instances_per_year }}</b></p>
+      <p>Instances used this year: <b>{{ leave_counter.instances_used_this_year }}</b></p>
+      <p>Total approved per quarter: <b class="text-dark">{{ leave_counter.max_instances_per_quarter }}</b></p>
+      <p>Instances used this quarter: <b>{{ leave_counter.instances_used_this_quarter }}</b></p>
+    </small>
+    <div class="form-group">
+      <button class="btn btn-success" type="submit">Submit request</button>
+    </div>
+  </form>
+</div>
+
+
+
+{% endblock content %}
