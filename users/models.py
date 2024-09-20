@@ -219,11 +219,19 @@ class Profile(models.Model):
         return f"{self.user.username}"
 
     def get_absolute_url(self):
-        return reverse('profile', kwargs={'pk': self.pk})
+        return reverse('profile', kwargs={'slug': self.slug})
 
     def save(self, *args, **kwargs):        # for resizing/downsizing images
+        if not self.slug:
+            base_slug = slugify(self.user.username)
+            slug = base_slug
+            counter = 1
+            while Profile.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
         super(Profile, self).save(*args, **kwargs)
-        self.slug = slugify(self.user.username)
+
         img = Image.open(self.image.path)   # open the image of the current instance
         if img.height > 600 or img.width > 600: # for sizing-down the images to conserve memory in the server
             output_size = (600, 600)
@@ -262,19 +270,8 @@ def update_salary_on_profile_save(sender, instance, **kwargs):
 
 
 def update_salary(grade, step):
-    base_salaries = {
-        1: 1000,
-        2: 2000,
-        5: 3000,
-        # Add more grades as needed
-    }
-
-    increments = {
-        1: {0:0, 1: 500, 2: 800, 3: 1000, 4: 1200, 5: 1500, 6: 1800, 7: 2000, 8: 2200},
-        2: {0:0, 1: 600, 2: 900, 3: 1100, 4: 1300, 5: 1600, 6: 1900, 7: 2100, 8: 2300},
-        5: {0:0, 1: 700, 2: 1000, 3: 1200, 4: 1400, 5: 1700, 6: 2000, 7: 2200, 8: 2400},
-        # Add more grades and steps as needed
-    }
+    base_salaries = {}
+    increments = {}
 
     base_salary = base_salaries.get(grade, 0)
     try:

@@ -5,11 +5,8 @@ from .views import *
 ### complete this some other time ###
 urlpatterns = [
     path('', usersIndexView, name='users-list'),
-    # path('<username>/', profileView, name='profile' ),
-    # path('<username>/edit/', profileEditView, name='profile-edit' ),
-    # class-based views
-    path('<slug:username>/', ProfileView.as_view(), name='profile' ),
-    path('<slug:username>/edit/', ProfileEditView.as_view(), name='profile-edit' ),
+    path('<username>/', profileView, name='profile' ),
+    path('<username>/edit/', profileEditView, name='profile-edit' ),
 
 ]
 

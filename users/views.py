@@ -36,47 +36,47 @@ def register(request):
     return render(request, 'auth/register.html', {'form': form})
 
 
-# @login_required
-# def profileView(request, username=None):
-#     if User.objects.get(username=username):
-#         user = User.objects.get(username=username)
-#         return render(request, 'users/profile.html',
-#             {
-#                 "user": user,
-#             }
-#         )
-#     else:
-#         return render ("User not found.")
+@login_required
+def profileView(request, username=None):
+    if User.objects.get(username=username):
+        user = User.objects.get(username=username)
+        return render(request, 'users/profile.html',
+            {
+                "user": user,
+            }
+        )
+    else:
+        return render ("User not found.")
 
 
 
-# @login_required
-# def profileEditView(request, username=None):
-#     if User.objects.get(username=username):
-#         user = User.objects.get(username=username)
-#         if request.method == 'POST':    # for the new info to be saved, this if block is needed
-#             # the forms from forms.py
-#             u_form = UserUpdateForm(request.POST, request.FILES, instance=request.user)        # instance is for the fields to auto-populate with user info
-#             p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
+@login_required
+def profileEditView(request, username=None):
+    if User.objects.get(username=username):
+        user = User.objects.get(username=username)
+        if request.method == 'POST':    # for the new info to be saved, this if block is needed
+            # the forms from forms.py
+            u_form = UserUpdateForm(request.POST, request.FILES, instance=request.user)        # instance is for the fields to auto-populate with user info
+            p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
 
-#             if u_form.is_valid():
-#                 u_form.save()
-#                 p_form.save()
-#                 messages.success(request, f"Account info has been updated.")
-#                 return render(request, "users/profile.html", {"user":user})
+            if u_form.is_valid():
+                u_form.save()
+                p_form.save()
+                messages.success(request, f"Account info has been updated.")
+                return render(request, "users/profile.html", {"user":user})
 
-#         else:
-#             u_form = UserUpdateForm(instance=request.user)
-#             p_form = ProfileUpdateForm(instance=request.user)
+        else:
+            u_form = UserUpdateForm(instance=request.user)
+            p_form = ProfileUpdateForm(instance=request.user)
 
-#         context = {
-#             'u_form': u_form,
-#             'p_form': p_form
-#         }
-#         return render(request, 'users/profile_edit.html', context)
+        context = {
+            'u_form': u_form,
+            'p_form': p_form
+        }
+        return render(request, 'users/profile_edit.html', context)
 
-#     else:
-#         return render ("User not found.")
+    else:
+        return render ("User not found.")
 
 
 ### accounts/users searching view
@@ -95,89 +95,3 @@ def user_search_view(request, *args, **kwargs):
                 
     return render(request, "users/user_search_results.html", context)
 
-
-
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404, render, redirect
-from django.views import View
-from django.contrib import messages
-from .models import User
-from .forms import UserUpdateForm, ProfileUpdateForm
-
-# class ProfileView(LoginRequiredMixin, View):
-#     def get(self, request, username=None):
-#         user = get_object_or_404(User, username=username)
-#         return render(request, 'users/profile.html', {"user": user})
-
-
-# class ProfileEditView(LoginRequiredMixin, View):
-#     def get(self, request, username=None):
-#         user = get_object_or_404(User, username=username)
-#         u_form = UserUpdateForm(instance=request.user)
-#         p_form = ProfileUpdateForm(instance=request.user)
-#         context = {
-#             'u_form': u_form,
-#             'p_form': p_form
-#         }
-#         return render(request, 'users/profile_edit.html', context)
-
-#     def post(self, request, username=None):
-#         user = get_object_or_404(User, username=username)
-#         u_form = UserUpdateForm(request.POST, request.FILES, instance=request.user)
-#         p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
-
-#         if u_form.is_valid() and p_form.is_valid():
-#             u_form.save()
-#             p_form.save()
-#             messages.success(request, "Account info has been updated.")
-#             return redirect('profile', username=user.username)
-
-#         context = {
-#             'u_form': u_form,
-#             'p_form': p_form
-#         }
-#         return render(request, 'users/profile_edit.html', context)
-
-
-
-
-### see https://github.com/tepong32/loveteppy/blob/master/loveteppy/blog/views.py for reference
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import (
-    ListView,
-    DetailView,
-    CreateView,
-    UpdateView,
-    DeleteView,
-    FormView,
-    )
-from django.http import HttpResponseRedirect
-from django.urls import reverse
-
-
-class ProfileView(DetailView, LoginRequiredMixin): # LoginRequiredMixin for authed users
-    model = User
-    template_name = 'users/profile.html'
-    users = User.objects.all()
-    context = {
-        'users': users,
-    }
-
-
-class ProfileEditView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
-    model = User 
-    form_class = ProfileUpdateForm
-    template_name = 'users/profile_edit.html'
-    success_message = "Profile updated!"
-    # success_url = '/blog'
-
-    def form_valid(self, form):         
-        form.instance.user = self.request.user    #to automatically get the id of the current logged-in user as the author
-        return super().form_valid(form)
-
-    def test_func(self):
-        profile = self.get_object()
-
-        if self.request.user == profile.username:
-            return True
-        return False
