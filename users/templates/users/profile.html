@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static custom_filters %}
 
 <!-- Users' Profile page -->
 <!-- Self-explanatory page...I guess. LOL -->
@@ -31,21 +31,21 @@
                   </small>
                 {% endif %}
                 </h2>
-                <p class="text-sm text-muted text-center"><i>{{user.username}} / {{user.profile.department}}</i></p>
+                <p class="text-sm text-muted text-center"><i>{{user.profile.department}}</i></p>
 
                 <ul class="list-group list-group-unbordered mb-3">
                   <li class="list-group-item">
-                    <b>Posts:</b> <a class="float-right"><b>{{posts}}</b></a>
+                    <b>Dept. Head:</b> <a class="float-right"><b>{{user.profile.department.manager}}</b></a>
                   </li>
                   <li class="list-group-item">
-                    <b>Following</b> <a class="float-right">543</a>
+                    <b>Designation</b> <b class="float-right">{{user.profile.designation}}</b>
                   </li>
                   <li class="list-group-item">
-                    <b>Friends</b> <a class="float-right">13,287</a>
+                    <b>SG</b> <b class="float-right">{{user.profile.salary_grade}} - {{user.profile.salary_grade_step}}</b>
                   </li>
                 </ul>
 
-                <a href="#" class="btn btn-primary btn-block"><b>Follow</b></a>
+                <a href="#" class="btn btn-primary btn-block"><b>{{user.profile.get_salary_amount|currency }}</b></a>
               </div>
               <!-- /.card-body -->
             </div>

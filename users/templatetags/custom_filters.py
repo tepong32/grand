@@ -7,8 +7,8 @@ def length_is(value, length):
     return len(value) == length
 
 
-
 # or pip install django-length 
 
-#### not being used
-### just kept here for reference or future cases
+@register.filter
+def currency(value):
+    return "P{:,.2f}".format(value)

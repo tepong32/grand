@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, UserM
 from django.utils import timezone
 from PIL import Image
 from django.urls import reverse
+from django.utils.text import slugify
 
 
 from django.db.models.signals import post_save
@@ -165,7 +166,7 @@ class Department(models.Model):
         verbose_name_plural = "Departments"
 
     def __str__(self):
-        return f"{self.name} - {self.manager}".strip()
+        return f"{self.name}".strip()
 
 
 def validate_salary_grade(value):
@@ -186,18 +187,33 @@ class Profile(models.Model):
     designation     = models.CharField(max_length=255, null=True, blank=False)
     # take note of this salary_grade and step fields
     # it should ONLY be visible to the owner and admins
-    salary_grade    = models.PositiveIntegerField(validators=[validate_salary_grade],
-                    blank=True, null=True,  verbose_name="Salary Grade", help_text="Only visible to you or Administrators.")
-    salary_grade_step         = models.PositiveIntegerField(default=0, validators=[validate_salary_grade_step],
-                    verbose_name="Salary Grade Step", null=True,
-                    help_text="Only visible to you or Administrators.")
+    salary_grade = models.PositiveIntegerField(null=True,
+        validators=[validate_salary_grade],
+        verbose_name="Salary Grade"
+    )
+    salary_grade_step = models.PositiveIntegerField(
+        default=0,
+        validators=[validate_salary_grade_step],
+        verbose_name="Salary Grade Step",
+        blank=True,
+        help_text="Only visible to you or Administrators."
+    )
     department      = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=False)
+    slug            = models.SlugField(default='', blank=True)
 
     def dp_directory_path(instance, filename):
         # file will be uploaded to MEDIA_ROOT/DP/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
         return 'users/{}/DP/{}'.format(instance.user.username, filename)
-    image = models.ImageField(default='defaults/default_user_dp.png', blank=True, upload_to=dp_directory_path, verbose_name="Profile Picture: ", help_text='Help us recognize you. ;)')
+    image = models.ImageField(default='defaults/default_user_dp.png', blank=True, upload_to=dp_directory_path, verbose_name="Profile Picture: ")
 
+    def get_salary_amount(self):
+        try:
+            salary = Salary.objects.get(grade=self.salary_grade, step=self.salary_grade_step)
+            print(f"Found Salary: Grade {self.salary_grade}, Step {self.salary_grade_step}, Amount {salary.amount}")
+            return salary.amount
+        except Salary.DoesNotExist:
+            print(f"Salary not found for Grade {self.salary_grade}, Step {self.salary_grade_step}")
+            return 0.00
 
     def __str__(self):
         return f"{self.user.username}"
@@ -207,7 +223,7 @@ class Profile(models.Model):
 
     def save(self, *args, **kwargs):        # for resizing/downsizing images
         super(Profile, self).save(*args, **kwargs)
-
+        self.slug = slugify(self.user.username)
         img = Image.open(self.image.path)   # open the image of the current instance
         if img.height > 600 or img.width > 600: # for sizing-down the images to conserve memory in the server
             output_size = (600, 600)
@@ -216,19 +232,28 @@ class Profile(models.Model):
 
 
 class Salary(models.Model):
-    '''You need to define the corresponding amounts for each salary_grade.
-        Then users' profiles will reflect these amounts matching the value they entered on their profile's salary_grade attr
-        using the validate_salary_grade() below.
-        These
-    '''
-    grade = models.PositiveIntegerField(unique=True, null=True)
+    grade = models.PositiveIntegerField(null=True)
+    step = models.PositiveIntegerField(default=0, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2, null=True)
-
-    def __str__(self):
-        return f"Grade {self.grade}: {self.amount}"
 
     class Meta:
         verbose_name_plural = "Salaries"
+        unique_together = ('grade', 'step')
+
+    def __str__(self):
+        return f"Grade {self.grade} - Step {self.step}: {self.amount}"
+
+class SalaryIncrement(models.Model):
+    grade = models.PositiveIntegerField()
+    step = models.PositiveIntegerField()
+    increment = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        unique_together = ('grade', 'step')
+        verbose_name_plural = "Salary Increments"
+
+    def __str__(self):
+        return f"Grade {self.grade} - Step {self.step}: Increment {self.increment}"
 
 
 @receiver(post_save, sender=Profile)
@@ -240,23 +265,28 @@ def update_salary(grade, step):
     base_salaries = {
         1: 1000,
         2: 2000,
-        3: 3000,
+        5: 3000,
         # Add more grades as needed
     }
 
     increments = {
-        1: {1: 500, 2: 800, 3: 1000, 4: 1200, 5: 1500, 6: 1800, 7: 2000, 8: 2200},
-        2: {1: 600, 2: 900, 3: 1100, 4: 1300, 5: 1600, 6: 1900, 7: 2100, 8: 2300},
-        3: {1: 700, 2: 1000, 3: 1200, 4: 1400, 5: 1700, 6: 2000, 7: 2200, 8: 2400},
+        1: {0:0, 1: 500, 2: 800, 3: 1000, 4: 1200, 5: 1500, 6: 1800, 7: 2000, 8: 2200},
+        2: {0:0, 1: 600, 2: 900, 3: 1100, 4: 1300, 5: 1600, 6: 1900, 7: 2100, 8: 2300},
+        5: {0:0, 1: 700, 2: 1000, 3: 1200, 4: 1400, 5: 1700, 6: 2000, 7: 2200, 8: 2400},
         # Add more grades and steps as needed
     }
 
     base_salary = base_salaries.get(grade, 0)
-    increment = increments.get(grade, {}).get(step, 0)
+    try:
+        increment = SalaryIncrement.objects.get(grade=grade, step=step).increment
+    except SalaryIncrement.DoesNotExist:
+        increment = 0
+
     new_salary_amount = base_salary + increment
 
     salary, created = Salary.objects.update_or_create(
         grade=grade,
+        step=step,
         defaults={'amount': new_salary_amount}
     )
 

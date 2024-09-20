@@ -21,7 +21,8 @@
           </p>
       {% endfor %}
       {{ form.media }}
-      {{ u_form|crispy }}
+      {{ u_form.as_p }}
+      {{ p_form.as_p }}
     </fieldset>
 
     <div class="form-group">
