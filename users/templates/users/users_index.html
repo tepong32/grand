@@ -6,15 +6,15 @@
 		{% if user.is_staff == True %}
 		<!-- show the list of all users if user is staff/admin -->
 		<small class="bg-green">You are seeing this page because you are a Staff/Admin</small> <br>
-			Welcome back, <b>{{request.user.staff_id}}!</b> <br>
+			Welcome back, <b>{{request.user.username}}!</b> <br>
 			<hr>
 			<div class="card">
 				<h3>Users List</h3>
 				{% for user in users %}
 					{% if user.profile.last_name and user.profile.first_name %}
-						<p><a href="{% url 'profile' user.staff_id %}"> {{user.profile.last_name}}, {{user.profile.first_name}}</a></p>
+						<p><a href="{% url 'profile' user.username %}"> {{user.profile.last_name}}, {{user.profile.first_name}}</a></p>
 					{% else %}
-						<p><a href="{% url 'profile' user.staff_id %}">{{user.staff_id}}</a><small>( <-- If user has profile: "profile". Otherwise, "staff_id".)</small></p>
+						<p><a href="{% url 'profile' user.username %}">{{user.username}}</a><small>( <-- If user has profile: "profile". Otherwise, "username".)</small></p>
 					{% endif %}
 				{% endfor %}
 				<hr>
