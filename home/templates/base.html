@@ -43,7 +43,7 @@ scratch. This page gets rid of all links and provides the needed markup only.
           <img src="{{request.user.image.url}}" class="img-circle elevation-2" alt="User Image">
         </div>
         <div class="info">
-          <a href="{% url 'profile' request.user.staff_id %}" class="d-block">{{ request.user }}</a>
+          <a href="{% url 'profile' request.user.username %}" class="d-block">{{ request.user }}</a>
           {% else %}
           <img src="/static/admin-lte/dist/img/AdminLTELogo.png" class="img-circle elevation-2" alt="User Image">
         </div>
@@ -124,6 +124,7 @@ scratch. This page gets rid of all links and provides the needed markup only.
         
         <!-- This block is where the dynamic content of the app will be displayed -->
         {% block content %}
+
         
         {% endblock content %}
         <!-- /.row -->

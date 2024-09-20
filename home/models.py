@@ -22,7 +22,7 @@ class Leave(models.Model):
         ('rejected', 'Rejected'),
         ('cancelled', 'Cancelled'),
     ]
-    employee = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Employee', related_name="leave_filer")
+    employee = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Employee', related_name="Employee")
     leave_type = models.ForeignKey(LeaveType, on_delete=models.CASCADE, verbose_name='Leave Type')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', verbose_name='Status')
     start_date = models.DateField(verbose_name='Start Date')
@@ -42,16 +42,16 @@ class Leave(models.Model):
         logger.debug('Leave object: %s', self)
 
         # Get the WorkGroup of the employee
-        workgroup = self.employee.workgroup
+        department = self.employee.department
         # Get the number of leaves taken on the day the leave is filed
-        leaves_taken = Leave.objects.filter(employee__workgroup=workgroup, start_date=self.start_date, status='approved').count()
+        leaves_taken = Leave.objects.filter(employee__department=department, start_date=self.start_date, status='approved').count()
         # Get the current date
         current_date = timezone.now().date()
         # Check if the leave request is more than a week from the current date
         is_more_than_a_week = (self.start_date - current_date) > timedelta(days=7)
 
         # set status to "Approved" instead of "Pending" if both conditions are met
-        if leaves_taken < workgroup.allowed_leaves_per_day and is_more_than_a_week:
+        if leaves_taken < department.allowed_leaves_per_day and is_more_than_a_week:
             self.status = 'approved'
             # self.save()
 
