@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     ### 3rd-party apps
     'adminlte3',
     'adminlte3_theme',
+    'crispy_forms',
+    'crispy_bootstrap4',
 
     ### custom
     'home',
@@ -67,7 +69,7 @@ ROOT_URLCONF = 'src.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
