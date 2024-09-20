@@ -4,6 +4,12 @@ from django.utils import timezone
 from PIL import Image
 from django.urls import reverse
 
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.core.validators import MinLengthValidator, MaxLengthValidator
+
+
 ### Documentation: ###
 # See: https://docs.djangoproject.com/en/4.2/topics/auth/customizing/#using-a-custom-user-model-when-starting-a-project
 '''
@@ -53,62 +59,6 @@ class CustomUserManager(UserManager):
         return self._create_user(username, password, **extra_fields)
 
 
-class Manager(models.Model):
-    name = models.CharField(max_length=100)
-
-    def __str__(self):
-        return f'{self.name}'
-
-
-class Department(models.Model):
-    select      = "---select one---"
-    ACCTG       = "Accounting Office"
-    AGRI        = "Agriculture Office"
-    BPLO        = "Business Processes & Licensing Office"
-    GSO         = "General Services Office"
-    HR          = "Human Resources"
-    LCR         = "Local Civil Registrar's Office"
-    MA          = "Municipal Administrator's Office"
-    MENRO       = "Environment & Natural Resources Office"
-    MO          = "Mayor's Office"
-    MSWD        = "Social Welfare & Development"
-    MTO         = "Treasurer's Office"
-    OSCA        = "Senior Citizen Affairs"
-    
-    choices = [
-        (select, "select"),
-        (ACCTG, "ACCTG"),
-        (AGRI, "AGRI"), 
-        (BPLO, "BPLO"),
-        (GSO, "GSO"),
-        (HR, "HR"),
-        (LCR, "LCR"),
-        (MA, "MA"),
-        (MENRO, "MENRO"),
-        (MO, "MO"),
-        (MSWD, "MSWD"),
-        (MTO, "MTO"),
-        (OSCA, "OSCA"),
-        ]
-
-    name = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Department: ")
-    manager = models.ForeignKey(Manager, on_delete=models.SET_NULL, null=True, blank=False)
-    ### setting max_allowable leaves per Department/Head per day
-    ### for aut-approve purposes IF NEEDED
-    allowed_leaves_per_day = models.PositiveIntegerField(null=True, blank=True, default=99,
-        help_text='''
-            This will help with auto-approve leave requests.
-            Computation will be: allowed leaves - approved leaves for the day. If there are still available allowed_leaves_per_day instances, the leave requests will be auto-approved.
-            If there are none, the leave status will just be set to default: "Pending".
-        ''')
-    
-    class Meta:
-        verbose_name_plural = "Departments"
-
-    def __str__(self):
-        return f"{self.name} - {self.manager}".strip()
-
-
 class User(AbstractBaseUser, PermissionsMixin):
     '''
         Custom User model the app will use 
@@ -154,15 +104,93 @@ class User(AbstractBaseUser, PermissionsMixin):
         return str(self.username)
 
 
+class Manager(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return f'{self.name}'
+
+
+class Department(models.Model):
+    select      = "---select one---"
+    ACCTG       = "Accounting Office"
+    AGRI        = "Agriculture Office"
+    BPLO        = "Business Processes & Licensing Office"
+    CSU         = "Civil Security Unit"
+    GSO         = "General Services Office"
+    HR          = "Human Resources"
+    LCR         = "Local Civil Registrar's Office"
+    MA          = "Municipal Administrator's Office"
+    MENRO       = "Environment & Natural Resources Office"
+    MO          = "Mayor's Office"
+    MPDO        = "Municipal Planning & Development Office"
+    MSWD        = "Social Welfare & Development"
+    MTO         = "Treasurer's Office"
+    NUTRI       = "Nutrition Office"
+    OSCA        = "Senior Citizen Affairs"
+    SB          = "Sangguniang Bayan Office"
+    
+    choices = [
+        (select, "select"),
+        (ACCTG, "ACCTG"),
+        (AGRI, "AGRI"), 
+        (BPLO, "BPLO"),
+        (CSU, "CSU"),
+        (GSO, "GSO"),
+        (HR, "HR"),
+        (LCR, "LCR"),
+        (MA, "MA"),
+        (MENRO, "MENRO"),
+        (MO, "MO"),
+        (MPDO, "MPDO"),
+        (MSWD, "MSWD"),
+        (MTO, "MTO"),
+        (NUTRI, "NUTRI"),
+        (OSCA, "OSCA"),
+        (SB, "SB")
+        ]
+
+    name = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Department: ")
+    manager = models.ForeignKey(Manager, on_delete=models.SET_NULL, null=True, blank=False)
+    ### setting max_allowable leaves per Department/Head per day
+    ### for aut-approve purposes IF NEEDED
+    allowed_leaves_per_day = models.PositiveIntegerField(null=True, blank=True, default=99,
+        help_text='''
+            This will help with auto-approve leave requests.
+            Computation will be: allowed leaves - approved leaves for the day. If there are still available allowed_leaves_per_day instances, the leave requests will be auto-approved.
+            If there are none, the leave status will just be set to default: "Pending".
+        ''')
+    
+    class Meta:
+        verbose_name_plural = "Departments"
+
+    def __str__(self):
+        return f"{self.name} - {self.manager}".strip()
+
+
+def validate_salary_grade(value):
+    if value < 1 or value > 27:
+        raise ValidationError('Salary grade must be between 1 and 27.')
+
+def validate_salary_grade_step(value):
+    if value < 0 or value > 8:
+        raise ValidationError('Salary grade step must be between 0 and 8.')
+
+
 class Profile(models.Model):
     user            = models.OneToOneField(User, on_delete=models.CASCADE)
-    contact_number  = models.PositiveIntegerField(max_length=11, null=True, blank=False)
+    contact_number  = models.CharField(max_length=11, null=True, blank=False,
+                    validators=[MinLengthValidator(10)],
+                    verbose_name="Contact Number")
     address         = models.CharField(max_length=255, null=True, blank=False)
     designation     = models.CharField(max_length=255, null=True, blank=False)
     # take note of this salary_grade and step fields
-    # it should not be visible to other users except
-    salary_grade    = models.PositiveIntegerField(max_length=10, blank=True, null=True, help_text="Only visible to you or Administrators.")
-    sg_step         = models.PositiveIntegerField(max_length=1, blank=True, null=True, help_text="Only visible to you or Administrators.")
+    # it should ONLY be visible to the owner and admins
+    salary_grade    = models.PositiveIntegerField(validators=[validate_salary_grade],
+                    blank=True, null=True,  verbose_name="Salary Grade", help_text="Only visible to you or Administrators.")
+    salary_grade_step         = models.PositiveIntegerField(default=0, validators=[validate_salary_grade_step],
+                    verbose_name="Salary Grade Step", null=True,
+                    help_text="Only visible to you or Administrators.")
     department      = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=False)
 
     def dp_directory_path(instance, filename):
@@ -185,3 +213,58 @@ class Profile(models.Model):
             output_size = (600, 600)
             img.thumbnail(output_size)
             img.save(self.image.path)
+
+
+class Salary(models.Model):
+    '''You need to define the corresponding amounts for each salary_grade.
+        Then users' profiles will reflect these amounts matching the value they entered on their profile's salary_grade attr
+        using the validate_salary_grade() below.
+        These
+    '''
+    grade = models.PositiveIntegerField(unique=True, null=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, null=True)
+
+    def __str__(self):
+        return f"Grade {self.grade}: {self.amount}"
+
+    class Meta:
+        verbose_name_plural = "Salaries"
+
+
+@receiver(post_save, sender=Profile)
+def update_salary_on_profile_save(sender, instance, **kwargs):
+    update_salary(instance.salary_grade, instance.salary_grade_step)
+
+
+def update_salary(grade, step):
+    base_salaries = {
+        1: 1000,
+        2: 2000,
+        3: 3000,
+        # Add more grades as needed
+    }
+
+    increments = {
+        1: {1: 500, 2: 800, 3: 1000, 4: 1200, 5: 1500, 6: 1800, 7: 2000, 8: 2200},
+        2: {1: 600, 2: 900, 3: 1100, 4: 1300, 5: 1600, 6: 1900, 7: 2100, 8: 2300},
+        3: {1: 700, 2: 1000, 3: 1200, 4: 1400, 5: 1700, 6: 2000, 7: 2200, 8: 2400},
+        # Add more grades and steps as needed
+    }
+
+    base_salary = base_salaries.get(grade, 0)
+    increment = increments.get(grade, {}).get(step, 0)
+    new_salary_amount = base_salary + increment
+
+    salary, created = Salary.objects.update_or_create(
+        grade=grade,
+        defaults={'amount': new_salary_amount}
+    )
+
+    return salary
+
+
+################### set up all salary grades here
+
+
+
+############################ LEAVES

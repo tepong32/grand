@@ -1,20 +1,9 @@
-# from django.contrib import admin
-# from django.contrib.auth.admin import UserAdmin
-# from .models import User
-
 from django.contrib import admin
 from django.db import models
 
-from .models import User, Department, Manager
+from .models import User, Department, Manager, Profile, Salary
 
 
-
-class BooleanListFilter(admin.SimpleListFilter):
-    def lookups(self, request, model_admin):
-        return (
-            ('yes', 'Yes'),
-            ('no', 'No'),
-        )
 
 class CustomUserAdmin(admin.ModelAdmin):
     list_display = ('username', 'is_active', 'is_staff', 'is_superuser','last_login', 'date_joined')
@@ -25,7 +14,16 @@ class CustomUserAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(Salary)
+class SalaryAdmin(admin.ModelAdmin):
+    list_display = ('grade', 'amount')
+    search_fields = ('grade',)
+# Alternatively, you can use the simpler registration method:
+# admin.site.register(Salary, SalaryAdmin)
+
+
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(Department)
 admin.site.register(Manager)
+admin.site.register(Profile)
 

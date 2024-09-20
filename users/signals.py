@@ -1,6 +1,7 @@
 # this file is so that newly-registered users can have the "defaults" saved in their profiles.
 from django.db.models.signals import post_save	# a signal that gets fired whenever an object is saved
-from .models import User, Profile
+# from django.contrib.auth.models import User 	# the auth.models.User version (default)
+from .models import User, Profile 				# custom User model
 from django.dispatch import receiver 	# receiver
 
 
@@ -19,6 +20,7 @@ def save_profile(sender, instance, **kwargs):
 	'''
 		a function to save the profile
 	'''
+	print(f"Saving profile for user: {instance.username}")
 	instance.profile.save()
 
 '''

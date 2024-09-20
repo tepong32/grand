@@ -19,19 +19,19 @@
                 {% endif %}
                 <div class="text-center">
                   <img class="profile-user-img img-fluid img-circle elevation-5"
-                       src="{{user.image.url}}"
+                       src="{{user.profile.image.url}}"
                        alt="User profile picture" style="width: 150px; height: 150px">
                 </div>
                 
-                <h2 class="profile-staff_id text-center">{{user.first_name}}
+                <h2 class="profile-username text-center">{{user.first_name}}
 
-                {% if user.staff_id == request.user.staff_id %}
+                {% if user.username == request.user.username %}
                   <small>
-                    <a title="Edit profile" class="fa fa-edit text-success" href="{% url 'profile-edit' user.staff_id %}"></a>
+                    <a title="Edit profile" class="fa fa-edit text-success" href="{% url 'profile-edit' user.username %}"></a>
                   </small>
                 {% endif %}
                 </h2>
-                <p class="text-sm text-muted text-center"><i>{{user.staff_id}} / {{user.workgroup}}</i></p>
+                <p class="text-sm text-muted text-center"><i>{{user.username}} / {{user.profile.department}}</i></p>
 
                 <ul class="list-group list-group-unbordered mb-3">
                   <li class="list-group-item">
