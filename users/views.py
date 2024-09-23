@@ -5,6 +5,7 @@ from django.contrib import messages     # for flash messages regarding valid dat
 
 # for needing user to be logged-in first before accessing the page requested
 from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 from .forms import *
 
 def usersIndexView(request):
@@ -36,7 +37,8 @@ def register(request):
     return render(request, 'auth/register.html', {'form': form})
 
 
-@login_required
+# @login_required ###previously-used decorator dj2.1.5
+@method_decorator(login_required, name="dispatch")
 def profileView(request, username=None):
     if User.objects.get(username=username):
         user = User.objects.get(username=username)
@@ -50,7 +52,8 @@ def profileView(request, username=None):
 
 
 
-@login_required
+# @login_required ###previously-used decorator dj2.1.5
+@method_decorator(login_required, name="dispatch")
 def profileEditView(request, username=None):
     if User.objects.get(username=username):
         user = User.objects.get(username=username)
