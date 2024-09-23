@@ -48,15 +48,15 @@ class HomeView(LoginRequiredMixin, TemplateView):
                 pass
 
         context.update({
-            'advisors': user.objects.filter(is_advisor=True),
-            'tls': user.objects.filter(is_team_leader=True),
-            'oms': user.objects.filter(is_operations_manager=True),
-            'adv_all_leaves': LeaveCounter.objects.all(),
-            'instances_used_this_year': getattr(leave_counter, 'instances_used_this_year', 0), ### will return leave_counter.instances_used_this_year if leave_counter is not None, and 0 otherwise.
-            'instances_used_this_quarter': getattr(leave_counter, 'instances_used_this_quarter', 0),
-            'leaves': Leave.objects.all(),
-            'user_leaves': user_leaves,  # Add user_leaves to the context
-            'leave_counter': leave_counter,
+            # 'advisors': user.objects.filter(is_advisor=True),
+            # 'tls': user.objects.filter(is_team_leader=True),
+            # 'oms': user.objects.filter(is_operations_manager=True),
+            # 'adv_all_leaves': LeaveCounter.objects.all(),
+            # 'instances_used_this_year': getattr(leave_counter, 'instances_used_this_year', 0), ### will return leave_counter.instances_used_this_year if leave_counter is not None, and 0 otherwise.
+            # 'instances_used_this_quarter': getattr(leave_counter, 'instances_used_this_quarter', 0),
+            # 'leaves': Leave.objects.all(),
+            # 'user_leaves': user_leaves,  # Add user_leaves to the context
+            # 'leave_counter': leave_counter,
             'server_time': current_time
         })
 
