@@ -28,9 +28,9 @@ urlpatterns = [
     # path('api/', include('api.urls'), name="api"),
 
 
-    # # these views/html templates are inside the "user" app
+    # # these views/html templates are inside the "users" app
     path('login/', LoginView.as_view(template_name='auth/login.html'), name='login' ), # customized LoginView to display prompts on the page
-    path('logout/', auth_views.LogoutView.as_view(template_name='auth/logout.html'), name='logout' ),
+    path('logout/', auth_views.LogoutView.as_view(template_name='../users/auth/logout.html'), name='logout' ),
     path('register/', register, name='register' ),
     # path('search/', user_search_view, name="user-search"),
     
