@@ -98,8 +98,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return str(self.username)
 
-    def get_short_name(self):
-        return str(self.username)
+    def get_full_name(self):
+        return str(self.first_name)+' '+self.middle_name + ' ' +self.last_name
 
 
 class Manager(models.Model):

@@ -54,17 +54,28 @@
             <!-- About Me Box -->
             <div class="card card-primary col ml-1">
               <div class="card-header">
-                <h3 class="card-title">-----</h3>
+                <h3 class="card-title">
+                  {% if user.first_name and user.last_name != None %}
+                    {{user.get_full_name}}
+                  {% else %}
+                    --- <small><a title="Edit profile" href="{% url 'profile-edit' user.username %}">
+                    Please update your profile   </a><i class="fa fa-edit text-success"></i></small>
+                  {% endif %}
+                </h3>
               </div>
               <!-- /.card-header -->
               <div class="card-body">
-                <p>-----</p>
+                <p>{{user.username}} - {{user.email}}</p>
 
                 <hr>
 
                 <strong><i class="fas fa-map-marker-alt mr-1"></i> Location</strong>
 
-                <p class="text-muted">-----</p>
+                <p class="text-muted">{{user.profile.address}}</p>
+
+                <strong><i class="fas fa-phone-alt mr-1"></i> Phone</strong>
+
+                <p class="text-muted">{{user.profile.contact_number}}</p>
 
                 <hr>
 
