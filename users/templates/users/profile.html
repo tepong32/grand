@@ -20,17 +20,10 @@
                 <div class="text-center">
                   <img class="profile-user-img img-fluid img-circle elevation-5"
                        src="{{user.profile.image.url}}"
-                       alt="User profile picture" style="width: 150px; height: 150px">
+                       alt="User profile picture" style="width: 250px; height: 250px">
                 </div>
                 
-                <h2 class="profile-username text-center">{{user.first_name}}
-
-                {% if user.username == request.user.username %}
-                  <small>
-                    <a title="Edit profile" class="fa fa-edit text-success" href="{% url 'profile-edit' user.username %}"></a>
-                  </small>
-                {% endif %}
-                </h2>
+                <h2 class="profile-username text-center">{{user.get_full_name}}</h2>
                 <p class="text-sm text-muted text-center"><i>{{user.profile.department}}</i></p>
 
                 <ul class="list-group list-group-unbordered mb-3">
@@ -56,7 +49,12 @@
               <div class="card-header">
                 <h3 class="card-title">
                   {% if user.first_name and user.last_name != None %}
-                    {{user.get_full_name}}
+                    {{user.get_full_name.title}} 
+                    {% if user.username == request.user.username %}
+                      <small>
+                        <a title="Edit profile" class="fa fa-edit text-white" href="{% url 'profile-edit' user.username %}"></a>
+                      </small>
+                    {% endif %}
                   {% else %}
                     --- <small><a title="Edit profile" href="{% url 'profile-edit' user.username %}">
                     Please update your profile   </a><i class="fa fa-edit text-success"></i></small>
