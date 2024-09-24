@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db import models
 
-from .models import User, Department, Manager, Profile, Salary, SalaryIncrement
+from .models import User, Department, Manager, Designation, Profile, Salary, SalaryIncrement
 
 
 
@@ -30,5 +30,6 @@ class SalaryIncrementAdmin(admin.ModelAdmin):
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(Department)
 admin.site.register(Manager)
+admin.site.register(Designation)
 admin.site.register(Profile)
 

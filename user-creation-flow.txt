@@ -1,0 +1,8 @@
+create su normally
+go to python shell
+create a Designation instance first:
+	Designation.objects.create(name='test item') 	#sg and sg_step have defaults
+proceed to creating a profile for the su:
+	su = User.objects.get(username='<username>') 	#get the superuser instance
+	Profile.objects.create(user=su)					#creating a profile for the su
+

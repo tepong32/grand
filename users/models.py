@@ -96,16 +96,16 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = 'Users'
         
     def __str__(self):
-        if {self.last_name} and {self.first_name}:
-            return f"{self.last_name}, {self.first_name}".strip().title()
-        else:
-            return str(self.username)
+        return str(self.username)
 
     def get_short_name(self):
         return str(self.username)
 
 
 class Manager(models.Model):
+    '''
+    Linked to Department as dropdown
+    '''
     name = models.CharField(max_length=100)
 
     def __str__(self):
@@ -113,6 +113,9 @@ class Manager(models.Model):
 
 
 class Department(models.Model):
+    '''
+    Linked to Profile as dropdown
+    '''
     select      = "---select one---"
     ACCTG       = "Accounting Office"
     AGRI        = "Agriculture Office"
@@ -153,15 +156,7 @@ class Department(models.Model):
 
     name = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Department: ")
     manager = models.ForeignKey(Manager, on_delete=models.SET_NULL, null=True, blank=False)
-    ### setting max_allowable leaves per Department/Head per day
-    ### for aut-approve purposes IF NEEDED
-    allowed_leaves_per_day = models.PositiveIntegerField(null=True, blank=True, default=99,
-        help_text='''
-            This will help with auto-approve leave requests.
-            Computation will be: allowed leaves - approved leaves for the day. If there are still available allowed_leaves_per_day instances, the leave requests will be auto-approved.
-            If there are none, the leave status will just be set to default: "Pending".
-        ''')
-    
+
     class Meta:
         verbose_name_plural = "Departments"
 
@@ -178,16 +173,17 @@ def validate_salary_grade_step(value):
         raise ValidationError('Salary grade step must be between 0 and 8.')
 
 
-class Profile(models.Model):
-    user            = models.OneToOneField(User, on_delete=models.CASCADE)
-    contact_number  = models.CharField(max_length=11, null=True, blank=False,
-                    validators=[MinLengthValidator(10)],
-                    verbose_name="Contact Number")
-    address         = models.CharField(max_length=255, null=True, blank=False)
-    designation     = models.CharField(max_length=255, null=True, blank=False)
-    # take note of this salary_grade and step fields
+class Designation(models.Model):
+    '''
+    Linked to Profile as dropdown
+    Will have their own salary_grade & _step so addt'l items can just be selected by admins and the system
+        will auto-compute the salary.
+
+    '''
+    # take note: salary_grade and step fields
     # it should ONLY be visible to the owner and admins
-    salary_grade = models.PositiveIntegerField(null=True,
+    name = models.CharField(max_length=255, null=True, blank=False)
+    salary_grade = models.PositiveIntegerField(default=1,
         validators=[validate_salary_grade],
         verbose_name="Salary Grade"
     )
@@ -198,13 +194,6 @@ class Profile(models.Model):
         blank=True,
         help_text="Only visible to you or Administrators."
     )
-    department      = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=False)
-    slug            = models.SlugField(default='', blank=True)
-
-    def dp_directory_path(instance, filename):
-        # file will be uploaded to MEDIA_ROOT/DP/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
-        return 'users/{}/DP/{}'.format(instance.user.username, filename)
-    image = models.ImageField(default='defaults/default_user_dp.png', blank=True, upload_to=dp_directory_path, verbose_name="Profile Picture: ")
 
     def get_salary_amount(self):
         try:
@@ -214,6 +203,29 @@ class Profile(models.Model):
         except Salary.DoesNotExist:
             print(f"Salary not found for Grade {self.salary_grade}, Step {self.salary_grade_step}")
             return 0.00
+
+    def __str__(self):
+        return f"{self.name}".strip().title() + " / SG " + f"{self.salary_grade}" +"-" + f"{self.salary_grade_step}"
+
+
+
+
+class Profile(models.Model):
+    user            = models.OneToOneField(User, on_delete=models.CASCADE)
+    contact_number  = models.CharField(max_length=11, null=True, blank=False,
+                    validators=[MinLengthValidator(10)],
+                    verbose_name="Contact Number")
+    address         = models.CharField(max_length=255, null=True, blank=False)
+    designation     = models.ForeignKey(Designation, on_delete=models.SET_NULL, null=True, blank=False)
+    department      = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=False)
+    slug            = models.SlugField(default='', blank=True)
+
+    def dp_directory_path(instance, filename):
+        # file will be uploaded to MEDIA_ROOT/DP/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
+        return 'users/{}/DP/{}'.format(instance.user.username, filename)
+    image = models.ImageField(default='defaults/default_user_dp.png', blank=True, upload_to=dp_directory_path, verbose_name="Profile Picture: ")
+
+    
 
     def __str__(self):
         return f"{self.user.username}"
@@ -264,9 +276,9 @@ class SalaryIncrement(models.Model):
         return f"Grade {self.grade} - Step {self.step}: Increment {self.increment}"
 
 
-@receiver(post_save, sender=Profile)
-def update_salary_on_profile_save(sender, instance, **kwargs):
-    update_salary(instance.salary_grade, instance.salary_grade_step)
+# @receiver(post_save, sender=Profile)
+# def update_salary_on_profile_save(sender, instance, **kwargs):
+#     update_salary(instance.designation.salary_grade, instance.designation.salary_grade_step)
 
 
 def update_salary(grade, step):
