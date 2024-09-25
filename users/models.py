@@ -263,7 +263,7 @@ class Salary(models.Model):
     def __str__(self):
         return f"Grade {self.grade} - Step {self.step}: {self.amount}"
 
-class SalaryIncrement(models.Model):
+class SalaryIncrement(models.Model):        ### parang hindi na to kailangan?
     grade = models.PositiveIntegerField()
     step = models.PositiveIntegerField()
     increment = models.DecimalField(max_digits=10, decimal_places=2)
@@ -276,9 +276,9 @@ class SalaryIncrement(models.Model):
         return f"Grade {self.grade} - Step {self.step}: Increment {self.increment}"
 
 
-# @receiver(post_save, sender=Profile)
-# def update_salary_on_profile_save(sender, instance, **kwargs):
-#     update_salary(instance.designation.salary_grade, instance.designation.salary_grade_step)
+@receiver(post_save, sender=Profile)
+def update_salary_on_profile_save(sender, instance, **kwargs):
+    update_salary(instance.designation.salary_grade, instance.designation.salary_grade_step)
 
 
 def update_salary(grade, step):

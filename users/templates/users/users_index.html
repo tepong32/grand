@@ -10,11 +10,12 @@
 			<hr>
 			<div class="card">
 				<h3>Users List</h3>
+				<small>(If user has filled-out the edit-profile form: Last name & First name. Otherwise, "username".)</small>
 				{% for user in users %}
-					{% if user.profile.last_name and user.profile.first_name %}
-						<p><a href="{% url 'profile' user.username %}"> {{user.profile.last_name}}, {{user.profile.first_name}}</a></p>
+					{% if user.last_name and user.first_name %}
+						<p><a href="{% url 'profile' user.username %}"> {{user.last_name.title}}, {{user.first_name.title}}</a></p>
 					{% else %}
-						<p><a href="{% url 'profile' user.username %}">{{user.username}}</a><small>( <-- If user has profile: "profile". Otherwise, "username".)</small></p>
+						<p><a href="{% url 'profile' user.username %}">{{user.username}}</a></p>
 					{% endif %}
 				{% endfor %}
 				<hr>
