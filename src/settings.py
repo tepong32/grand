@@ -187,3 +187,6 @@ EMAIL_HOST_PASSWORD = os.environ.get('ADMIN_EMAIL_PW') # var for email pw
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER # for email-sending pw-reset requests
 # AUTH_USER_MODEL='auth.User'
 AUTH_USER_MODEL='users.User'   # create a custom user model first then use this instead of auth.User
+
+
+CRISPY_TEMPLATE_PACK = 'bootstrap4'
