@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from .models import User
+from .models import User, Profile, Department
 from django.contrib import messages     # for flash messages regarding valid data in the form
 
 
@@ -9,10 +9,18 @@ from .forms import *
 
 def usersIndexView(request):
     user = User
+    departments = Department.objects.all() #listing all the Departments
+    department_users = {} #empty dict for users filtered by "department" attr
+
+    for department in departments:
+        profiles = Profile.objects.filter(department=department) #separating users per department
+        department_users[department.name] = profiles #adding the department_users to the dict using the department name as key
+
     context_data = {
-        # all users sorted by latest "date_joined" attr, paginating by 50 per page
-        'users': user.objects.all().order_by("-date_joined")[:50],
+        # all users sorted by last_name attr, paginating by 50 per page
+        'users': user.objects.all().order_by('last_name', 'first_name')[:50],
         'userCount': user.objects.count(),
+        'department_users': department_users,
     }
 
     return render(request, 'users/users_index.html', context_data)
