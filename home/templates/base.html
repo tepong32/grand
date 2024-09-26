@@ -81,12 +81,16 @@ scratch. This page gets rid of all links and provides the needed markup only.
           </li>
           {% if user.is_authenticated %}
           <li class="nav-item">
-            <a href="/logout" class="nav-link">
+            <a href="#" onclick="document.getElementById('logout-form').submit()">
               <i class="nav-icon fas fa-th"></i>
               <p>
                 Logout
               </p>
             </a>
+
+            <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
+              {% csrf_token %}
+            </form>
           </li>
           {% else %}
           <li class="nav-item">
