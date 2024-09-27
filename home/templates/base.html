@@ -168,5 +168,16 @@ scratch. This page gets rid of all links and provides the needed markup only.
 <script src="/static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
 <!-- AdminLTE App -->
 <script src="/static/admin-lte/dist/js/adminlte.min.js"></script>
+<!-- Custom script -->
+<script>
+  $(document).ready(function() {
+    $('#profile-image').on('click', function() {
+      console.log('Profile image clicked!');
+      var imageUrl = $(this).attr('src');
+      $('#image-modal-content').attr('src', imageUrl);
+      $('#image-modal').modal('show');
+    });
+  });
+</script>
 </body>
 </html>
