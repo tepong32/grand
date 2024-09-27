@@ -1,26 +1,53 @@
 {% extends 'base.html' %}
-{% load custom_filters %}
+{% load static custom_filters %}
 
 {% block content %}
 	{% if user.is_authenticated %}
 		{% if user.is_staff == True %}
 		<!-- show the list of all users if user is staff/admin -->
-		<small class="bg-green">You are seeing this page because you are a Staff/Admin</small> <br>
+		<small class="bg-success">You are seeing this page because you are a Staff/Admin. <br>
+			Normal users will/should not have access to the full user list for it contains confidential details. <br>
+			Or maybe they can have access to the list but filters of what info to display will be applied.
+		</small> <br>
 			Welcome back, <b>{{request.user.username}}!</b> <br>
 			<hr>
-			<div class="card">
-				<h3>Users List</h3>
-				{% for user in users %}
-					{% if user.profile.last_name and user.profile.first_name %}
-						<p><a href="{% url 'profile' user.username %}"> {{user.profile.last_name}}, {{user.profile.first_name}}</a></p>
-					{% else %}
-						<p><a href="{% url 'profile' user.username %}">{{user.username}}</a><small>( <-- If user has profile: "profile". Otherwise, "username".)</small></p>
-					{% endif %}
-				{% endfor %}
+			{% for department, profiles in department_users.items %}
+				<div class="card-title"><b class="text text-primary">{{ department }}</b></div>
+				<table class="table">
+				<thead class="card-body border border-success">
+				  <tr>
+				    <th>User</th>
+				    <th>Designation</th>
+				    <th>Salary Grade</th>
+				    <th>Salary Amount</th>
+				  </tr>
+				</thead>
+				<tbody>
+				  {% for profile in profiles %}
+			        <tr>
+			          <td>
+			            {% if profile.user.last_name and profile.user.first_name %}
+			              <a href="{% url 'profile' profile.user.username %}">{{ profile.user.last_name.title }}, {{ profile.user.first_name.title }}</a>
+			            {% else %}
+			              <a href="{% url 'profile' profile.user.username %}">{{ profile.user.username }}</a>
+			            {% endif %}
+			          </td>
+			          <td>{{ profile.designation }}</td>
+			          <td>{{ profile.designation.salary_grade }}-{{ profile.designation.salary_grade_step }}</td>
+			          <td>{{ profile.designation.get_salary_amount|currency }}</td>
+			        </tr>
+			      {% endfor profile %}
+				</tbody>
+				</table>
+				<br>
+				{% endfor department %}
+				
 				<hr>
 				listing all the users <br>
 				can be modified to just show who's under who. Like a Manager's views or something  (we'll need to modify url routing for that)<br>
 				for now, let's leave this as is. We'll figure-out what to display once everything's working as intended <br>
+
+				Source for SG: <a href="https://www.officialgazette.gov.ph/2024/08/02/executive-order-no-64-s-2024/">Official Gazette</a>
 			</div>
 		{% else %}
 			<!-- This is already working so, good job! -->

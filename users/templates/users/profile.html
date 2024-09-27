@@ -5,89 +5,141 @@
 <!-- Self-explanatory page...I guess. LOL -->
 
 {% block content %}
+  <style type="text/css">
+    .modal-lg {
+      max-width: 80%;
+    }
 
+    .modal-content {
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    }
 
-      <div class="container">
-        <div class="row">
-            <!-- Profile Image -->
-            <div class="card card-primary card-outline col-md-4">
-              <div class="card-body box-profile">
-                {% if messages %}
-                  {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-                  {% endfor %}
-                {% endif %}
-                <div class="text-center">
-                  <img class="profile-user-img img-fluid img-circle elevation-5"
-                       src="{{user.profile.image.url}}"
-                       alt="User profile picture" style="width: 150px; height: 150px">
-                </div>
-                
-                <h2 class="profile-username text-center">{{user.first_name}}
+    .modal-header {
+      background-color: #f0f0f0;
+      border-bottom: 1px solid #ddd;
+    }
 
-                {% if user.username == request.user.username %}
-                  <small>
-                    <a title="Edit profile" class="fa fa-edit text-success" href="{% url 'profile-edit' user.username %}"></a>
-                  </small>
-                {% endif %}
-                </h2>
-                <p class="text-sm text-muted text-center"><i>{{user.profile.department}}</i></p>
+    .modal-title {
+      font-weight: bold;
+    }
 
-                <ul class="list-group list-group-unbordered mb-3">
-                  <li class="list-group-item">
-                    <b>Dept. Head:</b> <a class="float-right"><b>{{user.profile.department.manager}}</b></a>
-                  </li>
-                  <li class="list-group-item">
-                    <b>Designation</b> <b class="float-right">{{user.profile.designation}}</b>
-                  </li>
-                  <li class="list-group-item">
-                    <b>SG</b> <b class="float-right">{{user.profile.salary_grade}} - {{user.profile.salary_grade_step}}</b>
-                  </li>
-                </ul>
+    .modal-body {
+      padding: 20px;
+    }
 
-                <a href="#" class="btn btn-primary btn-block"><b>{{user.profile.get_salary_amount|currency }}</b></a>
-              </div>
-              <!-- /.card-body -->
-            </div>
-            <!-- /.card -->
+    #image-modal-content {
+      max-width: 100%;
+      height: auto;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+  <div class="row">
+      <!-- Profile Image -->
+      <div class="card card-primary card-outline col-md-4">
+        <div class="card-body box-profile">
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+          <div class="text-center">
+            <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5"
+           src="{{user.profile.image.url}}"
+           alt="User profile picture" style="width: 250px; height: 250px">
+          </div>
+          
+          <h2 class="profile-username text-center">{{user.get_full_name}}</h2>
+          <p class="text-sm text-muted text-center"><i>{{user.profile.department}}</i></p>
 
-            <!-- About Me Box -->
-            <div class="card card-primary col ml-1">
-              <div class="card-header">
-                <h3 class="card-title">-----</h3>
-              </div>
-              <!-- /.card-header -->
-              <div class="card-body">
-                <p>-----</p>
+          <ul class="list-group list-group-unbordered mb-3">
+            <li class="list-group-item">
+              <b>Dept. Head:</b> <a class="float-right"><b>{{user.profile.department.manager}}</b></a>
+            </li>
+            <li class="list-group-item">
+              <b>Designation</b> <b class="float-right">{{user.profile.designation}}</b>
+            </li>
+            <li class="list-group-item">
+              <b>SG</b> <b class="float-right">{{user.profile.designation.salary_grade}} - {{user.profile.designation.salary_grade_step}}</b>
+            </li>
+          </ul>
 
-                <hr>
-
-                <strong><i class="fas fa-map-marker-alt mr-1"></i> Location</strong>
-
-                <p class="text-muted">-----</p>
-
-                <hr>
-
-                <!-- Pro'ly, you need to add the Skills attribute to the Profile model. For now, remove this div or just leave this here. -->
-                <strong><i class="fas fa-pencil-alt mr-1"></i> Skills</strong>
-
-                <p class="text-muted">
-                  <span class="tag tag-danger">Add "skills" attribute to model</span><br>
-                  <span class="tag tag-danger">Then use a For-Loop here</span><br>
-                  <span class="tag tag-danger">To display them</span>
-
-                </p>
-
-                <hr>
-
-                <strong><i class="mr-1"></i>Member since {{ user.date_joined|date:"F Y" }}</strong>
-              </div>
-              <!-- /.card-body -->
-            </div>
-            <!-- /.card -->
-
-
+          <a href="#" class="btn btn-primary btn-block"><b>{{user.profile.designation.get_salary_amount|currency }}</b></a>
         </div>
-        <!-- /.row -->
-      </div><!-- /.container-fluid -->
-    {% endblock %}
+        <!-- /.card-body -->
+      </div>
+      <!-- /.card -->
+
+      <!-- About Me Box -->
+      <div class="card card-primary col ml-1">
+        <div class="card-header">
+          <h3 class="card-title">
+            {% if user.first_name and user.last_name != None %}
+              {{user.get_full_name.title}} 
+              {% if user.username == request.user.username %}
+                <small>
+                  <a title="Edit profile" class="fa fa-edit text-white" href="{% url 'profile-edit' user.username %}"></a>
+                </small>
+              {% endif %}
+            {% else %}
+              --- <small><a title="Edit profile" href="{% url 'profile-edit' user.username %}">
+              Please update your profile   </a><i class="fa fa-edit text-success"></i></small>
+            {% endif %}
+          </h3>
+        </div>
+        <!-- /.card-header -->
+        <div class="card-body">
+          <p>{{user.username}} - {{user.email}}</p>
+
+          <hr>
+
+          <strong><i class="fas fa-map-marker-alt mr-1"></i> Location</strong>
+
+          <p class="text-muted">{{user.profile.address}}</p>
+
+          <strong><i class="fas fa-phone-alt mr-1"></i> Phone</strong>
+
+          <p class="text-muted">{{user.profile.contact_number}}</p>
+
+          <hr>
+
+          <!-- Pro'ly, you need to add the Skills attribute to the Profile model. For now, remove this div or just leave this here. -->
+          <strong><i class="fas fa-pencil-alt mr-1"></i> Skills</strong>
+
+          <p class="text-muted">
+            <span class="tag tag-danger">Add "skills" attribute to model</span><br>
+            <span class="tag tag-danger">Then use a For-Loop here</span><br>
+            <span class="tag tag-danger">To display them</span>
+
+          </p>
+
+          <hr>
+
+          <strong><i class="mr-1"></i>Member since {{ user.date_joined|date:"F Y" }}</strong>
+        </div>
+        <!-- /.card-body -->
+      </div>
+      <!-- /.card -->
+  </div> <!-- /.row -->
+  
+
+
+  <!-- modal for Profile Image -->
+  <div id="image-modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{user.get_full_name.title}}</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <img id="image-modal-content" src="" alt="Profile Image" style="width: 100%; height: auto;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}

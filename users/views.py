@@ -1,19 +1,26 @@
 from django.shortcuts import render, redirect
-from .models import User
+from .models import User, Profile, Department
 from django.contrib import messages     # for flash messages regarding valid data in the form
 
 
 # for needing user to be logged-in first before accessing the page requested
 from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
 from .forms import *
 
 def usersIndexView(request):
     user = User
+    departments = Department.objects.all() #listing all the Departments
+    department_users = {} #empty dict for users filtered by "department" attr
+
+    for department in departments:
+        profiles = Profile.objects.filter(department=department) #separating users per department
+        department_users[department.name] = profiles #adding the department_users to the dict using the department name as key
+
     context_data = {
-        # all users sorted by latest "date_joined" attr, paginating by 50 per page
-        'users': user.objects.all().order_by("-date_joined")[:50],
+        # all users sorted by last_name attr, paginating by 50 per page
+        'users': user.objects.all().order_by('last_name', 'first_name')[:50],
         'userCount': user.objects.count(),
+        'department_users': department_users,
     }
 
     return render(request, 'users/users_index.html', context_data)
@@ -37,8 +44,7 @@ def register(request):
     return render(request, 'auth/register.html', {'form': form})
 
 
-# @login_required ###previously-used decorator dj2.1.5
-@method_decorator(login_required, name="dispatch")
+@login_required ###previously-used decorator dj2.1.5
 def profileView(request, username=None):
     if User.objects.get(username=username):
         user = User.objects.get(username=username)
@@ -52,31 +58,35 @@ def profileView(request, username=None):
 
 
 
-# @login_required ###previously-used decorator dj2.1.5
-@method_decorator(login_required, name="dispatch")
+@login_required
 def profileEditView(request, username=None):
     if User.objects.get(username=username):
         user = User.objects.get(username=username)
-        if request.method == 'POST':    # for the new info to be saved, this if block is needed
-            # the forms from forms.py
-            u_form = UserUpdateForm(request.POST, request.FILES, instance=request.user)        # instance is for the fields to auto-populate with user info
-            p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
+        if user == request.user:  # Check if the user is trying to edit their own profile
+            if request.method == 'POST':    # for the new info to be saved, this if block is needed
+                # the forms from forms.py
+                u_form = UserUpdateForm(request.POST, request.FILES, instance=request.user)        # instance is for the fields to auto-populate with user info
+                p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user.profile)
 
-            if u_form.is_valid():
-                u_form.save()
-                p_form.save()
-                messages.success(request, f"Account info has been updated.")
-                return render(request, "users/profile.html", {"user":user})
+                if u_form.is_valid() and p_form.is_valid():
+                    u_form.save()
+                    p_form.save()
+                    messages.success(request, f"Account info has been updated.")
+                    return render(request, "users/profile.html", {"user":request.user})
 
+            else:
+                # Pass the instance of the user to the forms when the request method is GET
+                u_form = UserUpdateForm(instance=request.user)
+                p_form = ProfileUpdateForm(instance=request.user.profile)
+
+            context = {
+                'u_form': u_form,
+                'p_form': p_form
+            }
+            return render(request, 'users/profile_edit.html', context)
         else:
-            u_form = UserUpdateForm(instance=request.user)
-            p_form = ProfileUpdateForm(instance=request.user)
-
-        context = {
-            'u_form': u_form,
-            'p_form': p_form
-        }
-        return render(request, 'users/profile_edit.html', context)
+            # If the user is trying to edit someone else's profile, return an error message
+            return render(request, "users/error.html", {"error": "You do not have permission to edit this profile."})
 
     else:
         return render ("User not found.")
