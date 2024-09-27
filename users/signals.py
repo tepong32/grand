@@ -10,7 +10,7 @@ def create_default_designation(sender, **kwargs):
 	'''
 		making sure to create the default designation before the 1st user registers to the site
 	'''
-	if sender.name == 'users': # the app/directory the signal comes from; not a model
+	if sender.name == 'users': # the app/directory where the signal comes from; not a model
 		Designation.objects.get_or_create(
 			name='Default Designation',
 			salary_grade=1,
