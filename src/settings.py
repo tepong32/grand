@@ -40,8 +40,8 @@ INSTALLED_APPS = [
     'crispy_bootstrap4',
 
     ### custom
-    'home',
-    'users',
+    'home.apps.HomeConfig',
+    'users.apps.UsersConfig',
 
     'django.contrib.sites', # "just-in-case". allauth needs this.
     'django.contrib.admin',
