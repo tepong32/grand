@@ -58,30 +58,35 @@ def profileView(request, username=None):
 
 
 
-@login_required ###previously-used decorator dj2.1.5
+@login_required
 def profileEditView(request, username=None):
     if User.objects.get(username=username):
         user = User.objects.get(username=username)
-        if request.method == 'POST':    # for the new info to be saved, this if block is needed
-            # the forms from forms.py
-            u_form = UserUpdateForm(request.POST, request.FILES, instance=request.user)        # instance is for the fields to auto-populate with user info
-            p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
+        if user == request.user:  # Check if the user is trying to edit their own profile
+            if request.method == 'POST':    # for the new info to be saved, this if block is needed
+                # the forms from forms.py
+                u_form = UserUpdateForm(request.POST, request.FILES, instance=request.user)        # instance is for the fields to auto-populate with user info
+                p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user.profile)
 
-            if u_form.is_valid():
-                u_form.save()
-                p_form.save()
-                messages.success(request, f"Account info has been updated.")
-                return render(request, "users/profile.html", {"user":user})
+                if u_form.is_valid() and p_form.is_valid():
+                    u_form.save()
+                    p_form.save()
+                    messages.success(request, f"Account info has been updated.")
+                    return render(request, "users/profile.html", {"user":request.user})
 
+            else:
+                # Pass the instance of the user to the forms when the request method is GET
+                u_form = UserUpdateForm(instance=request.user)
+                p_form = ProfileUpdateForm(instance=request.user.profile)
+
+            context = {
+                'u_form': u_form,
+                'p_form': p_form
+            }
+            return render(request, 'users/profile_edit.html', context)
         else:
-            u_form = UserUpdateForm(instance=request.user)
-            p_form = ProfileUpdateForm(instance=request.user)
-
-        context = {
-            'u_form': u_form,
-            'p_form': p_form
-        }
-        return render(request, 'users/profile_edit.html', context)
+            # If the user is trying to edit someone else's profile, return an error message
+            return render(request, "users/error.html", {"error": "You do not have permission to edit this profile."})
 
     else:
         return render ("User not found.")
