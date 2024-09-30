@@ -62,7 +62,9 @@ class CustomUserManager(UserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     '''
-        Custom User model the app will use 
+        Custom User model the app will use
+        Use AbstractBaseUser for manually creating all attr
+        Use AbstractUser to automatically have the defaults (username, email, pw, etc)
     '''
     ### key identifier attributes
     username = models.CharField(max_length=255, unique=True) # change max_length if needed, add min_length/value
@@ -123,13 +125,13 @@ class Department(models.Model):
     CSU         = "Civil Security Unit"
     GSO         = "General Services Office"
     HR          = "Human Resources"
-    LCR         = "Local Civil Registrar's Office"
-    MA          = "Municipal Administrator's Office"
+    LCR         = "Local Civil Registrar\'s Office"
+    MA          = "Municipal Administrator\'s Office"
     MENRO       = "Environment & Natural Resources Office"
-    MO          = "Mayor's Office"
+    MO          = "Mayor\'s Office"
     MPDO        = "Municipal Planning & Development Office"
     MSWD        = "Social Welfare & Development"
-    MTO         = "Treasurer's Office"
+    MTO         = "Treasurer\'s Office"
     NUTRI       = "Nutrition Office"
     OSCA        = "Senior Citizen Affairs"
     SB          = "Sangguniang Bayan Office"
@@ -178,6 +180,7 @@ class Designation(models.Model):
     Linked to Profile as dropdown
     Will have their own salary_grade & _step so addt'l items can just be selected by admins and the system
         will auto-compute the salary.
+    Only admins can modify user details. Updating profile on users' end will not show the SG and SGS fields
 
     '''
     # take note: salary_grade and step fields
