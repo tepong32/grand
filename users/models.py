@@ -208,7 +208,7 @@ class Designation(models.Model):
             return 0.00
 
     def __str__(self):
-        return f"{self.name}".strip().title() + " / SG " + f"{self.salary_grade}" +"-" + f"{self.salary_grade_step}"
+        return f"{self.name}".strip().title()
 
 
 
