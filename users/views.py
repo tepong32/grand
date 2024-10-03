@@ -16,6 +16,9 @@ def usersIndexView(request):
         profiles = Profile.objects.filter(department=department) #separating users per department
         department_users[department.name] = profiles #adding the department_users to the dict using the department name as key
 
+    if request.user.is_staff:
+        messages.warning(request, f"You are seeing this page because you are a Staff/Admin.")
+
     context_data = {
         # all users sorted by last_name attr, paginating by 50 per page
         'users': user.objects.all().order_by('last_name', 'first_name')[:50],
