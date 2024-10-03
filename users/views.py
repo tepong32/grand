@@ -18,7 +18,7 @@ def usersIndexView(request):
 
     if request.user.is_staff:
         messages.warning(request, f"You are seeing this page because you are a Staff/Admin.")
-
+        
     context_data = {
         # all users sorted by last_name attr, paginating by 50 per page
         'users': user.objects.all().order_by('last_name', 'first_name')[:50],
