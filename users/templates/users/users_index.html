@@ -5,7 +5,7 @@
 	{% if user.is_authenticated %}
 		{% if user.is_staff == True %}
 		<!-- show the list of all users if user is staff/admin -->
-		<small class="bg-success">You are seeing this page because you are a Staff/Admin. <br>
+		<small class="bg-success">
 			Normal users will/should not have access to the full user list for it contains confidential details. <br>
 			Or maybe they can have access to the list but filters of what info to display will be applied.
 		</small> <br>
@@ -67,7 +67,7 @@
 {% if user.is_authenticated %}
 	{% if user.is_staff == True %}
 		<!-- show the list of all users if user is staff/admin -->
-		<small class="bg-success">You are seeing this page because you are a Staff/Admin. <br>
+		<small class="bg-success float-right">You are seeing this page because you are a Staff/Admin. <br>
 			Normal users will/should not have access to the full user list for it contains confidential details. <br>
 			Or maybe they can have access to the list but filters of what info to display will be applied.
 		</small> <br>
