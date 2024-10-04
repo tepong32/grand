@@ -58,10 +58,20 @@
               <b>Dept. Head:</b> <a class="float-right"><b>{{user.profile.department.manager}}</b></a>
             </li>
             <li class="list-group-item">
-              <b>Designation</b> <b class="float-right">{{user.profile.designation}}</b>
+              <b>Designation</b>
+                {% if request.user == user %}
+                  <i class="float-right">{{user.profile.designation}}</i>
+                {% else %}
+                  **</i>
+                {% endif %}
             </li>
             <li class="list-group-item">
-              <b>SG</b> <b class="float-right">{{user.profile.designation.salary_grade}} - {{user.profile.designation.salary_grade_step}}</b>
+              <b>SG</b>
+                {% if request.user == user %}
+                  <i class="float-right">{{user.profile.designation.salary_grade}} - {{user.profile.designation.salary_grade_step}}</i>
+                {% else %}
+                  <i>**</i>
+                {% endif %}
             </li>
           </ul>
 
@@ -90,7 +100,7 @@
         </div>
         <!-- /.card-header -->
         <div class="card-body">
-          <p>{{user.username}} - {{user.email}}</p>
+          <p>Username: {{user.username}} / Email: {{user.email}}</p>
 
           <hr>
 

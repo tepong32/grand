@@ -19,7 +19,7 @@ def check_reset_dates(sender, instance, **kwargs):
         leave_counter.reset_counters()
 
 
-@receiver(post_save, sender=User)
+# @receiver(post_save, sender=User)
 def create_leave_counter(sender, instance, created, **kwargs):
     '''
         Creating a LeaveCounter instance for every User that registers
@@ -61,7 +61,7 @@ def create_or_update_leave_counter(sender, instance, created, **kwargs):
             leave_counter.instances_used_this_quarter -= original_duration
     leave_counter.save()
 
-@receiver(post_delete, sender=User)
+# @receiver(post_delete, sender=User)
 def delete_leave_counter(sender, instance, **kwargs):
     '''
         decreases the counts of LeaveCounter when Leave instances are deleted

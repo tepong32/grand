@@ -16,6 +16,9 @@ def usersIndexView(request):
         profiles = Profile.objects.filter(department=department) #separating users per department
         department_users[department.name] = profiles #adding the department_users to the dict using the department name as key
 
+    if request.user.is_staff:
+        messages.warning(request, f"You are seeing this page because you are a Staff/Admin.")
+        
     context_data = {
         # all users sorted by last_name attr, paginating by 50 per page
         'users': user.objects.all().order_by('last_name', 'first_name')[:50],
@@ -94,17 +97,30 @@ def profileEditView(request, username=None):
 
 ### accounts/users searching view
 ### not used ATM
+
+from django.db.models import Q  # This is needed for the search query to work properly
+                                # allowing the search to use matches on usersnames OR email addresses
+                                # as opposed to the original username AND email:
+                                # "search_results = User.objects.filter(username__icontains=search_query).filter(email__icontains=search_query).distinct()"
+
 def user_search_view(request, *args, **kwargs):
     context = {}
     if request.method == "GET":
+        print("Request GET:", request.GET)  # Add this line
         search_query = request.GET.get("q")
-        if len(search_query) > 0:
-            search_results = User.objects.filter(username__icontains=search_query).filter(email__icontains=search_query).distinct()
-            user = request.user
-            accounts = [] # [(account1, True), (account2, False), ...]
-            for account in search_results:
-                accounts.append((account, False)) # you have no friends yet
-            context['accounts'] = accounts
+        print("Search query:", search_query)  # Add this line
+        try:
+            if len(search_query) > 0:
+                search_results = User.objects.filter(Q(username__icontains=search_query) | Q(email__icontains=search_query)).distinct() # match EITHER useranme OR email
+                user = request.user
+                accounts = [] # [(account1, True), (account2, False), ...]
+                for account in search_results:
+                    accounts.append((account, False)) # you have no friends yet
+                context['accounts'] = accounts
+        except Exception as e:
+            print("Error:", e)
+            print("Request GET:", request.GET)
+            print("Search query:", search_query)
                 
     return render(request, "users/user_search_results.html", context)
 
