@@ -40,7 +40,7 @@ scratch. This page gets rid of all links and provides the needed markup only.
       <div class="user-panel mt-3 pb-3 mb-3 d-flex">
         {% if user.is_authenticated %}
         <div class="image">
-          <img src="{{request.user.image.url}}" class="img-circle elevation-2" alt="User Image">
+          <img src="{{request.user.profile.image.url}}" class="img-circle elevation-2" alt="User Image">
         </div>
         <div class="info">
           <a href="{% url 'profile' request.user.username %}" class="d-block">{{ request.user }}</a>
