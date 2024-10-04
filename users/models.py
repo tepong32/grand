@@ -211,8 +211,6 @@ class Designation(models.Model):
         return f"{self.name}".strip().title()
 
 
-
-
 class Profile(models.Model):
     user            = models.OneToOneField(User, on_delete=models.CASCADE)
     contact_number  = models.CharField(max_length=11, null=True, blank=False,
@@ -228,7 +226,6 @@ class Profile(models.Model):
         return 'users/{}/DP/{}'.format(instance.user.username, filename)
     image = models.ImageField(default='defaults/default_user_dp.png', blank=True, upload_to=dp_directory_path, verbose_name="Profile Picture: ")
 
-    
 
     def __str__(self):
         return f"{self.user.username}"
@@ -255,6 +252,10 @@ class Profile(models.Model):
 
 
 class Salary(models.Model):
+    """
+    Most likely, amounts stated here will reflect the actual SG amounts from official sources (Official Gazette, etc.)
+    I will have another model that will auto-compute the corresponding percentage equiv per municipality class
+    """
     grade = models.PositiveIntegerField(null=True)
     step = models.PositiveIntegerField(default=0, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2, null=True)
