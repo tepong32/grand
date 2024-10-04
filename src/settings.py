@@ -134,6 +134,13 @@ USE_I18N = True
 
 USE_TZ = True
 
+USE_L10N = True
+
+import pytz
+
+TIME_ZONE = 'Asia/Manila'  # or 'Asia/Kuala_Lumpur' or 'Asia/Singapore' (adjust according to your location) https://pytz.sourceforge.io/#timezone-classes
+
+
 
 ####################################################################### personally-preferred & configured settings - tEppy
 # Static files (CSS, JavaScript, Images)
