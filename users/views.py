@@ -60,7 +60,6 @@ def profileView(request, username=None):
         return render ("User not found.")
 
 
-
 @login_required
 def profileEditView(request, username=None):
     if User.objects.get(username=username):
@@ -111,12 +110,13 @@ def user_search_view(request, *args, **kwargs):
         print("Search query:", search_query)  # Add this line
         try:
             if len(search_query) > 0:
-                search_results = User.objects.filter(Q(username__icontains=search_query) | Q(email__icontains=search_query)).distinct() # match EITHER useranme OR email
+                search_results = User.objects.filter(Q(username__icontains=search_query) | Q(email__icontains=search_query) | Q(first_name__icontains=search_query) | Q(last_name__icontains=search_query)).distinct() # match EITHER-OR any of the queries
                 user = request.user
                 accounts = [] # [(account1, True), (account2, False), ...]
                 for account in search_results:
-                    accounts.append((account, False)) # you have no friends yet
+                    accounts.append((account, False)) # I do not need this False part yet since I have no intention to use a Friend system on an LGU app but I'll keep it here for future reference.
                 context['accounts'] = accounts
+                context['search_query'] = search_query
         except Exception as e:
             print("Error:", e)
             print("Request GET:", request.GET)
