@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load static %}
+
+
+{% block content %}
+
+
+Leave Summary page
+
+{% if leave_credits %} 
+    <p>Your SL Credits (Current Year): {{ leave_credits.current_year_sl_credits }}</p>
+    <p>Your Total SL Credits: {{ leave_credits.total_sl_credits }}</p>
+    
+    <p>Your VL Credits (Current Year): {{ leave_credits.current_year_vl_credits }}</p>
+    <p>Your Total VL Credits: {{ leave_credits.total_vl_credits }}</p>
+
+    <p>Special Leaves Taken: {{ leave_credits.speacial_leaves_taken }}</p> {# fix typo here #}
+{% else %}
+    <p>Leave credits not found. Please contact HR.</p> 
+{% endif %}
+
+
+{% endblock content %}
