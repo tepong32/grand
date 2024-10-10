@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     ### custom
     'home.apps.HomeConfig',
     'users.apps.UsersConfig',
+    'leave_mgt.apps.LeaveMgtConfig',
 
     'django.contrib.sites', # "just-in-case". allauth needs this.
     'django.contrib.admin',
