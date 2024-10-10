@@ -46,6 +46,14 @@ def save_profile(sender, instance, **kwargs):
 	print(f"Saving profile for user: {instance.username}")
 	instance.profile.save()
 
+
+from leave_mgt.models import LeaveCredits
+
+@receiver(post_save, sender=Profile) 
+def create_leave_credits(sender, instance, created, **kwargs):
+    """Creates LeaveCredits for a Profile when the Profile is created."""
+    if created:
+        LeaveCredits.objects.create(employee=instance)
 '''
 	after creation of this file, we must save the signals to the app's app.py (users/apps.py)
 '''
