@@ -231,8 +231,10 @@ LOGGING = {
         },
         'file': {
             'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'app.log'),  # Adjust filename
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'app.log'),
+            'maxBytes': 1024 * 1024 * 5,  # 5 MB per log file
+            'backupCount': 5,  # Keep 5 backup log files
             'formatter': 'verbose',
         },
     },
@@ -245,3 +247,6 @@ LOGGING = {
         },
     },
 }
+log_dir = os.path.join(BASE_DIR, 'logs')
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
