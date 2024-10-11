@@ -12,7 +12,7 @@ app.autodiscover_tasks()
 app.conf.beat_schedule = {
     'update-leave-credits': {
         'task': 'src.tasks.update_leave_credits',
-        # Runs daily at a specific time (e.g., 12:05 AM)
-        'schedule': crontab(hour=0, minute=5, day_of_month='1'), 
+        # Runs daily at a specific time (e.g., 12:02 AM)
+        'schedule': crontab(hour=0, minute=2, day_of_month='1'), 
     },
 }

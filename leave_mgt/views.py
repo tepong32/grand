@@ -23,28 +23,27 @@ from datetime import datetime
 from django.utils import timezone
 
 
-class AdminTemplateMixin(UserPassesTestMixin):
+class RoleBasedTemplateMixin(UserPassesTestMixin):
     '''
         This mixin is used to determine what template to display to the user depending on roles:
-        normal user vs superuser/admins
+        normal user vs superuser/admins.
+        Add logic to test_func() as needed.
+        Create separate html pages as needed.
     '''
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.is_staff
 
     def get_template_names(self):
         if self.test_func():
-            return ['leave_mgt/admin_leaves_summary.html']
-        return ['leave_mgt/leave_summary.html']
+            return ['leave_mgt/admin_leaves_summary.html'] # template for admins
+        return ['leave_mgt/leave_summary.html']            # template for normal users
 
 
-class MyLeaveView(LoginRequiredMixin, AdminTemplateMixin, TemplateView):
-    template_name = 'leave_mgt/leaves_summary.html' # default template for normal users
+class MyLeaveView(LoginRequiredMixin, RoleBasedTemplateMixin, TemplateView):
+    template_name = 'leave_mgt/leaves_summary.html' # displaying the default template for normal users
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        user = User
-        profile = Profile
-        
         leave_credits = None
         if self.request.user.is_authenticated:
             try:
