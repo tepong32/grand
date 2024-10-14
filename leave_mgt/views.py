@@ -35,12 +35,12 @@ class RoleBasedTemplateMixin(UserPassesTestMixin):
 
     def get_template_names(self):
         if self.test_func():
-            return ['leave_mgt/leave_summary_admin.html'] # template for admins
+            return ['leave_mgt/leave_summary_admin.html']  # template for admins
         return ['leave_mgt/leave_summary.html']            # template for normal users
 
 
 class MyLeaveView(LoginRequiredMixin, RoleBasedTemplateMixin, TemplateView):
-    template_name = 'leave_mgt/leaves_summary.html' # displaying the default template for normal users
+    template_name = 'leave_mgt/leave_summary.html' # displaying the default template for normal users
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
