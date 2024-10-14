@@ -2,16 +2,15 @@
 working on yet another "to-be-continued/discarded" project
 
 # user profiling *(okay...almost)*
-	- automatic profile creation (with defaults on user registration)
+	- **automatic profile creation (with defaults on user registration)**
 	- still needs to check on password-related stuffs (user-initiated change pw, reset pw, etc.)
 
 # leave (remodelling) - ***(...in progress)***
-	MAKE SURE TO READ HOW-TO CELERY DOCS [like this one](https://www.geeksforgeeks.org/celery-integration-with-django/). Related files seems to be working on runserver commands but are experiencing access-denied errors.
-	- here's where the logic of separating templates to be displayed are handled by a custom mixin in the views are applied.
+	- **cron jobs for automated leave credits accruals and carry-overs**
+	- **logic of separating templates to be displayed are handled by a custom mixin in the views are applied.**
 		will also apply it on other apps' views as well, if needed.
-	- celery processes already setup for background works:
-		checking leave accumulation and carry-overs (need to be checked if working properly)
-	- leave accumulation policies (if needed)
+	- create leave accumulation policies (if needed)
+ 		atm, we just need to set it on settings.py (MONTHLY_SL_ACCRUAL and MONTHLY_VL_ACCRUAL)
 	- might need to convert leave credits to a per-15min basis so lates can be automatically be covered by leave credits (for private companies, perhaps)
 	
 
