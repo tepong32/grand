@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from .models import User, Profile, Department
 from django.contrib import messages     # for flash messages regarding valid data in the form
+from leave_mgt.models import LeaveCredits
 
 
 # for needing user to be logged-in first before accessing the page requested
@@ -51,11 +52,18 @@ def register(request):
 def profileView(request, username=None):
     if User.objects.get(username=username):
         user = User.objects.get(username=username)
-        return render(request, 'users/profile.html',
-            {
-                "user": user,
-            }
-        )
+        context = {
+            "user": user,
+        }
+        leave_credits = None
+        if request.user.is_authenticated:
+            try:
+                leave_credits = LeaveCredits.objects.get(employee=request.user.profile) #since LeaveCredits is related to Profile; not User
+            except LeaveCredits.DoesNotExist:
+                pass # Or handle the case where it's not found: like messages.danger('no leave credits accumulated yet')?
+
+        context['leave_credits'] = leave_credits
+        return render(request, 'users/profile.html', context)
     else:
         return render ("User not found.")
 
