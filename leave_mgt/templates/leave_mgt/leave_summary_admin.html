@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{#% extends "base.html" %#}
 {% load static %}
 
 
@@ -19,5 +19,10 @@ Leave Summary page for Admins
     <p>Leave credits not found. Please contact HR.</p> 
 {% endif %}
 
+<div class="container container-lg-3">
+<div class="card">
+{% include 'users/profile.html' %}
+</div>
+</div>
 
 {% endblock content %}

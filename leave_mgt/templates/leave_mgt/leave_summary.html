@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{#% extends "base.html" %#}
 {% load static %}
 
 
@@ -8,11 +8,18 @@
 Leave Summary page
 
 {% if leave_credits %} 
-    <p>Your SL Credits (Current Year): {{ leave_credits.current_year_sl_credits }}</p>
-    <p>Your Total SL Credits: {{ leave_credits.total_sl_credits }}</p>
+    <p>Your SL Credits (Current Year): {{ leave_credits.current_year_sl_credits }}
+        <button class="ml-4">File SL</button></p>
+    <p>Your Total SL Credits: <strong>{{ leave_credits.total_sl_credits }}</strong></p>
     
-    <p>Your VL Credits (Current Year): {{ leave_credits.current_year_vl_credits }}</p>
-    <p>Your Total VL Credits: {{ leave_credits.total_vl_credits }}</p>
+    <p>Your VL Credits (Current Year): {{ leave_credits.current_year_vl_credits }}
+        <button class="ml-4">File VL</button></p>
+    <p>Your Total VL Credits: 
+        {% if leave_credits != 0 %}
+            <strong>{{leave_credits.count}} / {{ leave_credits.total_vl_credits }}</strong></p>
+        {% else %}
+            <strong>0 / {{ leave_credits.total_vl_credits }}</strong></p>
+        {% endif %}
 
     <p>Special Leaves Taken: {{ leave_credits.speacial_leaves_taken }}</p> {# fix typo here #}
 {% else %}
