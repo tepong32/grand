@@ -127,6 +127,8 @@
           <hr>
 
           <strong><i class="mr-1"></i>Member since {{ user.date_joined|date:"F Y" }}</strong>
+          <hr>
+          {% include 'leave_mgt/leave_summary.html' %}
         </div>
         <!-- /.card-body -->
       </div>
@@ -135,7 +137,7 @@
   
 
 
-  <!-- modal for Profile Image -->
+  <!-- modal for Profile Image // don't touch this -->
   <div id="image-modal" class="modal fade" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
