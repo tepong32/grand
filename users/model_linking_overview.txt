@@ -1,0 +1,20 @@
+User	> Profile	> Designation	> Salary
+					> Department 	> Manager
+					> Leave
+
+
+
+
+
+
+
+to-do's:
+
+salary	> multiplied ba sa 5.5 days per week ang sahod so 4 weeks = 22 days?
+		> if it's date-based, I will need to get:
+			- the current date,
+			- add if-statements for weekdays,
+			- divide user.profile.designation.get_salary_amount() by # of working days and then multiply by the # of days a certain week covers (pero parang hindi ito kaso same amounts ang pumapasok every week e)
+			- multiplier for holiday rates (may need to list days 1-31 for this)
+			- add marker for non-working holidays to still add count to working days*salary_per_day
+

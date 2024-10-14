@@ -38,10 +38,12 @@ INSTALLED_APPS = [
     'adminlte3_theme',
     'crispy_forms',
     'crispy_bootstrap4',
+    'apscheduler',
 
     ### custom
     'home.apps.HomeConfig',
     'users.apps.UsersConfig',
+    'leave_mgt.apps.LeaveMgtConfig',
 
     'django.contrib.sites', # "just-in-case". allauth needs this.
     'django.contrib.admin',
@@ -134,6 +136,13 @@ USE_I18N = True
 
 USE_TZ = True
 
+USE_L10N = True
+
+import pytz
+
+TIME_ZONE = 'Asia/Manila'  # or 'Asia/Kuala_Lumpur' or 'Asia/Singapore' (adjust according to your location) https://pytz.sourceforge.io/#timezone-classes
+
+
 
 ####################################################################### personally-preferred & configured settings - tEppy
 # Static files (CSS, JavaScript, Images)
@@ -146,9 +155,11 @@ MEDIA_URL = '/media/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+AUTH_USER_MODEL='users.User'   # create a custom user model first then use this instead of auth.User
+# AUTH_USER_MODEL='auth.User'  # this is the default user model if you did not configure a custom User
 
+### DJANGO ALLAUTH
 SITE_ID = 1
 # allauth provider specific settings // not needed atm
 # SOCIALACCOUNT_PROVIDERS = {
@@ -171,22 +182,71 @@ SITE_ID = 1
 
 
 LOGIN_REDIRECT_URL = 'home'     # needed for the login.html success instance
-LOGIN_URL = 'login'             # for the @login_required decorator on user.views.profile
+LOGIN_URL = 'login'             # for the @login_required decorator on user.views.profileView
 
+### PASSWORD-RESETS AND MAILINGS
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com' # or only your domain name if you have your own mail server
 EMAIL_PORT = 587 #587
 EMAIL_USE_TLS = True
 
-
+### FETCHING ENV VARIABLES ###
 # TO USE THESE VARIABLES BELOW, USE ENVIRONMENT VARIABLES TO HIDE SENSITIVE INFO
 # CHECK CoreyMs' Django TUTORIAL # 12 -- 14:20
-
 EMAIL_HOST_USER = os.environ.get('ADMIN_EMAIL_UN') # var for email username
 EMAIL_HOST_PASSWORD = os.environ.get('ADMIN_EMAIL_PW') # var for email pw
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER # for email-sending pw-reset requests
-# AUTH_USER_MODEL='auth.User'
-AUTH_USER_MODEL='users.User'   # create a custom user model first then use this instead of auth.User
 
 
+
+### Bootstrap settings for Django-AdminLTE3
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
+
+
+### related to leave-mgt app
+# see update_leave_credits(cls)
+MONTHLY_SL_ACCRUAL = 1.2  # Set your desired SL accrual rate
+MONTHLY_VL_ACCRUAL = 1.2  # Set your desired VL accrual rate
+
+
+### LOGGING
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} {module}.{funcName}:{lineno} - {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '[{levelname}] {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple'
+        },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'app.log'),
+            'maxBytes': 1024 * 1024 * 5,  # 5 MB per log file
+            'backupCount': 5,  # Keep 5 backup log files
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        # Catch-all logger for your project
+        '': { 
+            'handlers': ['console', 'file'], 
+            'level': 'DEBUG',  
+            'propagate': True,
+        },
+    },
+}
+log_dir = os.path.join(BASE_DIR, 'logs')
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)

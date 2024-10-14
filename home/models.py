@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
-from users.models import User
+from users.models import Profile
 import datetime
 
 ### for debugging the additional instance of LeaveCounter when Leave.auto-approve() is called
@@ -22,7 +22,7 @@ class Leave(models.Model):
         ('rejected', 'Rejected'),
         ('cancelled', 'Cancelled'),
     ]
-    employee = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Employee', related_name="Employee")
+    employee = models.ForeignKey(Profile, on_delete=models.CASCADE, verbose_name='Employee', related_name="Employee")
     leave_type = models.ForeignKey(LeaveType, on_delete=models.CASCADE, verbose_name='Leave Type')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', verbose_name='Status')
     start_date = models.DateField(verbose_name='Start Date')
@@ -116,7 +116,7 @@ class LeaveCounter(models.Model):
         This counts and limits the approved leaves of each user.
         We may need to change the values used as hours instead of # of days to incorporate accrueable leave credits
     '''
-    employee = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name='Employee')
+    employee = models.OneToOneField(Profile, on_delete=models.CASCADE, verbose_name='Employee')
     max_instances_per_year = models.PositiveIntegerField(default=25, verbose_name='Max. Instances Per Year', help_text="This count shows the default. Always check for 'additional_instances' for the actual computation of the max_allowed instances per_year and per_quarter.")
     max_instances_per_quarter = models.PositiveIntegerField(default=6, verbose_name='Max. Instances Per Quarter', help_text="This count shows the default. Always check for 'additional_instances' for the actual computation of the max_allowed instances per_year and per_quarter.")
     instances_used_this_year = models.PositiveIntegerField(default=0, verbose_name='Instances Used This Year')

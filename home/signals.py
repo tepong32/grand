@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from .models import Leave, LeaveCounter
-from users.models import User
+from users.models import Profile
 from django.utils import timezone
 from datetime import timedelta
 
@@ -19,7 +19,7 @@ def check_reset_dates(sender, instance, **kwargs):
         leave_counter.reset_counters()
 
 
-# @receiver(post_save, sender=User)
+@receiver(post_save, sender=Profile)
 def create_leave_counter(sender, instance, created, **kwargs):
     '''
         Creating a LeaveCounter instance for every User that registers
@@ -61,12 +61,12 @@ def create_or_update_leave_counter(sender, instance, created, **kwargs):
             leave_counter.instances_used_this_quarter -= original_duration
     leave_counter.save()
 
-# @receiver(post_delete, sender=User)
+@receiver(post_delete, sender=Profile)
 def delete_leave_counter(sender, instance, **kwargs):
     '''
         decreases the counts of LeaveCounter when Leave instances are deleted
     '''
-    leave_counter, created = LeaveCounter.objects.get_or_create(user=instance)
+    leave_counter, created = LeaveCounter.objects.get_or_create(employee=instance)
     leave_duration = (instance.end_date - instance.start_date).days + 1 # Include both start and end dates
     leave_counter.instances_used_this_year -= leave_duration
     leave_counter.instances_used_this_quarter -= leave_duration

@@ -102,31 +102,16 @@ testing filters: <br>
 
 <p>naka for loop to na <b>advisors</b> list. Display == last_name, first_name: <br>
 <small>by default, kahit TL or OM, advisor din since yun ung default pag nagregister pero pwede iedit sa admin. Boolean lang naman yun</small> <br>
-{% for adv in advisors %}
-	{% if adv.last_name and adv.first_name %}
-		<a href="{% url 'profile' adv.staff_id %}"> {{adv}} </a>
-		<br>	
-	{% else %}
-		<a href="{% url 'profile' adv.staff_id %}">{{adv}}</a>
-		<small>( <-- this user has no profile yet so, staff ID!)</small>
-	{% endif %}
+{% for profile in profiles %}
+	<a href="{% url 'profile' profile.user.username %}"> {{ profile.user.username}} </a>
+	<br>
 {% endfor %}
 </p>
+{% for user in users %}
+	<a href="{% url 'profile' user.username %}"> {{user.username}} </a>
+	<br>
+{% endfor %}
 
-<hr>
-<p>naka for loop to na <b>tls</b> list. Display == last_name, first_name: <br>
-{% for tl in tls %}
-<a href="{% url 'profile' tl.staff_id %}"> {{tl}}</a> <br>
-{% endfor %}
-</p>
-<hr>
-
-<p>naka for loop to na <b>oms</b> list. Display == last_name, first_name: <br>
-{% for om in oms %}
-<a href="{% url 'profile' om.staff_id %}">{{om}}</a>
-{% endfor %}
-</p>
-<hr>
 
 <p><b>Logged-in user</b>'s instances-used counter: <br>
 {% if instances_used_this_year and instances_used_this_quarter %}

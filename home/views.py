@@ -4,7 +4,7 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 
-from users.models import User
+from users.models import User, Profile
 from .models import Leave, LeaveCounter
 
 from django.views.generic import (
@@ -29,16 +29,15 @@ class HomeView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = User
-        loggedin_user = self.request.user
-
-        current_time = timezone.now()
+        profile = Profile
+        loggedin_user = self.request.user.profile
 
         instances_used_this_year = None
         instances_used_this_quarter = None
         leave_counter = None
         user_leaves = None  # Initialize user_leaves
 
-        if loggedin_user.is_authenticated:
+        if user.is_authenticated:
             try:
                 leave_counter = LeaveCounter.objects.get(employee=loggedin_user)
                 instances_used_this_year = leave_counter.instances_used_this_year
@@ -48,7 +47,8 @@ class HomeView(LoginRequiredMixin, TemplateView):
                 pass
 
         context.update({
-            # 'advisors': user.objects.filter(is_advisor=True),
+            'profiles': profile.objects.all(),
+            'users': user.objects.all(),
             # 'tls': user.objects.filter(is_team_leader=True),
             # 'oms': user.objects.filter(is_operations_manager=True),
             # 'adv_all_leaves': LeaveCounter.objects.all(),
@@ -57,7 +57,6 @@ class HomeView(LoginRequiredMixin, TemplateView):
             # 'leaves': Leave.objects.all(),
             # 'user_leaves': user_leaves,  # Add user_leaves to the context
             # 'leave_counter': leave_counter,
-            'server_time': current_time
         })
 
         return context
