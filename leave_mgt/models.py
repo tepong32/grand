@@ -32,12 +32,13 @@ class LeaveCredits(models.Model):
     employee = models.OneToOneField(Profile, on_delete=models.CASCADE)
 
     # Current Year Credits
-    current_year_sl_credits = models.FloatField(default=0)
-    current_year_vl_credits = models.FloatField(default=0)
+    current_year_sl_credits = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    current_year_vl_credits = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    current_year_special_credits = models.DecimalField(max_digits=5, decimal_places=2, default=10)
 
     # Total Accumulated Credits (including carry-over)
-    total_sl_credits = models.FloatField(default=0)
-    total_vl_credits = models.FloatField(default=0)
+    total_sl_credits = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    total_vl_credits = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
     # Boolean flag to check if user already accrued leave credits this month
     credits_accrued_this_month = models.BooleanField(default=False)
@@ -126,25 +127,40 @@ class LeaveCredits(models.Model):
             # - Retry the task later
             # - ... other actions based on your requirements
 
+def leave_form_directory_path(instance, filename):
+    return 'users/{}/leaveForms/{}'.format(instance.employee.user.username, filename)
 
-class SpecialLeaves(models.Model):
-    '''
-    using related-name, you can use it (for testing) in python like this:
-        leave_credits = LeaveCredits.objects.get(id=1)
-        special_leaves = leave_credits.special_leaves.all()
-    '''
-    leave_credits = models.ForeignKey(LeaveCredits, on_delete=models.CASCADE, related_name='special_leaves')
-    notes = models.TextField(blank=True)
-    date_taken = models.DateField()
+class Leave(models.Model):
+    LEAVE_TYPES = [
+        ('SL', 'Sick Leave'),
+        ('VL', 'Vacation Leave'),
+        ('SP', 'Special Leave'),
+    ]
+
+    STATUS_OPTIONS = [
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
+    employee = models.ForeignKey(LeaveCredits, on_delete=models.CASCADE, related_name='leaves')
+    leave_type = models.CharField(max_length=2, choices=LEAVE_TYPES)
+    date_filed = models.DateField()
     number_of_days = models.IntegerField()
-
-    # Add a file upload field
-    # approval_document = models.FileField(upload_to='approvals/', blank=True, null=True)
-    # Or, if you want to specifically handle images:
-    def approval_directory_path(instance, filename):
-        # file will be uploaded to MEDIA_ROOT/DP/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
-        return 'users/{}/leaveForms/{}'.format(instance.leavecredits.employee.username, filename)
-    form_photo = models.ImageField(null=True, blank=True, upload_to=approval_directory_path, verbose_name="Form Photo (w/ Signature): ")
+    status = models.CharField(max_length=10, choices=STATUS_OPTIONS, default='PENDING')
+    notes = models.TextField(null=True, blank=True)
+    date_taken = models.DateField(null=True, blank=True)
+    form_photo = models.ImageField(null=True, blank=True, upload_to=leave_form_directory_path, verbose_name="Form Photo (w/ Signatures): ")
 
     def __str__(self):
-        return f"Special Leave for {self.leave_credits.employee.user.get_full_name()} on {self.date_taken}"
+        return f"{self.employee.employee.user.get_full_name()} - {self.leave_type} - {self.date_filed}"
+
+    def get_remaining_leave_credits(self):
+        if self.leave_type == 'SL':
+            return self.employee.current_year_sl_credits - self.number_of_days
+        elif self.leave_type == 'VL':
+            return self.employee.current_year_vl_credits - self.number_of_days
+        elif self.leave_type == 'SP':
+            # handle special leave credits calculation
+            pass

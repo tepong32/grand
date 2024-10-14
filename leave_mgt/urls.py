@@ -2,6 +2,9 @@ from django.urls import path, include
 from .views import *
 
 urlpatterns = [
-    path('<username>/', MyLeaveView.as_view(), name="my-leaves"),
+    path('', MyLeaveView.as_view(), name="leave_list"),
+    path('create/', LeaveApplicationCreateView.as_view(), name='leave_create'),
+    path('<pk>/update/', LeaveApplicationUpdateView.as_view(), name='leave_update'),
+    path('<pk>/delete/', LeaveApplicationDeleteView.as_view(), name='leave_delete'),
 
     ]
