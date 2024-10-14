@@ -55,34 +55,34 @@ class LeaveCredits(models.Model):
             if now.day == 2:
                 cls.objects.all().update(credits_accrued_this_month=False)
 
-            # 2. Accrue Credits on the 1st (only if not already accrued)
-            leave_credits = cls.objects.filter(credits_accrued_this_month=False)
-            for leave_credit in leave_credits:
-                with transaction.atomic(): # write all-or-nothing on the db
-                    # Monthly Leave Accrual
-                    # why not make the value dynamic so it can be adjusted on the admin interface?
-                    if now.day == 1:
-                        # Get accrual values from settings (or provide defaults: 1.2 in this case)
-                        sl_accrual = getattr(settings, 'MONTHLY_SL_ACCRUAL', 1.2) 
-                        vl_accrual = getattr(settings, 'MONTHLY_VL_ACCRUAL', 1.2)
+                # 2. Accrue Credits on the 1st (only if not already accrued)
+                leave_credits = cls.objects.filter(credits_accrued_this_month=False)
+                for leave_credit in leave_credits:
+                    with transaction.atomic(): # write all-or-nothing on the db
+                        # Monthly Leave Accrual
+                        # why not make the value dynamic so it can be adjusted on the admin interface?
+                        if now.day == 1:
+                            # Get accrual values from settings (or provide defaults: 1.2 in this case)
+                            sl_accrual = getattr(settings, 'MONTHLY_SL_ACCRUAL', 1.2) 
+                            vl_accrual = getattr(settings, 'MONTHLY_VL_ACCRUAL', 1.2)
 
-                        leave_credit.current_year_sl_credits += sl_accrual
-                        leave_credit.current_year_vl_credits += vl_accrual
+                            leave_credit.current_year_sl_credits += sl_accrual
+                            leave_credit.current_year_vl_credits += vl_accrual
 
-                        leave_credit.credits_accrued_this_month = True
-                        leave_credit.save()
+                            leave_credit.credits_accrued_this_month = True
+                            leave_credit.save()
 
-                    # Annual Carry-over 
-                    if now.month == 1 and now.day == 1:
-                        leave_credit.carry_over_credits()
-                        
+                        # Annual Carry-over 
+                        if now.month == 1 and now.day == 1:
+                            leave_credit.carry_over_credits()
+                            
         except Exception as e:
-        # Log the error
-        logger.error(f"An error occurred during leave credit update: {e}", exc_info=True)
+            # Log the error
+            logger.error(f"An error occurred during leave credit update: {e}", exc_info=True)
 
-        # Additional error handling (optional):
-        # - Send email notifications to admins
-        # - Retry the task later
-        # - ... other actions based on your requirements
+            # Additional error handling (optional):
+            # - Send email notifications to admins
+            # - Retry the task later
+            # - ... other actions based on your requirements
 
 
