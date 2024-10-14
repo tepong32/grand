@@ -26,8 +26,8 @@ from django.utils import timezone
 class RoleBasedTemplateMixin(UserPassesTestMixin):
     '''
         This mixin is used to determine what template to display to the user depending on roles:
-        normal user vs superuser/admins.
-        Add logic to test_func() as needed.
+        Normal user vs Superuser/Admin.
+        Add more logic to test_func() as needed.
         Create separate html pages as needed.
     '''
     def test_func(self):
@@ -35,7 +35,7 @@ class RoleBasedTemplateMixin(UserPassesTestMixin):
 
     def get_template_names(self):
         if self.test_func():
-            return ['leave_mgt/admin_leaves_summary.html'] # template for admins
+            return ['leave_mgt/leave_summary_admin.html'] # template for admins
         return ['leave_mgt/leave_summary.html']            # template for normal users
 
 
