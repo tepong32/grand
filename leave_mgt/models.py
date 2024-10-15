@@ -147,17 +147,26 @@ class Leave(models.Model):
 
     employee = models.ForeignKey(LeaveCredits, on_delete=models.CASCADE, related_name='leaves')
     leave_type = models.CharField(max_length=2, choices=LEAVE_TYPES)
+<<<<<<< HEAD
     date_filed = models.DateField(auto_now_add=True)
     start_date = models.DateField(null=True, blank=False)
     end_date = models.DateField(null=True, blank=False)
     number_of_days = models.IntegerField(editable=False, null=True, blank=True) # prevent manual editing
     status = models.CharField(max_length=10, choices=STATUS_OPTIONS, default='PENDING')
     notes = models.TextField(null=True, blank=True)
+=======
+    date_filed = models.DateField()
+    number_of_days = models.IntegerField()
+    status = models.CharField(max_length=10, choices=STATUS_OPTIONS, default='PENDING')
+    notes = models.TextField(null=True, blank=True)
+    date_taken = models.DateField(null=True, blank=True)
+>>>>>>> b8174060fd64367e13c9acc733e15a8d9fe998ff
     form_photo = models.ImageField(null=True, blank=True, upload_to=leave_form_directory_path, verbose_name="Form Photo (w/ Signatures): ")
 
     def __str__(self):
         return f"{self.employee.employee.user.get_full_name()} - {self.leave_type} - {self.date_filed}"
 
+<<<<<<< HEAD
     def clean(self):
         if self.start_date and self.end_date:
             if self.start_date > self.end_date:
@@ -174,6 +183,8 @@ class Leave(models.Model):
         weekend_days = sum(1 for day in range(total_days) if (self.start_date + timedelta(days=day)).weekday() >= 5)
         return total_days - weekend_days
 
+=======
+>>>>>>> b8174060fd64367e13c9acc733e15a8d9fe998ff
     def get_remaining_leave_credits(self):
         if self.leave_type == 'SL':
             return self.employee.current_year_sl_credits - self.number_of_days

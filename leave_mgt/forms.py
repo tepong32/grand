@@ -5,7 +5,7 @@ class LeaveApplicationForm(forms.ModelForm):
     class Meta:
         model = Leave
         fields = ('leave_type', 'start_date', 'end_date', 'notes', 'form_photo')
-
+        
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # remove 'SP' option if the user is not a superuser
