@@ -5,7 +5,7 @@ from users.models import User, Profile
 
 
 class AccrualModel(models.Model):
-    accrual_value = models.DecimalField(max_digits=4, decimal_places=2, default=1.2)
+    accrual_value = models.DecimalField(max_digits=4, decimal_places=2, default=1.2, help_text="This defaults to 1.2 per month.")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
