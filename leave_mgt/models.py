@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from datetime import datetime, timedelta
 
 from users.models import User, Profile
 
@@ -146,15 +147,32 @@ class Leave(models.Model):
 
     employee = models.ForeignKey(LeaveCredits, on_delete=models.CASCADE, related_name='leaves')
     leave_type = models.CharField(max_length=2, choices=LEAVE_TYPES)
-    date_filed = models.DateField()
-    number_of_days = models.IntegerField()
+    date_filed = models.DateField(auto_now_add=True)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    number_of_days = models.IntegerField(editable=False, null=True, blank=True) # prevent manual editing
     status = models.CharField(max_length=10, choices=STATUS_OPTIONS, default='PENDING')
     notes = models.TextField(null=True, blank=True)
-    date_taken = models.DateField(null=True, blank=True)
     form_photo = models.ImageField(null=True, blank=True, upload_to=leave_form_directory_path, verbose_name="Form Photo (w/ Signatures): ")
 
     def __str__(self):
         return f"{self.employee.employee.user.get_full_name()} - {self.leave_type} - {self.date_filed}"
+
+    def clean(self):
+        if self.start_date and self.end_date:
+            if self.start_date > self.end_date:
+                raise ValidationError("Start date cannot be greater than end date.")
+        else:
+            raise ValidationError("Both start date and end date are required.")
+
+    def save(self, *args, **kwargs):
+        self.number_of_days = self.calculate_number_of_days()
+        super().save(*args, **kwargs)
+
+    def calculate_number_of_days(self):
+        total_days = (self.end_date - self.start_date).days + 1
+        weekend_days = sum(1 for day in range(total_days) if (self.start_date + timedelta(days=day)).weekday() >= 5)
+        return total_days - weekend_days
 
     def get_remaining_leave_credits(self):
         if self.leave_type == 'SL':

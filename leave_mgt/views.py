@@ -6,7 +6,7 @@ from django.urls import reverse, reverse_lazy
 from django.contrib.auth.decorators import login_required
 
 from users.models import User, Profile
-from .forms import LeaveForm
+from .forms import LeaveApplicationForm
 from .models import Leave, LeaveCredits
 
 from django.views.generic import (
@@ -58,7 +58,7 @@ class MyLeaveView(LoginRequiredMixin, RoleBasedTemplateMixin, TemplateView):
         return context
 
 class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
-    form_class = LeaveForm
+    form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application.html'
 
     def get_form_kwargs(self):
@@ -99,7 +99,7 @@ class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
 
 class LeaveApplicationUpdateView(UpdateView):
     model = Leave
-    form_class = LeaveForm
+    form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application.html'
 
     def get_form_kwargs(self):

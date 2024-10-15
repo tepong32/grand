@@ -4,7 +4,7 @@ from .models import Leave
 class LeaveApplicationForm(forms.ModelForm):
     class Meta:
         model = Leave
-        fields = ('leave_type', 'date_filed', 'number_of_days', 'notes')
+        fields = ('leave_type', 'start_date', 'end_date', 'notes', 'form_photo')
 
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
