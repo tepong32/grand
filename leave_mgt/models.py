@@ -148,8 +148,8 @@ class Leave(models.Model):
     employee = models.ForeignKey(LeaveCredits, on_delete=models.CASCADE, related_name='leaves')
     leave_type = models.CharField(max_length=2, choices=LEAVE_TYPES)
     date_filed = models.DateField(auto_now_add=True)
-    start_date = models.DateField()
-    end_date = models.DateField()
+    start_date = models.DateField(null=True, blank=False)
+    end_date = models.DateField(null=True, blank=False)
     number_of_days = models.IntegerField(editable=False, null=True, blank=True) # prevent manual editing
     status = models.CharField(max_length=10, choices=STATUS_OPTIONS, default='PENDING')
     notes = models.TextField(null=True, blank=True)
