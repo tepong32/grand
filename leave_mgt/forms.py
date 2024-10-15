@@ -1,7 +1,7 @@
 from django import forms
 from .models import Leave
 
-class LeaveForm(forms.ModelForm):
+class LeaveApplicationForm(forms.ModelForm):
     class Meta:
         model = Leave
         fields = ('leave_type', 'date_filed', 'number_of_days', 'notes')
