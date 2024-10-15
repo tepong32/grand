@@ -100,7 +100,7 @@ class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
 class LeaveApplicationUpdateView(UpdateView):
     model = Leave
     form_class = LeaveForm
-    template_name = 'leave_application.html'
+    template_name = 'leave_mgt/leave_application.html'
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
