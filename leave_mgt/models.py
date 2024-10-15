@@ -129,7 +129,9 @@ class LeaveCredits(models.Model):
             # - ... other actions based on your requirements
 
 def leave_form_directory_path(instance, filename):
-    return 'users/{}/leaveForms/{}'.format(instance.employee.user.username, filename)
+    # Leave > LeaveCredits > Profile > User > username
+    username = instance.employee.employee.profile.username
+    return 'users/{}/leaveForms/{}'.format(username, filename)
 
 class Leave(models.Model):
     LEAVE_TYPES = [
