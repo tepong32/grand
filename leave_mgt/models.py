@@ -152,13 +152,16 @@ class Leave(models.Model):
     date_filed = models.DateField(auto_now_add=True)
     start_date = models.DateField(null=True, blank=False)
     end_date = models.DateField(null=True, blank=False)
-    number_of_days = models.IntegerField(editable=False, null=True, blank=True) # prevent manual editing
+    number_of_days = models.IntegerField(null=True, blank=True) # prevent manual editing
     status = models.CharField(max_length=10, choices=STATUS_OPTIONS, default='PENDING')
     notes = models.TextField(null=True, blank=True)
     form_photo = models.ImageField(null=True, blank=True, upload_to=leave_form_directory_path, verbose_name="Form Photo (w/ Signatures): ")
 
     def __str__(self):
         return f"{self.employee.employee.user.get_full_name()} - {self.leave_type} - {self.date_filed}"
+
+    def get_absolute_url(self):
+        return reverse('leave_detail', kwargs={'pk': self.pk})
 
     def clean(self):
         if self.start_date and self.end_date:
@@ -177,10 +180,24 @@ class Leave(models.Model):
         return total_days - weekend_days
 
     def get_remaining_leave_credits(self):
-        if self.leave_type == 'SL':
-            return self.employee.current_year_sl_credits - self.number_of_days
-        elif self.leave_type == 'VL':
-            return self.employee.current_year_vl_credits - self.number_of_days
-        elif self.leave_type == 'SP':
-            # handle special leave credits calculation
-            pass
+
+        if self.status == 'APPROVED':
+            # if the status is APPROVED, subtract the number_of_days from the current_yr_credits
+            if self.leave_type == 'SL':
+                return self.employee.current_year_sl_credits - self.number_of_days
+            elif self.leave_type == 'VL':
+                return self.employee.current_year_vl_credits - self.number_of_days
+            elif self.leave_type == 'SP':
+                # handle special leave credits calculation
+                pass
+        else:
+            # if the leave is not approved (pending, cancelled &  rejected), return the current leave credits with pending leave days
+            pending_leaves = Leave.objects.filter(employee=self.employee, status='PENDING', leave_type=self.leave_type)
+            pending_days = sum(leave.number_of_days for leave in pending_leaves)
+            if self.leave_type == 'SL':
+                return f"{self.employee.current_year_sl_credits} - {pending_days} (pending)"
+            elif self.leave_type == 'VL':
+                return f"{self.employee.current_year_vl_credits} - {pending_days} (pending)"
+            elif self.leave_type == 'SP':
+                # handle special leave credits calculation
+                pass
