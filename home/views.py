@@ -4,8 +4,8 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 
+from leave_mgt.models import LeaveCredits, Leave
 from users.models import User, Profile
-from .models import Leave, LeaveCounter
 
 from django.views.generic import (
     TemplateView,
@@ -31,32 +31,18 @@ class HomeView(LoginRequiredMixin, TemplateView):
         user = User
         profile = Profile
         loggedin_user = self.request.user.profile
+        leave_credits = LeaveCredits.objects.get(employee=loggedin_user)
+        pending_leaves = Leave.objects.filter(employee=leave_credits, status='PENDING')
+        pending_leaves_count = sum(leave.number_of_days for leave in pending_leaves)
+        user_leaves = Leave.objects.filter(employee=leave_credits)[::-1]  # Filter the leaves of the current user, latest first
 
-        instances_used_this_year = None
-        instances_used_this_quarter = None
-        leave_counter = None
-        user_leaves = None  # Initialize user_leaves
-
-        if user.is_authenticated:
-            try:
-                leave_counter = LeaveCounter.objects.get(employee=loggedin_user)
-                instances_used_this_year = leave_counter.instances_used_this_year
-                instances_used_this_quarter = leave_counter.instances_used_this_quarter
-                user_leaves = Leave.objects.filter(employee=loggedin_user)[::-1]  # Filter the leaves of the current user, latest first
-            except LeaveCounter.DoesNotExist:
-                pass
 
         context.update({
+            'leave_credits': leave_credits,
+            'pending_leaves': pending_leaves,
+            'pending_leaves_count': pending_leaves_count,
             'profiles': profile.objects.all(),
-            'users': user.objects.all(),
-            # 'tls': user.objects.filter(is_team_leader=True),
-            # 'oms': user.objects.filter(is_operations_manager=True),
-            # 'adv_all_leaves': LeaveCounter.objects.all(),
-            # 'instances_used_this_year': getattr(leave_counter, 'instances_used_this_year', 0), ### will return leave_counter.instances_used_this_year if leave_counter is not None, and 0 otherwise.
-            # 'instances_used_this_quarter': getattr(leave_counter, 'instances_used_this_quarter', 0),
-            # 'leaves': Leave.objects.all(),
-            # 'user_leaves': user_leaves,  # Add user_leaves to the context
-            # 'leave_counter': leave_counter,
+            'user_leaves': user_leaves,
         })
 
         return context
@@ -82,7 +68,7 @@ class ApplyLeaveView(LoginRequiredMixin, CreateView):
             This method ensures that a LeaveCounter object is created for every user when they access the view.
         '''
         data = super().get_context_data(**kwargs)
-        leave_counter, _ = LeaveCounter.objects.get_or_create(employee=self.request.user)
+        leave_counter, _ = LeaveCounter.objects.get_or_create(employee=self.request.user.profile)
         data['leave_counter'] = leave_counter
         server_time = datetime.now()
         data['server_time'] = server_time
