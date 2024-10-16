@@ -88,29 +88,12 @@
 
 <section>
 testing filters: <br>
-<h4>advisors list</h4>
-<p>Kung need mo ay User info:</p>
-<p>
-	all users: <b>user.objects.all()</b> or <b>advisors</b><br>
-	<b>advisors</b>: user.objects.filter(is_advisor=True)<br>
-    <b>tls</b>: user.objects.filter(is_team_leader=True)<br>
-    <b>oms</b>: user.objects.filter(is_operations_manager=True),<br>
-    <b>instances_used_this_year</b>: <br>
-    <b>instances_used_this_quarter</b>: <br>
-</p>
-<hr>
-
-<p>naka for loop to na <b>advisors</b> list. Display == last_name, first_name: <br>
-<small>by default, kahit TL or OM, advisor din since yun ung default pag nagregister pero pwede iedit sa admin. Boolean lang naman yun</small> <br>
+<br>
 {% for profile in profiles %}
-	<a href="{% url 'profile' profile.user.username %}"> {{ profile.user.username}} </a>
+	<a href="{% url 'profile' profile.user.username %}"> {{ profile.user.get_full_name}} </a>
 	<br>
 {% endfor %}
 </p>
-{% for user in users %}
-	<a href="{% url 'profile' user.username %}"> {{user.username}} </a>
-	<br>
-{% endfor %}
 
 
 <p><b>Logged-in user</b>'s instances-used counter: <br>
@@ -122,27 +105,12 @@ testing filters: <br>
 {% endif %}
 </p>
 <hr>
-
-<p>leave counter per employee:
-<small>this displays counters for all employees
-Apply filters to display all employees, leaves, statuses and counters </small><br>
-{% for leave_counter in adv_all_leaves %}
-    <p><a href="{% url 'profile' leave_counter.employee.staff_id %}">{{ leave_counter.employee.staff_id }}</a>: This Quarter: {{ leave_counter.instances_used_this_quarter }},
-    This Year (total):{{ leave_counter.instances_used_this_year }}</p>
-{% endfor %}
-</p>
-<hr>
-
-<p><b>Leave</b> instances: <br>
-{% for leave in leaves %}
-	<div class="card border-danger p-2">
-	from: {{leave.start_date}} to: {{leave.end_date}} - {{leave.leave_type}} - {{leave.employee}} - Status: {{leave.status}} <br>
-	submitted: {{leave.created}}, modified {{leave.modified}} <br>
-	note: {{leave.note}}
-	</div>
-{% endfor %}
-	
-</p>
+<div>
+	<p> leave instances </p>
+	{% for leave in user_leaves %}
+		{{leave.leave_type}} - {{leave.start_date}} to {{leave.end_date}} - <b>{{leave.status}}</b><br>
+	{% endfor %}
+</div>
 
 <div class="card float-right col-2 elevation-3">SERVER TIME: {{server_time}} </div>
 </section>
