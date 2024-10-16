@@ -24,6 +24,33 @@ from django.http import HttpResponse
 from datetime import datetime
 from django.utils import timezone
 
+'''
+    Since I am using a "dashboard stats on all pages" approach, I am defining a global_context dictionary here and
+will just have specific views update the context variable (thru context.update(global_context) in get_context_data())
+depending on their specific needs.
+    Adjust the imports 'per-app' to properly locate the model sources.
+'''
+# Define a function to fetch dynamic data since we need the 'request' object
+def get_dynamic_context(request):
+    leave_credits = LeaveCredits.objects.get(employee=request.user.profile)
+    pending_leaves = Leave.objects.filter(employee=leave_credits, status='PENDING')
+    global_context = {
+        'leave_credits': leave_credits,
+        'remaining_sl_credits': leave_credits.current_year_sl_credits,
+        'remaining_vl_credits': leave_credits.current_year_vl_credits,
+        # 'total_acquired_sl_credits': leave_credits.total_acquired_sl_credits,
+        # 'total_acquired_vl_credits': leave_credits.total_acquired_vl_credits,
+        # 'total_used_sl_credits': leave_credits.total_used_sl_credits,
+        # 'total_used_vl_credits': leave_credits.total_used_vl_credits,
+        'pending_leaves': pending_leaves
+    }
+    return global_context
+
+# Define a global context{} for static information that needs to be displayed on every view, if there's any
+global_static_context = {
+    # 'static_key': 'static_value',
+}
+
 
 class RoleBasedTemplateMixin(UserPassesTestMixin):
     '''
@@ -46,20 +73,28 @@ class MyLeaveView(LoginRequiredMixin, RoleBasedTemplateMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        leave_credits = None
-        if self.request.user.is_authenticated:
-            try:
-                leave_credits = LeaveCredits.objects.get(employee=self.request.user.profile) #since LeaveCredits is related to Profile; not User
-            except LeaveCredits.DoesNotExist:
-                pass # Or handle the case where it's not found: like messages.danger('no leave credits accumulated yet')?
 
+        # Update context with global context
+        context.update(global_static_context)
+        # Fetch dynamic data and update context
+        context.update(get_dynamic_context(self.request))
+        # assign and add VIEW-SPECIFIC value to context{'<key>': <value>}
+        leave_credits = LeaveCredits.objects.get(employee=self.request.user.profile) 
         context['leave_credits'] = leave_credits
-
         return context
 
 class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
     form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application.html'
+    success_url = "/"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(global_static_context)
+        context.update(get_dynamic_context(self.request))
+        leave_credits = LeaveCredits.objects.get(employee=self.request.user.profile) 
+        context['leave_credits'] = leave_credits
+        return context
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -95,12 +130,21 @@ class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
             employee.save()  # Save the updated leave credits
 
         messages.success(self.request, "Leave application submitted successfully.")
-        return redirect('success_view')  # Redirect to a success page
+        return redirect('/')  # Redirect to a success page
 
 class LeaveApplicationUpdateView(UpdateView):
     model = Leave
     form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application.html'
+    success_url = "/"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(global_static_context)
+        context.update(get_dynamic_context(self.request))
+        leave_credits = LeaveCredits.objects.get(employee=self.request.user.profile) 
+        context['leave_credits'] = leave_credits
+        return context
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -135,13 +179,35 @@ class LeaveApplicationUpdateView(UpdateView):
             employee.save()  # Save the updated leave credits
 
         messages.success(self.request, "Leave application updated successfully.")
-        return redirect('success_view')  # Redirect to a success page
+        return redirect('/')  # Redirect to a success page
+
+
+class LeaveApplicationDetailView(DetailView):
+    model = Leave
+    form_class = LeaveApplicationForm
+    template_name = 'leave_mgt/leave_application_detail.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(global_static_context)
+        context.update(get_dynamic_context(self.request))
+        leave_credits = LeaveCredits.objects.get(employee=self.request.user.profile) 
+        context['leave_credits'] = leave_credits
+        return context
 
 
 class LeaveApplicationDeleteView(DeleteView):
     model = Leave
     template_name = 'leave_mgt/leave_application_delete.html'
-    success_url = reverse_lazy('leave_list')  # Redirect to a list view after deletion
+    success_url = reverse_lazy('leave_list')  # Redirect to leave_mgt/ (MyLeaveView) view after deletion
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(global_static_context)
+        context.update(get_dynamic_context(self.request))
+        leave_credits = LeaveCredits.objects.get(employee=self.request.user.profile) 
+        context['leave_credits'] = leave_credits
+        return context
 
     def delete(self, request, *args, **kwargs):
         leave = self.get_object()
