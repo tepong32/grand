@@ -10,18 +10,7 @@
   {% endif %}
 
   {% if user.is_authenticated %}
-    <!-- leave count card -->
-    <div class="row elevation-1 mr-1 ml-1">
-      <div class="card-body">
-        Leave count for {{server_time.year}}: 
-      </div>
-      <div class="card-body">
-        Taken this year: <b>{{instances_used_this_year}}/{{leave_counter.max_instances_per_year}}</b>
-      </div>
-      <div class="card-body">
-        Taken this quarter: <b>{{instances_used_this_quarter}}/{{leave_counter.max_instances_per_quarter}}</b> 
-      </div>
-    </div>
+    {% include 'leave_mgt/leave_summary.html' %}
   {% endif %}
 
 </div><!-- /.col -->
