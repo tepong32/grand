@@ -4,7 +4,11 @@ from .models import Leave
 class LeaveApplicationForm(forms.ModelForm):
     class Meta:
         model = Leave
-        fields = ('leave_type', 'start_date', 'end_date', 'notes', 'form_photo')
+        fields = ('leave_type', 'start_date', 'end_date', 'number_of_days', 'notes', 'form_photo')
+        widgets = {
+            'start_date': forms.widgets.DateInput(attrs={'type': 'date'},),
+            'end_date': forms.widgets.DateInput(attrs={'type': 'date'},)
+        }
         
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
