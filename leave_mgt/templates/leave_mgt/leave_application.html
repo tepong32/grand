@@ -1,1 +1,53 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
 leave application CREATE/UPDATE
+<div class="card p-3 col-4">
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <!-- this is a required line for added security -->
+    <fieldset class="form-group">
+      <legend class="border-bottom mb-1">Apply for a Leave</legend>
+      {{ form|crispy }}
+      <!-- {{ form.media }} -->
+      <!-- {{ form|crispy }} -->
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {% for error in form.non_field_errors %}
+                {{ error }}
+            {% endfor %}
+        </div>
+      {% endif %}
+      
+    </fieldset>
+    {{form.errors}}
+    <small>
+      <!-- removed these counters as they're already on the dashboard_links.html -->
+      <!-- <p>These max values can be overriden/changed by site administrators</p>
+      <p>Total instances per year: <b class="text-dark">{{ leave_counter.max_instances_per_year }}</b></p>
+      <p>Instances used this year: <b>{{ leave_counter.instances_used_this_year }}</b></p>
+      <p>Total approved per quarter: <b class="text-dark">{{ leave_counter.max_instances_per_quarter }}</b></p>
+      <p>Instances used this quarter: <b>{{ leave_counter.instances_used_this_quarter }}</b></p>
+    </small> -->
+    maybe what I should put here is a dynamic counter for auto-approved slots depending on the dates selected on the start_date and end_date fields?
+    <div class="form-group">
+      <button class="btn btn-success" type="submit">Submit request</button>
+    </div>
+    <!-- Add the "Today" button for the start_date field -->
+    <button type="button" id="todayButton">Today</button>
+</form>
+
+<script>
+document.getElementById('todayButton').addEventListener('click', function() {
+    var today = new Date().toISOString().slice(0,10);
+    document.getElementById('id_start_date').value = today;
+    document.getElementById('id_end_date').value = today;
+});
+</script>
+
+</div>
+
+
+
+{% endblock content %}
