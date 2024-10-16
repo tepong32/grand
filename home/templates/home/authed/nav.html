@@ -9,13 +9,24 @@
         <a href="/" class="nav-link">Home</a>
       </li>
       <li class="nav-item d-none d-sm-inline-block">
-        <a href="/increase_max_instances" class="nav-link">Increase Max Instances</a>
+        <a href="/increase_max_instances" class="nav-link">Home-Increase Max Instances</a>
       </li>
       <li class="nav-item d-none d-sm-inline-block">
-        <a href="/check_reset_date" class="nav-link">Check Reset Date</a>
+        <a href="/check_reset_date" class="nav-link">Home-Check Reset Date</a>
       </li>
       <li class="nav-item d-none d-sm-inline-block">
-        <a href="/apply-leave" class="nav-link">Apply for a Leave</a>
+        <a href="/apply-leave" class="nav-link">Home-Leave</a>
+      </li>
+      <li class="nav-item d-none d-sm-inline-block">
+        ||
+      </li>
+      <li class="nav-item d-none d-sm-inline-block">
+        <a href="{% url 'leave_create' %}" class="nav-link">lvmgt-LeaveApplication</a>
+      </li>
+      <li class="nav-item d-none d-sm-inline-block">
+        <a href="{% url 'profile' request.user %}" class="nav-link">
+          <i class="fa fa-user-alt" title="{{request.user}}"></i>
+        </a>
       </li>
     </ul>
 
