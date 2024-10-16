@@ -1,11 +1,11 @@
 {#% extends "base.html" %#}
-{% load static %}
+{#% load static crispy_forms_tags %#}
 
 
-{% block content %}
+{#% block content %#}
 
 
-Leave Summary page
+<b>Leave Summary page</b> (this part is just "included" in the profile template view. Accessing /leave-mgt/ displays a recurring page display)
 
 {% if leave_credits %} 
     <p>Your SL Credits (Current Year): {{ leave_credits.current_year_sl_credits }}
@@ -16,15 +16,15 @@ Leave Summary page
         <button class="ml-4">File VL</button></p>
     <p>Your Total VL Credits: 
         {% if leave_credits != 0 %}
-            <strong>{{leave_credits.count}} / {{ leave_credits.total_vl_credits }}</strong></p>
+            <strong>{{leave_credits.count}} / {{ leave_credits.total_vl_credits }}</strong>
         {% else %}
-            <strong>0 / {{ leave_credits.total_vl_credits }}</strong></p>
+            <strong>0 / {{ leave_credits.total_vl_credits }}</strong>
         {% endif %}
-
-    <p>Special Leaves Taken: {{ leave_credits.speacial_leaves_taken }}</p> {# fix typo here #}
+    </p>
+    <p>Special Leaves Taken: {{ leave_credits.speacial_leaves_taken }}</p>
 {% else %}
     <p>Leave credits not found. Please contact HR.</p> 
 {% endif %}
 
 
-{% endblock content %}
+{#% endblock content %#}
