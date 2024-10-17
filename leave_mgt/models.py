@@ -3,7 +3,10 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 
 from users.models import User, Profile
+import logging
 
+# Logger setup
+logger = logging.getLogger(__name__)
 
 class AccrualModel(models.Model):
     accrual_value = models.DecimalField(max_digits=4, decimal_places=2, default=1.2, help_text="This defaults to 1.2 per month.")
@@ -28,6 +31,7 @@ class VL_Accrual(AccrualModel):
         constraints = [
             models.UniqueConstraint(fields=['id'], name='unique_vl_accrual')
         ]
+
 
 class LeaveCredits(models.Model):
     employee = models.OneToOneField(Profile, on_delete=models.CASCADE)
@@ -65,8 +69,8 @@ class LeaveCredits(models.Model):
             # Example: Add a portion (e.g., 50%) of unused current year SL
             self.total_sl_credits += self.current_year_sl_credits  
 
-            # Add unused current year VL with a max carry-over of 10
-            self.total_vl_credits += min(self.current_year_vl_credits, 10)
+            # Add unused current year VL with a max carry-over of 20
+            self.total_vl_credits += min(self.current_year_vl_credits, 20)
 
             # Reset current year credits 
             self.current_year_sl_credits = 0
@@ -74,6 +78,9 @@ class LeaveCredits(models.Model):
             # Reset at the start of the year
             self.credits_accrued_this_month = False 
             self.save()
+
+            # Log the carry-over event so users can check if there are missed carry-over events
+            LeaveCreditLog.objects.create(action_type='Yearly Carry Over', leave_credits=self)
 
     @classmethod
     def update_leave_credits(cls):
@@ -114,6 +121,9 @@ class LeaveCredits(models.Model):
                         leave_credit.credits_accrued_this_month = True
                         leave_credit.save()
 
+                        # Log the accrual event
+                        LeaveCreditLog.objects.create(action_type='Monthly Accrual', leave_credits=leave_credit)
+
             # Annual Carry-over 
             if now.month == 1 and now.day == 1:
                 for leave_credit in cls.objects.all():
@@ -128,12 +138,21 @@ class LeaveCredits(models.Model):
             # - Retry the task later
             # - ... other actions based on your requirements
 
+    @classmethod
+    def get_credit_logs(cls, employee):
+
+        """
+        Retrieve all leave credit logs for a specific employee.
+
+        """
+        return employee.logs.all()
+
 def leave_form_directory_path(instance, filename):
     # Leave > LeaveCredits > Profile > User > username
     username = instance.employee.employee.profile.username
     return 'users/{}/leaveForms/{}'.format(username, filename)
 
-class Leave(models.Model):
+class LeaveRequest(models.Model):
     LEAVE_TYPES = [
         ('SL', 'Sick Leave'),
         ('VL', 'Vacation Leave'),
@@ -201,3 +220,11 @@ class Leave(models.Model):
             elif self.leave_type == 'SP':
                 # handle special leave credits calculation
                 pass
+
+class LeaveCreditLog(models.Model):
+    action_date = models.DateTimeField(auto_now_add=True)
+    action_type = models.CharField(max_length=50)  # e.g., 'Monthly Accrual', 'Yearly Carry Over'
+    leave_credits = models.ForeignKey(LeaveCredits, on_delete=models.CASCADE, related_name='logs')
+
+    def __str__(self):
+        return f"{self.action_type} on {self.action_date}"

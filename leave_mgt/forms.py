@@ -1,9 +1,9 @@
 from django import forms
-from .models import Leave
+from .models import LeaveRequest
 
 class LeaveApplicationForm(forms.ModelForm):
     class Meta:
-        model = Leave
+        model = LeaveRequest
         fields = ('leave_type', 'start_date', 'end_date', 'number_of_days', 'notes', 'form_photo')
         widgets = {
             'start_date': forms.widgets.DateInput(attrs={'type': 'date'},),

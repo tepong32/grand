@@ -1,11 +1,14 @@
-{#% extends "base.html" %#}
+{% extends "base.html" %}
 {% load static %}
 
+{% block dashboard %}
+    {% include 'leave_mgt/leave_mgt.dashboard.html' %}
+{% endblock%}
 
 {% block content %}
 
-
-Leave Summary page for Admins
+<div class="container mt-2">
+Leave Summary page for Admins ##### configure proper fetching here!
 
 {% if leave_credits %} 
     <p>Your SL Credits (Current Year): {{ leave_credits.current_year_sl_credits }}</p>
@@ -18,11 +21,6 @@ Leave Summary page for Admins
 {% else %}
     <p>Leave credits not found. Please contact HR.</p> 
 {% endif %}
-
-<div class="container container-lg-3">
-<div class="card">
-{% include 'users/profile.html' %}
-</div>
-</div>
+</div><!-- /.col -->
 
 {% endblock content %}

@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 
 from users.models import User, Profile
 from .forms import LeaveApplicationForm
-from .models import Leave, LeaveCredits
+from .models import LeaveRequest, LeaveCredits, LeaveCreditLog
 
 from django.views.generic import (
     TemplateView,
@@ -33,7 +33,7 @@ depending on their specific needs.
 # Define a function to fetch dynamic data since we need the 'request' object
 def get_dynamic_context(request):
     leave_credits = LeaveCredits.objects.get(employee=request.user.profile)
-    pending_leaves = Leave.objects.filter(employee=leave_credits, status='PENDING')
+    pending_leaves = LeaveRequest.objects.filter(employee=leave_credits, status='PENDING')
     global_context = {
         'leave_credits': leave_credits,
         'remaining_sl_credits': leave_credits.current_year_sl_credits,
@@ -69,18 +69,39 @@ class RoleBasedTemplateMixin(UserPassesTestMixin):
 
 
 class MyLeaveView(LoginRequiredMixin, RoleBasedTemplateMixin, TemplateView):
-    template_name = 'leave_mgt/leave_summary.html' # displaying the default template for normal users
+    template_name = 'leave_mgt/leave_summary.html'  # Displaying the default template for normal users
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
         # Update context with global context
         context.update(global_static_context)
+
         # Fetch dynamic data and update context
         context.update(get_dynamic_context(self.request))
-        # assign and add VIEW-SPECIFIC value to context{'<key>': <value>}
-        leave_credits = LeaveCredits.objects.get(employee=self.request.user.profile) 
+
+
+        # Fetch leave credits for the user
+        leave_credits = LeaveCredits.objects.get(employee=self.request.user.profile)
         context['leave_credits'] = leave_credits
+
+        # Fetch pending leave requests
+        context['pending_requests'] = LeaveRequest.objects.filter(status='PENDING', employee=leave_credits)
+
+        # Fetch accrual logs
+        context['accrual_logs'] = LeaveCreditLog.objects.filter(leave_credits=leave_credits)
+
+        # Calculate leave statistics
+        current_year = timezone.now().year  # Assuming you have timezone imported
+        context['current_year_sl'] = leave_credits.current_year_sl_credits  # Adjust this method as necessary
+        context['current_year_vl'] = leave_credits.current_year_vl_credits  # Adjust this method as necessary
+        context['total_sl'] = LeaveRequest.objects.filter(employee=leave_credits, leave_type='Sick Leave', status='Approved').count()  # Adjust this field as necessary
+        context['total_vl'] = LeaveRequest.objects.filter(employee=leave_credits, leave_type='Vacation Leave', status='Approved').count()  # Adjust this field as necessary
+        context['total_leave_taken'] = LeaveRequest.objects.filter(employee=leave_credits, status='Approved').count()
+        context['average_leave_per_month'] = context['total_leave_taken'] / 12  # Simplified
+        context['sl_vs_vl_usage'] = f"SL: {context['total_sl']}, VL: {context['total_vl']}"
+
+
         return context
 
 class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
@@ -133,7 +154,7 @@ class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
         return redirect('/')  # Redirect to a success page
 
 class LeaveApplicationUpdateView(UpdateView):
-    model = Leave
+    model = LeaveRequest
     form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application.html'
     success_url = "/"
@@ -183,7 +204,7 @@ class LeaveApplicationUpdateView(UpdateView):
 
 
 class LeaveApplicationDetailView(DetailView):
-    model = Leave
+    model = LeaveRequest
     form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application_detail.html'
 
@@ -197,7 +218,7 @@ class LeaveApplicationDetailView(DetailView):
 
 
 class LeaveApplicationDeleteView(DeleteView):
-    model = Leave
+    model = LeaveRequest
     template_name = 'leave_mgt/leave_application_delete.html'
     success_url = reverse_lazy('leave_list')  # Redirect to leave_mgt/ (MyLeaveView) view after deletion
 

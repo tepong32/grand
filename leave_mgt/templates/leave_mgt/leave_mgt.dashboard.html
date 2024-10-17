@@ -1,0 +1,112 @@
+<div class="col-lg-8 col-sm-12 border border-warning p-2">
+
+<div class="container mt-2">
+  {% if request.user.is_superuser %}
+    <h1 class="text-center">Leave Dashboard: <b>Super User</b></h1>
+  {% elif request.user.is_staff %}
+    <h1 class="p-2">Leave Dashboard: <b>Staff</b></h1>
+  {% else %}
+    <h1 class="p-2">Leave Dashboard: <b>Advisor</b></h1>
+  {% endif %}
+  <ul class="nav nav-tabs" id="myTab" role="tablist">
+      <li class="nav-item">
+          <a class="nav-link active" id="pending-requests-tab" data-toggle="tab" href="#pending-requests" role="tab" aria-controls="pending-requests" aria-selected="true">Pending Requests</a>
+      </li>
+      <li class="nav-item">
+          <a class="nav-link" id="accrual-history-tab" data-toggle="tab" href="#accrual-history" role="tab" aria-controls="accrual-history" aria-selected="false">Accrual History</a>
+      </li>
+      <li class="nav-item">
+          <a class="nav-link" id="leave-credits-tab" data-toggle="tab" href="#leave-credits" role="tab" aria-controls="leave-credits" aria-selected="false">Leave Credits Overview</a>
+      </li>
+      <li class="nav-item">
+
+          <a class="nav-link" id="leave-statistics-tab" data-toggle="tab" href="#leave-statistics" role="tab" aria-controls="leave-statistics" aria-selected="false">Leave Statistics</a>
+      </li>
+  </ul>
+
+  <div class="tab-content" id="myTabContent">
+      <div class="tab-pane fade show active" id="pending-requests" role="tabpanel" aria-labelledby="pending-requests-tab">
+          <h3>Pending Leave Requests</h3>
+          <table class="table">
+              <thead>
+                  <tr>
+                      <th>Leave Type</th>
+                      <th>Start Date</th>
+                      <th>End Date</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  {% for request in pending_leaves %}
+                  <tr>
+                      <td>{{ request.leave_type }}</td>
+                      <td>{{ request.start_date }}</td>
+                      <td>{{ request.end_date }}</td>
+                      <td>{{ request.status }}</td>
+                      <td>
+                          <a href="{% url 'view_request' request.id %}" class="btn btn-info btn-sm">View</a>
+                          <a href="{% url 'cancel_request' request.id %}" class="btn btn-danger btn-sm">Cancel</a>
+                      </td>
+                  </tr>
+                  {% endfor %}
+              </tbody>
+          </table>
+      </div>
+
+      <div class="tab-pane fade" id="accrual-history" role="tabpanel" aria-labelledby="accrual-history-tab">
+          <h3>Accrual History</h3>
+          <table class="table">
+              <thead>
+                  <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Before Credits</th>
+                      <th>After Credits</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  {% for log in accrual_logs %}
+                  <tr>
+                      <td>{{ log.action_date }}</td>
+                      <td>{{ log.action_type }}</td>
+                      <td>{{ log.before_credits }}</td>
+                      <td>{{ log.after_credits }}</td>
+                  </tr>
+                  {% endfor %}
+              </tbody>
+          </table>
+      </div>
+
+      <div class="tab-pane fade" id="leave-credits" role="tabpanel" aria-labelledby="leave-credits-tab">
+          <h3>Leave Credits Overview</h3>
+          <ul>
+              <li>Current Year SL Credits: {{ current_year_sl }}</li>
+              <li>Current Year VL Credits: {{ current_year_vl }}</li>
+              <li>Pending: {{ pending_leaves }}</li>
+              <li>Total VL Credits: {{ total_vl }}</li>
+          </ul>
+      </div>
+
+      <div class="tab-pane fade" id="leave-statistics" role="tabpanel" aria-labelledby="leave-statistics-tab">
+          <h3>Leave Statistics</h3>
+          <ul>
+              <li>Total Leave Taken This Year: {{ total_leave_taken }}</li>
+              <li>Average Leave Taken Per Month: {{ average_leave_per_month }}</li>
+              <li>SL vs. VL Usage: {{ sl_vs_vl_usage }}</li>
+          </ul>
+      </div>
+  </div>
+
+</div>
+
+
+
+<div class="col-lg-4 float-right">
+  <!-- alerts/notifs here -->
+  {% if messages %}
+    {% for message in messages %}
+        <p><i class="alert alert-{{ message.tags }}">{{ message }}</i></p>
+    {% endfor %}
+  {% endif %}
+</div><!-- /.col -->
