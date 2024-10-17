@@ -1,0 +1,25 @@
+Leave Management System Summary (from leave_mgt.models.py)
+
+Based on the provided code, it appears that you are developing a leave management system for employees. The system seems to be built using Django, a Python web framework. Here's a brief summary of the key components and functionality:
+
+Key Models:
+
+    LeaveCredits: Represents an employee's leave credits, including sick leave (SL), vacation leave (VL), and special leave (SP) credits.
+    AccrualModel: An abstract base model for leave accruals, which defines the accrual value and timestamp fields.
+    SL_Accrual and VL_Accrual: Concrete models that inherit from AccrualModel, representing sick leave and vacation leave accruals, respectively.
+    Leave: Represents a leave request, including the employee, leave type, dates, number of days, status, and notes.
+
+Functionality:
+
+    Leave Accruals: The system allows for monthly leave accruals, which are calculated based on the accrual values defined in the SL_Accrual and VL_Accrual models.
+    Leave Credits Management: The LeaveCredits model manages an employee's leave credits, including carrying over unused credits from the previous year.
+    Leave Requests: Employees can submit leave requests, which are stored in the Leave model. The system calculates the number of days for each leave request and updates the employee's leave credits accordingly.
+    Leave Status Management: The system allows for different leave statuses (e.g., pending, approved, rejected, cancelled) and updates the employee's leave credits based on the status.
+    Special Leave Handling: The system has a placeholder for handling special leave credits, which is not yet implemented.
+
+Additional Features:
+
+    File Upload: The system allows employees to upload a form photo (with signatures) for their leave requests.
+    Validation: The system performs validation on leave requests, ensuring that the start date is not greater than the end date.
+
+Overall, this leave management system aims to streamline the process of managing employee leave requests, accruals, and credits, while providing a user-friendly interface for employees to submit and track their leave requests.
