@@ -84,7 +84,7 @@ scratch. This page gets rid of all links and provides the needed markup only.
           <li class="nav-item">
             <a href="#" onclick="document.getElementById('logout-form').submit()">
               <p>
-                <i class="nav-icon fas fa-th"></i>
+                <i class="nav-icon fa fa-power-off"></i>
                 Logout
               </p>
             </a>
@@ -114,12 +114,8 @@ scratch. This page gets rid of all links and provides the needed markup only.
   <div class="content-wrapper">
     <!-- Content Header (Page header) -->
     <div class="content-header">
-      <div class="container-fluid">
-        <div class="row mb-2">
-          <!-- Dashboard separating links displayed depending on user-type -->
-          {% include 'home/authed/dashboard_links.html' %}
-        </div><!-- /.row -->
-      </div><!-- /.container-fluid -->
+      {% block dashboard %}
+      {% endblock dashboard %}
     </div>
     <!-- /.content-header -->
 

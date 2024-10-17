@@ -4,7 +4,7 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 
-from leave_mgt.models import LeaveCredits, Leave
+from leave_mgt.models import LeaveCredits, LeaveRequest
 from users.models import User, Profile
 
 from django.views.generic import (
@@ -32,9 +32,9 @@ class HomeView(LoginRequiredMixin, TemplateView):
         profile = Profile
         loggedin_user = self.request.user.profile
         leave_credits = LeaveCredits.objects.get(employee=loggedin_user)
-        pending_leaves = Leave.objects.filter(employee=leave_credits, status='PENDING')
+        pending_leaves = LeaveRequest.objects.filter(employee=leave_credits, status='PENDING')
         pending_leaves_count = sum(leave.number_of_days for leave in pending_leaves)
-        user_leaves = Leave.objects.filter(employee=leave_credits)[::-1]  # Filter the leaves of the current user, latest first
+        user_leaves = LeaveRequest.objects.filter(employee=leave_credits)[::-1]  # Filter the leaves of the current user, latest first
 
 
         context.update({
@@ -50,7 +50,7 @@ class HomeView(LoginRequiredMixin, TemplateView):
 
 
 class ApplyLeaveView(LoginRequiredMixin, CreateView):       
-    model = Leave
+    model = LeaveRequest
     form_class = LeaveForm
     template_name = 'home/authed/apply_leave_form.html'
     success_message = "Leave request submitted."
@@ -84,7 +84,7 @@ class ApplyLeaveView(LoginRequiredMixin, CreateView):
 
 
 class LeaveUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
-    model = Leave 
+    model = LeaveRequest 
     form_class = LeaveForm
     template_name = 'home/authed/update_leave_form.html'
     success_message = "Leave application updated."
@@ -125,7 +125,7 @@ class LeaveUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
 
 class LeaveDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):      
-    model = Leave
+    model = LeaveRequest
     template_name = 'home/authed/delete_leave_form.html'
     success_url = '/'
 

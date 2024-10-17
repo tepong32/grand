@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 
+{% block dashboard %}
+	{% include 'home/authed/home_dashboard.html' %}
+{% endblock%}
 {% block content %}
-
 <!-- REAL CONTENT -->
 {% if user_leaves.count == 0 %}
   <p> You have not filed for a leave request yet. Don't be shy. Work-Life balance, Man! </p>

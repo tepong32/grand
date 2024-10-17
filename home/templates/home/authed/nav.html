@@ -6,22 +6,26 @@
         <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
       </li>
       <li class="nav-item d-none d-sm-inline-block">
-        <a href="/" class="nav-link">Home</a>
+        <a href="/" class="nav-link" title="Home">
+          <i class="fa fa-home"></i>
+        </a>
       </li>
       <li class="nav-item d-none d-sm-inline-block">
-        <a href="/increase_max_instances" class="nav-link">Home-Increase Max Instances</a>
+        <a href="/increase_max_instances" class="nav-link" title="Home-Increase Max Instances">
+          <i class="fa fa-plus"></i>
+        </a>
       </li>
       <li class="nav-item d-none d-sm-inline-block">
-        <a href="/check_reset_date" class="nav-link">Home-Check Reset Date</a>
-      </li>
-      <li class="nav-item d-none d-sm-inline-block">
-        <a href="/apply-leave" class="nav-link">Home-Leave</a>
+        <a href="/check_reset_date" class="nav-link" title="Home-Check Reset Date">
+          <i class="fa fa-question"></i>
+          <i class="fa fa-check"></i>
+        </a>
       </li>
       <li class="nav-item d-none d-sm-inline-block">
         ||
       </li>
       <li class="nav-item d-none d-sm-inline-block">
-        <a href="{% url 'leave_create' %}" class="nav-link">lvmgt-LeaveApplication</a>
+        <a href="{% url 'leave_list' %}" class="nav-link">Leave Mgt</a>
       </li>
       <li class="nav-item d-none d-sm-inline-block">
         <a href="{% url 'profile' request.user %}" class="nav-link">
