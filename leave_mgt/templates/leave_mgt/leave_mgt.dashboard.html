@@ -81,9 +81,9 @@
       <div class="tab-pane fade" id="leave-credits" role="tabpanel" aria-labelledby="leave-credits-tab">
           <h3>Leave Credits Overview</h3>
           <ul>
-              <li>Current Year SL Credits: {{ current_year_sl }}</li>
-              <li>Current Year VL Credits: {{ current_year_vl }}</li>
-              <li>Pending: {{ pending_leaves }}</li>
+              <li>Current Year SL Credits: {{ leave_credits.current_year_sl_credits }}</li>
+              <li>Current Year VL Credits: {{ leave_credits.current_year_vl_credits }}</li>
+              <li>Pending: {{ pending_requests }}</li>
               <li>Total VL Credits: {{ total_vl }}</li>
           </ul>
       </div>
