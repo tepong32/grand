@@ -176,6 +176,17 @@ scratch. This page gets rid of all links and provides the needed markup only.
       $('#image-modal').modal('show');
     });
   });
+  
+  // Hide the alert when clicked
+  document.addEventListener('DOMContentLoaded', function() {
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+      alert.addEventListener('click', function() {
+          this.style.display = 'none';
+      });
+    });
+  });
+
 </script>
 </body>
 </html>

@@ -97,23 +97,14 @@ testing filters: <br>
 {% endfor %}
 </p>
 
-
-<p><b>Logged-in user</b>'s instances-used counter: <br>
-{% if instances_used_this_year and instances_used_this_quarter %}
-    <p>Instances used this year: {{ instances_used_this_year }}</p>
-    <p>Instances used this quarter: {{ instances_used_this_quarter }}</p>
-{% else %}
-    <p>No leave counter data available for this user.</p>
-{% endif %}
-</p>
 <hr>
 <div>
 	<p> leave instances </p>
+	<h4>{{pending_leaves_count}}</h4>
 	{% for leave in user_leaves %}
 		{{leave.leave_type}} - {{leave.start_date}} to {{leave.end_date}} - <b>{{leave.status}}</b><br>
 	{% endfor %}
 </div>
 
-<div class="card float-right col-2 elevation-3">SERVER TIME: {{server_time}} </div>
 </section>
 {% endblock content %}
