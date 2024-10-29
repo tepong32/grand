@@ -51,11 +51,11 @@ class LeaveCredits(models.Model):
     def __str__(self):
         return f"{self.employee.user.get_full_name()}'s Leave Credits" 
 
-    def get_total_special_leaves_taken(self):
-        return SpecialLeaves.objects.filter(leave_credits=self).count()
+    # def get_total_special_leaves_taken(self):
+    #     return SpecialLeaves.objects.filter(leave_credits=self).count()
 
-    def get_total_special_leaves_days(self):
-        return SpecialLeaves.objects.filter(leave_credits=self).aggregate(total_days=models.Sum('number_of_days'))['total_days'] or 0
+    # def get_total_special_leaves_days(self):
+    #     return SpecialLeaves.objects.filter(leave_credits=self).aggregate(total_days=models.Sum('number_of_days'))['total_days'] or 0
 
     def carry_over_credits(self):
         """
@@ -149,7 +149,7 @@ class LeaveCredits(models.Model):
 
 def leave_form_directory_path(instance, filename):
     # Leave > LeaveCredits > Profile > User > username
-    username = instance.employee.employee.profile.username
+    username = instance.employee.employee.user.username
     return 'users/{}/leaveForms/{}'.format(username, filename)
 
 class LeaveRequest(models.Model):
@@ -221,7 +221,7 @@ class LeaveRequest(models.Model):
                 # handle special leave credits calculation
                 pass
 
-class LeaveCreditLog(models.Model):
+class LeaveCreditLog(models.Model): # might have circular dependency problem with LeaveCredits here
     action_date = models.DateTimeField(auto_now_add=True)
     action_type = models.CharField(max_length=50)  # e.g., 'Monthly Accrual', 'Yearly Carry Over'
     leave_credits = models.ForeignKey(LeaveCredits, on_delete=models.CASCADE, related_name='logs')
