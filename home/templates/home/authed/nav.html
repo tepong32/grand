@@ -6,9 +6,13 @@
         <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
       </li>
 
+      <!-- Home -->
       <li class="nav-item d-none d-lg-block">
         <a href="/" class="nav-link" title="Home">
-          Home
+          <!-- Brand Logo -->
+          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="img-circle elevation-5"
+               style="opacity: 3; height: 35px;">
+          <span class="brand-text font-weight-light">LMS <small>by tEppy</small></span>
         </a>
       </li>
       <li class="nav-item d-lg-none d-sm-inline-block">
@@ -17,37 +21,42 @@
         </a>
       </li>
 
+      <!-- Increase Max Instances -->
       <li class="nav-item d-none d-lg-block">
         <a href="/increase_max_instances" class="nav-link" title="Home">
           + Max Instances
         </a>
       </li>
-      <li class="nav-item d-lg-none d-sm-inline-block">
-        <a href="/increase_max_instances" class="nav-link" title="Home-Increase Max Instances">
-          <i class="fa fa-plus"></i>
-        </a>
-      </li>
 
+      <!-- Check Reset Date -->
       <li class="nav-item d-none d-lg-block">
         <a href="/check_reset_date" class="nav-link" title="Home">
           Check Reset Date
         </a>
       </li>
+
+      <!-- Leave Mgt -->
+      <li class="nav-item d-none d-lg-block">
+        <a href="{% url 'leave_list' %}" class="nav-link">Leave Mgt</a>
+      </li>
       <li class="nav-item d-lg-none d-sm-inline-block">
-        <a href="/check_reset_date" class="nav-link" title="Home-Check Reset Date">
-          <i class="fa fa-question"></i>
-          <i class="fa fa-check"></i>
+        <a href="{% url 'leave_list' %}" class="nav-link" title="Leave Mgt">
+          <i class="fa fa-book"></i>
         </a>
       </li>
 
-      <li class="nav-item d-none d-sm-inline-block">
-        <a href="{% url 'leave_list' %}" class="nav-link">Leave Mgt</a>
-      </li>
+      <!-- Profile -->
       <li class="nav-item d-none d-sm-inline-block">
         <a href="{% url 'profile' request.user %}" class="nav-link">
+          Profile
+        </a>
+      </li>
+      <li class="nav-item d-lg-none d-sm-inline-block">
+        <a href="{% url 'profile' request.user %}" class="nav-link" title="Profile">
           <i class="fa fa-user-alt" title="{{request.user}}"></i>
         </a>
       </li>
+
     </ul>
 
     <!-- SEARCH FORM -->
@@ -60,7 +69,7 @@
               </button>
           </div>
       </div>
-  </form>
+    </form>
 
     <!-- Right navbar links -->
     <ul class="navbar-nav ml-auto">
@@ -156,3 +165,4 @@
     </ul>
   </nav>
   <!-- /.navbar -->
+
