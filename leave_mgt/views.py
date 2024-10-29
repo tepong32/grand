@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.db.models import Sum
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -93,12 +94,15 @@ class MyLeaveView(LoginRequiredMixin, RoleBasedTemplateMixin, TemplateView):
 
         # Calculate leave statistics
         current_year = timezone.now().year  # Assuming you have timezone imported
-        context['current_year_sl'] = leave_credits.current_year_sl_credits  # Adjust this method as necessary
-        context['current_year_vl'] = leave_credits.current_year_vl_credits  # Adjust this method as necessary
-        context['total_sl'] = LeaveRequest.objects.filter(employee=leave_credits, leave_type='Sick Leave', status='Approved').count()  # Adjust this field as necessary
-        context['total_vl'] = LeaveRequest.objects.filter(employee=leave_credits, leave_type='Vacation Leave', status='Approved').count()  # Adjust this field as necessary
-        context['total_leave_taken'] = LeaveRequest.objects.filter(employee=leave_credits, status='Approved').count()
-        context['average_leave_per_month'] = context['total_leave_taken'] / 12  # Simplified
+        context['total_sl'] = LeaveRequest.objects.filter(employee=leave_credits, leave_type='SL', status='APPROVED').count()  # Adjust this field as necessary
+        context['total_vl'] = LeaveRequest.objects.filter(employee=leave_credits, leave_type='VL', status='APPROVED').count()  # Adjust this field as necessary
+        # Count of approved requests
+        approved_requests = LeaveRequest.objects.filter(employee=leave_credits, status='APPROVED')
+        context['total_approved_requests'] = approved_requests.count()
+        # Sum of number_of_days for approved leaves
+        total_approved_days = approved_requests.aggregate(total_days=Sum('number_of_days'))['total_days'] or 0
+        context['total_approved_days'] = total_approved_days
+        context['average_leave_per_month'] = context['total_approved_days'] / 12  # Simplified
         context['sl_vs_vl_usage'] = f"SL: {context['total_sl']}, VL: {context['total_vl']}"
 
 
