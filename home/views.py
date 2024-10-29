@@ -32,15 +32,11 @@ class HomeView(LoginRequiredMixin, TemplateView):
         profile = Profile
         loggedin_user = self.request.user.profile
         leave_credits = LeaveCredits.objects.get(employee=loggedin_user)
-        pending_leaves = LeaveRequest.objects.filter(employee=leave_credits, status='PENDING')
-        pending_leaves_count = sum(leave.number_of_days for leave in pending_leaves)
         user_leaves = LeaveRequest.objects.filter(employee=leave_credits)[::-1]  # Filter the leaves of the current user, latest first
 
 
         context.update({
             'leave_credits': leave_credits,
-            'pending_leaves': pending_leaves,
-            'pending_leaves_count': pending_leaves_count,
             'profiles': profile.objects.all(),
             'user_leaves': user_leaves,
         })
