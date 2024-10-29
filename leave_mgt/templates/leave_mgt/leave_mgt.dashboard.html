@@ -1,12 +1,61 @@
+
+<!-- Overlay for alerts/notifs -->
+<style type="text/css">
+  .alert-container {
+    position: fixed; /* Fixed position */
+    top: 60px; /* Distance from the top of the viewport */
+    right: 20px; /* Distance from the right of the viewport */
+    z-index: 1000; /* Ensure it appears above other elements */
+    max-width: 300px; /* Set a maximum width */
+    display: flex; /* Use flexbox to stack alerts */
+    flex-direction: column; /* Stack alerts vertically */
+    gap: 10px; /* Space between alerts */
+}
+
+.alert {
+    padding: 10px 15px; /* Padding for alerts */
+    border-radius: 5px; /* Rounded corners */
+    color: #fff; /* Text color */
+}
+
+/* Example styles for different alert types */
+.alert-success {
+    background-color: #28a745; /* Green for success */
+}
+
+.alert-info {
+    background-color: #17a2b8; /* Blue for info */
+}
+
+.alert-warning {
+    background-color: #ffc107; /* Yellow for warning */
+}
+
+.alert-danger {
+    background-color: #dc3545; /* Red for danger */
+}
+</style>
+
+<div id="alert-container" class="alert-container">
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">
+          {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+
+
 <div class="col-lg-8 col-sm-12 border border-warning p-2">
 
 <div class="container mt-2">
   {% if request.user.is_superuser %}
-    <h1 class="text-center">Leave Dashboard: <b>Super User</b></h1>
+    <h1 class="text-center">Dashboard: <b>Super User</b></h1>
   {% elif request.user.is_staff %}
-    <h1 class="p-2">Leave Dashboard: <b>Staff</b></h1>
+    <h1 class="p-2">Dashboard: <b>Staff</b></h1>
   {% else %}
-    <h1 class="p-2">Leave Dashboard: <b>Advisor</b></h1>
+    <h1 class="p-2">Dashboard: <b>Advisor</b></h1>
   {% endif %}
   <ul class="nav nav-tabs" id="myTab" role="tablist">
       <li class="nav-item">
@@ -26,7 +75,7 @@
 
   <div class="tab-content" id="myTabContent">
       <div class="tab-pane fade show active" id="pending-requests" role="tabpanel" aria-labelledby="pending-requests-tab">
-          <h3>Pending Leave Requests</h3>
+          <a href="{% url 'leave_create' %}" class="btn btn-info btn-sm float-right">File Leave Request</a>
           <table class="table">
               <thead>
                   <tr>
@@ -38,18 +87,22 @@
                   </tr>
               </thead>
               <tbody>
-                  {% for request in pending_leaves %}
+                {% for request in pending_leaves %}
                   <tr>
                       <td>{{ request.leave_type }}</td>
                       <td>{{ request.start_date }}</td>
                       <td>{{ request.end_date }}</td>
                       <td>{{ request.status }}</td>
                       <td>
-                          <a href="{% url 'view_request' request.id %}" class="btn btn-info btn-sm">View</a>
-                          <a href="{% url 'cancel_request' request.id %}" class="btn btn-danger btn-sm">Cancel</a>
+                        {% if pending_leaves != 0 %}
+                          <a href="{% url 'leave_update' request.pk %}" class="btn btn-info btn-sm"><small>Update</small></a>
+                          <a href="{% url 'leave_delete' request.pk %}" class="btn btn-danger btn-sm"><small>Cancel</small></a>
+                        {% else %}
+                          ---
+                        {% endif %}
                       </td>
                   </tr>
-                  {% endfor %}
+                {% endfor %}
               </tbody>
           </table>
       </div>
@@ -81,10 +134,11 @@
       <div class="tab-pane fade" id="leave-credits" role="tabpanel" aria-labelledby="leave-credits-tab">
           <h3>Leave Credits Overview</h3>
           <ul>
-              <li>Current Year SL Credits: {{ leave_credits.current_year_sl_credits }}</li>
-              <li>Current Year VL Credits: {{ leave_credits.current_year_vl_credits }}</li>
-              <li>Pending: {{ pending_requests }}</li>
-              <li>Total VL Credits: {{ total_vl }}</li>
+              <li>Current Year SL Credits: {{ cy_sl }}</li>
+              <li>Current Year VL Credits: {{ cy_vl }}</li>
+              <li>Approved Leave Count/# of days: {{ total_approved_requests }} / {{total_approved_days}} </li>
+              <li>Average Leaves/Month: {{average_leave_per_month}}</li>
+              <li>{{sl_vs_vl_usage}}</li>
           </ul>
       </div>
 
@@ -101,12 +155,4 @@
 </div>
 
 
-
-<div class="col-lg-4 float-right">
-  <!-- alerts/notifs here -->
-  {% if messages %}
-    {% for message in messages %}
-        <p><i class="alert alert-{{ message.tags }}">{{ message }}</i></p>
-    {% endfor %}
-  {% endif %}
-</div><!-- /.col -->
+</div>
