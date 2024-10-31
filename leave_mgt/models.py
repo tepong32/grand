@@ -190,8 +190,30 @@ class LeaveRequest(models.Model):
             raise ValidationError("Both start date and end date are required.")
 
     def save(self, *args, **kwargs):
-        self.number_of_days = self.calculate_number_of_days()
+        if not self.pk:  # Only calculate number_of_days when creating a new record
+            self.number_of_days = self.calculate_number_of_days()
+
+        old_status = None
+        if self.pk:  # This check ensures we're dealing with an update
+            old_instance = LeaveRequest.objects.get(pk=self.pk)
+            old_status = old_instance.status
+
         super().save(*args, **kwargs)
+
+        # Update leave credits only if the status changes to APPROVED
+        if self.status == 'APPROVED' and old_status != 'APPROVED':
+            if self.leave_type == 'SL':
+                self.employee.current_year_sl_credits -= self.number_of_days
+            elif self.leave_type == 'VL':
+                self.employee.current_year_vl_credits -= self.number_of_days
+            self.employee.save()  # Save the updated leave credits
+        elif old_status == 'APPROVED' and self.status != 'APPROVED':
+            # Revert leave credits if the status is changed from APPROVED to something else
+            if self.leave_type == 'SL':
+                self.employee.current_year_sl_credits += self.number_of_days
+            elif self.leave_type == 'VL':
+                self.employee.current_year_vl_credits += self.number_of_days
+            self.employee.save()  # Save the reverted leave credits
 
     def calculate_number_of_days(self):
         total_days = (self.end_date - self.start_date).days + 1

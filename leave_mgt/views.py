@@ -128,8 +128,13 @@ class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
 
     def form_valid(self, form):
         leave_type = form.cleaned_data['leave_type']
-        number_of_days = form.cleaned_data['number_of_days']
+        # number_of_days = form.cleaned_data['number_of_days']
         employee = self.request.user.profile.leavecredits
+
+        # Calculate number of days here since it's hidden from the form
+        start_date = form.cleaned_data['start_date']
+        end_date = form.cleaned_data['end_date']
+        number_of_days = (end_date - start_date).days + 1
 
         # Check leave credits based on leave type
         if leave_type == 'SL':
@@ -142,17 +147,12 @@ class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
                 messages.error(self.request, "Insufficient Vacation Leave credits.")
                 return self.form_invalid(form)
 
+        # Set the calculated number of days to the form instance
+        form.instance.number_of_days = number_of_days
+
         # If checks pass, create the leave record
         form.instance.employee = employee  # Set the employee field
         response = super().form_valid(form)
-
-        # Update leave credits only if the leave is approved
-        if form.instance.status == 'APPROVED':
-            if leave_type == 'SL':
-                employee.current_year_sl_credits -= number_of_days
-            elif leave_type == 'VL':
-                employee.current_year_vl_credits -= number_of_days
-            employee.save()  # Save the updated leave credits
 
         messages.success(self.request, "Leave application submitted successfully.")
         return redirect('/')  # Redirect to a success page
