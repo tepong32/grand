@@ -139,12 +139,12 @@ class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
         # Check leave credits based on leave type
         if leave_type == 'SL':
             if employee.current_year_sl_credits <= 0 or (employee.current_year_sl_credits - number_of_days < 0):
-                messages.error(self.request, "Insufficient Sick Leave credits.")
+                form.add_error(None, "Insufficient Sick Leave credits.")
                 return self.form_invalid(form)
 
         elif leave_type == 'VL':
             if employee.current_year_vl_credits <= 0 or (employee.current_year_vl_credits - number_of_days < 0):
-                messages.error(self.request, "Insufficient Vacation Leave credits.")
+                form.add_error(None, "Insufficient Vacation Leave credits.")
                 return self.form_invalid(form)
 
         # Set the calculated number of days to the form instance
