@@ -1,15 +1,20 @@
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
 
+  {% block dashboard %}
+    {% include 'leave_mgt/leave_mgt.dashboard.html' %}
+  {% endblock%}
+
 {% block content %}
-  <form method="POST" enctype="multipart/form-data" class="card p-3 col-lg-6 col-md-12 col-sm-12 ">
+  <form method="POST" enctype="multipart/form-data" class="p-3 col-lg-6 col-md-12 col-sm-12 ">
     {% csrf_token %}
     <!-- this is a required line for added security -->
     <fieldset class="form-group">
       <legend class="border-bottom mb-1">Apply for a Leave</legend>
+      <!-- Add the "Today" button for the start_date field -->
+      <button type="button" id="todayButton">Today</button>
       {{ form|crispy }}
-      <!-- {{ form.media }} -->
-      <!-- {{ form|crispy }} -->
+      <!-- pwede na tong alisin -->
       {% if form.non_field_errors %}
         <div class="alert alert-danger">
             {% for error in form.non_field_errors %}
@@ -17,16 +22,13 @@
             {% endfor %}
         </div>
       {% endif %}
-      
     </fieldset>
-    {{form.errors}}
+
     <small>
     <div class="form-group">
       <button class="btn btn-success" type="submit">Submit request</button>
     </div>
-    <!-- Add the "Today" button for the start_date field -->
-    <button type="button" id="todayButton">Today</button>
-</form>
+  </form>
 
 <script>
 document.getElementById('todayButton').addEventListener('click', function() {
