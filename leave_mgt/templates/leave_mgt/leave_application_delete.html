@@ -1,1 +1,28 @@
-leave application DELETE
+{% extends 'base.html' %}
+
+  {% block dashboard %}
+    {% include 'leave_mgt/leave_mgt.dashboard.html' %}
+  {% endblock%}
+
+{% block content %}
+<div class="content-section">
+  <form method="POST">
+    {% csrf_token %}
+    <!-- this is a required line for added security -->
+    <fieldset class="form-group">
+      <legend class="border-bottom mb-1"><b> Cancel Leave Application? </b></legend>
+      <h6>You cannot undo this action.</h6>
+    </fieldset>
+
+    <div class="form-group">
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'leave_list' %}">
+        No
+      </a>
+      <button class="btn btn-sm btn-outline-danger" type="submit">
+        Yes
+      </button>
+    </div>
+  </form>
+</div>
+<hr />
+{% endblock content %}
