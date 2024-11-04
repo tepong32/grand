@@ -10,30 +10,30 @@
     display: flex; /* Use flexbox to stack alerts */
     flex-direction: column; /* Stack alerts vertically */
     gap: 10px; /* Space between alerts */
-}
+  }
 
-.alert {
-    padding: 10px 15px; /* Padding for alerts */
-    border-radius: 5px; /* Rounded corners */
-    color: #fff; /* Text color */
-}
+  .alert {
+      padding: 10px 15px; /* Padding for alerts */
+      border-radius: 5px; /* Rounded corners */
+      color: #fff; /* Text color */
+  }
 
-/* Example styles for different alert types */
-.alert-success {
-    background-color: #28a745; /* Green for success */
-}
+  /* Example styles for different alert types */
+  .alert-success {
+      background-color: #28a745; /* Green for success */
+  }
 
-.alert-info {
-    background-color: #17a2b8; /* Blue for info */
-}
+  .alert-info {
+      background-color: #17a2b8; /* Blue for info */
+  }
 
-.alert-warning {
-    background-color: #ffc107; /* Yellow for warning */
-}
+  .alert-warning {
+      background-color: #ffc107; /* Yellow for warning */
+  }
 
-.alert-danger {
-    background-color: #dc3545; /* Red for danger */
-}
+  .alert-danger {
+      background-color: #dc3545; /* Red for danger */
+  }
 </style>
 
 <div id="alert-container" class="alert-container">
@@ -96,7 +96,10 @@
                       <td>
                         {% if pending_leaves != 0 %}
                           <a href="{% url 'leave_update' request.pk %}" class="btn btn-info btn-sm"><small>Update</small></a>
-                          <a href="{% url 'leave_delete' request.pk %}" class="btn btn-danger btn-sm"><small>Cancel</small></a>
+                          <!-- Button to trigger delete modal -->
+                          <button class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deleteConfirmationModal" data-request-id="{{ request.pk }}">
+                            <small>Cancel</small>
+                          </button>
                         {% else %}
                           ---
                         {% endif %}
@@ -136,9 +139,9 @@
           <ul>
               <li>Current Year SL Credits: {{ cy_sl }}</li>
               <li>Current Year VL Credits: {{ cy_vl }}</li>
-              <li>Approved Leave Count/# of days: {{ total_approved_requests }} / {{total_approved_days}} </li>
-              <li>Average Leaves/Month: {{average_leave_per_month}}</li>
-              <li>{{sl_vs_vl_usage}}</li>
+              <li>Approved Leave Count: {{approved_leave_count}}</li>
+              <li>Current Yr Approved Instances: {{current_yr_leave_usage}}</li>
+              <li>xxxxxxxx</li>
           </ul>
       </div>
 
@@ -153,6 +156,40 @@
   </div>
 
 </div>
-
-
 </div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" role="dialog" aria-labelledby="deleteConfirmationModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteConfirmationModalLabel">Confirm Deletion</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to delete this leave application? This action cannot be undone.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <form method="POST" id="deleteForm" action="">
+          {% csrf_token %}
+          <button class="btn btn-danger" type="submit">Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // JavaScript to handle the modal and form submission
+  $('#deleteConfirmationModal').on('show.bs.modal', function (event) {
+    var button = $(event.relatedTarget); // Button that triggered the modal
+    var requestId = button.data('request-id'); // Extract info from data-* attributes
+
+    // Update the form action with the delete URL
+    var deleteUrl = '{% url "leave_delete" "request_id_placeholder" %}'.replace('request_id_placeholder', requestId);
+    $('#deleteForm').attr('action', deleteUrl);
+  });
+</script>
