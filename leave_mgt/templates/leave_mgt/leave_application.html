@@ -1,17 +1,19 @@
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
 
-  {% block dashboard %}
-    {% include 'leave_mgt/leave_mgt.dashboard.html' %}
-  {% endblock%}
+
 
 {% block content %}
-  <form method="POST" enctype="multipart/form-data" class="p-3 col-lg-6 col-md-12 col-sm-12 ">
+<div class="row">
+  {% block dashboard %}
+    {% include 'leave_mgt/leave_mgt.dashboard.html' %}
+  {% endblock %}
+  <form method="POST" enctype="multipart/form-data" class="p-3 col-lg-4 col-md-12 col-sm-12 ">
     {% csrf_token %}
     <!-- this is a required line for added security -->
     <fieldset class="form-group">
       <legend class="border-bottom mb-1">Apply for a Leave</legend>
-      <!-- Add the "Today" button for the start_date field -->
+      <!-- Add the "Today" button for the start_date field // testing purposes -->
       <button type="button" id="todayButton">Today</button>
       {{ form|crispy }}
       <!-- pwede na tong alisin -->
@@ -29,6 +31,12 @@
       <button class="btn btn-success" type="submit">Submit request</button>
     </div>
   </form>
+
+  <!-- reminders/tips/ads pag naka full screen? -->
+  <div class="card col-lg-2">
+    reminders/tips/ads?
+  </div>
+</div> <!-- row -->
 
 <script>
 document.getElementById('todayButton').addEventListener('click', function() {

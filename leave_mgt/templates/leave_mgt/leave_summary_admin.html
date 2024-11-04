@@ -1,16 +1,22 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block dashboard %}
-    {% include 'leave_mgt/leave_mgt.dashboard.html' %}
-{% endblock%}
 
 {% block content %}
+{% block dashboard %}
+    {% include 'leave_mgt/leave_mgt.dashboard.html' %}
+{% endblock %}
 
-<div class="container mt-2">
+
+
+<div class="container col-lg-11 mt-2">
 Leave summary admin to kasi admin user ako. Based sa RoleBasedTemplateMixin sa MyLeaveView <br>
 Kung normal user, leave_summary.html lang. <br>
 code mo yon.
+<br><hr>
+
+add pagination sa accruals kung kailangan. or maybe make it a separate page <br>
+
 </div><!-- /.col -->
 
 {% endblock content %}

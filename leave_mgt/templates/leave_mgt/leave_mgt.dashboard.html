@@ -47,16 +47,11 @@
 </div>
 
 
-<div class="col-lg-6 col-sm-12 border border-warning p-2">
+
+<!-- adjust this height -->
+<div class="overflow-auto col-lg-5 col-sm-12 border border-warning p-2" style="max-height: 400px;"> 
 
 <div class="container mt-2">
-  {% if request.user.is_superuser %}
-    <h1 class="text-center">Dashboard: <b>Super User</b></h1>
-  {% elif request.user.is_staff %}
-    <h1 class="p-2">Dashboard: <b>Staff</b></h1>
-  {% else %}
-    <h1 class="p-2">Dashboard: <b>Advisor</b></h1>
-  {% endif %}
   <a href="{% url 'leave_create' %}" class="btn btn-info btn-sm float-right">File Leave Request</a>
   <ul class="nav nav-tabs" id="myTab" role="tablist">
       <li class="nav-item">
