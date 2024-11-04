@@ -26,6 +26,7 @@ def dashboard_context(request):
 		accrual_logs = LeaveCreditLog.objects.filter(leave_credits=leave_credits)
 
 		return {
+			'accrual_logs': accrual_logs,
 			'approved_leaves': approved_leaves,
 			'approved_leave_count': approved_leave_count,
 
