@@ -49,6 +49,7 @@ class MyLeaveView(LoginRequiredMixin, RoleBasedTemplateMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         return context
 
+
 class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
     form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application.html'
@@ -94,7 +95,7 @@ class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
         messages.success(self.request, "Leave application submitted successfully.")
         return redirect('leave_list')  # Redirect to a success page
 
-class LeaveApplicationUpdateView(UpdateView):
+class LeaveApplicationUpdateView(UpdateView, LoginRequiredMixin):
     model = LeaveRequest
     form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application.html'
@@ -111,8 +112,13 @@ class LeaveApplicationUpdateView(UpdateView):
 
     def form_valid(self, form):
         leave_type = form.cleaned_data['leave_type']
-        number_of_days = form.cleaned_data['number_of_days']
+        # number_of_days = form.cleaned_data['number_of_days']
         employee = self.request.user.profile.leavecredits
+
+        # Calculate number of days here since it's hidden from the form
+        start_date = form.cleaned_data['start_date']
+        end_date = form.cleaned_data['end_date']
+        number_of_days = (end_date - start_date).days + 1
 
         # Check leave credits based on leave type
         if leave_type == 'SL':
@@ -140,7 +146,7 @@ class LeaveApplicationUpdateView(UpdateView):
         return redirect('leave_list')  # Redirect to a success page
 
 
-class LeaveApplicationDetailView(DetailView):
+class LeaveApplicationDetailView(DetailView, LoginRequiredMixin):
     model = LeaveRequest
     form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application_detail.html'
@@ -150,7 +156,7 @@ class LeaveApplicationDetailView(DetailView):
         return context
 
 
-class LeaveApplicationDeleteView(DeleteView):
+class LeaveApplicationDeleteView(DeleteView, LoginRequiredMixin):
     model = LeaveRequest
     template_name = 'leave_mgt/leave_application_delete.html'
     success_url = reverse_lazy('leave_list')  # Redirect to leave_mgt/ (MyLeaveView) view after deletion
@@ -175,6 +181,6 @@ class LeaveApplicationDeleteView(DeleteView):
         # Call the superclass delete method
         response = super().delete(request, *args, **kwargs)
         # Add a success message
-        messages.success(request, "Leave application deleted.")
+        messages.success(self.request, "Leave application deleted.")
 
         return response
