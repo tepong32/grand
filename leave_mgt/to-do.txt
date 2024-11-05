@@ -1,43 +1,6 @@
 Creating a user-friendly dashboard to display leave-related statistics and information is a great way to enhance user experience. Here are some suggestions for the UI design and functionality:
 Dashboard UI Design
 
-    Tabbed Widget Interface:
-        Use a tabbed interface to organize different sections of leave-related statistics. Each tab can represent a specific category of information.
-        Example Tabs:
-            Pending Requests
-            Accrual History
-            Leave Credits Overview
-            Leave Statistics
-
-    Pending Requests Tab:
-        Display a list of pending leave requests with the following details:
-            Leave type (SL, VL, SP)
-            Start and end dates
-            Status (Pending)
-            Action buttons (e.g., "View", "Cancel", "Edit")
-        Consider using a table format for clarity, with options to sort and filter requests.
-
-    Accrual History Tab:
-        Provide a summary of accrual events, showing:
-            Date of accrual
-            Type of accrual (Monthly or Yearly)
-            Before-and-after counts of leave credits (e.g., SL and VL)
-        Consider using a chart or graph to visualize accrual trends over time, making it easier for users to understand their leave accumulation.
-
-    Leave Credits Overview Tab:
-        Display the current leave credit balances for the user:
-            Current Year SL Credits
-            Current Year VL Credits
-            Total SL Credits
-            Total VL Credits
-        Include a visual representation (e.g., progress bars or pie charts) to show the proportion of used vs. remaining credits.
-
-    Leave Statistics Tab:
-        Provide insights into leave usage, such as:
-            Total leave taken this year
-            Average leave taken per month
-            Comparison of SL vs. VL usage
-        Consider adding a section for upcoming leave requests or reminders.
 
 Additional Features and Suggestions
 
