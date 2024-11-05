@@ -176,6 +176,9 @@ class LeaveRequest(models.Model):
     notes = models.TextField(null=True, blank=True)
     form_photo = models.ImageField(null=True, blank=True, upload_to=leave_form_directory_path, verbose_name="Form Photo (w/ Signatures): ")
 
+    class Meta:
+        ordering = ['-date_filed'] # setting default ordering for LeaveRequest instances
+
     def __str__(self):
         return f"{self.employee.employee.user.get_full_name()} - {self.leave_type} - {self.date_filed}"
 
