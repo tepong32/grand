@@ -25,6 +25,14 @@ def dashboard_context(request):
 		current_yr_leave_usage = get_leave_usage(leave_credits, current_year)
 		accrual_logs = LeaveCreditLog.objects.filter(leave_credits=leave_credits)
 
+		# For filtering the LeaveRequests per status:
+		# Get the status filter from the GET request
+		status_filter = request.GET.get('status', None)
+		leave_requests = LeaveRequest.objects.all()
+		# Apply the filter if a status is specified
+		if status_filter:
+			leave_requests = leave_requests.filter(status=status_filter)
+
 		return {
 			'accrual_logs': accrual_logs,
 			'approved_leaves': approved_leaves,
@@ -35,6 +43,7 @@ def dashboard_context(request):
 			'cy_sl': cy_remaining_sl,
 			'cy_vl': cy_remaining_vl,
 			'leave_credits': leave_credits,
+			'leave_requests': leave_requests,
 
 			'pending_leaves': pending_leaves,
 			'pending_leaves_count': pending_leaves_count,
