@@ -9,13 +9,32 @@
 
 
 
-<div class="container col-lg-11 mt-2">
+<div class="container mt-2">
 Leave summary admin to kasi admin user ako. Based sa RoleBasedTemplateMixin sa MyLeaveView <br>
 Kung normal user, leave_summary.html lang. <br>
 code mo yon.
 <br><hr>
 
-add pagination sa accruals kung kailangan. or maybe make it a separate page <br>
+work on a separate data-display widget on small screens.<br>
+dashboard is hidden on md and sm screens. <br>
+<hr>
+<hr>
+<hr>
+
+
+<ul class="nav nav-tabs" id="mobileTab" role="tablist">
+  <li class="nav-item">
+    <a class="nav-link" id="mobile-leave-credits-tab" data-toggle="tab" href="#mobile-leave-credits" role="tab" aria-controls="mobilbe-leave-credits" aria-selected="false">Leave Credits Overview</a>
+  </li>
+<div class="tab-pane fade" id="mobile-leave-credits" role="tabpanel" aria-labelledby="mobile-leave-credits-tab">
+  <ul>
+    <li>Current Year SL Credits: {{ cy_sl }}</li>
+    <li>Current Year VL Credits: {{ cy_vl }}</li>
+    <li>Approved Leave Count: {{approved_leave_count}}</li>
+    <li>Current Yr Approved Requests: {{current_yr_leave_usage}}</li>
+    <li>xxxxxxxx</li>
+  </ul>
+</div>
 
 </div><!-- /.col -->
 

@@ -8,13 +8,15 @@
   {% block dashboard %}
     {% include 'leave_mgt/leave_mgt.dashboard.html' %}
   {% endblock %}
-  <form method="POST" enctype="multipart/form-data" class="p-3 col-lg-4 col-md-12 col-sm-12 ">
+  <form method="POST" enctype="multipart/form-data" class="p-3 col-lg-5 col-md-12 col-sm-12 ">
     {% csrf_token %}
     <!-- this is a required line for added security -->
     <fieldset class="form-group">
-      <legend class="border-bottom mb-1">Apply for a Leave</legend>
-      <!-- Add the "Today" button for the start_date field // testing purposes -->
-      <button type="button" id="todayButton">Today</button>
+      <legend class="border-bottom mb-1">
+        Apply for a Leave
+        <!-- Add the "Today" button for the start_date field // testing purposes -->
+        <button type="button" class="btn-sm btn-primary float-right"id="todayButton">Today</button>
+      </legend>
       {{ form|crispy }}
       <!-- pwede na tong alisin -->
       {% if form.non_field_errors %}
@@ -31,11 +33,6 @@
       <button class="btn btn-success" type="submit">Submit request</button>
     </div>
   </form>
-
-  <!-- reminders/tips/ads pag naka full screen? -->
-  <div class="card col-lg-2">
-    reminders/tips/ads?
-  </div>
 </div> <!-- row -->
 
 <script>

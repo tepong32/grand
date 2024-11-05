@@ -1,11 +1,10 @@
 {% extends 'base.html' %}
 
-  {% block dashboard %}
-    {% include 'leave_mgt/leave_mgt.dashboard.html' %}
-  {% endblock%}
+
 
 {% block content %}
-<div class="content-section">
+
+<div class="col">
   <form method="POST">
     {% csrf_token %}
     <!-- this is a required line for added security -->
@@ -24,5 +23,4 @@
     </div>
   </form>
 </div>
-<hr />
 {% endblock content %}
