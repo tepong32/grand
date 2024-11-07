@@ -1,0 +1,195 @@
+
+<!-- Overlay for alerts/notifs -->
+<style type="text/css">
+  .alert-container {
+    position: fixed; /* Fixed position */
+    top: 60px; /* Distance from the top of the viewport */
+    right: 20px; /* Distance from the right of the viewport */
+    z-index: 1000; /* Ensure it appears above other elements */
+    max-width: 300px; /* Set a maximum width */
+    display: flex; /* Use flexbox to stack alerts */
+    flex-direction: column; /* Stack alerts vertically */
+    gap: 10px; /* Space between alerts */
+  }
+
+  .alert {
+      padding: 10px 15px; /* Padding for alerts */
+      border-radius: 5px; /* Rounded corners */
+      color: #fff; /* Text color */
+  }
+
+  /* Example styles for different alert types */
+  .alert-success {
+      background-color: #28a745; /* Green for success */
+  }
+
+  .alert-info {
+      background-color: #17a2b8; /* Blue for info */
+  }
+
+  .alert-warning {
+      background-color: #ffc107; /* Yellow for warning */
+  }
+
+  .alert-danger {
+      background-color: #dc3545; /* Red for danger */
+  }
+
+  ul {
+    list-style-type: none;
+  }
+</style>
+
+<div id="alert-container" class="alert-container">
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">
+          {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+
+
+
+<!-- Displays the summary dashboard on lg screens and hides it on md and sm: d-none d-lg-block -->
+<div class="overflow-auto col-lg-6 col-sm-12 border border-warning p-2 d-none d-lg-block"> 
+  <div class="container mt-2">
+    <!-- File Leave Request Button -->
+    <a href="{% url 'leave_create' %}" class="btn btn-info btn-sm float-right">File Leave Request</a>
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" id="pending-requests-tab" data-toggle="tab" href="#pending-requests" role="tab" aria-controls="pending-requests" aria-selected="true">Leave Requests</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="accrual-history-tab" data-toggle="tab" href="#accrual-history" role="tab" aria-controls="accrual-history" aria-selected="false">Accrual History</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="leave-credits-tab" data-toggle="tab" href="#leave-credits" role="tab" aria-controls="leave-credits" aria-selected="false">Leave Credits Overview</a>
+        </li>
+        <li class="nav-item">
+
+            <a class="nav-link" id="leave-statistics-tab" data-toggle="tab" href="#leave-statistics" role="tab" aria-controls="leave-statistics" aria-selected="false">Leave Statistics</a>
+        </li>
+
+    </ul>
+
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active" id="pending-requests" role="tabpanel" aria-labelledby="pending-requests-tab">
+            <!-- Filter Widget -->
+            <div class="form-group">
+                <label for="statusFilter">Filter by Status:</label>
+                    
+                
+                <select id="statusFilter" class="form-control" onchange="filterByStatus()">
+                    <option value="">All</option>
+                    <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
+                    <option value="APPROVED" {% if status_filter == 'APPROVED' %}selected{% endif %}>Approved</option>
+                    <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>Rejected</option>
+                    <option value="CANCELLED" {% if status_filter == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+
+            <!-- Leave Requests Table -->
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <!-- <th>Employee</th> -->
+                        <th>Leave Type</th>
+                        <th class="text-sm">Coverage</th>
+                        <!-- <th class="text-sm">End Date</th> -->
+                        <th>Status</th>
+                        <th>Notes</th>
+                        <th class="text-sm">Date Filed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for request in leave_requests %}
+                      {% if request.status == 'PENDING' %}
+                        <tr>
+                          <!-- <td>{{ request.employee.employee.user.get_full_name }}</td> -->
+                          <td>{{ request.get_leave_type_display }}</td>
+                          <td class="text-sm">{{ request.start_date }} to {{ request.end_date }}</td>
+                          <td>{{ request.get_status_display }}</td>
+                          <td class="text-center" title="{{request.notes}}">
+                            <a href="{% url 'leave_update' request.pk %}" class="btn btn-info btn-sm"><small>Update</small></a>
+                            <a href="{% url 'leave_delete' request.pk %}" class="btn btn-danger btn-sm"><small>Cancel</small></a>
+                          </td>
+                          <td class="text-sm">{{ request.date_filed }}</td>
+                        </tr>
+
+                      {% else %}
+                        <tr>
+                          <!-- <td>{{ request.employee.employee.user.get_full_name }}</td> -->
+                          <td>{{ request.get_leave_type_display }}</td>
+                          <td class="text-sm">{{ request.start_date }} to {{ request.end_date }}</td>
+                          <td>{{ request.get_status_display }}</td>
+                          <td>{{ request.notes }}</td>
+                          <td class="text-sm">{{ request.date_filed }}</td>
+                        </tr>
+                      {% endif %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="7">No leave requests found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tab-pane fade" id="accrual-history" role="tabpanel" aria-labelledby="accrual-history-tab">
+            <h3>Accrual History</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Before Credits</th>
+                        <th>After Credits</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in accrual_logs %}
+                    <tr>
+                        <td>{{ log.action_date }}</td>
+                        <td>{{ log.action_type }}</td>
+                        <td>{{ log.before_credits }}</td>
+                        <td>{{ log.after_credits }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tab-pane fade" id="leave-credits" role="tabpanel" aria-labelledby="leave-credits-tab">
+            <ul>
+                <li>Current Year SL Credits: {{ cy_sl }}</li>
+                <li>Current Year VL Credits: {{ cy_vl }}</li>
+                <li>Approved Leave Count: {{approved_leave_count}}</li>
+                <li>Current Yr Approved Requests: {{current_yr_leave_usage}}</li>
+                <li>xxxxxxxx</li>
+            </ul>
+        </div>
+
+        <div class="tab-pane fade" id="leave-statistics" role="tabpanel" aria-labelledby="leave-statistics-tab">
+            <h3>Leave Statistics</h3>
+            <ul>
+                <li>Total Leave Taken This Year: {{ total_leave_taken }}</li>
+                <li>Average Leave Taken Per Month: {{ average_leave_per_month }}</li>
+                <li>SL vs. VL Usage: {{ sl_vs_vl_usage }}</li>
+            </ul>
+        </div>
+    </div>
+
+  </div>
+</div>
+
+
+<script>
+    function filterByStatus() {
+        const status = document.getElementById('statusFilter').value;
+        const url = new URL(window.location.href);
+        url.searchParams.set('status', status);
+        window.location.href = url.toString();
+    }
+</script>

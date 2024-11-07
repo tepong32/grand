@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load static crispy_forms_tags %}
+
+
+{% block content %}
+{% block dashboard %}
+    {% include 'leave_mgt/leave_mgt.dashboard.html' %}
+{% endblock %}
+
+
+
+<div class="container mt-2">
+    <!-- File Leave Request Button -->
+<a href="{% url 'leave_create' %}" class="d-sm-block d-md-block d-lg-none btn btn-info btn-sm float-right">File Leave Request</a>
+Leave Summary for normal users. Hindi na ginamit yung RoleBasedTemplateMixin sa MyLeaveView <br>
+Maybe make the same tabbed-widget here pero vertical?
+
+
+<ul class="nav nav-tabs" id="mobileTab" role="tablist">
+  <li class="nav-item">
+    <a class="nav-link" id="mobile-leave-credits-tab" data-toggle="tab" href="#mobile-leave-credits" role="tab" aria-controls="mobilbe-leave-credits" aria-selected="false">Leave Credits Overview</a>
+  </li>
+<div class="tab-pane fade" id="mobile-leave-credits" role="tabpanel" aria-labelledby="mobile-leave-credits-tab">
+  <ul>
+    <li>Current Year SL Credits: {{ cy_sl }}</li>
+    <li>Current Year VL Credits: {{ cy_vl }}</li>
+    <li>Approved Leave Count: {{approved_leave_count}}</li>
+    <li>Current Yr Approved Requests: {{current_yr_leave_usage}}</li>
+    <li>xxxxxxxx</li>
+  </ul>
+</div>
+</div>
+
+{% endblock content %}

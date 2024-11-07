@@ -1,26 +1,77 @@
+<style type="text/css">
+  .nav-item a {
+    transition: transform 0.3s ease; /*    smooth transition */
+  }
+  .nav-item a:hover {
+    transform: scale(1.2); /*    enlarge to 120% */
+  }
+  .nav-item i {
+    transition: transform 0.3s ease; 
+  }
+  .nav-item i:hover {
+    transform: scale(1.2);
+  }
+</style>
+
 <!-- Navbar -->
   <nav class="main-header navbar navbar-expand navbar-white navbar-light">
     <!-- Left navbar links -->
     <ul class="navbar-nav">
-      <li class="nav-item">
-        <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+      <!-- Home -->
+      <li class="nav-item bg-primary">
+        <a href="/" class="nav-link" title="Home">
+          <!-- Brand Logo -->
+          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="img-circle elevation-3 border"
+               style="opacity: 3; height: 45px;">
+          <span class="brand-text font-weight-light d-inline-block">LMS <small>by tEppy</small></span>
+        </a>
       </li>
-      <li class="nav-item d-none d-sm-inline-block">
-        <a href="/" class="nav-link">Home</a>
+      <!-- <li class="nav-item d-lg-none d-sm-inline-block">
+        <a href="/" class="nav-link" title="Home">
+          <i class="fa fa-home"></i>
+        </a>
+      </li> -->
+
+      <!-- Increase Max Instances -->
+      <li class="nav-item d-none d-lg-block">
+        <a href="/increase_max_instances" class="nav-link" title="Home">
+          + Max Instances
+        </a>
       </li>
-      <li class="nav-item d-none d-sm-inline-block">
-        <a href="/increase_max_instances" class="nav-link">Increase Max Instances</a>
+
+      <!-- Check Reset Date -->
+      <li class="nav-item d-none d-lg-block">
+        <a href="/check_reset_date" class="nav-link" title="Home">
+          Check Reset Date
+        </a>
       </li>
-      <li class="nav-item d-none d-sm-inline-block">
-        <a href="/check_reset_date" class="nav-link">Check Reset Date</a>
+
+      <!-- Leave Mgt -->
+      <li class="nav-item d-none d-lg-block">
+        <a href="{% url 'leave_list' %}" class="nav-link">Leave Mgt</a>
       </li>
-      <li class="nav-item d-none d-sm-inline-block">
-        <a href="/apply-leave" class="nav-link">Apply for a Leave</a>
+      <li class="nav-item d-lg-none d-sm-inline-block">
+        <a href="{% url 'leave_list' %}" class="nav-link" title="Leave Mgt">
+          <i class="fa fa-book"></i>
+        </a>
       </li>
+
+      <!-- Profile -->
+      <li class="nav-item d-none d-lg-block">
+        <a href="{% url 'profile' request.user %}" class="nav-link">
+          Profile
+        </a>
+      </li>
+      <li class="nav-item d-lg-none d-sm-inline-block">
+        <a href="{% url 'profile' request.user %}" class="nav-link" title="Profile">
+          <i class="fa fa-user-alt" title="{{request.user}}"></i>
+        </a>
+      </li>
+
     </ul>
 
     <!-- SEARCH FORM -->
-    <form class="form-inline ml-3" action="{% url 'user-search' %}" method="get">
+    <form class="form-inline d-lg-block d-none ml-3" action="{% url 'user-search' %}" method="get">
       <div class="input-group input-group-sm">
           <input class="form-control form-control-navbar" type="search" name="q" placeholder="Search" aria-label="Search">
           <div class="input-group-append">
@@ -29,7 +80,7 @@
               </button>
           </div>
       </div>
-  </form>
+    </form>
 
     <!-- Right navbar links -->
     <ul class="navbar-nav ml-auto">
@@ -120,8 +171,11 @@
       </li>
       <li class="nav-item">
         <a class="nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button"><i
-            class="fas fa-th-large"></i></a>
+            class="fas fa-th-large"></i>
+        </a>
       </li>
+      
     </ul>
   </nav>
   <!-- /.navbar -->
+

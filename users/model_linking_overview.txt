@@ -1,6 +1,6 @@
 User	> Profile	> Designation	> Salary
 					> Department 	> Manager
-					> Leave
+					> LeaveCredits	> Leave
 
 
 

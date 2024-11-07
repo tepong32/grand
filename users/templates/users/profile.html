@@ -127,6 +127,7 @@
           <hr>
 
           <strong><i class="mr-1"></i>Member since {{ user.date_joined|date:"F Y" }}</strong>
+
         </div>
         <!-- /.card-body -->
       </div>
@@ -135,17 +136,19 @@
   
 
 
-  <!-- modal for Profile Image -->
+  <!-- modal for Profile Image // don't touch this -->
   <div id="image-modal" class="modal fade" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">{{user.get_full_name.title}}</h5>
+    <div class="modal-dialog modal-md" role="document">
+      <div class="modal-content" title="{{user.username}}">
+        <!-- <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-label="Close">
             <span aria-hidden="true">&times;</span>
           </button>
-        </div>
+        </div> -->
         <div class="modal-body">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
           <img id="image-modal-content" src="" alt="Profile Image" style="width: 100%; height: auto;">
         </div>
       </div>

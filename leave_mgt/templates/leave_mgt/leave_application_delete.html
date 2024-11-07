@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+
+
+{% block content %}
+
+<div class="row">
+  {% block dashboard %}
+    {% include 'leave_mgt/leave_mgt.dashboard.html' %}
+  {% endblock %}
+  <div class="ml-5">
+  <form method="POST">
+    {% csrf_token %}
+    <!-- this is a required line for added security -->
+    <fieldset class="form-group">
+      <legend class="border-bottom mb-1"><b> Cancel Leave Application? </b></legend>
+      <h6>You cannot undo this action.</h6>
+    </fieldset>
+
+    <div class="form-group">
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'leave_list' %}">
+        <strong>No</strong>
+      </a>
+      <button class="btn btn-sm btn-outline-danger" type="submit">
+        <strong>Yes</strong>
+      </button>
+    </div>
+  </form>
+  </div>
+</div>
+{% endblock content %}
