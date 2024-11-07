@@ -18,4 +18,4 @@ class LeaveApplicationForm(forms.ModelForm):
         if not user.is_superuser:
             # this translates to: display (key, value) for key, value in Leave.LEAVE_TYPES if key is != 'SP'
             # it loops through the choices for the attr and displays all other choices ASIDE FROM 'SP'
-            self.fields['leave_type'].choices = [(k, v) for k, v in Leave.LEAVE_TYPES if k != 'SP']
+            self.fields['leave_type'].choices = [(k, v) for k, v in LeaveRequest.LEAVE_TYPES if k != 'SP']
