@@ -34,7 +34,9 @@ scratch. This page gets rid of all links and provides the needed markup only.
       {% if request.user.is_superuser %}
       <h1 class="text-center">Dashboard: <b>Super User</b></h1>
       {% elif request.user.is_staff %}
-        <h1 class="p-2">Dashboard: <b>Staff</b></h1>
+        <h1 class="text-center">Dashboard: <b>Staff</b></h1>
+      {% else %}
+        <h1 class="text-center">Dashboard: <b>Normal User</b></h1>
       {% endif %}
     </div>
     <!-- /.content-header -->
