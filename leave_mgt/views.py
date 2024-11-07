@@ -42,8 +42,10 @@ class RoleBasedTemplateMixin(UserPassesTestMixin):
         return ['leave_mgt/leave_summary.html']            # template for normal users
 
 
-class MyLeaveView(LoginRequiredMixin, RoleBasedTemplateMixin, TemplateView):
+class MyLeaveView(LoginRequiredMixin, ListView):
+    model = LeaveRequest
     template_name = 'leave_mgt/leave_summary.html'  # Displaying the default template for normal users
+    ordering    =   ['-date_filed']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -51,6 +53,7 @@ class MyLeaveView(LoginRequiredMixin, RoleBasedTemplateMixin, TemplateView):
 
 
 class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
+    model = LeaveRequest
     form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application.html'
     success_url = "leave_list"
