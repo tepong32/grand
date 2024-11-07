@@ -11,7 +11,7 @@ def dashboard_context(request):
 	if request.user.is_authenticated:
 		user = request.user
 		# Fetch the user-specific data you need
-		leave_credits = LeaveCredits.objects.get(employee=request.user.profile)
+		leave_credits = LeaveCredits.objects.get(employee=user.profile)
 		cy_remaining_sl = leave_credits.current_year_sl_credits
 		cy_remaining_vl = leave_credits.current_year_vl_credits
 		pending_leaves = LeaveRequest.objects.filter(employee=leave_credits, status='PENDING') # assigning variable to all instances of pending leaves for us
@@ -28,7 +28,7 @@ def dashboard_context(request):
 		# For filtering the LeaveRequests per status:
 		# Get the status filter from the GET request
 		status_filter = request.GET.get('status', None)
-		leave_requests = LeaveRequest.objects.all()
+		leave_requests = LeaveRequest.objects.filter(employee=leave_credits)
 		# Apply the filter if a status is specified
 		if status_filter:
 			leave_requests = leave_requests.filter(status=status_filter)
