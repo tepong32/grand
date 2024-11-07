@@ -18,7 +18,7 @@
         <button type="button" class="btn-sm btn-primary float-right"id="todayButton">Today</button>
       </legend>
       {{ form|crispy }}
-      <!-- pwede na tong alisin -->
+      <!-- pwede na tong alisin since meron na yatang automatic error prompts sa form -->
       {% if form.non_field_errors %}
         <div class="alert alert-danger">
             {% for error in form.non_field_errors %}
