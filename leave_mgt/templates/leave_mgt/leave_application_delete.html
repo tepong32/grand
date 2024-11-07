@@ -4,7 +4,11 @@
 
 {% block content %}
 
-<div class="col">
+<div class="row">
+  {% block dashboard %}
+    {% include 'leave_mgt/leave_mgt.dashboard.html' %}
+  {% endblock %}
+  <div class="ml-5">
   <form method="POST">
     {% csrf_token %}
     <!-- this is a required line for added security -->
@@ -15,12 +19,13 @@
 
     <div class="form-group">
       <a class="btn btn-sm btn-outline-secondary" href="{% url 'leave_list' %}">
-        No
+        <strong>No</strong>
       </a>
       <button class="btn btn-sm btn-outline-danger" type="submit">
-        Yes
+        <strong>Yes</strong>
       </button>
     </div>
   </form>
+  </div>
 </div>
 {% endblock content %}

@@ -7,9 +7,12 @@
     {% include 'leave_mgt/leave_mgt.dashboard.html' %}
 {% endblock %}
 
-
+<!-- NOT BEING USED ATM FOR ROLEBASEDTEMPLATE MIXIN WAS REMOVED -->
 
 <div class="container mt-2">
+<!-- File Leave Request Button -->
+<!-- invisible on large screens -->
+<a href="{% url 'leave_create' %}" class="btn btn-info btn-sm float-right">File Leave Request</a>
 Leave summary admin to kasi admin user ako. Based sa RoleBasedTemplateMixin sa MyLeaveView <br>
 Kung normal user, leave_summary.html lang. <br>
 code mo yon.

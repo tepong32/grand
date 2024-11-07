@@ -39,7 +39,7 @@ class RoleBasedTemplateMixin(UserPassesTestMixin):
     def get_template_names(self):
         if self.test_func():
             return ['leave_mgt/leave_summary_admin.html']  # template for admins
-        return ['leave_mgt/leave_summary.html']            # template for normal users
+        return ['leave_mgt/leave_summary.html']            # template for normal users #########################not used atm
 
 
 class MyLeaveView(LoginRequiredMixin, ListView):
