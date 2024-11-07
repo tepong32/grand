@@ -1,21 +1,36 @@
+<style type="text/css">
+  .nav-item a {
+    transition: transform 0.3s ease; /*    smooth transition */
+  }
+  .nav-item a:hover {
+    transform: scale(1.2); /*    enlarge to 120% */
+  }
+  .nav-item i {
+    transition: transform 0.3s ease; 
+  }
+  .nav-item i:hover {
+    transform: scale(1.2);
+  }
+</style>
+
 <!-- Navbar -->
   <nav class="main-header navbar navbar-expand navbar-white navbar-light">
     <!-- Left navbar links -->
     <ul class="navbar-nav">
       <!-- Home -->
-      <li class="nav-item d-none d-lg-block">
+      <li class="nav-item bg-primary">
         <a href="/" class="nav-link" title="Home">
           <!-- Brand Logo -->
-          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="img-circle elevation-5"
-               style="opacity: 3; height: 35px;">
-          <span class="brand-text font-weight-light">LMS <small>by tEppy</small></span>
+          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="img-circle elevation-3 border"
+               style="opacity: 3; height: 45px;">
+          <span class="brand-text font-weight-light d-inline-block">LMS <small>by tEppy</small></span>
         </a>
       </li>
-      <li class="nav-item d-lg-none d-sm-inline-block">
+      <!-- <li class="nav-item d-lg-none d-sm-inline-block">
         <a href="/" class="nav-link" title="Home">
           <i class="fa fa-home"></i>
         </a>
-      </li>
+      </li> -->
 
       <!-- Increase Max Instances -->
       <li class="nav-item d-none d-lg-block">
@@ -42,7 +57,7 @@
       </li>
 
       <!-- Profile -->
-      <li class="nav-item d-none d-sm-inline-block">
+      <li class="nav-item d-none d-lg-block">
         <a href="{% url 'profile' request.user %}" class="nav-link">
           Profile
         </a>
