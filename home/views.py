@@ -23,22 +23,17 @@ from datetime import datetime
 from django.utils import timezone
 
 
-class HomeView(LoginRequiredMixin, TemplateView):
+class HomeView(LoginRequiredMixin, ListView):
+    model = LeaveRequest
     template_name = 'home/authed/home.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = User
         profile = Profile
-        loggedin_user = self.request.user.profile
-        leave_credits = LeaveCredits.objects.get(employee=loggedin_user)
-        user_leaves = LeaveRequest.objects.filter(employee=leave_credits)[::-1]  # Filter the leaves of the current user, latest first
-
 
         context.update({
-            'leave_credits': leave_credits,
             'profiles': profile.objects.all(),
-            'user_leaves': user_leaves,
         })
 
         return context
