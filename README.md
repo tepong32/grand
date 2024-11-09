@@ -7,10 +7,10 @@ working on yet another "to-be-continued/discarded" project
 
 ## leave (remodelling) - ***(...in progress)***
 	**cron jobs for automated leave credits accruals and carry-overs**
-	**logic of separating templates to be displayed are handled by a custom mixin in the views are applied.**
-		will also apply it on other apps' views as well, if needed.
+	**separating views based on user roles applied on template instead of thru mixins**
 	**automated deduction of number_of_days from current_yr_XX_credits upon saving an "Approved" request.**
 	**automated leave calculation with regard to excluding weekends on date ranges.**
+		might need to have a way to adjust days as "non-working holiday", as well. will figure that out later on "working days" branch.
 	**validation for making sure start_date < end_date.**
 	**added global context thru an additional context_processor so variable usage are consistent.**
 
