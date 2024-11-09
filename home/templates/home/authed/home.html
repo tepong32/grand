@@ -5,87 +5,9 @@
 {% endblock%}
 {% block content %}
 <!-- REAL CONTENT -->
-{% if user_leaves.count == 0 %}
+{% if leave_requests.count == 0 %}
   <p> You have not filed for a leave request yet. Don't be shy. Work-Life balance, Man! </p>
 {% endif %}
-{% if user_leaves %} <!-- only displaying this section if there is the logged-in user's leave instances -->
-<div class="card-body col-lg-4 col-md-6 col-sm-12">
-  {% for leave in user_leaves %}
-    {% if leave.status == "approved" %}
-	<div class="card card-success">
-		<div class="card-header">
-			<h3 class="card-title">{{leave.leave_type}} - <small><b>{{leave.status.title}}</b></small></h3>
-			<div class="card-tools">
-				<button type="button" class="btn btn-tool" data-card-widget="collapse">
-				<i class="fas fa-minus"></i>
-				</button>
-				<!-- place link to cancel "Pending" leaves here -->
-				<button type="button" class="btn btn-tool" data-card-widget="remove">
-				<i class="fas fa-times"></i>
-			</div>
-		</div>
-
-		<div class="card-body" style="display: block;">
-		{{leave.start_date}} - {{leave.end_date}}<br>
-		note: {{leave.note}} <br>
-		<small class="float-right">submitted: {{leave.created}} 
-		{% if not leave.created == leave.modified %} modified {{leave.modified}} {% endif %}</small>
-		</div>
-	</div>
-
-
-
-    {% elif leave.status == "rejected" %}
-    <div class="card card-danger">
-		<div class="card-header">
-			<h3 class="card-title">{{leave.leave_type}} - <small>{{leave.status.title}}</small></h3>
-			<div class="card-tools">
-				<button type="button" class="btn btn-tool" data-card-widget="collapse">
-				<i class="fas fa-minus"></i>
-				<!-- place link to cancel "Pending" leaves here -->
-				<button type="button" class="btn btn-tool" data-card-widget="remove">
-				<i class="fas fa-times"></i>
-				</button>
-			</div>
-		</div>
-
-		<div class="card-body" style="display: block;">
-		{{leave.start_date}} - {{leave.end_date}}<br>
-		note: {{leave.note}} <br>
-		<small class="float-right">submitted: {{leave.created}} 
-		{% if not leave.created == leave.modified %} modified {{leave.modified}} {% endif %}</small>
-		</div>
-	</div>
-    {% elif leave.status == "pending" %}
-    <div class="card card-gray">
-		<div class="card-header">
-			<h3 class="card-title">{{leave.leave_type}} - <small>{{leave.status.title}}</small></h3>
-			<div class="card-tools">
-				<button type="button" class="btn btn-tool" data-card-widget="collapse">
-				<i class="fas fa-minus"></i>
-				<!-- place link to cancel "Pending" leaves here -->
-				<button type="button" class="btn btn-tool" data-card-widget="remove">
-				<i class="fas fa-times"></i>
-				</button>
-			</div>
-
-		</div>
-
-		<div class="card-body" style="display: block;">
-		{{leave.start_date}} - {{leave.end_date}}<br>
-		note: {{leave.note}} <br>
-		<small class="float-right">submitted: {{leave.created}} 
-		{% if not leave.created == leave.modified %} modified {{leave.modified}} {% endif %}</small>
-		</div>
-	</div>
-    {% endif %}
-  {% endfor %}
-</div>
-{% endif %}
-
- <!-- /REAL CONTENT -->
-
-
 
 
 <section>
@@ -100,10 +22,13 @@ testing filters: <br>
 <hr>
 <div>
 	<p> leave instances </p>
-	<h4>{{pending_leaves_count}}</h4>
-	{% for leave in user_leaves %}
+	approved leaves count: <b>{{approved_leave_count}}</b> <br>
+	pending leaves count:	<b>{{pending_leaves_count}}</b>
+	<p>
+	{% for leave in leave_requests %}
 		{{leave.leave_type}} - {{leave.start_date}} to {{leave.end_date}} - <b>{{leave.status}}</b><br>
 	{% endfor %}
+	</p>
 </div>
 
 </section>
