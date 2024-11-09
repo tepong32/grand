@@ -17,7 +17,7 @@ def dashboard_context(request):
 		pending_leaves = LeaveRequest.objects.filter(employee=leave_credits, status='PENDING') # assigning variable to all instances of pending leaves for us
 		pending_leaves_count = sum(leave.number_of_days for leave in pending_leaves)	# to get their number_of_days total count
 		approved_leaves = LeaveRequest.objects.filter(employee=leave_credits, status='APPROVED') # assigning variable to all instances of approved leaves for us
-		approved_leave_count = sum(leave.number_of_days for leave in pending_leaves)	# to get their number_of_days total count
+		approved_leave_count = sum(leave.number_of_days for leave in approved_leaves)	# to get their number_of_days total count
 
 		# Get the current year
 		current_year = timezone.now().year
