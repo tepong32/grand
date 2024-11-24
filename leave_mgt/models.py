@@ -33,7 +33,7 @@ class VL_Accrual(AccrualModel):
         ]
 
 
-class LeaveCredits(models.Model):
+class LeaveCredit(models.Model):
     employee = models.OneToOneField(Profile, on_delete=models.CASCADE)
 
     # Current Year Credits
@@ -166,7 +166,7 @@ class LeaveRequest(models.Model):
         ('CANCELLED', 'Cancelled'),
     ]
 
-    employee = models.ForeignKey(LeaveCredits, on_delete=models.CASCADE, related_name='leaves')
+    employee = models.ForeignKey(LeaveCredit, on_delete=models.CASCADE, related_name='leaves')
     leave_type = models.CharField(max_length=2, choices=LEAVE_TYPES)
     date_filed = models.DateField(auto_now_add=True)
     start_date = models.DateField(null=True, blank=False)
@@ -249,7 +249,7 @@ class LeaveRequest(models.Model):
 class LeaveCreditLog(models.Model): # might have circular dependency problem with LeaveCredits here
     action_date = models.DateTimeField(auto_now_add=True)
     action_type = models.CharField(max_length=50)  # e.g., 'Monthly Accrual', 'Yearly Carry Over'
-    leave_credits = models.ForeignKey(LeaveCredits, on_delete=models.CASCADE, related_name='logs')
+    leave_credits = models.ForeignKey(LeaveCredit, on_delete=models.CASCADE, related_name='logs')
 
     def __str__(self):
         return f"{self.action_type} on {self.action_date}"

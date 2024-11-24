@@ -1,5 +1,5 @@
 from users.models import User, Profile
-from .models import LeaveCredits, LeaveRequest, LeaveCreditLog
+from .models import LeaveCredit, LeaveRequest, LeaveCreditLog
 
 from django.utils import timezone
 
@@ -11,7 +11,7 @@ def dashboard_context(request):
 	if request.user.is_authenticated:
 		user = request.user
 		# Fetch the user-specific data you need
-		leave_credits = LeaveCredits.objects.get(employee=user.profile)
+		leave_credits = LeaveCredit.objects.get(employee=user.profile)
 		cy_remaining_sl = leave_credits.current_year_sl_credits
 		cy_remaining_vl = leave_credits.current_year_vl_credits
 		pending_leaves = LeaveRequest.objects.filter(employee=leave_credits, status='PENDING') # assigning variable to all instances of pending leaves for us
