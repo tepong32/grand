@@ -78,7 +78,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_superuser = models.BooleanField(default=False)
 
     ### setting user type for permissions-related queries
-    # is_advisor          = models.BooleanField(default=True) ### <-- default is all users that register are advisors
+    # is_advisor          = models.BooleanField(default=True) ### <-- set default permissions here if needed
     # is_team_leader      = models.BooleanField(default=False)
     # is_operations_manager  = models.BooleanField(default=False)
 
@@ -101,7 +101,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         return str(self.username)
 
     def get_full_name(self):
-        return str(self.first_name)+' '+self.middle_name + ' ' +self.last_name
+        if self.ext_name != None:
+            return str(self.first_name)+' '+self.middle_name + ' ' +self.last_name + ' ' + self.ext_name
+        else:
+            return str(self.first_name)+' '+self.middle_name + ' ' + self.last_name
 
 
 class Manager(models.Model):
@@ -159,56 +162,37 @@ class Department(models.Model):
     name = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Department: ")
     manager = models.ForeignKey(Manager, on_delete=models.SET_NULL, null=True, blank=False)
 
-    class Meta:
-        verbose_name_plural = "Departments"
-
     def __str__(self):
         return f"{self.name}".strip()
 
 
-def validate_salary_grade(value):
-    if value < 1 or value > 27:
-        raise ValidationError('Salary grade must be between 1 and 27.')
+class RegOrCT_Salary(models.Model):
+    """
+    Manual setup for each SG+Step since not all will be used.
+    See Official Gazette for reference.
+    """
+    grade = models.PositiveIntegerField(null=True)
+    step = models.PositiveIntegerField(default=0, blank=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, null=True)
 
-def validate_salary_grade_step(value):
-    if value < 0 or value > 8:
-        raise ValidationError('Salary grade step must be between 0 and 8.')
-
-
-class Designation(models.Model):
-    '''
-    Linked to Profile as dropdown
-    Will have their own salary_grade & _step so addt'l items can just be selected by admins and the system
-        will auto-compute the salary.
-    Only admins can modify user details. Updating profile on users' end will not show the SG and SGS fields
-
-    '''
-    # take note: salary_grade and step fields
-    # it should ONLY be visible to the owner and admins
-    name = models.CharField(max_length=255, null=True, blank=False)
-    salary_grade = models.PositiveIntegerField(default=1,
-        validators=[validate_salary_grade],
-        verbose_name="Salary Grade"
-    )
-    salary_grade_step = models.PositiveIntegerField(
-        default=0,
-        validators=[validate_salary_grade_step],
-        verbose_name="Salary Grade Step",
-        blank=True,
-        help_text="Only visible to you or Administrators."
-    )
-
-    def get_salary_amount(self):
-        try:
-            salary = Salary.objects.get(grade=self.salary_grade, step=self.salary_grade_step)
-            print(f"Found Salary: Grade {self.salary_grade}, Step {self.salary_grade_step}, Amount {salary.amount}")
-            return salary.amount
-        except Salary.DoesNotExist:
-            print(f"Salary not found for Grade {self.salary_grade}, Step {self.salary_grade_step}")
-            return 0.00
+    class Meta:
+        verbose_name = "RegOrCT Salary"
+        verbose_name_plural = "RegOrCT Salaries"
+        unique_together = ('grade', 'step')
 
     def __str__(self):
-        return f"{self.name}".strip().title()
+        return f"Grade {self.grade}-({self.step}): {self.amount}"
+
+
+class JO_Salary(models.Model):
+    daily_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True)
+
+    class Meta:
+        verbose_name = "JO Salary"
+        verbose_name_plural = "JO Salaries"
+
+    def __str__(self):
+        return f"Daily rate: {self.daily_rate}"
 
 
 class Profile(models.Model):
@@ -217,18 +201,45 @@ class Profile(models.Model):
                     validators=[MinLengthValidator(10)],
                     verbose_name="Contact Number")
     address         = models.CharField(max_length=255, null=True, blank=False)
-    designation     = models.ForeignKey(Designation, on_delete=models.SET_NULL, null=True, blank=False)
+
+    select  = "---select one---"
+    REG     = "Regular Employee"
+    CT      = "Co-Terminus Employee"
+    JO      = "Job Order Employee"
+    employment_type_choices = [
+        (select, "select"),
+        (REG, "REG"),
+        (CT, "CT"),
+        (JO, "JO")
+    ]
+    employment_type = models.CharField(blank=True, null=False, max_length=80, choices=employment_type_choices, default=select)
+    designation     = models.CharField(max_length=255, null=True, blank=False)
     department      = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=False)
-    slug            = models.SlugField(default='', blank=True)
+    reg_or_ct_salary = models.ForeignKey(RegOrCT_Salary, on_delete=models.SET_NULL, null=True, blank=True)
+    jo_salary = models.ForeignKey(JO_Salary, on_delete=models.SET_NULL, null=True, blank=True)
+    
 
     def dp_directory_path(instance, filename):
         # file will be uploaded to MEDIA_ROOT/DP/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
         return 'users/{}/DP/{}'.format(instance.user.username, filename)
-    image = models.ImageField(default='defaults/default_user_dp.png', blank=True, upload_to=dp_directory_path, verbose_name="Profile Picture: ")
-
+    image           = models.ImageField(default='defaults/default_user_dp.png', blank=True, upload_to=dp_directory_path, verbose_name="Profile Picture: ")
+    slug            = models.SlugField(default='', blank=True)
 
     def __str__(self):
         return f"{self.user.username}"
+
+    def get_salary(self):
+        if self.employment_type in [self.REG, self.CT]:  # Regular or Co-Terminus
+            if self.reg_or_ct_salary:
+                return self.reg_or_ct_salary.amount
+            else:
+                return None  # or return a default value
+        elif self.employment_type == self.JO:  # Job Order
+            if self.jo_salary:
+                return self.jo_salary.daily_rate  # Adjust as necessary for daily calculations
+            else:
+                return None  # or return a default value
+        return None  # or return a default value
 
     def get_absolute_url(self):
         return reverse('profile', kwargs={'slug': self.slug})
@@ -249,65 +260,3 @@ class Profile(models.Model):
             output_size = (600, 600)
             img.thumbnail(output_size)
             img.save(self.image.path)
-
-
-class Salary(models.Model):
-    """
-    Most likely, amounts stated here will reflect the actual SG amounts from official sources (Official Gazette, etc.)
-    I will have another model that will auto-compute the corresponding percentage equiv per municipality class
-    """
-    grade = models.PositiveIntegerField(null=True)
-    step = models.PositiveIntegerField(default=0, blank=True)
-    amount = models.DecimalField(max_digits=10, decimal_places=2, null=True)
-
-    class Meta:
-        verbose_name_plural = "Salaries"
-        unique_together = ('grade', 'step')
-
-    def __str__(self):
-        return f"Grade {self.grade} - Step {self.step}: {self.amount}"
-
-class SalaryIncrement(models.Model):        ### parang hindi na to kailangan?
-    grade = models.PositiveIntegerField()
-    step = models.PositiveIntegerField()
-    increment = models.DecimalField(max_digits=10, decimal_places=2)
-
-    class Meta:
-        unique_together = ('grade', 'step')
-        verbose_name_plural = "Salary Increments"
-
-    def __str__(self):
-        return f"Grade {self.grade} - Step {self.step}: Increment {self.increment}"
-
-
-@receiver(post_save, sender=Profile)
-def update_salary_on_profile_save(sender, instance, **kwargs):
-    update_salary(instance.designation.salary_grade, instance.designation.salary_grade_step)
-
-
-def update_salary(grade, step):
-    base_salaries = {}
-    increments = {}
-
-    base_salary = base_salaries.get(grade, 0)
-    try:
-        increment = SalaryIncrement.objects.get(grade=grade, step=step).increment
-    except SalaryIncrement.DoesNotExist:
-        increment = 0
-
-    new_salary_amount = base_salary + increment
-
-    salary, created = Salary.objects.update_or_create(
-        grade=grade,
-        step=step,
-        defaults={'amount': new_salary_amount}
-    )
-
-    return salary
-
-
-################### set up all salary grades here
-
-
-
-############################ LEAVES

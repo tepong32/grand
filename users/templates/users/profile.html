@@ -66,16 +66,16 @@
                 {% endif %}
             </li>
             <li class="list-group-item">
-              <b>SG</b>
+              <b>what else?</b>
                 {% if request.user == user %}
-                  <i class="float-right">{{user.profile.designation.salary_grade}} - {{user.profile.designation.salary_grade_step}}</i>
+                  <i class="float-right">???</i>
                 {% else %}
                   <i>**</i>
                 {% endif %}
             </li>
           </ul>
 
-          <a href="#" class="btn btn-primary btn-block"><b>{{user.profile.designation.get_salary_amount|currency }}</b></a>
+          <a href="#" class="btn btn-primary btn-block"><b>{{user.profile.get_salary|currency }}</b></a>
         </div>
         <!-- /.card-body -->
       </div>
