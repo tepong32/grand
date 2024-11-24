@@ -5,22 +5,12 @@ from .views import (
     ApplyLeaveView,
     LeaveUpdateView,
     LeaveDeleteView,
-    IncreaseMaxInstancesView,
-    check_reset_date,
     )
-# alternatively, you can just use "from . import views".
-# however, importing views one-by-one seems to be a better option so you can remember which views you have already worked on.
+
 
 
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
-    path('apply-leave/', ApplyLeaveView.as_view(), name='apply-leave'),
-    path('leaves/<int:pk>/update/', LeaveUpdateView.as_view(), name='update-leave'),
-    path('leaves/<int:pk>/delete/', LeaveDeleteView.as_view(), name='delete-leave'),
-    path('increase_max_instances/', IncreaseMaxInstancesView.as_view(), name='increase_max_instances'),
-    path('check_reset_date/', check_reset_date, name='check_reset_date'),
-
-
 
 
     ### these are part of my previous project and are just here for reference of how to make url paths
