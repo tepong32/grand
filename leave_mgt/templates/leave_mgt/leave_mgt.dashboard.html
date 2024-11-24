@@ -1,45 +1,4 @@
 
-<!-- Overlay for alerts/notifs -->
-<style type="text/css">
-  .alert-container {
-    position: fixed; /* Fixed position */
-    top: 60px; /* Distance from the top of the viewport */
-    right: 20px; /* Distance from the right of the viewport */
-    z-index: 1000; /* Ensure it appears above other elements */
-    max-width: 300px; /* Set a maximum width */
-    display: flex; /* Use flexbox to stack alerts */
-    flex-direction: column; /* Stack alerts vertically */
-    gap: 10px; /* Space between alerts */
-  }
-
-  .alert {
-      padding: 10px 15px; /* Padding for alerts */
-      border-radius: 5px; /* Rounded corners */
-      color: #fff; /* Text color */
-  }
-
-  /* Example styles for different alert types */
-  .alert-success {
-      background-color: #28a745; /* Green for success */
-  }
-
-  .alert-info {
-      background-color: #17a2b8; /* Blue for info */
-  }
-
-  .alert-warning {
-      background-color: #ffc107; /* Yellow for warning */
-  }
-
-  .alert-danger {
-      background-color: #dc3545; /* Red for danger */
-  }
-
-  ul {
-    list-style-type: none;
-  }
-</style>
-
 <div id="alert-container" class="alert-container">
   {% if messages %}
     {% for message in messages %}
