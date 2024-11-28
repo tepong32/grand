@@ -108,17 +108,21 @@ class LeaveCredit(models.Model):
                             # Use the accrual values if they exist, otherwise use the default value
                             DEFAULT_SL_ACCRUAL = sl_accrual.accrual_value if sl_accrual else 1.2
                             DEFAULT_VL_ACCRUAL = vl_accrual.accrual_value if vl_accrual else 1.2
+                            print("if sl_accrual line: 1.2 credits added to vl and sl")
 
                         except Exception as e:
                             # Fallback to default if an error occurs
                             DEFAULT_SL_ACCRUAL = 1.2
                             DEFAULT_VL_ACCRUAL = 1.2
+                            print("exception line: 1.2 credits added to vl and sl")
 
                         # Update leave credits with the accrued values
                         leave_credit.current_year_sl_credits += DEFAULT_SL_ACCRUAL
                         leave_credit.current_year_vl_credits += DEFAULT_VL_ACCRUAL
+                        print("+= line executed. users should have addtl 1.2 credits for sl and vl.")
 
                         leave_credit.credits_accrued_this_month = True
+                        print("leave credits accrual succeeded.")
                         leave_credit.save()
 
                         # Log the accrual event
