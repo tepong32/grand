@@ -132,3 +132,27 @@ def user_search_view(request, *args, **kwargs):
                 
     return render(request, "users/user_search_results.html", context)
 
+
+##################### PW Resets
+from django.contrib.auth.views import PasswordResetView
+from django.core.mail import send_mail
+from django.utils.translation import gettext_lazy as _
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
+class CustomPasswordResetView(PasswordResetView):
+    def form_valid(self, form):
+        try:
+            # Call the original form_valid method to send the email
+            response = super().form_valid(form)
+            logger.info("Password reset email sent to: %s", form.cleaned_data['email'])
+            return response
+
+        except Exception as e:
+            # Log the error if sending the email fails
+            logger.error("Failed to send password reset email to %s: %s", form.cleaned_data['email'], str(e))
+            # You may also want to return an error message to the user
+            form.add_error(None, _("There was an error sending the password reset email. Please try again later."))
+            return self.form_invalid(form)
