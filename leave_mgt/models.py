@@ -108,7 +108,7 @@ class LeaveCredit(models.Model):
                             # Use the accrual values if they exist, otherwise use the default value
                             DEFAULT_SL_ACCRUAL = sl_accrual.accrual_value if sl_accrual else 1.2
                             DEFAULT_VL_ACCRUAL = vl_accrual.accrual_value if vl_accrual else 1.2
-                            print("if sl_accrual line: 1.2 credits added to vl and sl")
+                            print("try line: 1.2 credits added to vl and sl")
 
                         except Exception as e:
                             # Fallback to default if an error occurs
