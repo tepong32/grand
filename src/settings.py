@@ -195,7 +195,7 @@ EMAIL_USE_TLS = True
 ### FETCHING ENV VARIABLES ###
 # TO USE THESE VARIABLES BELOW, USE ENVIRONMENT VARIABLES TO HIDE SENSITIVE INFO
 # CHECK CoreyMs' Django TUTORIAL # 12 -- 14:20
-EMAIL_HOST_USER = os.environ.get('ADMIN_EMAIL_UN') # var for email username
+EMAIL_HOST_USER = os.environ.get('ADMIN_EMAIL') # var for email username
 EMAIL_HOST_PASSWORD = os.environ.get('ADMIN_EMAIL_PW') # var for email pw
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER # for email-sending pw-reset requests
 
