@@ -3,7 +3,8 @@ from django.contrib.auth import views as auth_views     # for auths for logins a
 from django.urls import path, include
 from users.views import (
     register,
-    user_search_view
+    user_search_view,
+    CustomPasswordResetView
 )
 
 from django.contrib import messages
@@ -42,12 +43,10 @@ urlpatterns = [
     path('password-change/', auth_views.PasswordChangeView.as_view(template_name='password_reset/password_change.html'), 
         name='password_change'),
 
-    path('password-reset/done/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset/password_reset_done.html'),
-        name='password_reset_done'),
-
     path('password-reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='password_reset/password_reset_confirm.html'),
         name='password_reset_confirm'),
-    path('password-reset/', auth_views.PasswordResetView.as_view(template_name='password_reset/password_reset.html'), name='password_reset'),
+    ### i used a subclassed pw-reset view to implement logging and for debugging puposes
+    path('password-reset/', CustomPasswordResetView.as_view(template_name='password_reset/password_reset.html'), name='password_reset'),
     
     path('password-reset-complete/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset/password_reset_complete.html'),
      name='password_reset_complete'),

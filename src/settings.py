@@ -236,7 +236,7 @@ LOGGING = {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'logs', 'app.log'),
             'maxBytes': 1024 * 1024 * 5,  # 5 MB per log file
-            'backupCount': 5,  # Keep 5 backup log files
+            'backupCount': 5,               # Keep 5 backup log files
             'formatter': 'verbose',
         },
     },
@@ -244,7 +244,7 @@ LOGGING = {
         # Catch-all logger for your project
         '': { 
             'handlers': ['console', 'file'], 
-            'level': 'DEBUG',  
+            'level': 'DEBUG',               # can be set to INFO or WARNING in production
             'propagate': True,
         },
     },
