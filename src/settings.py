@@ -175,7 +175,7 @@ SOCIALACCOUNT_PROVIDERS = {
         # credentials, or list them here:
         'APP': {
             'client_id': os.environ.get('GAUTH_CLIENTID'), # see tepong32 console
-            'secret': os.environ.get('GAUTH_SECRET'),      
+            'secret': os.environ.get('GAUTH_SECRET'),
             'key': ''
         }
     }
