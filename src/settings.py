@@ -168,18 +168,18 @@ AUTH_USER_MODEL='users.User'   # create a custom user model first then use this 
 ### DJANGO ALLAUTH
 SITE_ID = 1
 # allauth provider specific settings // not needed atm
-# SOCIALACCOUNT_PROVIDERS = {
-#     'google': {
-#         # For each OAuth based provider, either add a ``SocialApp``
-#         # (``socialaccount`` app) containing the required client
-#         # credentials, or list them here:
-#         'APP': {
-#             'client_id': os.environ.get('GAUTH_CLIENTID'), # see tepong32 console
-#             'secret': os.environ.get('GAUTH_SECRET'),
-#             'key': ''
-#         }
-#     }
-# }
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        # For each OAuth based provider, either add a ``SocialApp``
+        # (``socialaccount`` app) containing the required client
+        # credentials, or list them here:
+        'APP': {
+            'client_id': os.environ.get('GAUTH_CLIENTID'), # see tepong32 console
+            'secret': os.environ.get('GAUTH_SECRET'),
+            'key': ''
+        }
+    }
+}
 
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
