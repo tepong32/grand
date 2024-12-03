@@ -28,9 +28,12 @@ urlpatterns = [
     path('users/', include('users.urls'), name="users"),
     path('leave-mgt/', include('leave_mgt.urls'), name="leave_mgt"),
     # path('api/', include('api.urls'), name="api"),
+    
+    ### allauth
+    path('accounts/', include('allauth.urls')),
 
 
-    # # these views/html templates are inside the "users" app
+    ### these views/html templates are inside the "users" app
     path('login/', LoginView.as_view(template_name='auth/login.html'), name='login' ), # customized LoginView to display prompts on the page
     path('logout/', auth_views.LogoutView.as_view(template_name='auth/logout.html'), name='logout' ),
     path('register/', register, name='register' ),

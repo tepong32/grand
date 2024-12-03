@@ -39,6 +39,10 @@ INSTALLED_APPS = [
     'crispy_forms',
     'crispy_bootstrap4',
     'apscheduler',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
 
     ### custom
     'home.apps.HomeConfig',
@@ -63,7 +67,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     ### allauth
-    # "allauth.account.middleware.AccountMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = 'src.urls'
@@ -91,7 +95,7 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 
     # `allauth` specific authentication methods, such as login by email
-    # 'allauth.account.auth_backends.AuthenticationBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 WSGI_APPLICATION = 'src.wsgi.application'
@@ -164,23 +168,23 @@ AUTH_USER_MODEL='users.User'   # create a custom user model first then use this 
 ### DJANGO ALLAUTH
 SITE_ID = 1
 # allauth provider specific settings // not needed atm
-# SOCIALACCOUNT_PROVIDERS = {
-#     'google': {
-#         # For each OAuth based provider, either add a ``SocialApp``
-#         # (``socialaccount`` app) containing the required client
-#         # credentials, or list them here:
-#         'APP': {
-#             'client_id': os.environ.get('GAUTH_CLIENTID'), # '960711795493-9vsgskaeg1qk3nc74qp27s9e7uoejitq.apps.googleusercontent.com'
-#             'secret': os.environ.get('GAUTH_SECRET'),      # '0-tHwlg4jvax1jt7p-JnvBmj'
-#             'key': ''
-#         }
-#     }
-# }
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        # For each OAuth based provider, either add a ``SocialApp``
+        # (``socialaccount`` app) containing the required client
+        # credentials, or list them here:
+        'APP': {
+            'client_id': os.environ.get('GAUTH_CLIENTID'), # '944480400884-5ll5854j7lgggjni0dfecc954o2h5pan.apps.googleusercontent.com'
+            'secret': os.environ.get('GAUTH_SECRET'),      # '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'
+            'key': ''
+        }
+    }
+}
 
-# ACCOUNT_EMAIL_REQUIRED = True
-# ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-# ACCOUNT_AUTHENTICATION_METHOD = 'email'
-# ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_USERNAME_REQUIRED = False
 
 
 LOGIN_REDIRECT_URL = 'home'     # needed for the login.html success instance
@@ -210,8 +214,12 @@ CRISPY_TEMPLATE_PACK = 'bootstrap4'
 MONTHLY_SL_ACCRUAL = 1.2  # Set your desired SL accrual rate
 MONTHLY_VL_ACCRUAL = 1.2  # Set your desired VL accrual rate
 
-
+import logging
 ### LOGGING
+
+# Enable logging for email
+logging.basicConfig(level=logging.DEBUG)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
