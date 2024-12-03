@@ -61,8 +61,6 @@ class ApplyLeaveView(LoginRequiredMixin, CreateView):
         data = super().get_context_data(**kwargs)
         leave_counter, _ = LeaveCounter.objects.get_or_create(employee=self.request.user.profile)
         data['leave_counter'] = leave_counter
-        server_time = datetime.now()
-        data['server_time'] = server_time
         instances_used_this_year = leave_counter.instances_used_this_year
         data['instances_used_this_year'] = instances_used_this_year
         instances_used_this_quarter = leave_counter.instances_used_this_quarter
@@ -95,8 +93,6 @@ class LeaveUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         data = super().get_context_data(**kwargs)
         leave_counter, _ = LeaveCounter.objects.get_or_create(employee=self.request.user)
         data['leave_counter'] = leave_counter
-        server_time = datetime.now()
-        data['server_time'] = server_time
         instances_used_this_year = leave_counter.instances_used_this_year
         data['instances_used_this_year'] = instances_used_this_year
         instances_used_this_quarter = leave_counter.instances_used_this_quarter
@@ -134,8 +130,6 @@ class LeaveDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         data = super().get_context_data(**kwargs)
         leave_counter, _ = LeaveCounter.objects.get_or_create(employee=self.request.user)
         data['leave_counter'] = leave_counter
-        server_time = datetime.now()
-        data['server_time'] = server_time
         instances_used_this_year = leave_counter.instances_used_this_year
         data['instances_used_this_year'] = instances_used_this_year
         instances_used_this_quarter = leave_counter.instances_used_this_quarter

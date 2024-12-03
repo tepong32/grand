@@ -33,6 +33,9 @@ def dashboard_context(request):
 		if status_filter:
 			leave_requests = leave_requests.filter(status=status_filter)
 
+		# Misc Global Context
+		server_time = timezone.now()
+
 		return {
 			'accrual_logs': accrual_logs,
 			'approved_leaves': approved_leaves,
@@ -47,6 +50,8 @@ def dashboard_context(request):
 
 			'pending_leaves': pending_leaves,
 			'pending_leaves_count': pending_leaves_count,
+
+			'server_time': server_time,
 		}
 	return {}
 
