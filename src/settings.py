@@ -174,8 +174,8 @@ SOCIALACCOUNT_PROVIDERS = {
         # (``socialaccount`` app) containing the required client
         # credentials, or list them here:
         'APP': {
-            'client_id': os.environ.get('GAUTH_CLIENTID'), # '944480400884-5ll5854j7lgggjni0dfecc954o2h5pan .apps. google usercontent.com'
-            'secret': os.environ.get('GAUTH_SECRET'),      # 'GOCSPX-_ aOM3AtoEV6wIQgQB26htPBQpw6U'
+            'client_id': os.environ.get('GAUTH_CLIENTID'), # see tepong32 console
+            'secret': os.environ.get('GAUTH_SECRET'),      
             'key': ''
         }
     }
