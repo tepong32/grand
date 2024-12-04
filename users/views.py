@@ -147,6 +147,7 @@ class CustomPasswordResetView(PasswordResetView):
         try:
             # Call the original form_valid method to send the email
             response = super().form_valid(form)
+            logger.debug("Context for password reset email: %s", self.get_context_data())
             logger.info("Password reset email sent to: %s", form.cleaned_data['email'])
             return response
 
