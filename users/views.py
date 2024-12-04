@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from .models import User, Profile, Department
 from django.contrib import messages     # for flash messages regarding valid data in the form
-from leave_mgt.models import LeaveCredits
+from leave_mgt.models import LeaveCredit
 
 
 # for needing user to be logged-in first before accessing the page requested
@@ -18,7 +18,7 @@ def usersIndexView(request):
         department_users[department.name] = profiles #adding the department_users to the dict using the department name as key
 
     if request.user.is_staff:
-        messages.warning(request, f"You are seeing this page because you are a Staff/Admin.")
+        messages.info(request, f"You are seeing this page because you are a Staff/Admin.")
         
     context_data = {
         # all users sorted by last_name attr, paginating by 50 per page
@@ -58,8 +58,8 @@ def profileView(request, username=None):
         leave_credits = None
         if request.user.is_authenticated:
             try:
-                leave_credits = LeaveCredits.objects.get(employee=request.user.profile) #since LeaveCredits is related to Profile; not User
-            except LeaveCredits.DoesNotExist:
+                leave_credits = LeaveCredit.objects.get(employee=request.user.profile) #since LeaveCredit is related to Profile; not User
+            except LeaveCredit.DoesNotExist:
                 pass # Or handle the case where it's not found: like messages.danger('no leave credits accumulated yet')?
 
         context['leave_credits'] = leave_credits
@@ -132,3 +132,28 @@ def user_search_view(request, *args, **kwargs):
                 
     return render(request, "users/user_search_results.html", context)
 
+
+##################### PW Resets
+from django.contrib.auth.views import PasswordResetView
+from django.core.mail import send_mail
+from django.utils.translation import gettext_lazy as _
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
+class CustomPasswordResetView(PasswordResetView):
+    def form_valid(self, form):
+        try:
+            # Call the original form_valid method to send the email
+            response = super().form_valid(form)
+            logger.debug("Context for password reset email: %s", self.get_context_data())
+            logger.info("Password reset email sent to: %s", form.cleaned_data['email'])
+            return response
+
+        except Exception as e:
+            # Log the error if sending the email fails
+            logger.error("Failed to send password reset email to %s: %s", form.cleaned_data['email'], str(e))
+            # You may also want to return an error message to the user
+            form.add_error(None, _("There was an error sending the password reset email. Please try again later."))
+            return self.form_invalid(form)

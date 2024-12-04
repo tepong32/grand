@@ -1,0 +1,52 @@
+
+<!-- jQuery -->
+<script src="/static/admin-lte/plugins/jquery/jquery.min.js"></script>
+<!-- Bootstrap 4 -->
+<script src="/static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<!-- AdminLTE App -->
+<script src="/static/admin-lte/dist/js/adminlte.min.js"></script>
+<!-- Custom script -->
+<script>
+  $(document).ready(function() {
+    // for enlarging the profile image of the user when it is clicked
+    $('#profile-image').on('click', function() {
+      console.log('Profile image clicked!');
+      var imageUrl = $(this).attr('src');
+      $('#image-modal-content').attr('src', imageUrl);
+      $('#image-modal').modal('show');
+    });
+  });
+  
+  // Hide the alert when clicked
+  document.addEventListener('DOMContentLoaded', function() {
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+      alert.addEventListener('click', function() {
+          this.style.display = 'none';
+      });
+    });
+  });
+
+  // Dynamic Server Time
+  function updateServerTime() {
+      const currentTimeElement = document.getElementById('current-time');
+      const currentTimeString = currentTimeElement.textContent; // Get the current time string
+      const [date, time] = currentTimeString.split(' '); // Split into date and time parts
+      const [year, month, day] = date.split('-'); // Split date into year, month, and day
+      const [hour, minute, second] = time.split(':'); // Split time into hour, minute, and second
+      // Create a new Date object from the parsed values
+      const currentTime = new Date(year, month - 1, day, hour, minute, second);
+      // Increment the time by one second
+      currentTime.setSeconds(currentTime.getSeconds() + 1);
+      // Update the element with the new time
+      currentTimeElement.textContent = `${currentTime.getFullYear()}-${padZero(currentTime.getMonth() + 1)}-${padZero(currentTime.getDate())} ${padZero(currentTime.getHours())}:${padZero(currentTime.getMinutes())}:${padZero(currentTime.getSeconds())}`;
+  }
+  // Pad a single digit with a zero
+  function padZero(value) {
+      return (value < 10 ? '0' : '') + value;
+  }
+  // Update the time every second
+  setInterval(updateServerTime, 1000);
+
+  
+</script>

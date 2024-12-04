@@ -33,7 +33,7 @@ class VL_Accrual(AccrualModel):
         ]
 
 
-class LeaveCredits(models.Model):
+class LeaveCredit(models.Model):
     employee = models.OneToOneField(Profile, on_delete=models.CASCADE)
 
     # Current Year Credits
@@ -108,17 +108,21 @@ class LeaveCredits(models.Model):
                             # Use the accrual values if they exist, otherwise use the default value
                             DEFAULT_SL_ACCRUAL = sl_accrual.accrual_value if sl_accrual else 1.2
                             DEFAULT_VL_ACCRUAL = vl_accrual.accrual_value if vl_accrual else 1.2
+                            print("try line: 1.2 credits added to vl and sl")
 
                         except Exception as e:
                             # Fallback to default if an error occurs
                             DEFAULT_SL_ACCRUAL = 1.2
                             DEFAULT_VL_ACCRUAL = 1.2
+                            print("exception line: 1.2 credits added to vl and sl")
 
                         # Update leave credits with the accrued values
                         leave_credit.current_year_sl_credits += DEFAULT_SL_ACCRUAL
                         leave_credit.current_year_vl_credits += DEFAULT_VL_ACCRUAL
+                        print("+= line executed. users should have addtl 1.2 credits for sl and vl.")
 
                         leave_credit.credits_accrued_this_month = True
+                        print("leave credits accrual succeeded.")
                         leave_credit.save()
 
                         # Log the accrual event
@@ -166,7 +170,7 @@ class LeaveRequest(models.Model):
         ('CANCELLED', 'Cancelled'),
     ]
 
-    employee = models.ForeignKey(LeaveCredits, on_delete=models.CASCADE, related_name='leaves')
+    employee = models.ForeignKey(LeaveCredit, on_delete=models.CASCADE, related_name='leaves')
     leave_type = models.CharField(max_length=2, choices=LEAVE_TYPES)
     date_filed = models.DateField(auto_now_add=True)
     start_date = models.DateField(null=True, blank=False)
@@ -249,7 +253,7 @@ class LeaveRequest(models.Model):
 class LeaveCreditLog(models.Model): # might have circular dependency problem with LeaveCredits here
     action_date = models.DateTimeField(auto_now_add=True)
     action_type = models.CharField(max_length=50)  # e.g., 'Monthly Accrual', 'Yearly Carry Over'
-    leave_credits = models.ForeignKey(LeaveCredits, on_delete=models.CASCADE, related_name='logs')
+    leave_credits = models.ForeignKey(LeaveCredit, on_delete=models.CASCADE, related_name='logs')
 
     def __str__(self):
         return f"{self.action_type} on {self.action_date}"

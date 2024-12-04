@@ -35,15 +35,19 @@
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
     }
   </style>
+  <div id="alert-container" class="alert-container">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
   <div class="row">
       <!-- Profile Image -->
       <div class="card card-primary card-outline col-md-4">
         <div class="card-body box-profile">
-          {% if messages %}
-            {% for message in messages %}
-              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-          {% endif %}
           <div class="text-center">
             <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5"
            src="{{user.profile.image.url}}"
@@ -65,17 +69,19 @@
                   **</i>
                 {% endif %}
             </li>
+            <!-- PROFILE OWNER-ONLY INFO -->
             <li class="list-group-item">
-              <b>SG</b>
+              <b>Employment Type:</b>
                 {% if request.user == user %}
-                  <i class="float-right">{{user.profile.designation.salary_grade}} - {{user.profile.designation.salary_grade_step}}</i>
+                  <i class="float-right">{{user.profile.employment_type}}</i> <br>
+                  <p class="float-right">@ {{user.profile.get_salary|currency }}</p>
                 {% else %}
                   <i>**</i>
                 {% endif %}
             </li>
           </ul>
 
-          <a href="#" class="btn btn-primary btn-block"><b>{{user.profile.designation.get_salary_amount|currency }}</b></a>
+          <a href="#" class="btn btn-primary btn-block"><b>{{user.profile.get_salary|currency }}</b></a>
         </div>
         <!-- /.card-body -->
       </div>
@@ -94,7 +100,7 @@
               {% endif %}
             {% else %}
               --- <small><a title="Edit profile" href="{% url 'profile-edit' user.username %}">
-              Please update your profile   </a><i class="fa fa-edit text-success"></i></small>
+              Please update your profile <i class="fa fa-edit"></i></small></a>
             {% endif %}
           </h3>
         </div>

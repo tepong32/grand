@@ -21,12 +21,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-3ax(-&x%)3l)al(6=jy#!@14bxst=@_b2vt3uinuaemomka7cz'
+SECRET_KEY = "asdfasdfasdf123123123123" # os.environ.get('SKEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -39,6 +39,10 @@ INSTALLED_APPS = [
     'crispy_forms',
     'crispy_bootstrap4',
     'apscheduler',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
 
     ### custom
     'home.apps.HomeConfig',
@@ -63,7 +67,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     ### allauth
-    # "allauth.account.middleware.AccountMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = 'src.urls'
@@ -91,7 +95,7 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 
     # `allauth` specific authentication methods, such as login by email
-    # 'allauth.account.auth_backends.AuthenticationBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 WSGI_APPLICATION = 'src.wsgi.application'
@@ -164,23 +168,23 @@ AUTH_USER_MODEL='users.User'   # create a custom user model first then use this 
 ### DJANGO ALLAUTH
 SITE_ID = 1
 # allauth provider specific settings // not needed atm
-# SOCIALACCOUNT_PROVIDERS = {
-#     'google': {
-#         # For each OAuth based provider, either add a ``SocialApp``
-#         # (``socialaccount`` app) containing the required client
-#         # credentials, or list them here:
-#         'APP': {
-#             'client_id': os.environ.get('GAUTH_CLIENTID'), # '960711795493-9vsgskaeg1qk3nc74qp27s9e7uoejitq.apps.googleusercontent.com'
-#             'secret': os.environ.get('GAUTH_SECRET'),      # '0-tHwlg4jvax1jt7p-JnvBmj'
-#             'key': ''
-#         }
-#     }
-# }
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        # For each OAuth based provider, either add a ``SocialApp``
+        # (``socialaccount`` app) containing the required client
+        # credentials, or list them here:
+        'APP': {
+            'client_id': os.environ.get('GAUTH_CLIENTID'), # see tepong32 console
+            'secret': os.environ.get('GAUTH_SECRET'),
+            'key': ''
+        }
+    }
+}
 
-# ACCOUNT_EMAIL_REQUIRED = True
-# ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-# ACCOUNT_AUTHENTICATION_METHOD = 'email'
-# ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_USERNAME_REQUIRED = False
 
 
 LOGIN_REDIRECT_URL = 'home'     # needed for the login.html success instance
@@ -188,16 +192,16 @@ LOGIN_URL = 'login'             # for the @login_required decorator on user.view
 
 ### PASSWORD-RESETS AND MAILINGS
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com' # or only your domain name if you have your own mail server
+EMAIL_HOST = 'sandbox.smtp.mailtrap.io'     #'smtp.gmail.com' # or only your domain name if you have your own mail server
 EMAIL_PORT = 587 #587
 EMAIL_USE_TLS = True
 
 ### FETCHING ENV VARIABLES ###
 # TO USE THESE VARIABLES BELOW, USE ENVIRONMENT VARIABLES TO HIDE SENSITIVE INFO
 # CHECK CoreyMs' Django TUTORIAL # 12 -- 14:20
-EMAIL_HOST_USER = os.environ.get('ADMIN_EMAIL_UN') # var for email username
-EMAIL_HOST_PASSWORD = os.environ.get('ADMIN_EMAIL_PW') # var for email pw
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER # for email-sending pw-reset requests
+EMAIL_HOST_USER = "6a4ab4f77e64c5"        # os.environ.get('ADMIN_EMAIL') # var for email username
+EMAIL_HOST_PASSWORD = "5adeada74bd33f"    # os.environ.get('ADMIN_EMAIL_PW') # var for email pw
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER    # for email-sending pw-reset requests
 
 
 
@@ -210,8 +214,12 @@ CRISPY_TEMPLATE_PACK = 'bootstrap4'
 MONTHLY_SL_ACCRUAL = 1.2  # Set your desired SL accrual rate
 MONTHLY_VL_ACCRUAL = 1.2  # Set your desired VL accrual rate
 
-
+import logging
 ### LOGGING
+
+# Enable logging for email
+logging.basicConfig(level=logging.DEBUG)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -236,7 +244,7 @@ LOGGING = {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'logs', 'app.log'),
             'maxBytes': 1024 * 1024 * 5,  # 5 MB per log file
-            'backupCount': 5,  # Keep 5 backup log files
+            'backupCount': 5,               # Keep 5 backup log files
             'formatter': 'verbose',
         },
     },
@@ -244,7 +252,7 @@ LOGGING = {
         # Catch-all logger for your project
         '': { 
             'handlers': ['console', 'file'], 
-            'level': 'DEBUG',  
+            'level': 'DEBUG',               # can be set to INFO or WARNING in production
             'propagate': True,
         },
     },

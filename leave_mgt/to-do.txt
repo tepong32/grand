@@ -27,3 +27,6 @@ Example UI Frameworks
     React: A popular library for building user interfaces, especially for dynamic and interactive dashboards.
     Bootstrap: A front-end framework that helps create responsive and mobile-first websites quickly.
     Django Templates: If you prefer to stick with Django, you can use Django’s templating system to render the dashboard directly in your application.
+
+
+#### cron jobs not adding leave_credits automatically

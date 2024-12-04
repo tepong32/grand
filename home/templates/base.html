@@ -9,7 +9,11 @@ scratch. This page gets rid of all links and provides the needed markup only.
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
 
-  <title>AdminLTE 3 | Starter</title>
+  
+  <title>Bᴏᴄᴀᴜᴇ Oɴʟɪɴᴇ</title>
+  <!-- Favicon -->
+  <link rel="icon" sizes="192x192" href="media/defaults/jjv.png">
+
 
   <!-- Font Awesome Icons -->
   <link rel="stylesheet" href="/static/admin-lte/plugins/fontawesome-free/css/all.min.css">
@@ -17,6 +21,7 @@ scratch. This page gets rid of all links and provides the needed markup only.
   <link rel="stylesheet" href="/static/admin-lte/dist/css/adminlte.min.css">
   <!-- Google Font: Source Sans Pro -->
   <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
+  
   
 
 </head>
@@ -75,12 +80,10 @@ scratch. This page gets rid of all links and provides the needed markup only.
           </form>
         </li>
         {% else %}
-        <li class="nav-item">
+        <li class="nav-item" style="list-style: None;">
           <a href="/login" class="nav-link">
-            <i class="nav-icon fas fa-th"></i>
-            <p>
+            <i class="nav-icon fas fa-power-off"></i>
               Login
-            </p>
           </a>
       {% endif %}
     </div>
@@ -91,44 +94,15 @@ scratch. This page gets rid of all links and provides the needed markup only.
   <footer class="main-footer">
     <!-- To the right -->
     <div class="float-right d-none d-sm-inline">
-      <p>Current time: {% now "Y-m-d H:i:s" %}</p>
+      <p>Current time: <span id="current-time">{{ server_time|date:"Y-m-d H:i:s" }}</span></p>
     </div>
     <!-- Default to the left -->
-    <strong>Copyright &copy; 2014-2019 <a href="https://adminlte.io">AdminLTE.io</a>.</strong> All rights reserved.
+    created by: <strong><a href="https://www.facebook.com/tepong32" target="_blank">𝕥𝔼𝕡𝕡𝕪</a></strong>
   </footer>
 </div>
 <!-- ./wrapper -->
 
 <!-- REQUIRED SCRIPTS -->
-
-<!-- jQuery -->
-<script src="/static/admin-lte/plugins/jquery/jquery.min.js"></script>
-<!-- Bootstrap 4 -->
-<script src="/static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
-<!-- AdminLTE App -->
-<script src="/static/admin-lte/dist/js/adminlte.min.js"></script>
-<!-- Custom script -->
-<script>
-  $(document).ready(function() {
-    // for enlarging the profile image of the user when it is clicked
-    $('#profile-image').on('click', function() {
-      console.log('Profile image clicked!');
-      var imageUrl = $(this).attr('src');
-      $('#image-modal-content').attr('src', imageUrl);
-      $('#image-modal').modal('show');
-    });
-  });
-  
-  // Hide the alert when clicked
-  document.addEventListener('DOMContentLoaded', function() {
-    const alerts = document.querySelectorAll('.alert');
-    alerts.forEach(alert => {
-      alert.addEventListener('click', function() {
-          this.style.display = 'none';
-      });
-    });
-  });
-
-</script>
+{% include '_js.html' %}
 </body>
 </html>

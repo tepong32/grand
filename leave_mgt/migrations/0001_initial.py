@@ -9,7 +9,6 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('users', '0011_merge_20240927_1452'),
     ]
 
     operations = [

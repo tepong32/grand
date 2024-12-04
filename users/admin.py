@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db import models
 
-from .models import User, Department, Manager, Designation, Profile, Salary, SalaryIncrement
+from .models import User, Department, Manager, Profile, RegOrCT_Salary, JO_Salary
 
 
 
@@ -14,22 +14,18 @@ class CustomUserAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(Salary)
-class SalaryAdmin(admin.ModelAdmin):
+@admin.register(RegOrCT_Salary)
+class RegOrCT_SalarySalaryAdmin(admin.ModelAdmin):
     list_display = ('grade', 'step', 'amount')
     search_fields = ('grade', 'step')
 # Alternatively, you can use the simpler registration method:
-# admin.site.register(Salary, SalaryAdmin)
+# admin.site.register(RegOrCT_Salary, RegOrCT_SalaryAdmin)
 
-@admin.register(SalaryIncrement)
-class SalaryIncrementAdmin(admin.ModelAdmin):
-    list_display = ('grade', 'step', 'increment')
-    search_fields = ('grade', 'step')
+
 
 
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(Department)
 admin.site.register(Manager)
-admin.site.register(Designation)
 admin.site.register(Profile)
-
+admin.site.register(JO_Salary)
