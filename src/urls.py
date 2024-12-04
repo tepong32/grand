@@ -46,12 +46,16 @@ urlpatterns = [
     path('password-change/', auth_views.PasswordChangeView.as_view(template_name='password_reset/password_change.html'), 
         name='password_change'),
 
-    path('password-reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='password_reset/password_reset_confirm.html'),
-        name='password_reset_confirm'),
+
     ### i used a subclassed pw-reset view to implement logging and for debugging puposes
-    path('password-reset/', CustomPasswordResetView.as_view(template_name='password_reset/password_reset.html'), name='password_reset'),
+    ### apparently, the {{url}} in the email is not being displayed correctly when this custom view is in use so,
+    ### i returned to the default and just changed the email subject on /registration/password_reset_subject.txt
+    # path('password-reset/', CustomPasswordResetView.as_view(template_name='password_reset/password_reset.html'), name='password_reset'),
     
-    path('password-reset-complete/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset/password_reset_complete.html'),
+    path('password-reset/', auth_views.PasswordResetView.as_view(template_name='password_reset/password_reset.html'), name='password_reset'),
+    path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='password_reset/password_reset_done.html'), name='password_reset_done'),
+    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='password_reset/password_reset_confirm.html'), name='password_reset_confirm'),
+    path('reset-done/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset/password_reset_complete.html'),
      name='password_reset_complete'),
 
 ]
