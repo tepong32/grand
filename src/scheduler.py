@@ -1,6 +1,5 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from django.db import transaction
-from leave_mgt.models import LeaveCredit  # Import the class, not the method since we made it a '@classmethod'
 import logging
 
 
@@ -11,6 +10,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('LeaveUpdateLogger')
 
 def start_scheduler():
+    from leave_mgt.models import LeaveCredit  # Import the class, not the method since we made it a '@classmethod'
     scheduler = BackgroundScheduler()
 
     # Schedule for the 1st of the month
