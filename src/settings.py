@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     'adminlte3_theme',
     'crispy_forms',
     'crispy_bootstrap4',
-    'apscheduler',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',

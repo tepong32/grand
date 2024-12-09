@@ -58,10 +58,8 @@ class LeaveCredit(models.Model):
     #     return SpecialLeaves.objects.filter(leave_credits=self).aggregate(total_days=models.Sum('number_of_days'))['total_days'] or 0
 
     def carry_over_credits(self):
-        """
-        Carries over unused SL credits from the current year to total, 
-        resets current year credits, and handles limits if necessary.
-        """
+        """Carries over unused SL credits from the current year to total, 
+        resets current year credits, and handles limits if necessary."""
         now = timezone.now()
 
         # Only carry over if it's the beginning of a new year
@@ -78,65 +76,55 @@ class LeaveCredit(models.Model):
             # Reset at the start of the year
             self.credits_accrued_this_month = False 
             self.save()
-
             # Log the carry-over event so users can check if there are missed carry-over events
             LeaveCreditLog.objects.create(action_type='Yearly Carry Over', leave_credits=self)
+
+    def accrue_leave_credits(self):
+        """Accrues leave credits for the employee."""
+        # Retrieve accrual values from the database or use defaults
+        try:
+            sl_accrual = SL_Accrual.objects.first()  
+            vl_accrual = VL_Accrual.objects.first()  
+            DEFAULT_SL_ACCRUAL = sl_accrual.accrual_value if sl_accrual else 1.2
+            DEFAULT_VL_ACCRUAL = vl_accrual.accrual_value if vl_accrual else 1.2
+
+        except Exception as e:
+            DEFAULT_SL_ACCRUAL = 1.2
+            DEFAULT_VL_ACCRUAL = 1.2
+
+        # Update leave credits with the accrued values
+        self.current_year_sl_credits += DEFAULT_SL_ACCRUAL
+        self.current_year_vl_credits += DEFAULT_VL_ACCRUAL
+        self.credits_accrued_this_month = True
+        self.save()
+
+        # Log the accrual event
+        LeaveCreditLog.objects.create(action_type='Monthly Accrual', leave_credits=self)
 
     @classmethod
     def update_leave_credits(cls):
         """
-        Handles both monthly leave credit updates and annual carry-over 
-        on the 1st day of each month.
+        Handles both monthly leave credit updates and annual carry-over.
+        This method can be called from the cron job.
         """
-        now = timezone.now()
         try:
-            # 1. Reset Flag on the 2nd
-            if now.day == 2:
+            # Reset Flag on the 2nd
+            if timezone.now().day == 2:
                 cls.objects.all().update(credits_accrued_this_month=False)
 
-            # 2. Accrue Credits on the 1st (only if not already accrued)
-            if now.day == 1:
+            # Accrue Credits on the 1st
+            if timezone.now().day == 1:
                 leave_credits = cls.objects.filter(credits_accrued_this_month=False)
                 for leave_credit in leave_credits:
-                    with transaction.atomic():  # write all-or-nothing on the db
-                        # Monthly Leave Accrual
-                        # Retrieve accrual values from the database or use defaults
-                        try:
-                            sl_accrual = SL_Accrual.objects.first()  # Get the first SL_Accrual instance
-                            vl_accrual = VL_Accrual.objects.first()  # Get the first VL_Accrual instance
-
-                            # Use the accrual values if they exist, otherwise use the default value
-                            DEFAULT_SL_ACCRUAL = sl_accrual.accrual_value if sl_accrual else 1.2
-                            DEFAULT_VL_ACCRUAL = vl_accrual.accrual_value if vl_accrual else 1.2
-                            print("try line: 1.2 credits added to vl and sl")
-
-                        except Exception as e:
-                            # Fallback to default if an error occurs
-                            DEFAULT_SL_ACCRUAL = 1.2
-                            DEFAULT_VL_ACCRUAL = 1.2
-                            print("exception line: 1.2 credits added to vl and sl")
-
-                        # Update leave credits with the accrued values
-                        leave_credit.current_year_sl_credits += DEFAULT_SL_ACCRUAL
-                        leave_credit.current_year_vl_credits += DEFAULT_VL_ACCRUAL
-                        print("+= line executed. users should have addtl 1.2 credits for sl and vl.")
-
-                        leave_credit.credits_accrued_this_month = True
-                        print("leave credits accrual succeeded.")
-                        leave_credit.save()
-
-                        # Log the accrual event
-                        LeaveCreditLog.objects.create(action_type='Monthly Accrual', leave_credits=leave_credit)
+                    leave_credit.accrue_leave_credits()
 
             # Annual Carry-over 
-            if now.month == 1 and now.day == 1:
+            if timezone.now().month == 1 and timezone.now().day == 1:
                 for leave_credit in cls.objects.all():
                     leave_credit.carry_over_credits()
-                            
-        except Exception as e:
-            # Log the error
-            logger.error(f"An error occurred during leave credit update: {e}", exc_info=True)
 
+        except Exception as e:
+            logger.error(f"An error occurred during leave credit update: {e}", exc_info=True)
             # Additional error handling (optional):
             # - Send email notifications to admins
             # - Retry the task later
@@ -144,11 +132,7 @@ class LeaveCredit(models.Model):
 
     @classmethod
     def get_credit_logs(cls, employee):
-
-        """
-        Retrieve all leave credit logs for a specific employee.
-
-        """
+        """Retrieve all leave credit logs for a specific employee."""
         return employee.logs.all()
 
 def leave_form_directory_path(instance, filename):
