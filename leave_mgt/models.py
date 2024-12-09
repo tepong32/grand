@@ -95,7 +95,7 @@ class LeaveCredit(models.Model):
         # Update leave credits with the accrued values
         self.current_year_sl_credits += DEFAULT_SL_ACCRUAL
         self.current_year_vl_credits += DEFAULT_VL_ACCRUAL
-        self.credits_accrued_this_month = True
+        self.credits_accrued_this_month = True # set this to True so update_leave_credits on day 2 will turn it to False afterwards
         self.save()
 
         # Log the accrual event
