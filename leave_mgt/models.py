@@ -42,8 +42,8 @@ class LeaveCredit(models.Model):
     current_year_special_credits = models.DecimalField(max_digits=5, decimal_places=2, default=10)
 
     # Total Accumulated Credits (including carry-over)
-    total_sl_credits = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    total_vl_credits = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    sl_credits_from_prev_yr = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    vl_credits_from_prev_yr = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
     # Boolean flag to check if user already accrued leave credits this month
     credits_accrued_this_month = models.BooleanField(default=False)
@@ -58,45 +58,42 @@ class LeaveCredit(models.Model):
     #     return SpecialLeaves.objects.filter(leave_credits=self).aggregate(total_days=models.Sum('number_of_days'))['total_days'] or 0
 
     def carry_over_credits(self):
-        """Carries over unused SL credits from the current year to total, 
-        resets current year credits, and handles limits if necessary."""
-        now = timezone.now()
+        """
+        Carries over un-used Leave credits from the current year to credits_from_prev_yr, 
+        resets current year credits,
+        and handles limits if necessary.
+        Removed the date-checking as this will be ran thru a cron job
+        Trigger on every Jan 1st.
+        """
+        # Define logic:
+        # Example: Add all of / a portion of (e.g., 50%) un-used current_year credits
+        self.sl_credits_from_prev_yr += self.current_year_sl_credits  
 
-        # Only carry over if it's the beginning of a new year
-        if now.month == 1 and now.day == 1: 
-            # Example: Add a portion (e.g., 50%) of unused current year SL
-            self.total_sl_credits += self.current_year_sl_credits  
+        # Add unused current year VL with a max carry-over of 20
+        self.vl_credits_from_prev_yr += min(self.current_year_vl_credits, 20)
 
-            # Add unused current year VL with a max carry-over of 20
-            self.total_vl_credits += min(self.current_year_vl_credits, 20)
-
-            # Reset current year credits 
-            self.current_year_sl_credits = 0
-            self.current_year_vl_credits = 0
-            # Reset at the start of the year
-            self.credits_accrued_this_month = False 
-            self.save()
-            # Log the carry-over event so users can check if there are missed carry-over events
-            LeaveCreditLog.objects.create(action_type='Yearly Carry Over', leave_credits=self)
+        # Reset current year credits after transferring
+        self.current_year_sl_credits = 0
+        self.current_year_vl_credits = 0
+        self.save()
+        # Log the carry-over event so users can check if there are missed carry-over events
+        LeaveCreditLog.objects.create(action_type='Yearly Carry Over', leave_credits=self)
 
     def accrue_leave_credits(self):
-        """Accrues leave credits for the employee."""
-        # Retrieve accrual values from the database or use defaults
-        try:
-            sl_accrual = SL_Accrual.objects.first()  
-            vl_accrual = VL_Accrual.objects.first()  
-            DEFAULT_SL_ACCRUAL = sl_accrual.accrual_value if sl_accrual else 1.2
-            DEFAULT_VL_ACCRUAL = vl_accrual.accrual_value if vl_accrual else 1.2
-
-        except Exception as e:
-            DEFAULT_SL_ACCRUAL = 1.2
-            DEFAULT_VL_ACCRUAL = 1.2
+        """
+        Accrues leave credits for the employee. Monthly.
+        Set values as needed.
+        Trigger on every 1st of the month.
+        """
+        DEFAULT_SL_ACCRUAL = 1.2
+        DEFAULT_VL_ACCRUAL = 1.2
 
         # Update leave credits with the accrued values
         self.current_year_sl_credits += DEFAULT_SL_ACCRUAL
         self.current_year_vl_credits += DEFAULT_VL_ACCRUAL
         self.credits_accrued_this_month = True # set this to True so update_leave_credits on day 2 will turn it to False afterwards
         self.save()
+        logger.info("Monthly leave credits accrual done.")
 
         # Log the accrual event
         LeaveCreditLog.objects.create(action_type='Monthly Accrual', leave_credits=self)

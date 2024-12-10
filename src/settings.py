@@ -21,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "asdfasdfasdf123123123123" # os.environ.get('SKEY')
+SECRET_KEY = os.environ.get('SKEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -202,16 +202,9 @@ EMAIL_HOST_USER = os.environ.get('ADMIN_EMAIL') # var for email username
 EMAIL_HOST_PASSWORD = os.environ.get('ADMIN_EMAIL_PW') # var for email pw
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER    # for email-sending pw-reset requests
 
-
-
 ### Bootstrap settings for Django-AdminLTE3
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
-
-### related to leave-mgt app
-# see update_leave_credits(cls)
-MONTHLY_SL_ACCRUAL = 1.2  # Set your desired SL accrual rate
-MONTHLY_VL_ACCRUAL = 1.2  # Set your desired VL accrual rate
 
 import logging
 ### LOGGING

@@ -2,19 +2,26 @@ from django.core.management.base import BaseCommand
 from leave_mgt.models import LeaveCredit
 from django.db import transaction
 
+import logging
+# Logger setup
+logger = logging.getLogger(__name__)
+
 class Command(BaseCommand):
-    help = 'Update leave credits and reset accrued flag'
+    help = 'Triggers the monthly accrual for LeaveCredit instances.'
 
     def handle(self, *args, **kwargs):
         self.update_leave_credits()
-        self.reset_credits_accrued_flag()
+        self.accrue_leave_credits()
+        self.carry_over_credits()
 
     @transaction.atomic
-    def update_leave_credits(self):
+    def accrue_leave_credits(self):
         # Call the method to update leave credits
-        LeaveCredit.update_leave_credits()
+        LeaveCredit.accrue_leave_credits()
+        logger.info(f"Completed monthly leave credits accruals.")
 
     @transaction.atomic
-    def reset_credits_accrued_flag(self):
-        # Reset the flag
-        LeaveCredit.objects.update(credits_accrued_this_month=False)
+    def carry_over_credits(self):
+        # Call the method to update leave credits
+        LeaveCredit.carry_over_credits()
+        logger.info(f"Completed Carry-over of remaining credits from previous year.")
