@@ -25,3 +25,8 @@ class Command(BaseCommand):
         # Call the method to update leave credits
         LeaveCredit.carry_over_credits()
         logger.info(f"Completed Carry-over of remaining credits from previous year.")
+
+'''
+This file is used to manually trigger the LeaveCredit.update_leave_credits() using manage.py
+Just in case the cron job is not triggering, manual use of this command is our fallback.
+'''
