@@ -215,8 +215,8 @@ class Profile(models.Model):
     employment_type = models.CharField(blank=True, null=False, max_length=80, choices=employment_type_choices, default=select)
     designation     = models.CharField(max_length=255, null=True, blank=False)
     department      = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=False)
-    reg_or_ct_salary = models.ForeignKey(RegOrCT_Salary, on_delete=models.SET_NULL, null=True, blank=True)
-    jo_salary = models.ForeignKey(JO_Salary, on_delete=models.SET_NULL, null=True, blank=True)
+    reg_or_ct_salary = models.ForeignKey(RegOrCT_Salary, on_delete=models.SET_NULL, null=True, blank=True) # can be left blank on edits
+    jo_salary = models.ForeignKey(JO_Salary, on_delete=models.SET_NULL, null=True, blank=True) # can be left blank on edits
     
 
     def dp_directory_path(instance, filename):
