@@ -23,7 +23,7 @@ def dashboard_context(request):
 		current_year = timezone.now().year
 		# Get the count of approved leave requests for the current year
 		current_yr_leave_usage = get_leave_usage(leave_credits, current_year)
-		accrual_logs = LeaveCreditLog.objects.filter(leave_credits=leave_credits)
+		accrual_logs = LeaveCreditLog.objects.filter(leave_credits=leave_credits).order_by('-action_date')
 
 		# For filtering the LeaveRequests per status:
 		# Get the status filter from the GET request
