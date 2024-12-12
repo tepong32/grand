@@ -1,3 +1,4 @@
+<!-- This html file shows elements only visible on large screens -->
 
 <div id="alert-container" class="alert-container">
   {% if messages %}
@@ -12,8 +13,9 @@
 
 
 <!-- Displays the summary dashboard on lg screens and hides it on md and sm: d-none d-lg-block -->
-<div class="overflow-auto col-lg-6 col-sm-12 border border-warning p-2 d-none d-lg-block"> 
-  <div class="container mt-2">
+<div class="overflow-auto col-lg-6 col-sm-12 border border-warning p-2">
+  <!-- Dashboard -->
+  <div class="container mt-2"> 
     <!-- File Leave Request Button -->
     <a href="{% url 'leave_create' %}" class="btn btn-info btn-sm float-right">File Leave Request</a>
     <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -30,9 +32,7 @@
 
             <a class="nav-link" id="leave-statistics-tab" data-toggle="tab" href="#leave-statistics" role="tab" aria-controls="leave-statistics" aria-selected="false">Leave Statistics</a>
         </li>
-
     </ul>
-
     <div class="tab-content" id="myTabContent">
         <div class="tab-pane fade show active" id="pending-requests" role="tabpanel" aria-labelledby="pending-requests-tab">
             <!-- Filter Widget -->
@@ -139,8 +139,7 @@
             </ul>
         </div>
     </div>
-
-  </div>
+  </div> <!-- /Dashboard -->
 </div>
 
 
