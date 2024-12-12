@@ -233,13 +233,13 @@ class Profile(models.Model):
             if self.reg_or_ct_salary:
                 return self.reg_or_ct_salary.amount
             else:
-                return None  # or return a default value
+                return int(0)  # or return a default value
         elif self.employment_type == self.JO:  # Job Order
             if self.jo_salary:
                 return self.jo_salary.daily_rate  # Adjust as necessary for daily calculations
             else:
-                return None  # or return a default value
-        return None  # or return a default value
+                return int(0)  # or return a default value
+        return int(0)  # or return a default value
 
     def get_absolute_url(self):
         return reverse('profile', kwargs={'slug': self.slug})
