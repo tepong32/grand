@@ -270,4 +270,4 @@ class LeaveCreditLog(models.Model): # might have circular dependency problem wit
     leave_credits = models.ForeignKey(LeaveCredit, on_delete=models.CASCADE, related_name='logs')
 
     def __str__(self):
-        return f"{self.action_type} (+{self.accrual_value})"
+        return f"{self.action_type} completed."
