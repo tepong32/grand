@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'adminlte3_theme',
     'crispy_forms',
     'crispy_bootstrap4',
+    'django-crontab',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -205,6 +206,16 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER    # for email-sending pw-reset requests
 ### Bootstrap settings for Django-AdminLTE3
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
+
+CRONJOBS = [
+    # minute hour day month weekday <command-to-execute>
+    # adjust settings and paths as needed
+    # 00:05 of every 1st day of the month to trigger accrued=True + accrue addtl credits('2>&1' to redirect errors to the same file)
+    # 00:05 of every 2nd day of the month to trigger accrued=False
+    ('5 0 1 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
+    ('5 0 2 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1')
+
+]
 
 import logging
 ### LOGGING
