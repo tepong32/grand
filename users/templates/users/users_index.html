@@ -33,8 +33,6 @@
 			            {% endif %}
 			          </td>
 			          <td>{{ profile.designation }}</td>
-			          <td>{{ profile.designation.salary_grade }}-{{ profile.designation.salary_grade_step }}</td>
-			          <td>{{ profile.designation.get_salary_amount|currency }}</td>
 			        </tr>
 			      {% endfor profile %}
 				</tbody>
@@ -116,8 +114,6 @@
 			            {% endif %}
 			          </td>
 			          <td>{{ profile.designation }}</td>
-			          <td>{{ profile.designation.salary_grade }}-{{ profile.designation.salary_grade_step }}</td>
-			          <td>{{ profile.designation.get_salary_amount|currency }}</td>
 			        </tr>
 			      {% endfor profile %}
 				</tbody>

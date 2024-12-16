@@ -1,3 +1,4 @@
+<!-- This html file shows elements only visible on large screens -->
 
 <div id="alert-container" class="alert-container">
   {% if messages %}
@@ -12,17 +13,20 @@
 
 
 <!-- Displays the summary dashboard on lg screens and hides it on md and sm: d-none d-lg-block -->
-<div class="overflow-auto col-lg-6 col-sm-12 border border-warning p-2 d-none d-lg-block"> 
-  <div class="container mt-2">
+<div class="overflow-auto col-lg-6 col-sm-12 border border-warning p-2">
+  <!-- Dashboard -->
+  <div class="container mt-2"> 
     <!-- File Leave Request Button -->
     <a href="{% url 'leave_create' %}" class="btn btn-info btn-sm float-right">File Leave Request</a>
     <ul class="nav nav-tabs" id="myTab" role="tablist">
         <li class="nav-item">
-            <a class="nav-link active" id="pending-requests-tab" data-toggle="tab" href="#pending-requests" role="tab" aria-controls="pending-requests" aria-selected="true">Leave Requests</a>
+            <a class="nav-link active" id="accrual-history-tab" data-toggle="tab" href="#accrual-history" role="tab" aria-controls="accrual-history" aria-selected="false">Accrual History</a>
         </li>
+
         <li class="nav-item">
-            <a class="nav-link" id="accrual-history-tab" data-toggle="tab" href="#accrual-history" role="tab" aria-controls="accrual-history" aria-selected="false">Accrual History</a>
+            <a class="nav-link" id="pending-requests-tab" data-toggle="tab" href="#pending-requests" role="tab" aria-controls="pending-requests" aria-selected="true">Leave Requests</a>
         </li>
+        
         <li class="nav-item">
             <a class="nav-link" id="leave-credits-tab" data-toggle="tab" href="#leave-credits" role="tab" aria-controls="leave-credits" aria-selected="false">Leave Credits Overview</a>
         </li>
@@ -30,11 +34,43 @@
 
             <a class="nav-link" id="leave-statistics-tab" data-toggle="tab" href="#leave-statistics" role="tab" aria-controls="leave-statistics" aria-selected="false">Leave Statistics</a>
         </li>
-
     </ul>
-
     <div class="tab-content" id="myTabContent">
-        <div class="tab-pane fade show active" id="pending-requests" role="tabpanel" aria-labelledby="pending-requests-tab">
+        <div class="tab-pane fade show active" id="accrual-history" role="tabpanel" aria-labelledby="accrual-history-tab">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Before Credits</th>
+                        <th>After Credits</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in accrual_logs %}
+                    <tr>
+                        <td>{{ log.action_date }}</td>
+                        <td>{{ log }}</td>
+                        <!-- WORK ON THIS NEXT -->
+                        <td>{{ log.before_credits }}</td>    
+                        <td>{{ log.after_credits }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="float-right">
+                {% if accrual_logs.has_previous %}
+                    <a href="?page={{ accrual_logs.previous_page_number }}">Previous</a>
+                {% endif %}
+                
+                {% if accrual_logs.has_next %}
+                    <a href="?page={{ accrual_logs.next_page_number }}">Next</a>
+                {% endif %}
+                Page {{ accrual_logs.number }} of {{ accrual_logs.paginator.num_pages }}
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="pending-requests" role="tabpanel" aria-labelledby="pending-requests-tab">
             <!-- Filter Widget -->
             <div class="form-group">
                 <label for="statusFilter">Filter by Status:</label>
@@ -96,30 +132,6 @@
             </table>
         </div>
 
-        <div class="tab-pane fade" id="accrual-history" role="tabpanel" aria-labelledby="accrual-history-tab">
-            <h3>Accrual History</h3>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Type</th>
-                        <th>Before Credits</th>
-                        <th>After Credits</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for log in accrual_logs %}
-                    <tr>
-                        <td>{{ log.action_date }}</td>
-                        <td>{{ log.action_type }}</td>
-                        <td>{{ log.before_credits }}</td>
-                        <td>{{ log.after_credits }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
         <div class="tab-pane fade" id="leave-credits" role="tabpanel" aria-labelledby="leave-credits-tab">
             <ul>
                 <li>Current Year SL Credits: {{ cy_sl }}</li>
@@ -131,7 +143,6 @@
         </div>
 
         <div class="tab-pane fade" id="leave-statistics" role="tabpanel" aria-labelledby="leave-statistics-tab">
-            <h3>Leave Statistics</h3>
             <ul>
                 <li>Total Leave Taken This Year: {{ total_leave_taken }}</li>
                 <li>Average Leave Taken Per Month: {{ average_leave_per_month }}</li>
@@ -139,8 +150,7 @@
             </ul>
         </div>
     </div>
-
-  </div>
+  </div> <!-- /Dashboard -->
 </div>
 
 

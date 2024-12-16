@@ -23,26 +23,19 @@
           <!-- Brand Logo -->
           <img src="/media/defaults/jjv.png" alt="LMS Logo" class="img-circle elevation-3 border"
                style="opacity: 3; height: 45px;">
-          <span class="brand-text font-weight-light d-inline-block">LMS <small>by tEppy</small></span>
+          <span class="brand-text font-weight-light d-inline-block d-sm-none">LMS <small>by tEppy</small></span>
         </a>
       </li>
-      <!-- <li class="nav-item d-lg-none d-sm-inline-block">
-        <a href="/" class="nav-link" title="Home">
-          <i class="fa fa-home"></i>
-        </a>
-      </li> -->
-
-      <!-- Increase Max Instances -->
-      <li class="nav-item d-none d-lg-block">
-        <a href="/increase_max_instances" class="nav-link" title="Home">
-          + Max Instances
+      <li class="nav-item d-lg-block">
+        <a href="/admin" class="nav-link" title="Admin UI">
+          <i class="fa fa-warning">Admin</i>
         </a>
       </li>
 
-      <!-- Check Reset Date -->
+      <!-- All Users List -->
       <li class="nav-item d-none d-lg-block">
-        <a href="/check_reset_date" class="nav-link" title="Home">
-          Check Reset Date
+        <a href="/users" class="nav-link" title="All users">
+          All users
         </a>
       </li>
 
@@ -73,7 +66,7 @@
     <!-- SEARCH FORM -->
     <form class="form-inline d-lg-block d-none ml-3" action="{% url 'user-search' %}" method="get">
       <div class="input-group input-group-sm">
-          <input class="form-control form-control-navbar" type="search" name="q" placeholder="Search" aria-label="Search">
+          <input class="form-control form-control-navbar" type="search" name="q" placeholder="Search" aria-label="User Search">
           <div class="input-group-append">
               <button class="btn btn-navbar" type="submit">
                   <i class="fas fa-search"></i>

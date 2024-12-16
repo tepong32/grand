@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'adminlte3_theme',
     'crispy_forms',
     'crispy_bootstrap4',
+    'django-crontab',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -191,20 +192,30 @@ LOGIN_URL = 'login'             # for the @login_required decorator on user.view
 
 ### PASSWORD-RESETS AND MAILINGS
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'sandbox.smtp.mailtrap.io'     #'smtp.gmail.com' # or only your domain name if you have your own mail server
-EMAIL_PORT = 587 #587
-EMAIL_USE_TLS = True
+EMAIL_HOST = 'abutchikikz.online'   #'sandbox.smtp.mailtrap.io'     #'smtp.gmail.com' # or only your domain name if you have your own mail server
+EMAIL_PORT = 465 #587
+# EMAIL_USE_TLS = True
 
 ### FETCHING ENV VARIABLES ###
 # TO USE THESE VARIABLES BELOW, USE ENVIRONMENT VARIABLES TO HIDE SENSITIVE INFO
 # CHECK CoreyMs' Django TUTORIAL # 12 -- 14:20
-EMAIL_HOST_USER = os.environ.get('ADMIN_EMAIL') # var for email username
-EMAIL_HOST_PASSWORD = os.environ.get('ADMIN_EMAIL_PW') # var for email pw
+EMAIL_HOST_USER = os.environ.get('PWRESET_EMAIL') # var for email username
+EMAIL_HOST_PASSWORD = os.environ.get('PWRESET_PW') # var for email pw
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER    # for email-sending pw-reset requests
 
 ### Bootstrap settings for Django-AdminLTE3
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
+
+CRONJOBS = [
+    # minute hour day month weekday <command-to-execute>
+    # adjust settings and paths as needed
+    # 00:05 of every 1st day of the month to trigger accrued=True + accrue addtl credits('2>&1' to redirect errors to the same file)
+    # 00:05 of every 2nd day of the month to trigger accrued=False
+    ('5 0 1 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
+    ('5 0 2 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1')
+
+]
 
 import logging
 ### LOGGING

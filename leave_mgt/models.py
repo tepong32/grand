@@ -117,7 +117,7 @@ class LeaveCredit(models.Model):
         # Now you can use sl_accrual_value and vl_accrual_value for accruing credits
         self.current_year_sl_credits += sl_accrual_value
         self.current_year_vl_credits += vl_accrual_value
-        # self.credits_accrued_this_month = True            ### UNCOMMENT THIS LATER after the every5mins cron job test
+        self.credits_accrued_this_month = True
         self.save()  # Save the updated leave credits
         LeaveCreditLog.objects.create(action_type='Monthly credit accruals', leave_credits=self)
 
@@ -134,20 +134,22 @@ class LeaveCredit(models.Model):
             logger.info("Updating leave credits...")
     
             # Reset Flag on the 2nd
-            if timezone.now().day == 2:
+            if timezone.now().day == 12:
+                logger.info("credits_accrued_this_month flags are set to True. \nResetting flags to False.")
                 cls.objects.all().update(credits_accrued_this_month=False)
-                logger.info("Reset monthly accrual flags.")
+                logger.info("Reset monthly accrual flag to False.")
     
             # Accrue Credits on the 1st
-            if timezone.now().day == 1:
+            if timezone.now().day == 12:
+                logger.info("credits_accrued_this_month flags are set to False. \nWorking on adding leave credits.")
                 leave_credits = cls.objects.filter(credits_accrued_this_month=False)
                 if leave_credits.exists():
                     for leave_credit in leave_credits:
                         leave_credit.accrue_leave_credits()
                         leave_credit.save()  # Save changes to the database
-                    logger.info("If tz.now = 11, Accrued monthly leave credits succesfully.")
+                    logger.info("Accrued monthly leave credits succesfully. \nSetting credits_accrued_this_month to True in preparation for Reset.")
                 else:
-                    logger.warning("Leave credits have already been accrued for today. No action taken.")
+                    logger.warning("credits_accrued_this_month flags are set to True. Leave credits have already been accrued for today. No action taken.")
     
             # Annual Carry-over
             if timezone.now().month == 1 and timezone.now().day == 1:
@@ -268,4 +270,4 @@ class LeaveCreditLog(models.Model): # might have circular dependency problem wit
     leave_credits = models.ForeignKey(LeaveCredit, on_delete=models.CASCADE, related_name='logs')
 
     def __str__(self):
-        return f"{self.action_type} (+{self.accrual_value})"
+        return f"{self.action_type} completed."
