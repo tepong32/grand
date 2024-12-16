@@ -192,15 +192,15 @@ LOGIN_URL = 'login'             # for the @login_required decorator on user.view
 
 ### PASSWORD-RESETS AND MAILINGS
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'sandbox.smtp.mailtrap.io'     #'smtp.gmail.com' # or only your domain name if you have your own mail server
-EMAIL_PORT = 587 #587
-EMAIL_USE_TLS = True
+EMAIL_HOST = 'abutchikikz.online'   #'sandbox.smtp.mailtrap.io'     #'smtp.gmail.com' # or only your domain name if you have your own mail server
+EMAIL_PORT = 465 #587
+# EMAIL_USE_TLS = True
 
 ### FETCHING ENV VARIABLES ###
 # TO USE THESE VARIABLES BELOW, USE ENVIRONMENT VARIABLES TO HIDE SENSITIVE INFO
 # CHECK CoreyMs' Django TUTORIAL # 12 -- 14:20
-EMAIL_HOST_USER = os.environ.get('ADMIN_EMAIL') # var for email username
-EMAIL_HOST_PASSWORD = os.environ.get('ADMIN_EMAIL_PW') # var for email pw
+EMAIL_HOST_USER = os.environ.get('PWRESET_EMAIL') # var for email username
+EMAIL_HOST_PASSWORD = os.environ.get('PWRESET_PW') # var for email pw
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER    # for email-sending pw-reset requests
 
 ### Bootstrap settings for Django-AdminLTE3
