@@ -34,17 +34,6 @@ scratch. This page gets rid of all links and provides the needed markup only.
 
   <!-- Content Wrapper. Contains page content -->
   <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <div class="content-header">
-      {% if request.user.is_superuser %}
-      <h1 class="text-center">Dashboard: <b>Super User</b></h1>
-      {% elif request.user.is_staff %}
-        <h1 class="text-center">Dashboard: <b>Staff</b></h1>
-      {% else %}
-        <h1 class="text-center">Dashboard: <b>Normal User</b></h1>
-      {% endif %}
-    </div>
-    <!-- /.content-header -->
 
     <!-- Main content -->
     <div class="content">

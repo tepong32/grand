@@ -77,6 +77,17 @@
 
     <!-- Right navbar links -->
     <ul class="navbar-nav ml-auto">
+      <!-- User type indicator -->
+      <div>
+        {% if request.user.is_superuser %}
+        <h6 class="text-center">Dashboard: <b>Super User</b></h6>
+        {% elif request.user.is_staff %}
+          <h6 class="text-center">Dashboard: <b>Staff</b></h6>
+        {% else %}
+          <h6 class="text-center">Dashboard: <b>Normal User</b></h6>
+        {% endif %}
+      </div>
+
       <!-- Messages Dropdown Menu -->
       <li class="nav-item dropdown">
         <a class="nav-link" data-toggle="dropdown" href="#">
