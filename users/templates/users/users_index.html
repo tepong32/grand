@@ -2,6 +2,15 @@
 {% load static custom_filters %}
 
 {% block content %}
+	<div id="alert-container" class="alert-container">
+	    {% if messages %}
+	      {% for message in messages %}
+	        <div class="alert alert-{{ message.tags }}">
+	            {{ message }}
+	        </div>
+	      {% endfor %}
+	    {% endif %}
+	  </div>
 	{% if user.is_authenticated %}
 		{% if user.is_staff == True %}
 		<!-- show the list of all users if user is staff/admin -->

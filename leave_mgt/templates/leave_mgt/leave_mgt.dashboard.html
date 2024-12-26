@@ -1,17 +1,5 @@
 <!-- This html file shows elements only visible on large screens -->
 
-<div id="alert-container" class="alert-container">
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert alert-{{ message.tags }}">
-          {{ message }}
-      </div>
-    {% endfor %}
-  {% endif %}
-</div>
-
-
-
 <!-- Displays the summary dashboard on lg screens and hides it on md and sm: d-none d-lg-block -->
 <div class="overflow-auto col-lg-6 col-sm-12 border border-warning p-2">
   <!-- Dashboard -->

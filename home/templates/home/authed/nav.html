@@ -1,14 +1,14 @@
 <style type="text/css">
-  .nav-item a {
+  .navbar-nav .nav-item a {
     transition: transform 0.3s ease; /*    smooth transition */
   }
-  .nav-item a:hover {
+  .navbar-nav .nav-item a:hover {
     transform: scale(1.2); /*    enlarge to 120% */
   }
-  .nav-item i {
+  .navbar-nav .nav-item i {
     transition: transform 0.3s ease; 
   }
-  .nav-item i:hover {
+  .navbar-nav .nav-item i:hover {
     transform: scale(1.2);
   }
 </style>
@@ -18,17 +18,16 @@
     <!-- Left navbar links -->
     <ul class="navbar-nav">
       <!-- Home -->
-      <li class="nav-item bg-primary">
+      <li class="nav-item bg-primary" style="border-radius: 8px;">
         <a href="/" class="nav-link" title="Home">
           <!-- Brand Logo -->
-          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="img-circle elevation-3 border"
-               style="opacity: 3; height: 45px;">
-          <span class="brand-text font-weight-light d-inline-block d-sm-none">LMS <small>by tEppy</small></span>
+          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="img-circle elevation-2 border"
+               style="opacity: 3; height: 50px;">
         </a>
       </li>
       <li class="nav-item d-lg-block">
         <a href="/admin" class="nav-link" title="Admin UI">
-          <i class="fa fa-warning">Admin</i>
+          Admin
         </a>
       </li>
 

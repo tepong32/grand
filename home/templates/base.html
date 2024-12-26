@@ -31,6 +31,17 @@ scratch. This page gets rid of all links and provides the needed markup only.
   {% include 'home/authed/_css.html' %}
   {% include 'home/authed/nav.html' %}
   
+  <!-- Alerts (upper right corner of the page) -->
+  <div id="alert-container" class="alert-container">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+  
 
   <!-- Content Wrapper. Contains page content -->
   <div class="content-wrapper">
