@@ -31,5 +31,12 @@ testing filters: <br>
 	</p>
 </div>
 
+<div>
+	{% for announcement in announcements %}
+		<p><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></p>
+	{% endfor %}
+
+</div>
+
 </section>
 {% endblock content %}

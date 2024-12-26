@@ -254,6 +254,7 @@ class Profile(models.Model):
                 counter += 1
             self.slug = slug
         super(Profile, self).save(*args, **kwargs)
+        logger.success("Profile saved.")
 
         img = Image.open(self.image.path)   # open the image of the current instance
         if img.height > 600 or img.width > 600: # for sizing-down the images to conserve memory in the server

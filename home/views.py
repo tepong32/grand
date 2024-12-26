@@ -4,6 +4,7 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 
+from .models import Announcement
 from leave_mgt.models import LeaveRequest
 from users.models import User, Profile
 
@@ -16,7 +17,7 @@ from django.views.generic import (
     DeleteView,
     FormView,
     )
-from .forms import LeaveForm
+from .forms import AnnouncementForm
 
 from django.http import HttpResponse
 from datetime import datetime
@@ -24,8 +25,9 @@ from django.utils import timezone
 
 
 class HomeView(LoginRequiredMixin, ListView):
-    model = LeaveRequest
+    model = Announcement
     template_name = 'home/authed/home.html'
+    context_object_name = 'announcements'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -40,110 +42,58 @@ class HomeView(LoginRequiredMixin, ListView):
         
 
 
-class ApplyLeaveView(LoginRequiredMixin, CreateView):       
-    model = LeaveRequest
-    form_class = LeaveForm
-    template_name = 'home/authed/apply_leave_form.html'
-    success_message = "Leave request submitted."
+class CreateAnnouncement(LoginRequiredMixin, CreateView):       
+    model = Announcement
+    form_class = AnnouncementForm
+    template_name = 'home/authed/create_announcement.html'
+    success_message = "Announcement successfully posted."
     success_url = '/'
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs.update({'employee': self.request.user})
-        return kwargs
-
-    def get_context_data(self, **kwargs):
-        '''
-            The get_context_data method is used to add additional context variables to the template.
-            If you’re using the leave_counter variable in your template, then you should keep this method.
-            This method ensures that a LeaveCounter object is created for every user when they access the view.
-        '''
-        data = super().get_context_data(**kwargs)
-        leave_counter, _ = LeaveCounter.objects.get_or_create(employee=self.request.user.profile)
-        data['leave_counter'] = leave_counter
-        instances_used_this_year = leave_counter.instances_used_this_year
-        data['instances_used_this_year'] = instances_used_this_year
-        instances_used_this_quarter = leave_counter.instances_used_this_quarter
-        data['instances_used_this_quarter'] = instances_used_this_quarter
-        return data
 
     def form_valid(self, form):
-        form.instance.employee = self.request.user    # to automatically get the id of the current logged-in user
+        form.instance.user = self.request.user    # to automatically get the id of the current logged-in user
         return super().form_valid(form)
 
+class AnnouncementDetail(DetailView):
+    model = Announcement
+    template_name = 'home/authed/announcement_detail.html'
+    context_object_name = 'announcement'
 
-class LeaveUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
-    model = LeaveRequest 
-    form_class = LeaveForm
-    template_name = 'home/authed/update_leave_form.html'
-    success_message = "Leave application updated."
-    success_url = '/'
+    def get_queryset(self):
+        # Override to filter by slug
+        return Announcement.objects.filter(slug=self.kwargs['slug'], published=True)
 
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs.update({'employee': self.request.user})
-        return kwargs
 
-    def get_context_data(self, **kwargs):
-        '''
-            The get_context_data method is used to add additional context variables to the template.
-            If you’re using the leave_counter variable in your template, then you should keep this method.
-            This method ensures that a LeaveCounter object is created for every user when they access the view.
-        '''
-        data = super().get_context_data(**kwargs)
-        leave_counter, _ = LeaveCounter.objects.get_or_create(employee=self.request.user)
-        data['leave_counter'] = leave_counter
-        instances_used_this_year = leave_counter.instances_used_this_year
-        data['instances_used_this_year'] = instances_used_this_year
-        instances_used_this_quarter = leave_counter.instances_used_this_quarter
-        data['instances_used_this_quarter'] = instances_used_this_quarter
-        return data
+class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Announcement 
+    form_class = AnnouncementForm
+    template_name = 'home/authed/update_announcement.html'
+    success_message = "Announcement updated."
+    # success_url = '/'
 
     def form_valid(self, form):         
-        form.instance.employee = self.request.user
+        form.instance.user = self.request.user
         return super().form_valid(form)
 
     def test_func(self):
-        leave = self.get_object()
-
-        if self.request.user == leave.employee:
+        announcement = self.get_object()
+        if self.request.user == announcement.user:
             return True
         return False
 
 
-class LeaveDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):      
-    model = LeaveRequest
-    template_name = 'home/authed/delete_leave_form.html'
+class DeleteAnnouncement(LoginRequiredMixin, UserPassesTestMixin, DeleteView):      
+    model = Announcement
+    template_name = 'home/authed/delete_announcement.html'
     success_url = '/'
 
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs.update({'employee': self.request.user})
-        return kwargs
-
-    def get_context_data(self, **kwargs):
-        '''
-            The get_context_data method is used to add additional context variables to the template.
-            If you’re using the leave_counter variable in your template, then you should keep this method.
-            This method ensures that a LeaveCounter object is created for every user when they access the view.
-        '''
-        data = super().get_context_data(**kwargs)
-        leave_counter, _ = LeaveCounter.objects.get_or_create(employee=self.request.user)
-        data['leave_counter'] = leave_counter
-        instances_used_this_year = leave_counter.instances_used_this_year
-        data['instances_used_this_year'] = instances_used_this_year
-        instances_used_this_quarter = leave_counter.instances_used_this_quarter
-        data['instances_used_this_quarter'] = instances_used_this_quarter
-        return data
-
     def form_valid(self, form):
-        form.instance.employee = self.request.user
+        form.instance.user = self.request.user
         return super().form_valid(form)
 
     def test_func(self):
-        leave = self.get_object()
+        announcement = self.get_object()
 
-        if self.request.user == leave.employee:
+        if self.request.user == announcement.user:
             return True
         return False      
 
