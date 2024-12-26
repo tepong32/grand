@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'adminlte3_theme',
     'crispy_forms',
     'crispy_bootstrap4',
-    'django-crontab',
+    'django_crontab',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',

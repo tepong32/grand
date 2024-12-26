@@ -21,9 +21,15 @@
   document.addEventListener('DOMContentLoaded', function() {
     const alerts = document.querySelectorAll('.alert');
     alerts.forEach(alert => {
+      // Option 1: Exit when clicked
       alert.addEventListener('click', function() {
           this.style.display = 'none';
       });
+
+      // Option 2: Exit after 3 seconds
+      setTimeout(() => {
+            alert.style.display = 'none';
+        }, 3000); // 3000 milliseconds = 3 seconds
     });
   });
 

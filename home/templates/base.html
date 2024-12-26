@@ -12,7 +12,7 @@ scratch. This page gets rid of all links and provides the needed markup only.
   
   <title>Bᴏᴄᴀᴜᴇ Oɴʟɪɴᴇ</title>
   <!-- Favicon -->
-  <link rel="icon" sizes="192x192" href="media/defaults/jjv.png">
+  <link rel="icon" sizes="192x192" href="/media/defaults/jjv.png">
 
 
   <!-- Font Awesome Icons -->
@@ -31,20 +31,20 @@ scratch. This page gets rid of all links and provides the needed markup only.
   {% include 'home/authed/_css.html' %}
   {% include 'home/authed/nav.html' %}
   
+  <!-- Alerts (upper right corner of the page) -->
+  <div id="alert-container" class="alert-container">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+  
 
   <!-- Content Wrapper. Contains page content -->
   <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <div class="content-header">
-      {% if request.user.is_superuser %}
-      <h1 class="text-center">Dashboard: <b>Super User</b></h1>
-      {% elif request.user.is_staff %}
-        <h1 class="text-center">Dashboard: <b>Staff</b></h1>
-      {% else %}
-        <h1 class="text-center">Dashboard: <b>Normal User</b></h1>
-      {% endif %}
-    </div>
-    <!-- /.content-header -->
 
     <!-- Main content -->
     <div class="content">

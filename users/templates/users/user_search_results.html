@@ -1,7 +1,7 @@
 {% extends 'users/users_index.html' %}
 
 {% block content %}
-    <h1>Search Results for: "{{search_query}}"</h1>
+    <h5>Displaying Search Results for: "{{search_query}}"</h5>
     <ul>
         {% for account in accounts %}
             <!-- adding '.0' here for the view assigns tuples on the dictionary 'accounts' -->
@@ -9,4 +9,6 @@
             <li><a href="{% url 'profile' account.0.username %}">{{ account.0.username }} ({{ account.0.email }})</a></li>
         {% endfor %}
     </ul>
+    test test test <br>
+    test test test
 {% endblock %}
