@@ -73,7 +73,7 @@ def profileEditView(request, username=None):
     if User.objects.get(username=username):
         user = User.objects.get(username=username)
         if user == request.user:  # Check if the user is trying to edit their own profile
-            if request.method == 'POST':    # for the new info to be saved, this if block is needed
+            if request.method == 'POST':
                 # the forms from forms.py
                 u_form = UserUpdateForm(request.POST, request.FILES, instance=request.user)        # instance is for the fields to auto-populate with user info
                 p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user.profile)

@@ -13,7 +13,7 @@ from .views import (
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
     path('announcement/create/', CreateAnnouncement.as_view(), name='create-announcement'),
-    path('announcement/<str:slug>/update/', CreateAnnouncement.as_view(), name='update-announcement'),
+    path('announcement/<str:slug>/update/', UpdateAnnouncement.as_view(), name='update-announcement'),
     path('announcement/<str:slug>/', AnnouncementDetail.as_view(), name='announcement-detail'),
 
 

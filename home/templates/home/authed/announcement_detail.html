@@ -3,7 +3,16 @@
 
 
 {% block content %}
-    <h1>{{ announcement.title }}</h1>
+<style type="text/css">
+	.announcement-bg {
+    background-image: url('{{announcement.cover_image.url}}');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-color: darkgray;
+    padding: 20px;
+  }
+</style>
+    <h1 class="announcement-bg text-white">{{ announcement.title }}</h1>
     <p><strong>Type:</strong> {{ announcement.get_announcement_type_display }}</p>
     <p><strong>Created at:</strong> {{ announcement.created_at }}</p>
     <p><strong>Updated at:</strong> {{ announcement.updated_at }}</p>
@@ -11,8 +20,7 @@
         <strong>Content:</strong>
         <div>{{ announcement.content|safe }}</div>  <!-- Use safe to render HTML content -->
     </div>
-    {% if announcement.cover_image %}
-        <img src="{{ announcement.cover_image.url }}" alt="{{ announcement.title }}">
-    {% endif %}
+    
     <a href="{% url 'home' %}">Back to Home</a>
+    <a href="{% url 'update-announcement' object.slug %}">Update</a>
 {% endblock content %}

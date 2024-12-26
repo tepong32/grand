@@ -2,13 +2,13 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="card p-3 bg-gray">
+<div class="card p-3 col-4">
   <form method="POST" enctype="multipart/form-data">
     {% csrf_token %}
     <!-- this is a required line for added security -->
     <fieldset class="form-group">
       <legend class="border-bottom mb-1">Update Announcement</legend>
-      {{ form.as_p }}
+      {{ form|crispy }}
       <!-- {{ form.media }} -->
       <!-- {{ form|crispy }} -->
       {% if form.non_field_errors %}
