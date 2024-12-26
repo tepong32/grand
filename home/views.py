@@ -3,6 +3,7 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages     # for flash messages regarding valid data in the form
 
 from .models import Announcement
 from leave_mgt.models import LeaveRequest
@@ -46,11 +47,12 @@ class CreateAnnouncement(LoginRequiredMixin, CreateView):
     model = Announcement
     form_class = AnnouncementForm
     template_name = 'home/authed/create_announcement.html'
-    success_message = "Announcement successfully posted."
+    success_message = "Announcement successfully posted"
     success_url = '/'
 
     def form_valid(self, form):
         form.instance.user = self.request.user    # to automatically get the id of the current logged-in user
+        messages.success(self.request, self.success_message)
         return super().form_valid(form)
 
 class AnnouncementDetail(DetailView):
@@ -67,11 +69,12 @@ class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Announcement 
     form_class = AnnouncementForm
     template_name = 'home/authed/update_announcement.html'
-    success_message = "Announcement updated."
+    success_message = "Announcement updated"
     # success_url = '/'
 
     def form_valid(self, form):         
         form.instance.user = self.request.user
+        messages.success(self.request, self.success_message)
         return super().form_valid(form)
 
     def test_func(self):
@@ -84,10 +87,12 @@ class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 class DeleteAnnouncement(LoginRequiredMixin, UserPassesTestMixin, DeleteView):      
     model = Announcement
     template_name = 'home/authed/delete_announcement.html'
+    success_message = "Announcement deleted"
     success_url = '/'
 
     def form_valid(self, form):
         form.instance.user = self.request.user
+        messages.success(self.request, self.success_message)
         return super().form_valid(form)
 
     def test_func(self):
