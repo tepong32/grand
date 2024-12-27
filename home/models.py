@@ -50,14 +50,14 @@ class Announcement(models.Model):
 		return reverse('announcement-detail', kwargs={'slug': self.slug})
 
 	def save(self, *args, **kwargs):
-		if not self.slug:
+		if not self.slug: # Only slugify if slug is not already set
 			base_slug = slugify(self.title)
 			slug = base_slug
 			counter = 1
 			while Announcement.objects.filter(slug=slug).exists():
 				slug = f"{base_slug}-{counter}"
 				counter += 1
-				self.slug = slug
+			self.slug = slug
 		super(Announcement, self).save(*args, **kwargs)
 
 
