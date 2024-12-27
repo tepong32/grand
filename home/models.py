@@ -23,7 +23,7 @@ class Announcement(models.Model):
 		(INTERNAL, "Internal - for employees only"),
 		(PINNED, "Pinned - will be set to the Pinned section, apart from other announcements"),
 	]
-	annnouncement_type = models.CharField(
+	announcement_type = models.CharField(
 		blank=True,
 		null=False,
 		max_length=20,

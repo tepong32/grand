@@ -7,4 +7,4 @@ from .models import Announcement
 class AnnouncementForm(forms.ModelForm):
     class Meta:
         model = Announcement
-        fields = ['title', 'annnouncement_type', 'content', 'cover_image', 'published']
+        fields = ['title', 'announcement_type', 'content', 'cover_image', 'published']
