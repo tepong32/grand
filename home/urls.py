@@ -13,8 +13,8 @@ from .views import (
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
     path('announcement/create/', CreateAnnouncement.as_view(), name='create-announcement'),
-    path('announcement/<str:slug>/update/', UpdateAnnouncement.as_view(), name='update-announcement'),
     path('announcement/<str:slug>/', AnnouncementDetail.as_view(), name='announcement-detail'),
+    path('announcement/<str:slug>/update/', UpdateAnnouncement.as_view(), name='update-announcement'),
 
 
     ### these are part of my previous project and are just here for reference of how to make url paths
