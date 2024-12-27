@@ -19,10 +19,7 @@ from django.views.generic import (
     FormView,
     )
 from .forms import AnnouncementForm
-
 from django.http import HttpResponse
-from datetime import datetime
-from django.utils import timezone
 
 
 class HomeView(LoginRequiredMixin, ListView):
