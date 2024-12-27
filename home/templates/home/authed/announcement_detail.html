@@ -4,23 +4,40 @@
 
 {% block content %}
 <style type="text/css">
-	.announcement-bg {
-    background-image: url('{{announcement.cover_image.url}}');
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-color: darkgray;
-    padding: 20px;
+  .announcement-title {
+    opacity: 100%;
+  }
+  .announcement-bg {
+    background-size: cover; /* Cover the entire area */
+    background-position: center; /* Center the image */
+    padding: 20px; /* Add some padding */
+    color: black; /* Change text color for better contrast */
+    /* Set a height for the title area */
+    height: 200px; /* Adjust height as needed */
+    opacity: 90%;
+    min-height: 80vh;
   }
 </style>
-    <h1 class="announcement-bg text-white">{{ announcement.title }}</h1>
-    <p><strong>Type:</strong> {{ announcement.get_announcement_type_display }}</p>
-    <p><strong>Created at:</strong> {{ announcement.created_at }}</p>
-    <p><strong>Updated at:</strong> {{ announcement.updated_at }}</p>
-    <div>
-        <strong>Content:</strong>
-        <div>{{ announcement.content|safe }}</div>  <!-- Use safe to render HTML content -->
+    <h1 class="announcement-title text-danger text-center p-2">
+        {{ announcement.title }}
+    </h1>
+    <div class="mr-auto">
+        <small>
+            <a href="{% url 'update-announcement' object.slug %}">Update</a>
+        </small>
+    </div>
+    <div class="announcement-bg" style="background-image: url('{{ announcement.cover_image.url }}');">
+        <p><strong>Type:</strong> {{ announcement.get_announcement_type_display }}</p>
+        <p><strong>Created at:</strong> {{ announcement.created_at }}</p>
+        <p><strong>Updated at:</strong> {{ announcement.updated_at }}</p>
+        <div>
+            <strong>Content:</strong>
+            <div>{{ announcement.content|safe }}</div>  <!-- Use safe to render HTML content -->
+        </div>
     </div>
     
+    
+    
     <a href="{% url 'home' %}">Back to Home</a>
-    <a href="{% url 'update-announcement' object.slug %}">Update</a>
+    
 {% endblock content %}
