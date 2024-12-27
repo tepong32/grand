@@ -33,7 +33,18 @@ testing filters: <br>
 
 <div>
 	{% for announcement in announcements %}
+	
+		{% if announcement.published %}
+		filtered published announcement
 		<p><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></p>
+
+		{% endif %}
+
+	
+		{% if not announcement.published %}
+		filtered draft announcement
+		<p><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></p>
+		{% endif %}
 	{% endfor %}
 
 </div>

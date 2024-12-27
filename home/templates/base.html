@@ -90,15 +90,9 @@ scratch. This page gets rid of all links and provides the needed markup only.
   </aside>
   <!-- /.control-sidebar -->
 
-  <!-- Main Footer -->
-  <footer class="main-footer">
-    <!-- To the right -->
-    <div class="float-right d-none d-sm-inline">
-      <p>Current time: <span id="current-time">{{ server_time|date:"Y-m-d H:i:s" }}</span></p>
-    </div>
-    <!-- Default to the left -->
-    created by: <strong><a href="https://www.facebook.com/tepong32" target="_blank">𝕥𝔼𝕡𝕡𝕪</a></strong>
-  </footer>
+  <!-- Footer -->
+  {% include 'footer.html' %}
+
 </div>
 <!-- ./wrapper -->
 

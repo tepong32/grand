@@ -66,7 +66,7 @@
     text-align: center;
   }
   .descriptiveList li:hover{
-    color: white;
+    color: darkred;
     transition: 0.4
   }
   b{
@@ -75,6 +75,10 @@
   .dev_social_link{
     color: white;
     text-decoration: none;
+  }
+
+  .profilePic {
+    z-index: -1;
   }
 </style>
 
@@ -93,10 +97,8 @@
       </div>
       <div class="d-flex justify-content-end social_icon">
           <h6>Quick sign-up & log-in:</h6> 
-            <!-- create an a-tag to cover social_icon -->
-            <!-- <span><i class="fab fa-facebook-square"></i></span> -->
-          <a title="Google" class="socialaccount_provider google text-danger" href="/accounts/google/login/?process=login">
-            <span><i class="fa fa-google"></i></span>
+          <a title="Sign-up using Google" class="socialaccount_provider google" href="/accounts/google/login/?process=login">
+            <span><i class="fab fa-google"></i></span>
           </a>
           <!-- <a title="Facebook" class="socialaccount_provider facebook text-danger" href="#">
             <span><i class="fa fa-facebook-square"></i></span>
@@ -109,11 +111,10 @@
 
     <!-- 2nd box -->
     <div class="card card-widget widget-user elevation-5">
-      <div class="widget-user-header text-warning"
+      <div class="widget-user-header"
            style="position: sticky;">
-          <h3 class="widget-user-username text-right mr-5">Teppy</h3>
-        <br>
-        <h6 class="widget-user-desc text-right mr-3">Website Creator</h6>
+          <h3 class="widget-user-username text-right mr-5 p-2">Teppy</h3>
+        <small class="widget-user-desc float-right mr-3">Website Creator</small>
       </div>
       <div class="widget-user-image">
         <img class="img-circle profilePic" src="/media/defaults/round.png" alt="User Avatar">
@@ -137,14 +138,6 @@
             </ul>
           </div>
         </div>
-      </div>
-      <div class="card-footer align-items-center">
-        <a class="fab fa-github dev_social_link" href="https://github.com/tepong32" target="_blank"></a>
-        <a class="fab fa-facebook dev_social_link" href="https://facebook.com/tepong32" target="_blank"></a>
-        <a class="fab fa-twitter dev_social_link" href="https://twitter.com/tepongdgreat" target="_blank"></a>
-        <a class="fab fa-linkedin-square dev_social_link" href="https://linkedin.com/in/cristinoagapitojr" target="_blank"></a>
-
-        
       </div>
     </div>
 
