@@ -1,5 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, Http404
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
@@ -31,9 +31,22 @@ class HomeView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         user = User
         profile = Profile
+        pinned = Announcement.objects.filter(announcement_type=Announcement.PINNED)
+        public = Announcement.objects.filter(announcement_type=Announcement.PUBLIC)
+        internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL)
 
+        published = Announcement.objects.filter(published=True)
+        draft = Announcement.objects.filter(published=False)
         context.update({
-            'profiles': profile.objects.all(),
+            'profiles': profile.objects.all(), # pwede na tong alisin pag tapos na ang testing
+
+            'pinned': pinned,
+            'public': public,
+            'internal': internal,
+
+            'published': published,
+            'draft': draft
+
         })
 
         return context
@@ -52,14 +65,20 @@ class CreateAnnouncement(LoginRequiredMixin, CreateView):
         messages.success(self.request, self.success_message)
         return super().form_valid(form)
 
+
 class AnnouncementDetail(DetailView):
     model = Announcement
     template_name = 'home/authed/announcement_detail.html'
     context_object_name = 'announcement'
 
-    def get_queryset(self):
-        # Override to filter by slug
-        return Announcement.objects.filter(slug=self.kwargs['slug'], published=True)
+    def get_object(self, queryset=None):
+        # Get the announcement by slug
+        announcement = get_object_or_404(Announcement, slug=self.kwargs['slug'])
+        # Optionally, check if the announcement is published
+        if not announcement.published and not self.request.user.is_staff:
+            # If the announcement is unpublished and the user is not staff, raise a 404
+            raise Http404("You do not have permission to view this announcement.")
+        return announcement
 
 
 class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
