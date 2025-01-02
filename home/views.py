@@ -26,14 +26,15 @@ class HomeView(LoginRequiredMixin, ListView):
     model = Announcement
     template_name = 'home/authed/home.html'
     context_object_name = 'announcements'
+    # ordering    =   ['-created_at'] # not working since may filter ng types ng announcements
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = User
         profile = Profile
-        pinned = Announcement.objects.filter(announcement_type=Announcement.PINNED)
-        public = Announcement.objects.filter(announcement_type=Announcement.PUBLIC)
-        internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL)
+        pinned = Announcement.objects.filter(announcement_type=Announcement.PINNED)[::-1]
+        public = Announcement.objects.filter(announcement_type=Announcement.PUBLIC)[::-1]
+        internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL)[::-1]
 
         published = Announcement.objects.filter(published=True)
         draft = Announcement.objects.filter(published=False)
@@ -46,11 +47,14 @@ class HomeView(LoginRequiredMixin, ListView):
 
             'published': published,
             'draft': draft
-
         })
-
         return context
         
+class AnnouncementList(ListView):
+    model = Announcement
+    template_name = 'home/authed/announcements_list.html'
+    context_object_name = 'announcements'
+    ordering    =   ['-created_at']
 
 
 class CreateAnnouncement(LoginRequiredMixin, CreateView):       
