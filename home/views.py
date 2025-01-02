@@ -32,16 +32,14 @@ class HomeView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         user = User
         profile = Profile
-        pinned = Announcement.objects.filter(announcement_type=Announcement.PINNED)[::-1]
-        public = Announcement.objects.filter(announcement_type=Announcement.PUBLIC)[::-1]
-        internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL)[::-1]
+        public = Announcement.objects.filter(announcement_type=Announcement.PUBLIC).order_by('created_at')
+        internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL).order_by('created_at')
 
         published = Announcement.objects.filter(published=True)
         draft = Announcement.objects.filter(published=False)
         context.update({
             'profiles': profile.objects.all(), # pwede na tong alisin pag tapos na ang testing
 
-            'pinned': pinned,
             'public': public,
             'internal': internal,
 
