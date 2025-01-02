@@ -17,11 +17,9 @@ class Announcement(models.Model):
 	title = models.CharField(max_length=255)
 	PUBLIC = 'Public'
 	INTERNAL = 'Internal'
-	PINNED = 'Pinned'
 	choices = [
 		(PUBLIC, "Public - for the general masses"),
 		(INTERNAL, "Internal - for employees only"),
-		(PINNED, "Pinned - will be set to the Pinned section, apart from other announcements"),
 	]
 	announcement_type = models.CharField(
 		blank=True,
@@ -30,8 +28,10 @@ class Announcement(models.Model):
 		choices=choices,
 		default=PUBLIC,
 		verbose_name="Type: ",
-		help_text="Select the type of announcement. Public is for everyone, Internal is for employees only, and Pinned will be highlighted separately.",
+		help_text="Select the type of announcement. Public is for everyone, Internal is for employees only",
 		)
+	is_pinned = models.BooleanField(default=False, verbose_name="Pinned", help_text="Indicates if the announcement is pinned.")
+	published = models.BooleanField(default=True) # set a color-coding on the template for published vs unpublished instances
 	content = RichTextUploadingField()
 	slug = models.SlugField(default='', blank=True)
 	def upload_directory_path(instance, filename):
@@ -40,7 +40,7 @@ class Announcement(models.Model):
 	cover_image = models.ImageField(default='defaults/jjv.png', blank=True, upload_to=upload_directory_path)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
-	published = models.BooleanField(default=True) # set a color-coding on the template for published vs unpublished instances
+	
 
 
 	def __str__(self):
