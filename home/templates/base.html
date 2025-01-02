@@ -19,16 +19,18 @@ scratch. This page gets rid of all links and provides the needed markup only.
   <link rel="stylesheet" href="/static/admin-lte/plugins/fontawesome-free/css/all.min.css">
   <!-- Theme style -->
   <link rel="stylesheet" href="/static/admin-lte/dist/css/adminlte.min.css">
-  <!-- Google Font: Source Sans Pro -->
-  <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
-  
+  <!-- Google Font: Poppins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    
   
 
 </head>
 <body class="hold-transition sidebar-collapse">
 <div class="wrapper">
   <!-- NavBar -->
-  {% include 'home/authed/_css.html' %}
+  {% include '_css.html' %}
   {% include 'home/authed/nav.html' %}
   
   <!-- Alerts (upper right corner of the page) -->
@@ -62,43 +64,11 @@ scratch. This page gets rid of all links and provides the needed markup only.
   </div>
   <!-- /.content-wrapper -->
 
-  <!-- Control Sidebar -->
-  <aside class="control-sidebar control-sidebar-dark" style="opacity: .85;">
-    <!-- Control sidebar content goes here -->
-    <div class="p-3">
-      <h5>{{request.user.username}}</h5>
+  
 
-      <!-- logout button (no-confirm logout) -->
-      {% if user.is_authenticated %}
-          <a href="#" onclick="document.getElementById('logout-form').submit()" class="nav-link text-danger">
-            <p class="float-right">
-              <i class="fa fa-power-off" title="Logout"></i> Logout
-            </p>
-          </a>
-          <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
-            {% csrf_token %}
-          </form>
-        </li>
-        {% else %}
-        <li class="nav-item" style="list-style: None;">
-          <a href="/login" class="nav-link">
-            <i class="nav-icon fas fa-power-off"></i>
-              Login
-          </a>
-      {% endif %}
-    </div>
-  </aside>
-  <!-- /.control-sidebar -->
+  <!-- Footer -->
+  {% include 'footer.html' %}
 
-  <!-- Main Footer -->
-  <footer class="main-footer">
-    <!-- To the right -->
-    <div class="float-right d-none d-sm-inline">
-      <p>Current time: <span id="current-time">{{ server_time|date:"Y-m-d H:i:s" }}</span></p>
-    </div>
-    <!-- Default to the left -->
-    created by: <strong><a href="https://www.facebook.com/tepong32" target="_blank">𝕥𝔼𝕡𝕡𝕪</a></strong>
-  </footer>
 </div>
 <!-- ./wrapper -->
 

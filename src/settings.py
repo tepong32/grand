@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+    'ckeditor',
 
     ### custom
     'home.apps.HomeConfig',
@@ -216,6 +217,20 @@ CRONJOBS = [
     ('5 0 2 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1')
 
 ]
+
+CKEDITOR_BASEPATH = "/my_static/ckeditor/ckeditor/"
+CKEDITOR_UPLOAD_PATH = "uploads/"
+CKEDITOR_FILENAME_GENERATOR = 'utils.get_filename' # for uniformity in naming file uploads
+CKEDITOR_RESTRICT_BY_USER = True # for owner-only upload browsing restrictions
+CKEDITOR_IMAGE_BACKEND = 'ckeditor_uploader.backends.PillowBackend'
+CKEDITOR_THUMBNAIL_SIZE = (75, 75)
+CKEDITOR_FORCE_JPEG_COMPRESSION = True
+# CKEDITOR_IMAGE_QUALITY = 75 # default value for compression
+
+
+
+
+
 
 import logging
 ### LOGGING

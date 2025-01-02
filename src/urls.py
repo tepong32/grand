@@ -31,6 +31,8 @@ urlpatterns = [
     
     ### allauth
     path('accounts/', include('allauth.urls')),
+    ### ckeditor
+    path('ckeditor/', include('ckeditor_uploader.urls')),
 
 
     ### these views/html templates are inside the "users" app

@@ -25,9 +25,10 @@
                style="opacity: 3; height: 50px;">
         </a>
       </li>
+
       <li class="nav-item d-lg-block">
-        <a href="/admin" class="nav-link" title="Admin UI">
-          Admin
+        <a href="/announcements" class="nav-link" title="Admin UI">
+          Announcements
         </a>
       </li>
 
@@ -76,17 +77,7 @@
 
     <!-- Right navbar links -->
     <ul class="navbar-nav ml-auto">
-      <!-- User type indicator -->
-      <div>
-        {% if request.user.is_superuser %}
-        <h6 class="text-center">Dashboard: <b>Super User</b></h6>
-        {% elif request.user.is_staff %}
-          <h6 class="text-center">Dashboard: <b>Staff</b></h6>
-        {% else %}
-          <h6 class="text-center">Dashboard: <b>Normal User</b></h6>
-        {% endif %}
-      </div>
-
+      
       <!-- Messages Dropdown Menu -->
       <li class="nav-item dropdown">
         <a class="nav-link" data-toggle="dropdown" href="#">
@@ -173,12 +164,74 @@
         </div>
       </li>
       <li class="nav-item">
-        <a class="nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button"><i
-            class="fas fa-th-large"></i>
+        <a class="nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button">
+          <!-- <i class="fas fa-th-large"></i> -->
+          <img src="{{request.user.profile.image.url}}" class="border border-warning" style="height: 35px; border-radius: 50%;">
         </a>
       </li>
       
     </ul>
   </nav>
   <!-- /.navbar -->
+
+  <!-- Control Sidebar -->
+  <aside class="control-sidebar control-sidebar-light" style="opacity: .85;">
+    <!-- Control sidebar content goes here -->
+    <div class="p-3">
+      <!-- User type indicator -->
+      <div>
+        {% if request.user.is_superuser %}
+        <h6 class="text-center bg-success">
+          <strong><i class="fa fa-crown"></i> Super User <i class="fa fa-crown"></i></strong>
+        </h6>
+        {% elif request.user.is_staff %}
+          <h6 class="text-center bg-warning">
+            <strong><i class="fa fa-user-tie"></i> Staff <i class="fa user-group-crown"></i></strong>
+          </h6>
+        {% else %}
+          <h6 class="text-center bg-gray">
+            <strong> Normal User</strong>
+          </h6>
+        {% endif %}
+      </div>
+
+      <div class="float-right">
+        <ul>
+          {% if user.is_authenticated %}
+            {% if user.is_superuser %}
+              <li>
+                <a href="{% url 'create-announcement' %}" class="nav-link" title="Admin UI">
+                  <small> <i class="fa fa-plus"></i> New Announcement</small>
+                </a>
+              </li>
+
+              <li>
+                <a href="/admin" class="nav-link" title="Admin UI">
+                  Admin
+                </a>
+              </li>
+            {% endif %}
+
+            <!-- logout button (no-confirm logout) -->
+              <li>
+                <a href="#" onclick="document.getElementById('logout-form').submit()" class="nav-link text-danger">
+                  <i class="fa fa-power-off" title="Logout"></i> Logout
+                </a>
+              </li>
+              <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
+                {% csrf_token %}
+              </form>
+            </li>
+            {% else %}
+            <li class="nav-item" style="list-style: None;">
+              <a href="/login" class="nav-link">
+                <i class="nav-icon fas fa-power-off"></i>
+                  Login
+              </a>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </aside>
+  <!-- /.control-sidebar -->
 

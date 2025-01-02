@@ -31,5 +31,46 @@ testing filters: <br>
 	</p>
 </div>
 
+<div>
+	filtered published announcement
+
+	<p>PINNED</p>
+	<ul>
+	{% for announcement in pinned %}
+		{% if announcement.published %}
+			<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
+		{% endif %}
+	{% endfor %}
+	</ul>
+
+	<p>for the public</p>
+	<ul>
+	{% for announcement in public %}
+		{% if announcement.published %}
+			<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
+		{% endif %}
+	{% endfor %}
+	</ul>
+
+	<p>for employees</p>
+	<ul>
+	{% for announcement in internal %}
+		{% if announcement.published %}
+			<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
+		{% endif %}
+	{% endfor %}
+	</ul>
+	
+	filtered draft announcement - staffs only
+	<ul>
+	{% for announcement in announcements %}
+		{% if not announcement.published %}
+		<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
+		{% endif %}
+	{% endfor %}
+	</ul>
+
+</div>
+
 </section>
 {% endblock content %}

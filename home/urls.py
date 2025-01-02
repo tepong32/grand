@@ -2,15 +2,21 @@ from django.urls import path
 # from django documentation -- check CoreyMS' django tutorial Part 8 / 22:30
 from .views import (
     HomeView,
-    ApplyLeaveView,
-    LeaveUpdateView,
-    LeaveDeleteView,
+    AnnouncementList,
+    CreateAnnouncement,
+    AnnouncementDetail,
+    UpdateAnnouncement,
+    DeleteAnnouncement,
     )
 
 
 
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
+    path('announcement/create/', CreateAnnouncement.as_view(), name='create-announcement'),
+    path('announcement/<str:slug>/', AnnouncementDetail.as_view(), name='announcement-detail'),
+    path('announcement/<str:slug>/update/', UpdateAnnouncement.as_view(), name='update-announcement'),
+    path('announcements/', AnnouncementList.as_view(), name='announcements'),
 
 
     ### these are part of my previous project and are just here for reference of how to make url paths

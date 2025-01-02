@@ -10,6 +10,10 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.validators import MinLengthValidator, MaxLengthValidator
 
+### for debugging
+import logging
+logger = logging.getLogger(__name__)
+
 
 ### Documentation: ###
 # See: https://docs.djangoproject.com/en/4.2/topics/auth/customizing/#using-a-custom-user-model-when-starting-a-project
@@ -254,6 +258,7 @@ class Profile(models.Model):
                 counter += 1
             self.slug = slug
         super(Profile, self).save(*args, **kwargs)
+        logger.info("Profile saved.")
 
         img = Image.open(self.image.path)   # open the image of the current instance
         if img.height > 600 or img.width > 600: # for sizing-down the images to conserve memory in the server

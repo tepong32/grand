@@ -7,14 +7,12 @@
     {% csrf_token %}
     <!-- this is a required line for added security -->
     <fieldset class="form-group">
-      <legend class="border-bottom mb-1"><b> Cancel Leave application. </b></legend>
+      <legend class="border-bottom mb-1"><b> Delete this Announcement? </b></legend>
       <h6>You cannot undo this action.</h6>
-      Reminder: Leave applications are time-stamped and are decided on a "first-come, first-served" basis.
-
     </fieldset>
 
     <div class="form-group">
-      <a class="btn btn-sm btn-outline-secondary" href="{% url 'forum-home' %}">
+      <a class="btn btn-sm btn-outline-secondary" href="/">
         No
       </a>
       <button class="btn btn-sm btn-outline-danger" type="submit">
