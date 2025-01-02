@@ -1,76 +1,111 @@
 {% extends "base.html" %}
 
 {% block dashboard %}
-	{% include 'home/authed/home_dashboard.html' %}
+	{% include 'home/authed/home_dashboard.html' %} <!-- not being displayed atm -->
 {% endblock%}
 {% block content %}
-<!-- REAL CONTENT -->
-{% if leave_requests.count == 0 %}
-  <p> You have not filed for a leave request yet. Don't be shy. Work-Life balance, Man! </p>
-{% endif %}
+<div class="row">
+	<!-- CAROUSEL for PINNED ANNOUNCEMENTS -->
+	<div class="col-lg-4 col-sm-12">  <!-- Adjust the column size as needed -->
+	    <div id="announcementCarousel" class="carousel slide" data-ride="carousel">
+	        <div class="carousel-inner">
+	            {% for announcement in public %}
+	                <div class="carousel-item {% if forloop.first %}active{% endif %}">
+	                    <div class="announcement-bg" style="background-image: url('{{ announcement.cover_image.url }}');">
+	                        <div class="card" style="height: 100%;">
+	                        	<div class="position-relative p-3">
+				                      <div class="ribbon-wrapper">
+				                        <div class="ribbon bg-primary">
+				                          <img src="../../media/defaults/jjv.png" style="height: 25px; position: absolute;">
+				                        </div>
+				                      </div>
+	                            <div class="card-header announcement-title">
+	                                <h5>{{ announcement.title }}</h5>
+	                            </div>
+	                            <div class="card-body">
+	                                <p class="announcement-meta">{{ announcement.content|truncatechars:50|safe }}</p>
+	                                <small class="float-right">by: {{announcement.user}}</small>
+	                            </div>
+	                            <div class="card-footer text-center bg-transparent">
+	                                <a href="{{ announcement.get_absolute_url }}" class="btn btn-primary">Read More</a>
+	                            </div>
+	                          </div>
+	                        </div>
+	                    </div>
+	                </div>
+	            {% endfor %}
+	        </div>
+	        <a class="carousel-control-prev" href="#announcementCarousel" role="button" data-slide="prev">
+	            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+	            <span class="sr-only">Previous</span>
+	        </a>
+	        <a class="carousel-control-next" href="#announcementCarousel" role="button" data-slide="next">
+	            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+	            <span class="sr-only">Next</span>
+	        </a>
+	    </div>
+	    <small class="float-right">
+	    	<a href="/announcements" class="nav-link" title="All Announcements">
+          See All
+        </a>
+      </small>
+	</div>
 
 
-<section>
-testing filters: <br>
-<br>
-{% for profile in profiles %}
-	<a href="{% url 'profile' profile.user.username %}"> {{ profile.user.get_full_name}} </a>
-	<br>
-{% endfor %}
-</p>
+<div class="col-8">
+	<!-- REAL CONTENT -->
+	{% if leave_requests.count == 0 %}
+	  <p> You have not filed for a leave request yet. Don't be shy. Work-Life balance, Man! </p>
+	{% endif %}
 
-<hr>
-<div>
-	<p> leave instances </p>
-	approved leaves count: <b>{{approved_leave_count}}</b> <br>
-	pending leaves count:	<b>{{pending_leaves_count}}</b>
-	<p>
-	{% for leave in leave_requests %}
-		{{leave.leave_type}} - {{leave.start_date}} to {{leave.end_date}} - <b>{{leave.status}}</b><br>
-	{% endfor %}
-	</p>
+	<div>
+		<p> leave instances </p>
+		approved leaves count: <b>{{approved_leave_count}}</b> <br>
+		pending leaves count:	<b>{{pending_leaves_count}}</b>
+		<p>
+		{% for leave in leave_requests %}
+			{{leave.leave_type}} - {{leave.start_date}} to {{leave.end_date}} - <b>{{leave.status}}</b><br>
+		{% endfor %}
+		</p>
+	</div>
+
+	<div>
+		filtered published announcement
+
+		<p>PINNED</p>
+		<ul>
+		{% for announcement in announcements %}
+			{% if announcement.published and announcement.is_pinned %}
+				<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
+			{% endif %}
+		{% endfor %}
+		</ul>
+
+
+		<p>for employees</p>
+		<ul>
+		{% for announcement in internal %}
+			{% if announcement.published %}
+				<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
+			{% endif %}
+		{% endfor %}
+		</ul>
+		
+		filtered draft announcement - staffs only
+		<ul>
+		{% for announcement in announcements %}
+			{% if not announcement.published %}
+			<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
+			{% endif %}
+		{% endfor %}
+		</ul>
+
+	</div>
 </div>
 
-<div>
-	filtered published announcement
 
-	<p>PINNED</p>
-	<ul>
-	{% for announcement in pinned %}
-		{% if announcement.published %}
-			<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
-		{% endif %}
-	{% endfor %}
-	</ul>
 
-	<p>for the public</p>
-	<ul>
-	{% for announcement in public %}
-		{% if announcement.published %}
-			<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
-		{% endif %}
-	{% endfor %}
-	</ul>
 
-	<p>for employees</p>
-	<ul>
-	{% for announcement in internal %}
-		{% if announcement.published %}
-			<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
-		{% endif %}
-	{% endfor %}
-	</ul>
-	
-	filtered draft announcement - staffs only
-	<ul>
-	{% for announcement in announcements %}
-		{% if not announcement.published %}
-		<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
-		{% endif %}
-	{% endfor %}
-	</ul>
+</div> <!-- row -->
 
-</div>
-
-</section>
 {% endblock content %}
