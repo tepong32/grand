@@ -181,11 +181,17 @@
       <!-- User type indicator -->
       <div>
         {% if request.user.is_superuser %}
-        <h6 class="text-center bg-success"><strong>Super User</strong></h6>
+        <h6 class="text-center bg-success">
+          <strong><i class="fa fa-crown"></i> Super User <i class="fa fa-crown"></i></strong>
+        </h6>
         {% elif request.user.is_staff %}
-          <h6 class="text-center"><strong>Staff</strong></h6>
+          <h6 class="text-center bg-warning">
+            <strong><i class="fa fa-user-tie"></i> Staff <i class="fa user-group-crown"></i></strong>
+          </h6>
         {% else %}
-          <h6 class="text-center">Normal User</h6>
+          <h6 class="text-center bg-gray">
+            <strong> Normal User</strong>
+          </h6>
         {% endif %}
       </div>
 
