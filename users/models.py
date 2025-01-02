@@ -107,8 +107,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_full_name(self):
         if self.ext_name != None:
             return str(self.first_name)+' '+self.middle_name + ' ' +self.last_name + ' ' + self.ext_name
-        else:
+        elif self.first_name and self.last_name:
             return str(self.first_name)+' '+self.middle_name + ' ' + self.last_name
+        else:
+            return str(self.username)
 
 
 class Manager(models.Model):
@@ -203,8 +205,9 @@ class Profile(models.Model):
     user            = models.OneToOneField(User, on_delete=models.CASCADE)
     contact_number  = models.CharField(max_length=11, null=True, blank=False,
                     validators=[MinLengthValidator(10)],
-                    verbose_name="Contact Number")
+                    verbose_name="Contact Number") # intended only for HR use, will not be displayed to other users
     address         = models.CharField(max_length=255, null=True, blank=False)
+    note            = models.CharField(max_length=255, null=True, blank=False) # personal short note to other users
 
     select  = "---select one---"
     REG     = "Regular Employee"

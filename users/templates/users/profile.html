@@ -46,7 +46,7 @@
   </div>
   <div class="row">
       <!-- Profile Image -->
-      <div class="card card-primary card-outline col-md-4">
+      <div class="card card-primary col-md-4">
         <div class="card-body box-profile">
           <div class="text-center">
             <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5"
@@ -54,7 +54,13 @@
            alt="User profile picture" style="width: 250px; height: 250px">
           </div>
           
-          <h2 class="profile-username text-center">{{user.get_full_name}}</h2>
+          <!-- check logic here -->
+          <!-- see if addtl if-block is needed -->
+            <h2 class="profile-username text-center">{{user.get_full_name}}</h2>
+            <small class="float-right ml-5">
+              <a title="Edit profile" class="fa fa-edit" href="{% url 'profile-edit' user.username %}"> Edit</a>
+            </small>
+
           <p class="text-sm text-muted text-center"><i>{{user.profile.department}}</i></p>
 
           <ul class="list-group list-group-unbordered mb-3">
@@ -88,25 +94,25 @@
       <!-- /.card -->
 
       <!-- About Me Box -->
-      <div class="card card-primary col ml-1">
+      <div class="card card-secondary col ml-1">
         <div class="card-header">
-          <h3 class="card-title">
-            {% if user.first_name and user.last_name != None %}
-              {{user.get_full_name.title}} 
-              {% if user.username == request.user.username %}
-                <small>
-                  <a title="Edit profile" class="fa fa-edit text-white" href="{% url 'profile-edit' user.username %}"></a>
-                </small>
-              {% endif %}
+          <div class="card-title row">
+            {% if user.profile.note %}
+              <i>{{user.profile.note|safe}}</i>
             {% else %}
-              --- <small><a title="Edit profile" href="{% url 'profile-edit' user.username %}">
-              Please update your profile <i class="fa fa-edit"></i></small></a>
+              {% if user == request.user %}
+                <small><i>"A heads-up note to others. Example: Away for the meantime until mm/dd/yy."</i></small>
+                <a href="{% url 'profile-edit' user.username %}"><i title="Edit profile" class="fa fa-edit"></i></a>
+              {% endif %}
             {% endif %}
-          </h3>
+          </div>
         </div>
         <!-- /.card-header -->
         <div class="card-body">
-          <p>Username: {{user.username}} / Email: {{user.email}}</p>
+          <p>
+            Username: {{user.username}} <br>
+            Email: {{user.email}}
+          </p>
 
           <hr>
 
@@ -120,8 +126,8 @@
 
           <hr>
 
-          <!-- Pro'ly, you need to add the Skills attribute to the Profile model. For now, remove this div or just leave this here. -->
-          <strong><i class="fas fa-pencil-alt mr-1"></i> Skills</strong>
+          
+          <strong><i class="fas fa-pencil-alt mr-1"></i> MGBEA membership record?</strong>
 
           <p class="text-muted">
             <span class="tag tag-danger">Add "skills" attribute to model</span><br>
