@@ -3,42 +3,6 @@
 
 
 {% block content %}
-<style type="text/css">
-  .announcement-meta {
-    font-family: "Poppins", serif;
-    font-weight: 300;
-    font-style: italic;
-  }
-
-  .announcement-title {
-    opacity: 1; /* Set to 1 for full opacity */
-  }
-  .announcement-bg {
-    position: relative; /* Position relative to allow absolute positioning of the overlay */
-    background-size: cover; /* Cover the entire area */
-    background-position: center; /* Center the image */
-    padding: 20px; /* Add some padding */
-    color: black; /* Change text color for better contrast */
-    height: 200px; /* Adjust height as needed */
-    min-height: 80vh; /* Minimum height */
-    overflow: hidden; /* Hide overflow */
-  }
-  .announcement-bg::before {
-    content: ""; /* Required for pseudo-element */
-    position: absolute; /* Position it absolutely */
-    top: 0; /* Align to the top */
-    left: 0; /* Align to the left */
-    right: 0; /* Align to the right */
-    bottom: 0; /* Align to the bottom */
-    background-color: rgba(255, 255, 255, 0.8); /* White background with 50% opacity */
-    z-index: 1; /* Place it above the background but below the text */
-  }
-  .announcement-bg > * {
-    position: relative; /* Position child elements relative to the parent */
-    z-index: 2; /* Ensure text is above the overlay */
-  }
-</style>
-
 <h1 class="announcement-title text-danger text-center p-2">
     {{ announcement.title }}
 </h1>

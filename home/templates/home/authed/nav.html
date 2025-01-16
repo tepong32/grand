@@ -1,15 +1,45 @@
 <style type="text/css">
+/* logo */
+  .navbar-nav a .nav-item {
+    transition: transform 0.3s ease; /* Slightly enlarge to 110% */
+  }
+  .navbar-nav a .nav-item:hover {
+    transform: scale(1.2); /* Slightly enlarge to 110% */
+  }
+
+/* other navbar links */
   .navbar-nav .nav-item a {
-    transition: transform 0.3s ease; /*    smooth transition */
+    position: relative; /* Position relative to allow absolute positioning of the underline */
+    text-decoration: none; /* Remove default underline */
+    transition: transform 0.3s ease; /* Smooth transition for transform */
   }
+  
   .navbar-nav .nav-item a:hover {
-    transform: scale(1.2); /*    enlarge to 120% */
+    transform: scale(1.1); /* Slightly enlarge to 110% */
   }
+
+  .navbar-nav .nav-item a::after {
+    content: ""; /* Create a pseudo-element for the underline */
+    position: absolute; /* Position it absolutely */
+    left: 0; /* Align to the left */
+    right: 0; /* Align to the right */
+    bottom: 0; /* Align to the bottom */
+    height: 2px; /* Height of the underline */
+    background-color: rgba(0, 0, 0, 0.5); /* Color of the underline */
+    transform: scaleX(0); /* Initially scale to 0 (hidden) */
+    transition: transform 0.3s ease; /* Smooth transition for the underline */
+  }
+  
+  .navbar-nav .nav-item a:hover::after {
+    transform: scaleX(1); /* Scale to full width on hover */
+  }
+  
   .navbar-nav .nav-item i {
     transition: transform 0.3s ease; 
   }
+  
   .navbar-nav .nav-item i:hover {
-    transform: scale(1.2);
+    transform: scale(1.1); /* Enlarge icon on hover */
   }
 </style>
 
@@ -18,19 +48,13 @@
     <!-- Left navbar links -->
     <ul class="navbar-nav">
       <!-- Home -->
-      <li class="nav-item bg-primary" style="border-radius: 8px;">
-        <a href="/" class="nav-link" title="Home">
+      <a href="/" class="nav-link" title="Home">
+        <li class="nav-item">
           <!-- Brand Logo -->
-          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="img-circle elevation-2 border"
-               style="opacity: 3; height: 50px;">
-        </a>
-      </li>
-
-      <li class="nav-item d-lg-block">
-        <a href="/announcements" class="nav-link" title="Admin UI">
-          Announcements
-        </a>
-      </li>
+          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="img-circle elevation-3"
+               style="height: 55px; border-radius: 50%; border: solid;">
+        </li>
+      </a>
 
       <!-- All Users List -->
       <li class="nav-item d-none d-lg-block">
@@ -163,12 +187,12 @@
           <a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>
         </div>
       </li>
-      <li class="nav-item">
-        <a class="nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button">
+      <a class="nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button">
+        <li class="nav-item">
           <!-- <i class="fas fa-th-large"></i> -->
-          <img src="{{request.user.profile.image.url}}" class="border border-warning" style="height: 35px; border-radius: 50%;">
-        </a>
-      </li>
+          <img src="{{request.user.profile.image.url}}" style="height: 35px; border-radius: 50%;">
+        </li>
+      </a>
       
     </ul>
   </nav>
