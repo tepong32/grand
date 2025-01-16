@@ -26,23 +26,28 @@ class HomeView(LoginRequiredMixin, ListView):
     model = Announcement
     template_name = 'home/authed/home.html'
     context_object_name = 'announcements'
-    # ordering    =   ['-created_at'] # not working since may filter ng types ng announcements
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        user = User
-        profile = Profile
-        public = Announcement.objects.filter(announcement_type=Announcement.PUBLIC).order_by('created_at')
-        internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL).order_by('created_at')
+        # user = User # not being used atm
 
+        # Fetch public announcements and order them by created_at
+        public = Announcement.objects.filter(announcement_type=Announcement.PUBLIC).order_by('-created_at')
+        internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL).order_by('-created_at')
+
+        # Get the latest 5 public announcements for the carousel
+        latest_public = public[:5]  # Slicing to get the latest 5
+        # Filter out the latest announcements from the public list
+        remaining_public = public[5:]  # Get all public announcements except the latest 5
+
+        # Optionally, if you need published and draft announcements for admin posting purposes
         published = Announcement.objects.filter(published=True)
         draft = Announcement.objects.filter(published=False)
         context.update({
-            'profiles': profile.objects.all(), # pwede na tong alisin pag tapos na ang testing
-
             'public': public,
+            'latest_public': latest_public,
+            'remaining_public': remaining_public,
             'internal': internal,
-
             'published': published,
             'draft': draft
         })

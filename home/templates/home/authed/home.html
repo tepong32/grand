@@ -7,9 +7,9 @@
 <div class="row">
 	<!-- CAROUSEL for PINNED ANNOUNCEMENTS -->
 	<div class="col-lg-4 col-sm-12">  <!-- Adjust the column size as needed -->
-	    <div id="announcementCarousel" class="carousel slide" data-ride="carousel">
+	    <div id="announcementCarousel" class="carousel slide border60vh" data-ride="carousel">
 	        <div class="carousel-inner">
-	            {% for announcement in public %}
+	            {% for announcement in latest_public %}
 	                <div class="carousel-item {% if forloop.first %}active{% endif %}">
 	                    <div class="announcement-bg" style="background-image: url('{{ announcement.cover_image.url }}');">
 	                        <div class="card" style="height: 100%;">
@@ -19,17 +19,17 @@
 				                          <img src="../../media/defaults/jjv.png" style="height: 25px; position: absolute;">
 				                        </div>
 				                      </div>
-	                            <div class="card-header announcement-title">
-	                                <h5>{{ announcement.title }}</h5>
-	                            </div>
-	                            <div class="card-body">
-	                                <p class="announcement-meta">{{ announcement.content|truncatechars:50|safe }}</p>
-	                                <small class="float-right">by: {{announcement.user}}</small>
-	                            </div>
-	                            <div class="card-footer text-center bg-transparent">
-	                                <a href="{{ announcement.get_absolute_url }}" class="btn btn-primary">Read More</a>
-	                            </div>
-	                          </div>
+		                            <div class="card-header announcement-title">
+		                                <h5>{{ announcement.title }}</h5>
+		                            </div>
+		                            <div class="card-body">
+		                                <p class="announcement-meta">{{ announcement.content|truncatechars:50|safe }}</p>
+		                                <small class="float-right">by: {{announcement.user}}</small>
+		                            </div>
+		                            <div class="card-footer text-center bg-transparent">
+		                                <a href="{{ announcement.get_absolute_url }}" class="btn btn-primary">Read More</a>
+		                            </div>
+	                          	</div>
 	                        </div>
 	                    </div>
 	                </div>
@@ -51,7 +51,23 @@
       </small>
 	</div>
 
+<!-- LIST for ALL remaining ANNOUNCEMENTS -->
+<div class="col-lg-8 col-sm-12">
+    <h3>Older Announcements</h3>
+    <ul class="list-group">
+        {% for announcement in remaining_public %}
+            <li class="list-group-item">
+                <h5>{{ announcement.title }}</h5>
+                <p>{{ announcement.content|truncatechars:100|safe }}</p>
+                <small>by: {{ announcement.user }}</small>
+                <a href="{{ announcement.get_absolute_url }}" class="btn btn-link">Read More</a>
+            </li>
+        {% endfor %}
+    </ul>
+</div>
 
+
+<!-- reposition this -->
 <div class="col-8">
 	<!-- REAL CONTENT -->
 	{% if leave_requests.count == 0 %}
