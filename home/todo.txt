@@ -1,0 +1,8 @@
+
+
+check universal context processors if they are still applicable should the app be displaying separate context for internal and external users
+
+define if-logic for views to be displayed on homepage
+
+mod navs for authed vs unauthe: include tags should be inside home.html
+
