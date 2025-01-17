@@ -1,13 +1,78 @@
 {% extends "base.html" %}
+
 {% block content %}
-homepage
- <br>
+<div class="row">
+	<!-- Bulletin Board for LATEST ANNOUNCEMENTS -->
+	<div class="bulletin-board">
+		<img src="../../media/defaults/bocaue.gif" class="overlay-gif">
+	    {% for position in latest_positions %}
+	        <div class="announcement" style="top: {{ position.top }}; left: {{ position.left }};">
+	            <a href="{{position.announcement.get_absolute_url}}">
+	            	{{ position.announcement|truncatechars:50 }}
+	            </a>
+	        </div>
+	    {% endfor %}
+	</div>
+
+
+<!-- LIST for ALL remaining ANNOUNCEMENTS -->
+<div class="col-lg-6 col-sm-12">
+    <h3>Older Announcements</h3>
+    <ul class="list-group">
+        {% for announcement in remaining_public %}
+            <li class="list-group-item">
+                <b>{{ announcement.title }}</b> <br>
+                	{{ announcement.content|truncatechars:100|safe }}
+                	<div class="float-right">
+                		<small>by: {{ announcement.user }}</small>
+                		<a href="{{ announcement.get_absolute_url }}" class="btn btn-link">Read More</a>
+                	</div>
+                
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+
+
+<!-- reposition this -->
+<div class="col-8">
+	<div>
+		filtered published announcement
+
+		<p>PINNED</p>
+		<ul>
+		{% for announcement in announcements %}
+			{% if announcement.published and announcement.is_pinned %}
+				<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
+			{% endif %}
+		{% endfor %}
+		</ul>
+
+
+		<p>for employees</p>
+		<ul>
+		{% for announcement in internal %}
+			{% if announcement.published %}
+				<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
+			{% endif %}
+		{% endfor %}
+		</ul>
+		
+		filtered draft announcement - staffs only
+		<ul>
+		{% for announcement in announcements %}
+			{% if not announcement.published %}
+			<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
+			{% endif %}
+		{% endfor %}
+		</ul>
+
+	</div>
+</div>
 
 
 
 
-
-
-hello, {{user.username}}!
+</div> <!-- row -->
 
 {% endblock content %}

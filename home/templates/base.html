@@ -31,7 +31,11 @@ scratch. This page gets rid of all links and provides the needed markup only.
 <div class="wrapper">
   <!-- NavBar -->
   {% include '_css.html' %}
-  {% include 'home/authed/nav.html' %}
+  {% if user.is_authenticated %}
+    {% include 'home/authed/nav.html' %}
+  {% else %}
+    {% include 'home/unauthed/nav.html' %}
+  {% endif %}
   
   <!-- Alerts (upper right corner of the page) -->
   <div id="alert-container" class="alert-container">

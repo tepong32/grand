@@ -95,4 +95,48 @@
       background-color: rgba(0, 0, 0, 0); /* 0.7 or higher for Darker background on hover */
   }
 
+
+/* bulletin board - home_unauthed.html */
+  .bulletin-board {
+      position: relative;
+      width: 600px; /* Set the width of the bulletin board */
+      height: 400px; /* Set the height of the bulletin board */
+      background-image: url('../../media/defaults/bulletinboard04.png'); /* Replace with your bulletin board image */
+      background-size: cover; /* Cover the entire div */
+      
+      margin: 20px auto; /* Center the bulletin board */
+      overflow: hidden; /* Hide overflow if needed */
+  }
+
+  .overlay-gif {
+      position: absolute; /* Position the GIF absolutely */
+      top: 0; /* Adjust as needed */
+      right: 0;
+      left: auto;
+      width: 40%; /* Make it cover the entire bulletin board */
+      height: auto; /* Maintain aspect ratio */
+      z-index: 2; /* Ensure it is above the background and announcements */
+  }
+
+  .announcement {
+      position: absolute; /* Position announcements absolutely */
+      background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent background for readability */
+      padding: 10px;
+      border-radius: 5px; /* Rounded corners */
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* Optional: shadow for depth */
+      max-width: 350px;
+      transition: transform 0.2s;
+      z-index: 1; /* Ensure announcements are above the bg but below the gif */
+  }
+
+  .announcement:hover {
+      transform: scale(1.05);
+      background-color: rgba(255, 255, 255, 1);
+  }
+
+  .announcement a {
+      text-decoration: none; /* Remove underline */
+      color: inherit; /* Inherit the color from the parent element */
+      /* Optionally, you can add more styles here */
+  }
 </style>
