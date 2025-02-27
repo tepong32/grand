@@ -1,5 +1,5 @@
 <style type="text/css">
-/* logo */
+  /* logo */
   .navbar-nav a .nav-item {
     transition: transform 0.3s ease; /* Slightly enlarge to 110% */
   }
@@ -7,7 +7,7 @@
     transform: scale(1.2); /* Slightly enlarge to 110% */
   }
 
-/* other navbar links */
+  /* other navbar links */
   .navbar-nav .nav-item a {
     position: relative; /* Position relative to allow absolute positioning of the underline */
     text-decoration: none; /* Remove default underline */
@@ -58,25 +58,25 @@
 
       <!-- All Users List -->
       <li class="nav-item d-none d-lg-block">
-        <a href="/users" class="nav-link" title="All users">
-          All users
+        <a href="#" class="nav-link" title="">
+          Flex?
         </a>
       </li>
 
       <!-- Leave Mgt -->
       <li class="nav-item d-none d-lg-block">
-        <a href="{% url 'leave_list' %}" class="nav-link">Leave Mgt</a>
+        <a href="#" class="nav-link">About?</a>
       </li>
       <li class="nav-item d-lg-none d-sm-inline-block">
-        <a href="{% url 'leave_list' %}" class="nav-link" title="Leave Mgt">
+        <a href="#" class="nav-link" title="Leave Mgt">
           <i class="fa fa-book"></i>
         </a>
       </li>
 
       <!-- Profile -->
       <li class="nav-item d-none d-lg-block">
-        <a href="{% url 'profile' request.user %}" class="nav-link">
-          Profile
+        <a href="#" class="nav-link">
+          Forms/Requests?
         </a>
       </li>
       <li class="nav-item d-lg-none d-sm-inline-block">
@@ -115,7 +115,7 @@
               <img src="/static/admin-lte/dist/img/user1-128x128.jpg" alt="User Avatar" class="img-size-50 mr-3 img-circle">
               <div class="media-body">
                 <h3 class="dropdown-item-title">
-                  Brad Diesel
+                  Form 1
                   <span class="float-right text-sm text-danger"><i class="fas fa-star"></i></span>
                 </h3>
                 <p class="text-sm">Call me whenever you can...</p>
@@ -131,7 +131,7 @@
               <img src="/static/admin-lte/dist/img/user8-128x128.jpg" alt="User Avatar" class="img-size-50 img-circle mr-3">
               <div class="media-body">
                 <h3 class="dropdown-item-title">
-                  John Pierce
+                  Form 2
                   <span class="float-right text-sm text-muted"><i class="fas fa-star"></i></span>
                 </h3>
                 <p class="text-sm">I got your message bro</p>
@@ -147,7 +147,7 @@
               <img src="/static/admin-lte/dist/img/user3-128x128.jpg" alt="User Avatar" class="img-size-50 img-circle mr-3">
               <div class="media-body">
                 <h3 class="dropdown-item-title">
-                  Nora Silvester
+                  Form 3
                   <span class="float-right text-sm text-warning"><i class="fas fa-star"></i></span>
                 </h3>
                 <p class="text-sm">The subject goes here</p>
@@ -164,7 +164,7 @@
       <!-- MODIFY THIS TO BE LINKS TO DSWD ETC, then put logic on base.html for unauthed users -->
       <li class="nav-item dropdown">
         <a class="nav-link" data-toggle="dropdown" href="#">
-          <i class="far fa-bell"></i>
+          <i class="far fa-folder mr-2" title="Downloadable Forms"></i>
           <span class="badge badge-warning navbar-badge">15</span>
         </a>
         <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
@@ -190,8 +190,7 @@
       </li>
       <a class="nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button">
         <li class="nav-item">
-          <!-- <i class="fas fa-th-large"></i> -->
-          <img src="{{request.user.profile.image.url}}" style="height: 35px; border-radius: 50%;">
+          <i class="fas fa-th mr-2"></i>
         </li>
       </a>
       
@@ -205,22 +204,23 @@
     <div class="p-3">
       <!-- User type indicator -->
       <div>
-        {% if request.user.is_superuser %}
-        <h6 class="text-center bg-success">
-          <strong><i class="fa fa-crown"></i> Super User <i class="fa fa-crown"></i></strong>
-        </h6>
-        {% elif request.user.is_staff %}
-          <h6 class="text-center bg-warning">
-            <strong><i class="fa fa-user-tie"></i> Staff <i class="fa user-group-crown"></i></strong>
-          </h6>
-        {% else %}
-          <h6 class="text-center bg-gray">
-            <strong> Normal User</strong>
-          </h6>
-        {% endif %}
-
-
         {% if request.user.is_authenticated %}
+          {% if request.user.is_superuser %}
+          <h6 class="text-center bg-success">
+            <strong><i class="fa fa-crown"></i> Super User <i class="fa fa-crown"></i></strong>
+          </h6>
+          {% elif request.user.is_staff %}
+            <h6 class="text-center bg-warning">
+              <strong><i class="fa fa-user-tie"></i> Staff <i class="fa user-group-crown"></i></strong>
+            </h6>
+          {% else %}
+            <h6 class="text-center bg-gray">
+              <strong> Normal User</strong>
+            </h6>
+          {% endif %}
+
+
+        
           <h6>User Groups:</h6>
           <ul>
               {% for group in request.user.groups.all %}
@@ -229,47 +229,45 @@
                   <li>No groups assigned.</li>
               {% endfor %}
           </ul>
+
+          <div class="float-right">
+            <ul>
+                {% if user.is_superuser %}
+                  <li>
+                    <a href="{% url 'create-announcement' %}" class="nav-link" title="Admin UI">
+                      <small> <i class="fa fa-plus"></i> New Announcement</small>
+                    </a>
+                  </li>
+
+                  <li class="">
+                    <a href="/admin" class="nav-link" title="Admin UI">
+                      Admin
+                    </a>
+                  </li>
+                {% endif %}
+
+                <!-- logout button (no-confirm logout) -->
+                  <li>
+                    <a href="#" onclick="document.getElementById('logout-form').submit()" class="nav-link text-danger">
+                      <i class="fa fa-power-off" title="Logout"></i> Logout
+                    </a>
+                  </li>
+                  <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
+                    {% csrf_token %}
+                  </form>
+                </li>
+            </ul>
+          </div>
+
+
+
+
         {% else %}
-            <p>Please log in.</p>
+            <p>Please <a href="/login">log in.</a></p>
         {% endif %}
       </div>
 
-      <div class="float-right">
-        <ul>
-          {% if user.is_authenticated %}
-            {% if user.is_superuser %}
-              <li>
-                <a href="{% url 'create-announcement' %}" class="nav-link" title="Admin UI">
-                  <small> <i class="fa fa-plus"></i> New Announcement</small>
-                </a>
-              </li>
-
-              <li class="">
-                <a href="/admin" class="nav-link" title="Admin UI">
-                  Admin
-                </a>
-              </li>
-            {% endif %}
-
-            <!-- logout button (no-confirm logout) -->
-              <li>
-                <a href="#" onclick="document.getElementById('logout-form').submit()" class="nav-link text-danger">
-                  <i class="fa fa-power-off" title="Logout"></i> Logout
-                </a>
-              </li>
-              <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
-                {% csrf_token %}
-              </form>
-            </li>
-            {% else %}
-            <li class="nav-item" style="list-style: None;">
-              <a href="/login" class="nav-link">
-                <i class="nav-icon fas fa-power-off"></i>
-                  Login
-              </a>
-          {% endif %}
-        </ul>
-      </div>
+      
     </div>
   </aside>
   <!-- /.control-sidebar -->
