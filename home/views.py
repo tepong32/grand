@@ -22,39 +22,7 @@ from .forms import AnnouncementForm
 from django.http import HttpResponse
 
 
-class HomeView(LoginRequiredMixin, ListView):
-    model = Announcement
-    template_name = 'home/authed/home.html'
-    context_object_name = 'announcements'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # user = User # not being used atm
-
-        # Fetch public announcements and order them by created_at
-        public = Announcement.objects.filter(announcement_type=Announcement.PUBLIC).order_by('-created_at')
-        internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL).order_by('-created_at')
-
-        # Get the latest 5 public announcements for the carousel
-        latest_public = public[:5]  # Slicing to get the latest 5
-        # Filter out the latest announcements from the public list
-        remaining_public = public[5:]  # Get all public announcements except the latest 5
-
-        # Optionally, if you need published and draft announcements for admin posting purposes
-        published = Announcement.objects.filter(published=True)
-        draft = Announcement.objects.filter(published=False)
-        context.update({
-            'public': public,
-            'latest_public': latest_public,
-            'remaining_public': remaining_public,
-            'internal': internal,
-            'published': published,
-            'draft': draft
-        })
-        return context
-
-
-class unauthedHomeView(LoginRequiredMixin, ListView):
+class UnauthedHomeView(ListView):
     model = Announcement
     template_name = 'home/unauthed/home.html'
     context_object_name = 'announcements'
@@ -95,6 +63,31 @@ class unauthedHomeView(LoginRequiredMixin, ListView):
             'draft': draft
         })
         return context
+
+
+class AuthedHomeView(LoginRequiredMixin, ListView):
+    model = Announcement
+    template_name = 'home/authed/home.html'
+    context_object_name = 'announcements'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # user = User # not being used atm
+
+        internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL).order_by('-created_at')
+
+        # Optionally, if you need published and draft announcements for admin posting purposes
+        published = Announcement.objects.filter(published=True)
+        draft = Announcement.objects.filter(published=False)
+        context.update({
+            'internal': internal,
+            'published': published,
+            'draft': draft
+        })
+        return context
+
+
+
         
 class AnnouncementList(ListView):
     model = Announcement
