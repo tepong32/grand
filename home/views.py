@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages     # for flash messages regarding valid data in the form
 
-from .models import Announcement
+from .models import Announcement, OrgPersonnel
 from leave_mgt.models import LeaveRequest
 from users.models import User, Profile
 
@@ -65,6 +65,14 @@ class UnauthedHomeView(ListView):
         return context
 
 
+class OrgChartView(ListView):
+    model = OrgPersonnel
+    template_name = 'home/unauthed/orgchart.html'
+    context_object_name = 'orgpersonnels'
+
+
+
+####################### VIEWS THAT NEED AUTHENTICATION (INTERNAL VIEWS)
 class AuthedHomeView(LoginRequiredMixin, ListView):
     model = Announcement
     template_name = 'home/authed/home.html'
@@ -160,6 +168,4 @@ class DeleteAnnouncement(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         if self.request.user == announcement.user:
             return True
         return False      
-
-
 

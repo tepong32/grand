@@ -1,8 +1,10 @@
 from django.urls import path
 # from django documentation -- check CoreyMS' django tutorial Part 8 / 22:30
 from .views import (
-    AuthedHomeView,
     UnauthedHomeView,
+    OrgChartView,
+
+    AuthedHomeView,
     AnnouncementList,
     CreateAnnouncement,
     AnnouncementDetail,
@@ -14,6 +16,7 @@ from .views import (
 
 urlpatterns = [
     path('', UnauthedHomeView.as_view(), name='unauthedhome'),
+    path('orgchart', OrgChartView.as_view(), name='orgchart'),
     path('home', AuthedHomeView.as_view(), name='home'),
     
     path('announcement/create/', CreateAnnouncement.as_view(), name='create-announcement'),

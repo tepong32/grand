@@ -61,3 +61,10 @@ class Announcement(models.Model):
 		super(Announcement, self).save(*args, **kwargs)
 
 
+class OrgPersonnel(models.Model):
+	name = models.CharField(max_length=255)
+	title = models.CharField(max_length=255)
+	def upload_directory_path(instance, filename):
+		# file will be uploaded to MEDIA_ROOT/announcements/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
+		return 'orgpersonnel/{}/{}'.format(instance.name, filename)
+	picture = models.ImageField(default='defaults/jjv.png', blank=True, upload_to=upload_directory_path)
