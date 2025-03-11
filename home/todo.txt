@@ -8,3 +8,7 @@ revamp home dashboard to display data for employees only
 make different types of user to be added to the app: employee vs citizen
 add suggestions page with polling or # likes and rankings for upvotes or what
 
+
+
+org personnel
+departmentContact carousel
