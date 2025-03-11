@@ -67,4 +67,14 @@ class OrgPersonnel(models.Model):
 	def upload_directory_path(instance, filename):
 		# file will be uploaded to MEDIA_ROOT/announcements/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
 		return 'orgpersonnel/{}/{}'.format(instance.name, filename)
-	picture = models.ImageField(default='defaults/jjv.png', blank=True, upload_to=upload_directory_path)
+	image = models.ImageField(default='defaults/jjv.png', blank=True, upload_to=upload_directory_path)
+
+
+class DepartmentContact(models.Model):
+	name = models.CharField(max_length=255)
+	contact_number = models.CharField(max_length=255) # charfield for now since admin naman ang gagamit nito
+	def upload_directory_path(instance, filename):
+		# file will be uploaded to MEDIA_ROOT/announcements/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
+		return 'departmentContacts/{}/{}'.format(instance.name, filename)
+	image = models.ImageField(default='defaults/jjv.png', blank=True, upload_to=upload_directory_path)
+	 
