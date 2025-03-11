@@ -16,7 +16,7 @@ from .views import (
 
 
 urlpatterns = [
-    path('/search', announcement_search_view, name='search'),
+    path('search', announcement_search_view, name='search'),
     path('', UnauthedHomeView.as_view(), name='unauthedhome'),
     path('orgchart', OrgChartView.as_view(), name='orgchart'),
     path('home', AuthedHomeView.as_view(), name='home'),
