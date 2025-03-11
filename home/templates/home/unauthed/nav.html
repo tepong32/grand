@@ -65,11 +65,11 @@
 
       <!-- Leave Mgt -->
       <li class="nav-item d-none d-lg-block">
-        <a href="#" class="nav-link">About?</a>
+        <a href="#" class="nav-link">Downloadable Forms</a>
       </li>
       <li class="nav-item d-lg-none d-sm-inline-block">
-        <a href="#" class="nav-link" title="Leave Mgt">
-          <i class="fa fa-book"></i>
+        <a href="#" class="nav-link" title="Downloadable Forms">
+          <i class="fa fa-folder"></i>
         </a>
       </li>
 
@@ -80,8 +80,8 @@
         </a>
       </li>
       <li class="nav-item d-lg-none d-sm-inline-block">
-        <a href="{% url 'profile' request.user %}" class="nav-link" title="Profile">
-          <i class="fa fa-user-alt" title="{{request.user}}"></i>
+        <a href="{% url 'profile' request.user %}" class="nav-link" title="Org Chart">
+          <i class="fa fa-users"></i>
         </a>
       </li>
 
@@ -101,99 +101,42 @@
 
     <!-- Right navbar links -->
     <ul class="navbar-nav ml-auto">
-      
-      <!-- Messages Dropdown Menu -->
-      <li class="nav-item dropdown">
-        <a class="nav-link" data-toggle="dropdown" href="#">
-          <i class="far fa-comments"></i>
-          <span class="badge badge-danger navbar-badge">3</span>
-        </a>
-        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-          <a href="#" class="dropdown-item">
-            <!-- Message Start -->
-            <div class="media">
-              <img src="/static/admin-lte/dist/img/user1-128x128.jpg" alt="User Avatar" class="img-size-50 mr-3 img-circle">
-              <div class="media-body">
-                <h3 class="dropdown-item-title">
-                  Form 1
-                  <span class="float-right text-sm text-danger"><i class="fas fa-star"></i></span>
-                </h3>
-                <p class="text-sm">Call me whenever you can...</p>
-                <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>
-              </div>
-            </div>
-            <!-- Message End -->
-          </a>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item">
-            <!-- Message Start -->
-            <div class="media">
-              <img src="/static/admin-lte/dist/img/user8-128x128.jpg" alt="User Avatar" class="img-size-50 img-circle mr-3">
-              <div class="media-body">
-                <h3 class="dropdown-item-title">
-                  Form 2
-                  <span class="float-right text-sm text-muted"><i class="fas fa-star"></i></span>
-                </h3>
-                <p class="text-sm">I got your message bro</p>
-                <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>
-              </div>
-            </div>
-            <!-- Message End -->
-          </a>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item">
-            <!-- Message Start -->
-            <div class="media">
-              <img src="/static/admin-lte/dist/img/user3-128x128.jpg" alt="User Avatar" class="img-size-50 img-circle mr-3">
-              <div class="media-body">
-                <h3 class="dropdown-item-title">
-                  Form 3
-                  <span class="float-right text-sm text-warning"><i class="fas fa-star"></i></span>
-                </h3>
-                <p class="text-sm">The subject goes here</p>
-                <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>
-              </div>
-            </div>
-            <!-- Message End -->
-          </a>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item dropdown-footer">See All Messages</a>
-        </div>
-      </li>
-      <!-- Notifications Dropdown Menu -->
-      <!-- MODIFY THIS TO BE LINKS TO DSWD ETC, then put logic on base.html for unauthed users -->
-      <li class="nav-item dropdown">
-        <a class="nav-link" data-toggle="dropdown" href="#">
-          <i class="far fa-folder mr-2" title="Downloadable Forms"></i>
-          <span class="badge badge-warning navbar-badge">15</span>
-        </a>
-        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-          <span class="dropdown-header">15 Notifications</span>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item">
-            <i class="fas fa-envelope mr-2"></i> 4 new messages
-            <span class="float-right text-muted text-sm">3 mins</span>
-          </a>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item">
-            <i class="fas fa-users mr-2"></i> 8 friend requests
-            <span class="float-right text-muted text-sm">12 hours</span>
-          </a>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item">
-            <i class="fas fa-file mr-2"></i> 3 new reports
-            <span class="float-right text-muted text-sm">2 days</span>
-          </a>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>
-        </div>
-      </li>
-      <a class="nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button">
-        <li class="nav-item">
-          <i class="fas fa-th mr-2"></i>
-        </li>
-      </a>
-      
+        {% if request.user.is_authenticated %}
+            <!-- User is authenticated -->
+            <li class="nav-item">
+                <a href="{% url 'profile' request.user %}" class="nav-link">Profile</a>
+            </li>
+            <li class="nav-item">
+                <a href="#" onclick="document.getElementById('logout-form').submit()" class="nav-link text-danger">
+                    <i class="fa fa-power-off" title="Logout"></i> Logout
+                </a>
+                <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
+                    {% csrf_token %}
+                </form>
+            </li>
+        {% else %}
+            <!-- User is not authenticated -->
+            <li class="nav-item d-none d-lg-block">
+                <a href="/register" class="nav-link">Register</a>
+            </li>
+            <li class="nav-item d-lg-none d-sm-inline-block">
+              <a href="{% url 'profile' request.user %}" class="nav-link" title="Sign-up">
+                <i class="fa fa-pen"></i>
+              </a>
+            </li>
+            <li class="nav-item">
+                <form class="form-inline" action="{% url 'login' %}" method="post">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <input type="text" name="username" class="form-control" placeholder="Username" required>
+                        <input type="password" name="password" class="form-control" placeholder="Password" required>
+                        <div class="input-group-append">
+                            <button type="submit" class="btn btn-primary">Login</button>
+                        </div>
+                    </div>
+                </form>
+            </li>
+        {% endif %}
     </ul>
   </nav>
   <!-- /.navbar -->
