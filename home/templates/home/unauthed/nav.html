@@ -49,11 +49,9 @@
     <ul class="navbar-nav">
       <!-- Home -->
       <a href="/" class="nav-link" title="Home">
-
           <!-- Brand Logo -->
           <img src="/media/defaults/jjv.png" alt="LMS Logo" class=""
-               style="height: 60px; border-radius: 10%; position: relative;">
-
+               style="height: 45px; border-radius: 10%; position: relative;">
       </a>
 
       <!-- All Users List -->
@@ -88,7 +86,7 @@
     </ul>
 
     <!-- SEARCH FORM -->
-    <form class="form-inline d-lg-block d-none ml-3" action="{% url 'user-search' %}" method="get">
+    <form class="form-inline d-lg-block d-none ml-3" action="{% url 'search' %}" method="get">
       <div class="input-group input-group-sm">
           <input class="form-control form-control-navbar" type="search" name="q" placeholder="Search" aria-label="User Search">
           <div class="input-group-append">

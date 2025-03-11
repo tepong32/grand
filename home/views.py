@@ -4,6 +4,7 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages     # for flash messages regarding valid data in the form
+from django.db.models import Q
 
 from .models import Announcement, OrgPersonnel
 from leave_mgt.models import LeaveRequest
@@ -169,3 +170,28 @@ class DeleteAnnouncement(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
             return True
         return False      
 
+
+def announcement_search_view(request, *args, **kwargs):
+    context = {}
+    if request.method == "GET":
+        print("Request GET:", request.GET)  # Debugging line
+        search_query = request.GET.get("q", "")  # Default to empty string if not found
+        print("Search query:", search_query)  # Debugging line
+        try:
+            if search_query:  # This checks if search_query is not empty
+                search_results = Announcement.objects.filter(
+                    Q(title__icontains=search_query) | Q(content__icontains=search_query)
+                ).distinct()
+                
+                announcements = []  # Initialize the list for announcements
+                for announcement in search_results:
+                    announcements.append((announcement, False))  # Append the announcement
+
+                context['announcements'] = announcements  # Corrected variable name
+                context['search_query'] = search_query
+        except Exception as e:
+            print("Error:", e)
+            print("Request GET:", request.GET)
+            print("Search query:", search_query)
+                
+    return render(request, "home/unauthed/announcement_search_results.html", context)
