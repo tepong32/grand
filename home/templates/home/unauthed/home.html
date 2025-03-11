@@ -1,15 +1,12 @@
 {% extends "base.html" %}
 
-{% include 'unauthed/_css.html' %}
-
 {% block content %}
-<div class="container">
+<div class="container overflow-auto border border-danger" style="min-height: 50vh;">
     <div class="row">
         <!-- Left side -->
         <div class="col-lg-8 border">
             <div class="bulletin-board">
-                <h3>Latest Announcements</h3>
-                <img src="../../media/defaults/bocaue.gif" class="overlay-gif" alt="Overlay GIF">
+            	<img src="../../media/defaults/bocaue.gif" class="overlay-gif" alt="Overlay GIF">
                 {% for position in latest_positions %}
                     <div class="announcement" style="top: {{ position.top }}; left: {{ position.left }};">
                         <a href="{{ position.announcement.get_absolute_url }}">
@@ -19,8 +16,106 @@
                 {% endfor %}
             </div>
 
+            <!-- CAROUSEL FOR DEPT CONTACT INFO -->
+			<div class="col-lg-12 col-sm-12">  <!-- Adjust the column size as needed -->
+			    <div id="announcementCarousel" class="carousel slide border60vh" data-ride="carousel">
+			        <div class="carousel-inner">
+			            {% for announcement in latest_public %}
+			                <div class="carousel-item {% if forloop.first %}active{% endif %}">
+			                    <div class="announcement-bg" style="background-image: url('{{ announcement.cover_image.url }}');">
+			                        <div class="card">
+			                            <div class="position-relative p-2">
+			                                <div class="ribbon-wrapper">
+			                                    <div class="ribbon bg-primary">
+			                                        <img src="../../media/defaults/jjv.png" style="height: 25px; position: absolute;">
+			                                    </div>
+			                                </div>
+			                                <div class="card-header announcement-title">
+			                                    <h5>{{ announcement.title }}</h5>
+			                                </div>
+			                                <div class="card-body fixed-height">
+			                                    <p class="announcement-meta">{{ announcement.content|truncatechars:50|safe }}</p>
+			                                    <small class="float-right">by: {{announcement.user}}</small>
+			                                </div>
+			                                <div class="card-footer text-center bg-transparent">
+			                                    <a href="{{ announcement.get_absolute_url }}" class="btn btn-primary">Read More</a>
+			                                </div>
+			                            </div>
+			                        </div>
+			                    </div>
+			                </div>
+			            {% endfor %}
+			        </div>
+			        <a class="carousel-control-prev" href="#announcementCarousel" role="button" data-slide="prev">
+			            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+			            <span class="sr-only">Previous</span>
+			        </a>
+			        <a class="carousel-control-next" href="#announcementCarousel" role="button" data-slide="next">
+			            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+			            <span class="sr-only">Next</span>
+			        </a>
+			    </div>
+			</div>
+
+
+
+
+
+        </div>
+
+        <!-- Right side -->
+        <div class="col-lg-4 border right-part">
             <!-- LIST for ALL remaining ANNOUNCEMENTS -->
             <h3>Older Announcements</h3>
+            <!-- SEARCH FORM -->
+		    <form class="form-inline d-lg-block d-none ml-3" action="{% url 'search' %}" method="get">
+		      <div class="input-group input-group-sm">
+		          <input class="form-control form-control-navbar" type="search" name="q" placeholder="Search" aria-label="User Search">
+		          <div class="input-group-append">
+		              <button class="btn btn-navbar" type="submit">
+		                  <i class="fas fa-search"></i>
+		              </button>
+		          </div>
+		      </div>
+		    </form>
+            <!-- Pagination Controls -->
+            <div class="row">
+            <nav aria-label="Page navigation">
+			    <ul class="pagination">
+			        <li class="page-item {% if not remaining_public.has_previous %}disabled{% endif %}">
+			            <a class="page-link" href="{% if remaining_public.has_previous %}?page=1{% else %}# {% endif %}" aria-label="First">
+			                <span aria-hidden="true">&laquo;&laquo;</span>
+			            </a>
+			        </li>
+			        <li class="page-item {% if not remaining_public.has_previous %}disabled{% endif %}">
+			            <a class="page-link" href="{% if remaining_public.has_previous %}?page={{ remaining_public.previous_page_number }}{% else %}# {% endif %}" aria-label="Previous">
+			                <span aria-hidden="true">&laquo;</span>
+			            </a>
+			        </li>
+
+			        <li class="page-item disabled">
+			            <a class="page-link" href="#">{{ remaining_public.number }}</a>
+			        </li>
+
+			        <li class="page-item {% if not remaining_public.has_next %}disabled{% endif %}">
+			            <a class="page-link" href="{% if remaining_public.has_next %}?page={{ remaining_public.next_page_number }}{% else %}# {% endif %}" aria-label="Next">
+			                <span aria-hidden="true">&raquo;</span>
+			            </a>
+			        </li>
+			        <li class="page-item {% if not remaining_public.has_next %}disabled{% endif %}">
+			            <a class="page-link" href="{% if remaining_public.has_next %}?page={{ remaining_public.paginator.num_pages }}{% else %}# {% endif %}" aria-label="Last">
+			                <span aria-hidden="true">&raquo;&raquo;</span>
+			            </a>
+			        </li>
+			    </ul>
+			</nav>
+			<small class="float-right mr-auto">
+				<a href="/announcements" class="nav-link" title="All Announcements">
+					...See All
+				</a>
+			</small>
+			</div>
+			
             <ul class="list-group">
                 {% for announcement in remaining_public %}
                     <li class="list-group-item">
@@ -33,46 +128,9 @@
                     </li>
                 {% endfor %}
             </ul>
-        </div>
 
-        <!-- Right side -->
-        <div class="col-lg-4 border right-sidebar">
-            <h3>Right Sidebar</h3>
-            <div class="scrollable-content">
-                <!-- Add your right sidebar content here -->
-                <p>Content for the right sidebar goes here...</p>
-                <p>More content...</p>
-                <p>Even more content...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                <p>Keep adding content to test scrolling...</p>
-                
-            </div>
+            
+
         </div>
     </div>
 </div>
