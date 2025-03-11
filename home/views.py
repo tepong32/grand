@@ -1,10 +1,13 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages     # for flash messages regarding valid data in the form
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import HttpResponseRedirect, Http404
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages     # for flash messages regarding valid data in the form
-from django.db.models import Q
+
+
 
 from .models import Announcement, OrgPersonnel
 from leave_mgt.models import LeaveRequest
@@ -30,7 +33,6 @@ class UnauthedHomeView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # user = User # not being used atm
 
         # Fetch public announcements and order them by created_at
         public = Announcement.objects.filter(announcement_type=Announcement.PUBLIC).order_by('-created_at')
@@ -41,27 +43,32 @@ class UnauthedHomeView(ListView):
         # Filter out the latest announcements from the public list
         remaining_public = public[5:]  # Get all public announcements except the latest 5
 
+        # Set up pagination for remaining public announcements
+        page_number = self.request.GET.get('page')  # Get the page number from the query parameters
+        paginator = Paginator(remaining_public, 5)  # Show 5 announcements per page
+        page_obj = paginator.get_page(page_number)  # Get the page object
+
         # Optionally, if you need published and draft announcements for admin posting purposes
         published = Announcement.objects.filter(published=True)
         draft = Announcement.objects.filter(published=False)
 
-        # manually iterated latest announcements for chaotic positioning on the bulletin board
-        # you can just use 'latest_public' if you are only to iterate them over using a for-loop
+        # Manually iterated latest announcements for chaotic positioning on the bulletin board
         latest_positions = [
-            {'announcement': latest_public[0], 'top': '30px', 'left': '30px'},
-            {'announcement': latest_public[1], 'top': '100px', 'left': '220px'},
-            {'announcement': latest_public[2], 'top': '170px', 'left': '145px'},
-            {'announcement': latest_public[3], 'top': '230px', 'left': '120px'},
-            {'announcement': latest_public[4], 'top': '300px', 'left': '160px'},
+            {'announcement': latest_public[0], 'top': '65px', 'left': '80px'},
+            {'announcement': latest_public[1], 'top': '125px', 'left': '220px'},
+            {'announcement': latest_public[2], 'top': '185px', 'left': '30px'},
+            {'announcement': latest_public[3], 'top': '245px', 'left': '120px'},
+            {'announcement': latest_public[4], 'top': '305px', 'left': '160px'},
         ]
+
         context.update({
             'public': public,
             'latest_public': latest_public,
             'latest_positions': latest_positions,
-            'remaining_public': remaining_public,
+            'remaining_public': page_obj,  # Use the paginated announcements
             'internal': internal,
             'published': published,
-            'draft': draft
+            'draft': draft,
         })
         return context
 
