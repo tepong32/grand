@@ -73,6 +73,7 @@ class OrgPersonnel(models.Model):
 class DepartmentContact(models.Model):
 	name = models.CharField(max_length=255)
 	contact_number = models.CharField(max_length=255) # charfield for now since admin naman ang gagamit nito
+	email = models.EmailField(unique=True, blank=True)
 	def upload_directory_path(instance, filename):
 		# file will be uploaded to MEDIA_ROOT/announcements/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
 		return 'departmentContacts/{}/{}'.format(instance.name, filename)
