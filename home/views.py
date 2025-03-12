@@ -77,6 +77,7 @@ class OrgChartView(ListView):
     model = OrgPersonnel
     template_name = 'home/unauthed/orgchart.html'
     context_object_name = 'orgpersonnel'
+    ordering = ['display_order']
 
 
 

@@ -4,8 +4,8 @@
 <style type="text/css">
 	.orgPic {
 		position: relative;
-		width: 800px; /* Set the width of the bulletin board */
-		height: 600px; /* Set the height of the bulletin board */
+		width: 550px; /* Set the width of the bulletin board */
+		height: 400px; /* Set the height of the bulletin board */
 		background-size: cover; /* Cover the entire div */
 		background-position: center; /* Center the background image */
 		margin: 20px auto; /* Center the bulletin board */
@@ -19,13 +19,15 @@ A Dynamic Organizational chart here showcasing Mayor - Department Heads
 
 <br>
 {% for person in orgpersonnel %}
-<div class="card col-4">
+<div class="card col-lg-2 col-sm-4">
 	<div class="card-header">
 		{{person.name}} <br>
 		{{person.title}}
 	</div>
-	<div class="card-body">
-		<img src="{{person.image.url}}" class="orgPic">
+	<div class="card-body border border-danger">
+		<img class="border border-danger" src="{{person.image.url}}" style="
+		background-size: cover;
+		background-position: center;">
 		
 	</div>
 </div>
