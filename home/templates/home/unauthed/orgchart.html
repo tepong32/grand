@@ -1,9 +1,35 @@
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
 
+<style type="text/css">
+	.orgPic {
+		position: relative;
+		width: 800px; /* Set the width of the bulletin board */
+		height: 600px; /* Set the height of the bulletin board */
+		background-size: cover; /* Cover the entire div */
+		background-position: center; /* Center the background image */
+		margin: 20px auto; /* Center the bulletin board */
+		overflow: hidden; /* Hide overflow if needed */
+
+	}
+</style>
 {% block content %}
 
 A Dynamic Organizational chart here showcasing Mayor - Department Heads
+
+<br>
+{% for person in orgpersonnel %}
+<div class="card col-4">
+	<div class="card-header">
+		{{person.name}} <br>
+		{{person.title}}
+	</div>
+	<div class="card-body">
+		<img src="{{person.image.url}}" class="orgPic">
+		
+	</div>
+</div>
+{% endfor %}
 
 
 

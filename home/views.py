@@ -9,7 +9,7 @@ from django.urls import reverse
 
 
 
-from .models import Announcement, OrgPersonnel
+from .models import Announcement, OrgPersonnel, DepartmentContact
 from leave_mgt.models import LeaveRequest
 from users.models import User, Profile
 
@@ -76,7 +76,7 @@ class UnauthedHomeView(ListView):
 class OrgChartView(ListView):
     model = OrgPersonnel
     template_name = 'home/unauthed/orgchart.html'
-    context_object_name = 'orgpersonnels'
+    context_object_name = 'orgpersonnel'
 
 
 
