@@ -134,13 +134,13 @@ class LeaveCredit(models.Model):
             logger.info("Updating leave credits...")
     
             # Reset Flag on the 2nd
-            if timezone.now().day == 12:
+            if timezone.now().day == 2:
                 logger.info("credits_accrued_this_month flags are set to True. \nResetting flags to False.")
                 cls.objects.all().update(credits_accrued_this_month=False)
                 logger.info("Reset monthly accrual flag to False.")
     
             # Accrue Credits on the 1st
-            if timezone.now().day == 12:
+            if timezone.now().day == 1:
                 logger.info("credits_accrued_this_month flags are set to False. \nWorking on adding leave credits.")
                 leave_credits = cls.objects.filter(credits_accrued_this_month=False)
                 if leave_credits.exists():
