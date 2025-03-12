@@ -66,20 +66,28 @@ class OrgPersonnel(models.Model):
 	name = models.CharField(max_length=255)
 	title = models.CharField(max_length=255)
 	def upload_directory_path(instance, filename):
-		# file will be uploaded to MEDIA_ROOT/announcements/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
-		return 'orgpersonnel/{}/{}'.format(instance.name, filename)
-	image = models.ImageField(blank=True, upload_to=upload_directory_path)
-	display_order = models.PositiveIntegerField(default="defaults/default_user_dp.png", help_text="Mayor as 1, VM as 2, etc.", blank=True, null=True)
+		# file will be uploaded to MEDIA_ROOT/orgpersonnel/<name>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
+		return r'orgpersonnel/{}/{}'.format(instance.name, filename)
+	image = models.ImageField(default="defaults/jjvbocaue-otimized.png", blank=True, upload_to=upload_directory_path)
+	display_order = models.PositiveIntegerField(help_text="Mayor as 1, VM as 2, etc.", blank=True, null=True)
 
 	def __str__(self):
 		return self.name.title()
 
-	def save(self, *args, **kwargs):        # for resizing/downsizing images
-		img = Image.open(self.image.path)   # open the image of the current instance
-		if img.height > 600 or img.width > 450: # for sizing-down the images to conserve memory in the server
-			output_size = (600, 450)
-			img.thumbnail(output_size)
-			img.save(self.image.path)
+	def save(self, *args, **kwargs):
+		# Check if an image has been uploaded
+		if self.image:
+			try:
+				img = Image.open(self.image.path)  # Open the image of the current instance
+				if img.height > 600 or img.width > 600:  # Resize if necessary
+					output_size = (600, 600)
+					img.thumbnail(output_size)
+					img.save(self.image.path)
+			except Exception as e:
+				# Handle exceptions (e.g., file not found, invalid image)
+				print(f"Error processing image: {e}")
+
+		super().save(*args, **kwargs)  # Call the original save method
 
 
 class DepartmentContact(models.Model):
@@ -88,17 +96,25 @@ class DepartmentContact(models.Model):
 	email = models.EmailField(unique=True, blank=True)
 
 	def upload_directory_path(instance, filename):
-		# file will be uploaded to MEDIA_ROOT/announcements/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
-		return 'departmentContacts/{}/{}'.format(instance.name, filename)
-	image = models.ImageField(default="defaults/default_user_dp.png",blank=True, upload_to=upload_directory_path)
+		# file will be uploaded to MEDIA_ROOT/departmentContacts/<name>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
+		return r'departmentContacts/{}/{}'.format(instance.name, filename)
+	image = models.ImageField(default="defaults/jjvbocaue-otimized.png",blank=True, upload_to=upload_directory_path)
 
 	def __str__(self):
 		return self.name.title()
 
-	def save(self, *args, **kwargs):        # for resizing/downsizing images
-		img = Image.open(self.image.path)   # open the image of the current instance
-		if img.height > 600 or img.width > 450: # for sizing-down the images to conserve memory in the server
-			output_size = (600, 450)
-			img.thumbnail(output_size)
-			img.save(self.image.path)
+	def save(self, *args, **kwargs):
+		# Check if an image has been uploaded
+		if self.image:
+			try:
+				img = Image.open(self.image.path)  # Open the image of the current instance
+				if img.height > 600 or img.width > 600:  # Resize if necessary
+					output_size = (600, 600)
+					img.thumbnail(output_size)
+					img.save(self.image.path)
+			except Exception as e:
+				# Handle exceptions (e.g., file not found, invalid image)
+				print(f"Error processing image: {e}")
+
+		super().save(*args, **kwargs)  # Call the original save method
 	 
