@@ -69,6 +69,8 @@ class UnauthedHomeView(ListView):
             'internal': internal,
             'published': published,
             'draft': draft,
+
+            'departments': DepartmentContact.objects.all()
         })
         return context
 

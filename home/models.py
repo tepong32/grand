@@ -94,6 +94,7 @@ class DepartmentContact(models.Model):
 	name = models.CharField(max_length=255)
 	contact_number = models.CharField(max_length=255) # charfield for now since admin naman ang gagamit nito
 	email = models.EmailField(unique=True, blank=True)
+	messenger_chat_link = models.CharField(max_length=255, null=True, help_text="Your Page's username or profile url here. Ex: tepong32 ")
 
 	def upload_directory_path(instance, filename):
 		# file will be uploaded to MEDIA_ROOT/departmentContacts/<name>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location

@@ -15,36 +15,33 @@
                     </div>
                 {% endfor %}
             </div>
-            <div class="float-right">See older Pinned Announcements</div>
 
 
             <!-- CAROUSEL FOR DEPT CONTACT INFO -->
 			<div class="col-lg-12 col-sm-12">  <!-- Adjust the column size as needed -->
 			    <div id="announcementCarousel" class="carousel slide border60vh" data-ride="carousel">
 			        <div class="carousel-inner">
-			            {% for announcement in latest_public %}
+			            {% for dept in departments %}
 			                <div class="carousel-item {% if forloop.first %}active{% endif %}">
-			                    <div class="announcement-bg" style="background-image: url('{{ announcement.cover_image.url }}');">
-			                        <div class="card">
-			                            <div class="position-relative p-2">
-			                                <div class="ribbon-wrapper">
-			                                    <div class="ribbon bg-primary">
-			                                        <img src="../../media/defaults/jjv.png" style="height: 25px; position: absolute;">
-			                                    </div>
-			                                </div>
-			                                <div class="card-header announcement-title">
-			                                    <h5>{{ announcement.title }}</h5>
-			                                </div>
-			                                <div class="card-body fixed-height">
-			                                    <p class="announcement-meta">{{ announcement.content|truncatechars:50|safe }}</p>
-			                                    <small class="float-right">by: {{announcement.user}}</small>
-			                                </div>
-			                                <div class="card-footer text-center bg-transparent">
-			                                    <a href="{{ announcement.get_absolute_url }}" class="btn btn-primary">Read More</a>
-			                                </div>
-			                            </div>
-			                        </div>
-			                    </div>
+		                        <div class="card">
+		                            <div class="position-relative p-2">
+		                                <div class="ribbon-wrapper">
+		                                    <div class="ribbon bg-primary">
+		                                        <img src="../../media/defaults/jjv.png" style="height: 25px; position: absolute;">
+		                                    </div>
+		                                </div>
+		                                <div class="card-header announcement-title">
+		                                    <h5>{{ dept.name }}</h5>
+		                                </div>
+		                                <div class="card-body fixed-height announcement-bg" style="background-image: url('{{ dept.image.url }}');">
+		                                    <p class="announcement-meta">Phone Number: {{ dept.contact_number|safe }}</p>
+		                                    <small class="float-right">Email Address: {{dept.email}}</small>
+		                                </div>
+		                                <div class="card-footer text-center bg-transparent">
+		                                    <a href="https://m.me/{{ dept.messenger_chat_link }}" class="messenger-widget" target="_blank">Chat with us on Messenger</a>
+		                                </div>
+		                            </div>
+		                        </div>
 			                </div>
 			            {% endfor %}
 			        </div>
