@@ -62,8 +62,20 @@
 
         <!-- Right side -->
         <div class="col-lg-4 border right-part p-3">
-            <!-- LIST for ALL remaining ANNOUNCEMENTS -->
-            <h3>Previous Announcements</h3>
+        	<div class="container-fluid border border-success mt-2 mb-2">
+        		<!-- important announcements for the masses that they need to see right away after landing in on our webpage -->
+	        	<p>PINNED</p>
+				<ul>
+				{% for announcement in announcements %}
+					{% if announcement.published and announcement.is_pinned %}
+						<li><u><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></u></li>
+					{% endif %}
+				{% endfor %}
+				</ul>
+			</div>
+            
+			<!-- LIST for ALL remaining ANNOUNCEMENTS aside from the latest 5 displayed on the bulletin board -->
+            <h3>Older Announcements</h3>
             <!-- Pagination Controls -->
             <div class="row">
             <nav aria-label="Page navigation">

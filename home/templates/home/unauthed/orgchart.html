@@ -14,6 +14,7 @@
 	    justify-content: center; /* Center the image */
 	    align-items: center; /* Center the image */
 	    margin-bottom: 15px; /* Space below the avatar */
+	    transition: transform 0.3s ease; /* Slightly enlarge to 120% */
 	}
 
 	.avatar {
@@ -21,24 +22,86 @@
 	    height: auto; /* Maintain aspect ratio */
 	    object-fit: cover; /* Cover the container without stretching */
 	}
+
+	.avatar-container:hover {
+		transform: scale(1.2); /* Slightly enlarge to 120% */
+	}
+
 </style>
 A Dynamic Organizational chart here showcasing Mayor - Department Heads
 
-<br>
-<div class="row">
-{% for person in orgpersonnel %}
+<hr>
 
-	<div class="card col-2 m-2">
+<!-- Mayor and Vice Mayor Row -->
+<div class="container">
+	<div class="row">
+	{% for person in orgpersonnel %}
+	{% if person.title == "Mayor" %}
+	<div class="card col-6 m-2">
 	    <div class="card-body">
 	        <div class="avatar-container">
-	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar border border-success">
+	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
 	        </div>
 	        <h5 class="card-title">{{person.name}}</h5>
 	        <p class="card-text">{{person.title}}</p>
 	        <p class="card-text">{{person.display_order}}</p>
 	    </div>
 	</div>
+	{% endif %}
 
+	{% if person.title == "Vice Mayor" %}
+	<div class="card col-4 m-2">
+	    <div class="card-body">
+	        <div class="avatar-container">
+	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
+	        </div>
+	        <h5 class="card-title">{{person.name}}</h5>
+	        <p class="card-text">{{person.title}}</p>
+	        <p class="card-text">{{person.display_order}}</p>
+	    </div>
+	</div>
+	{% endif %}
+	{% endfor %}
+	</div>
+</div>
+
+<br>
+<!-- Councilors Row -->
+<h3> Councilors</h3>
+<div class="row">
+{% for person in orgpersonnel %}
+	{% if person.title == "Councilor" %}
+	<div class="card col-3">
+	    <div class="card-body">
+	        <div class="avatar-container">
+	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
+	        </div>
+	        <h5 class="card-title">{{person.name}}</h5>
+	        <p class="card-text">{{person.title}}</p>
+	        <p class="card-text">{{person.display_order}}</p>
+	    </div>
+	</div>
+	{% endif %}
+{% endfor %}
+</div>
+
+<br>
+<!-- Department Heads Row -->
+<h3> Department Heads</h3>
+<div class="row">
+{% for person in orgpersonnel %}
+	{% if "Department Head" in person.title %}
+	<div class="card col-3">
+	    <div class="card-body">
+	        <div class="avatar-container">
+	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
+	        </div>
+	        <h5 class="card-title">{{person.name}}</h5>
+	        <p class="card-text">{{person.title}}</p>
+	        <p class="card-text">{{person.display_order}}</p>
+	    </div>
+	</div>
+	{% endif %}
 {% endfor %}
 </div>
 
