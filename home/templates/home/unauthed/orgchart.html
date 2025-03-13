@@ -1,37 +1,46 @@
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
 
-<style type="text/css">
-	.orgPic {
-		position: relative;
-		width: 550px; /* Set the width of the bulletin board */
-		height: 400px; /* Set the height of the bulletin board */
-		background-size: cover; /* Cover the entire div */
-		background-position: center; /* Center the background image */
-		margin: 20px auto; /* Center the bulletin board */
-		overflow: hidden; /* Hide overflow if needed */
 
+{% block content %}
+<style type="text/css">
+	.avatar-container {
+	    width: 100px; /* Set the desired width */
+	    height: 100px; /* Set the desired height */
+	    overflow: hidden; /* Hide overflow */
+	    border-radius: 50%; /* Optional: make it circular */
+	    border:	solid red 3px;;
+	    display: flex; /* Center the image */
+	    justify-content: center; /* Center the image */
+	    align-items: center; /* Center the image */
+	    margin-bottom: 15px; /* Space below the avatar */
+	}
+
+	.avatar {
+	    width: 100%; /* Make the image take the full width of the container */
+	    height: auto; /* Maintain aspect ratio */
+	    object-fit: cover; /* Cover the container without stretching */
 	}
 </style>
-{% block content %}
-
 A Dynamic Organizational chart here showcasing Mayor - Department Heads
 
 <br>
+<div class="row">
 {% for person in orgpersonnel %}
-<div class="card col-lg-2 col-sm-4">
-	<div class="card-header">
-		{{person.name}} <br>
-		{{person.title}}
+
+	<div class="card col-2 m-2">
+	    <div class="card-body">
+	        <div class="avatar-container">
+	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar border border-success">
+	        </div>
+	        <h5 class="card-title">{{person.name}}</h5>
+	        <p class="card-text">{{person.title}}</p>
+	        <p class="card-text">{{person.display_order}}</p>
+	    </div>
 	</div>
-	<div class="card-body border border-danger">
-		<img class="border border-danger" src="{{person.image.url}}" style="
-		background-size: cover;
-		background-position: center;">
-		
-	</div>
-</div>
+
 {% endfor %}
+</div>
 
 
 

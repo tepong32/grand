@@ -54,11 +54,11 @@ class UnauthedHomeView(ListView):
 
         # Manually iterated latest announcements for chaotic positioning on the bulletin board
         latest_positions = [
-            {'announcement': latest_public[0], 'top': '65px', 'left': '80px'},
-            {'announcement': latest_public[1], 'top': '125px', 'left': '220px'},
-            {'announcement': latest_public[2], 'top': '185px', 'left': '30px'},
-            {'announcement': latest_public[3], 'top': '245px', 'left': '120px'},
-            {'announcement': latest_public[4], 'top': '305px', 'left': '160px'},
+            {'announcement': latest_public[0], 'top': '23%', 'left': '30%'},
+            {'announcement': latest_public[1], 'top': '33%', 'left': '10%'},
+            {'announcement': latest_public[2], 'top': '40%', 'left': '63%'},
+            {'announcement': latest_public[3], 'top': '55%', 'left': '45%'},
+            {'announcement': latest_public[4], 'top': '68%', 'left': '25%'},
         ]
 
         context.update({

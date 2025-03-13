@@ -15,6 +15,8 @@
                     </div>
                 {% endfor %}
             </div>
+            <div class="float-right">See older Pinned Announcements</div>
+
 
             <!-- CAROUSEL FOR DEPT CONTACT INFO -->
 			<div class="col-lg-12 col-sm-12">  <!-- Adjust the column size as needed -->
@@ -56,28 +58,12 @@
 			        </a>
 			    </div>
 			</div>
-
-
-
-
-
         </div>
 
         <!-- Right side -->
         <div class="col-lg-4 border right-part p-3">
             <!-- LIST for ALL remaining ANNOUNCEMENTS -->
-            <h3>Older Announcements</h3>
-            <!-- SEARCH FORM -->
-		    <form class="form-inline d-lg-block d-none ml-3" action="{% url 'search' %}" method="get">
-		      <div class="input-group input-group-sm">
-		          <input class="form-control form-control-navbar" type="search" name="q" placeholder="Search" aria-label="User Search">
-		          <div class="input-group-append">
-		              <button class="btn btn-navbar" type="submit">
-		                  <i class="fas fa-search"></i>
-		              </button>
-		          </div>
-		      </div>
-		    </form>
+            <h3>Previous Announcements</h3>
             <!-- Pagination Controls -->
             <div class="row">
             <nav aria-label="Page navigation">
