@@ -1,25 +1,25 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="overflow-auto border border-danger" style="min-height: 50vh;">
+<div class="DebugGreen" style="min-height: 50vh;">
     <div class="row">
         <!-- Left side -->
-        <div class="col-lg-8 border border-success">
+        <div class="col-lg-8">
             <div class="bulletin-board">
-            	<img src="../../media/defaults/bocaue.gif" class="overlay-gif" alt="Overlay GIF">
+            	<img src="../../media/defaults/bocaue.gif" class="overlay-img" alt="Overlay IMG">
                 {% for position in latest_positions %}
+                <a href="{{ position.announcement.get_absolute_url }}">
                     <div class="announcement" style="top: {{ position.top }}; left: {{ position.left }};">
-                        <a href="{{ position.announcement.get_absolute_url }}">
                             {{ position.announcement|truncatechars:50 }}
-                        </a>
                     </div>
+                </a>
                 {% endfor %}
             </div>
 
 
             <!-- CAROUSEL FOR DEPT CONTACT INFO -->
 			<div class="col-lg-12 col-sm-12">  <!-- Adjust the column size as needed -->
-			    <div id="announcementCarousel" class="carousel slide border60vh" data-ride="carousel">
+			    <div id="announcementCarousel" class="carousel slide" data-ride="carousel">
 			        <div class="carousel-inner">
 			            {% for dept in departments %}
 			                <div class="carousel-item {% if forloop.first %}active{% endif %}">
@@ -58,14 +58,17 @@
         </div>
 
         <!-- Right side -->
-        <div class="col-lg-4 border right-part p-3">
-        	<div class="container-fluid border border-success mt-2 mb-2">
+        <div class="col-lg-4 DebugRed">
+        	<div class="border border-success mt-2 mb-2">
         		<!-- important announcements for the masses that they need to see right away after landing in on our webpage -->
 	        	<p>PINNED</p>
 				<ul>
 				{% for announcement in announcements %}
 					{% if announcement.published and announcement.is_pinned %}
-						<li><u><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></u></li>
+						<li>
+							<i class="fa fa-exclamation"></i>
+							<u><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></u>
+						</li>
 					{% endif %}
 				{% endfor %}
 				</ul>
@@ -112,17 +115,15 @@
 			</div>
 			
             <ul class="list-group">
-                {% for announcement in remaining_public %}
+            {% for announcement in remaining_public %}
+            	<a href="{{ announcement.get_absolute_url }}">
                     <li class="list-group-item">
                         <b>{{ announcement.title }}</b> <br>
                         {{ announcement.content|truncatechars:100|safe }}
-                        <div class="float-right">
-                            <small>by: {{ announcement.user }}</small>
-                            <a href="{{ announcement.get_absolute_url }}" class="btn btn-link">Read More</a>
-                        </div>
                     </li>
-                {% endfor %}
-            </ul>
+                </a>
+            {% endfor %}
+        	</ul>
 
             
 

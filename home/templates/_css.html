@@ -44,11 +44,7 @@
     font-weight: 300;
     font-style: italic;
   }
-  .border60vh{
-/*  for debugging UI  */
-    min-height: 60vh;
-    border: solid red 3px;
-  }
+
   .announcement-title {
     opacity: 1; /* Set to 1 for full opacity */
   }
@@ -108,7 +104,7 @@
       overflow: hidden; /* Hide overflow if needed */
   }
 
-  .overlay-gif {
+  .overlay-img {
       position: absolute; /* Position the GIF absolutely */
       top: 0; /* Adjust as needed */
       left: 0;
@@ -141,7 +137,7 @@
   }
 
   .fixed-height {
-      height: 400px; /* Set your desired height */
+      height: 280px; /* Set your desired height */
   }
 
   .messenger-widget {
@@ -158,5 +154,19 @@
       background-color: #005bb5;
   }
 
+  a {
+      color: inherit; /* Use the inherited color from the parent element */
+      text-decoration: none; /* Remove underline */
+      background: none; /* Remove any background */
+  }
+
+  .DebugRed{
+  /*  for debugging UI  */
+    border: solid red 5px;
+  }
+  .DebugGreen{
+  /*  for debugging UI  */
+    border: solid green 5px;
+  }
 
 </style>

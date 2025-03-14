@@ -33,11 +33,11 @@ A Dynamic Organizational chart here showcasing Mayor - Department Heads
 <hr>
 
 <!-- Mayor and Vice Mayor Row -->
-<div class="container">
+<div class="container text-sm">
 	<div class="row">
 	{% for person in orgpersonnel %}
 	{% if person.title == "Mayor" %}
-	<div class="card col-6 m-2">
+	<div class="card col-5 m-2">
 	    <div class="card-body">
 	        <div class="avatar-container">
 	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
