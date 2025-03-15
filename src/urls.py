@@ -26,9 +26,9 @@ class LoginView(auth_views.LoginView):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('home.urls'), name="home"),
-    path('users/', include('users.urls'), name="users"),
-    path('leave-mgt/', include('leave_mgt.urls'), name="leave_mgt"),
+    path('', include('home.urls')),
+    path('users/', include('users.urls')),
+    path('leave-mgt/', include('leave_mgt.urls')),
     # path('api/', include('api.urls'), name="api"),
     
     ### allauth
