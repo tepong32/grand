@@ -34,8 +34,11 @@
 		                                    <h5>{{ dept.name }}</h5>
 		                                </div>
 		                                <div class="card-body fixed-height announcement-bg" style="background-image: url('{{ dept.image.url }}');">
-		                                    <p class="announcement-meta">Phone Number: {{ dept.contact_number|safe }}</p>
-		                                    <small class="float-right">Email Address: {{dept.email}}</small>
+		                                    <p class="announcement-meta">{{dept.motto|safe}}</p>
+		                                    <p class="float-right">
+		                                    	Email Address: {{dept.email|safe}} <br>
+		                                    	Phone Number: {{ dept.contact_number|safe }}
+		                                	</p>
 		                                </div>
 		                                <div class="card-footer text-center bg-transparent">
 		                                    <a href="https://m.me/{{ dept.messenger_chat_link }}" class="messenger-widget" target="_blank">Chat with us on Messenger</a>
