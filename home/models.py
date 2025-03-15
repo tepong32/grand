@@ -5,7 +5,7 @@ from users.models import User, Profile
 from django.utils.text import slugify
 from django.urls import reverse
 
-from ckeditor_uploader.fields import RichTextUploadingField
+from django_ckeditor_5.fields import CKEditor5Field
 from PIL import Image
 
 ### for debugging
@@ -33,7 +33,7 @@ class Announcement(models.Model):
 		)
 	is_pinned = models.BooleanField(default=False, verbose_name="Pinned", help_text="Indicates if the announcement is pinned.")
 	published = models.BooleanField(default=True) # set a color-coding on the template for published vs unpublished instances
-	content = RichTextUploadingField()
+	content = CKEditor5Field('Text', config_name='extends')
 	slug = models.SlugField(default='', blank=True)
 	def upload_directory_path(instance, filename):
 		# file will be uploaded to MEDIA_ROOT/announcements/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
@@ -92,6 +92,7 @@ class OrgPersonnel(models.Model):
 
 class DepartmentContact(models.Model):
 	name = models.CharField(max_length=255)
+	motto = CKEditor5Field('Text', config_name='extends', null=True)
 	contact_number = models.CharField(max_length=255) # charfield for now since admin naman ang gagamit nito
 	email = models.EmailField(unique=True, blank=True)
 	messenger_chat_link = models.CharField(max_length=255, null=True, help_text="Your Page's username or profile url here. Ex: tepong32 ")
