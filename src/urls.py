@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth import views as auth_views     # for auths for logins and logouts
 from django.urls import path, include
@@ -31,8 +33,9 @@ urlpatterns = [
     
     ### allauth
     path('accounts/', include('allauth.urls')),
-    ### ckeditor
-    path('ckeditor/', include('ckeditor_uploader.urls')),
+    ### ckeditor_5
+    path("ckeditor5/", include('django_ckeditor_5.urls')),
+    # path("upload/", custom_upload_function, name="custom_upload_file"), # prolly will not need this until feature for user file uploads are implemented
 
 
     ### these views/html templates are inside the "users" app
@@ -60,12 +63,4 @@ urlpatterns = [
     path('reset-done/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset/password_reset_complete.html'),
      name='password_reset_complete'),
 
-]
-
-
-from django.conf import settings
-from django.conf.urls.static import static
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
