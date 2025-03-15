@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class Announcement(models.Model):
 	user = models.ForeignKey(User, on_delete=models.CASCADE)
-	title = models.CharField(max_length=255)
+	title = models.CharField(max_length=255, blank=False)
 	PUBLIC = 'Public'
 	INTERNAL = 'Internal'
 	choices = [
@@ -33,8 +33,8 @@ class Announcement(models.Model):
 		)
 	is_pinned = models.BooleanField(default=False, verbose_name="Pinned", help_text="Indicates if the announcement is pinned.")
 	published = models.BooleanField(default=True) # set a color-coding on the template for published vs unpublished instances
-	content = CKEditor5Field('Text', config_name='extends')
-	slug = models.SlugField(default='', blank=True)
+	content = CKEditor5Field('Content', config_name='extends')
+	slug = models.SlugField(default='', blank=True, unique=True)
 	def upload_directory_path(instance, filename):
 		# file will be uploaded to MEDIA_ROOT/announcements/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
 		return 'announcements/{}/{}'.format(instance.user.username, filename)

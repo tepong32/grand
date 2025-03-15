@@ -4,8 +4,9 @@ from django.contrib import messages     # for flash messages regarding valid dat
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponseRedirect, Http404
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
+
 
 
 
@@ -124,8 +125,9 @@ class CreateAnnouncement(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.user = self.request.user    # to automatically get the id of the current logged-in user
+        announcement = form.save()  # Save the form and get the instance
         messages.success(self.request, self.success_message)
-        return super().form_valid(form)
+        return redirect('announcement-detail', slug=announcement.slug)  # Redirect to the detail view using the slug
 
 
 class AnnouncementDetail(DetailView):

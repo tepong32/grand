@@ -9,6 +9,7 @@
 </style>
 <div class="card p-3 col-4 col-sm-12 col-md-12"> <!-- MOBILE VIEW EDIT -->
   <form method="POST" enctype="multipart/form-data">
+    {{ form.media }} <!-- Required for styling/js to make ckeditor5 work -->
     {% csrf_token %}
     <!-- this is a required line for added security -->
     <fieldset class="form-group">
