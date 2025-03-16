@@ -83,6 +83,15 @@ class OrgChartView(ListView):
     context_object_name = 'orgpersonnel'
     ordering = ['display_order']
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({
+            'departments': DepartmentContact.objects.all(),
+            'downloadableforms': DownloadableForm.objects.all(),
+        })
+        return context
+
+
 
 
 ####################### VIEWS THAT NEED AUTHENTICATION (INTERNAL VIEWS)
