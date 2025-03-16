@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Announcement, OrgPersonnel, DepartmentContact
+from .models import Announcement, OrgPersonnel, DepartmentContact, DownloadableForm
 
 
 
@@ -15,6 +15,10 @@ class OrgPersonnelAdmin(admin.ModelAdmin):
 class DepartmentContactAdmin(admin.ModelAdmin):
     list_display = ('name',)
 
+
+@admin.register(DownloadableForm)
+class DownloadableFormAdmin(admin.ModelAdmin):
+    list_display = ('title', 'uploaded_on')
 
 ###the traditional way of registering models to admin
 # admin.site.register(Announcement)

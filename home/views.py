@@ -10,7 +10,7 @@ from django.urls import reverse
 
 
 
-from .models import Announcement, OrgPersonnel, DepartmentContact
+from .models import Announcement, OrgPersonnel, DepartmentContact, DownloadableForm
 from leave_mgt.models import LeaveRequest
 from users.models import User, Profile
 
@@ -71,7 +71,8 @@ class UnauthedHomeView(ListView):
             'published': published,
             'draft': draft,
 
-            'departments': DepartmentContact.objects.all()
+            'departments': DepartmentContact.objects.all(),
+            'downloadableforms': DownloadableForm.objects.all(),
         })
         return context
 
