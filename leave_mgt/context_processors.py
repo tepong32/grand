@@ -1,3 +1,4 @@
+from home.models import DownloadableForm
 from users.models import User, Profile
 from .models import LeaveCredit, LeaveRequest, LeaveCreditLog
 from django.core.paginator import Paginator
@@ -67,7 +68,10 @@ def dashboard_context(request):
 
             'server_time': server_time,
         }
-    return {}
+    return {
+        'server_time': timezone.now,
+        'downloadableforms': DownloadableForm.objects.all(),
+    }
 
 
 def get_leave_usage(leave_credits, year):
