@@ -174,6 +174,7 @@ class Department(models.Model):
 
 class RegOrCT_Salary(models.Model):
     """
+    Salary setup for Regular and Co-Terminus Employees.
     Manual setup for each SG+Step since not all will be used.
     See Official Gazette for reference.
     """
@@ -191,6 +192,10 @@ class RegOrCT_Salary(models.Model):
 
 
 class JO_Salary(models.Model):
+    """
+    Salary setup for Job Order Employees.
+    Daily rate setup.
+    """
     daily_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True)
 
     class Meta:
@@ -202,6 +207,10 @@ class JO_Salary(models.Model):
 
 
 class Profile(models.Model):
+    """
+    Profile model for additional user information.
+    Only intended for HR use. Overly-sensitive information should not be stored here/displayed to other users.
+    """
     user            = models.OneToOneField(User, on_delete=models.CASCADE)
     contact_number  = models.CharField(max_length=11, null=True, blank=False,
                     validators=[MinLengthValidator(10)],
