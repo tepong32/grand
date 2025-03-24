@@ -50,7 +50,7 @@
         <div class="card-body box-profile">
           <div class="text-center">
             <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5"
-           src="{{user.profile.image.url}}"
+           src="{{user.employeeprofile.image.url}}"
            alt="User profile picture" style="width: 250px; height: 250px">
           </div>
           
@@ -61,16 +61,16 @@
               <a title="Edit profile" class="fa fa-edit" href="{% url 'profile-edit' user.username %}"> Edit</a>
             </small>
 
-          <p class="text-sm text-muted text-center"><i>{{user.profile.department}}</i></p>
+          <p class="text-sm text-muted text-center"><i>{{user.employeeprofile.department}}</i></p>
 
           <ul class="list-group list-group-unbordered mb-3">
             <li class="list-group-item">
-              <b>Dept. Head:</b> <a class="float-right"><b>{{user.profile.department.manager}}</b></a>
+              <b>Dept. Head:</b> <a class="float-right"><b>{{user.employeeprofile.department.manager}}</b></a>
             </li>
             <li class="list-group-item">
               <b>Designation</b>
                 {% if request.user == user %}
-                  <i class="float-right">{{user.profile.designation}}</i>
+                  <i class="float-right">{{user.employeeprofile.designation}}</i>
                 {% else %}
                   **</i>
                 {% endif %}
@@ -79,15 +79,15 @@
             <li class="list-group-item">
               <b>Employment Type:</b>
                 {% if request.user == user %}
-                  <i class="float-right">{{user.profile.employment_type}}</i> <br>
-                  <p class="float-right">@ {{user.profile.get_salary|currency }}</p>
+                  <i class="float-right">{{user.employeeprofile.employment_type}}</i> <br>
+                  <p class="float-right">@ {{user.employeeprofile.get_salary|currency }}</p>
                 {% else %}
                   <i>**</i>
                 {% endif %}
             </li>
           </ul>
 
-          <a href="#" class="btn btn-primary btn-block"><b>{{user.profile.get_salary|currency }}</b></a>
+          <a href="#" class="btn btn-primary btn-block"><b>{{user.employeeprofile.get_salary|currency }}</b></a>
         </div>
         <!-- /.card-body -->
       </div>
@@ -118,11 +118,11 @@
 
           <strong><i class="fas fa-map-marker-alt mr-1"></i> Location</strong>
 
-          <p class="text-muted">{{user.profile.address}}</p>
+          <p class="text-muted">{{user.employeeprofile.address}}</p>
 
           <strong><i class="fas fa-phone-alt mr-1"></i> Phone</strong>
 
-          <p class="text-muted">{{user.profile.contact_number}}</p>
+          <p class="text-muted">{{user.employeeprofile.contact_number}}</p>
 
           <hr>
 
