@@ -216,7 +216,7 @@ class EmployeeProfile(models.Model):
                     validators=[MinLengthValidator(10)],
                     verbose_name="Contact Number") # intended only for HR use, will not be displayed to other users
     address         = models.CharField(max_length=255, null=True, blank=False)
-    note            = models.CharField(max_length=255, null=True, blank=False) # personal short note to other users
+    note            = models.CharField(max_length=255, null=True, blank=True) # personal short note to other users
 
     select  = "---select one---"
     REG     = "Regular Employee"
@@ -238,7 +238,7 @@ class EmployeeProfile(models.Model):
     def dp_directory_path(instance, filename):
         # file will be uploaded to MEDIA_ROOT/DP/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
         return 'users/{}/DP/{}'.format(instance.user.username, filename)
-    image           = models.ImageField(default='defaults/default_user_dp.png', blank=True, upload_to=dp_directory_path, verbose_name="Profile Picture: ")
+    image           = models.ImageField(default='defaults/default_user_dp.png', blank=True, upload_to=dp_directory_path, verbose_name="Profile Image ")
     slug            = models.SlugField(default='', blank=True)
 
     def __str__(self):
