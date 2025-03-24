@@ -1,0 +1,14 @@
+
+
+check universal context processors if they are still applicable should the app be displaying separate context for internal and external users
+
+navbars are now adjusted to display based on user authentication
+add downloadable forms
+revamp home dashboard to display data for employees only
+make different types of user to be added to the app: employee vs citizen
+add suggestions page with polling or # likes and rankings for upvotes or what
+
+
+
+org personnel
+departmentContact carousel

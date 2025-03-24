@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+
+{% block content %}
+<style type="text/css">
+	.avatar-container {
+	    width: 100px; /* Set the desired width */
+	    height: 100px; /* Set the desired height */
+	    overflow: hidden; /* Hide overflow */
+	    border-radius: 50%; /* Optional: make it circular */
+	    border:	solid red 3px;;
+	    display: flex; /* Center the image */
+	    justify-content: center; /* Center the image */
+	    align-items: center; /* Center the image */
+	    margin-bottom: 15px; /* Space below the avatar */
+	    transition: transform 0.3s ease; /* Slightly enlarge to 120% */
+	}
+
+	.avatar {
+	    width: 100%; /* Make the image take the full width of the container */
+	    height: auto; /* Maintain aspect ratio */
+	    object-fit: cover; /* Cover the container without stretching */
+	}
+
+	.avatar-container:hover {
+		transform: scale(1.2); /* Slightly enlarge to 120% */
+	}
+
+</style>
+A Dynamic Organizational chart here showcasing Mayor - Department Heads
+
+<hr>
+
+<!-- Mayor and Vice Mayor Row -->
+<div class="container text-sm">
+	<div class="row">
+	{% for person in orgpersonnel %}
+	{% if person.title == "Mayor" %}
+	<div class="card col-5 m-2">
+	    <div class="card-body">
+	        <div class="avatar-container">
+	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
+	        </div>
+	        <h5 class="card-title">{{person.name}}</h5>
+	        <p class="card-text">{{person.title}}</p>
+	        <p class="card-text">{{person.display_order}}</p>
+	    </div>
+	</div>
+	{% endif %}
+
+	{% if person.title == "Vice Mayor" %}
+	<div class="card col-4 m-2">
+	    <div class="card-body">
+	        <div class="avatar-container">
+	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
+	        </div>
+	        <h5 class="card-title">{{person.name}}</h5>
+	        <p class="card-text">{{person.title}}</p>
+	        <p class="card-text">{{person.display_order}}</p>
+	    </div>
+	</div>
+	{% endif %}
+	{% endfor %}
+	</div>
+</div>
+
+<br>
+<!-- Councilors Row -->
+<h3> Councilors</h3>
+<div class="row">
+{% for person in orgpersonnel %}
+	{% if person.title == "Councilor" %}
+	<div class="card col-3">
+	    <div class="card-body">
+	        <div class="avatar-container">
+	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
+	        </div>
+	        <h5 class="card-title">{{person.name}}</h5>
+	        <p class="card-text">{{person.title}}</p>
+	        <p class="card-text">{{person.display_order}}</p>
+	    </div>
+	</div>
+	{% endif %}
+{% endfor %}
+</div>
+
+<br>
+<!-- Department Heads Row -->
+<h3> Department Heads</h3>
+<div class="row">
+{% for person in orgpersonnel %}
+	{% if "Department Head" in person.title %}
+	<div class="card col-3">
+	    <div class="card-body">
+	        <div class="avatar-container">
+	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
+	        </div>
+	        <h5 class="card-title">{{person.name}}</h5>
+	        <p class="card-text">{{person.title}}</p>
+	        <p class="card-text">{{person.display_order}}</p>
+	    </div>
+	</div>
+	{% endif %}
+{% endfor %}
+</div>
+
+
+
+{% endblock content %}

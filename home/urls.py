@@ -1,18 +1,26 @@
 from django.urls import path
 # from django documentation -- check CoreyMS' django tutorial Part 8 / 22:30
 from .views import (
-    HomeView,
+    UnauthedHomeView,
+    OrgChartView,
+
+    AuthedHomeView,
     AnnouncementList,
     CreateAnnouncement,
     AnnouncementDetail,
     UpdateAnnouncement,
     DeleteAnnouncement,
+    announcement_search_view
     )
 
 
 
 urlpatterns = [
-    path('', HomeView.as_view(), name='home'),
+    path('search', announcement_search_view, name='search'),
+    path('', UnauthedHomeView.as_view(), name='unauthedhome'),
+    path('orgchart', OrgChartView.as_view(), name='orgchart'),
+    path('home', AuthedHomeView.as_view(), name='home'),
+    
     path('announcement/create/', CreateAnnouncement.as_view(), name='create-announcement'),
     path('announcement/<str:slug>/', AnnouncementDetail.as_view(), name='announcement-detail'),
     path('announcement/<str:slug>/update/', UpdateAnnouncement.as_view(), name='update-announcement'),

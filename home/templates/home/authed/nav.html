@@ -1,5 +1,5 @@
 <style type="text/css">
-/* logo */
+  /* logo */
   .navbar-nav a .nav-item {
     transition: transform 0.3s ease; /* Slightly enlarge to 110% */
   }
@@ -7,7 +7,7 @@
     transform: scale(1.2); /* Slightly enlarge to 110% */
   }
 
-/* other navbar links */
+  /* other navbar links */
   .navbar-nav .nav-item a {
     position: relative; /* Position relative to allow absolute positioning of the underline */
     text-decoration: none; /* Remove default underline */
@@ -49,12 +49,19 @@
     <ul class="navbar-nav">
       <!-- Home -->
       <a href="/" class="nav-link" title="Home">
-        <li class="nav-item">
+
           <!-- Brand Logo -->
-          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="img-circle elevation-3"
-               style="height: 55px; border-radius: 50%; border: solid;">
-        </li>
+          <img src="/media/defaults/jjv.png" alt="LMS Logo" class=""
+               style="height: 60px; border-radius: 10%; position: relative;">
+
       </a>
+
+      <!-- All Users List -->
+      <li class="nav-item d-none d-lg-block">
+        <a href="/home" class="nav-link" title="Dashboard">
+          Dashboard
+        </a>
+      </li>
 
       <!-- All Users List -->
       <li class="nav-item d-none d-lg-block">
@@ -217,6 +224,20 @@
             <strong> Normal User</strong>
           </h6>
         {% endif %}
+
+
+        {% if request.user.is_authenticated %}
+          <h6>User Groups:</h6>
+          <ul>
+              {% for group in request.user.groups.all %}
+                  <li>{{ group.name }}</li>
+              {% empty %}
+                  <li>No groups assigned.</li>
+              {% endfor %}
+          </ul>
+        {% else %}
+            <p>Please log in.</p>
+        {% endif %}
       </div>
 
       <div class="float-right">
@@ -229,7 +250,7 @@
                 </a>
               </li>
 
-              <li>
+              <li class="">
                 <a href="/admin" class="nav-link" title="Admin UI">
                   Admin
                 </a>

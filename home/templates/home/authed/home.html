@@ -1,15 +1,12 @@
 {% extends "base.html" %}
 
-{% block dashboard %}
-	{% include 'home/authed/home_dashboard.html' %} <!-- not being displayed atm -->
-{% endblock%}
 {% block content %}
 <div class="row">
 	<!-- CAROUSEL for PINNED ANNOUNCEMENTS -->
 	<div class="col-lg-4 col-sm-12">  <!-- Adjust the column size as needed -->
 	    <div id="announcementCarousel" class="carousel slide border60vh" data-ride="carousel">
 	        <div class="carousel-inner">
-	            {% for announcement in latest_public %}
+	            {% for announcement in internal %}
 	                <div class="carousel-item {% if forloop.first %}active{% endif %}">
 	                    <div class="announcement-bg" style="background-image: url('{{ announcement.cover_image.url }}');">
 	                        <div class="card" style="height: 100%;">
