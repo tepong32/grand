@@ -206,7 +206,7 @@ class JO_Salary(models.Model):
         return f"Daily rate: {self.daily_rate}"
 
 
-class Profile(models.Model):
+class EmployeeProfile(models.Model):
     """
     Profile model for additional user information.
     Only intended for HR use. Overly-sensitive information should not be stored here/displayed to other users.
@@ -265,11 +265,11 @@ class Profile(models.Model):
             base_slug = slugify(self.user.username)
             slug = base_slug
             counter = 1
-            while Profile.objects.filter(slug=slug).exists():
+            while EmployeeProfile.objects.filter(slug=slug).exists():
                 slug = f"{base_slug}-{counter}"
                 counter += 1
             self.slug = slug
-        super(Profile, self).save(*args, **kwargs)
+        super(EmployeeProfile, self).save(*args, **kwargs)
         logger.info("Profile saved.")
 
         img = Image.open(self.image.path)   # open the image of the current instance

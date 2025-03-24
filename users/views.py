@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from .models import User, Profile, Department
+from .models import User, EmployeeProfile, Department
 from django.contrib import messages     # for flash messages regarding valid data in the form
 from leave_mgt.models import LeaveCredit
 
@@ -14,7 +14,7 @@ def usersIndexView(request):
     department_users = {} #empty dict for users filtered by "department" attr
 
     for department in departments:
-        profiles = Profile.objects.filter(department=department) #separating users per department
+        profiles = EmployeeProfile.objects.filter(department=department) #separating users per department
         department_users[department.name] = profiles #adding the department_users to the dict using the department name as key
 
     if request.user.is_staff:
@@ -58,7 +58,7 @@ def profileView(request, username=None):
         leave_credits = None
         if request.user.is_authenticated:
             try:
-                leave_credits = LeaveCredit.objects.get(employee=request.user.profile) #since LeaveCredit is related to Profile; not User
+                leave_credits = LeaveCredit.objects.get(employee=request.user.employeeprofile) #since LeaveCredit is related to Profile; not User
             except LeaveCredit.DoesNotExist:
                 pass # Or handle the case where it's not found: like messages.danger('no leave credits accumulated yet')?
 
@@ -76,7 +76,7 @@ def profileEditView(request, username=None):
             if request.method == 'POST':
                 # the forms from forms.py
                 u_form = UserUpdateForm(request.POST, request.FILES, instance=request.user)        # instance is for the fields to auto-populate with user info
-                p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user.profile)
+                p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user.employeeprofile)
 
                 if u_form.is_valid() and p_form.is_valid():
                     u_form.save()

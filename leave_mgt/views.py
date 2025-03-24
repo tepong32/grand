@@ -6,7 +6,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.contrib.auth.decorators import login_required
 
-from users.models import User, Profile
+from users.models import User, EmployeeProfile
 from .forms import LeaveApplicationForm
 from .models import LeaveRequest, LeaveCredit, LeaveCreditLog
 
@@ -70,7 +70,7 @@ class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
     def form_valid(self, form):
         leave_type = form.cleaned_data['leave_type']
         # number_of_days = form.cleaned_data['number_of_days']
-        employee = self.request.user.profile.leavecredit
+        employee = self.request.user.employeeprofile.leavecredit
 
         # Calculate number of days here since it's hidden from the form
         start_date = form.cleaned_data['start_date']
@@ -116,7 +116,7 @@ class LeaveApplicationUpdateView(UpdateView, LoginRequiredMixin):
     def form_valid(self, form):
         leave_type = form.cleaned_data['leave_type']
         # number_of_days = form.cleaned_data['number_of_days']
-        employee = self.request.user.profile.leavecredit
+        employee = self.request.user.employeeprofile.leavecredit
 
         # Calculate number of days here since it's hidden from the form
         start_date = form.cleaned_data['start_date']
@@ -170,7 +170,7 @@ class LeaveApplicationDeleteView(DeleteView, LoginRequiredMixin):
 
     def delete(self, request, *args, **kwargs):
         leave = self.get_object()
-        employee = request.user.profile.leavecredit
+        employee = request.user.employeeprofile.leavecredit
 
         # If the leave is approved, add back the number of days to the corresponding credits
         # MAKE SURE THAT ONLY ADMINS CAN DELETE ALREADY-APPROVED LEAVES

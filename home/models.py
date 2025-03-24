@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
-from users.models import User, Profile
+from users.models import User, EmployeeProfile
 from django.utils.text import slugify
 from django.urls import reverse
 
