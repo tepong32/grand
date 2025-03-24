@@ -87,7 +87,7 @@ def profileEditView(request, username=None):
             else:
                 # Pass the instance of the user to the forms when the request method is GET
                 u_form = UserUpdateForm(instance=request.user)
-                p_form = ProfileUpdateForm(instance=request.user.profile)
+                p_form = ProfileUpdateForm(instance=request.user.employeeprofile)
 
             context = {
                 'u_form': u_form,
