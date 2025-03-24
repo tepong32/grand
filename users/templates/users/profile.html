@@ -97,8 +97,8 @@
       <div class="card card-secondary col ml-1">
         <div class="card-header">
           <div class="card-title row">
-            {% if user.profile.note %}
-              <i>{{user.profile.note|safe}}</i>
+            {% if user.employeeprofile.note %}
+            <a href="{% url 'profile-edit' user.username %}"><i>{{user.employeeprofile.note|safe}}</i></a>
             {% else %}
               {% if user == request.user %}
                 <small><i>"A heads-up note to others. Example: Away for the meantime until mm/dd/yy."</i></small>
