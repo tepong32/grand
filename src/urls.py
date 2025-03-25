@@ -5,6 +5,7 @@ from django.contrib.auth import views as auth_views     # for auths for logins a
 from django.urls import path, include
 from users.views import (
     register,
+    employeeRegister,
     user_search_view,
     CustomPasswordResetView
 )
@@ -41,7 +42,8 @@ urlpatterns = [
     ### these views/html templates are inside the "users" app
     path('login/', LoginView.as_view(template_name='auth/login.html'), name='login' ), # customized LoginView to display prompts on the page
     path('logout/', auth_views.LogoutView.as_view(template_name='auth/logout.html'), name='logout' ),
-    path('register/', register, name='register' ),
+    path('register/', register, name='register' ), # for external users to sign-up only using Google accounts
+    path('employee-register/', employeeRegister, name='employee-register' ), # for employees to fill-out the form, user accounts should have restrictions viewing pages on default attrs
     # path('search/', user_search_view, name="user-search"),
     
     # Password reset links (ref: https://github.com/django/django/blob/master/django/contrib/auth/views.py)
