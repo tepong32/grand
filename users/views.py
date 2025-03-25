@@ -48,6 +48,24 @@ def register(request):
     return render(request, 'auth/register.html', {'form': form})
 
 
+def employeeRegister(request):
+    '''
+        if the page gets a POST request, the POST's data gets instantiated to the UserCreationForm,
+        otherwise, it instantiates a blank form.
+    '''
+    if request.method == 'POST':
+        form = UserRegisterForm(request.POST)
+        if form.is_valid():
+            form.save()     # to make sure that the registering user gets saved to the database
+            username = form.cleaned_data.get("username")
+            messages.success(request, f"Account created for {username}! You can now log in.")
+            return redirect("login")
+    else:
+        form = UserRegisterForm()
+    # arguments == "request", the_template, the_context(dictionary))
+    return render(request, 'auth/employee_register.html', {'form': form})
+
+
 @login_required ###previously-used decorator dj2.1.5
 def profileView(request, username=None):
     if User.objects.get(username=username):
