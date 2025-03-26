@@ -178,6 +178,13 @@ SOCIALACCOUNT_PROVIDERS = {
             'client_id': os.environ.get('GAUTH_CLIENTID'), # see tepong32 console (Blogs!)
             'secret': os.environ.get('GAUTH_SECRET'),
             'key': ''
+        },
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
         }
     }
 }
