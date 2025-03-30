@@ -87,9 +87,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     # is_operations_manager  = models.BooleanField(default=False)
 
     ### personal info <-- this should match company records as much as possible
-    first_name          = models.CharField(max_length=50)
-    middle_name         = models.CharField(max_length=50, blank=True)
-    last_name           = models.CharField(max_length=50)
+    first_name          = models.CharField(max_length=50, null=True, blank=True)
+    middle_name         = models.CharField(max_length=50, null=True, blank=True)
+    last_name           = models.CharField(max_length=50, null=True, blank=True)
     ext_name            = models.CharField(max_length=3, blank=True, null=True, verbose_name="Extension")
 
     objects = CustomUserManager() # set the CustomUserManager() above instead of default UserManager() from django.contrib.auth
@@ -277,3 +277,35 @@ class EmployeeProfile(models.Model):
             output_size = (600, 600)
             img.thumbnail(output_size)
             img.save(self.image.path)
+
+
+
+class CitizenProfile(models.Model):
+    """
+    Profile model for additional user information on outside-th-org users.
+    """
+    user            = models.OneToOneField(User, on_delete=models.CASCADE)
+    contact_number  = models.CharField(max_length=11, null=True, blank=False,
+                    validators=[MinLengthValidator(10)],
+                    verbose_name="Contact Number") # intended only for HR use, will not be displayed to other users
+    address         = models.CharField(max_length=255, null=True, blank=False)
+    slug            = models.SlugField(default='', blank=True)
+    social_auth     = models.BooleanField(default=True) # for social media auth, set to true by default
+    
+    def __str__(self):
+        return f"{self.user.username}"
+    
+    def get_absolute_url(self):
+        return reverse('profile', kwargs={'slug': self.slug})
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.user.username)
+            slug = base_slug
+            counter = 1
+            while CitizenProfile.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
+        super(CitizenProfile, self).save(*args, **kwargs)
+        logger.info("Profile saved.")
