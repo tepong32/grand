@@ -32,6 +32,13 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'django.contrib.sites', # "just-in-case". allauth needs this.
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
     
     ### 3rd-party apps
     'adminlte3',
@@ -50,13 +57,7 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'leave_mgt.apps.LeaveMgtConfig',
 
-    'django.contrib.sites', # "just-in-case". allauth needs this.
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    
 ]
 
 MIDDLEWARE = [
@@ -193,6 +194,10 @@ ACCOUNT_ADAPTER = 'users.adapters.CustomSocialAccountAdapter' # custom adapter t
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_AUTHENTICATION_METHOD = "username_email"
+ACCOUNT_UNIQUE_EMAIL = True
+
 
 
 LOGIN_REDIRECT_URL = 'home'     # needed for the login.html success instance

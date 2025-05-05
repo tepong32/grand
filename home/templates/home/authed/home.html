@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 <div class="row">
@@ -66,55 +67,316 @@
 
 <!-- reposition this -->
 <div class="col-8">
-	<!-- REAL CONTENT -->
-	{% if leave_requests.count == 0 %}
-	  <p> You have not filed for a leave request yet. Don't be shy. Work-Life balance, Man! </p>
-	{% endif %}
+	<!-- REAL CONTENT ############################################################################################################### -->
 
-	<div>
-		<p> leave instances </p>
-		approved leaves count: <b>{{approved_leave_count}}</b> <br>
-		pending leaves count:	<b>{{pending_leaves_count}}</b>
-		<p>
-		{% for leave in leave_requests %}
-			{{leave.leave_type}} - {{leave.start_date}} to {{leave.end_date}} - <b>{{leave.status}}</b><br>
-		{% endfor %}
-		</p>
-	</div>
+  <style>
+    /* Reset and base */
+    body, html {
+      margin: 0; padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
 
-	<div>
-		filtered published announcement
+    /* Container for the entire landing page content */
+    .landing-container {
+      width: 360px;
+      max-height: 600px;
+      background: white;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-		<p>PINNED</p>
-		<ul>
-		{% for announcement in announcements %}
-			{% if announcement.published and announcement.is_pinned %}
-				<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
-			{% endif %}
-		{% endfor %}
-		</ul>
+    /* Header area */
+    .landing-header {
+      padding: 16px 24px;
+      background: #4A90E2;
+      color: white;
+      font-size: 1.8rem;
+      font-weight: bold;
+      text-align: center;
+      user-select: none;
+    }
 
+    /* Main content - You can add your landing page main elements here */
+    .landing-main {
+      flex-grow: 1;
+      padding: 16px 20px 8px 20px;
+      overflow-y: auto;
+    }
 
-		<p>for employees</p>
-		<ul>
-		{% for announcement in internal %}
-			{% if announcement.published %}
-				<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
-			{% endif %}
-		{% endfor %}
-		</ul>
-		
-		filtered draft announcement - staffs only
-		<ul>
-		{% for announcement in announcements %}
-			{% if not announcement.published %}
-			<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
-			{% endif %}
-		{% endfor %}
-		</ul>
+    /* Chat card styles */
+    .chat-card {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      height: 300px; /* fixed height to fit well on mobile */
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
 
-	</div>
-</div>
+    .chat-header {
+      background: #6200ea;
+      color: white;
+      padding: 12px 16px;
+      font-weight: 600;
+      font-size: 1.1rem;
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
+      user-select: none;
+    }
+
+    .chat-messages {
+      flex-grow: 1;
+      padding: 12px 16px;
+      background: #fafafa;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #888 transparent;
+    }
+    /* Scrollbar styling for WebKit */
+    .chat-messages::-webkit-scrollbar {
+      width: 6px;
+    }
+    .chat-messages::-webkit-scrollbar-thumb {
+      background-color: #888;
+      border-radius: 3px;
+    }
+
+    .message {
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+      line-height: 1.2;
+    }
+    .message .user {
+      font-weight: bold;
+      color: #6200ea;
+      margin-right: 6px;
+    }
+    .message .text {
+      color: #333;
+    }
+
+    /* Chat input area */
+    .chat-input-area {
+      display: flex;
+      border-top: 1px solid #ddd;
+      padding: 8px 12px;
+      background: white;
+      border-bottom-left-radius: 10px;
+      border-bottom-right-radius: 10px;
+    }
+    .chat-input-area input[type="text"] {
+      flex-grow: 1;
+      padding: 8px 12px;
+      border: 1px solid #bbb;
+      border-radius: 9999px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+    .chat-input-area input[type="text"]:focus {
+      border-color: #6200ea;
+      box-shadow: 0 0 8px #6200ea44;
+    }
+    .chat-input-area button {
+      background: #6200ea;
+      border: none;
+      color: white;
+      font-weight: 600;
+      padding: 0 16px;
+      margin-left: 8px;
+      border-radius: 9999px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.2s ease;
+    }
+    .chat-input-area button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    .chat-input-area button:hover:not(:disabled) {
+      background: #7e3ff2;
+    }
+
+    /* Responsive tweaks for smaller than 360px width */
+    @media (max-width: 360px) {
+      .landing-container {
+        width: 100vw;
+        border-radius: 0;
+        height: 100vh;
+      }
+    }
+  </style>
+</head>
+	<!-- landing page area -->
+  <div class="landing-container" role="main">
+    <header class="landing-header">
+      Welcome to Our Landing Page
+    </header>
+    <main class="landing-main">
+      <section class="chat-card" aria-label="Real-time Chat Lobby">
+        <header class="chat-header">Chat Lobby</header>
+        <div id="chatMessages" class="chat-messages" aria-live="polite" tabindex="0" role="log" aria-atomic="false">
+          <!-- Chat messages go here -->
+        </div>
+        <form id="chatForm" class="chat-input-area" aria-label="Send a chat message">
+          <input
+            type="text"
+            id="chatInput"
+            name="chatInput"
+            placeholder="Type a message..."
+            autocomplete="off"
+            aria-required="true"
+            aria-describedby="chatInputDesc"
+            required
+          />
+          <button type="submit" id="sendBtn" disabled>Send</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <!-- If you want to use Firestore instead, you can replace with Firestore SDK -->
+
+  <script>
+    // ==== Replace the below Firebase config with your project's config ====
+	const firebaseConfig = {
+      apiKey: "AIzaSyCXh16GzLvXTQIpZ6vamKhqJF3QdbQ_Stg",
+      authDomain: "bocaue-app.firebaseapp.com",
+      projectId: "bocaue-app",
+      storageBucket: "bocaue-app.firebasestorage.app",
+      messagingSenderId: "562614047023",
+      appId: "1:562614047023:web:ce11a9057c99d5add1d1da",
+      measurementId: "G-KTY2YY2F8N"
+  };
+  // ======================================================================
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+
+  // Use Realtime Database
+  const db = firebase.database();
+
+  // Reference for chat messages node
+  const messagesRef = db.ref("chatMessages");
+
+  // Fetch Django username from template context (replace `{{ user.username|escapejs }}` with actual context variable)
+  const djangoUsername = "{% if user.is_authenticated %}{{ user.username|escapejs }}{% else %}Guest{% endif %}";
+
+  // DOM elements
+  const chatMessagesEl = document.getElementById("chatMessages");
+  const chatForm = document.getElementById("chatForm");
+  const chatInput = document.getElementById("chatInput");
+  const sendBtn = document.getElementById("sendBtn");
+
+  // Enable send button if input is not empty
+  chatInput.addEventListener("input", () => {
+    sendBtn.disabled = chatInput.value.trim().length === 0;
+  });
+
+  // Scroll chat to bottom helper
+  function scrollToBottom() {
+    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+  }
+
+  // Color palette for usernames - you can add more colors as needed
+  const usernameColors = [
+    "#e91e63", // pink
+    "#9c27b0", // purple
+    "#3f51b5", // indigo
+    "#03a9f4", // light blue
+    "#009688", // teal
+    "#4caf50", // green
+    "#ff9800", // orange
+    "#795548", // brown
+    "#607d8b"  // blue-grey
+  ];
+
+  // Hash function to generate numeric hash from string
+  function hashCode(str) {
+    let hash = 0, i, chr;
+    if (str.length === 0) return hash;
+    for (i = 0; i < str.length; i++) {
+      chr = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + chr;
+      hash |= 0; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+  }
+
+  // Function to get username color by hashing username
+  function getUsernameColor(username) {
+    const hash = hashCode(username);
+    const colorIndex = hash % usernameColors.length;
+    return usernameColors[colorIndex];
+  }
+
+  // Listen for new messages added to Firebase
+  messagesRef.limitToLast(50).on("child_added", snapshot => {
+    const msg = snapshot.val();
+    if (!msg) return;
+
+    // Sanitize message text to prevent XSS
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, (m) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[m]);
+    }
+
+    const safeUser = escapeHtml(msg.username || "Guest");
+    const safeText = escapeHtml(msg.text || "");
+
+    // Get color for the username
+    const usernameColor = getUsernameColor(safeUser);
+
+    // Create message div
+    const messageDiv = document.createElement("div");
+    messageDiv.classList.add("message");
+    messageDiv.innerHTML = `<span class="user" style="color: ${usernameColor};">${safeUser}:</span><span class="text">${safeText}</span>`;
+
+    chatMessagesEl.appendChild(messageDiv);
+    scrollToBottom();
+  });
+
+  // Handle chat send
+  chatForm.addEventListener("submit", e => {
+      e.preventDefault();
+      const text = chatInput.value.trim();
+      if (text.length === 0) return;
+
+      // Push new message to Firebase
+      messagesRef.push({
+        username: djangoUsername,
+        text: text,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      }).then(() => {
+        // Reset form to clear input and disable send button properly
+        chatForm.reset();
+        sendBtn.disabled = true;
+        chatInput.blur();
+      }).catch(err => {
+        console.error("Failed to send message:", err);
+        alert("Failed to send message, please try again.");
+      });
+    });
+
+</script>
+
 
 
 
