@@ -43,8 +43,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     ### 3rd-party apps
-    'adminlte3',
-    'adminlte3_theme',
+    'adminlte4',
+    'adminlte4_theme',
     'crispy_forms',
     'crispy_bootstrap4',
     'django_crontab',
