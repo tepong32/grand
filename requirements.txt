@@ -11,9 +11,11 @@ click-repl==0.3.0
 colorama==0.4.6
 crispy-bootstrap4==2024.1
 cryptography==44.0.0
-Django==5.1
+Django==5.2
 django-adminlte3==0.1.6
+django-adminlte4==0.1.1
 django-allauth==64.1.0
+django-ckeditor==6.7.2
 django-ckeditor-5==0.2.17
 django-crispy-forms==2.3
 django-crontab==0.7.1
@@ -25,8 +27,10 @@ pillow==10.4.0
 prompt_toolkit==3.0.48
 pycparser==2.22
 python-dateutil==2.9.0.post0
+python-dotenv==1.1.0
 pytz==2024.2
 requests==2.32.3
+six==1.16.0
 sqlparse==0.5.1
 typing_extensions==4.12.2
 tzdata==2024.1

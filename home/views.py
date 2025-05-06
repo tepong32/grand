@@ -12,7 +12,7 @@ from django.urls import reverse
 
 from .models import Announcement, OrgPersonnel, DepartmentContact, DownloadableForm
 from leave_mgt.models import LeaveRequest
-from users.models import User, Profile
+from users.models import User
 
 from django.views.generic import (
     TemplateView,

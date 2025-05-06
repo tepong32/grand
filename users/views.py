@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from .models import User, Profile, Department
+from .models import User, EmployeeProfile, Department
 from django.contrib import messages     # for flash messages regarding valid data in the form
 from leave_mgt.models import LeaveCredit
 
@@ -14,7 +14,7 @@ def usersIndexView(request):
     department_users = {} #empty dict for users filtered by "department" attr
 
     for department in departments:
-        profiles = Profile.objects.filter(department=department) #separating users per department
+        profiles = EmployeeProfile.objects.filter(department=department) #separating users per department
         department_users[department.name] = profiles #adding the department_users to the dict using the department name as key
 
     if request.user.is_staff:
@@ -48,6 +48,24 @@ def register(request):
     return render(request, 'auth/register.html', {'form': form})
 
 
+def employeeRegister(request):
+    '''
+        if the page gets a POST request, the POST's data gets instantiated to the UserCreationForm,
+        otherwise, it instantiates a blank form.
+    '''
+    if request.method == 'POST':
+        form = UserRegisterForm(request.POST)
+        if form.is_valid():
+            form.save()     # to make sure that the registering user gets saved to the database
+            username = form.cleaned_data.get("username")
+            messages.success(request, f"Account created for {username}! You can now log in.")
+            return redirect("login")
+    else:
+        form = UserRegisterForm()
+    # arguments == "request", the_template, the_context(dictionary))
+    return render(request, 'auth/employee_register.html', {'form': form})
+
+
 @login_required ###previously-used decorator dj2.1.5
 def profileView(request, username=None):
     if User.objects.get(username=username):
@@ -58,7 +76,7 @@ def profileView(request, username=None):
         leave_credits = None
         if request.user.is_authenticated:
             try:
-                leave_credits = LeaveCredit.objects.get(employee=request.user.profile) #since LeaveCredit is related to Profile; not User
+                leave_credits = LeaveCredit.objects.get(employee=request.user.employeeprofile) #since LeaveCredit is related to Profile; not User
             except LeaveCredit.DoesNotExist:
                 pass # Or handle the case where it's not found: like messages.danger('no leave credits accumulated yet')?
 
@@ -76,7 +94,7 @@ def profileEditView(request, username=None):
             if request.method == 'POST':
                 # the forms from forms.py
                 u_form = UserUpdateForm(request.POST, request.FILES, instance=request.user)        # instance is for the fields to auto-populate with user info
-                p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user.profile)
+                p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user.employeeprofile)
 
                 if u_form.is_valid() and p_form.is_valid():
                     u_form.save()
@@ -87,7 +105,7 @@ def profileEditView(request, username=None):
             else:
                 # Pass the instance of the user to the forms when the request method is GET
                 u_form = UserUpdateForm(instance=request.user)
-                p_form = ProfileUpdateForm(instance=request.user.profile)
+                p_form = ProfileUpdateForm(instance=request.user.employeeprofile)
 
             context = {
                 'u_form': u_form,

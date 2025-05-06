@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db import models
 
-from .models import User, Department, Manager, Profile, RegOrCT_Salary, JO_Salary
+from .models import User, Department, Manager, EmployeeProfile, RegOrCT_Salary, JO_Salary, CitizenProfile
 
 
 
@@ -27,5 +27,6 @@ class RegOrCT_SalarySalaryAdmin(admin.ModelAdmin):
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(Department)
 admin.site.register(Manager)
-admin.site.register(Profile)
+admin.site.register(EmployeeProfile)
 admin.site.register(JO_Salary)
+admin.site.register(CitizenProfile)

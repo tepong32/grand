@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<section id="home" style="min-height: 100vh">
+  <div class="row" style="justify-content: space-around;"> 
+    <div class="col-lg-6 col-sm-12">
+          <div class="card card-primary">
+            <!-- form start -->
+            <form method="POST">
+              <div class="card-body bg-dark">
+                {% csrf_token %}
+                <fieldset class="form-group">
+                  {{ form|crispy }}
+                </fieldset>
+                <!-- transfer this submit button to after reading ToS -->
+                <button type="submit" class="btn btn-primary">Sign up</button>
+              </div>
+            </form>
+          </div>
+    </div>
+
+    <!-- Privacy Policy & ToS -->
+    <div class="col-lg-4 col-sm-12  ">
+      <h5>Privacy Policy</h5>
+          <p>Your privacy is important to us. When you sign up for our app, we will only use your Google account information to create and manage your account. We do not collect any additional personal information without your consent.</p>
+          <p>Your Google account information will be used solely for authentication purposes and to provide you with access to our services. We will not share your information with third parties without your explicit consent.</p>
+          <p>We implement appropriate security measures to protect your information from unauthorized access, alteration, disclosure, or destruction.</p>
+          <p>If you have any questions about this Privacy Policy, please contact us at <a href="mailto:bocauebyteppy@gmail.com">bocauebyteppy@gmail.com</a>.</p>
+
+          <h5>Terms of Service</h5>
+          <p>By using our app, you agree to comply with our Terms of Service. You must not use the app for any illegal or unauthorized purpose.</p>
+          <p>We reserve the right to modify or terminate the service for any reason, without notice at any time. We may also change our Terms of Service from time to time, and we will notify you of any changes by posting the new terms on this page.</p>
+          <p>If you have any questions about our Terms of Service, please contact us at <a href="mailto:bocauebyteppy@gmail.com">bocauebyteppy@gmail.com</a>.</p>
+    </div>
+  </div>
+</section>
+
+{% endblock content %}

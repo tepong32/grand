@@ -92,7 +92,7 @@ class Migration(migrations.Migration):
                 ('address', models.CharField(max_length=255, null=True)),
                 ('employment_type', models.CharField(blank=True, choices=[('---select one---', 'select'), ('Regular Employee', 'REG'), ('Co-Terminus Employee', 'CT'), ('Job Order Employee', 'JO')], default='---select one---', max_length=80)),
                 ('designation', models.CharField(max_length=255, null=True)),
-                ('image', models.ImageField(blank=True, default='defaults/default_user_dp.png', upload_to=users.models.Profile.dp_directory_path, verbose_name='Profile Picture: ')),
+                ('image', models.ImageField(blank=True, default='defaults/default_user_dp.png', upload_to=users.models.EmployeeProfile.dp_directory_path, verbose_name='Profile Picture: ')),
                 ('slug', models.SlugField(blank=True, default='')),
                 ('department', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='users.department')),
                 ('jo_salary', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='users.jo_salary')),

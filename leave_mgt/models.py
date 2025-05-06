@@ -2,7 +2,7 @@ from django.db import models
 from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
-from users.models import User, Profile
+from users.models import User, EmployeeProfile
 import logging
 
 # Logger setup
@@ -42,7 +42,7 @@ class VL_Accrual(AccrualModel):
 
 
 class LeaveCredit(models.Model):
-    employee = models.OneToOneField(Profile, on_delete=models.CASCADE)
+    employee = models.OneToOneField(EmployeeProfile, on_delete=models.CASCADE)
 
     # Current Year Credits
     current_year_sl_credits = models.DecimalField(max_digits=5, decimal_places=2, default=0)

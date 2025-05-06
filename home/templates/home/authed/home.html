@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
-<div class="row">
+
 	<!-- CAROUSEL for PINNED ANNOUNCEMENTS -->
 	<div class="col-lg-4 col-sm-12">  <!-- Adjust the column size as needed -->
 	    <div id="announcementCarousel" class="carousel slide border60vh" data-ride="carousel">
@@ -48,77 +49,9 @@
       </small>
 	</div>
 
-<!-- LIST for ALL remaining ANNOUNCEMENTS -->
-<div class="col-lg-8 col-sm-12">
-    <h3>Older Announcements</h3>
-    <ul class="list-group">
-        {% for announcement in remaining_public %}
-            <li class="list-group-item">
-                <h5>{{ announcement.title }}</h5>
-                <p>{{ announcement.content|truncatechars:100|safe }}</p>
-                <small>by: {{ announcement.user }}</small>
-                <a href="{{ announcement.get_absolute_url }}" class="btn btn-link">Read More</a>
-            </li>
-        {% endfor %}
-    </ul>
-</div>
+
+	<!-- REAL CONTENT ############################################################################################################### -->
 
 
-<!-- reposition this -->
-<div class="col-8">
-	<!-- REAL CONTENT -->
-	{% if leave_requests.count == 0 %}
-	  <p> You have not filed for a leave request yet. Don't be shy. Work-Life balance, Man! </p>
-	{% endif %}
-
-	<div>
-		<p> leave instances </p>
-		approved leaves count: <b>{{approved_leave_count}}</b> <br>
-		pending leaves count:	<b>{{pending_leaves_count}}</b>
-		<p>
-		{% for leave in leave_requests %}
-			{{leave.leave_type}} - {{leave.start_date}} to {{leave.end_date}} - <b>{{leave.status}}</b><br>
-		{% endfor %}
-		</p>
-	</div>
-
-	<div>
-		filtered published announcement
-
-		<p>PINNED</p>
-		<ul>
-		{% for announcement in announcements %}
-			{% if announcement.published and announcement.is_pinned %}
-				<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
-			{% endif %}
-		{% endfor %}
-		</ul>
-
-
-		<p>for employees</p>
-		<ul>
-		{% for announcement in internal %}
-			{% if announcement.published %}
-				<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
-			{% endif %}
-		{% endfor %}
-		</ul>
-		
-		filtered draft announcement - staffs only
-		<ul>
-		{% for announcement in announcements %}
-			{% if not announcement.published %}
-			<li><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></li>
-			{% endif %}
-		{% endfor %}
-		</ul>
-
-	</div>
-</div>
-
-
-
-
-</div> <!-- row -->
 
 {% endblock content %}

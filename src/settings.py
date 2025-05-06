@@ -9,6 +9,8 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
+from dotenv import load_dotenv
+load_dotenv()  # take environment variables
 
 import os
 from pathlib import Path
@@ -32,10 +34,17 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'django.contrib.sites', # "just-in-case". allauth needs this.
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
     
     ### 3rd-party apps
-    'adminlte3',
-    'adminlte3_theme',
+    'adminlte4',
+    'adminlte4_theme',
     'crispy_forms',
     'crispy_bootstrap4',
     'django_crontab',
@@ -50,13 +59,7 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'leave_mgt.apps.LeaveMgtConfig',
 
-    'django.contrib.sites', # "just-in-case". allauth needs this.
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    
 ]
 
 MIDDLEWARE = [
@@ -175,17 +178,28 @@ SOCIALACCOUNT_PROVIDERS = {
         # (``socialaccount`` app) containing the required client
         # credentials, or list them here:
         'APP': {
-            'client_id': os.environ.get('GAUTH_CLIENTID'), # see tepong32 console
+            'client_id': os.environ.get('GAUTH_CLIENTID'), # see tepong32 console (Blogs!)
             'secret': os.environ.get('GAUTH_SECRET'),
             'key': ''
+        },
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
         }
     }
 }
 
-ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_ADAPTER = 'users.adapters.CustomSocialAccountAdapter' # custom adapter to handle user population from social accounts
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
-ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_AUTHENTICATION_METHOD = "username_email"
+ACCOUNT_UNIQUE_EMAIL = True
+
 
 
 LOGIN_REDIRECT_URL = 'home'     # needed for the login.html success instance

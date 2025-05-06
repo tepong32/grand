@@ -87,9 +87,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     # is_operations_manager  = models.BooleanField(default=False)
 
     ### personal info <-- this should match company records as much as possible
-    first_name          = models.CharField(max_length=50)
-    middle_name         = models.CharField(max_length=50, blank=True)
-    last_name           = models.CharField(max_length=50)
+    first_name          = models.CharField(max_length=50, null=True, blank=True)
+    middle_name         = models.CharField(max_length=50, null=True, blank=True)
+    last_name           = models.CharField(max_length=50, null=True, blank=True)
     ext_name            = models.CharField(max_length=3, blank=True, null=True, verbose_name="Extension")
 
     objects = CustomUserManager() # set the CustomUserManager() above instead of default UserManager() from django.contrib.auth
@@ -174,6 +174,7 @@ class Department(models.Model):
 
 class RegOrCT_Salary(models.Model):
     """
+    Salary setup for Regular and Co-Terminus Employees.
     Manual setup for each SG+Step since not all will be used.
     See Official Gazette for reference.
     """
@@ -191,6 +192,10 @@ class RegOrCT_Salary(models.Model):
 
 
 class JO_Salary(models.Model):
+    """
+    Salary setup for Job Order Employees.
+    Daily rate setup.
+    """
     daily_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True)
 
     class Meta:
@@ -201,13 +206,17 @@ class JO_Salary(models.Model):
         return f"Daily rate: {self.daily_rate}"
 
 
-class Profile(models.Model):
+class EmployeeProfile(models.Model):
+    """
+    Profile model for additional user information.
+    Only intended for HR use. Overly-sensitive information should not be stored here/displayed to other users.
+    """
     user            = models.OneToOneField(User, on_delete=models.CASCADE)
     contact_number  = models.CharField(max_length=11, null=True, blank=False,
                     validators=[MinLengthValidator(10)],
                     verbose_name="Contact Number") # intended only for HR use, will not be displayed to other users
     address         = models.CharField(max_length=255, null=True, blank=False)
-    note            = models.CharField(max_length=255, null=True, blank=False) # personal short note to other users
+    note            = models.CharField(max_length=255, null=True, blank=True) # personal short note to other users
 
     select  = "---select one---"
     REG     = "Regular Employee"
@@ -229,7 +238,7 @@ class Profile(models.Model):
     def dp_directory_path(instance, filename):
         # file will be uploaded to MEDIA_ROOT/DP/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
         return 'users/{}/DP/{}'.format(instance.user.username, filename)
-    image           = models.ImageField(default='defaults/default_user_dp.png', blank=True, upload_to=dp_directory_path, verbose_name="Profile Picture: ")
+    image           = models.ImageField(default='defaults/default_user_dp.png', blank=True, upload_to=dp_directory_path, verbose_name="Profile Image ")
     slug            = models.SlugField(default='', blank=True)
 
     def __str__(self):
@@ -256,11 +265,11 @@ class Profile(models.Model):
             base_slug = slugify(self.user.username)
             slug = base_slug
             counter = 1
-            while Profile.objects.filter(slug=slug).exists():
+            while EmployeeProfile.objects.filter(slug=slug).exists():
                 slug = f"{base_slug}-{counter}"
                 counter += 1
             self.slug = slug
-        super(Profile, self).save(*args, **kwargs)
+        super(EmployeeProfile, self).save(*args, **kwargs)
         logger.info("Profile saved.")
 
         img = Image.open(self.image.path)   # open the image of the current instance
@@ -268,3 +277,35 @@ class Profile(models.Model):
             output_size = (600, 600)
             img.thumbnail(output_size)
             img.save(self.image.path)
+
+
+
+class CitizenProfile(models.Model):
+    """
+    Profile model for additional user information on outside-th-org users.
+    """
+    user            = models.OneToOneField(User, on_delete=models.CASCADE)
+    contact_number  = models.CharField(max_length=11, null=True, blank=False,
+                    validators=[MinLengthValidator(10)],
+                    verbose_name="Contact Number") # intended only for HR use, will not be displayed to other users
+    address         = models.CharField(max_length=255, null=True, blank=False)
+    slug            = models.SlugField(default='', blank=True)
+    social_auth     = models.BooleanField(default=True) # for social media auth, set to true by default
+    
+    def __str__(self):
+        return f"{self.user.username}"
+    
+    def get_absolute_url(self):
+        return reverse('profile', kwargs={'slug': self.slug})
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.user.username)
+            slug = base_slug
+            counter = 1
+            while CitizenProfile.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
+        super(CitizenProfile, self).save(*args, **kwargs)
+        logger.info("Profile saved.")
