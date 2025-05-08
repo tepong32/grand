@@ -88,6 +88,8 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 # custom context processor/s
+                # all context data that needs to be available in the unAuthed pages should be included in this context_processor instead of in the views
+                # e.g.: in the navbar, downloadbles should always be available in all views so, instead of defining them per view, define them here
                 'leave_mgt.context_processors.dashboard_context',
             ],
         },
