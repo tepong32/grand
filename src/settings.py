@@ -34,13 +34,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.sites', # "just-in-case". allauth needs this.
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    
     
     ### 3rd-party apps
     'adminlte4',
@@ -59,6 +53,14 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'leave_mgt.apps.LeaveMgtConfig',
 
+    ### defaults
+    'django.contrib.sites', # "just-in-case". allauth needs this.
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
     
 ]
 
