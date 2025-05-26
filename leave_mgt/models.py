@@ -106,7 +106,7 @@ class LeaveCredit(models.Model):
         # Example: Add all of / a portion of (e.g., 50%) un-used current_year credits
         self.sl_credits_from_prev_yr += self.current_year_sl_credits  
 
-        # Add unused current year VL with a max carry-over of 20
+        # Add unused current year VL with a max carry-over of 20. CHANGE THIS IF YOU WANT TO CARRY OVER MORE THAN 20.
         self.vl_credits_from_prev_yr += min(self.current_year_vl_credits, 20)
 
         # Reset current year credits after transferring
@@ -126,7 +126,7 @@ class LeaveCredit(models.Model):
         for leave_credit in cls.objects.all():
             leave_credit.carry_over_credits()
             leave_credit.save()  # Save changes to the database
-        logger.info("Carried over unused leave credits.")
+        logger.info("carry_over_unused_credits() triggered. \nCarried over unused leave credits.")
     
     @classmethod
     def get_accrual_value(cls, accrual_model, default_value):
