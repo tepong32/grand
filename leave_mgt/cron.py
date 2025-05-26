@@ -11,7 +11,7 @@ def update_leave_credits_from_cronPy():
     # Use a transaction for accruing leave credits
     with transaction.atomic():
         LeaveCredit.update_leave_credits()  # Call the method to update leave credits
-        logger.info("Completed monthly leave credits accruals from update_leave_credits_from_cronPy()")
+        logger.info("CronJob: update_leave_credits_from_cronPy tiggered.")
 
 '''
 This file is for the crontab.CRONJOBS[] in settings.py file

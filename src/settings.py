@@ -34,13 +34,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.sites', # "just-in-case". allauth needs this.
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    
     
     ### 3rd-party apps
     'adminlte4',
@@ -59,6 +53,14 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'leave_mgt.apps.LeaveMgtConfig',
 
+    ### defaults
+    'django.contrib.sites', # "just-in-case". allauth needs this.
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
     
 ]
 
@@ -88,6 +90,8 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 # custom context processor/s
+                # all context data that needs to be available in the unAuthed pages should be included in this context_processor instead of in the views
+                # e.g.: in the navbar, downloadbles should always be available in all views so, instead of defining them per view, define them here
                 'leave_mgt.context_processors.dashboard_context',
             ],
         },
@@ -333,8 +337,10 @@ CRONJOBS = [
     # adjust settings and paths as needed
     # 00:05 of every 1st day of the month to trigger accrued=True + accrue addtl credits('2>&1' to redirect errors to the same file)
     # 00:05 of every 2nd day of the month to trigger accrued=False
-    ('5 0 1 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
-    ('5 0 2 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1')
+    # ('5 0 1 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
+    # ('5 0 2 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
+    ('2 * * * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
+    ('2 * * * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
 
 ]
 
