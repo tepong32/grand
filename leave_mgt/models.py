@@ -141,7 +141,7 @@ class LeaveCredit(models.Model):
             return default_value
 
     @classmethod
-    def accrue_leave_credits(cls):
+    def accrue_all_leave_credits(cls):
         """
         Accrues leave credits based on the defined accrual models or a default value.
         """
@@ -184,7 +184,7 @@ class LeaveCredit(models.Model):
 
             # Only accrue leave credits on the 1st day of the month
             if timezone.now().day == 1:
-                cls.accrue_leave_credits()
+                cls.accrue_all_leave_credits()
 
             # Annual Carry-over on January 1st
             if timezone.now().month == 1 and timezone.now().day == 1:
