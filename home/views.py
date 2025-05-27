@@ -26,7 +26,7 @@ from django.views.generic import (
 from .forms import AnnouncementForm
 from django.http import HttpResponse
 
-
+####################### VIEWS FOR THE GENERAL PUBLIC
 class UnauthedHomeView(ListView):
     model = Announcement
     template_name = 'home/unauthed/home.html'
