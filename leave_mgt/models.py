@@ -1,5 +1,5 @@
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.urls import reverse
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -142,12 +142,13 @@ class LeaveCredit(models.Model):
 
     @classmethod
     def accrue_leave_credits(cls):
-         """
+        """
         Accrues leave credits based on the defined accrual models or a default value.
         """
+        # Log the start of the accrual process
+        logger.info("Starting monthly leave credit accrual...")
+
         with transaction.atomic():
-            # Log the start of the accrual process
-            logger.info("Starting monthly leave credit accrual...")
             # Default accrual value
             default_sl_accrual = Decimal(1.2)
             default_vl_accrual = Decimal(1.2)
@@ -188,6 +189,8 @@ class LeaveCredit(models.Model):
             # Annual Carry-over on January 1st
             if timezone.now().month == 1 and timezone.now().day == 1:
                 cls.carry_over_unused_credits()
+            else:
+                logger.info("class method: Skipped accruals - not the 1st day of the month.")
 
         except Exception as e:
             logger.error(f"An error occurred during leave credit update: {e}", exc_info=True)
