@@ -334,13 +334,8 @@ CKEDITOR_5_FILE_UPLOAD_PERMISSION = "staff"  # Possible values: "staff", "authen
 
 CRONJOBS = [
     # minute hour day month weekday <command-to-execute>
-    # adjust settings and paths as needed
-    # 00:05 of every 1st day of the month to trigger accrued=True + accrue addtl credits('2>&1' to redirect errors to the same file)
-    # 00:05 of every 2nd day of the month to trigger accrued=False
-    # ('5 0 1 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
-    # ('5 0 2 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
-    ('2 * * * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
-    ('2 * * * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
+    ''' this is running every 5 minutes but has the day-check logic so, it's safe to run it every 5 minutes'''
+    ('*/5 * * * *', 'django.core.management.call_command', ['update_leave_credits'], '>> /logs/cron.log 2>&1'), # or full path in prod: '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'
 
 ]
 
