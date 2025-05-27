@@ -142,54 +142,55 @@ class LeaveCredit(models.Model):
 
     @classmethod
     def accrue_leave_credits(cls):
-        """
+         """
         Accrues leave credits based on the defined accrual models or a default value.
         """
-        for leave_credit in leave_credits:
-            logger.info(f"Processing leave credits for {leave_credit.employee.user.get_full_name()}")
-    
-        # Default accrual value
-        default_sl_accrual = Decimal(1.2)
-        default_vl_accrual = Decimal(1.2)
+        with transaction.atomic():
+            # Log the start of the accrual process
+            logger.info("Starting monthly leave credit accrual...")
+            # Default accrual value
+            default_sl_accrual = Decimal(1.2)
+            default_vl_accrual = Decimal(1.2)
 
-        # Get SL and VL Accrual values
-        sl_accrual_value = cls.get_accrual_value(SL_Accrual, default_sl_accrual)
-        vl_accrual_value = cls.get_accrual_value(VL_Accrual, default_vl_accrual)
+            # Get SL and VL Accrual values
+            sl_accrual_value = cls.get_accrual_value(SL_Accrual, default_sl_accrual)
+            vl_accrual_value = cls.get_accrual_value(VL_Accrual, default_vl_accrual)
 
-        # Iterate over all LeaveCredit instances
-        leave_credits = cls.objects.filter(credits_accrued_this_month=False)
-        for leave_credit in leave_credits:
-            # Update credits for each instance
-            leave_credit.current_year_sl_credits += sl_accrual_value
-            leave_credit.current_year_vl_credits += vl_accrual_value
-            leave_credit.credits_accrued_this_month = True
-            leave_credit.save()  # Save changes to the database
+            # Iterate over all LeaveCredit instances
+            leave_credits = cls.objects.filter(credits_accrued_this_month=False)
+            for leave_credit in leave_credits:
+                logger.info(f"Processing leave credits for {leave_credit.employee.user.get_full_name()}")
+                # Update credits for each instance
+                leave_credit.current_year_sl_credits += sl_accrual_value
+                leave_credit.current_year_vl_credits += vl_accrual_value
+                leave_credit.credits_accrued_this_month = True
+                leave_credit.save()  # Save changes to the database
+                
 
-            # Log the accrual
-            LeaveCreditLog.objects.create(action_type='Monthly credit accruals', leave_credits=leave_credit)
-            logger.info(f"Accrued {sl_accrual_value:.1f} sick leave and {vl_accrual_value:.1f} vacation leave credits for {leave_credit.employee.user.get_full_name()}.") #':.1f' format specifier ensures that the output is formatted as a floating-point number with one decimal place.
+                # Log the accrual
+                LeaveCreditLog.objects.create(action_type='Monthly credit accruals', leave_credits=leave_credit)
+                logger.info(f"Accrued {sl_accrual_value:.1f} sick leave and {vl_accrual_value:.1f} vacation leave credits for {leave_credit.employee.user.get_full_name()}.") #':.1f' format specifier ensures that the output is formatted as a floating-point number with one decimal place.
     
     
 
     @classmethod
     def update_leave_credits(cls):
-        """
-        Main method to be called by the cron job to update leave credits.
-        This method will call the other methods based on the schedule.
-        """
         try:
             logger.info("Updating leave credits...")
 
-            # Call the functions based on your schedule
-            cls.reset_accrual_flags()  # Call this every month
-            cls.accrue_monthly_leave_credits()  # Call this on the 1st of every month
-            # Annual Carry-over
+            # Reset accrual flags every month (probably 1st day, too)
+            cls.reset_accrual_flags()
+
+            # Only accrue leave credits on the 1st day of the month
+            if timezone.now().day == 1:
+                cls.accrue_leave_credits()
+
+            # Annual Carry-over on January 1st
             if timezone.now().month == 1 and timezone.now().day == 1:
-                cls.carry_over_unused_credits()  # Call this on January 1st
+                cls.carry_over_unused_credits()
 
         except Exception as e:
             logger.error(f"An error occurred during leave credit update: {e}", exc_info=True)
-
                 # Additional error handling (optional):
                 # - Send email notifications to admins
                 # - Retry the task later
