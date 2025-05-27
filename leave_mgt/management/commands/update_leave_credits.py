@@ -1,25 +1,26 @@
 from django.core.management.base import BaseCommand
 from leave_mgt.models import LeaveCredit
 from django.db import transaction
+from datetime import datetime
 import logging
 
-# Logger setup
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = 'Triggers the monthly accrual for LeaveCredit instances.'
+    help = 'Triggers the monthly accrual for LeaveCredit instances'
 
-    def handle(self, *args, **kwargs):
-        try:
-            logger.info("Starting leave credits update process...")
-            
-            # Ensure operations are atomic
-            with transaction.atomic():
-                LeaveCredit.update_leave_credits()
-            
-            logger.info("Leave credits update completed successfully.")
-        except Exception as e:
-            logger.error(f"Error while updating leave credits: {e}", exc_info=True)
+    def handle(self, *args, **options):
+        today = datetime.today()
+
+        # Only run on the 1st of the month
+        if today.day != 1:
+            logger.info("Skipped leave accrual – today is not the 1st of the month.")
+            return
+
+        with transaction.atomic():
+            LeaveCredit.update_leave_credits()
+            logger.info("Completed monthly leave credits accrual.")
+            self.stdout.write(self.style.SUCCESS('Leave credits updated successfully.'))
 
 
 '''
