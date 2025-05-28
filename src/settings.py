@@ -206,8 +206,9 @@ ACCOUNT_AUTHENTICATION_METHOD = "username_email"
 ACCOUNT_UNIQUE_EMAIL = True
 
 
-
-LOGIN_REDIRECT_URL = 'home'     # needed for the login.html success instance
+from django.urls import reverse_lazy
+LOGIN_REDIRECT_URL = reverse_lazy('home_redirect') # where to redirect after login
+LOGOUT_REDIRECT_URL = '/' # where to redirect after logout (unauthedhome)
 LOGIN_URL = 'login'             # for the @login_required decorator on user.views.profileView
 
 ### PASSWORD-RESETS AND MAILINGS

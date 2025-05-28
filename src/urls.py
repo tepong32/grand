@@ -2,7 +2,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth import views as auth_views     # for auths for logins and logouts
-from django.urls import path, include
+from django.urls import path, include, reverse_lazy
 from users.views import (
     register,
     employeeRegister,
@@ -20,6 +20,11 @@ class LoginView(auth_views.LoginView):
     def form_invalid(self, form):
         messages.error(self.request, 'Invalid username or password.')
         return super().form_invalid(form)
+    
+    # removed line due to redundancy, the default success URL is already set to 'home_redirect' in the home app
+    # def get_success_url(self):
+    #     '''Override the default success URL to redirect to the home page after login.'''
+    #     return reverse_lazy('home_redirect')  # Same as your '/' or LOGIN_SUCCESS_URL
 
 
 
