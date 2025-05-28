@@ -18,6 +18,7 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+load_dotenv(os.path.join(BASE_DIR, ".env"))  # take environment variables
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -205,8 +206,9 @@ ACCOUNT_AUTHENTICATION_METHOD = "username_email"
 ACCOUNT_UNIQUE_EMAIL = True
 
 
-
-LOGIN_REDIRECT_URL = 'home'     # needed for the login.html success instance
+from django.urls import reverse_lazy
+LOGIN_REDIRECT_URL = reverse_lazy('home_redirect') # where to redirect after login
+LOGOUT_REDIRECT_URL = '/' # where to redirect after logout (unauthedhome)
 LOGIN_URL = 'login'             # for the @login_required decorator on user.views.profileView
 
 ### PASSWORD-RESETS AND MAILINGS
@@ -328,21 +330,13 @@ CKEDITOR_5_FILE_UPLOAD_PERMISSION = "staff"  # Possible values: "staff", "authen
 # CK_EDITOR_5_UPLOAD_FILE_VIEW_NAME = "custom_upload_file"
 
 
+# commented out for windows compatibility
+# CRONJOBS = [
+#     # minute hour day month weekday <command-to-execute>
+#     ''' this is running daily at midnight '''
+#     ('0 0 * * *', 'leave_mgt.cron.update_leave_credits_from_cronPy', '>> /logs/cron.log 2>&1'), # prod path: /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'
 
-
-
-
-CRONJOBS = [
-    # minute hour day month weekday <command-to-execute>
-    # adjust settings and paths as needed
-    # 00:05 of every 1st day of the month to trigger accrued=True + accrue addtl credits('2>&1' to redirect errors to the same file)
-    # 00:05 of every 2nd day of the month to trigger accrued=False
-    # ('5 0 1 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
-    # ('5 0 2 * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
-    ('2 * * * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
-    ('2 * * * *', 'cron.update_leave_credits_from_cronPy', '>> /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'),
-
-]
+# ]
 
 
 import logging
@@ -358,6 +352,7 @@ LOGGING = {
         'verbose': {
             'format': '[{levelname}] {asctime} {module}.{funcName}:{lineno} - {message}',
             'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
         },
         'simple': {
             'format': '[{levelname}] {message}',
@@ -368,7 +363,7 @@ LOGGING = {
         'console': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
-            'formatter': 'simple'
+            'formatter': 'verbose'
         },
         'file': {
             'level': 'DEBUG',

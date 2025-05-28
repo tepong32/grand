@@ -67,6 +67,7 @@ def dashboard_context(request):
             'pending_leaves_count': pending_leaves_count,
 
             'server_time': server_time,
+            'downloadableforms': DownloadableForm.objects.all(),
         }
     return {
         'server_time': timezone.now,

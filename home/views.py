@@ -5,9 +5,8 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponseRedirect, Http404
 from django.shortcuts import redirect, render, get_object_or_404
+from django.contrib.auth.decorators import login_required
 from django.urls import reverse
-
-
 
 
 from .models import Announcement, OrgPersonnel, DepartmentContact, DownloadableForm
@@ -26,12 +25,17 @@ from django.views.generic import (
 from .forms import AnnouncementForm
 from django.http import HttpResponse
 
-
+####################### VIEWS FOR THE GENERAL PUBLIC
 class UnauthedHomeView(ListView):
     model = Announcement
     template_name = 'home/unauthed/home.html'
     context_object_name = 'announcements'
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboard
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
@@ -92,8 +96,6 @@ class OrgChartView(ListView):
         return context
 
 
-
-
 ####################### VIEWS THAT NEED AUTHENTICATION (INTERNAL VIEWS)
 class AuthedHomeView(LoginRequiredMixin, ListView):
     model = Announcement
@@ -116,20 +118,16 @@ class AuthedHomeView(LoginRequiredMixin, ListView):
         })
         return context
 
-
-
-        
 class AnnouncementList(ListView):
     model = Announcement
     template_name = 'home/authed/announcements_list.html'
     context_object_name = 'announcements'
     ordering    =   ['-created_at']
 
-
 class CreateAnnouncement(LoginRequiredMixin, CreateView):       
     model = Announcement
     form_class = AnnouncementForm
-    template_name = 'home/authed/create_announcement.html'
+    template_name = 'home/authed/announcement_create.html'
     success_message = "Announcement successfully posted"
     success_url = '/'
 
@@ -138,7 +136,6 @@ class CreateAnnouncement(LoginRequiredMixin, CreateView):
         announcement = form.save()  # Save the form and get the instance
         messages.success(self.request, self.success_message)
         return redirect('announcement-detail', slug=announcement.slug)  # Redirect to the detail view using the slug
-
 
 class AnnouncementDetail(DetailView):
     model = Announcement
@@ -154,11 +151,10 @@ class AnnouncementDetail(DetailView):
             raise Http404("You do not have permission to view this announcement.")
         return announcement
 
-
 class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Announcement 
     form_class = AnnouncementForm
-    template_name = 'home/authed/update_announcement.html'
+    template_name = 'home/authed/announcement_update.html'
     success_message = "Announcement updated"
     # success_url = '/'
 
@@ -173,10 +169,9 @@ class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             return True
         return False
 
-
 class DeleteAnnouncement(LoginRequiredMixin, UserPassesTestMixin, DeleteView):      
     model = Announcement
-    template_name = 'home/authed/delete_announcement.html'
+    template_name = 'home/authed/announcement_delete.html'
     success_message = "Announcement deleted"
     success_url = '/'
 
@@ -191,7 +186,6 @@ class DeleteAnnouncement(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         if self.request.user == announcement.user:
             return True
         return False      
-
 
 def announcement_search_view(request, *args, **kwargs):
     context = {}
@@ -217,3 +211,54 @@ def announcement_search_view(request, *args, **kwargs):
             print("Search query:", search_query)
                 
     return render(request, "home/unauthed/announcement_search_results.html", context)
+
+
+@login_required
+def department_dashboard_redirect(request):
+    """
+    Redirects users to their respective department dashboards based on their department.
+    """
+    user = request.user.employeeprofile
+    print("Logged-in user's department:", user.department.name)
+    department_name = user.department.name  # since we used ForeignKeys for departments and not just strings. Hence, we access the "name" attribute.
+    
+
+    if department_name == "Human Resource Management Office":
+        return redirect('hr_dashboard')
+    elif department_name == "Accounting Office":
+        return redirect('acctg_dashboard')
+    elif department_name == "General Services Office":
+        return redirect('gso_dashboard')
+    else:
+        return redirect('default_dashboard')
+    
+    # Note: The department dashboard URLs(names) ('hr_dashboard', 'finance_dashboard', etc.) should be defined in your urls.py file.
+
+### department-based dashboards
+### These views are for the department-specific dashboards that users are redirected to after login.
+### Add more department dashboards as needed.
+
+from .decorators.check_department import department_required    # see decorators/check_department.py for the department_required decorator
+
+
+@login_required
+@department_required("Human Resource Management Office")
+def hr_dashboard(request):
+    return render(request, 'home/authed/dashboards/hr.html')
+
+@login_required
+@department_required("Accounting Office")
+def acctg_dashboard(request):
+    return render(request, 'home/authed/dashboards/acctg.html')
+
+@login_required
+@department_required("General Services Office")
+def gso_dashboard(request):
+    return render(request, 'home/authed/dashboards/gso.html')
+
+@login_required
+def default_dashboard(request):
+    return render(request, 'home/authed/dashboards/default.html')
+
+def unauthorized_access_view(request):
+    return render(request, 'home/authed/dashboards/403_unauthorized.html', status=403)
