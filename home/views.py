@@ -129,7 +129,7 @@ class AnnouncementList(ListView):
 class CreateAnnouncement(LoginRequiredMixin, CreateView):       
     model = Announcement
     form_class = AnnouncementForm
-    template_name = 'home/authed/create_announcement.html'
+    template_name = 'home/authed/announcement_create.html'
     success_message = "Announcement successfully posted"
     success_url = '/'
 
@@ -158,7 +158,7 @@ class AnnouncementDetail(DetailView):
 class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Announcement 
     form_class = AnnouncementForm
-    template_name = 'home/authed/update_announcement.html'
+    template_name = 'home/authed/announcement_update.html'
     success_message = "Announcement updated"
     # success_url = '/'
 
@@ -176,7 +176,7 @@ class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
 class DeleteAnnouncement(LoginRequiredMixin, UserPassesTestMixin, DeleteView):      
     model = Announcement
-    template_name = 'home/authed/delete_announcement.html'
+    template_name = 'home/authed/announcement_delete.html'
     success_message = "Announcement deleted"
     success_url = '/'
 
