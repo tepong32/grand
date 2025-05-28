@@ -14,7 +14,9 @@ from .views import (
     department_dashboard_redirect,
     hr_dashboard,
     acctg_dashboard,
-    gso_dashboard
+    gso_dashboard,
+
+    unauthorized_access_view,
     )
 
 
@@ -39,6 +41,7 @@ urlpatterns = [
     path('home/acctg/', acctg_dashboard, name='acctg_dashboard'),
     path('home/gso/', gso_dashboard, name='gso_dashboard'),
     # path('home/it', it_dashboard, name='it_dashboard'),  # IT dashboard not implemented yet
+    path('unauthorized/', unauthorized_access_view, name='unauthorized_access'),
 
 
 

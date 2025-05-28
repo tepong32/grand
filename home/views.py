@@ -232,23 +232,33 @@ def department_dashboard_redirect(request):
     else:
         return redirect('default_dashboard')
     
-    # Note: The department dashboard URLs ('hr_dashboard', 'finance_dashboard', etc.) should be defined in your urls.py file.
+    # Note: The department dashboard URLs(names) ('hr_dashboard', 'finance_dashboard', etc.) should be defined in your urls.py file.
 
 ### department-based dashboards
 ### These views are for the department-specific dashboards that users are redirected to after login.
 ### Add more department dashboards as needed.
+
+from .decorators.check_department import department_required    # see decorators/check_department.py for the department_required decorator
+
+
 @login_required
+@department_required("Human Resource Management Office")
 def hr_dashboard(request):
     return render(request, 'home/authed/dashboards/hr.html')
 
 @login_required
+@department_required("Accounting Office")
 def acctg_dashboard(request):
     return render(request, 'home/authed/dashboards/acctg.html')
 
 @login_required
+@department_required("General Services Office")
 def gso_dashboard(request):
     return render(request, 'home/authed/dashboards/gso.html')
 
 @login_required
 def default_dashboard(request):
     return render(request, 'home/authed/dashboards/default.html')
+
+def unauthorized_access_view(request):
+    return render(request, 'home/authed/dashboards/403_unauthorized.html', status=403)
