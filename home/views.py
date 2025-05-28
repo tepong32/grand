@@ -5,9 +5,8 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponseRedirect, Http404
 from django.shortcuts import redirect, render, get_object_or_404
+from django.contrib.auth.decorators import login_required
 from django.urls import reverse
-
-
 
 
 from .models import Announcement, OrgPersonnel, DepartmentContact, DownloadableForm
@@ -32,6 +31,11 @@ class UnauthedHomeView(ListView):
     template_name = 'home/unauthed/home.html'
     context_object_name = 'announcements'
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboard
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
@@ -92,8 +96,6 @@ class OrgChartView(ListView):
         return context
 
 
-
-
 ####################### VIEWS THAT NEED AUTHENTICATION (INTERNAL VIEWS)
 class AuthedHomeView(LoginRequiredMixin, ListView):
     model = Announcement
@@ -116,15 +118,11 @@ class AuthedHomeView(LoginRequiredMixin, ListView):
         })
         return context
 
-
-
-        
 class AnnouncementList(ListView):
     model = Announcement
     template_name = 'home/authed/announcements_list.html'
     context_object_name = 'announcements'
     ordering    =   ['-created_at']
-
 
 class CreateAnnouncement(LoginRequiredMixin, CreateView):       
     model = Announcement
@@ -139,7 +137,6 @@ class CreateAnnouncement(LoginRequiredMixin, CreateView):
         messages.success(self.request, self.success_message)
         return redirect('announcement-detail', slug=announcement.slug)  # Redirect to the detail view using the slug
 
-
 class AnnouncementDetail(DetailView):
     model = Announcement
     template_name = 'home/authed/announcement_detail.html'
@@ -153,7 +150,6 @@ class AnnouncementDetail(DetailView):
             # If the announcement is unpublished and the user is not staff, raise a 404
             raise Http404("You do not have permission to view this announcement.")
         return announcement
-
 
 class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Announcement 
@@ -173,7 +169,6 @@ class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             return True
         return False
 
-
 class DeleteAnnouncement(LoginRequiredMixin, UserPassesTestMixin, DeleteView):      
     model = Announcement
     template_name = 'home/authed/announcement_delete.html'
@@ -191,7 +186,6 @@ class DeleteAnnouncement(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         if self.request.user == announcement.user:
             return True
         return False      
-
 
 def announcement_search_view(request, *args, **kwargs):
     context = {}
@@ -217,3 +211,44 @@ def announcement_search_view(request, *args, **kwargs):
             print("Search query:", search_query)
                 
     return render(request, "home/unauthed/announcement_search_results.html", context)
+
+
+@login_required
+def department_dashboard_redirect(request):
+    """
+    Redirects users to their respective department dashboards based on their department.
+    """
+    user = request.user.employeeprofile
+    print("Logged-in user's department:", user.department.name)
+    department_name = user.department.name  # since we used ForeignKeys for departments and not just strings. Hence, we access the "name" attribute.
+    
+
+    if department_name == "Human Resource Management Office":
+        return redirect('hr_dashboard')
+    elif department_name == "Accounting Office":
+        return redirect('acctg_dashboard')
+    elif department_name == "General Services Office":
+        return redirect('gso_dashboard')
+    else:
+        return redirect('default_dashboard')
+    
+    # Note: The department dashboard URLs ('hr_dashboard', 'finance_dashboard', etc.) should be defined in your urls.py file.
+
+### department-based dashboards
+### These views are for the department-specific dashboards that users are redirected to after login.
+### Add more department dashboards as needed.
+@login_required
+def hr_dashboard(request):
+    return render(request, 'home/authed/dashboards/hr.html')
+
+@login_required
+def acctg_dashboard(request):
+    return render(request, 'home/authed/dashboards/acctg.html')
+
+@login_required
+def gso_dashboard(request):
+    return render(request, 'home/authed/dashboards/gso.html')
+
+@login_required
+def default_dashboard(request):
+    return render(request, 'home/authed/dashboards/default.html')
