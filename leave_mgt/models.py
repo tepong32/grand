@@ -80,21 +80,6 @@ class LeaveCredit(models.Model):
         cls.objects.all().update(credits_accrued_this_month=False)
         logger.info("Reset monthly accrual flag to False.")
 
-    @classmethod
-    def accrue_monthly_leave_credits(cls):
-        """
-        Accrues leave credits for all employees who haven't accrued credits this month.
-        This can be called on a scheduled basis.
-        """
-        leave_credits = cls.objects.filter(credits_accrued_this_month=False)
-        if leave_credits.exists():
-            for leave_credit in leave_credits:
-                leave_credit.accrue_leave_credits()  # This will call the instance method
-                leave_credit.save()  # Save changes to the database
-            logger.info("Accrued monthly leave credits successfully.")
-        else:
-            logger.warning("All leave credits have already been accrued for this month. No action taken.")
-
     def carry_over_credits(self):
         """
         Carries over un-used Leave credits from the current year to credits_from_prev_yr, 
