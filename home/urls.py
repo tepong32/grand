@@ -24,6 +24,7 @@ urlpatterns = [
     path('announcement/create/', CreateAnnouncement.as_view(), name='create-announcement'),
     path('announcement/<str:slug>/', AnnouncementDetail.as_view(), name='announcement-detail'),
     path('announcement/<str:slug>/update/', UpdateAnnouncement.as_view(), name='update-announcement'),
+    path('announcement/<str:slug>/delete/', DeleteAnnouncement.as_view(), name='delete-announcement'),
     path('announcements/', AnnouncementList.as_view(), name='announcements'),
 
 
