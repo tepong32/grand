@@ -220,7 +220,7 @@ def department_dashboard_redirect(request):
     """
     user = request.user.employeeprofile
     print("Logged-in user's department:", user.department.name)
-    department_name = user.department.name  # since we used ForeignKeys for departments and not just strings. Hence, we access the "name" attribute.
+    department_name = user.department.name  # since we used ForeignKeys for departments and not just strings. Hence, we access the ".name" attribute.
     
 
     if department_name == "Human Resource Management Office":
