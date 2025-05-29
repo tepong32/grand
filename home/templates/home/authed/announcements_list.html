@@ -10,7 +10,7 @@
 	<div class="announcement-meta">
 		<ul>
 			{% for a in announcements %}
-				<strong><a href="{% url 'announcement-detail' a.slug %}"><p>{{a.title}}</p></a></strong>
+				<strong><a href="{% url 'announcement-detail' a.slug %}"><p>{{a.title.title}}</p></a></strong>
 			{% endfor %}
 		</ul>
 		
