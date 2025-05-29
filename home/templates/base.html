@@ -36,15 +36,7 @@ scratch. This page gets rid of all links and provides the needed markup only.
   {% endif %}
   
   <!-- Alerts (upper right corner of the page) -->
-  <div id="alert-container" class="alert-container">
-    {% if messages %}
-      {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">
-            {{ message }}
-        </div>
-      {% endfor %}
-    {% endif %}
-  </div>
+  {% include 'components/alert.html' with messages=messages %}
   
 
   <!-- Content Wrapper. Contains page content -->
