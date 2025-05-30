@@ -31,7 +31,7 @@ urlpatterns = [
     path('announcement/<str:slug>/', AnnouncementDetail.as_view(), name='announcement-detail'),
     path('announcement/<str:slug>/update/', UpdateAnnouncement.as_view(), name='update-announcement'),
     path('announcement/<str:slug>/delete/', DeleteAnnouncement.as_view(), name='delete-announcement'),
-    path('announcements/', AnnouncementList.as_view(), name='announcements'),
+    path('announcements/', AnnouncementList.as_view(), name='announcements-list'),
     
 
     # redirects: After login, redirect to the home page based on the user's department
