@@ -46,14 +46,15 @@
 {% comment %} <!-- Navbar Large Screen--> {% endcomment %}
   <nav class="main-header navbar navbar-expand navbar-white navbar-light text-sm">
     {% comment %} <!-- Left navbar links --> {% endcomment %}
-    <ul class="navbar-nav">
-      {% comment %} <!-- Home --> {% endcomment %}
-      <a href="/" class="nav-link d-none d-lg-block" title="Home">
+     {% comment %} <!-- Home --> {% endcomment %}
+     <a href="/" class="nav-link d-none d-lg-block" title="Home">
           {% comment %} <!-- Brand Logo --> {% endcomment %}
           <img src="/media/defaults/jjv.png" alt="LMS Logo" class="border"
                style="height: 45px; border-radius: 10%; position: relative;">
       </a>
+    
 
+    <ul class="navbar-nav">
       {% comment %} <!-- Flexing? --> {% endcomment %}
       <li class="nav-item d-none d-lg-block">
         <a href="#" class="nav-link" title="">
@@ -123,15 +124,14 @@
 
   {% comment %} <!-- Navbar Small Screen --> {% endcomment %}
   <nav class="main-header navbar navbar-expand navbar-white navbar-light text-sm d-lg-none d-sm-inline-block">
-    {% comment %} <!-- Left navbar links --> {% endcomment %}
-    <ul class="navbar-nav d-lg-none d-sm-inline-block">
-      {% comment %} <!-- Home --> {% endcomment %}
+    {% comment %} <!-- Home --> {% endcomment %}
       <a href="/" class="nav-link" title="Home">
           {% comment %} <!-- Brand Logo --> {% endcomment %}
           <img src="/media/defaults/jjv.png" alt="LMS Logo" class="border"
                style="height: 45px; border-radius: 10%; position: relative;">
       </a>
-
+    {% comment %} <!-- Left navbar links --> {% endcomment %}
+    <ul class="navbar-nav d-lg-none d-sm-inline-block">
       {% comment %} <!-- All Users List --> {% endcomment %}
       <li class="nav-item">
         <a href="#" class="nav-link" title="">
@@ -168,7 +168,7 @@
     </ul>
 
     {% comment %} <!-- SEARCH FORM --> {% endcomment %}
-    <form class="form-inline d-lg-none d-sm-inline-block col-4" action="{% url 'search' %}" method="get">
+    <form class="form-inline d-lg-none d-sm-none col-4" action="{% url 'search' %}" method="get">
       <div class="input-group input-group-sm">
           <input class="form-control form-control-navbar" type="search" name="q" placeholder="Search" aria-label="Announcement Search">
           <div class="input-group-append">
