@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from .models import User, EmployeeProfile, Department
 from django.contrib import messages     # for flash messages regarding valid data in the form
 from leave_mgt.models import LeaveCredit
@@ -68,22 +68,25 @@ def employeeRegister(request):
 
 @login_required ###previously-used decorator dj2.1.5
 def profileView(request, username=None):
-    if User.objects.get(username=username):
-        user = User.objects.get(username=username)
-        context = {
-            "user": user,
-        }
-        leave_credits = None
-        if request.user.is_authenticated:
-            try:
-                leave_credits = LeaveCredit.objects.get(employee=request.user.employeeprofile) #since LeaveCredit is related to Profile; not User
-            except LeaveCredit.DoesNotExist:
-                pass # Or handle the case where it's not found: like messages.danger('no leave credits accumulated yet')?
+    # This ensures you get a 404 if the user doesn't exist
+    user = get_object_or_404(User, username=username)
 
-        context['leave_credits'] = leave_credits
-        return render(request, 'users/profile.html', context)
-    else:
-        return render ("User not found.")
+    # LeaveCredit lookup is only relevant for the currently logged-in user's profile
+    leave_credits = None
+    if request.user == user:
+        try:
+            leave_credits = LeaveCredit.objects.get(employee=request.user.employeeprofile)
+        except LeaveCredit.DoesNotExist:
+            messages.warning(request, "No leave credits recorded yet.")
+
+    context = {
+        "viewed_user": user,
+        "leave_credits": leave_credits,
+    }
+
+    return render(request, 'users/profile.html', context)
+
+
 
 
 @login_required

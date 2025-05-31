@@ -50,27 +50,27 @@
         <div class="card-body box-profile">
           <div class="text-center">
             <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5"
-           src="{{user.employeeprofile.image.url}}"
+           src="{{viewed_user.employeeprofile.image.url}}"
            alt="User profile picture" style="width: 250px; height: 250px">
           </div>
           
           <!-- check logic here -->
           <!-- see if addtl if-block is needed -->
-            <h2 class="profile-username text-center">{{user.get_full_name}}</h2>
+            <h2 class="profile-username text-center">{{viewed_user.get_full_name}}</h2>
             <small class="float-right ml-5">
-              <a title="Edit profile" class="fa fa-edit" href="{% url 'profile-edit' user.username %}"> Edit</a>
+              <a title="Edit profile" class="fa fa-edit" href="{% url 'profile-edit' viewed_user.username %}"> Edit</a>
             </small>
 
-          <p class="text-sm text-muted text-center"><i>{{user.employeeprofile.department}}</i></p>
+          <p class="text-sm text-muted text-center"><i>{{viewed_user.employeeprofile.department}}</i></p>
 
           <ul class="list-group list-group-unbordered mb-3">
             <li class="list-group-item">
-              <b>Dept. Head:</b> <a class="float-right"><b>{{user.employeeprofile.department.manager}}</b></a>
+              <b>Dept. Head:</b> <a class="float-right"><b>{{viewed_user.employeeprofile.department.manager}}</b></a>
             </li>
             <li class="list-group-item">
               <b>Designation</b>
                 {% if request.user == user %}
-                  <i class="float-right">{{user.employeeprofile.designation}}</i>
+                  <i class="float-right">{{viewed_user.employeeprofile.designation}}</i>
                 {% else %}
                   **</i>
                 {% endif %}
@@ -79,15 +79,15 @@
             <li class="list-group-item">
               <b>Employment Type:</b>
                 {% if request.user == user %}
-                  <i class="float-right">{{user.employeeprofile.employment_type}}</i> <br>
-                  <p class="float-right">@ {{user.employeeprofile.get_salary|currency }}</p>
+                  <i class="float-right">{{viewed_user.employeeprofile.employment_type}}</i> <br>
+                  <p class="float-right">@ {{viewed_user.employeeprofile.get_salary|currency }}</p>
                 {% else %}
                   <i>**</i>
                 {% endif %}
             </li>
           </ul>
 
-          <a href="#" class="btn btn-primary btn-block"><b>{{user.employeeprofile.get_salary|currency }}</b></a>
+          <a href="#" class="btn btn-primary btn-block"><b>{{viewed_user.employeeprofile.get_salary|currency }}</b></a>
         </div>
         <!-- /.card-body -->
       </div>
@@ -97,32 +97,43 @@
       <div class="card card-secondary col ml-1">
         <div class="card-header">
           <div class="card-title row">
-            {% if user.employeeprofile.note %}
-            <a href="{% url 'profile-edit' user.username %}"><i>{{user.employeeprofile.note|safe}}</i></a>
+            {% if viewed_user.employeeprofile.note %}
+            <a href="{% url 'profile-edit' user.username %}"><i>{{viewed_user.employeeprofile.note|safe}}</i></a>
             {% else %}
-              {% if user == request.user %}
+              {% if viewed_user == request.user %}
                 <small><i>"A heads-up note to others. Example: Away for the meantime until mm/dd/yy."</i></small>
-                <a href="{% url 'profile-edit' user.username %}"><i title="Edit profile" class="fa fa-edit"></i></a>
+                <a href="{% url 'profile-edit' viewed_user.username %}"><i title="Edit profile" class="fa fa-edit"></i></a>
               {% endif %}
             {% endif %}
           </div>
         </div>
         <!-- /.card-header -->
         <div class="card-body">
-          <p>
-            Username: {{user.username}} <br>
-            Email: {{user.email}}
-          </p>
+          <div class="row">
+            <div class="col-6">
+              <strong><i class="fas fa-phone-alt mr-1"></i> Phone</strong>
+              <p class="text-muted">{{viewed_user.employeeprofile.contact_number}}</p>
+              <strong><i class="fas fa-phone-alt mr-1"></i> Email</strong>
+              <p class="text-muted">{{viewed_user.email}}</p>
+            </div>
+
+            <div class="col-6">
+              {% if leave_credits %}
+                <strong><i class="fas fa-calendar-alt mr-1"></i> Leave Credits</strong>
+                <p class="text-muted">
+                  Sick: {{ leave_credits.sick_leave }} days<br>
+                  Vacation: {{ leave_credits.vacation_leave }} days
+                </p>
+              {% endif %}
+            </div>
+          </div>
 
           <hr>
 
           <strong><i class="fas fa-map-marker-alt mr-1"></i> Location</strong>
 
-          <p class="text-muted">{{user.employeeprofile.address}}</p>
+          <p class="text-muted">{{viewed_user.employeeprofile.address}}</p>
 
-          <strong><i class="fas fa-phone-alt mr-1"></i> Phone</strong>
-
-          <p class="text-muted">{{user.employeeprofile.contact_number}}</p>
 
           <hr>
 
@@ -138,7 +149,7 @@
 
           <hr>
 
-          <strong><i class="mr-1"></i>Member since {{ user.date_joined|date:"F Y" }}</strong>
+          <strong><i class="mr-1"></i>Member since {{ viewed_user.date_joined|date:"F Y" }}</strong>
 
         </div>
         <!-- /.card-body -->
@@ -151,7 +162,7 @@
   <!-- modal for Profile Image // don't touch this -->
   <div id="image-modal" class="modal fade" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-md" role="document">
-      <div class="modal-content" title="{{user.username}}">
+      <div class="modal-content" title="{{viewed_user.username}}">
         <!-- <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-label="Close">
             <span aria-hidden="true">&times;</span>
