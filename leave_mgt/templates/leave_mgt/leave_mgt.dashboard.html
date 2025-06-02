@@ -16,7 +16,7 @@
         </li>
         
         <li class="nav-item">
-            <a class="nav-link" id="leave-credits-tab" data-toggle="tab" href="#leave-credits" role="tab" aria-controls="leave-credits" aria-selected="false">Leave Credits Overview</a>
+            <a class="nav-link" id="leave-balances-tab" data-toggle="tab" href="#leave-balances" role="tab" aria-controls="leave-balances" aria-selected="false">Leave Balances</a>
         </li>
         <li class="nav-item">
 
@@ -117,50 +117,46 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for request in leave_requests %}
-                      {% if request.status == 'PENDING' %}
-                        <tr>
-                          <!-- <td>{{ request.employee.employee.user.get_full_name }}</td> -->
-                          <td>{{ request.get_leave_type_display }}</td>
-                          <td class="text-sm">{{ request.start_date }} to {{ request.end_date }}</td>
-                          <td>
-                            <span class="badge badge-{% if request.status == 'PENDING' %}warning
-                                                    {% elif request.status == 'APPROVED' %}success
-                                                    {% elif request.status == 'REJECTED' %}danger
-                                                    {% else %}secondary{% endif %}">
-                                {{ request.get_status_display }}
-                            </span>
-                          </td>
-                          <td class="text-center" title="{{request.notes}}">
-                            <a href="{% url 'leave_update' request.pk %}" class="btn btn-info btn-sm"><small>Update</small></a>
-                            <a href="{% url 'leave_delete' request.pk %}" class="btn btn-danger btn-sm"><small>Cancel</small></a>
-                          </td>
-                          <td class="text-sm">{{ request.date_filed }}</td>
-                        </tr>
-
-                      {% else %}
-                        <tr>
-                          <!-- <td>{{ request.employee.employee.user.get_full_name }}</td> -->
-                          <td>{{ request.get_leave_type_display }}</td>
-                          <td class="text-sm">
-                            {{ request.start_date }} to {{ request.end_date }}
-                             <small class="text-muted">Balance: {{ request.leave_credit.get_current_balance_display }}</small>
-                          </td>
-                          <td>{{ request.get_status_display }}</td>
-                          <td>{{ request.notes }}</td>
-                          <td class="text-sm">{{ request.date_filed }}</td>
-                        </tr>
-                      {% endif %}
-                    {% empty %}
+                {% for request in leave_requests %}
                     <tr>
-                        <td colspan="7">No leave requests found.</td>
+                    <!-- <td>{{ request.employee.employee.user.get_full_name }}</td> -->
+                    <td>{{ request.get_leave_type_display }}</td>
+                    <td class="text-sm">{{ request.start_date }} to {{ request.end_date }}</td>
+
+                    <!-- Status Badge with color -->
+                    <td>
+                        <span class="badge badge-{% if request.status == 'PENDING' %}warning{% elif request.status == 'APPROVED' %}success{% elif request.status == 'REJECTED' %}danger{% else %}secondary{% endif %}">
+                        {{ request.get_status_display }}
+                        </span>
+                    </td>
+
+                    <!-- Notes or Actions -->
+                    <td class="text-center" title="{{ request.notes }}">
+                        {% if request.status == 'PENDING' %}
+                        <a href="{% url 'leave_update' request.pk %}" class="btn btn-info btn-sm">
+                            <small>Update</small>
+                        </a>
+                        <a href="{% url 'leave_delete' request.pk %}" class="btn btn-danger btn-sm">
+                            <small>Cancel</small>
+                        </a>
+                        {% else %}
+                        {{ request.notes }}
+                        {% endif %}
+                    </td>
+
+                    <td class="text-sm">{{ request.date_filed }}</td>
                     </tr>
-                    {% endfor %}
+                {% empty %}
+                    <tr>
+                    <td colspan="7">No leave requests found.</td>
+                    </tr>
+                {% endfor %}
                 </tbody>
+
             </table>
         </div>
 
-        <div class="tab-pane fade" id="leave-credits" role="tabpanel" aria-labelledby="leave-credits-tab">
+        <div class="tab-pane fade" id="leave-balances" role="tabpanel" aria-labelledby="leave-balances-tab">
             <table class="table table-sm">
                 <thead>
                     <tr>
