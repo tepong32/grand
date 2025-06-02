@@ -30,6 +30,17 @@ class UnauthedHomeView(ListView):
     model = Announcement
     template_name = 'home/unauthed/home.html'
     context_object_name = 'announcements'
+
+    ### removed this line as i want even logged-in users to see the announcements on the home page, too
+    ### with this block, they will be redirected to their respective department dashboards when trying to view the unauthed home page.
+    # def dispatch(self, request, *args, **kwargs):
+    #     """
+    #     Redirects authenticated users to their respective department dashboards.
+    #     If the user is not authenticated, it proceeds with the normal dispatch: ListView behavior.
+    #     """
+    #     if request.user.is_authenticated:
+    #         return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboards
+    #     return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -96,15 +107,6 @@ class AuthedHomeView(LoginRequiredMixin, ListView):
     model = Announcement
     template_name = 'home/authed/home.html'
     context_object_name = 'announcements'
-
-    def dispatch(self, request, *args, **kwargs):
-        """
-        Redirects authenticated users to their respective department dashboards.
-        If the user is not authenticated, it proceeds with the normal dispatch: ListView behavior.
-        """
-        if request.user.is_authenticated:
-            return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboards
-        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -234,9 +236,9 @@ def department_dashboard_redirect(request):
     elif department_name == "General Services Office":
         return redirect('gso_dashboard')
     else:
-        return redirect('default_dashboard')
+        return redirect('home')  # Redirect to the default dashboard if no specific department dashboard is defined
     
-    # Note: The department dashboard URLs(names) ('hr_dashboard', 'finance_dashboard', etc.) should be defined in your urls.py file.
+    # Note: The department dashboard URLs(names) ('hr_dashboard', 'finance_dashboard', etc.) should be the names defined in your urls.py file.
 
 ### department-based dashboards
 ### These views are for the department-specific dashboards that users are redirected to after login.
@@ -259,10 +261,6 @@ def acctg_dashboard(request):
 @department_required("General Services Office")
 def gso_dashboard(request):
     return render(request, 'home/authed/dashboards/gso.html')
-
-@login_required
-def default_dashboard(request):
-    return render(request, 'home/authed/dashboards/default.html')
 
 def unauthorized_access_view(request):
     return render(request, 'home/authed/dashboards/403_unauthorized.html', status=403)
