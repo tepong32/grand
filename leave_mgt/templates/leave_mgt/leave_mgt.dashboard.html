@@ -16,12 +16,16 @@
         </li>
         
         <li class="nav-item">
-            <a class="nav-link" id="leave-credits-tab" data-toggle="tab" href="#leave-credits" role="tab" aria-controls="leave-credits" aria-selected="false">Leave Credits Overview</a>
+            <a class="nav-link" id="leave-balances-tab" data-toggle="tab" href="#leave-balances" role="tab" aria-controls="leave-balances" aria-selected="false">Leave Balances</a>
         </li>
         <li class="nav-item">
 
             <a class="nav-link" id="leave-statistics-tab" data-toggle="tab" href="#leave-statistics" role="tab" aria-controls="leave-statistics" aria-selected="false">Leave Statistics</a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" id="recent-activity-tab" data-toggle="tab" href="#recent-activity" role="tab" aria-controls="recent-activity" aria-selected="false">Recent Activity</a>
+        </li>
+
     </ul>
     <div class="tab-content" id="myTabContent">
         <div class="tab-pane fade show active" id="accrual-history" role="tabpanel" aria-labelledby="accrual-history-tab">
@@ -46,16 +50,42 @@
                     {% endfor %}
                 </tbody>
             </table>
-            <div class="float-right">
-                {% if accrual_logs.has_previous %}
-                    <a href="?page={{ accrual_logs.previous_page_number }}">Previous</a>
-                {% endif %}
-                
-                {% if accrual_logs.has_next %}
-                    <a href="?page={{ accrual_logs.next_page_number }}">Next</a>
-                {% endif %}
-                Page {{ accrual_logs.number }} of {{ accrual_logs.paginator.num_pages }}
-            </div>
+            <nav aria-label="Accrual logs pagination">
+                <ul class="pagination justify-content-end">
+                    {% if accrual_logs.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ accrual_logs.previous_page_number }}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link" aria-hidden="true">&laquo;</span>
+                    </li>
+                    {% endif %}
+
+                    {% for num in accrual_logs.paginator.page_range %}
+                    {% if accrual_logs.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if accrual_logs.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ accrual_logs.next_page_number }}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link" aria-hidden="true">&raquo;</span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+
         </div>
 
         <div class="tab-pane fade" id="pending-requests" role="tabpanel" aria-labelledby="pending-requests-tab">
@@ -87,56 +117,92 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for request in leave_requests %}
-                      {% if request.status == 'PENDING' %}
-                        <tr>
-                          <!-- <td>{{ request.employee.employee.user.get_full_name }}</td> -->
-                          <td>{{ request.get_leave_type_display }}</td>
-                          <td class="text-sm">{{ request.start_date }} to {{ request.end_date }}</td>
-                          <td>{{ request.get_status_display }}</td>
-                          <td class="text-center" title="{{request.notes}}">
-                            <a href="{% url 'leave_update' request.pk %}" class="btn btn-info btn-sm"><small>Update</small></a>
-                            <a href="{% url 'leave_delete' request.pk %}" class="btn btn-danger btn-sm"><small>Cancel</small></a>
-                          </td>
-                          <td class="text-sm">{{ request.date_filed }}</td>
-                        </tr>
-
-                      {% else %}
-                        <tr>
-                          <!-- <td>{{ request.employee.employee.user.get_full_name }}</td> -->
-                          <td>{{ request.get_leave_type_display }}</td>
-                          <td class="text-sm">{{ request.start_date }} to {{ request.end_date }}</td>
-                          <td>{{ request.get_status_display }}</td>
-                          <td>{{ request.notes }}</td>
-                          <td class="text-sm">{{ request.date_filed }}</td>
-                        </tr>
-                      {% endif %}
-                    {% empty %}
+                {% for request in leave_requests %}
                     <tr>
-                        <td colspan="7">No leave requests found.</td>
+                    <!-- <td>{{ request.employee.employee.user.get_full_name }}</td> -->
+                    <td>{{ request.get_leave_type_display }}</td>
+                    <td class="text-sm">{{ request.start_date }} to {{ request.end_date }}</td>
+
+                    <!-- Status Badge with color -->
+                    <td>
+                        <span class="badge badge-{% if request.status == 'PENDING' %}warning{% elif request.status == 'APPROVED' %}success{% elif request.status == 'REJECTED' %}danger{% else %}secondary{% endif %}">
+                        {{ request.get_status_display }}
+                        </span>
+                    </td>
+
+                    <!-- Notes or Actions -->
+                    <td class="text-center" title="{{ request.notes }}">
+                        {% if request.status == 'PENDING' %}
+                        <a href="{% url 'leave_update' request.pk %}" class="btn btn-info btn-sm">
+                            <small>Update</small>
+                        </a>
+                        <a href="{% url 'leave_delete' request.pk %}" class="btn btn-danger btn-sm">
+                            <small>Cancel</small>
+                        </a>
+                        {% else %}
+                        {{ request.notes }}
+                        {% endif %}
+                    </td>
+
+                    <td class="text-sm">{{ request.date_filed }}</td>
                     </tr>
-                    {% endfor %}
+                {% empty %}
+                    <tr>
+                    <td colspan="7">No leave requests found.</td>
+                    </tr>
+                {% endfor %}
                 </tbody>
+
             </table>
         </div>
 
-        <div class="tab-pane fade" id="leave-credits" role="tabpanel" aria-labelledby="leave-credits-tab">
-            <ul>
-                <li>Current Year SL Credits: {{ cy_sl }}</li>
-                <li>Current Year VL Credits: {{ cy_vl }}</li>
-                <li>Approved Leave Count: {{approved_leave_count}}</li>
-                <li>Current Yr Approved Requests: {{current_yr_leave_usage}}</li>
-                <li>xxxxxxxx</li>
-            </ul>
+        <div class="tab-pane fade" id="leave-balances" role="tabpanel" aria-labelledby="leave-balances-tab">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                    <th>Type</th>
+                    <th>Available</th>
+                    <th>Used</th>
+                    <th>Earned This Year</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                    <td>Sick Leave</td>
+                    <td>{{ cy_sl }}</td>
+                    <td>{{ sl_used }}</td>
+                    <td>{{ sl_earned }}</td>
+                    </tr>
+                    <tr>
+                    <td>Vacation Leave</td>
+                    <td>{{ cy_vl }}</td>
+                    <td>{{ vl_used }}</td>
+                    <td>{{ vl_earned }}</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <div class="tab-pane fade" id="leave-statistics" role="tabpanel" aria-labelledby="leave-statistics-tab">
             <ul>
                 <li>Total Leave Taken This Year: {{ total_leave_taken }}</li>
                 <li>Average Leave Taken Per Month: {{ average_leave_per_month }}</li>
-                <li>SL vs. VL Usage: {{ sl_vs_vl_usage }}</li>
+            </ul>
+            <canvas id="leaveUsageChart" width="400" height="200"></canvas>
+        </div>
+
+        <div class="tab-pane fade" id="recent-activity" role="tabpanel" aria-labelledby="recent-activity-tab">
+            <ul class="list-group list-group-flush">
+                {% for activity in recent_actions %}
+                    <li class="list-group-item">
+                    <small>{{ activity.timestamp }} — {{ activity.description }}</small>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-muted">No recent activity.</li>
+                {% endfor %}
             </ul>
         </div>
+
     </div>
   </div> <!-- /Dashboard -->
 </div>
@@ -149,4 +215,18 @@
         url.searchParams.set('status', status);
         window.location.href = url.toString();
     }
+
+    // Chart.js code to render the leave usage chart
+    const ctx = document.getElementById('leaveUsageChart');
+    new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],  // or pass via context
+        datasets: [{
+        label: 'Leaves Taken',
+        data: {{ monthly_leave_data|safe }},
+        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+        }]
+    }
+    });
 </script>

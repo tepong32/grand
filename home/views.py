@@ -30,11 +30,6 @@ class UnauthedHomeView(ListView):
     model = Announcement
     template_name = 'home/unauthed/home.html'
     context_object_name = 'announcements'
-
-    def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboard
-        return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -101,6 +96,15 @@ class AuthedHomeView(LoginRequiredMixin, ListView):
     model = Announcement
     template_name = 'home/authed/home.html'
     context_object_name = 'announcements'
+
+    def dispatch(self, request, *args, **kwargs):
+        """
+        Redirects authenticated users to their respective department dashboards.
+        If the user is not authenticated, it proceeds with the normal dispatch: ListView behavior.
+        """
+        if request.user.is_authenticated:
+            return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboards
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -220,7 +224,7 @@ def department_dashboard_redirect(request):
     """
     user = request.user.employeeprofile
     print("Logged-in user's department:", user.department.name)
-    department_name = user.department.name  # since we used ForeignKeys for departments and not just strings. Hence, we access the "name" attribute.
+    department_name = user.department.name  # since we used ForeignKeys for departments and not just strings. Hence, we access the ".name" attribute.
     
 
     if department_name == "Human Resource Management Office":

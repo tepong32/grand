@@ -1,16 +1,19 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
-<h1 class="announcement-title text-danger text-center p-2">
-    {{ announcement.title }}
-</h1>
-{% if announcement.user == request.user %}
-<div class="mr-auto">
-    <small>
-        <a href="{% url 'update-announcement' object.slug %}">Update</a>
-    </small>
+<div class="announcement-container">
+    <div class="announcement-header">
+        <h3 class="announcement-title text-danger text-center p-2">
+            {{ announcement.title.title }}
+            {% if announcement.user == request.user %}
+        <small class="ml-5">
+            <b><a href="{% url 'update-announcement' object.slug %}"><i class="fa fa-pencil-alt" title="Update"></i></a></b>
+        </small>   
+        {% endif %}
+        </h3>
+        
 </div>
-{% endif %}
 <div class="announcement-bg" style="background-image: url('{{ announcement.cover_image.url }}');">
     <p class="announcement-meta">
     <strong>Type:</strong> {{ announcement.get_announcement_type_display }} <br>

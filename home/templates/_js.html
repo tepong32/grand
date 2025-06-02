@@ -5,34 +5,67 @@
 <script src="/static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
 <!-- AdminLTE App -->
 <script src="/static/admin-lte/dist/js/adminlte.min.js"></script>
+
 <!-- Custom script -->
 <script>
-  $(document).ready(function() {
-    // for enlarging the profile image of the user when it is clicked
-    $('#profile-image').on('click', function() {
-      console.log('Profile image clicked!');
-      var imageUrl = $(this).attr('src');
-      $('#image-modal-content').attr('src', imageUrl);
-      $('#image-modal').modal('show');
-    });
-  });
-  
-  // Hide the alert when clicked
-  document.addEventListener('DOMContentLoaded', function() {
-    const alerts = document.querySelectorAll('.alert');
-    alerts.forEach(alert => {
-      // Option 1: Exit when clicked
-      alert.addEventListener('click', function() {
-          this.style.display = 'none';
+  document.addEventListener('DOMContentLoaded', function () {
+    // Enlarge profile image on click
+    const profileImage = document.getElementById('profile-image');
+    if (profileImage) {
+      profileImage.addEventListener('click', function () {
+        const imageUrl = this.getAttribute('src');
+        const modalImg = document.getElementById('image-modal-content');
+        if (modalImg) {
+          modalImg.setAttribute('src', imageUrl);
+        }
+        $('#image-modal').modal('show');
       });
+    }
 
-      // Option 2: Exit after 3 seconds
+    // Automatically dismiss alerts after 3 seconds
+    const alerts = document.querySelectorAll('.alert-dismissible.auto-dismiss');
+    alerts.forEach(alert => {
       setTimeout(() => {
-            alert.style.display = 'none';
-        }, 3000); // 3000 milliseconds = 3 seconds
+        $(alert).fadeOut('slow', () => alert.remove());
+      }, 3000);
     });
   });
+</script>
 
-
-  
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // Initialize the leave usage chart
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js is not loaded.');
+    return;
+  }
+  // Check if the chart data is available
+  if (!{{ monthly_leave_data|default:'[]'|safe }} || !{{ chart_labels|default:'[]'|safe }}) {
+    console.warn('No data available for the leave usage chart.');
+    return;
+  }
+  // Create the leave usage chart
+  const ctx = document.getElementById('leaveUsageChart').getContext('2d');
+  const leaveChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ chart_labels|default:'[]'|safe }},
+      datasets: [{
+        label: 'Leaves Taken',
+        data: {{ monthly_leave_data|default:'[]'|safe }},
+        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+});
 </script>

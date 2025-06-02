@@ -2,6 +2,11 @@
 
 {% block content %}
 <div class="DebugGreen" style="min-height: 50vh;">
+	<div class="hero-section text-white text-center" style="background: url('/media/defaults/bocaue-river.jpg') no-repeat center/cover; padding: 5rem 1rem;">
+	<h1 class="display-4 font-weight-bold">Welcome to Bocaue's Official Portal</h1>
+	<p class="lead">Empowering Citizens Through Transparency & Service</p>
+	<a href="{#% url 'service-directory' %#}" class="btn btn-primary btn-lg mt-3">Explore Services</a>
+	</div>
     <div class="row">
         <!-- Left side -->
         <div class="col-lg-8">
@@ -60,77 +65,61 @@
 			</div>
         </div>
 
-        <!-- Right side -->
-        <div class="col-lg-4 DebugRed">
-        	<div class="border border-success mt-2 mb-2">
-        		<!-- important announcements for the masses that they need to see right away after landing in on our webpage -->
-	        	<p>PINNED</p>
-				<ul>
-				{% for announcement in announcements %}
-					{% if announcement.published and announcement.is_pinned %}
-						<li>
-							<i class="fa fa-exclamation"></i>
-							<u><a href="{% url 'announcement-detail' announcement.slug %}">{{announcement.title}}</a></u>
-						</li>
-					{% endif %}
-				{% endfor %}
-				</ul>
-			</div>
-            
-			<!-- LIST for ALL remaining ANNOUNCEMENTS aside from the latest 5 displayed on the bulletin board -->
-            <h3>Older Announcements</h3>
-            <!-- Pagination Controls -->
-            <div class="row">
-            <nav aria-label="Page navigation">
-			    <ul class="pagination">
-			        <li class="page-item {% if not remaining_public.has_previous %}disabled{% endif %}">
-			            <a class="page-link" href="{% if remaining_public.has_previous %}?page=1{% else %}# {% endif %}" aria-label="First">
-			                <span aria-hidden="true">&laquo;&laquo;</span>
-			            </a>
-			        </li>
-			        <li class="page-item {% if not remaining_public.has_previous %}disabled{% endif %}">
-			            <a class="page-link" href="{% if remaining_public.has_previous %}?page={{ remaining_public.previous_page_number }}{% else %}# {% endif %}" aria-label="Previous">
-			                <span aria-hidden="true">&laquo;</span>
-			            </a>
-			        </li>
+        <!-- RIGHT SIDE -->
+        <div class="col-lg-4">
+            <!-- PINNED ANNOUNCEMENTS -->
+            <div class="card border-warning mb-4 shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <strong><i class="fa fa-thumbtack"></i> Pinned Announcements</strong>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for announcement in announcements %}
+                        {% if announcement.published and announcement.is_pinned %}
+                        <li class="list-group-item">
+                            <a href="{% url 'announcement-detail' announcement.slug %}">
+                                <i class="fa fa-exclamation-circle text-danger"></i> {{ announcement.title }}
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </div>
 
-			        <li class="page-item disabled">
-			            <a class="page-link" href="#">{{ remaining_public.number }}</a>
-			        </li>
-
-			        <li class="page-item {% if not remaining_public.has_next %}disabled{% endif %}">
-			            <a class="page-link" href="{% if remaining_public.has_next %}?page={{ remaining_public.next_page_number }}{% else %}# {% endif %}" aria-label="Next">
-			                <span aria-hidden="true">&raquo;</span>
-			            </a>
-			        </li>
-			        <li class="page-item {% if not remaining_public.has_next %}disabled{% endif %}">
-			            <a class="page-link" href="{% if remaining_public.has_next %}?page={{ remaining_public.paginator.num_pages }}{% else %}# {% endif %}" aria-label="Last">
-			                <span aria-hidden="true">&raquo;&raquo;</span>
-			            </a>
-			        </li>
-			    </ul>
-			</nav>
-			<small class="float-right mr-auto">
-				<a href="/announcements" class="nav-link" title="All Announcements">
-					...See All
-				</a>
-			</small>
-			</div>
-			
-            <ul class="list-group">
-            {% for announcement in remaining_public %}
-            	<a href="{{ announcement.get_absolute_url }}">
-                    <li class="list-group-item">
-                        <b>{{ announcement.title }}</b> <br>
-                        {{ announcement.content|truncatechars:100|safe }}
-                    </li>
+            <!-- OLDER ANNOUNCEMENTS -->
+            <h4 class="mb-3">📜 Older Announcements</h4>
+            <ul class="list-group mb-3">
+                {% for announcement in remaining_public %}
+                <a href="{{ announcement.get_absolute_url }}" class="list-group-item list-group-item-action">
+                    <b>{{ announcement.title }}</b><br>
+                    {{ announcement.content|truncatechars:100|safe }}
                 </a>
-            {% endfor %}
-        	</ul>
+                {% endfor %}
+            </ul>
 
-            
-
+            <!-- PAGINATION -->
+            <nav aria-label="Announcement navigation">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item {% if not remaining_public.has_previous %}disabled{% endif %}">
+                        <a class="page-link" href="{% if remaining_public.has_previous %}?page=1{% else %}# {% endif %}" title="First">&laquo;&laquo;</a>
+                    </li>
+                    <li class="page-item {% if not remaining_public.has_previous %}disabled{% endif %}">
+                        <a class="page-link" href="{% if remaining_public.has_previous %}?page={{ remaining_public.previous_page_number }}{% else %}# {% endif %}" title="Previous">&laquo;</a>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">{{ remaining_public.number }}</span>
+                    </li>
+                    <li class="page-item {% if not remaining_public.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="{% if remaining_public.has_next %}?page={{ remaining_public.next_page_number }}{% else %}# {% endif %}" title="Next">&raquo;</a>
+                    </li>
+                    <li class="page-item {% if not remaining_public.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="{% if remaining_public.has_next %}?page={{ remaining_public.paginator.num_pages }}{% else %}# {% endif %}" title="Last">&raquo;&raquo;</a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="text-right">
+                <a href="/announcements" class="btn btn-link">...See All</a>
+            </div>
         </div>
-    </div>
+	</div>
 </div>
 {% endblock content %}

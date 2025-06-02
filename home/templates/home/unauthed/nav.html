@@ -1,191 +1,160 @@
 <style type="text/css">
-  /* logo */
-  .navbar-nav a .nav-item {
-    transition: transform 0.3s ease; /* Slightly enlarge to 110% */
-  }
-  .navbar-nav a .nav-item:hover {
-    transform: scale(1.2); /* Slightly enlarge to 110% */
+  /* Logo hover scaling */
+  .navbar-nav .nav-item img {
+    transition: transform 0.3s ease;
   }
 
-  /* other navbar links */
-  .navbar-nav .nav-item a {
-    position: relative; /* Position relative to allow absolute positioning of the underline */
-    text-decoration: none; /* Remove default underline */
-    transition: transform 0.3s ease; /* Smooth transition for transform */
+  .navbar-nav .nav-item img:hover {
+    transform: scale(1.2);
   }
-  
+
+  /* Nav link animation */
+  .navbar-nav .nav-item a {
+    position: relative;
+    text-decoration: none;
+    transition: transform 0.3s ease;
+  }
+
   .navbar-nav .nav-item a:hover {
-    transform: scale(1.1); /* Slightly enlarge to 110% */
+    transform: scale(1.1);
   }
 
   .navbar-nav .nav-item a::after {
-    content: ""; /* Create a pseudo-element for the underline */
-    position: absolute; /* Position it absolutely */
-    left: 0; /* Align to the left */
-    right: 0; /* Align to the right */
-    bottom: 0; /* Align to the bottom */
-    height: 2px; /* Height of the underline */
-    background-color: rgba(0, 0, 0, 0.5); /* Color of the underline */
-    transform: scaleX(0); /* Initially scale to 0 (hidden) */
-    transition: transform 0.3s ease; /* Smooth transition for the underline */
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background-color: rgba(0, 0, 0, 0.5);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
   }
-  
+
   .navbar-nav .nav-item a:hover::after {
-    transform: scaleX(1); /* Scale to full width on hover */
+    transform: scaleX(1);
   }
-  
+
   .navbar-nav .nav-item i {
-    transition: transform 0.3s ease; 
+    transition: transform 0.3s ease;
   }
-  
+
   .navbar-nav .nav-item i:hover {
-    transform: scale(1.1); /* Enlarge icon on hover */
+    transform: scale(1.1);
   }
 </style>
 
-{% comment %} <!-- Navbar Large Screen--> {% endcomment %}
-  <nav class="main-header navbar navbar-expand navbar-white navbar-light text-sm">
-    {% comment %} <!-- Left navbar links --> {% endcomment %}
-    <ul class="navbar-nav">
-      {% comment %} <!-- Home --> {% endcomment %}
-      <a href="/" class="nav-link d-none d-lg-block" title="Home">
-          {% comment %} <!-- Brand Logo --> {% endcomment %}
-          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="border"
-               style="height: 45px; border-radius: 10%; position: relative;">
-      </a>
+<nav class="main-header navbar navbar-expand-lg navbar-white navbar-light text-sm">
+  <!-- Logo -->
+  <a href="/" class="navbar-brand d-none d-lg-block" title="Home">
+    <img src="/media/defaults/jjv.png" alt="LMS Logo" class="border" style="height: 45px; border-radius: 10%;">
+  </a>
 
-      {% comment %} <!-- Flexing? --> {% endcomment %}
-      <li class="nav-item d-none d-lg-block">
-        <a href="#" class="nav-link" title="">
-          Flex?
+  <!-- Left Links -->
+  <ul class="navbar-nav">
+    <li class="nav-item d-none d-lg-block">
+      <a href="#" class="nav-link">Flex?</a>
+    </li>
+    
+    <li class="nav-item dropdown d-none d-lg-block">
+      <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">Downloadable Forms</a>
+      <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+        {% for form in downloadableforms %}
+        <div class="dropdown-divider"></div>
+        <a href="{{ form.file.url }}" class="dropdown-item" title="(Last updated on: {{ form.uploaded_on|date:'Y-m-d H:i' }})">
+          <i class="fas fa-file mr-2"></i> {{ form.title }}
         </a>
-      </li>
-
-      {% comment %} <!-- Downloadable Forms --> {% endcomment %}
-      <li class="nav-item dropdown d-none d-lg-block">
-        <a class="nav-link" data-toggle="dropdown" href="#">
-          Downloadable Forms
-        </a>
-        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-          {% for form in downloadableforms %}
-          <div class="dropdown-divider"></div>
-          <a href="{{ form.file.url }}" class="dropdown-item" title="(Last updated on: {{ form.uploaded_on|date:'Y-m-d H:i' }})">
-            <i class="fas fa-file mr-2"></i> {{ form.title }}
-          </a>
-          {% endfor %}
-          
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>
-        </div>
-      </li>
-
-      {% comment %} <!-- Org Chart --> {% endcomment %}
-      <li class="nav-item d-none d-lg-block">
-        <a href="/orgchart" class="nav-link">
-          Org Chart
-        </a>
-      </li>
-    </ul>
-
-    {% comment %} <!-- SEARCH FORM --> {% endcomment %}
-    <form class="form-inline d-none d-lg-block ml-3" action="{% url 'search' %}" method="get">
-      <div class="input-group input-group-sm">
-          <input class="form-control form-control-navbar" type="search" name="q" placeholder="Search" aria-label="Announcement Search">
-          <div class="input-group-append">
-              <button class="btn btn-navbar" type="submit">
-                  <i class="fas fa-search"></i>
-              </button>
-          </div>
+        {% endfor %}
+        <div class="dropdown-divider"></div>
+        <a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>
       </div>
-    </form>
+    </li>
 
-    {% comment %} <!-- Right navbar links --> {% endcomment %}
-    <ul class="navbar-nav ml-auto ">
-      <li class="nav-item d-none d-lg-block ">
-          <form class="form-inline" action="{% url 'login' %}" method="post">
-              {% csrf_token %}
-              <div class="input-group">
-                  <input type="text" name="username" class="form-control" placeholder="Username" required>
-                  <input type="password" name="password" class="form-control" placeholder="Password" required>
-                  <div class="input-group-append">
-                      <button type="submit" class="btn btn-primary">Login</button>
-                  </div>
-              </div>
-          </form>
-      </li>
-      <li class="nav-item d-none d-lg-block ">
-        <a href="/register" class="nav-link">Register</a>
-      </li>
-    </ul>
-  </nav>
-  {% comment %} <!-- /.navbar --> {% endcomment %}
+    <li class="nav-item d-none d-lg-block">
+      <a href="/orgchart" class="nav-link">Org Chart</a>
+    </li>
+  </ul>
 
-
-  {% comment %} <!-- Navbar Small Screen --> {% endcomment %}
-  <nav class="main-header navbar navbar-expand navbar-white navbar-light text-sm d-lg-none d-sm-inline-block">
-    {% comment %} <!-- Left navbar links --> {% endcomment %}
-    <ul class="navbar-nav d-lg-none d-sm-inline-block">
-      {% comment %} <!-- Home --> {% endcomment %}
-      <a href="/" class="nav-link" title="Home">
-          {% comment %} <!-- Brand Logo --> {% endcomment %}
-          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="border"
-               style="height: 45px; border-radius: 10%; position: relative;">
-      </a>
-
-      {% comment %} <!-- All Users List --> {% endcomment %}
-      <li class="nav-item">
-        <a href="#" class="nav-link" title="">
-          Flex?
-        </a>
-      </li>
-
-      {% comment %} <!-- Downloadable Forms --> {% endcomment %}
-      <li class="nav-item dropdown">
-        <a href="#" class="nav-link " data-toggle="dropdown" title="Downloadable Forms">
-          <i class="fa fa-folder"></i>
-        </a>
-        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-          <span class="dropdown-header">Downloadable Forms</span>
-
-          {% for form in downloadableforms %}
-          <div class="dropdown-divider"></div>
-          <a href="{{ form.file.url }}" class="dropdown-item" title="(Last updated on: {{ form.uploaded_on|date:'Y-m-d H:i' }})">
-            <i class="fas fa-file mr-2"></i> {{ form.title }}
-          </a>
-          {% endfor %}
-          
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>
-        </div>
-      </li>
-
-      {% comment %} <!-- Org Chart --> {% endcomment %}
-      <li class="nav-item">
-        <a href="/orgchart" class="nav-link" title="Org Chart">
-          <i class="fa fa-users"></i>
-        </a>
-      </li>
-    </ul>
-
-    {% comment %} <!-- SEARCH FORM --> {% endcomment %}
-    <form class="form-inline d-lg-none d-sm-inline-block col-4" action="{% url 'search' %}" method="get">
-      <div class="input-group input-group-sm">
-          <input class="form-control form-control-navbar" type="search" name="q" placeholder="Search" aria-label="Announcement Search">
-          <div class="input-group-append">
-              <button class="btn btn-navbar" type="submit">
-                  <i class="fas fa-search"></i>
-              </button>
-          </div>
+  <!-- Search -->
+  <form class="form-inline ml-3 d-none d-lg-block" action="{% url 'search' %}" method="get">
+    <div class="input-group input-group-sm">
+      <input class="form-control form-control-navbar" type="search" name="q" placeholder="Search" aria-label="Search">
+      <div class="input-group-append">
+        <button class="btn btn-navbar" type="submit"><i class="fas fa-search"></i></button>
       </div>
-    </form>
+    </div>
+  </form>
 
-    {% comment %} <!-- Right navbar links --> {% endcomment %}
-    <ul class="navbar-nav ml-auto">
-      <li class="nav-item d-lg-none d-sm-inline-block">
-        <a href="/login" class="nav-link" title="Sign In">
-          <i class="fa fa-edit"></i>
+  <!-- Right Links -->
+  <ul class="navbar-nav ml-auto">
+    <li class="nav-item d-none d-lg-block">
+      <form class="form-inline" action="{% url 'login' %}" method="post">
+        {% csrf_token %}
+        <div class="input-group">
+          <input type="text" name="username" class="form-control" placeholder="Username" required>
+          <input type="password" name="password" class="form-control" placeholder="Password" required>
+          <div class="input-group-append">
+            <button type="submit" class="btn btn-primary">Login</button>
+          </div>
+        </div>
+      </form>
+    </li>
+    <li class="nav-item d-none d-lg-block">
+      <a href="/register" class="nav-link">Register</a>
+    </li>
+  </ul>
+</nav>
+
+<!-- Small screen version -->
+<nav class="main-header navbar navbar-expand navbar-white navbar-light text-sm d-lg-none">
+  <a href="/" class="navbar-brand" title="Home">
+    <img src="/media/defaults/jjv.png" alt="LMS Logo" class="border" style="height: 45px; border-radius: 10%;">
+  </a>
+
+  <ul class="navbar-nav">
+    <li class="nav-item">
+      <a href="#" class="nav-link">Flex?</a>
+    </li>
+
+    <li class="nav-item dropdown">
+      <a class="nav-link" data-toggle="dropdown" href="#" title="Downloadable Forms">
+        <i class="fa fa-folder"></i>
+      </a>
+      <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+        <span class="dropdown-header">Downloadable Forms</span>
+        {% for form in downloadableforms %}
+        <div class="dropdown-divider"></div>
+        <a href="{{ form.file.url }}" class="dropdown-item" title="(Last updated on: {{ form.uploaded_on|date:'Y-m-d H:i' }})">
+          <i class="fas fa-file mr-2"></i> {{ form.title }}
         </a>
-      </li>
-    </ul>
-  </nav>
-  {% comment %} <!-- /.navbar --> {% endcomment %}
+        {% endfor %}
+        <div class="dropdown-divider"></div>
+        <a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>
+      </div>
+    </li>
+
+    <li class="nav-item">
+      <a href="/orgchart" class="nav-link" title="Org Chart">
+        <i class="fa fa-users"></i>
+      </a>
+    </li>
+  </ul>
+
+  <!-- Small screen search -->
+  <form class="form-inline col-4 ml-auto" action="{% url 'search' %}" method="get">
+    <div class="input-group input-group-sm">
+      <input class="form-control form-control-navbar" type="search" name="q" placeholder="Search" aria-label="Search">
+      <div class="input-group-append">
+        <button class="btn btn-navbar" type="submit"><i class="fas fa-search"></i></button>
+      </div>
+    </div>
+  </form>
+
+  <ul class="navbar-nav ml-auto">
+    <li class="nav-item">
+      <a href="/login" class="nav-link" title="Sign In">
+        <i class="fa fa-edit"></i>
+      </a>
+    </li>
+  </ul>
+</nav>

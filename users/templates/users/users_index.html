@@ -2,153 +2,126 @@
 {% load static custom_filters %}
 
 {% block content %}
-	<div id="alert-container" class="alert-container">
-	    {% if messages %}
-	      {% for message in messages %}
-	        <div class="alert alert-{{ message.tags }}">
-	            {{ message }}
-	        </div>
-	      {% endfor %}
-	    {% endif %}
-	  </div>
-	{% if user.is_authenticated %}
-		{% if user.is_staff == True %}
-		<!-- show the list of all users if user is staff/admin -->
-		<small class="bg-success">
-			Normal users will/should not have access to the full user list for it contains confidential details. <br>
-			Or maybe they can have access to the list but filters of what info to display will be applied.
-		</small> <br>
-			Welcome back, <b>{{request.user.username}}!</b> <br>
-			<hr>
-			{% for department, profiles in department_users.items %}
-				<div class="card-title"><b class="text text-primary">{{ department }}</b></div>
-				<table class="table">
-				<thead class="card-body border border-success">
-				  <tr>
-				    <th>User</th>
-				    <th>Designation</th>
-				  </tr>
-				</thead>
-				<tbody>
-				  {% for profile in profiles %}
-			        <tr>
-			          <td>
-			            {% if profile.user.last_name and profile.user.first_name %}
-			              <a href="{% url 'profile' profile.user.username %}">{{ profile.user.last_name.title }}, {{ profile.user.first_name.title }}</a>
-			            {% else %}
-			              <a href="{% url 'profile' profile.user.username %}">{{ profile.user.username }}</a>
-			            {% endif %}
-			          </td>
-			          <td>{{ profile.designation }}</td>
-			        </tr>
-			      {% endfor profile %}
-				</tbody>
-				</table>
-				<br>
-				{% endfor department %}
-				
-				<hr>
-				listing all the users <br>
-				can be modified to just show who's under who. Like a Manager's views or something  (we'll need to modify url routing for that)<br>
-				for now, let's leave this as is. We'll figure-out what to display once everything's working as intended <br>
+  <!-- Authenticated Section -->
+  {% if user.is_authenticated %}
+    {% if user.is_staff %}
+      <div class="mb-3">
+        <small class="text-muted">
+          You are seeing this page because you are a <strong>Staff/Admin</strong>. Normal users shouldn't access the full list due to confidentiality, but a filtered view may be implemented in the future.
+        </small>
+        <br>Welcome back, <b>{{ request.user.username }}</b>!
+      </div>
 
-				Source for SG: <a href="https://www.officialgazette.gov.ph/2024/08/02/executive-order-no-64-s-2024/">Official Gazette</a>
-			</div>
-		{% else %}
-			<!-- This is already working so, good job! -->
-			<h3>Sorry, only Staffs/Admins have permissions to view this page.</h3>
-			<small><a href="/">Go back</a></small>
-		{% endif %}
-	{% else %}
-		<!-- This is already working so, good job! -->
-		<small class="bg-red">User is not authenticated. Please <a href="/login">log-in to</a> view the page.</small>
-		<h3>Sorry, you do not have permissions to view this page.</h3>
-		<small><a href="/">Go back</a></small>
-	{% endif %}
+      <!-- Department Tabs -->
+      <div class="card card-primary card-outline">
+        <div class="card-header">
+          <h3 class="card-title"><i class="fas fa-users"></i> User Directory by Department</h3>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-3">
+              <div class="nav flex-column nav-tabs" id="dept-tabs" role="tablist" aria-orientation="vertical">
+                {% for department, profiles in department_users.items %}
+                  {% with department|slugify as dep_slug %}
+                    <a class="nav-link {% if forloop.first %}active{% endif %}" 
+                       id="tab-{{ dep_slug }}-tab"
+                       data-toggle="pill" 
+                       href="#tab-{{ dep_slug }}" 
+                       role="tab" 
+                       aria-controls="tab-{{ dep_slug }}"
+                       aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                      {{ department }}
+                    </a>
+                  {% endwith %}
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-md-9">
+              <div class="tab-content" id="dept-tabs-content">
+                {% for department, profiles in department_users.items %}
+                  {% with department|slugify as dep_slug %}
+                    <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                         id="tab-{{ dep_slug }}" 
+                         role="tabpanel" 
+                         aria-labelledby="tab-{{ dep_slug }}-tab">
+
+                      <div class="card mb-3 shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                          <strong>{{ department }}</strong> — {{ profiles|length }} user(s)
+                        </div>
+                        <div class="card-body p-2">
+                          <table class="table table-sm table-hover table-bordered mb-0">
+                            <thead>
+                              <tr>
+                                <th>User</th>
+                                <th>Designation</th>
+                                {% comment %} {% if user.has_perm('app.view_salary_data') %}
+                                  <th>Salary Grade</th>
+                                  <th>Salary Amount</th>
+                                {% endif %} {% endcomment %}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {% for profile in profiles %}
+                                <tr>
+                                  <td>
+                                    <a href="{% url 'profile' profile.user.username %}">
+                                      {% if profile.user.last_name and profile.user.first_name %}
+                                        {{ profile.user.last_name|title }}, {{ profile.user.first_name|title }}
+                                      {% else %}
+                                        {{ profile.user.username }}
+                                      {% endif %}
+                                    </a>
+                                  </td>
+                                  <td>{{ profile.designation }}</td>
+								  {% comment %} not being used ATM for we need to create a "view_salary_data" permission in the admin first {% endcomment %}
+                                  {% comment %} {#% if user.has_perm('app.view_salary_data') %#}
+                                    <td>{{ profile.salary_grade|default:"N/A" }}</td>
+                                    <td>{{ profile.salary_amount|default:"-" }}</td>
+                                  {#% endif %#} {% endcomment %}
+                                </tr>
+                              {% empty %}
+                                <tr>
+                                  <td colspan="4" class="text-center text-muted">No users found in this department.</td>
+                                </tr>
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  {% endwith %}
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="mt-4">
+        <p><strong>Future Ideas:</strong></p>
+        <ul>
+          <li>Managers view only their teams.</li>
+          <li>Implement filters for roles or salary visibility.</li>
+          <li>Option to export data.</li>
+        </ul>
+        <p>Source for SG: <a href="https://www.officialgazette.gov.ph/2024/08/02/executive-order-no-64-s-2024/" target="_blank">Official Gazette</a></p>
+      </div>
+
+    {% else %}
+      <!-- Non-staff view -->
+      <div class="alert alert-danger">
+        <h4>Access Denied</h4>
+        <p>Only Staff/Admins have permissions to view this page.</p>
+        <a href="/" class="btn btn-secondary">Go back</a>
+      </div>
+    {% endif %}
+  {% else %}
+    <!-- Unauthenticated -->
+    <div class="alert alert-warning">
+      <p>User is not authenticated. Please <a href="/login">log in</a> to view the page.</p>
+      <a href="/" class="btn btn-secondary">Go back</a>
+    </div>
+  {% endif %}
 {% endblock %}
-
-
-
-{% if user.is_authenticated %}
-	{% if user.is_staff == True %}
-		<!-- show the list of all users if user is staff/admin -->
-		<small class="bg-success float-right">You are seeing this page because you are a Staff/Admin. <br>
-			Normal users will/should not have access to the full user list for it contains confidential details. <br>
-			Or maybe they can have access to the list but filters of what info to display will be applied.
-		</small> <br>
-			Welcome back, <b>{{request.user.username}}!</b> <br>
-
-<div class="card card-primary card-outline">
-	<div class="card-header">
-		<h3 class="card-title">
-			<i class="fas fa-edit"></i>
-			Vertical Tabs Examples
-		</h3>
-	</div>
-	<div class="card-body">
-		<h4>Left Sided</h4>
-	{% for department, profiles in department_users.items %}
-	<div class="row">
-		<div class="col-4 col-sm-3">
-			
-			<div class="nav flex-column nav-tabs h-100" id="vert-tabs-tab" role="tablist" aria-orientation="vertical">
-				
-				<a class="nav-link active" id="vert-tabs-home-tab" data-toggle="pill" href="#vert-tabs-home" role="tab" aria-controls="vert-tabs-home" aria-selected="true">{{ department }}</a>
-				
-			</div>
-			
-		</div>
-		<div class="col-8 col-sm-9">
-			<div class="tab-content" id="vert-tabs-tabContent">
-			<div class="tab-pane text-left fade show active" id="vert-tabs-home" role="tabpanel" aria-labelledby="vert-tabs-home-tab">
-				<table class="table">
-				<thead class="card-body border border-success">
-				  <tr>
-				    <th>User</th>
-				    <th>Designation</th>
-				    <th>Salary Grade</th>
-				    <th>Salary Amount</th>
-				  </tr>
-				</thead>
-				<tbody>
-				  {% for profile in profiles %}
-			        <tr>
-			          <td>
-			            {% if profile.user.last_name and profile.user.first_name %}
-			              <a href="{% url 'profile' profile.user.username %}">{{ profile.user.last_name.title }}, {{ profile.user.first_name.title }}</a>
-			            {% else %}
-			              <a href="{% url 'profile' profile.user.username %}">{{ profile.user.username }}</a>
-			            {% endif %}
-			          </td>
-			          <td>{{ profile.designation }}</td>
-			        </tr>
-			      {% endfor profile %}
-				</tbody>
-				</table>
-				
-			</div>
-		</div>
-	</div>
-	{% endfor department, profiles %}
-</div>
-
-
-	{% else %} <!-- if is_staff -->
-		<!-- This is already working so, good job! -->
-		<h3>Sorry, only Staffs/Admins have permissions to view this page.</h3>
-		<small><a href="/">Go back</a></small>
-	{% endif %}
-	{% else %}
-		<!-- This is already working so, good job! -->
-		<small class="bg-red">User is not authenticated. Please <a href="/login">log-in to</a> view the page.</small>
-		<h3>Sorry, you do not have permissions to view this page.</h3>
-		<small><a href="/">Go back</a></small>
-	{% endif %} <!-- if is_authenticated -->
-
-
-<hr>
-listing all the users <br>
-can be modified to just show who's under who. Like a Manager's views or something  (we'll need to modify url routing for that)<br>
-for now, let's leave this as is. We'll figure-out what to display once everything's working as intended <br>
-
-Source for SG: <a href="https://www.officialgazette.gov.ph/2024/08/02/executive-order-no-64-s-2024/">Official Gazette</a>
