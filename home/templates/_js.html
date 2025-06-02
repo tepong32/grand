@@ -5,6 +5,7 @@
 <script src="/static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
 <!-- AdminLTE App -->
 <script src="/static/admin-lte/dist/js/adminlte.min.js"></script>
+
 <!-- Custom script -->
 <script>
   document.addEventListener('DOMContentLoaded', function () {
@@ -29,4 +30,31 @@
       }, 3000);
     });
   });
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const ctx = document.getElementById('leaveUsageChart').getContext('2d');
+  const leaveChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ chart_labels|default:'[]'|safe }},
+      datasets: [{
+        label: 'Leaves Taken',
+        data: {{ monthly_leave_data|default:'[]'|safe }},
+        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+});
 </script>
