@@ -121,8 +121,8 @@
               {% if leave_credits %}
                 <strong><i class="fas fa-calendar-alt mr-1"></i> Leave Credits</strong>
                 <p class="text-muted">
-                  Sick: {{ leave_credits.sick_leave }} days<br>
-                  Vacation: {{ leave_credits.vacation_leave }} days
+                  Sick: {{ leave_credits.current_year_sl_credits }} days<br>
+                  Vacation: {{ leave_credits.current_year_vl_credits }} days
                 </p>
               {% endif %}
             </div>
