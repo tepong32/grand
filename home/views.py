@@ -98,8 +98,12 @@ class AuthedHomeView(LoginRequiredMixin, ListView):
     context_object_name = 'announcements'
 
     def dispatch(self, request, *args, **kwargs):
+        """
+        Redirects authenticated users to their respective department dashboards.
+        If the user is not authenticated, it proceeds with the normal dispatch: ListView behavior.
+        """
         if request.user.is_authenticated:
-            return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboard
+            return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboards
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
