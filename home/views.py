@@ -30,11 +30,6 @@ class UnauthedHomeView(ListView):
     model = Announcement
     template_name = 'home/unauthed/home.html'
     context_object_name = 'announcements'
-
-    def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboard
-        return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -101,6 +96,11 @@ class AuthedHomeView(LoginRequiredMixin, ListView):
     model = Announcement
     template_name = 'home/authed/home.html'
     context_object_name = 'announcements'
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboard
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
