@@ -1,5 +1,9 @@
 <!-- Overlay for alerts/notifs -->
 <style type="text/css">
+  html {
+    scroll-behavior: smooth;
+  }
+
   .alert-container {
     position: fixed; /* Fixed position */
     top: 60px; /* Distance from the top of the viewport */
@@ -55,7 +59,7 @@
     padding: 20px; /* Add some padding */
     color: black; /* Change text color for better contrast */
     height: auto; /* Adjust height as needed */
-    min-height: 100vh; /* Minimum height */
+    min-height: 40vh; /* Minimum height */
     overflow: hidden; /* Hide overflow */
   }
   .announcement-bg::before {
@@ -169,4 +173,28 @@
     border: solid green 5px;
   }
 
+  section {
+    min-height: 50vh; /* Ensure each section takes at least 50% viewport height */
+  }
+
+  /* Smooth image transition for departmentCarousel */
+  #dept-image-display {
+      transition: opacity 0.5s ease-in-out;
+      max-height: 400px;
+      max-width: 100%;
+      object-fit: cover;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+
+  /* Container to keep image height consistent */
+  .image-wrapper {
+      min-height: 400px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #f8f9fa;
+      border-radius: 1rem;
+      overflow: hidden;
+  }
 </style>

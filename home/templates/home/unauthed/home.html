@@ -1,125 +1,215 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="DebugGreen" style="min-height: 50vh;">
+<div class="" style="min-height: 50vh;">
 	<div class="hero-section text-white text-center" style="background: url('/media/defaults/bocaue-river.jpg') no-repeat center/cover; padding: 5rem 1rem;">
 	<h1 class="display-4 font-weight-bold">Welcome to Bocaue's Official Portal</h1>
 	<p class="lead">Empowering Citizens Through Transparency & Service</p>
-	<a href="{#% url 'service-directory' %#}" class="btn btn-primary btn-lg mt-3">Explore Services</a>
+	<a href="#business-section" class="btn btn-primary btn-lg mt-3">Explore Services</a>
 	</div>
-    <div class="row">
+    <div id="top" class="row">
         <!-- Left side -->
-        <div class="col-lg-8">
-            <div class="bulletin-board">
-            	<img src="../../media/defaults/bocaue.gif" class="overlay-img" alt="Overlay IMG">
-                {% for position in latest_positions %}
-                <a href="{{ position.announcement.get_absolute_url }}">
-                    <div class="announcement" style="top: {{ position.top }}; left: {{ position.left }};">
-                            {{ position.announcement|truncatechars:50 }}
-                    </div>
-                </a>
-                {% endfor %}
+        <div class="col-lg-8 mx-auto">
+            <!-- MAYOR'S MESSAGE VIDEO -->
+            <div class="container my-3">
+            <div class="embed-responsive embed-responsive-16by9 shadow">
+                <iframe
+                class="embed-responsive-item"
+                src="https://www.youtube.com/embed/T-msx__xlXY"
+                title="Tambalang Jonjon Villanueva at Atty. Sherwin Tugna, muling mauupo sa Bocaue, Bulacan"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allowfullscreen
+                ></iframe>
+            </div>
             </div>
 
-
-            <!-- CAROUSEL FOR DEPT CONTACT INFO -->
-			<div class="col-lg-12 col-sm-12">  <!-- Adjust the column size as needed -->
-			    <div id="announcementCarousel" class="carousel slide" data-ride="carousel">
-			        <div class="carousel-inner">
-			            {% for dept in departments %}
-			                <div class="carousel-item {% if forloop.first %}active{% endif %}">
-		                        <div class="card">
-		                            <div class="position-relative p-2">
-		                                <div class="ribbon-wrapper">
-		                                    <div class="ribbon bg-primary">
-		                                        <img src="../../media/defaults/jjv.png" style="height: 25px; position: absolute;">
-		                                    </div>
-		                                </div>
-		                                <div class="card-header announcement-title">
-		                                    <h5>{{ dept.name }}</h5>
-		                                </div>
-		                                <div class="card-body fixed-height announcement-bg" style="background-image: url('{{ dept.image.url }}');">
-		                                    <p class="announcement-meta">{{dept.motto|safe}}</p>
-		                                    <p class="float-right">
-		                                    	Email Address: {{dept.email|safe}} <br>
-		                                    	Phone Number: {{ dept.contact_number|safe }}
-		                                	</p>
-		                                </div>
-		                                <div class="card-footer text-center bg-transparent">
-		                                    <a href="https://m.me/{{ dept.messenger_chat_link }}" class="messenger-widget" target="_blank">Chat with us on Messenger</a>
-		                                </div>
-		                            </div>
-		                        </div>
-			                </div>
-			            {% endfor %}
-			        </div>
-			        <a class="carousel-control-prev" href="#announcementCarousel" role="button" data-slide="prev">
-			            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-			            <span class="sr-only">Previous</span>
-			        </a>
-			        <a class="carousel-control-next" href="#announcementCarousel" role="button" data-slide="next">
-			            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-			            <span class="sr-only">Next</span>
-			        </a>
-			    </div>
-			</div>
         </div>
 
         <!-- RIGHT SIDE -->
-        <div class="col-lg-4">
-            <!-- PINNED ANNOUNCEMENTS -->
-            <div class="card border-warning mb-4 shadow-sm">
+        <div class="col-lg-4 mx-auto">
+            <!-- PINNED + LATEST ANNOUNCEMENTS -->
+            <div class="card border-warning my-3 shadow-sm">
                 <div class="card-header bg-warning text-dark">
-                    <strong><i class="fa fa-thumbtack"></i> Pinned Announcements</strong>
+                    <strong><i class="fa fa-thumbtack"></i> Announcements</strong>
                 </div>
                 <ul class="list-group list-group-flush">
                     {% for announcement in announcements %}
                         {% if announcement.published and announcement.is_pinned %}
                         <li class="list-group-item">
                             <a href="{% url 'announcement-detail' announcement.slug %}">
-                                <i class="fa fa-exclamation-circle text-danger"></i> {{ announcement.title }}
+                                <i class="fa fa-thumbtack text-danger"></i> {{ announcement.title }}
                             </a>
                         </li>
                         {% endif %}
                     {% endfor %}
+
+                    {% for announcement in latest_public %}
+                    <li class="list-group-item">
+                        <a href="{{ announcement.get_absolute_url }}">
+                            <i class="fa fa-bullhorn text-primary"></i> {{ announcement.title }}
+                        </a>
+                    </li>
+                    {% endfor %}
                 </ul>
             </div>
 
-            <!-- OLDER ANNOUNCEMENTS -->
-            <h4 class="mb-3">📜 Older Announcements</h4>
-            <ul class="list-group mb-3">
-                {% for announcement in remaining_public %}
-                <a href="{{ announcement.get_absolute_url }}" class="list-group-item list-group-item-action">
-                    <b>{{ announcement.title }}</b><br>
-                    {{ announcement.content|truncatechars:100|safe }}
+            <div class="text-center my-4">
+                <a href="{% url 'announcements-list' %}" class="btn btn-outline-primary">
+                    View All Announcements
                 </a>
-                {% endfor %}
-            </ul>
-
-            <!-- PAGINATION -->
-            <nav aria-label="Announcement navigation">
-                <ul class="pagination justify-content-center">
-                    <li class="page-item {% if not remaining_public.has_previous %}disabled{% endif %}">
-                        <a class="page-link" href="{% if remaining_public.has_previous %}?page=1{% else %}# {% endif %}" title="First">&laquo;&laquo;</a>
-                    </li>
-                    <li class="page-item {% if not remaining_public.has_previous %}disabled{% endif %}">
-                        <a class="page-link" href="{% if remaining_public.has_previous %}?page={{ remaining_public.previous_page_number }}{% else %}# {% endif %}" title="Previous">&laquo;</a>
-                    </li>
-                    <li class="page-item disabled">
-                        <span class="page-link">{{ remaining_public.number }}</span>
-                    </li>
-                    <li class="page-item {% if not remaining_public.has_next %}disabled{% endif %}">
-                        <a class="page-link" href="{% if remaining_public.has_next %}?page={{ remaining_public.next_page_number }}{% else %}# {% endif %}" title="Next">&raquo;</a>
-                    </li>
-                    <li class="page-item {% if not remaining_public.has_next %}disabled{% endif %}">
-                        <a class="page-link" href="{% if remaining_public.has_next %}?page={{ remaining_public.paginator.num_pages }}{% else %}# {% endif %}" title="Last">&raquo;&raquo;</a>
-                    </li>
-                </ul>
-            </nav>
-            <div class="text-right">
-                <a href="/announcements" class="btn btn-link">...See All</a>
             </div>
         </div>
 	</div>
+
+    <!-- BUSINESS SERVICES SECTION -->
+    <section id="business-section" class="business-section py-5 bg-light my-3">
+        <div class="col-lg-9 mx-auto DebugGreen">
+            <div class="container my-3">
+              <h2 class="text-center mb-4">Business Services</h2>
+              <div class="row">
+                  <div class="col-md-4">
+                      <div class="card shadow-sm mb-3">
+                          <div class="card-body">
+                              <h5 class="card-title">Start a Business</h5>
+                              <p class="card-text">Step-by-step guide and requirements for business registration in Bocaue.</p>
+                              <a href="#" class="btn btn-sm btn-primary">Learn More</a>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="col-md-4">
+                      <div class="card shadow-sm mb-3">
+                          <div class="card-body">
+                              <h5 class="card-title">Start a Business</h5>
+                              <p class="card-text">Step-by-step guide and requirements for business registration in Bocaue.</p>
+                              <a href="#" class="btn btn-sm btn-primary">Learn More</a>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="col-md-4">
+                      <div class="card shadow-sm mb-3">
+                          <div class="card-body">
+                              <h5 class="card-title">Start a Business</h5>
+                              <p class="card-text">Step-by-step guide and requirements for business registration in Bocaue.</p>
+                              <a href="#" class="btn btn-sm btn-primary">Learn More</a>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="col-md-4">
+                      <div class="card shadow-sm mb-3">
+                          <div class="card-body">
+                              <h5 class="card-title">Start a Business</h5>
+                              <p class="card-text">Step-by-step guide and requirements for business registration in Bocaue.</p>
+                              <a href="#" class="btn btn-sm btn-primary">Learn More</a>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="col-md-4">
+                      <div class="card shadow-sm mb-3">
+                          <div class="card-body">
+                              <h5 class="card-title">Start a Business</h5>
+                              <p class="card-text">Step-by-step guide and requirements for business registration in Bocaue.</p>
+                              <a href="#" class="btn btn-sm btn-primary">Learn More</a>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="col-md-4">
+                      <div class="card shadow-sm mb-3">
+                          <div class="card-body">
+                              <h5 class="card-title">Start a Business</h5>
+                              <p class="card-text">Step-by-step guide and requirements for business registration in Bocaue.</p>
+                              <a href="#" class="btn btn-sm btn-primary">Learn More</a>
+                          </div>
+                      </div>
+                  </div>
+                  <!-- Add more blocks for Permits, Renewals, etc. -->
+              </div>
+            </div>
+        </div>      
+    </section>
+
+    <!-- CONTACT US SECTION -->
+    <section id="contact-us" class="py-5 bg-light my-3">
+    <div class="container">
+        <h2 class="text-center mb-4">Contact Us</h2>
+        <div class="row">
+        <div class="col-md-6">
+            <div id="departmentCarousel" class="carousel slide" data-ride="carousel">
+            <div class="carousel-inner">
+                {% for dept in departments %}
+                <div
+                    class="carousel-item {% if forloop.first %}active{% endif %}"
+                    data-image="{{ dept.image.url }}"
+                >
+                    <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h5>{{ dept.name }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Motto:</strong> {{ dept.motto|safe }}</p>
+                        <p><strong>Email:</strong> {{ dept.email }}</p>
+                        <p><strong>Phone:</strong> {{ dept.contact_number }}</p>
+                    </div>
+                    <div class="card-footer text-center">
+                        <a href="https://m.me/{{ dept.messenger_chat_link }}" class="btn btn-sm btn-primary" target="_blank">
+                        Chat on Messenger
+                        </a>
+                    </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <a class="carousel-control-prev" href="#departmentCarousel" role="button" data-slide="prev">
+                <span class="carousel-control-prev-icon"></span>
+            </a>
+            <a class="carousel-control-next" href="#departmentCarousel" role="button" data-slide="next">
+                <span class="carousel-control-next-icon"></span>
+            </a>
+            </div>
+        </div>
+
+        <!-- DYNAMIC IMAGE PREVIEW -->
+        <div class="col-md-6">
+         <div class="image-wrapper">
+            <img id="dept-image-display" 
+                src="{% if departments %}{{ departments.0.image.url }}{% endif %}" 
+                alt="Department Image"
+                class="img-fluid">
+         </div>
+        </div>
+    </div>
+    </section>
+
+    <!-- SCRIPT TO HANDLE IMAGE CHANGE -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const carousel = document.getElementById('departmentCarousel');
+        const imageDisplay = document.getElementById('dept-image-display');
+
+        if (carousel && imageDisplay) {
+        $('#departmentCarousel').on('slid.bs.carousel', function () {
+            const activeItem = carousel.querySelector('.carousel-item.active');
+            const newImageUrl = activeItem.getAttribute('data-image');
+
+            if (newImageUrl && newImageUrl !== imageDisplay.src) {
+            imageDisplay.style.opacity = 0;
+
+            setTimeout(() => {
+                imageDisplay.src = newImageUrl;
+                imageDisplay.style.opacity = 1;
+            }, 250); // half of transition duration for fade
+            }
+        });
+        }
+    });
+    </script>
+
+
 </div>
 {% endblock content %}
