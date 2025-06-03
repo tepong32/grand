@@ -165,9 +165,8 @@ class Department(models.Model):
         (SB, "SB")
         ]
 
-    name = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Department: ")
+    name = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Department ")
     manager = models.ForeignKey(Manager, on_delete=models.SET_NULL, null=True, blank=False)
-    plantilla_from = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Platilla from: ")
 
     def __str__(self):
         return f"{self.name}".strip()
@@ -235,6 +234,45 @@ class EmployeeProfile(models.Model):
     reg_or_ct_salary = models.ForeignKey(RegOrCT_Salary, on_delete=models.SET_NULL, null=True, blank=True) # can be left blank on edits
     jo_salary = models.ForeignKey(JO_Salary, on_delete=models.SET_NULL, null=True, blank=True) # can be left blank on edits
     
+    select      = "---select one---"
+    ACCTG       = "Accounting Office"
+    AGRI        = "Agriculture Office"
+    BPLO        = "Business Processes & Licensing Office"
+    CSU         = "Civil Security Unit"
+    GSO         = "General Services Office"
+    HR          = "Human Resource Management Office"
+    LCR         = "Local Civil Registrar\'s Office"
+    MA          = "Municipal Administrator\'s Office"
+    MENRO       = "Environment & Natural Resources Office"
+    MO          = "Mayor\'s Office"
+    MPDO        = "Municipal Planning & Development Office"
+    MSWD        = "Municipal Social Welfare & Development Office"
+    MTO         = "Treasurer\'s Office"
+    NUTRI       = "Nutrition Office"
+    OSCA        = "Senior Citizen Affairs"
+    SB          = "Sangguniang Bayan Office"
+    
+    choices = [
+        (select, "select"),
+        (ACCTG, "ACCTG"),
+        (AGRI, "AGRI"), 
+        (BPLO, "BPLO"),
+        (CSU, "CSU"),
+        (GSO, "GSO"),
+        (HR, "HR"),
+        (LCR, "LCR"),
+        (MA, "MA"),
+        (MENRO, "MENRO"),
+        (MO, "MO"),
+        (MPDO, "MPDO"),
+        (MSWD, "MSWD"),
+        (MTO, "MTO"),
+        (NUTRI, "NUTRI"),
+        (OSCA, "OSCA"),
+        (SB, "SB")
+        ]
+
+    plantilla_from = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Platilla from ")
 
     def dp_directory_path(instance, filename):
         # file will be uploaded to MEDIA_ROOT/DP/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
