@@ -167,6 +167,7 @@ class Department(models.Model):
 
     name = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Department: ")
     manager = models.ForeignKey(Manager, on_delete=models.SET_NULL, null=True, blank=False)
+    plantilla_from = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Platilla from: ")
 
     def __str__(self):
         return f"{self.name}".strip()
@@ -211,7 +212,7 @@ class EmployeeProfile(models.Model):
     Profile model for additional user information.
     Only intended for HR use. Overly-sensitive information should not be stored here/displayed to other users.
     """
-    user            = models.OneToOneField(User, on_delete=models.CASCADE)
+    user            = models.OneToOneField(User, on_delete=models.CASCADE, related_name="employeeprofile")
     contact_number  = models.CharField(max_length=11, null=True, blank=False,
                     validators=[MinLengthValidator(10)],
                     verbose_name="Contact Number") # intended only for HR use, will not be displayed to other users
