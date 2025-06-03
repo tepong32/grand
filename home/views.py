@@ -3,11 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages     # for flash messages regarding valid data in the form
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.http import HttpResponseRedirect, Http404
+from django.http import Http404
 from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.urls import reverse
-
+from django.utils.timezone import now
 
 from .models import Announcement, OrgPersonnel, DepartmentContact, DownloadableForm
 from leave_mgt.models import LeaveRequest
@@ -129,6 +128,12 @@ class AnnouncementList(ListView):
     template_name = 'home/authed/announcements_list.html'
     context_object_name = 'announcements'
     ordering    =   ['-created_at']
+    paginate_by = 10
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['now'] = now()
+        return context
 
 class CreateAnnouncement(LoginRequiredMixin, CreateView):       
     model = Announcement
