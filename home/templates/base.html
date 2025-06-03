@@ -60,13 +60,15 @@ scratch. This page gets rid of all links and provides the needed markup only.
   </div>
   <!-- /.content-wrapper -->
 
-  
+  {% comment %} Useful links footer {% endcomment %}
+  {% include 'components/footer_links.html' %}
 
-  <!-- Footer -->
+  <!-- tEppy Footer -->
   {% include 'footer.html' %}
 
 </div>
 <!-- ./wrapper -->
+
 
 <!-- REQUIRED SCRIPTS -->
 {% include '_js.html' %}

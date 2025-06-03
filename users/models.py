@@ -165,7 +165,7 @@ class Department(models.Model):
         (SB, "SB")
         ]
 
-    name = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Department: ")
+    name = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Department ")
     manager = models.ForeignKey(Manager, on_delete=models.SET_NULL, null=True, blank=False)
 
     def __str__(self):
@@ -211,7 +211,7 @@ class EmployeeProfile(models.Model):
     Profile model for additional user information.
     Only intended for HR use. Overly-sensitive information should not be stored here/displayed to other users.
     """
-    user            = models.OneToOneField(User, on_delete=models.CASCADE)
+    user            = models.OneToOneField(User, on_delete=models.CASCADE, related_name="employeeprofile")
     contact_number  = models.CharField(max_length=11, null=True, blank=False,
                     validators=[MinLengthValidator(10)],
                     verbose_name="Contact Number") # intended only for HR use, will not be displayed to other users
@@ -234,6 +234,45 @@ class EmployeeProfile(models.Model):
     reg_or_ct_salary = models.ForeignKey(RegOrCT_Salary, on_delete=models.SET_NULL, null=True, blank=True) # can be left blank on edits
     jo_salary = models.ForeignKey(JO_Salary, on_delete=models.SET_NULL, null=True, blank=True) # can be left blank on edits
     
+    select      = "---select one---"
+    ACCTG       = "Accounting Office"
+    AGRI        = "Agriculture Office"
+    BPLO        = "Business Processes & Licensing Office"
+    CSU         = "Civil Security Unit"
+    GSO         = "General Services Office"
+    HR          = "Human Resource Management Office"
+    LCR         = "Local Civil Registrar\'s Office"
+    MA          = "Municipal Administrator\'s Office"
+    MENRO       = "Environment & Natural Resources Office"
+    MO          = "Mayor\'s Office"
+    MPDO        = "Municipal Planning & Development Office"
+    MSWD        = "Municipal Social Welfare & Development Office"
+    MTO         = "Treasurer\'s Office"
+    NUTRI       = "Nutrition Office"
+    OSCA        = "Senior Citizen Affairs"
+    SB          = "Sangguniang Bayan Office"
+    
+    choices = [
+        (select, "select"),
+        (ACCTG, "ACCTG"),
+        (AGRI, "AGRI"), 
+        (BPLO, "BPLO"),
+        (CSU, "CSU"),
+        (GSO, "GSO"),
+        (HR, "HR"),
+        (LCR, "LCR"),
+        (MA, "MA"),
+        (MENRO, "MENRO"),
+        (MO, "MO"),
+        (MPDO, "MPDO"),
+        (MSWD, "MSWD"),
+        (MTO, "MTO"),
+        (NUTRI, "NUTRI"),
+        (OSCA, "OSCA"),
+        (SB, "SB")
+        ]
+
+    plantilla_from = models.CharField(blank=True, null=False, max_length=80, choices=choices, default=select, verbose_name="Platilla from ")
 
     def dp_directory_path(instance, filename):
         # file will be uploaded to MEDIA_ROOT/DP/<username>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location

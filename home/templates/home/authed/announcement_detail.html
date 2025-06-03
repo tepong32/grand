@@ -2,30 +2,61 @@
 {% load static %}
 
 {% block content %}
-<div class="announcement-container">
-    <div class="announcement-header">
-        <h3 class="announcement-title text-danger text-center p-2">
-            {{ announcement.title.title }}
-            {% if announcement.user == request.user %}
-        <small class="ml-5">
-            <b><a href="{% url 'update-announcement' object.slug %}"><i class="fa fa-pencil-alt" title="Update"></i></a></b>
-        </small>   
+<section class="py-5 bg-white">
+  <div class="container">
+    <!-- Header -->
+    <div class="text-center mb-4">
+      <h2 class="text-primary">
+        <i class="fas fa-bullhorn"></i> 
+        {% if announcement.updated_at != announcement.created_at %}
+        <span class="badge badge-warning ml-2">Updated</span>
         {% endif %}
-        </h3>
-        
-</div>
-<div class="announcement-bg" style="background-image: url('{{ announcement.cover_image.url }}');">
-    <p class="announcement-meta">
-    <strong>Type:</strong> {{ announcement.get_announcement_type_display }} <br>
-    <strong>Created at:</strong> {{ announcement.created_at }} <br>
-    <strong>Updated at:</strong> {{ announcement.updated_at }} <br>
-    <div>
-        <strong>Content:</strong>
-        <div>{{ announcement.content|safe }}</div>  <!-- Use safe to render HTML content -->
+        {{ announcement.title.title }}
+        {% if announcement.user == request.user %}
+        <a href="{% url 'update-announcement' object.slug %}" class="ml-3 text-dark" title="Edit">
+          <i class="fas fa-pencil-alt"></i>
+        </a>
+        {% endif %}
+      </h2>
+      <p class="text-muted mb-0 d-flex justify-content-between align-items-center flex-wrap">
+        <span>
+          <small><i class="fas fa-clock"></i> Created: {{ announcement.created_at|date:"F j, Y – H:i A" }}</small><br>
+          {% if announcement.updated_at != announcement.created_at %}
+          <small><i class="fas fa-sync-alt"></i> Updated: {{ announcement.updated_at|date:"F j, Y – H:i A" }}</small>
+          {% endif %}
+        </span>
+        <button onclick="window.print()" class="btn btn-sm btn-outline-secondary mt-2 mt-md-0">
+          <i class="fas fa-print"></i> Print
+        </button>
+      </p>
+      
     </div>
-</div>
 
+    <!-- Image Banner -->
+    {% if announcement.cover_image %}
+    <div class="mb-4 text-center">
+      <img src="{{ announcement.cover_image.url }}" alt="Cover Image"
+           class="img-fluid rounded shadow-sm" style="max-height: 350px; object-fit: cover; width: 100%;">
+    </div>
+    {% endif %}
 
-<a href="/">Back to Home</a>
-    
+    <!-- Meta & Content -->
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <p class="text-secondary"><strong>Type:</strong> {{ announcement.get_announcement_type_display }}</p>
+        <hr>
+        <div class="announcement-content">
+          {{ announcement.content|safe }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+      <a class="btn btn-outline-primary" href="{% url 'announcements-list' %}">
+        <i class="fas fa-arrow-left"></i> Back to Announcements
+      </a>
+    </div>
+  </div>
+</section>
 {% endblock content %}

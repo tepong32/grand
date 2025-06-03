@@ -3,11 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages     # for flash messages regarding valid data in the form
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.http import HttpResponseRedirect, Http404
+from django.http import Http404
 from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.urls import reverse
-
+from django.utils.timezone import now
 
 from .models import Announcement, OrgPersonnel, DepartmentContact, DownloadableForm
 from leave_mgt.models import LeaveRequest
@@ -30,6 +29,17 @@ class UnauthedHomeView(ListView):
     model = Announcement
     template_name = 'home/unauthed/home.html'
     context_object_name = 'announcements'
+
+    ### removed this line as i want even logged-in users to see the announcements on the home page, too
+    ### with this block, they will be redirected to their respective department dashboards when trying to view the unauthed home page.
+    # def dispatch(self, request, *args, **kwargs):
+    #     """
+    #     Redirects authenticated users to their respective department dashboards.
+    #     If the user is not authenticated, it proceeds with the normal dispatch: ListView behavior.
+    #     """
+    #     if request.user.is_authenticated:
+    #         return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboards
+    #     return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -97,15 +107,6 @@ class AuthedHomeView(LoginRequiredMixin, ListView):
     template_name = 'home/authed/home.html'
     context_object_name = 'announcements'
 
-    def dispatch(self, request, *args, **kwargs):
-        """
-        Redirects authenticated users to their respective department dashboards.
-        If the user is not authenticated, it proceeds with the normal dispatch: ListView behavior.
-        """
-        if request.user.is_authenticated:
-            return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboards
-        return super().dispatch(request, *args, **kwargs)
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # user = User # not being used atm
@@ -127,6 +128,12 @@ class AnnouncementList(ListView):
     template_name = 'home/authed/announcements_list.html'
     context_object_name = 'announcements'
     ordering    =   ['-created_at']
+    paginate_by = 10
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['now'] = now()
+        return context
 
 class CreateAnnouncement(LoginRequiredMixin, CreateView):       
     model = Announcement
@@ -234,9 +241,9 @@ def department_dashboard_redirect(request):
     elif department_name == "General Services Office":
         return redirect('gso_dashboard')
     else:
-        return redirect('default_dashboard')
+        return redirect('home')  # Redirect to the default dashboard if no specific department dashboard is defined
     
-    # Note: The department dashboard URLs(names) ('hr_dashboard', 'finance_dashboard', etc.) should be defined in your urls.py file.
+    # Note: The department dashboard URLs(names) ('hr_dashboard', 'finance_dashboard', etc.) should be the names defined in your urls.py file.
 
 ### department-based dashboards
 ### These views are for the department-specific dashboards that users are redirected to after login.
@@ -259,10 +266,6 @@ def acctg_dashboard(request):
 @department_required("General Services Office")
 def gso_dashboard(request):
     return render(request, 'home/authed/dashboards/gso.html')
-
-@login_required
-def default_dashboard(request):
-    return render(request, 'home/authed/dashboards/default.html')
 
 def unauthorized_access_view(request):
     return render(request, 'home/authed/dashboards/403_unauthorized.html', status=403)

@@ -68,12 +68,21 @@
               <b>Dept. Head:</b> <a class="float-right"><b>{{viewed_user.employeeprofile.department.manager}}</b></a>
             </li>
             <li class="list-group-item">
-              <b>Designation</b>
+              <b>Office: </b>
+              {% if request.user == user %}
+                <i class="float-right">{{viewed_user.employeeprofile.designation}}</i>
+              {% else %}
+                **</i>
+              {% endif %}
+              <br>
+              <small class="text-muted">
+                <b>Platilla from: </b>
                 {% if request.user == user %}
-                  <i class="float-right">{{viewed_user.employeeprofile.designation}}</i>
+                  <i class="float-right">{{viewed_user.employeeprofile.plantilla_from}}</i>
                 {% else %}
                   **</i>
                 {% endif %}
+              </small>
             </li>
             <!-- PROFILE OWNER-ONLY INFO -->
             <li class="list-group-item">
@@ -119,11 +128,18 @@
 
             <div class="col-6">
               {% if leave_credits %}
+              <a href="{% url 'leave_list' %}" class="nav-link">
                 <strong><i class="fas fa-calendar-alt mr-1"></i> Leave Credits</strong>
                 <p class="text-muted">
                   Sick: {{ leave_credits.current_year_sl_credits }} days<br>
                   Vacation: {{ leave_credits.current_year_vl_credits }} days
                 </p>
+              </a>
+              {% else %}
+                <strong><i class="fas fa-calendar-alt mr-1"></i> Leave Credits</strong>
+                <p class="text-muted">
+                  <span class="tag tag-danger">No leave credits eaarned yet.</span><br>
+                  <span class="tag tag-danger">Please contact your HR.</span>
               {% endif %}
             </div>
           </div>
