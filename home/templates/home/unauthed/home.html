@@ -137,52 +137,84 @@
     <section id="contact-us" class="py-5 bg-light my-3">
     <div class="container">
         <h2 class="text-center mb-4">Contact Us</h2>
-        <div class="row">
-        <div class="col-md-6">
-            <div id="departmentCarousel" class="carousel slide" data-ride="carousel">
-            <div class="carousel-inner">
-                {% for dept in departments %}
-                <div
-                    class="carousel-item {% if forloop.first %}active{% endif %}"
-                    data-image="{{ dept.image.url }}"
-                >
-                    <div class="card shadow-sm">
-                    <div class="card-header">
-                        <h5>{{ dept.name }}</h5>
+            <div class="row align-items-stretch">
+                <!-- LEFT: Department Carousel -->
+                <div class="col-md-6 d-flex">
+                  <div class="card w-100 shadow-sm p-3">
+                    <div id="departmentCarousel" class="carousel slide w-100" data-ride="carousel">
+                      <div class="carousel-inner">
+                        {% for dept in departments %}
+                          <div class="carousel-item {% if forloop.first %}active{% endif %}" data-image="{{ dept.image.url }}">
+                            <div class="card h-100">
+                              <div class="position-relative p-2 h-100 d-flex flex-column justify-content-between">
+                                <div class="ribbon-wrapper">
+                                  <div class="ribbon bg-primary">
+                                    <img src="../../media/defaults/jjv.png" style="height: 25px; position: absolute;">
+                                  </div>
+                                </div>
+                                <div class="card-header">
+                                  <h5>{{ dept.name }}</h5>
+                                </div>
+                                <div class="card-body flex-grow-1">
+                                    <div class="contact-links">
+                                        {% if dept.email %}
+                                          <p class="mb-1">
+                                            <i class="fas fa-envelope text-primary"></i>
+                                            <strong class="ml-1">Email:</strong>
+                                            <a href="mailto:{{ dept.email }}" class="text-decoration-none">{{ dept.email }}</a>
+                                          </p>
+                                        {% endif %}
+                                      
+                                        {% if dept.landline %}
+                                          <p class="mb-1">
+                                            <i class="fas fa-phone text-primary"></i>
+                                            <strong class="ml-1">Landline:</strong>
+                                            <a href="tel:{{ dept.landline|cut:' ' }}" class="text-decoration-none">{{ dept.landline }}</a>
+                                          </p>
+                                        {% endif %}
+                                      
+                                        {% if dept.mobile %}
+                                          <p class="mb-1">
+                                            <i class="fas fa-mobile-alt text-primary"></i>
+                                            <strong class="ml-1">Mobile:</strong>
+                                            <a href="tel:{{ dept.mobile|cut:' ' }}" class="text-decoration-none">{{ dept.mobile }}</a>
+                                          </p>
+                                        {% endif %}
+                                      </div>
+                                  
+                                </div>
+                                <button class="btn-dark card-footer text-center text-primary">
+                                  <a href="https://m.me/{{ dept.messenger_chat_link }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
+                                    Or chat with us on <i class="fab fa-facebook-messenger text-primary"></i> Messenger
+                                  </a>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        {% endfor %}
+                      </div>
+                      <a class="carousel-control-prev" href="#departmentCarousel" role="button" data-slide="prev">
+                        <span class="carousel-control-prev-icon"></span>
+                      </a>
+                      <a class="carousel-control-next" href="#departmentCarousel" role="button" data-slide="next">
+                        <span class="carousel-control-next-icon"></span>
+                      </a>
                     </div>
-                    <div class="card-body">
-                        <p><strong>Motto:</strong> {{ dept.motto|safe }}</p>
-                        <p><strong>Email:</strong> {{ dept.email }}</p>
-                        <p><strong>Phone:</strong> {{ dept.contact_number }}</p>
-                    </div>
-                    <div class="card-footer text-center">
-                        <a href="https://m.me/{{ dept.messenger_chat_link }}" class="btn btn-sm btn-primary" target="_blank">
-                        Chat on Messenger
-                        </a>
-                    </div>
-                    </div>
+                  </div>
                 </div>
-                {% endfor %}
+              
+                <!-- RIGHT: Image Display -->
+                <div class="col-md-6 d-flex">
+                  <div class="card w-100 shadow-sm p-3 d-flex justify-content-center align-items-center">
+                    <div class="image-wrapper w-100">
+                      <img id="dept-image-display"
+                           src="{% if departments %}{{ departments.0.image.url }}{% endif %}"
+                           class="img-fluid"
+                           alt="Department Image">
+                    </div>
+                  </div>
+                </div>
             </div>
-
-            <a class="carousel-control-prev" href="#departmentCarousel" role="button" data-slide="prev">
-                <span class="carousel-control-prev-icon"></span>
-            </a>
-            <a class="carousel-control-next" href="#departmentCarousel" role="button" data-slide="next">
-                <span class="carousel-control-next-icon"></span>
-            </a>
-            </div>
-        </div>
-
-        <!-- DYNAMIC IMAGE PREVIEW -->
-        <div class="col-md-6">
-         <div class="image-wrapper">
-            <img id="dept-image-display" 
-                src="{% if departments %}{{ departments.0.image.url }}{% endif %}" 
-                alt="Department Image"
-                class="img-fluid">
-         </div>
-        </div>
     </div>
     </section>
 

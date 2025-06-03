@@ -179,22 +179,29 @@
 
   /* Smooth image transition for departmentCarousel */
   #dept-image-display {
-      transition: opacity 0.5s ease-in-out;
-      max-height: 400px;
-      max-width: 100%;
-      object-fit: cover;
-      border-radius: 1rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: opacity 0.5s ease-in-out;
+    width: 100%;
+    {% comment %} height: 100%; {% endcomment %}
+    object-fit: cover;
+    border-radius: 1rem;
   }
 
   /* Container to keep image height consistent */
   .image-wrapper {
-      min-height: 400px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: #f8f9fa;
-      border-radius: 1rem;
-      overflow: hidden;
+    height: 100%;
+    max-height: 450px;
+    overflow: hidden;
+    border-radius: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f8f9fa;
+  }
+  .card.h-100 {
+    height: 100%;
+  }
+
+  .carousel-item > .card {
+      height: 100%;
   }
 </style>
