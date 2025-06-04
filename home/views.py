@@ -96,7 +96,6 @@ class OrgChartView(ListView):
         context = super().get_context_data(**kwargs)
         context.update({
             'departments': DepartmentContact.objects.all(),
-            'downloadableforms': DownloadableForm.objects.all(),
         })
         return context
 
