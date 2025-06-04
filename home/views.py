@@ -128,7 +128,7 @@ class AnnouncementList(ListView):
     template_name = 'home/authed/announcements_list.html'
     context_object_name = 'announcements'
     ordering    =   ['-created_at']
-    paginate_by = 10
+    paginate_by = 9
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
