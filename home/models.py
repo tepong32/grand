@@ -1,7 +1,5 @@
 from django.db import models
-from django.utils import timezone
-from datetime import timedelta
-from users.models import User, EmployeeProfile
+from users.models import User
 from django.utils.text import slugify
 from django.urls import reverse
 
@@ -64,7 +62,7 @@ class Announcement(models.Model):
 
 class OrgPersonnel(models.Model):
 	name = models.CharField(max_length=255)
-	title = models.CharField(max_length=255, default='Department Head - ', help_text="The words 'Department Head' need to be included so they can be displayed on the org chart page properly")
+	title = models.CharField(max_length=255, default=' ', help_text="Either Titles or add OIC, your call.")
 	def upload_directory_path(instance, filename):
 		# file will be uploaded to MEDIA_ROOT/orgpersonnel/<name>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
 		return r'orgpersonnel/{}/{}'.format(instance.name, filename)
