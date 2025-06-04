@@ -94,9 +94,7 @@ class OrgChartView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update({
-            'departments': DepartmentContact.objects.all(),
-        })
+        context['departments'] = DepartmentContact.objects.all()
         return context
 
 
