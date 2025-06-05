@@ -80,8 +80,7 @@ class UnauthedHomeView(ListView):
             'published': published,
             'draft': draft,
 
-            'departments': DepartmentContact.objects.all(),
-            'downloadableforms': DownloadableForm.objects.all(),
+            
         })
         return context
 
@@ -94,10 +93,7 @@ class OrgChartView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update({
-            'departments': DepartmentContact.objects.all(),
-            'downloadableforms': DownloadableForm.objects.all(),
-        })
+        context['deptheads'] = OrgPersonnel.objects.exclude(title__in=["Mayor", "Vice Mayor", "Councilor"]).order_by('display_order')
         return context
 
 
@@ -128,7 +124,7 @@ class AnnouncementList(ListView):
     template_name = 'home/authed/announcements_list.html'
     context_object_name = 'announcements'
     ordering    =   ['-created_at']
-    paginate_by = 10
+    paginate_by = 9
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

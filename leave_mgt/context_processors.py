@@ -1,5 +1,4 @@
-from home.models import DownloadableForm
-from users.models import User, EmployeeProfile
+from home.models import DownloadableForm, DepartmentContact
 from .models import LeaveCredit, LeaveRequest, LeaveCreditLog
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -63,8 +62,9 @@ def dashboard_context(request):
             'downloadableforms': DownloadableForm.objects.all(),
         }
     return {
-        'server_time': timezone.now,
+        'departments': DepartmentContact.objects.all(),
         'downloadableforms': DownloadableForm.objects.all(),
+        'server_time': timezone.now,
     }
 
 

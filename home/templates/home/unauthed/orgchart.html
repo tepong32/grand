@@ -1,110 +1,119 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
-
+{% load static %}
 
 {% block content %}
-<style type="text/css">
-	.avatar-container {
-	    width: 100px; /* Set the desired width */
-	    height: 100px; /* Set the desired height */
-	    overflow: hidden; /* Hide overflow */
-	    border-radius: 50%; /* Optional: make it circular */
-	    border:	solid red 3px;;
-	    display: flex; /* Center the image */
-	    justify-content: center; /* Center the image */
-	    align-items: center; /* Center the image */
-	    margin-bottom: 15px; /* Space below the avatar */
-	    transition: transform 0.3s ease; /* Slightly enlarge to 120% */
-	}
+<style>
+    .avatar-container {
+        width: 100px;
+        height: 100px;
+        overflow: hidden;
+        border-radius: 50%;
+        border: 3px solid #0d6efd;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0 auto 10px;
+        transition: transform 0.3s ease;
+    }
 
-	.avatar {
-	    width: 100%; /* Make the image take the full width of the container */
-	    height: auto; /* Maintain aspect ratio */
-	    object-fit: cover; /* Cover the container without stretching */
-	}
+    .avatar {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
 
-	.avatar-container:hover {
-		transform: scale(1.2); /* Slightly enlarge to 120% */
-	}
+    .avatar-container:hover {
+        transform: scale(1.05);
+    }
 
+    .org-card {
+        border: none;
+        border-radius: 1rem;
+        box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        text-align: center;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeSlideIn 0.6s ease forwards;
+    }
+
+    .mayor-animation { animation-delay: 0.2s; }
+    .councilor-animation:nth-child(1) { animation-delay: 0.3s; }
+    .councilor-animation:nth-child(2) { animation-delay: 0.4s; }
+    .councilor-animation:nth-child(3) { animation-delay: 0.5s; }
+    .councilor-animation:nth-child(4) { animation-delay: 0.6s; }
+    .dept-animation:nth-child(1) { animation-delay: 0.7s; }
+    .dept-animation:nth-child(2) { animation-delay: 0.8s; }
+    .dept-animation:nth-child(3) { animation-delay: 0.9s; }
+
+    @keyframes fadeSlideIn {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 </style>
-A Dynamic Organizational chart here showcasing Mayor - Department Heads
 
-<hr>
 
-<!-- Mayor and Vice Mayor Row -->
-<div class="container text-sm">
-	<div class="row">
-	{% for person in orgpersonnel %}
-	{% if person.title == "Mayor" %}
-	<div class="card col-5 m-2">
-	    <div class="card-body">
-	        <div class="avatar-container">
-	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
-	        </div>
-	        <h5 class="card-title">{{person.name}}</h5>
-	        <p class="card-text">{{person.title}}</p>
-	        <p class="card-text">{{person.display_order}}</p>
-	    </div>
-	</div>
-	{% endif %}
+<div class="container my-5">
+    <h2 class="mb-4 text-center">Organizational Chart Overview</h2>
+    <p class="text-muted text-center">A visual overview of key officials and department heads in the LGU.</p>
 
-	{% if person.title == "Vice Mayor" %}
-	<div class="card col-4 m-2">
-	    <div class="card-body">
-	        <div class="avatar-container">
-	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
-	        </div>
-	        <h5 class="card-title">{{person.name}}</h5>
-	        <p class="card-text">{{person.title}}</p>
-	        <p class="card-text">{{person.display_order}}</p>
-	    </div>
-	</div>
-	{% endif %}
-	{% endfor %}
-	</div>
+    <!-- Mayor and Vice Mayor -->
+    <div class="row justify-content-center">
+        {% for person in orgpersonnel %}
+            {% if person.title == "Mayor" or person.title == "Vice Mayor" %}
+            <div class="col-md-5 col-lg-4">
+                <div class="card org-card mayor-animation">
+                    <div class="card-body">
+                        <div class="avatar-container">
+                            <img src="{{ person.image.url }}" alt="{{ person.name }}" class="avatar">
+                        </div>
+                        <h5 class="card-title">{{ person.name }}</h5>
+                        <p class="text-muted mb-0">{{ person.title }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Councilors -->
+    <h4 class="org-title">Councilors</h4>
+    <div class="row">
+        {% for person in orgpersonnel %}
+            {% if person.title == "Councilor" %}
+            <div class="col-sm-6 col-md-4 col-lg-3">
+                <div class="card org-card councilor-animation">
+                    <div class="card-body">
+                        <div class="avatar-container">
+                            <img src="{{ person.image.url }}" alt="{{ person.name }}" class="avatar">
+                        </div>
+                        <h6 class="card-title">{{ person.name }}</h6>
+                        <p class="text-muted mb-0">{{ person.title }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Department Heads -->
+    <h4 class="org-title">Department Heads</h4>
+    <div class="row">
+		{% for depthead in deptheads %}
+            <div class="col-sm-6 col-md-4 col-lg-3">
+                <div class="card org-card dept-animation">
+                    <div class="card-body">
+                        <div class="avatar-container">
+                            <img src="{{ depthead.image.url }}" alt="{{ depthead.name }}" class="avatar">
+                        </div>
+                        <h6 class="card-title">{{ depthead.name }}</h6>
+                        <p class="text-muted mb-0">{{ depthead.title }}</p>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
 </div>
-
-<br>
-<!-- Councilors Row -->
-<h3> Councilors</h3>
-<div class="row">
-{% for person in orgpersonnel %}
-	{% if person.title == "Councilor" %}
-	<div class="card col-3">
-	    <div class="card-body">
-	        <div class="avatar-container">
-	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
-	        </div>
-	        <h5 class="card-title">{{person.name}}</h5>
-	        <p class="card-text">{{person.title}}</p>
-	        <p class="card-text">{{person.display_order}}</p>
-	    </div>
-	</div>
-	{% endif %}
-{% endfor %}
-</div>
-
-<br>
-<!-- Department Heads Row -->
-<h3> Department Heads</h3>
-<div class="row">
-{% for person in orgpersonnel %}
-	{% if "Department Head" in person.title %}
-	<div class="card col-3">
-	    <div class="card-body">
-	        <div class="avatar-container">
-	            <img src="{{person.image.url}}" alt="User  Avatar" class="avatar">
-	        </div>
-	        <h5 class="card-title">{{person.name}}</h5>
-	        <p class="card-text">{{person.title}}</p>
-	        <p class="card-text">{{person.display_order}}</p>
-	    </div>
-	</div>
-	{% endif %}
-{% endfor %}
-</div>
-
-
-
-{% endblock content %}
+{% endblock %}

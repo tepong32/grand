@@ -38,7 +38,7 @@
                         {% if announcement.published and announcement.is_pinned %}
                         <li class="list-group-item">
                             <a href="{% url 'announcement-detail' announcement.slug %}">
-                                <i class="fa fa-thumbtack text-danger"></i> {{ announcement.title }}
+                                <i class="fa fa-thumbtack text-danger"></i> {{ announcement.title|truncatechars:50 }}
                             </a>
                         </li>
                         {% endif %}
@@ -47,7 +47,7 @@
                     {% for announcement in latest_public %}
                     <li class="list-group-item">
                         <a href="{{ announcement.get_absolute_url }}">
-                            <i class="fa fa-bullhorn text-primary"></i> {{ announcement.title }}
+                            <i class="fa fa-bullhorn text-primary"></i> {{ announcement.title|truncatechars:50 }}
                         </a>
                     </li>
                     {% endfor %}
@@ -183,11 +183,11 @@
                                       </div>
                                   
                                 </div>
-                                <button class="btn-dark card-footer text-center text-primary">
+                                <div class="btn-secondary card-footer text-center text-primary">
                                   <a href="https://m.me/{{ dept.messenger_chat_link }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
                                     Or chat with us on <i class="fab fa-facebook-messenger text-primary"></i> Messenger
                                   </a>
-                                </button>
+                                </div>
                               </div>
                             </div>
                           </div>
