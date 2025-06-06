@@ -11,7 +11,6 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
 from departments.models import Department, Plantilla
-from salaries.models import RegOrCT_Salary, JO_Salary
 
 logger = logging.getLogger(__name__)
 
@@ -64,13 +63,13 @@ class EmployeeProfile(models.Model):
         blank=True
     )
     reg_or_ct_salary = models.ForeignKey(
-        RegOrCT_Salary,
+        'salaries.RegOrCT_Salary',
         on_delete=models.SET_NULL,
         null=True,
         blank=True
     )
     jo_salary = models.ForeignKey(
-        JO_Salary,
+        'salaries.JO_Salary',
         on_delete=models.SET_NULL,
         null=True,
         blank=True

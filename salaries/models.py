@@ -1,4 +1,5 @@
 from django.db import models
+from profiles.models import EmployeeProfile
 
 from decimal import Decimal
 
