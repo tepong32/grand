@@ -1,5 +1,5 @@
 from django import forms
-from .models import User, EmployeeProfile
+from .models import User
 
 from django.contrib.auth.forms import UserCreationForm
 
@@ -27,7 +27,4 @@ class UserUpdateForm(forms.ModelForm):
 		model = User 
 		fields = ["email", "first_name", "middle_name", "last_name", "ext_name"] # main identifier(username) should not be changeable by the user so, it's not included here
 
-class ProfileUpdateForm(forms.ModelForm):
-	class Meta:
-		model = EmployeeProfile
-		fields = ["image", "note", "contact_number", "address"] # attrs editable by the user, others are for HR/admin edits only
+

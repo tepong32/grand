@@ -44,45 +44,34 @@ class UnauthedHomeView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Fetch public announcements and order them by created_at
+        # Fetch announcements
         public = Announcement.objects.filter(announcement_type=Announcement.PUBLIC).order_by('-created_at')
         internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL).order_by('-created_at')
 
-        # Get the latest 5 public announcements for the carousel
-        latest_public = public[:5]  # Slicing to get the latest 5
-        # Filter out the latest announcements from the public list
-        remaining_public = public[5:]  # Get all public announcements except the latest 5
+        # Split into latest (top 5) and remaining
+        latest_public = public[:5]
+        remaining_public = public[5:]
 
-        # Set up pagination for remaining public announcements
-        page_number = self.request.GET.get('page')  # Get the page number from the query parameters
-        paginator = Paginator(remaining_public, 5)  # Show 5 announcements per page
-        page_obj = paginator.get_page(page_number)  # Get the page object
+        # Paginate remaining public announcements
+        paginator = Paginator(remaining_public, 5)
+        page_number = self.request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
 
-        # Optionally, if you need published and draft announcements for admin posting purposes
+        # Admin use: published vs draft (if needed)
         published = Announcement.objects.filter(published=True)
         draft = Announcement.objects.filter(published=False)
-
-        # Manually iterated latest announcements for chaotic positioning on the bulletin board
-        latest_positions = [
-            {'announcement': latest_public[0], 'top': '23%', 'left': '30%'},
-            {'announcement': latest_public[1], 'top': '33%', 'left': '10%'},
-            {'announcement': latest_public[2], 'top': '40%', 'left': '63%'},
-            {'announcement': latest_public[3], 'top': '55%', 'left': '45%'},
-            {'announcement': latest_public[4], 'top': '68%', 'left': '25%'},
-        ]
 
         context.update({
             'public': public,
             'latest_public': latest_public,
-            'latest_positions': latest_positions,
-            'remaining_public': page_obj,  # Use the paginated announcements
+            'remaining_public': page_obj,
             'internal': internal,
             'published': published,
             'draft': draft,
-
-            
         })
+
         return context
+
 
 
 class OrgChartView(ListView):

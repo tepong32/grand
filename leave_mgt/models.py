@@ -2,9 +2,9 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.urls import reverse
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
-from users.models import User, EmployeeProfile
+from profiles.models import EmployeeProfile
 
 
 

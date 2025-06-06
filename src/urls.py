@@ -27,13 +27,11 @@ class LoginView(auth_views.LoginView):
     #     return reverse_lazy('home_redirect')  # Same as your '/' or LOGIN_SUCCESS_URL
 
 
-
-
-
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('home.urls')),
     path('users/', include('users.urls')),
+    path('profiles/', include('profiles.urls')),
     path('leave-mgt/', include('leave_mgt.urls')),
     # path('api/', include('api.urls'), name="api"),
     
@@ -43,13 +41,10 @@ urlpatterns = [
     path("ckeditor5/", include('django_ckeditor_5.urls')),
     # path("upload/", custom_upload_function, name="custom_upload_file"), # prolly will not need this until feature for user file uploads are implemented
 
-
     ### these views/html templates are inside the "users" app
     path('login/', LoginView.as_view(template_name='auth/login.html'), name='login' ), # customized LoginView to display prompts on the page
     path('logout/', auth_views.LogoutView.as_view(template_name='auth/logout.html'), name='logout' ),
     path('register/', register, name='register' ), # for external users to sign-up only using Google accounts
-    path('employee-register/', employeeRegister, name='employee-register' ), # for employees to fill-out the form, user accounts should have restrictions viewing pages on default attrs
-    # path('search/', user_search_view, name="user-search"),
     
     # Password reset links (ref: https://github.com/django/django/blob/master/django/contrib/auth/views.py)
     path('password-change/done/', auth_views.PasswordChangeDoneView.as_view(template_name='password_reset/password_change_done.html'), 
