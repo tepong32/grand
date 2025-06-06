@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% load static custom_filters %}
+
+<!-- Users' Profile page -->
+<!-- Self-explanatory page...I guess. LOL -->
+
+{% block content %}
+  <style type="text/css">
+    .modal-lg {
+      max-width: 80%;
+    }
+
+    .modal-content {
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-header {
+      background-color: #f0f0f0;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .modal-title {
+      font-weight: bold;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    #image-modal-content {
+      max-width: 100%;
+      height: auto;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+  <div id="alert-container" class="alert-container">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+  <div class="row">
+      <!-- Profile Image -->
+      <div class="card card-primary col-md-4">
+        <div class="card-body box-profile">
+          <div class="text-center">
+            <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5"
+           src="{{viewed_user.employeeprofile.image.url}}"
+           alt="User profile picture" style="width: 250px; height: 250px">
+          </div>
+          
+          <!-- check logic here -->
+          <!-- see if addtl if-block is needed -->
+            <h2 class="profile-username text-center">{{viewed_user.get_full_name}}</h2>
+            <small class="float-right ml-5">
+              <a title="Edit profile" class="fa fa-edit" href="{% url 'profile-edit' viewed_user.username %}"> Edit</a>
+            </small>
+
+          <p class="text-sm text-muted text-center"><i>{{viewed_user.employeeprofile.department}}</i></p>
+
+          <ul class="list-group list-group-unbordered mb-3">
+            <li class="list-group-item">
+              <b>Dept. Head:</b> <a class="float-right"><b>{{viewed_user.employeeprofile.department.manager}}</b></a>
+            </li>
+            <li class="list-group-item">
+              <b>Office: </b>
+              {% if request.user == user %}
+                <i class="float-right">{{viewed_user.employeeprofile.designation}}</i>
+              {% else %}
+                **</i>
+              {% endif %}
+              <br>
+              <small class="text-muted">
+                <b>Platilla from: </b>
+                {% if request.user == user %}
+                  <i class="float-right">{{viewed_user.employeeprofile.plantilla_from}}</i>
+                {% else %}
+                  **</i>
+                {% endif %}
+              </small>
+            </li>
+            <!-- PROFILE OWNER-ONLY INFO -->
+            <li class="list-group-item">
+              <b>Employment Type:</b>
+                {% if request.user == user %}
+                  <i class="float-right">{{viewed_user.employeeprofile.employment_type}}</i> <br>
+                  <p class="float-right">@ {{viewed_user.employeeprofile.get_salary|currency }}</p>
+                {% else %}
+                  <i>**</i>
+                {% endif %}
+            </li>
+          </ul>
+
+          <a href="#" class="btn btn-primary btn-block"><b>{{viewed_user.employeeprofile.get_salary|currency }}</b></a>
+        </div>
+        <!-- /.card-body -->
+      </div>
+      <!-- /.card -->
+
+      <!-- About Me Box -->
+      <div class="card card-secondary col ml-1">
+        <div class="card-header">
+          <div class="card-title row">
+            {% if viewed_user.employeeprofile.note %}
+            <a href="{% url 'profile-edit' user.username %}"><i>{{viewed_user.employeeprofile.note|safe}}</i></a>
+            {% else %}
+              {% if viewed_user == request.user %}
+                <small><i>"A heads-up note to others. Example: Away for the meantime until mm/dd/yy."</i></small>
+                <a href="{% url 'profile-edit' viewed_user.username %}"><i title="Edit profile" class="fa fa-edit"></i></a>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+        <!-- /.card-header -->
+        <div class="card-body">
+          <div class="row">
+            <div class="col-6">
+              <strong><i class="fas fa-phone-alt mr-1"></i> Phone</strong>
+              <p class="text-muted">{{viewed_user.employeeprofile.contact_number}}</p>
+              <strong><i class="fas fa-phone-alt mr-1"></i> Email</strong>
+              <p class="text-muted">{{viewed_user.email}}</p>
+            </div>
+
+            <div class="col-6">
+              {% if leave_credits %}
+              <a href="{% url 'leave_list' %}" class="nav-link">
+                <strong><i class="fas fa-calendar-alt mr-1"></i> Leave Credits</strong>
+                <p class="text-muted">
+                  Sick: {{ leave_credits.current_year_sl_credits }} days<br>
+                  Vacation: {{ leave_credits.current_year_vl_credits }} days
+                </p>
+              </a>
+              {% else %}
+                <strong><i class="fas fa-calendar-alt mr-1"></i> Leave Credits</strong>
+                <p class="text-muted">
+                  <span class="tag tag-danger">No leave credits eaarned yet.</span><br>
+                  <span class="tag tag-danger">Please contact your HR.</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <hr>
+
+          <strong><i class="fas fa-map-marker-alt mr-1"></i> Location</strong>
+
+          <p class="text-muted">{{viewed_user.employeeprofile.address}}</p>
+
+
+          <hr>
+
+          
+          <strong><i class="fas fa-pencil-alt mr-1"></i> MGBEA membership record?</strong>
+
+          <p class="text-muted">
+            <span class="tag tag-danger">Add "skills" attribute to model</span><br>
+            <span class="tag tag-danger">Then use a For-Loop here</span><br>
+            <span class="tag tag-danger">To display them</span>
+
+          </p>
+
+          <hr>
+
+          <strong><i class="mr-1"></i>Member since {{ viewed_user.date_joined|date:"F Y" }}</strong>
+
+        </div>
+        <!-- /.card-body -->
+      </div>
+      <!-- /.card -->
+  </div> <!-- /.row -->
+  
+
+
+  <!-- modal for Profile Image // don't touch this -->
+  <div id="image-modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-md" role="document">
+      <div class="modal-content" title="{{viewed_user.username}}">
+        <!-- <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div> -->
+        <div class="modal-body">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+          <img id="image-modal-content" src="" alt="Profile Image" style="width: 100%; height: auto;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
