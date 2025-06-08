@@ -7,7 +7,7 @@
 {% endblock %}
 <title>Admin Setup Guide Override</title>
 
-{% block footer %}
+{% block extrajs %}
   {{ block.super }}
   <script src="{% static 'admin_helper/js/setup_guide.js' %}"></script>
 {% endblock %}
