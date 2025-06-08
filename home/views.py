@@ -215,16 +215,16 @@ def department_dashboard_redirect(request):
     Redirects users to their respective department dashboards based on their department.
     """
     user = request.user.employeeprofile
-    print("Logged-in user's department:", user.department.name)
-    department_name = user.department.name  # since we used ForeignKeys for departments and not just strings. Hence, we access the ".name" attribute.
-    
-
-    if department_name == "Human Resource Management Office":
-        return redirect('hr_dashboard')
-    elif department_name == "Accounting Office":
-        return redirect('acctg_dashboard')
-    elif department_name == "General Services Office":
-        return redirect('gso_dashboard')
+    if user.assigned_department:
+        print("Logged-in user's department:", user.assigned_department.name)
+        department_name = user.assigned_department.name  # since we used ForeignKeys for departments and not just strings. Hence, we access the ".name" attribute.
+        
+        if department_name == "Human Resource Management Office":
+            return redirect('hr_dashboard')
+        elif department_name == "Accounting Office":
+            return redirect('acctg_dashboard')
+        elif department_name == "General Services Office":
+            return redirect('gso_dashboard')
     else:
         return redirect('home')  # Redirect to the default dashboard if no specific department dashboard is defined
     

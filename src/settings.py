@@ -36,6 +36,7 @@ ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     
+    'admin_helper', # custom app for admin helpers, e.g. custom admin actions, custom admin views, etc.
     
     ### 3rd-party apps
     'adminlte4',
@@ -56,6 +57,7 @@ INSTALLED_APPS = [
     'leave_mgt.apps.LeaveMgtConfig',
     'salaries.apps.SalariesConfig',
     'departments.apps.DepartmentsConfig',
+    
 
     ### defaults
     'django.contrib.sites', # "just-in-case". allauth needs this.
