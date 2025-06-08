@@ -1,0 +1,38 @@
+#setup-guide-card {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 320px;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: #f9fafb;
+    border: 1px solid #d1d5db;
+    padding: 15px;
+    z-index: 9999;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 0.5rem;
+    font-size: 14px;
+    font-family: "Source Sans Pro", sans-serif;
+  }
+  
+  #setup-guide-card h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 16px;
+    color: #111827;
+  }
+  
+  #setup-guide-card .toggle-button {
+    background: #e5e7eb;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    float: right;
+    font-size: 12px;
+    border-radius: 4px;
+  }
+  
+  #setup-guide-content.collapsed {
+    display: none;
+  }
+  

@@ -1,0 +1,13 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin_helper/css/setup_guide.css' %}">
+{% endblock %}
+<title>Admin Setup Guide Override</title>
+
+{% block footer %}
+  {{ block.super }}
+  <script src="{% static 'admin_helper/js/setup_guide.js' %}"></script>
+{% endblock %}
