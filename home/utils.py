@@ -19,11 +19,11 @@ def get_department_dashboard_context(department, user):
             })
         case "gso":
             context.update({
-                "maintenance_tasks": MaintenanceTask.objects.filter(status="Pending"),
+                # "maintenance_tasks": MaintenanceTask.objects.filter(status="Pending"),
             })
         case "acctg":
             context.update({
-                "salary_batches": PayrollBatch.objects.order_by('-created_at')[:5],
+                # "salary_batches": PayrollBatch.objects.order_by('-created_at')[:5],
             })
 
     # Add more elif blocks as new departments grow in complexity
