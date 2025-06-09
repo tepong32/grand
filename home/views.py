@@ -209,48 +209,44 @@ def announcement_search_view(request, *args, **kwargs):
     return render(request, "home/unauthed/announcement_search_results.html", context)
 
 
-@login_required
-def department_dashboard_redirect(request):
-    """
-    Redirects users to their respective department dashboards based on their department.
-    """
-    user = request.user.employeeprofile
-    if user.assigned_department:
-        print("Logged-in user's department:", user.assigned_department.name)
-        department_name = user.assigned_department.name  # since we used ForeignKeys for departments and not just strings. Hence, we access the ".name" attribute.
-        
-        if department_name == "Human Resource Management Office":
-            return redirect('hr_dashboard')
-        elif department_name == "Accounting Office":
-            return redirect('acctg_dashboard')
-        elif department_name == "General Services Office":
-            return redirect('gso_dashboard')
-    else:
-        return redirect('home')  # Redirect to the default dashboard if no specific department dashboard is defined
-    
-    # Note: The department dashboard URLs(names) ('hr_dashboard', 'finance_dashboard', etc.) should be the names defined in your urls.py file.
-
-### department-based dashboards
-### These views are for the department-specific dashboards that users are redirected to after login.
-### Add more department dashboards as needed.
-
-from .decorators.check_department import department_required    # see decorators/check_department.py for the department_required decorator
-
+from django.template.loader import get_template, TemplateDoesNotExist
+from home.utils import get_department_dashboard_context
 
 @login_required
-@department_required("Human Resource Management Office")
-def hr_dashboard(request):
-    return render(request, 'home/authed/dashboards/hr.html')
+def department_dashboard_dynamic(request):
+    user = getattr(request.user, 'employeeprofile', None)
+    if not user:
+        # If user has no employee profile, fallback to home or a suitable page
+        return redirect('home')
 
-@login_required
-@department_required("Accounting Office")
-def acctg_dashboard(request):
-    return render(request, 'home/authed/dashboards/acctg.html')
+    department = getattr(user, 'assigned_department', None)
+    if not department:
+        return redirect('home')
 
-@login_required
-@department_required("General Services Office")
-def gso_dashboard(request):
-    return render(request, 'home/authed/dashboards/gso.html')
+    fallback_template = 'home/authed/dashboards/generic.html'
+    template_path = (department.dashboard_template or '').strip()
+    print("💡 USING department_dashboard_dynamic view")
+    print(f"[DEBUG] Department slug: {department.slug}")
+
+
+    try:
+        if template_path:
+            # Check if the template actually exists
+            get_template(template_path)
+        else:
+            raise TemplateDoesNotExist("No template path specified.")
+    except TemplateDoesNotExist:
+        template_path = fallback_template
+
+    context = {
+        "department": department,
+    }
+
+    # Merge department-specific dashboard context
+    context.update(get_department_dashboard_context(department, user))
+
+    return render(request, template_path, context)
+
 
 def unauthorized_access_view(request):
     return render(request, 'home/authed/dashboards/403_unauthorized.html', status=403)
