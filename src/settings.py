@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'leave_mgt.apps.LeaveMgtConfig',
     'salaries.apps.SalariesConfig',
     'departments.apps.DepartmentsConfig',
+    'assistance.apps.AssistanceConfig',
 
     ### defaults
     'django.contrib.sites', # "just-in-case". allauth needs this.
