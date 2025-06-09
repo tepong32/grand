@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load static crispy_forms_tags %}
+
+{% block title_ext %} - Modify Your Assistance Request{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+      <div class="card shadow rounded-4">
+        <div class="card-header bg-warning text-dark rounded-top-4">
+          <h4 class="mb-0"><i class="fas fa-edit me-2"></i> Edit Your Request</h4>
+        </div>
+        <div class="card-body">
+          <p><strong>Reference Code:</strong> {{ request_obj.reference_code }}</p>
+
+          <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label for="id_file" class="form-label">Upload More Documents</label>
+              <input type="file" name="file" id="id_file" class="form-control" multiple>
+              <small class="form-text text-muted">You may upload additional supporting documents if needed.</small>
+            </div>
+            <div class="text-end">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-upload me-1"></i> Upload
+              </button>
+            </div>
+          </form>
+
+          {% if documents %}
+          <hr>
+          <h6>Existing Documents</h6>
+          <ul class="list-group">
+            {% for doc in documents %}
+              <li class="list-group-item">
+                {{ doc.file.url|cut:"/media/" }}
+              </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

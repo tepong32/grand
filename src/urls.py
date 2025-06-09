@@ -28,10 +28,11 @@ class LoginView(auth_views.LoginView):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('home.urls')),
-    path('/assistance/', include('assistance.urls')),
-    path('users/', include('users.urls')),
-    path('profiles/', include('profiles.urls')),
+    path('assistance/', include('assistance.urls')),
     path('leave-mgt/', include('leave_mgt.urls')),
+    path('profiles/', include('profiles.urls')),
+    path('users/', include('users.urls')),
+    
     # path('api/', include('api.urls'), name="api"),
     
     ### allauth

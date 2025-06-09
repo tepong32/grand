@@ -2,7 +2,9 @@
 
 from django.db import models
 from django_ckeditor_5.fields import CKEditor5Field
-import uuid
+from django.utils import timezone
+from django.utils.crypto import get_random_string
+
 
 def sample_upload_path(instance, filename):
     return f"assistance_samples/{instance.id}/{filename}"
@@ -25,6 +27,7 @@ class AssistanceRequest(models.Model):
     phone = models.CharField(max_length=20)
     submitted_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True) # to mark if the request is still active or not
+    edit_code = models.CharField(max_length=6, blank=True, editable=False)
 
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -41,6 +44,8 @@ class AssistanceRequest(models.Model):
     def save(self, *args, **kwargs):
         if not self.reference_code:
             self.reference_code = self.generate_reference_code()
+        if not self.edit_code:
+            self.edit_code = get_random_string(length=6, allowed_chars='0123456789')
         super().save(*args, **kwargs)
 
     def generate_reference_code(self):
@@ -55,3 +60,12 @@ class AssistanceRequest(models.Model):
         ).count() + 1
 
         return f"MSWD-{month}-{year}-{count:04d}"
+
+
+class RequestDocument(models.Model):
+    request = models.ForeignKey('AssistanceRequest', on_delete=models.CASCADE, related_name='documents')
+    file = models.FileField(upload_to='assistance_uploads/%Y/%m/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Document for {self.request.reference_code}"
