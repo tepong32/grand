@@ -62,7 +62,7 @@ def user_search_view(request):
 
 @login_required
 def usersIndexView(request):
-    departments = Department.objects.all()
+    departments = Department.objects.order_by("name")
     department_users = {
         dept.name: EmployeeProfile.objects.filter(assigned_department=dept)
         for dept in departments

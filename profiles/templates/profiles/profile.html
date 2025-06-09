@@ -50,7 +50,7 @@
         <div class="card-body box-profile">
           <div class="text-center">
             <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5"
-           src="{{viewed_user.employeeprofile.image.url}}"
+           src="{{viewed_user.employeeprofile.profile_image.url}}"
            alt="User profile picture" style="width: 250px; height: 250px">
           </div>
           
@@ -61,16 +61,16 @@
               <a title="Edit profile" class="fa fa-edit" href="{% url 'profile-edit' viewed_user.username %}"> Edit</a>
             </small>
 
-          <p class="text-sm text-muted text-center"><i>{{viewed_user.employeeprofile.department}}</i></p>
+          <p class="text-sm text-muted text-center"><i>{{viewed_user.employeeprofile.assigned_department}}</i></p>
 
           <ul class="list-group list-group-unbordered mb-3">
             <li class="list-group-item">
-              <b>Dept. Head:</b> <a class="float-right"><b>{{viewed_user.employeeprofile.department.manager}}</b></a>
+              <b>Dept. Head:</b> <a class="float-right"><b>{{viewed_user.employeeprofile.assigned_department.deptHead_or_oic}}</b></a>
             </li>
             <li class="list-group-item">
-              <b>Office: </b>
+              <b>Assigned Department: </b>
               {% if request.user == user %}
-                <i class="float-right">{{viewed_user.employeeprofile.designation}}</i>
+                <i class="float-right">{{viewed_user.employeeprofile.assigned_department}}</i>
               {% else %}
                 **</i>
               {% endif %}
@@ -78,7 +78,7 @@
               <small class="text-muted">
                 <b>Platilla from: </b>
                 {% if request.user == user %}
-                  <i class="float-right">{{viewed_user.employeeprofile.plantilla_from}}</i>
+                  <i class="float-right">{{viewed_user.employeeprofile.plantilla}}</i>
                 {% else %}
                   **</i>
                 {% endif %}
