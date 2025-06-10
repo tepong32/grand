@@ -144,7 +144,9 @@
                         <table class="table table-sm table-hover table-bordered mb-4">
                           <thead>
                             <tr>
-                              <th>User</th>
+                              <th>Employee</th>
+                              <th>Type</th>
+                              <th>Date Hired</th>
                               <th>Designation</th>
                             </tr>
                           </thead>
@@ -153,16 +155,30 @@
                               <tr>
                                 <td>
                                   <a href="{% url 'profile' profile.user.username %}">
-                                    {{ profile.user.last_name|default:''|title }}, {{ profile.user.first_name|default:''|title }}
+                                    {{ profile.user.last_name|default:''|title }},
+                                    {{ profile.user.first_name|default:''|title }}
+                                    {% if profile.ext_name %}{{ profile.ext_name|upper }}{% endif %}
                                   </a>
                                 </td>
-                                <td>{{ profile.plantilla }}</td>
+                                <td>
+                                  {% if profile.employment_type == 'REG' %}Regular
+                                  {% elif profile.employment_type == 'CT' %}Co-Terminus
+                                  {% elif profile.employment_type == 'JO' %}Job Order
+                                  {% else %}-{% endif %}
+                                </td>
+                                <td>
+                                  {% if profile.reg_date_hired %}{{ profile.reg_date_hired|date:"M Y" }}
+                                  {% elif profile.jo_date_hired %}{{ profile.jo_date_hired|date:"M Y" }}
+                                  {% else %}-{% endif %}
+                                </td>
+                                <td>{{ profile.plantilla|default:"–" }}</td>
                               </tr>
                             {% endfor %}
                           </tbody>
                         </table>
                       {% endfor %}
                     </div>
+
                   </div>
                 </div>
               </div>
