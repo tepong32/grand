@@ -87,8 +87,16 @@
                                       {% endif %}
                                     </a>
                                   </td>
-                                  <td>{{ profile.plantilla }}</td>
+                                  <td>
+                                    {{ profile.plantilla }}<br>
+                                    {% if profile.plantilla.department != department %}
+                                      <small class="text-muted">
+                                        (Plantilla: {{ profile.plantilla.department }})
+                                      </small>
+                                    {% endif %}
+                                  </td>
                                 </tr>
+
                               {% empty %}
                                 <tr>
                                   <td colspan="4" class="text-center text-muted">No users found in this department.</td>

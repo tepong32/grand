@@ -60,7 +60,7 @@
             <small class="float-right ml-5">
               <a title="Edit profile" class="fa fa-edit" href="{% url 'profile-edit' user.username %}"> Edit</a>
             </small>
-          <p class="text-sm text-muted text-center"><i>{{viewed_user.employeeprofile.assigned_department}}</i></p>
+          <p class="text-sm text-muted text-center"><i>{{viewed_user.employeeprofile.plantilla}}</i></p>
 
           <ul class="list-group list-group-unbordered mb-3">
             <li class="list-group-item">
@@ -77,7 +77,7 @@
               <small class="text-muted">
                 <b>Platilla from: </b>
                 {% if request.user == user %}
-                  <i class="float-right">{{viewed_user.employeeprofile.plantilla}}</i>
+                  <i class="float-right">{{viewed_user.employeeprofile.plantilla.department}}</i>
                 {% else %}
                   **</i>
                 {% endif %}
