@@ -47,7 +47,7 @@ class AssistanceRequestAdmin(admin.ModelAdmin):
         'submitted_at',
         'is_active',
     )
-    # list_filter = ('status', 'assistance_type', 'is_active', 'submitted_at')
+    list_filter = ('status', 'assistance_type', 'is_active', 'submitted_at')
     search_fields = ('reference_code', 'full_name', 'email', 'phone')
     readonly_fields = ('reference_code', 'submitted_at')
     ordering = ('-submitted_at',)
