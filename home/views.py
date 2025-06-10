@@ -104,7 +104,7 @@ class AuthedHomeView(LoginRequiredMixin, ListView):
         context.update({
             'internal': internal,
             'published': published,
-            'draft': draft
+            'draft': draft,
         })
         return context
 
