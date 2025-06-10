@@ -91,105 +91,14 @@ def usersIndexView(request):
 
     return render(request, 'users/users_index.html', context_data)
 
-# @login_required
-# def usersIndexView(request):
-#     profiles = EmployeeProfile.objects.all()
-#     departments = Department.objects.order_by("name")
-#     department_users = {
-#         dept: EmployeeProfile.objects.filter(assigned_department=dept)
-#         for dept in departments
-#     }
 
-#     if request.user.is_staff or departments.filter(deptHead_or_oic=request.user).exists():
-#         messages.info(request, "You are seeing this page because you are a Staff/Admin or a Dept Head/OIC.")
-#     else:
-#         messages.error(request, "Access Denied.")
-#         return redirect('home')
-
-#     context_data = {
-#         'users': User.objects.all().order_by('last_name', 'first_name')[:50],
-#         'profiles': profiles,
-#         'userCount': User.objects.count(),
-#         'department_users': department_users,
-#     }
-#     return render(request, 'users/users_index.html', context_data)
-
-
-
-# import csv
-# import io
-# import openpyxl
-# from django.http import HttpResponse, HttpResponseForbidden
-
-# @login_required
-# def export_department_users(request, department, format):
-#     # Lookup department by slug
-#     dept = get_object_or_404(Department, slug=department)
-
-#     # Restriction: Only staff or the dept head/OIC can export
-#     if not request.user.is_staff and dept.deptHead_or_oic != request.user:
-#         messages.error(request, "You are not authorized to export user data for this department.")
-#         return redirect('users_index')  # Update this if your index view name is different
-
-#     # Filter users assigned to this department
-#     users = EmployeeProfile.objects.filter(assigned_department=dept)
-
-#     # Handle CSV export
-#     if format == "csv":
-#         response = HttpResponse(content_type='text/csv')
-#         response['Content-Disposition'] = f'attachment; filename="{dept.slug}_users.csv"'
-
-#         writer = csv.writer(response)
-#         writer.writerow(['Username', 'Last Name', 'First Name', 'Designation'])
-
-#         for u in users:
-#             writer.writerow([
-#                 u.user.username,
-#                 u.user.last_name or '',
-#                 u.user.first_name or '',
-#                 u.plantilla or ''
-#             ])
-#         return response
-
-#     # Handle Excel export
-#     elif format == "excel":
-#         workbook = openpyxl.Workbook()
-#         sheet = workbook.active
-#         sheet.title = f"{dept.name} Users"
-
-#         # Add headers
-#         headers = ['Username', 'Last Name', 'First Name', 'Designation']
-#         sheet.append(headers)
-
-#         for u in users:
-#             sheet.append([
-#                 u.user.username,
-#                 u.user.last_name or '',
-#                 u.user.first_name or '',
-#                 u.plantilla or ''
-#             ])
-
-#         # Save Excel to memory
-#         excel_file = io.BytesIO()
-#         workbook.save(excel_file)
-#         excel_file.seek(0)
-
-#         response = HttpResponse(
-#             excel_file.read(),
-#             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-#         )
-#         response['Content-Disposition'] = f'attachment; filename="{dept.slug}_users.xlsx"'
-#         return response
-
-#     # Unknown format
-#     else:
-#         raise Http404("Invalid export format.")
 import csv
 from io import BytesIO
 from django.http import HttpResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
+from collections import defaultdict
 
 
 @login_required
@@ -309,6 +218,62 @@ def export_department_users(request, department, format):
         return HttpResponse("Unsupported format", status=400)
 
 
+@login_required
+def export_all_employees(request, format):
+    profiles = EmployeeProfile.objects.select_related('user', 'assigned_department', 'plantilla')
+
+    wb = Workbook()
+    ws_all = wb.active
+    ws_all.title = "All Employees"
+    headers = ['Department', 'Last Name', 'First Name', 'Username', 'Email', 'Mobile', 'Designation', 'Remarks']
+    ws_all.append(headers)
+
+    dept_map = defaultdict(list)
+    for profile in profiles:
+        dept = profile.assigned_department.name if profile.assigned_department else 'Unassigned'
+        dept_map[dept].append(profile)
+
+    for dept, dept_profiles in dept_map.items():
+        for profile in dept_profiles:
+            user = profile.user
+            ws_all.append([
+                dept,
+                user.last_name.title() if user.last_name else '',
+                user.first_name.title() if user.first_name else '',
+                user.username,
+                user.email or '',
+                getattr(profile, 'mobile', ''),
+                str(profile.plantilla) if profile.plantilla else '',
+                getattr(profile, 'remarks', '')
+            ])
+
+    # Department-specific sheets
+    for dept, dept_profiles in dept_map.items():
+        ws_dept = wb.create_sheet(title=dept[:30])
+        ws_dept.append(headers)
+        for profile in dept_profiles:
+            user = profile.user
+            ws_dept.append([
+                dept,
+                user.last_name.title() if user.last_name else '',
+                user.first_name.title() if user.first_name else '',
+                user.username,
+                user.email or '',
+                getattr(profile, 'mobile', ''),
+                str(profile.plantilla) if profile.plantilla else '',
+                getattr(profile, 'remarks', '')
+            ])
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="all_employees.xlsx"'
+    return response
 
 
 
