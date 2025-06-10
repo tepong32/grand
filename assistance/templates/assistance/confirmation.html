@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title_ext %} - Success! Assistance Request Submitted{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+      <div class="card shadow rounded-4">
+        <div class="card-header bg-success text-white rounded-top-4">
+          <h4 class="mb-0"><i class="fas fa-check-circle me-2"></i> Request Submitted</h4>
+        </div>
+        <div class="card-body">
+            <p class="lead">Thank you for submitting your request!</p>
+          
+            <div class="alert alert-secondary">
+              <strong>Here are your request details:</strong><br>
+              📌 <strong>Reference Code:</strong> {{ reference_code }}<br>
+              🔑 <strong>Edit Code:</strong> {{ edit_code }}
+            </div>
+          
+            <div class="alert alert-danger">
+              <strong>Don't lose this page!</strong> Bookmark or screenshot it — you’ll need these links to check or update your request in the future.
+            </div>
+          
+            <div class="mb-3">
+              <p><strong>Edit / Upload More Files:</strong></p>
+              <div class="input-group">
+                <input type="text" class="form-control" readonly value="{{ edit_link }}">
+                <a href="{{ edit_link }}" class="btn btn-warning" target="_blank">
+                  <i class="fas fa-edit me-1"></i> Open
+                </a>
+              </div>
+            </div>
+          
+            <div class="mb-3">
+              <p><strong>Track Request Status:</strong></p>
+              <div class="input-group">
+                <input type="text" class="form-control" readonly value="{{ track_link }}">
+                <a href="{{ track_link }}" class="btn btn-info" target="_blank">
+                  <i class="fas fa-search me-1"></i> Track
+                </a>
+              </div>
+            </div>
+          </div>
+          
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

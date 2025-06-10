@@ -29,16 +29,13 @@ urlpatterns = [
     path('announcements/', AnnouncementList.as_view(), name='announcements-list'),
 
     # 🔐 Post-login redirect logic
+    # this is where we handle the dynamic dashboard logic depending on the user's department
+    # if the user has no custom dashboard, they will be redirected to the default home view (/home)
     path('dashboard/', department_dashboard_dynamic, name='department_dashboard'),
-
-    # 🏠 Default authed home (for users w/o custom dashboards)
     path('home/', AuthedHomeView.as_view(), name='home'),
 
-    # 🧭 Department Dashboards
-    # path('home/hr/', hr_dashboard, name='hr_dashboard'),
-    # path('home/acctg/', acctg_dashboard, name='acctg_dashboard'),
-    # path('home/gso/', gso_dashboard, name='gso_dashboard'),
-
     # ❌ Unauthorized
+    # If users try to access a view they are not allowed to thru url manipulation,
+    # they will be redirected to this view
     path('unauthorized/', unauthorized_access_view, name='unauthorized_access'),
 ]

@@ -57,7 +57,7 @@ INSTALLED_APPS = [
     'leave_mgt.apps.LeaveMgtConfig',
     'salaries.apps.SalariesConfig',
     'departments.apps.DepartmentsConfig',
-    
+    'assistance.apps.AssistanceConfig',
 
     ### defaults
     'django.contrib.sites', # "just-in-case". allauth needs this.
@@ -73,6 +73,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -148,18 +149,21 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
-
+# Internationalization
 USE_I18N = True
-
 USE_TZ = True
 
-USE_L10N = True
+LANGUAGE_CODE = 'en'  # Use 'en' for compatibility with LANGUAGES
 
-import pytz
+LANGUAGES = [
+    ('en', 'English'),
+    ('fil', 'Filipino'),
+]
 
+LOCALE_PATHS = [BASE_DIR / 'locale']
+
+# Time zone settings
 TIME_ZONE = 'Asia/Manila'  # or 'Asia/Kuala_Lumpur' or 'Asia/Singapore' (adjust according to your location) https://pytz.sourceforge.io/#timezone-classes
 
 
@@ -212,7 +216,7 @@ ACCOUNT_UNIQUE_EMAIL = True
 
 
 from django.urls import reverse_lazy
-LOGIN_REDIRECT_URL = reverse_lazy('home_redirect') # where to redirect after login
+LOGIN_REDIRECT_URL = reverse_lazy('department_dashboard') # where to redirect after login
 LOGOUT_REDIRECT_URL = '/' # where to redirect after logout (unauthedhome)
 LOGIN_URL = 'login'             # for the @login_required decorator on user.views.profileView
 

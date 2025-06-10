@@ -14,10 +14,7 @@
   {% if user.is_authenticated %}
     {% if user.is_staff %}
       <div class="mb-3">
-        <small class="text-muted">
-          You are seeing this page because you are a <strong>Staff/Admin</strong>. Normal users shouldn't access the full list due to confidentiality, but a filtered view may be implemented in the future.
-        </small>
-        <br>Welcome back, <b>{{ request.user.username }}</b>!
+        Welcome back, <b>{{ request.user.username }}</b>!
       </div>
 
       <!-- Department Tabs -->
@@ -30,7 +27,8 @@
             <div class="col-md-3">
               <div class="nav flex-column nav-tabs" id="dept-tabs" role="tablist" aria-orientation="vertical">
                 {% for department, profiles in department_users.items %}
-                  {% with department|slugify as dep_slug %}
+                  {% with department.slug as dep_slug %}
+
                     <a class="nav-link {% if forloop.first %}active{% endif %}"
                        id="tab-{{ dep_slug }}-tab"
                        data-toggle="pill" 
@@ -47,7 +45,7 @@
             <div class="col-md-9">
               <div class="tab-content" id="dept-tabs-content">
                 {% for department, profiles in department_users.items %}
-                  {% with department|slugify as dep_slug %}
+                  {% with department.slug as dep_slug %}
                     <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
                          id="tab-{{ dep_slug }}" 
                          role="tabpanel" 
@@ -57,6 +55,18 @@
                         <div class="card-header bg-primary text-white">
                           <strong>{{ department }}</strong> — {{ profiles|length }} user(s)
                         </div>
+
+                        <!-- CSV and Excel export buttons-->
+                        <div class="d-flex justify-content-end mb-2 px-3 gap-2">
+                          <a href="{% url 'export_department_users' department=dep_slug format='csv' %}" class="btn btn-sm btn-success">
+                            <i class="fas fa-file-csv"></i> Export CSV
+                          </a>
+                          <a href="{% url 'export_department_users' department=dep_slug format='excel' %}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-file-excel"></i> Excel
+                          </a>
+
+                        </div>
+
                         <div class="card-body p-2">
                           <table class="table table-sm table-hover table-bordered mb-0">
                             <thead>
@@ -77,8 +87,16 @@
                                       {% endif %}
                                     </a>
                                   </td>
-                                  <td>{{ profile.plantilla }}</td>
+                                  <td>
+                                    {{ profile.plantilla }}<br>
+                                    {% if profile.plantilla.department != department %}
+                                      <small class="text-muted">
+                                        (Plantilla: {{ profile.plantilla.department }})
+                                      </small>
+                                    {% endif %}
+                                  </td>
                                 </tr>
+
                               {% empty %}
                                 <tr>
                                   <td colspan="4" class="text-center text-muted">No users found in this department.</td>

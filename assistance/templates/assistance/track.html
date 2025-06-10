@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title_ext %} - Track Your Assistance Request{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+      <div class="card shadow rounded-4">
+        <div class="card-header bg-info text-white rounded-top-4">
+          <h4 class="mb-0">
+            <i class="fas fa-search-location me-2"></i> Track Your Request
+          </h4>
+        </div>
+        <div class="card-body">
+          <p><strong>Reference Code:</strong> {{ request_obj.reference_code }}</p>
+          <p><strong>Full Name:</strong> {{ request_obj.full_name }}</p>
+          <p><strong>Type of Assistance:</strong> {{ request_obj.assistance_type }}</p>
+          <p><strong>Purpose:</strong> {{ request_obj.purpose }}</p>
+
+          {% if documents %}
+          <hr>
+          <h6>Submitted Documents</h6>
+          <ul class="list-group mb-3">
+            {% for doc in documents %}
+              <li class="list-group-item">
+                {{ doc.file.url|cut:"/media/" }}
+              </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+
+          {% if logs %}
+          <h6>Request History</h6>
+          <ul class="list-group">
+            {% for log in logs %}
+              <li class="list-group-item">
+                <strong>{{ log.timestamp|date:"M d, Y - H:i" }}</strong>: {{ log.message }}
+              </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted">No updates yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

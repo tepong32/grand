@@ -5,9 +5,7 @@ from django.contrib.auth import views as auth_views     # for auths for logins a
 from django.urls import path, include, reverse_lazy
 from users.views import (
     register,
-    employeeRegister,
-    user_search_view,
-    CustomPasswordResetView
+    # CustomPasswordResetView # not working, reverted to default auth_views.PasswordResetView
 )
 
 from django.contrib import messages
@@ -30,9 +28,11 @@ class LoginView(auth_views.LoginView):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('home.urls')),
-    path('users/', include('users.urls')),
-    path('profiles/', include('profiles.urls')),
+    path('assistance/', include('assistance.urls')),
     path('leave-mgt/', include('leave_mgt.urls')),
+    path('profiles/', include('profiles.urls')),
+    path('users/', include('users.urls')),
+    
     # path('api/', include('api.urls'), name="api"),
     
     ### allauth

@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import PasswordResetView
@@ -60,23 +60,257 @@ def user_search_view(request):
     return render(request, "users/user_search_results.html", context)
 
 
+
+
+
 @login_required
 def usersIndexView(request):
     departments = Department.objects.order_by("name")
+
+    # Restrict access to staff or dept heads
+    if request.user.is_staff or departments.filter(deptHead_or_oic=request.user).exists():
+        messages.info(request, "You are seeing this page because you are a Staff/Admin or a Dept Head/OIC.")
+    else:
+        messages.error(request, "Access Denied.")
+        return redirect('home')
+
+    # View is now based on actual assigned_department (not plantilla)
     department_users = {
-        dept.name: EmployeeProfile.objects.filter(assigned_department=dept)
+        dept: EmployeeProfile.objects.filter(
+            assigned_department=dept
+        ).select_related('user', 'plantilla')
         for dept in departments
     }
 
-    if request.user.is_staff:
-        messages.info(request, "You are seeing this page because you are a Staff/Admin.")
-        
     context_data = {
         'users': User.objects.all().order_by('last_name', 'first_name')[:50],
+        'profiles': EmployeeProfile.objects.all(),
         'userCount': User.objects.count(),
         'department_users': department_users,
     }
+
     return render(request, 'users/users_index.html', context_data)
+
+# @login_required
+# def usersIndexView(request):
+#     profiles = EmployeeProfile.objects.all()
+#     departments = Department.objects.order_by("name")
+#     department_users = {
+#         dept: EmployeeProfile.objects.filter(assigned_department=dept)
+#         for dept in departments
+#     }
+
+#     if request.user.is_staff or departments.filter(deptHead_or_oic=request.user).exists():
+#         messages.info(request, "You are seeing this page because you are a Staff/Admin or a Dept Head/OIC.")
+#     else:
+#         messages.error(request, "Access Denied.")
+#         return redirect('home')
+
+#     context_data = {
+#         'users': User.objects.all().order_by('last_name', 'first_name')[:50],
+#         'profiles': profiles,
+#         'userCount': User.objects.count(),
+#         'department_users': department_users,
+#     }
+#     return render(request, 'users/users_index.html', context_data)
+
+
+
+# import csv
+# import io
+# import openpyxl
+# from django.http import HttpResponse, HttpResponseForbidden
+
+# @login_required
+# def export_department_users(request, department, format):
+#     # Lookup department by slug
+#     dept = get_object_or_404(Department, slug=department)
+
+#     # Restriction: Only staff or the dept head/OIC can export
+#     if not request.user.is_staff and dept.deptHead_or_oic != request.user:
+#         messages.error(request, "You are not authorized to export user data for this department.")
+#         return redirect('users_index')  # Update this if your index view name is different
+
+#     # Filter users assigned to this department
+#     users = EmployeeProfile.objects.filter(assigned_department=dept)
+
+#     # Handle CSV export
+#     if format == "csv":
+#         response = HttpResponse(content_type='text/csv')
+#         response['Content-Disposition'] = f'attachment; filename="{dept.slug}_users.csv"'
+
+#         writer = csv.writer(response)
+#         writer.writerow(['Username', 'Last Name', 'First Name', 'Designation'])
+
+#         for u in users:
+#             writer.writerow([
+#                 u.user.username,
+#                 u.user.last_name or '',
+#                 u.user.first_name or '',
+#                 u.plantilla or ''
+#             ])
+#         return response
+
+#     # Handle Excel export
+#     elif format == "excel":
+#         workbook = openpyxl.Workbook()
+#         sheet = workbook.active
+#         sheet.title = f"{dept.name} Users"
+
+#         # Add headers
+#         headers = ['Username', 'Last Name', 'First Name', 'Designation']
+#         sheet.append(headers)
+
+#         for u in users:
+#             sheet.append([
+#                 u.user.username,
+#                 u.user.last_name or '',
+#                 u.user.first_name or '',
+#                 u.plantilla or ''
+#             ])
+
+#         # Save Excel to memory
+#         excel_file = io.BytesIO()
+#         workbook.save(excel_file)
+#         excel_file.seek(0)
+
+#         response = HttpResponse(
+#             excel_file.read(),
+#             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+#         )
+#         response['Content-Disposition'] = f'attachment; filename="{dept.slug}_users.xlsx"'
+#         return response
+
+#     # Unknown format
+#     else:
+#         raise Http404("Invalid export format.")
+import csv
+from io import BytesIO
+from django.http import HttpResponse
+from openpyxl import Workbook
+from openpyxl.styles import Font
+from openpyxl.utils import get_column_letter
+
+
+@login_required
+def export_department_users(request, department, format):
+    dept = get_object_or_404(Department, slug=department)
+
+    profiles = EmployeeProfile.objects.filter(
+        assigned_department=dept
+    ).select_related('user', 'plantilla', 'assigned_department')
+
+    filename = f"{dept.slug}_employees"
+
+    headers = [
+        'Last Name', 'First Name', 'Middle Name', 'Username', 'Email',
+        'Contact No.', 'Status', 'Assigned Department', 'Plantilla',
+        'Position Title', 'Employee Type', 'Date Hired', 'Date of Birth',
+        'Address', 'TIN', 'GSIS No.', 'Pag-IBIG No.', 'PhilHealth No.', 'SSS No.'
+    ]
+
+    def get_safe(obj, attr):
+        value = getattr(obj, attr, '')
+        return str(value) if value is not None else ''
+
+    if format == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(headers)
+
+        for profile in profiles:
+            user = profile.user
+            writer.writerow([
+                get_safe(user, 'last_name').title(),
+                get_safe(user, 'first_name').title(),
+                get_safe(profile, 'middle_name').title(),
+                get_safe(user, 'username'),
+                get_safe(user, 'email'),
+                get_safe(profile, 'contact_number'),
+                'Active' if get_safe(user, 'is_active') == 'True' else 'Inactive',
+                str(get_safe(profile, 'assigned_department')),
+                str(get_safe(profile, 'plantilla')),
+                get_safe(profile, 'position_title'),
+                get_safe(profile, 'employment_type'),
+                get_safe(profile, 'date_hired'),
+                get_safe(profile, 'date_of_birth'),
+                get_safe(profile, 'address'),
+                get_safe(profile, 'tin'),
+                get_safe(profile, 'gsis_number'),
+                get_safe(profile, 'pagibig_number'),
+                get_safe(profile, 'philhealth_number'),
+                get_safe(profile, 'sss_number'),
+            ])
+        return response
+
+    elif format == 'excel':
+        wb = Workbook()
+        ws = wb.active
+        ws.title = dept.name[:30]
+
+        # Write headers with bold font
+        bold_font = Font(bold=True)
+        ws.append(headers)
+        for col_num, _ in enumerate(headers, 1):
+            ws.cell(row=1, column=col_num).font = bold_font
+
+        for profile in profiles:
+            user = profile.user
+            ws.append([
+                get_safe(user, 'last_name').title(),
+                get_safe(user, 'first_name').title(),
+                get_safe(profile, 'middle_name').title(),
+                get_safe(user, 'username'),
+                get_safe(user, 'email'),
+                get_safe(profile, 'contact_number'),
+                'Active' if get_safe(user, 'is_active') == 'True' else 'Inactive',
+                str(get_safe(profile, 'assigned_department')),
+                str(get_safe(profile, 'plantilla')),
+                get_safe(profile, 'position_title'),
+                get_safe(profile, 'employment_type'),
+                get_safe(profile, 'date_hired'),
+                get_safe(profile, 'date_of_birth'),
+                get_safe(profile, 'address'),
+                get_safe(profile, 'tin'),
+                get_safe(profile, 'gsis_number'),
+                get_safe(profile, 'pagibig_number'),
+                get_safe(profile, 'philhealth_number'),
+                get_safe(profile, 'sss_number'),
+            ])
+
+        # Total at bottom
+        total_row = [''] * (len(headers) - 1) + [f'Total: {profiles.count()}']
+        ws.append(total_row)
+
+        # Auto-resize columns
+        for col in ws.columns:
+            max_length = 0
+            col_letter = get_column_letter(col[0].column)
+            for cell in col:
+                val = str(cell.value or '')
+                if val:
+                    max_length = max(max_length, len(val))
+            ws.column_dimensions[col_letter].width = max(max_length + 2, 12)
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        response = HttpResponse(
+            output.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+        return response
+
+    else:
+        return HttpResponse("Unsupported format", status=400)
+
+
+
+
 
 
 class CustomPasswordResetView(PasswordResetView):

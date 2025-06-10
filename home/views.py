@@ -214,14 +214,21 @@ from home.utils import get_department_dashboard_context
 
 @login_required
 def department_dashboard_dynamic(request):
-    user = getattr(request.user, 'employeeprofile', None)
+    """
+    Dynamic department dashboard view that renders a department-specific template.
+    If the user does not have an employee profile or assigned department,
+    it redirects to the home page.
+    If the department's dashboard template does not exist, it falls back to a generic template.
+    Add per-department context data to the template (see home/utils.py).
+    """
+    user = request.user.employeeprofile #getattr(request.user, 'employeeprofile', None)
     if not user:
         # If user has no employee profile, fallback to home or a suitable page
         return redirect('home')
 
     department = getattr(user, 'assigned_department', None)
     if not department:
-        return redirect('home')
+        return redirect('/dashboard/')  # Redirect to a default dashboard or home if no department is assigned
 
     fallback_template = 'home/authed/dashboards/generic.html'
     template_path = (department.dashboard_template or '').strip()

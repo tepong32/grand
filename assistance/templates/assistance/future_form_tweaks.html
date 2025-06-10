@@ -1,0 +1,83 @@
+{% extends 'base_public.html' %}
+{% load static %}
+{% block title %}Request Financial Assistance{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h3 class="card-title mb-0">Request Financial Assistance</h3>
+        </div>
+        <div class="card-body">
+
+          {% if form.errors %}
+            <div class="alert alert-danger">
+              <strong>Please correct the errors below:</strong>
+              <ul class="mb-0 mt-2">
+                {% for field, errors in form.errors.items %}
+                  <li><strong>{{ field.label }}:</strong> {{ errors|join:", " }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+
+          <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- Section 1: Personal Info -->
+            <h5 class="mb-3 mt-2">👤 Personal Information</h5>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.full_name.label_tag }}
+                {{ form.full_name|add_class:"form-control" }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.email.label_tag }}
+                {{ form.email|add_class:"form-control" }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.contact_number.label_tag }}
+                {{ form.contact_number|add_class:"form-control" }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.address.label_tag }}
+                {{ form.address|add_class:"form-control" }}
+              </div>
+            </div>
+
+            <!-- Section 2: Assistance Info -->
+            <h5 class="mb-3 mt-4">📄 Assistance Details</h5>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.assistance_type.label_tag }}
+                {{ form.assistance_type|add_class:"form-select" }}
+              </div>
+              <div class="col-12 mb-3">
+                {{ form.reason.label_tag }}
+                {{ form.reason|add_class:"form-control" }}
+              </div>
+            </div>
+
+            <!-- File Uploads -->
+            <div class="mb-3">
+              <label for="id_file" class="form-label">📎 Upload Supporting Documents</label>
+              <input type="file" name="file" id="id_file" class="form-control" multiple>
+              <small class="text-muted">Upload any relevant supporting files. Accepted: PDF, JPG, PNG.</small>
+            </div>
+
+            <!-- Submit -->
+            <div class="text-end">
+              <button type="submit" class="btn btn-success">
+                <i class="fas fa-paper-plane me-1"></i> Submit Request
+              </button>
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

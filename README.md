@@ -1,90 +1,91 @@
-# grand 💼🛠️
+# grand
 
-> Working on yet another "to-be-continued / maybe-not" Django project — this time, we might actually ship it.  
-> 🧪 Dev in progress. Hosted at: https://github.com/tepong32/grand
-
----
-
-## 🧩 Apps & Progress Overview
+> Working on yet another Django project — this time, aiming for a real launch.  
+> Development in progress. Hosted at: https://github.com/tepong32/grand
 
 ---
 
-### 👤 `users` app
+## Apps & Progress Overview
 
-- [x] Automatic profile creation upon user registration (with default values) ✅
-- [x] Password reset + change now working properly 🔐  
-  ↪ Uses [Mailtrap](https://mailtrap.io) for testing email delivery.
+### users app
 
-📝 **Next steps:**
-- [ ] Separate user registration flows: `internal` vs `external` 👥
-- [ ] Integrate `django-allauth` for external user login/signup 🔄
+- [x] Automatic profile creation upon user registration (with default values)
+- [x] Password reset and change workflows functioning correctly  
+  ↪ Uses [Mailtrap](https://mailtrap.io) for email testing.
 
----
-
-### 📅 `leave` app
-
-- [x] View-level permissions handled via template logic instead of mixins 🔍
-- [x] Leave request auto-deducts `number_of_days` from current year's SL/VL credit on approval 📉
-- [x] Leave date range auto-calculates excluding weekends 🗓️
-- [x] Basic validation: `start_date < end_date` ✅
-- [x] Added global context via context processor for consistent template variables 🌐
-- [x] Cron jobs for monthly accrual running as expected ⏲️  
-  ↪ Just need to verify server-local time sync.
-
-🧠 **WIP or notes:**
-- [ ] Add manual config for holidays (branch: `working-days`) 📆
-- [ ] Consider converting leave credits to 15-min increments (to deduct lates automatically) ⏳
-- [ ] Improve leave accumulation policies  
-  ↪ For now, these can be manually set in admin via `SL_Accrual` / `VL_Accrual`.
+**Next steps:**  
+- [ ] Separate registration flows: internal vs external  
+- [ ] Integrate `django-allauth` for external login/signup
 
 ---
 
-### 📢 `announcements` app
+### leave app
 
-- [x] Basic structure complete: public/internal, pinned, draft vs posted 🧾
-- [ ] Needs a slight redesign for user-facing view 🖼️
+- [x] Permissions handled via template logic  
+- [x] Leave request auto-deductions for SL/VL on approval  
+- [x] Automatic exclusion of weekends in date range  
+- [x] Basic validation (`start_date < end_date`)  
+- [x] Global context processor for consistent template variables  
+- [x] Cron jobs for monthly leave accrual running as expected
 
----
-
-### 💰 `salary` app *(remodel pending)*
-
-- [ ] Logic planning phase  
-  ↪ Will impact several other modules, so must design with care 💼
-
----
-
-### 📆 `working_days` app *(not yet started)*
-
-- [ ] Required for:
-  - Automatic detection of non-working holidays 🏖️
-  - Integration with leave deductions + salary computation
-  - Possibly generating official working calendars per user type 🗃️
+**In progress / Notes:**  
+- [ ] Manual holiday configuration (branch: `working-days`)  
+- [ ] Consider converting leave credits to 15-minute increments  
+- [ ] Policy improvements for leave accumulation
 
 ---
 
-## 🛣️ Roadmap / Future Features
+### announcements app
 
-- [ ] Vue frontend integration (possibly via DRF) 🔄
-- [ ] Proper admin dashboard for summaries & analytics 📊
-- [ ] External user onboarding + registration with constraints 🔒
-
----
-
-## 🛠️ Dev Notes
-
-- Codebase: Django 4+  
-- Email testing: [Mailtrap](https://mailtrap.io)  
-- Frontend: Currently AdminLTE3, planning to move to Vue
+- [x] Basic structure: public/internal, pinned, draft vs posted  
+- [ ] Redesign user-facing views
 
 ---
 
-## 🤝 Contributions
+### salary app *(remodel pending)*
 
-Not open to public contributors just yet — but feel free to fork, follow, or suggest issues.
+- [ ] Logic planning stage — will affect multiple modules
 
 ---
 
-## 📌 Repository
+### working_days app *(not started)*
 
-🔗 https://github.com/tepong32/grand
+- [ ] Needed for holiday detection, leave and salary integration, calendar generation
 
+---
+
+### assistance app *(new)*
+
+- [x] User-facing financial assistance request submission with multi-file upload  
+- [x] Anonymous request editing and status tracking via secure reference and edit codes  
+- [x] Responsive AdminLTE4 + Bootstrap 5 templates for submit, edit, track, and confirmation pages  
+- [x] Confirmation page clearly displays links and instructions for saving access credentials  
+- [ ] Email notification currently disabled during development, planned for future integration
+
+---
+
+## Roadmap / Future Features
+
+- [ ] Vue frontend integration (likely via DRF)  
+- [ ] Admin dashboard for summaries and analytics  
+- [ ] External user onboarding with constraints
+
+---
+
+## Development Notes
+
+- Django 4+  
+- Email testing via [Mailtrap](https://mailtrap.io)  
+- Frontend currently AdminLTE3, plans to migrate to Vue
+
+---
+
+## Contributions
+
+Not open to public contributors yet — forks, follows, and suggestions welcome.
+
+---
+
+## Repository
+
+https://github.com/tepong32/grand
