@@ -216,7 +216,7 @@ ACCOUNT_UNIQUE_EMAIL = True
 
 
 from django.urls import reverse_lazy
-LOGIN_REDIRECT_URL = reverse_lazy('home_redirect') # where to redirect after login
+LOGIN_REDIRECT_URL = reverse_lazy('department_dashboard') # where to redirect after login
 LOGOUT_REDIRECT_URL = '/' # where to redirect after logout (unauthedhome)
 LOGIN_URL = 'login'             # for the @login_required decorator on user.views.profileView
 
