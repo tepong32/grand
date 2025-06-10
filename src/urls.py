@@ -5,7 +5,7 @@ from django.contrib.auth import views as auth_views     # for auths for logins a
 from django.urls import path, include, reverse_lazy
 from users.views import (
     register,
-    CustomPasswordResetView # not working, reverted to default auth_views.PasswordResetView
+    # CustomPasswordResetView # not working, reverted to default auth_views.PasswordResetView
 )
 
 from django.contrib import messages
