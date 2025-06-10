@@ -12,6 +12,10 @@ class AssistanceRequestForm(forms.ModelForm):
             # 'purpose': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
+class EmailUpdateForm(forms.ModelForm):
+    class Meta:
+        model = AssistanceRequest
+        fields = ['email']
 
 class RequestDocumentForm(forms.ModelForm):
     class Meta:

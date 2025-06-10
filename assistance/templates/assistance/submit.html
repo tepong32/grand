@@ -1,9 +1,20 @@
 {% extends 'base.html' %}
+{% load i18n %}
 {% load static crispy_forms_tags %}
 
 {% block title_ext %} - Request Financial Assistance{% endblock %}
 
 {% block content %}
+  {% comment %} Language Toggle {% endcomment %}
+  {% comment %} <form action="{% url 'set_language' %}" method="post">
+    {% csrf_token %}
+    <input name="next" type="hidden" value="{{ redirect_to }}">
+    <select name="language" onchange="this.form.submit()">
+      <option value="en" {% if LANGUAGE_CODE == 'en' %}selected{% endif %}>English</option>
+      <option value="fil" {% if LANGUAGE_CODE == 'fil' %}selected{% endif %}>Filipino</option>
+    </select>
+  </form> {% endcomment %}
+
 <div class="container py-5">
   <div class="row justify-content-center">
     <div class="col-md-10 col-lg-8">
@@ -18,7 +29,7 @@
             {% csrf_token %}
 
             <div class="mb-3 row">
-              <label for="id_full_name" class="col-md-4 col-form-label">Full Name</label>
+              <label for="id_full_name" class="col-md-4 col-form-label">{% trans "Full Name" %}</label>
               <div class="col-md-8">
                 {{ form.full_name }}
               </div>
