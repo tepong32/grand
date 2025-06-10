@@ -219,6 +219,7 @@ def department_dashboard_dynamic(request):
     If the user does not have an employee profile or assigned department,
     it redirects to the home page.
     If the department's dashboard template does not exist, it falls back to a generic template.
+    Add per-department context data to the template (see home/utils.py).
     """
     user = request.user.employeeprofile #getattr(request.user, 'employeeprofile', None)
     if not user:
