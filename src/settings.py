@@ -147,18 +147,21 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
-
+# Internationalization
 USE_I18N = True
-
 USE_TZ = True
 
-USE_L10N = True
+LANGUAGE_CODE = 'en'  # Use 'en' for compatibility with LANGUAGES
 
-import pytz
+LANGUAGES = [
+    ('en', 'English'),
+    ('fil', 'Filipino'),
+]
 
+LOCALE_PATHS = [BASE_DIR / 'locale']
+
+# Time zone settings
 TIME_ZONE = 'Asia/Manila'  # or 'Asia/Kuala_Lumpur' or 'Asia/Singapore' (adjust according to your location) https://pytz.sourceforge.io/#timezone-classes
 
 
