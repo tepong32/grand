@@ -1,0 +1,18 @@
+create superuser
+
+go to /admin > Users and create user instances for department heads
+	create profiles for them, as well
+> Departments and create your departments and assign deptHeads to each
+> Salaries and salary instances (SG and Step)
+> Departments and create plantillas with corresponding salary grades and steps
+> Profiles and assign plantillas to existing profiles
+
+> Leave Mgt-related matters are handled by the backend automatically, unless leave accruals need to be changed
+	(default is 1.2 accrued on every 1st day of the month)
+
+for Public-facing Pages:
+go to /admin > Home and create Announcements (Normal or Pinned)
+	create Department Contacts (Tri-Bureau, etc.)
+	create Downloadable Forms and upload proper attachments
+	create Org Personnel instances for display in the Organizational Chart page
+	

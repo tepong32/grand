@@ -3,10 +3,7 @@ from django.urls import path
 from .views import (
     UnauthedHomeView,
     AuthedHomeView,
-    department_dashboard_redirect,
-    hr_dashboard,
-    acctg_dashboard,
-    gso_dashboard,
+    department_dashboard_dynamic,
     AnnouncementList,
     CreateAnnouncement,
     AnnouncementDetail,
@@ -32,15 +29,15 @@ urlpatterns = [
     path('announcements/', AnnouncementList.as_view(), name='announcements-list'),
 
     # 🔐 Post-login redirect logic
-    path('redirect/', department_dashboard_redirect, name='home_redirect'),
+    path('dashboard/', department_dashboard_dynamic, name='department_dashboard'),
 
     # 🏠 Default authed home (for users w/o custom dashboards)
     path('home/', AuthedHomeView.as_view(), name='home'),
 
     # 🧭 Department Dashboards
-    path('home/hr/', hr_dashboard, name='hr_dashboard'),
-    path('home/acctg/', acctg_dashboard, name='acctg_dashboard'),
-    path('home/gso/', gso_dashboard, name='gso_dashboard'),
+    # path('home/hr/', hr_dashboard, name='hr_dashboard'),
+    # path('home/acctg/', acctg_dashboard, name='acctg_dashboard'),
+    # path('home/gso/', gso_dashboard, name='gso_dashboard'),
 
     # ❌ Unauthorized
     path('unauthorized/', unauthorized_access_view, name='unauthorized_access'),

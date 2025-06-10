@@ -2,6 +2,14 @@
 {% load static custom_filters %}
 
 {% block content %}
+  <style>
+    .nav-tabs .nav-link.active {
+      background-color: #f8f9fa; /* light gray */
+      font-weight: bold;
+      border-left: 4px solid #007bff; /* optional highlight */
+    }
+  </style>
+
   <!-- Authenticated Section -->
   {% if user.is_authenticated %}
     {% if user.is_staff %}
@@ -23,7 +31,7 @@
               <div class="nav flex-column nav-tabs" id="dept-tabs" role="tablist" aria-orientation="vertical">
                 {% for department, profiles in department_users.items %}
                   {% with department|slugify as dep_slug %}
-                    <a class="nav-link {% if forloop.first %}active{% endif %}" 
+                    <a class="nav-link {% if forloop.first %}active{% endif %}"
                        id="tab-{{ dep_slug }}-tab"
                        data-toggle="pill" 
                        href="#tab-{{ dep_slug }}" 
@@ -55,10 +63,6 @@
                               <tr>
                                 <th>User</th>
                                 <th>Designation</th>
-                                {% comment %} {% if user.has_perm('app.view_salary_data') %}
-                                  <th>Salary Grade</th>
-                                  <th>Salary Amount</th>
-                                {% endif %} {% endcomment %}
                               </tr>
                             </thead>
                             <tbody>
@@ -73,12 +77,7 @@
                                       {% endif %}
                                     </a>
                                   </td>
-                                  <td>{{ profile.designation }}</td>
-								  {% comment %} not being used ATM for we need to create a "view_salary_data" permission in the admin first {% endcomment %}
-                                  {% comment %} {#% if user.has_perm('app.view_salary_data') %#}
-                                    <td>{{ profile.salary_grade|default:"N/A" }}</td>
-                                    <td>{{ profile.salary_amount|default:"-" }}</td>
-                                  {#% endif %#} {% endcomment %}
+                                  <td>{{ profile.plantilla }}</td>
                                 </tr>
                               {% empty %}
                                 <tr>

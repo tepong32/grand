@@ -4,23 +4,19 @@ from django.shortcuts import redirect
 
 def department_required(*allowed_departments):
     """
-    Restrict access to users of specific departments.
-    Redirects to unauthorized page if access is denied.
-
-    Usage:
-        @department_required("HR", "Accounting Office")
-        def my_view(request):
-            ...
+    Restrict access to users of specific departments by name.
+    Example:
+        @department_required("Accounting Office", "HR")
     """
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped_view(request, *args, **kwargs):
             try:
-                department = request.user.employeeprofile.department
+                department = request.user.employeeprofile.assigned_department
                 if department and department.name in allowed_departments:
                     return view_func(request, *args, **kwargs)
-            except AttributeError:
+            except Exception:
                 pass
-            return redirect('unauthorized_access')  # 👈 friendly fallback
+            return redirect('unauthorized_access')
         return _wrapped_view
     return decorator
