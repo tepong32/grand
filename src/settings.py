@@ -343,7 +343,7 @@ CKEDITOR_5_FILE_UPLOAD_PERMISSION = "staff"  # Possible values: "staff", "authen
 # CRONJOBS = [
 #     # minute hour day month weekday <command-to-execute>
 #     ''' this is running daily at midnight '''
-#     ('0 0 * * *', 'leave_mgt.cron.update_leave_credits_from_cronPy', '>> /logs/cron.log 2>&1'), # prod path: /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'
+#     ('0 0 * * *', 'leave_mgt.cron.update_leave_credits_from_cronPy', '>> /logs/cron.log 2>&1'), # prod path: /home/abutdtks/test.abutchikikz.online/logs/cron.log 2>&1'
 
 # ]
 
