@@ -40,6 +40,11 @@
                     </a>
                   {% endwith %}
                 {% endfor %}
+                <a class="nav-link" id="tab-all-tab" data-toggle="pill"
+                  href="#tab-all" role="tab"
+                  aria-controls="tab-all" aria-selected="false">
+                  All Employees
+                </a>
               </div>
             </div>
             <div class="col-md-9">
@@ -109,6 +114,73 @@
                     </div>
                   {% endwith %}
                 {% endfor %}
+                <div class="tab-pane fade" id="tab-all" role="tabpanel" aria-labelledby="tab-all-tab">
+                  <div class="card mb-3 shadow-sm">
+                    <div class="card-header bg-dark text-white">
+                      <strong>All Employees (Grouped by Assigned Department)</strong>
+                    </div>
+
+                    <div class="d-flex justify-content-end mb-2 px-3 gap-2">
+                      <a href="{% url 'export_all_employees' 'csv' %}" 
+                        class="btn btn-sm btn-success" 
+                        data-toggle="tooltip" 
+                        data-placement="top" 
+                        title="Download complete directory as CSV">
+                        <i class="fas fa-file-csv"></i> Export CSV
+                      </a>
+                      
+                      <a href="{% url 'export_all_employees' 'excel' %}" 
+                        class="btn btn-sm btn-outline-success" 
+                        data-toggle="tooltip" 
+                        data-placement="top" 
+                        title="Download complete directory as Excel">
+                        <i class="fas fa-file-excel"></i> Excel
+                      </a>
+                    </div>
+
+                    <div class="card-body p-2">
+                      {% for department, profiles in department_users.items %}
+                        <h6 class="text-primary">{{ department }}</h6>
+                        <table class="table table-sm table-hover table-bordered mb-4">
+                          <thead>
+                            <tr>
+                              <th>Employee</th>
+                              <th>Type</th>
+                              <th>Date Hired</th>
+                              <th>Designation</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for profile in profiles %}
+                              <tr>
+                                <td>
+                                  <a href="{% url 'profile' profile.user.username %}">
+                                    {{ profile.user.last_name|default:''|title }},
+                                    {{ profile.user.first_name|default:''|title }}
+                                    {% if profile.ext_name %}{{ profile.ext_name|upper }}{% endif %}
+                                  </a>
+                                </td>
+                                <td>
+                                  {% if profile.employment_type == 'REG' %}Regular
+                                  {% elif profile.employment_type == 'CT' %}Co-Terminus
+                                  {% elif profile.employment_type == 'JO' %}Job Order
+                                  {% else %}-{% endif %}
+                                </td>
+                                <td>
+                                  {% if profile.reg_date_hired %}{{ profile.reg_date_hired|date:"M Y" }}
+                                  {% elif profile.jo_date_hired %}{{ profile.jo_date_hired|date:"M Y" }}
+                                  {% else %}-{% endif %}
+                                </td>
+                                <td>{{ profile.plantilla|default:"–" }}</td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      {% endfor %}
+                    </div>
+
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -141,4 +213,13 @@
       <a href="/" class="btn btn-secondary">Go back</a>
     </div>
   {% endif %}
+
+
+  <script>
+    {% comment %} tooltip {% endcomment %}
+    $(function () {
+      $('[data-toggle="tooltip"]').tooltip()
+    })
+  </script>
+
 {% endblock %}

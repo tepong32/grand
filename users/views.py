@@ -91,208 +91,83 @@ def usersIndexView(request):
 
     return render(request, 'users/users_index.html', context_data)
 
-# @login_required
-# def usersIndexView(request):
-#     profiles = EmployeeProfile.objects.all()
-#     departments = Department.objects.order_by("name")
-#     department_users = {
-#         dept: EmployeeProfile.objects.filter(assigned_department=dept)
-#         for dept in departments
-#     }
 
-#     if request.user.is_staff or departments.filter(deptHead_or_oic=request.user).exists():
-#         messages.info(request, "You are seeing this page because you are a Staff/Admin or a Dept Head/OIC.")
-#     else:
-#         messages.error(request, "Access Denied.")
-#         return redirect('home')
-
-#     context_data = {
-#         'users': User.objects.all().order_by('last_name', 'first_name')[:50],
-#         'profiles': profiles,
-#         'userCount': User.objects.count(),
-#         'department_users': department_users,
-#     }
-#     return render(request, 'users/users_index.html', context_data)
-
-
-
-# import csv
-# import io
-# import openpyxl
-# from django.http import HttpResponse, HttpResponseForbidden
-
-# @login_required
-# def export_department_users(request, department, format):
-#     # Lookup department by slug
-#     dept = get_object_or_404(Department, slug=department)
-
-#     # Restriction: Only staff or the dept head/OIC can export
-#     if not request.user.is_staff and dept.deptHead_or_oic != request.user:
-#         messages.error(request, "You are not authorized to export user data for this department.")
-#         return redirect('users_index')  # Update this if your index view name is different
-
-#     # Filter users assigned to this department
-#     users = EmployeeProfile.objects.filter(assigned_department=dept)
-
-#     # Handle CSV export
-#     if format == "csv":
-#         response = HttpResponse(content_type='text/csv')
-#         response['Content-Disposition'] = f'attachment; filename="{dept.slug}_users.csv"'
-
-#         writer = csv.writer(response)
-#         writer.writerow(['Username', 'Last Name', 'First Name', 'Designation'])
-
-#         for u in users:
-#             writer.writerow([
-#                 u.user.username,
-#                 u.user.last_name or '',
-#                 u.user.first_name or '',
-#                 u.plantilla or ''
-#             ])
-#         return response
-
-#     # Handle Excel export
-#     elif format == "excel":
-#         workbook = openpyxl.Workbook()
-#         sheet = workbook.active
-#         sheet.title = f"{dept.name} Users"
-
-#         # Add headers
-#         headers = ['Username', 'Last Name', 'First Name', 'Designation']
-#         sheet.append(headers)
-
-#         for u in users:
-#             sheet.append([
-#                 u.user.username,
-#                 u.user.last_name or '',
-#                 u.user.first_name or '',
-#                 u.plantilla or ''
-#             ])
-
-#         # Save Excel to memory
-#         excel_file = io.BytesIO()
-#         workbook.save(excel_file)
-#         excel_file.seek(0)
-
-#         response = HttpResponse(
-#             excel_file.read(),
-#             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-#         )
-#         response['Content-Disposition'] = f'attachment; filename="{dept.slug}_users.xlsx"'
-#         return response
-
-#     # Unknown format
-#     else:
-#         raise Http404("Invalid export format.")
 import csv
 from io import BytesIO
 from django.http import HttpResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
+from collections import defaultdict
 
 
 @login_required
 def export_department_users(request, department, format):
+    # Look up department by slug
     dept = get_object_or_404(Department, slug=department)
-
+    
+    # Get users assigned to this department
     profiles = EmployeeProfile.objects.filter(
         assigned_department=dept
-    ).select_related('user', 'plantilla', 'assigned_department')
+    ).select_related(
+        'user', 'plantilla', 'reg_or_ct_salary', 'jo_salary'
+    ).order_by('user__last_name')
 
-    filename = f"{dept.slug}_employees"
+    filename = f"{dept.slug}_employees.{format}"
 
     headers = [
-        'Last Name', 'First Name', 'Middle Name', 'Username', 'Email',
-        'Contact No.', 'Status', 'Assigned Department', 'Plantilla',
-        'Position Title', 'Employee Type', 'Date Hired', 'Date of Birth',
-        'Address', 'TIN', 'GSIS No.', 'Pag-IBIG No.', 'PhilHealth No.', 'SSS No.'
+        'Last Name', 'First Name', 'Ext Name', 'Username', 'Contact Number',
+        'Address', 'Note', 'Employment Type', 'Date Hired (REG)', 'Date Hired (JO)',
+        'Plantilla', 'Salary'
     ]
-
-    def get_safe(obj, attr):
-        value = getattr(obj, attr, '')
-        return str(value) if value is not None else ''
 
     if format == 'csv':
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
         writer = csv.writer(response)
         writer.writerow(headers)
-
+        
         for profile in profiles:
             user = profile.user
             writer.writerow([
-                get_safe(user, 'last_name').title(),
-                get_safe(user, 'first_name').title(),
-                get_safe(profile, 'middle_name').title(),
-                get_safe(user, 'username'),
-                get_safe(user, 'email'),
-                get_safe(profile, 'contact_number'),
-                'Active' if get_safe(user, 'is_active') == 'True' else 'Inactive',
-                str(get_safe(profile, 'assigned_department')),
-                str(get_safe(profile, 'plantilla')),
-                get_safe(profile, 'position_title'),
-                get_safe(profile, 'employment_type'),
-                get_safe(profile, 'date_hired'),
-                get_safe(profile, 'date_of_birth'),
-                get_safe(profile, 'address'),
-                get_safe(profile, 'tin'),
-                get_safe(profile, 'gsis_number'),
-                get_safe(profile, 'pagibig_number'),
-                get_safe(profile, 'philhealth_number'),
-                get_safe(profile, 'sss_number'),
+                getattr(user, 'last_name', ""),
+                getattr(user, 'first_name', ""),
+                getattr(profile, 'ext_name', ""),
+                getattr(user, 'username', ""),
+                getattr(profile, 'contact_number', ""),
+                getattr(profile, 'address', ""),
+                getattr(profile, 'note', ""),
+                getattr(profile, 'employment_type', ""),
+                getattr(profile, 'reg_date_hired', ""),
+                getattr(profile, 'jo_date_hired', ""),
+                str(profile.plantilla or ""),
+                profile.get_salary() or 0
             ])
         return response
 
     elif format == 'excel':
         wb = Workbook()
         ws = wb.active
-        ws.title = dept.name[:30]
-
-        # Write headers with bold font
-        bold_font = Font(bold=True)
+        ws.title = f"{dept.name[:30]}"
         ws.append(headers)
-        for col_num, _ in enumerate(headers, 1):
-            ws.cell(row=1, column=col_num).font = bold_font
 
         for profile in profiles:
             user = profile.user
             ws.append([
-                get_safe(user, 'last_name').title(),
-                get_safe(user, 'first_name').title(),
-                get_safe(profile, 'middle_name').title(),
-                get_safe(user, 'username'),
-                get_safe(user, 'email'),
-                get_safe(profile, 'contact_number'),
-                'Active' if get_safe(user, 'is_active') == 'True' else 'Inactive',
-                str(get_safe(profile, 'assigned_department')),
-                str(get_safe(profile, 'plantilla')),
-                get_safe(profile, 'position_title'),
-                get_safe(profile, 'employment_type'),
-                get_safe(profile, 'date_hired'),
-                get_safe(profile, 'date_of_birth'),
-                get_safe(profile, 'address'),
-                get_safe(profile, 'tin'),
-                get_safe(profile, 'gsis_number'),
-                get_safe(profile, 'pagibig_number'),
-                get_safe(profile, 'philhealth_number'),
-                get_safe(profile, 'sss_number'),
+                getattr(user, 'last_name', ""),
+                getattr(user, 'first_name', ""),
+                getattr(profile, 'ext_name', ""),
+                getattr(user, 'username', ""),
+                getattr(profile, 'contact_number', ""),
+                getattr(profile, 'address', ""),
+                getattr(profile, 'note', ""),
+                getattr(profile, 'employment_type', ""),
+                getattr(profile, 'reg_date_hired', ""),
+                getattr(profile, 'jo_date_hired', ""),
+                str(profile.plantilla or ""),
+                profile.get_salary() or 0
             ])
-
-        # Total at bottom
-        total_row = [''] * (len(headers) - 1) + [f'Total: {profiles.count()}']
-        ws.append(total_row)
-
-        # Auto-resize columns
-        for col in ws.columns:
-            max_length = 0
-            col_letter = get_column_letter(col[0].column)
-            for cell in col:
-                val = str(cell.value or '')
-                if val:
-                    max_length = max(max_length, len(val))
-            ws.column_dimensions[col_letter].width = max(max_length + 2, 12)
 
         output = BytesIO()
         wb.save(output)
@@ -309,6 +184,110 @@ def export_department_users(request, department, format):
         return HttpResponse("Unsupported format", status=400)
 
 
+@login_required
+def export_all_employees(request, format):
+    profiles = EmployeeProfile.objects.select_related(
+        'user', 'assigned_department', 'plantilla',
+        'reg_or_ct_salary', 'jo_salary'
+    ).order_by('assigned_department__name', 'user__last_name')
+
+    filename = f"all_employees_grouped_by_department.{format}"
+
+    if format == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        writer = csv.writer(response)
+        writer.writerow([
+            'Department', 'Last Name', 'First Name', 'Ext Name', 'Username', 'Contact Number',
+            'Address', 'Note', 'Employment Type', 'Date Hired (REG)', 'Date Hired (JO)',
+            'Plantilla', 'Salary'
+        ])
+
+        for profile in profiles:
+            writer.writerow([
+                str(profile.assigned_department or ""),
+                getattr(profile.user, 'last_name', ""),
+                getattr(profile.user, 'first_name', ""),
+                getattr(profile, 'ext_name', ""),
+                getattr(profile.user, 'username', ""),
+                getattr(profile, 'contact_number', ""),
+                getattr(profile, 'address', ""),
+                getattr(profile, 'note', ""),
+                getattr(profile, 'employment_type', ""),
+                getattr(profile, 'reg_date_hired', ""),
+                getattr(profile, 'jo_date_hired', ""),
+                str(profile.plantilla or ""),
+                profile.get_salary() or 0
+            ])
+        return response
+
+    elif format == 'excel':
+        wb = Workbook()
+        ws_all = wb.active
+        ws_all.title = "All Employees"
+
+        headers = [
+            'Department', 'Last Name', 'First Name', 'Ext Name', 'Username', 'Contact Number',
+            'Address', 'Note', 'Employment Type', 'Date Hired (REG)', 'Date Hired (JO)',
+            'Plantilla', 'Salary'
+        ]
+        ws_all.append(headers)
+
+        for profile in profiles:
+            ws_all.append([
+                str(profile.assigned_department or ""),
+                getattr(profile.user, 'last_name', ""),
+                getattr(profile.user, 'first_name', ""),
+                getattr(profile, 'ext_name', ""),
+                getattr(profile.user, 'username', ""),
+                getattr(profile, 'contact_number', ""),
+                getattr(profile, 'address', ""),
+                getattr(profile, 'note', ""),
+                getattr(profile, 'employment_type', ""),
+                getattr(profile, 'reg_date_hired', ""),
+                getattr(profile, 'jo_date_hired', ""),
+                str(profile.plantilla or ""),
+                profile.get_salary() or 0
+            ])
+
+        # Additional sheets per department
+        departments = Department.objects.all().order_by('name')
+        for dept in departments:
+            ws = wb.create_sheet(title=dept.name[:31])
+            ws.append(headers)
+
+            dept_profiles = profiles.filter(assigned_department=dept)
+            for profile in dept_profiles:
+                ws.append([
+                    str(profile.assigned_department or ""),
+                    getattr(profile.user, 'last_name', ""),
+                    getattr(profile.user, 'first_name', ""),
+                    getattr(profile, 'ext_name', ""),
+                    getattr(profile.user, 'username', ""),
+                    getattr(profile, 'contact_number', ""),
+                    getattr(profile, 'address', ""),
+                    getattr(profile, 'note', ""),
+                    getattr(profile, 'employment_type', ""),
+                    getattr(profile, 'reg_date_hired', ""),
+                    getattr(profile, 'jo_date_hired', ""),
+                    str(profile.plantilla or ""),
+                    profile.get_salary() or 0
+                ])
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        response = HttpResponse(
+            output.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+        return response
+
+    else:
+        return HttpResponse("Unsupported format", status=400)
 
 
 

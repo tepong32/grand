@@ -47,6 +47,40 @@ class EmployeeProfile(models.Model):
         blank=True,
         verbose_name="Profile Image"
     )
+    birthdate = models.DateField(null=True, blank=True)
+    place_of_birth = models.CharField(max_length=255, null=True, blank=True)
+    civil_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('Single', 'Single'),
+            ('Married', 'Married'),
+            ('Widowed', 'Widowed'),
+            ('Divorced', 'Divorced'),
+            ('Separated', 'Separated'),
+        ],
+        null=True,
+        blank=True
+    )
+    gender = models.CharField(
+        max_length=10,
+        choices=[('Male', 'Male'), ('Female', 'Female'), ('Other', 'Other')],
+        null=True,
+        blank=True
+    )
+    tin = models.CharField("TIN", max_length=15, null=True, blank=True)
+    gsis_id = models.CharField("GSIS ID", max_length=30, null=True, blank=True)
+    pagibig_id = models.CharField("PAG-IBIG ID", max_length=30, null=True, blank=True)
+    philhealth_id = models.CharField("PhilHealth ID", max_length=30, null=True, blank=True)
+    sss_id = models.CharField("SSS ID", max_length=30, null=True, blank=True)
+
+    # Employment Metadata
+    jo_date_hired = models.DateField(null=True, blank=True)
+    reg_date_hired = models.DateField(null=True, blank=True)
+    status_of_appointment = models.CharField(max_length=100, null=True, blank=True)
+    position_title = models.CharField(max_length=100, null=True, blank=True)
+    salary_grade = models.CharField(max_length=10, null=True, blank=True)
+    step_increment = models.PositiveIntegerField(null=True, blank=True)
+
     slug = models.SlugField(default='', blank=True)
 
     # Employment Info

@@ -8,9 +8,8 @@ from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.utils.timezone import now
 
-from .models import Announcement, OrgPersonnel, DepartmentContact, DownloadableForm
-from leave_mgt.models import LeaveRequest
-from users.models import User
+from .models import Announcement, OrgPersonnel, DepartmentContact
+
 
 from django.views.generic import (
     TemplateView,
@@ -69,6 +68,7 @@ class UnauthedHomeView(ListView):
             'published': published,
             'draft': draft,
         })
+        context['departments'] = DepartmentContact.objects.all().order_by('name')
 
         return context
 
@@ -104,7 +104,7 @@ class AuthedHomeView(LoginRequiredMixin, ListView):
         context.update({
             'internal': internal,
             'published': published,
-            'draft': draft
+            'draft': draft,
         })
         return context
 

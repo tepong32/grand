@@ -44,12 +44,15 @@
                         {% endif %}
                     {% endfor %}
 
-                    {% for announcement in latest_public %}
-                    <li class="list-group-item">
-                        <a href="{{ announcement.get_absolute_url }}">
-                            <i class="fa fa-bullhorn text-primary"></i> {{ announcement.title|truncatechars:50 }}
-                        </a>
-                    </li>
+                    
+                    {% for announcement in latest_public  %}
+                      {% if not announcement.is_pinned %}
+                        <li class="list-group-item">
+                            <a href="{{ announcement.get_absolute_url }}">
+                                <i class="fa fa-bullhorn text-primary"></i> {{ announcement.title|truncatechars:50 }}
+                            </a>
+                        </li>
+                      {% endif %}
                     {% endfor %}
                 </ul>
             </div>

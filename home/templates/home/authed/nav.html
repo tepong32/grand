@@ -56,34 +56,26 @@
 
       </a>
 
-      <!-- All Users List -->
+      <!-- Dashboard -->
       <li class="nav-item d-none d-lg-block">
         <a href="/dashboard" class="nav-link" title="Dashboard">
           Dashboard
         </a>
       </li>
 
-      <!-- All Users List -->
-      <li class="nav-item d-none d-lg-block">
-        <a href="/users" class="nav-link" title="All users">
-          All users
-        </a>
-      </li>
-      <li class="nav-item d-lg-none d-sm-inline-block">
-        <a href="/users" class="nav-link" title="All Users">
-          <i class="fa fa-users"></i>
-        </a>
-      </li>
-
-      <!-- Leave Mgt -->
-      {% comment %} <li class="nav-item d-none d-lg-block">
-        <a href="{% url 'leave_list' %}" class="nav-link">Leave Mgt</a>
-      </li>
-      <li class="nav-item d-lg-none d-sm-inline-block">
-        <a href="{% url 'leave_list' %}" class="nav-link" title="Leave Mgt">
-          <i class="fa fa-book"></i>
-        </a>
-      </li> {% endcomment %}
+      <!-- All Users List for HR use -->
+       {% if request.user.is_staff or request.user.is_admin %}
+        <li class="nav-item d-none d-lg-block">
+          <a href="/users" class="nav-link" title="All users">
+            All users
+          </a>
+        </li>
+        <li class="nav-item d-lg-none d-sm-inline-block">
+          <a href="/users" class="nav-link" title="All Users">
+            <i class="fa fa-users"></i>
+          </a>
+        </li>
+      {% endif %}
 
       <!-- Profile -->
       <li class="nav-item d-none d-lg-block">

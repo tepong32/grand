@@ -50,16 +50,18 @@
         <div class="card-body box-profile">
           <div class="text-center">
             <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5"
-           src="{{user.employeeprofile.profile_image.url}}"
+           src="{{viewed_user.employeeprofile.profile_image.url}}"
            alt="User profile picture" style="width: 250px; height: 250px">
           </div>
           
           <!-- check logic here -->
           <!-- see if addtl if-block is needed -->
-            <h2 class="profile-username text-center">{{user.get_full_name}}</h2>
+            <h2 class="profile-username text-center">{{viewed_user.get_full_name}}</h2>
+            {% if request.user == viewed_user %}
             <small class="float-right ml-5">
-              <a title="Edit profile" class="fa fa-edit" href="{% url 'profile-edit' user.username %}"> Edit</a>
+              <a title="Edit profile" class="fa fa-edit" href="{% url 'profile-edit' viewed_user.username %}"> Edit</a>
             </small>
+            {% endif %}
           <p class="text-sm text-muted text-center"><i>{{viewed_user.employeeprofile.plantilla}}</i></p>
 
           <ul class="list-group list-group-unbordered mb-3">
@@ -86,13 +88,13 @@
             <!-- PROFILE OWNER-ONLY INFO -->
             <li class="list-group-item">
               <b>Employment Type:</b>
-                {% if request.user == user %}
-                  <i class="float-right">{{user.employeeprofile.employment_type}}</i> <br>
-                  {% if user.employeeprofile.get_salar %}
+                {% if request.user == viewed_user %}
+                  <i class="float-right">{{viewed_user.employeeprofile.employment_type}}</i> <br>
+                  {% if user.employeeprofile.get_salary %}
                     <p class="float-right">@ {{user.employeeprofile.get_salary|currency }}</p>
                   {% endif %}
                 {% else %}
-                  <i>**</i>
+                  <i class="float-right">**</i>
                 {% endif %}
             </li>
           </ul>
@@ -110,10 +112,10 @@
             {% if user.employeeprofile.note %}
             <a href="{% url 'profile-edit' user.username %}"><i>{{user.employeeprofile.note|safe}}</i></a>
             {% else %}
-              {% if user == request.user %}
-                <small><i>"A heads-up note to others. Example: Away for the meantime until mm/dd/yy."</i></small>
-                <a href="{% url 'profile-edit' user.username %}"><i title="Edit profile" class="fa fa-edit"></i></a>
-              {% endif %}
+              {#% if request.user == viewed_user %#}
+                <small><i>"devnote: create a separate form for updating only the profile note"</i></small>
+                <a href="{% url 'profile-edit' user.username %}"><i title="Edit profile" class="fa fa-edit mx-3"></i></a>
+              {#% endif %#}
             {% endif %}
           </div>
         </div>
