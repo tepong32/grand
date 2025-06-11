@@ -5,9 +5,8 @@ from django.core.paginator import Paginator
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 
-
 from .forms import LeaveApplicationForm
-from .models import LeaveRequest
+from .models import LeaveRequest, LeaveCredit, LeaveCreditLog
 from .utils import calculate_yearly_leave_usage
 
 from django.views.generic import (
@@ -21,6 +20,8 @@ from django.views.generic import (
     )
 
 from django.utils import timezone
+
+from profiles.models import EmployeeProfile
 
 
 class RoleBasedTemplateMixin(UserPassesTestMixin):
@@ -41,44 +42,73 @@ class RoleBasedTemplateMixin(UserPassesTestMixin):
 
 class MyLeaveView(LoginRequiredMixin, ListView):
     """
-    View for displaying the logged-in user's leave requests.
+    View for displaying the logged-in user's leave requests and related stats.
     """
     model = LeaveRequest
-    template_name = 'leave_mgt/leave_summary.html'  # Default template for regular users
+    template_name = 'leave_mgt/leave_summary.html'
     ordering = ['-date_filed']
+    context_object_name = 'leave_requests'  # optional: so you can just use {{ leave_requests }}
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Get employee leave credit instance
-        leave_credit = self.request.user.employeeprofile.leavecredit
-        leave_requests = self.get_queryset()
+        try:
+            user = self.request.user
+            leave_credit = user.employeeprofile.leavecredit
 
-        # Usage calculations
-        stats = calculate_yearly_leave_usage(leave_requests)
+            # All requests of this employee
+            leave_requests = LeaveRequest.objects.filter(employee=leave_credit)
 
-        # Paginate LeaveCreditLog entries
-        logs = leave_credit.logs.all().order_by('-action_date')
-        paginator = Paginator(logs, 10)
-        page_number = self.request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
+            # Approved leaves (for both count and pagination)
+            approved_leaves = leave_requests.filter(status='APPROVED')
 
-        context.update({
-            'cy_sl': leave_credit.current_year_sl_credits,
-            'cy_vl': leave_credit.current_year_vl_credits,
-            'approved_leave_count': leave_requests.filter(status='APPROVED').count(),
-            'current_yr_leave_usage': leave_requests.filter(
-                status='APPROVED',
-                start_date__year=timezone.now().year
-            ).count(),
-            'total_leave_taken': stats['total_leave_taken'],
-            'average_leave_per_month': stats['average_leave_per_month'],
-            'sl_vs_vl_usage': stats['sl_vs_vl_usage'],
-            'leave_requests': leave_requests,
-            'accrual_logs': page_obj,  # pagination
-        })
+            # Yearly usage
+            current_year = timezone.now().year
+            current_yr_leave_usage = approved_leaves.filter(start_date__year=current_year).count()
+
+            # Leave stats helper (from your custom function)
+            stats = calculate_yearly_leave_usage(leave_requests)
+
+            # Logs (paginated)
+            logs = LeaveCreditLog.objects.filter(leave_credits=leave_credit).order_by('-action_date')
+            paginator = Paginator(logs, 10)
+            page_number = self.request.GET.get('page')
+            page_logs = paginator.get_page(page_number)
+
+            context.update({
+                'leave_credits': leave_credit,
+                'cy_sl': leave_credit.current_year_sl_credits,
+                'cy_vl': leave_credit.current_year_vl_credits,
+                'approved_leaves': approved_leaves,
+                'approved_leave_count': approved_leaves.count(),
+                'current_year': current_year,
+                'current_yr_leave_usage': current_yr_leave_usage,
+                'total_leave_taken': stats['total_leave_taken'],
+                'average_leave_per_month': stats['average_leave_per_month'],
+                'sl_vs_vl_usage': stats['sl_vs_vl_usage'],
+                'accrual_logs': page_logs,
+                'leave_requests': leave_requests,
+            })
+
+        except (EmployeeProfile.DoesNotExist, LeaveCredit.DoesNotExist):
+            # Fallback context in case of missing data
+            context.update({
+                'leave_credits': None,
+                'cy_sl': 0,
+                'cy_vl': 0,
+                'approved_leaves': [],
+                'approved_leave_count': 0,
+                'current_year': timezone.now().year,
+                'current_yr_leave_usage': 0,
+                'total_leave_taken': 0,
+                'average_leave_per_month': 0,
+                'sl_vs_vl_usage': {},
+                'accrual_logs': [],
+                'leave_requests': [],
+            })
 
         return context
+
 
 
 class HRLeaveDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
