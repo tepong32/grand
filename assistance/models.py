@@ -22,9 +22,10 @@ class AssistanceType(models.Model):
 class AssistanceRequest(models.Model):
     reference_code = models.CharField(max_length=20, unique=True)
     assistance_type = models.ForeignKey(AssistanceType, on_delete=models.CASCADE)
+    period = models.CharField(max_length=9, help_text="e.g., 2024–2025", blank=True)
     full_name = models.CharField(max_length=255)
     email = models.EmailField()
-    phone = models.CharField(max_length=20)
+    phone = models.CharField(max_length=20, help_text="#s only: 09123456789", blank=False)
     submitted_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True) # to mark if the request is still active or not
     edit_code = models.CharField(max_length=6, blank=True, editable=False)
@@ -63,9 +64,25 @@ class AssistanceRequest(models.Model):
 
 
 class RequestDocument(models.Model):
-    request = models.ForeignKey('AssistanceRequest', on_delete=models.CASCADE, related_name='documents')
-    file = models.FileField(upload_to='assistance_uploads/%Y/%m/')
+    REQUEST_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('clearer_copy', 'Needs a Clearer Copy'),
+        ('wrong_file', 'Wrong File Attached'),
+        ('incomplete', 'Incomplete Document'),
+        ('missing_stamp', 'Requires Official Stamp/Signature'),
+        ('expired', 'Obsolete/Expired Document'),
+    ]
+
+    request = models.ForeignKey(AssistanceRequest, on_delete=models.CASCADE, related_name='documents')
+    file = models.FileField(upload_to='assistance_docs/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=20,
+        choices=REQUEST_STATUS_CHOICES,
+        default='pending'
+    )
+    remarks = models.TextField(blank=True)
 
     def __str__(self):
-        return f"Document for {self.request.reference_code}"
+        return f"{self.file.name} ({self.get_status_display()})"

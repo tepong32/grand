@@ -86,3 +86,8 @@ class AssistanceRequestAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
     
+@admin.register(RequestDocument)
+class RequestDocumentAdmin(admin.ModelAdmin):
+    list_display = ('request', 'file', 'status', 'remarks', 'uploaded_at')
+    list_filter = ('status',)
+    search_fields = ('request__reference_code',)
