@@ -37,7 +37,7 @@ class UnauthedHomeView(ListView):
     #     If the user is not authenticated, it proceeds with the normal dispatch: ListView behavior.
     #     """
     #     if request.user.is_authenticated:
-    #         return redirect('home_redirect')  # 👈 This sends logged-in users to their dashboards
+    #         return redirect('home_redirect')  # This sends logged-in users to their dashboards
     #     return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
@@ -232,7 +232,7 @@ def department_dashboard_dynamic(request):
 
     fallback_template = 'home/authed/dashboards/generic.html'
     template_path = (department.dashboard_template or '').strip()
-    print("💡 USING department_dashboard_dynamic view")
+    print("USING department_dashboard_dynamic view")
     print(f"[DEBUG] Department slug: {department.slug}")
 
 

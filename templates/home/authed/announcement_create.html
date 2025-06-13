@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<style type="text/css">
+  .announcment-widget {
+    min-height: 80vh;
+  }
+</style>
+<div class="card p-3 col-4 col-sm-12 col-md-12"> <!-- MOBILE VIEW EDIT -->
+  <form method="POST" enctype="multipart/form-data">
+    {{ form.media }} <!-- Required for styling/js to make ckeditor5 work -->
+    {% csrf_token %}
+    <!-- this is a required line for added security -->
+    <fieldset class="form-group">
+      <legend class="border-bottom mb-1">Create an Announcement</legend>
+      {{ form|crispy }}
+      <!-- {{ form.media }} -->
+      <!-- {{ form|crispy }} -->
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {% for error in form.non_field_errors %}
+                {{ error }}
+            {% endfor %}
+        </div>
+      {% endif %}
+      
+    </fieldset>
+    {{form.errors}}
+    <div class="form-group">
+      <button class="btn btn-success" type="submit">Submit request</button>
+    </div>
+  </form>
+</div>
+
+
+
+{% endblock content %}
