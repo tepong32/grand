@@ -5,7 +5,7 @@ from django.contrib.auth import views as auth_views     # for auths for logins a
 from django.urls import path, include, reverse_lazy
 from users.views import (
     register,
-    # CustomPasswordResetView # not working, reverted to default auth_views.PasswordResetView
+    CustomPasswordResetView # not working, reverted to default auth_views.PasswordResetView
 )
 
 from django.contrib import messages
@@ -35,8 +35,7 @@ urlpatterns = [
     
     # path('api/', include('api.urls'), name="api"),
     
-    ### allauth
-    path('accounts/', include('allauth.urls')),
+    
     ### ckeditor_5
     path("ckeditor5/", include('django_ckeditor_5.urls')),
     # path("upload/", custom_upload_function, name="custom_upload_file"), # prolly will not need this until feature for user file uploads are implemented
@@ -47,22 +46,25 @@ urlpatterns = [
     path('register/', register, name='register' ), # for external users to sign-up only using Google accounts
     
     # Password reset links (ref: https://github.com/django/django/blob/master/django/contrib/auth/views.py)
-    path('password-change/done/', auth_views.PasswordChangeDoneView.as_view(template_name='password_reset/password_change_done.html'), 
+    path('password_change/done/', auth_views.PasswordChangeDoneView.as_view(template_name='password_reset/password_change_done.html'), 
         name='password_change_done'),
 
-    path('password-change/', auth_views.PasswordChangeView.as_view(template_name='password_reset/password_change.html'), 
+    path('password_change/', auth_views.PasswordChangeView.as_view(template_name='password_reset/password_change.html'), 
         name='password_change'),
 
 
     ### i used a subclassed pw-reset view to implement logging and for debugging puposes
     ### apparently, the {{url}} in the email is not being displayed correctly when this custom view is in use so,
     ### i returned to the default and just changed the email subject on /registration/password_reset_subject.txt
-    # path('password-reset/', CustomPasswordResetView.as_view(template_name='password_reset/password_reset.html'), name='password_reset'),
+    path('password_reset/', CustomPasswordResetView.as_view(template_name='password_reset/password_reset.html'), name='password_reset'),
     
-    path('password-reset/', auth_views.PasswordResetView.as_view(template_name='password_reset/password_reset.html'), name='password_reset'),
+    # path('password-reset/', auth_views.PasswordResetView.as_view(template_name='password_reset/password_reset.html'), name='password_reset'),
     path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='password_reset/password_reset_done.html'), name='password_reset_done'),
-    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='password_reset/password_reset_confirm.html'), name='password_reset_confirm'),
-    path('reset-done/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset/password_reset_complete.html'),
+    path('password_reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='password_reset/password_reset_confirm.html'), name='password_reset_confirm'),
+    path('password_reset_done/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset/password_reset_complete.html'),
      name='password_reset_complete'),
+
+     ### allauth
+    path('accounts/', include('allauth.urls')),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
