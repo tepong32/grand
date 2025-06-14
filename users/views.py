@@ -293,6 +293,11 @@ def export_all_employees(request, format):
 
 
 class CustomPasswordResetView(PasswordResetView):
+    email_template_name = 'registration/password_reset_email.txt'  # plain-text fallback (optional)
+    html_email_template_name = 'registration/password_reset_email.html'  # ✅ your styled HTML version
+    subject_template_name = 'registration/password_reset_subject.txt'  # optional
+    success_url = '/password_reset/done/'  # fallback redirect after sending email
+
     def form_valid(self, form):
         try:
             response = super().form_valid(form)
