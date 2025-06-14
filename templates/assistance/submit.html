@@ -5,71 +5,138 @@
 {% block title_ext %} - Request Financial Assistance{% endblock %}
 
 {% block content %}
-  {% comment %} Language Toggle {% endcomment %}
-  {% comment %} <form action="{% url 'set_language' %}" method="post">
-    {% csrf_token %}
-    <input name="next" type="hidden" value="{{ redirect_to }}">
-    <select name="language" onchange="this.form.submit()">
-      <option value="en" {% if LANGUAGE_CODE == 'en' %}selected{% endif %}>English</option>
-      <option value="fil" {% if LANGUAGE_CODE == 'fil' %}selected{% endif %}>Filipino</option>
-    </select>
-  </form> {% endcomment %}
-
 <div class="container py-5">
   <div class="row justify-content-center">
     <div class="col-md-10 col-lg-8">
       <div class="card shadow rounded-4">
         <div class="card-header bg-primary text-white rounded-top-4">
           <h4 class="mb-0">
-            <i class="fas fa-hand-holding-heart me-2"></i> Financial Assistance Request
+            <i class="fas fa-hand-holding-heart me-2"></i> {% trans "Financial Assistance Request" %}
           </h4>
         </div>
         <div class="card-body">
           <form method="POST" enctype="multipart/form-data">
-            {% csrf_token %}
+          {% csrf_token %}
 
-            <div class="mb-3 row">
-              <label for="id_full_name" class="col-md-4 col-form-label">{% trans "Full Name" %}</label>
-              <div class="col-md-8">
-                {{ form.full_name }}
-              </div>
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger rounded-3">
+              <ul class="mb-0">
+                {% for error in form.non_field_errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
             </div>
+          {% endif %}
 
-            <div class="mb-3 row">
-              <label for="id_email" class="col-md-4 col-form-label">Email</label>
-              <div class="col-md-8">
-                {{ form.email }}
-              </div>
+          <!-- Full Name -->
+          <div class="mb-3 row">
+            <label for="id_full_name" class="col-md-4 col-form-label">{% trans "Full Name" %}</label>
+            <div class="col-md-8">
+              {{ form.full_name }}
+              {% if form.full_name.errors %}
+                <div class="text-danger small mt-1">
+                  {% for error in form.full_name.errors %}
+                    {{ error }}<br>
+                  {% endfor %}
+                </div>
+              {% endif %}
             </div>
+          </div>
 
-            <div class="mb-3 row">
-              <label for="id_assistance_type" class="col-md-4 col-form-label">Type of Assistance</label>
-              <div class="col-md-8">
-                {{ form.assistance_type }}
-              </div>
+          <!-- Email -->
+          <div class="mb-3 row">
+            <label for="id_email" class="col-md-4 col-form-label">{% trans "Email" %}</label>
+            <div class="col-md-8">
+              {{ form.email }}
+              {% if form.email.errors %}
+                <div class="text-danger small mt-1">
+                  {% for error in form.email.errors %}
+                    {{ error }}<br>
+                  {% endfor %}
+                </div>
+              {% endif %}
             </div>
+          </div>
 
+          <!-- Phone -->
+          <div class="mb-3 row">
+            <label for="id_phone" class="col-md-4 col-form-label">{% trans "Phone" %}</label>
+            <div class="col-md-8">
+              {{ form.phone }}
+              {% if form.phone.errors %}
+                <div class="text-danger small mt-1">
+                  {% for error in form.phone.errors %}
+                    {{ error }}<br>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Assistance Type -->
+          <div class="mb-3 row">
+            <label for="id_assistance_type" class="col-md-4 col-form-label">{% trans "Type of Assistance" %}</label>
+            <div class="col-md-8">
+              {{ form.assistance_type }}
+              {% if form.assistance_type.errors %}
+                <div class="text-danger small mt-1">
+                  {% for error in form.assistance_type.errors %}
+                    {{ error }}<br>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Period -->
+          <div class="mb-3 row">
+            <label for="id_phone" class="col-md-4 col-form-label">{% trans "Period" %}</label>
+            <div class="col-md-8">
+              {{ form.period }}
+              {% if form.period.errors %}
+                <div class="text-danger small mt-1">
+                  {% for error in form.period.errors %}
+                    {{ error }}<br>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if form.purpose %}
             <div class="mb-3 row">
-              <label for="id_purpose" class="col-md-4 col-form-label">Purpose</label>
+              <label for="id_purpose" class="col-md-4 col-form-label">{% trans "Purpose" %}</label>
               <div class="col-md-8">
                 {{ form.purpose }}
+                {% if form.purpose.errors %}
+                  <div class="text-danger small mt-1">
+                    {% for error in form.purpose.errors %}
+                      {{ error }}<br>
+                    {% endfor %}
+                  </div>
+                {% endif %}
               </div>
             </div>
+          {% endif %}
 
-            <div class="mb-3 row">
-              <label for="id_file" class="col-md-4 col-form-label">Upload Documents</label>
-              <div class="col-md-8">
-                <input type="file" name="file" id="id_file" class="form-control" multiple>
-                <small class="form-text text-muted">Upload any necessary documents (ID, certificate, medical papers, etc.).</small>
+          <!-- File Upload -->
+          <div class="mb-3 row">
+            <label for="id_file" class="col-md-4 col-form-label">{% trans "Upload Documents" %}</label>
+            <div class="col-md-8">
+              <input type="file" name="file" id="id_file" class="form-control" multiple aria-describedby="fileHelp">
+              <div id="fileHelp" class="form-text text-muted">
+                {% trans "You may upload multiple files (e.g., valid ID, proof of residency, medical docs)." %}
               </div>
             </div>
+          </div>
 
-            <div class="text-end">
-              <button type="submit" class="btn btn-success px-4">
-                <i class="fas fa-paper-plane me-1"></i> Submit Request
-              </button>
-            </div>
-          </form>
+          <div class="text-end">
+            <button type="submit" class="btn btn-success px-4">
+              <i class="fas fa-paper-plane me-1"></i> {% trans "Submit Request" %}
+            </button>
+          </div>
+        </form>
+
         </div>
       </div>
     </div>

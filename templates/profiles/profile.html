@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static custom_filters %}
+{% load static %}
 
 <!-- Users' Profile page -->
 <!-- Self-explanatory page...I guess. LOL -->
@@ -90,9 +90,6 @@
               <b>Employment Type:</b>
                 {% if request.user == viewed_user %}
                   <i class="float-right">{{viewed_user.employeeprofile.employment_type}}</i> <br>
-                  {% if user.employeeprofile.get_salary %}
-                    <p class="float-right">@ {{user.employeeprofile.get_salary|currency }}</p>
-                  {% endif %}
                 {% else %}
                   <i class="float-right">**</i>
                 {% endif %}

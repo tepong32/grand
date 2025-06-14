@@ -68,8 +68,8 @@ def usersIndexView(request):
     departments = Department.objects.order_by("name")
 
     # Restrict access to staff or dept heads
-    if request.user.is_staff or departments.filter(deptHead_or_oic=request.user).exists():
-        messages.info(request, "You are seeing this page because you are a Staff/Admin or a Dept Head/OIC.")
+    if request.user.is_staff or departments.filter(slug='hr').exists():
+        messages.info(request, "You are seeing this page because you are a Staff/Admin or from HR Department.")
     else:
         messages.error(request, "Access Denied.")
         return redirect('home')
@@ -293,6 +293,11 @@ def export_all_employees(request, format):
 
 
 class CustomPasswordResetView(PasswordResetView):
+    email_template_name = 'registration/password_reset_email.txt'  # plain-text fallback (optional)
+    html_email_template_name = 'registration/password_reset_email.html'  # ✅ your styled HTML version
+    subject_template_name = 'registration/password_reset_subject.txt'  # optional
+    success_url = '/password_reset/done/'  # fallback redirect after sending email
+
     def form_valid(self, form):
         try:
             response = super().form_valid(form)

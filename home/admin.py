@@ -5,11 +5,11 @@ from .models import Announcement, OrgPersonnel, DepartmentContact, DownloadableF
 
 @admin.register(Announcement)
 class AnnouncementAdmin(admin.ModelAdmin):
-    list_display = ('title',)
+    list_display = ('title', 'user')
 
 @admin.register(OrgPersonnel)
 class OrgPersonnelAdmin(admin.ModelAdmin):
-    list_display = ('title',)
+    list_display = ('title', 'name')
 
 @admin.register(DepartmentContact)
 class DepartmentContactAdmin(admin.ModelAdmin):

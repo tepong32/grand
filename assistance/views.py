@@ -1,21 +1,22 @@
+from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.core.mail import send_mail
 from django.conf import settings
-from .forms import AssistanceRequestForm, EmailUpdateForm
+from .forms import AssistanceRequestForm, AssistanceRequestEditForm, RequestDocumentForm
 from .models import RequestDocument, AssistanceRequest
 from django.utils.translation import gettext as _
 
 
 def request_assistance_view(request):
     """
-    View to handle the submission of financial assistance requests.
-    Displays a form for users to fill out their details and upload documents.
-    Handles both GET and POST requests.
+    Handles submission of financial assistance requests.
+    Displays form, saves documents, and emails confirmation with access link.
     """
     if request.method == 'POST':
         form = AssistanceRequestForm(request.POST, request.FILES)
         files = request.FILES.getlist('file')
+
         if form.is_valid():
             instance = form.save()
 
@@ -23,89 +24,48 @@ def request_assistance_view(request):
             for file in files:
                 RequestDocument.objects.create(request=instance, file=file)
 
-            # Generate correct links
-            edit_link = request.build_absolute_uri(
-                reverse('edit_request', args=[instance.reference_code]) + f'?code={instance.edit_code}'
-            )
-            track_link = request.build_absolute_uri(
-                reverse('track_request', args=[instance.reference_code])
+            # Unified edit/track access link
+            access_link = request.build_absolute_uri(
+                reverse('assistance_request_access_view', args=[instance.edit_code])
             )
 
-            # Send confirmation email
+            # Send confirmation email (if email configured)
             subject = 'Your Financial Assistance Request Confirmation'
             message = f"""
-                Hi {instance.full_name},
+Hi {instance.full_name},
 
-                Thank you for submitting a financial assistance request.
+Thank you for submitting your financial assistance request.
 
-                📌 Reference Code: {instance.reference_code}
-                🔑 Edit Code: {instance.edit_code}
+📌 Reference Code: {instance.reference_code}
+🔑 Edit Code: {instance.edit_code}
 
-                You can edit your request or upload more files using this link:
-                {edit_link}
+Use the link below to edit your request, upload documents, or track progress:
+{access_link}
 
-                You may also track your request’s progress here:
-                {track_link}
+This is an automated message — please do not reply.
+            """.strip()
 
-                This is an automated message — please do not reply.
-                """
-
-            ### set proper email settings in your Django settings.py first
-            # send_mail(
-            #     subject,
-            #     message,
-            #     settings.DEFAULT_FROM_EMAIL,
-            #     [instance.email],
-            #     fail_silently=True,
-            # )
+            ## Optional: Enable this after setting up email config
+            send_mail(
+                subject,
+                message,
+                settings.ASSISTANCE_FROM_EMAIL, # set the sender as "assistance@abutchikikz.online". see settings.py and env vars
+                [instance.email],
+                fail_silently=True,
+            )
 
             return render(request, 'assistance/confirmation.html', {
                 'reference_code': instance.reference_code,
                 'edit_code': instance.edit_code,
-                'edit_link': edit_link,
-                'track_link': track_link,
+                'access_link': access_link,
             })
     else:
         form = AssistanceRequestForm()
-
-    print("Form valid?", form.is_valid())
-    print("POST data:", request.POST)
-    print("FILES received:", request.FILES.getlist('file'))
 
     return render(request, 'assistance/submit.html', {
         'form': form
     })
 
-
-def edit_request_view(request, reference_code):
-    """
-    View to edit an existing assistance request.
-    Allows updating email and uploading additional documents.
-    """
-    code = request.GET.get('code')
-    request_obj = get_object_or_404(AssistanceRequest, reference_code=reference_code, edit_code=code)
-
-    email_form = EmailUpdateForm(instance=request_obj)
-    message = None
-
-    if request.method == 'POST':
-        if 'update_email' in request.POST:
-            email_form = EmailUpdateForm(request.POST, instance=request_obj)
-            if email_form.is_valid():
-                email_form.save()
-                message = _("Email updated successfully.")
-        else:
-            files = request.FILES.getlist('file')
-            for f in files:
-                RequestDocument.objects.create(request=request_obj, file=f)
-            return redirect(request.path + f"?code={code}")
-
-    return render(request, 'assistance/edit.html', {
-        'request_obj': request_obj,
-        'documents': request_obj.documents.all(),
-        'email_form': email_form,
-        'message': message,
-    })
 
 def track_request_view(request, reference_code):
     request_obj = get_object_or_404(AssistanceRequest, reference_code=reference_code)
@@ -114,3 +74,70 @@ def track_request_view(request, reference_code):
         'documents': request_obj.documents.all(),
         'logs': request_obj.logs.all().order_by('-timestamp'),
     })
+
+
+def assistance_request_access_entry(request):
+    '''
+    View to handle access to an existing assistance request using an edit code.
+    Users can enter their edit code to retrieve their request.
+    '''
+    if request.method == 'POST':
+        edit_code = request.POST.get('edit_code', '').strip()
+        if not edit_code:
+            messages.error(request, _("Please enter a valid edit code."))
+            return redirect('assistance_access')
+
+        try:
+            req = AssistanceRequest.objects.get(edit_code=edit_code)
+            return redirect('assistance_request_access_view', edit_code=edit_code)
+        except AssistanceRequest.DoesNotExist:
+            messages.error(request, _("No request found for that edit code."))
+            return redirect('assistance_access')
+
+    return render(request, 'assistance/assistance_request_code_entry.html')
+
+
+def assistance_request_access_view(request, edit_code):
+    request_obj = get_object_or_404(AssistanceRequest, edit_code=edit_code)
+    document_form = RequestDocumentForm()
+    form = AssistanceRequestEditForm(instance=request_obj)
+
+    if request.method == 'POST':
+        if 'upload_files' in request.POST:
+            files = request.FILES.getlist('file')
+            if files:
+                for f in files:
+                    RequestDocument.objects.create(request=request_obj, file=f)
+                messages.success(request, _("Files uploaded successfully."))
+            else:
+                messages.warning(request, _("No files selected for upload."))
+        else:
+            form = AssistanceRequestEditForm(request.POST, request.FILES, instance=request_obj)
+            if form.is_valid():
+                form.save()
+                messages.success(request, _("Request updated successfully."))
+            else:
+                messages.error(request, _("Please correct the errors in the form."))
+
+        return redirect('assistance_request_access_view', edit_code=edit_code)
+
+    return render(request, 'assistance/assistance_request_access.html', {
+        'request_obj': request_obj,
+        'form': form,
+        'document_form': document_form,
+        'documents': request_obj.documents.all().order_by('-uploaded_at'),
+    })
+
+
+import qrcode
+from io import BytesIO
+from django.http import HttpResponse
+
+def generate_qr(request, reference_code, edit_code):
+    access_url = request.build_absolute_uri(
+        reverse('assistance_request_access_view', args=[edit_code])
+    )
+    img = qrcode.make(access_url)
+    buffer = BytesIO()
+    img.save(buffer, format='PNG')
+    return HttpResponse(buffer.getvalue(), content_type='image/png')
