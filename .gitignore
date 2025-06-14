@@ -175,7 +175,8 @@ cython_debug/
 Thumbs.db
 
 ### Django LGU App - Ignored Production Files ###
-manage.py
-passenger_wsgi.py
-src/wsgi.py
-.htaccess
+### these files need to be set with --assume-unchanged flags after setting them to use prod-related lines
+# manage.py
+# passenger_wsgi.py
+# src/wsgi.py
+# .htaccess
