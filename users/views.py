@@ -68,8 +68,8 @@ def usersIndexView(request):
     departments = Department.objects.order_by("name")
 
     # Restrict access to staff or dept heads
-    if request.user.is_staff or departments.filter(deptHead_or_oic=request.user).exists():
-        messages.info(request, "You are seeing this page because you are a Staff/Admin or a Dept Head/OIC.")
+    if request.user.is_staff or departments.filter(slug='hr').exists():
+        messages.info(request, "You are seeing this page because you are a Staff/Admin or from HR Department.")
     else:
         messages.error(request, "Access Denied.")
         return redirect('home')
