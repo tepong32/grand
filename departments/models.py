@@ -50,5 +50,5 @@ class Plantilla(models.Model):
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
     
     def __str__(self):
-        return f"{self.title} (SG {self.salary_grade})"
+        return f"{self.title}"
 
