@@ -160,3 +160,22 @@ cython_debug/
 #.idea/
 
 /static
+# Uploaded media (user files)
+# (allowed for now)
+# media/
+# uploads/
+# user_files/
+
+# Editor & OS backup files
+*.bak
+*.swp
+*.tmp
+*~
+.DS_Store
+Thumbs.db
+
+### Django LGU App - Ignored Production Files ###
+manage.py
+passenger_wsgi.py
+src/wsgi.py
+.htaccess
