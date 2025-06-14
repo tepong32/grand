@@ -45,14 +45,14 @@ Use the link below to edit your request, upload documents, or track progress:
 This is an automated message — please do not reply.
             """.strip()
 
-            ### Optional: Enable this after setting up email config
-            # send_mail(
-            #     subject,
-            #     message,
-            #     settings.DEFAULT_FROM_EMAIL,
-            #     [instance.email],
-            #     fail_silently=True,
-            # )
+            ## Optional: Enable this after setting up email config
+            send_mail(
+                subject,
+                message,
+                settings.ASSISTANCE_FROM_EMAIL, # set the sender as "assistance@abutchikikz.online". see settings.py and env vars
+                [instance.email],
+                fail_silently=True,
+            )
 
             return render(request, 'assistance/confirmation.html', {
                 'reference_code': instance.reference_code,
