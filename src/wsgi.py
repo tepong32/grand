@@ -14,5 +14,5 @@ load_dotenv()
 
 
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'src.settings.dev')  # or 'prod'
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'src.settings.prod')  # or 'prod'
 application = get_wsgi_application()
