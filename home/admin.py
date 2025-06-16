@@ -13,7 +13,7 @@ class OrgPersonnelAdmin(admin.ModelAdmin):
 
 @admin.register(DepartmentContact)
 class DepartmentContactAdmin(admin.ModelAdmin):
-    list_display = ('name',)
+    list_display = ('name', 'landline', 'mobile', 'email', 'messenger_chat_link')
 
 
 @admin.register(DownloadableForm)
