@@ -9,7 +9,7 @@ class AnnouncementAdmin(admin.ModelAdmin):
 
 @admin.register(OrgPersonnel)
 class OrgPersonnelAdmin(admin.ModelAdmin):
-    list_display = ('title', 'name')
+    list_display = ('title', 'name', 'display_order')
 
 @admin.register(DepartmentContact)
 class DepartmentContactAdmin(admin.ModelAdmin):
