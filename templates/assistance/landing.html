@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title_ext %} - Assistance Options{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="card shadow-sm rounded-4 p-4">
+        <h3 class="mb-4 text-center">Need Financial Assistance?</h3>
+
+        <div class="d-grid gap-3 mb-4">
+          <a href="{% url 'submit_request' %}" class="btn btn-primary btn-lg">
+            <i class="fas fa-file-alt me-1"></i> Submit a New Request
+          </a>
+        </div>
+
+        <hr>
+
+        <h5 class="text-center mt-4 mb-3">🔎 Track or Edit Existing Request</h5>
+        <form method="POST" class="row g-3">
+          {% csrf_token %}
+          <div class="col-md-12">
+            <label class="form-label fw-bold">📌 Reference Code</label>
+            <input type="text" name="reference_code" class="form-control" placeholder="Enter your reference code..." required>
+          </div>
+
+          <div class="col-md-12">
+            <label class="form-label fw-bold">🔑 Edit Code <span class="text-muted small">(Optional)</span></label>
+            <input type="text" name="edit_code" class="form-control" placeholder="Enter your edit code (only if editing)">
+          </div>
+
+          <div class="col-12 d-grid">
+            <button type="submit" class="btn btn-outline-primary btn-lg">
+              <i class="fas fa-search me-1"></i> Continue
+            </button>
+          </div>
+        </form>
+
+        {% if messages %}
+          <div class="mt-4">
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

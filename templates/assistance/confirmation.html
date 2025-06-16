@@ -6,20 +6,17 @@
 <div class="container py-5 text-center">
   <div class="card shadow-sm rounded-4 p-4">
 
-    <!-- Success Message -->
     <div class="mb-4">
       <i class="fas fa-check-circle fa-3x text-success mb-2"></i>
       <h2 class="mb-0">Request Submitted!</h2>
       <p class="text-muted">Thank you for your submission.</p>
     </div>
 
-    <!-- Reference Code -->
     <div class="mb-3">
       <strong>📌 Reference Code:</strong>
       <div class="text-monospace fs-4">{{ reference_code }}</div>
     </div>
 
-    <!-- Edit Link with Copy -->
     <div class="mb-4">
       <strong>🔑 Access or Update your Request:</strong>
       <div class="input-group mx-auto mt-2" style="max-width: 500px;">
@@ -28,13 +25,11 @@
       </div>
     </div>
 
-    <!-- QR Code Display -->
     <div class="my-4">
       <p><strong>📱 Prefer to open it on your phone?</strong><br>Scan the QR code below:</p>
       <img src="{% url 'generate_qr' reference_code=reference_code edit_code=edit_code %}" alt="QR Code" class="img-thumbnail" style="max-width: 200px;">
     </div>
 
-    <!-- Track Link -->
     <div class="mt-3">
       <p class="text-muted small">Want to track the status without editing? Use this link:</p>
       <div class="input-group mx-auto mb-3" style="max-width: 500px;">
@@ -43,7 +38,6 @@
       </div>
     </div>
 
-    <!-- Action Buttons -->
     <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
       <a href="{% url 'submit_request' %}" class="btn btn-primary">
         <i class="fas fa-plus-circle me-1"></i> Submit Another Request
@@ -55,7 +49,6 @@
   </div>
 </div>
 
-<!-- JS Copy Logic -->
 <script>
   function copyToClipboard() {
     const input = document.getElementById('editLink');
