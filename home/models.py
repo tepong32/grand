@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from django_ckeditor_5.fields import CKEditor5Field
 from PIL import Image, ImageOps
+import re
 
 ### for debugging
 import logging
@@ -63,9 +64,15 @@ class Announcement(models.Model):
 class OrgPersonnel(models.Model):
 	name = models.CharField(max_length=255)
 	title = models.CharField(max_length=255, default=' ', help_text="Either Titles or add OIC, your call.")
+
+	
 	def upload_directory_path(instance, filename):
-		# file will be uploaded to MEDIA_ROOT/orgpersonnel/<name>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
-		return r'orgpersonnel/{}/{}'.format(instance.name, filename)
+		# Remove all characters except letters, numbers, hyphens, underscores, and spaces
+		safe_name = re.sub(r'[^a-zA-Z0-9\s_-]', '', instance.name)
+		# Optionally replace spaces with underscores or hyphens
+		safe_name = safe_name.strip().replace(' ', '_')
+		return f'orgpersonnel/{safe_name}/{filename}'
+	
 	image = models.ImageField(default="defaults/jjvbocaue-otimized.png", blank=True, upload_to=upload_directory_path)
 	display_order = models.PositiveIntegerField(help_text="Mayor as 1, VM as 2, etc.", blank=True, null=True)
 
