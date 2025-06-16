@@ -26,6 +26,11 @@
           <div class="row">
             <div class="col-md-3">
               <div class="nav flex-column nav-tabs" id="dept-tabs" role="tablist" aria-orientation="vertical">
+                <a class="nav-link" id="tab-all-tab" data-toggle="pill"
+                  href="#tab-all" role="tab"
+                  aria-controls="tab-all" aria-selected="false">
+                  All Employees
+                </a>
                 {% for department, profiles in department_users.items %}
                   {% with department.slug as dep_slug %}
 
@@ -40,11 +45,6 @@
                     </a>
                   {% endwith %}
                 {% endfor %}
-                <a class="nav-link" id="tab-all-tab" data-toggle="pill"
-                  href="#tab-all" role="tab"
-                  aria-controls="tab-all" aria-selected="false">
-                  All Employees
-                </a>
               </div>
             </div>
             <div class="col-md-9">
