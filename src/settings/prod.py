@@ -3,6 +3,7 @@ from pathlib import Path
 from .base import *
 from .cron import *
 
+
 # Already set in base.py
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -16,9 +17,9 @@ ALLOWED_HOSTS = ["abutchikikz.online", "www.abutchikikz.online", "test.abutchiki
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv("PROT_DB_NAME"),
-        'USER': os.getenv("PROT_DB_UN"),
-        'PASSWORD': os.getenv("PROT_DB_PW"),
+        'NAME': os.getenv("TEST_DB_NAME"),
+        'USER': os.getenv("TEST_DB_UN"),
+        'PASSWORD': os.getenv("TEST_DB_PW"),
         'HOST': 'localhost',
         'PORT': '3306',
     }
