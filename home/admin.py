@@ -9,11 +9,11 @@ class AnnouncementAdmin(admin.ModelAdmin):
 
 @admin.register(OrgPersonnel)
 class OrgPersonnelAdmin(admin.ModelAdmin):
-    list_display = ('title', 'name')
+    list_display = ('title', 'name', 'display_order')
 
 @admin.register(DepartmentContact)
 class DepartmentContactAdmin(admin.ModelAdmin):
-    list_display = ('name',)
+    list_display = ('name', 'landline', 'mobile', 'email', 'messenger_chat_link')
 
 
 @admin.register(DownloadableForm)
