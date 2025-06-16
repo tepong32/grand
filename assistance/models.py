@@ -22,7 +22,7 @@ class AssistanceType(models.Model):
 class AssistanceRequest(models.Model):
     reference_code = models.CharField(max_length=20, unique=True)
     assistance_type = models.ForeignKey(AssistanceType, on_delete=models.CASCADE)
-    period = models.CharField(max_length=9, help_text="e.g., 2024–2025", blank=True)
+    period = models.CharField(max_length=9, help_text="e.g., 2024–2025", null=True, blank=True)
     full_name = models.CharField(max_length=255)
     email = models.EmailField()
     phone = models.CharField(max_length=20, help_text="#s only: 09123456789", blank=False)
@@ -86,3 +86,16 @@ class RequestDocument(models.Model):
 
     def __str__(self):
         return f"{self.file.name} ({self.get_status_display()})"
+    
+    
+from users.models import User 
+class RequestLog(models.Model):
+    request = models.ForeignKey('AssistanceRequest', on_delete=models.CASCADE, related_name='logs')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    status_before = models.CharField(max_length=20)
+    status_after = models.CharField(max_length=20)
+    remarks = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.request.reference_code} update on {self.timestamp:%Y-%m-%d %H:%M}"

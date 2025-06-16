@@ -1,19 +1,6 @@
 from django.db import models
 from django.contrib import admin
-from .models import AssistanceType, AssistanceRequest, RequestDocument
-from users.models import User 
-
-
-class RequestLog(models.Model):
-    request = models.ForeignKey('AssistanceRequest', on_delete=models.CASCADE, related_name='logs')
-    timestamp = models.DateTimeField(auto_now_add=True)
-    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    status_before = models.CharField(max_length=20)
-    status_after = models.CharField(max_length=20)
-    remarks = models.TextField(blank=True)
-
-    def __str__(self):
-        return f"{self.request.reference_code} update on {self.timestamp:%Y-%m-%d %H:%M}"
+from .models import AssistanceType, AssistanceRequest, RequestDocument, RequestLog
 
 
 class RequestDocumentInline(admin.TabularInline):
@@ -91,3 +78,10 @@ class RequestDocumentAdmin(admin.ModelAdmin):
     list_display = ('request', 'file', 'status', 'remarks', 'uploaded_at')
     list_filter = ('status',)
     search_fields = ('request__reference_code',)
+
+
+@admin.register(RequestLog)
+class RequestLogAdmin(admin.ModelAdmin):
+    list_display = ('request', 'timestamp', 'updated_by', 'status_before', 'status_after')
+    search_fields = ('request__reference_code',)
+    list_filter = ('status_before', 'status_after')
