@@ -16,12 +16,19 @@ logger = logging.getLogger(__name__)
 
 
 def temp_memo_path(instance, filename):
-    # Initial path before final renaming on save
-    return f'users/{instance.user.username}/memos/temp_{filename}'
+    # Remove all characters except letters, numbers, hyphens, underscores, and spaces
+    safe_name = re.sub(r'[^a-zA-Z0-9\s_-]', '', instance.name)
+    # Optionally replace spaces with underscores or hyphens
+    safe_name = safe_name.strip().replace(' ', '_')
+    return f'users/{safe_name}/memos/temp_{filename}'
 
 
 def uploaded_images_directory_path(instance, filename):
-    return f'users/{instance.user.username}/uploads/{filename}'
+    # Remove all characters except letters, numbers, hyphens, underscores, and spaces
+    safe_name = re.sub(r'[^a-zA-Z0-9\s_-]', '', instance.name)
+    # Optionally replace spaces with underscores or hyphens
+    safe_name = safe_name.strip().replace(' ', '_')
+    return f'users/{safe_name}/uploads/{filename}'
 
 
 class EmployeeProfile(models.Model):
