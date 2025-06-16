@@ -176,6 +176,7 @@ Thumbs.db
 
 ### Django LGU App - Ignored Production Files ###
 ### these files need to be set with --assume-unchanged flags after setting them to use prod-related lines
+### better yet, copy the server files to the repo and then add to gitignore after initial pull?
 # manage.py
 # passenger_wsgi.py
 # src/wsgi.py
