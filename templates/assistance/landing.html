@@ -17,18 +17,19 @@
         <hr>
 
         <h5 class="text-center mt-4 mb-3">🔎 Track or Edit Existing Request</h5>
+
         {% if show_helper %}
           <div class="alert alert-info">
             🧠 <strong>Reminder:</strong> If you already submitted a request before, check your email for your reference and edit codes.<br>
-            You can use them below to <strong>track</strong> or <strong>edit</strong> your request.
-            <p class="text-center mt-2 small">
-              <a href="{% url 'resend_codes' %}">📧 Didn't save your codes? Get them again via email</a>
-            </p>
+            You can use them below to <strong>track</strong>, <strong>edit</strong>, or <strong>resend</strong> your access links.
           </div>
         {% endif %}
 
-        <form method="POST" class="row g-3">
+        <!-- TRACK/EDIT FORM -->
+        <form method="POST" class="row g-3 mb-4">
           {% csrf_token %}
+          <input type="hidden" name="form_type" value="track_edit">
+
           <div class="col-md-12">
             <label class="form-label fw-bold">📌 Reference Code</label>
             <input type="text" name="reference_code" class="form-control" placeholder="Enter your reference code..." required>
@@ -46,6 +47,25 @@
           </div>
         </form>
 
+        <!-- RESEND CODES FORM -->
+        <h5 class="text-center mt-3">📧 Resend Your Access Codes</h5>
+        <form method="POST" class="row g-3">
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="resend_codes">
+
+          <div class="col-md-12">
+            <label class="form-label fw-bold">Email Address</label>
+            <input type="email" name="email" class="form-control" placeholder="Enter your email address..." required>
+          </div>
+
+          <div class="col-12 d-grid">
+            <button type="submit" class="btn btn-info btn-lg">
+              <i class="fas fa-envelope me-1"></i> Resend Codes
+            </button>
+          </div>
+        </form>
+
+        <!-- FEEDBACK MESSAGES -->
         {% if messages %}
           <div class="mt-4">
             {% for message in messages %}

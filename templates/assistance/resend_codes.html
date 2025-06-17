@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title_ext %} - Resend Request Codes{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-7">
+      <div class="card shadow-sm rounded-4 p-4">
+        <h3 class="mb-3 text-center">📧 Resend Your Assistance Request Codes</h3>
+        <p class="text-muted text-center mb-4">
+          Enter your email address below to receive your reference and edit codes again.
+        </p>
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="email" class="form-label fw-bold">Email address</label>
+            <input type="email" name="email" class="form-control" placeholder="Enter your email" required>
+          </div>
+
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-paper-plane me-1"></i> Send My Codes
+            </button>
+          </div>
+        </form>
+
+        <div class="text-center mt-4">
+          <a href="{% url 'assistance_landing' %}" class="text-muted">
+            ← Back to Assistance Options
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

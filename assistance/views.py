@@ -176,30 +176,75 @@ def track_request_view(request, reference_code):
     })
 
 
+from django.core.mail import EmailMultiAlternatives
+from django.utils.html import strip_tags
+
 def assistance_landing(request):
-    show_helper = request.GET.get("duplicate") == "1"
-
     if request.method == "POST":
-        reference_code = request.POST.get('reference_code', '').strip()
-        edit_code = request.POST.get('edit_code', '').strip()
+        form_type = request.POST.get('form_type')
 
-        if reference_code:
-            if edit_code:
-                if AssistanceRequest.objects.filter(reference_code=reference_code, edit_code=edit_code).exists():
-                    return redirect('edit_request', edit_code=edit_code)
+        if form_type == 'track_edit':
+            reference_code = request.POST.get('reference_code', '').strip()
+            edit_code = request.POST.get('edit_code', '').strip()
+
+            if reference_code:
+                if edit_code:
+                    if AssistanceRequest.objects.filter(reference_code=reference_code, edit_code=edit_code).exists():
+                        return redirect('edit_request', edit_code=edit_code)
+                    else:
+                        messages.error(request, "Invalid reference or edit code.")
                 else:
-                    messages.error(request, "Invalid reference or edit code.")
+                    if AssistanceRequest.objects.filter(reference_code=reference_code).exists():
+                        return redirect('track_request', reference_code=reference_code)
+                    else:
+                        messages.error(request, "Reference code not found.")
             else:
-                if AssistanceRequest.objects.filter(reference_code=reference_code).exists():
-                    return redirect('track_request', reference_code=reference_code)
-                else:
-                    messages.error(request, "Reference code not found.")
-        else:
-            messages.warning(request, "Please enter at least a reference code.")
+                messages.warning(request, "Please enter at least a reference code.")
 
-    return render(request, 'assistance/landing.html', {
-        "show_helper": show_helper
-    })
+        elif form_type == 'resend_codes':
+            email = request.POST.get('email', '').strip()
+            requests = AssistanceRequest.objects.filter(email=email).order_by('-submitted_at')
+
+            if requests.exists():
+                for req in requests:
+                    subject = f"Your Assistance Request for {req.period} {req.get_semester_display() if req.semester else ''}".strip()
+                    track_link = request.build_absolute_uri(reverse('track_request', args=[req.reference_code]))
+                    edit_link = request.build_absolute_uri(reverse('edit_request', args=[req.edit_code]))
+
+                    html_message = f"""
+                    <p>Hi <strong>{req.full_name}</strong>,</p>
+                    <p>Here are your request details:</p>
+                    <ul>
+                        <li><strong>School Year:</strong> {req.period}</li>
+                        {f'<li><strong>Semester:</strong> {req.get_semester_display()}</li>' if req.semester else ''}
+                    </ul>
+                    <p>
+                        📌 <strong>Reference Code:</strong> {req.reference_code}<br>
+                        🔑 <strong>Edit Code:</strong> {req.edit_code}
+                    </p>
+                    <p>
+                        🔍 <a href="{track_link}">Track Request</a><br>
+                        ✏️ <a href="{edit_link}">Edit Request</a>
+                    </p>
+                    <p class="text-muted" style="font-size: 0.9em;">This is an automated message.</p>
+                    """
+
+                    plain_message = strip_tags(html_message)
+
+                    email_msg = EmailMultiAlternatives(
+                        subject,
+                        plain_message,
+                        settings.ASSISTANCE_FROM_EMAIL,
+                        [req.email]
+                    )
+                    email_msg.attach_alternative(html_message, "text/html")
+                    email_msg.send(fail_silently=True)
+
+                messages.success(request, _("We've re-sent your request codes to your email. Please check your inbox."))
+            else:
+                messages.warning(request, _("We couldn’t find any requests associated with that email address."))
+
+    return render(request, 'assistance/landing.html')
 
 
 def generate_qr(request, reference_code, edit_code):
@@ -247,6 +292,7 @@ def resend_codes_view(request):
 
                 <p>
                     🔍 <a href="{track_link}">Track Request</a><br>
+                    <br>
                     ✏️ <a href="{edit_link}">Edit Request</a>
                 </p>
 
