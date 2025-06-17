@@ -17,6 +17,16 @@
         <hr>
 
         <h5 class="text-center mt-4 mb-3">🔎 Track or Edit Existing Request</h5>
+        {% if show_helper %}
+          <div class="alert alert-info">
+            🧠 <strong>Reminder:</strong> If you already submitted a request before, check your email for your reference and edit codes.<br>
+            You can use them below to <strong>track</strong> or <strong>edit</strong> your request.
+            <p class="text-center mt-2 small">
+              <a href="{% url 'resend_codes' %}">📧 Didn't save your codes? Get them again via email</a>
+            </p>
+          </div>
+        {% endif %}
+
         <form method="POST" class="row g-3">
           {% csrf_token %}
           <div class="col-md-12">

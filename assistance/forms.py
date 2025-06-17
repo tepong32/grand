@@ -1,41 +1,51 @@
 from django import forms
 from .models import AssistanceRequest, RequestDocument
+import datetime
+
+
+def get_valid_school_years():
+    current_year = datetime.date.today().year
+    options = []
+    for year in [current_year - 1, current_year]:
+        label = f"{year}–{year + 1}"
+        options.append((label, label))
+    return options
 
 class AssistanceRequestForm(forms.ModelForm):
-    '''
-    This logic checks if the full name + assistance type + period combination already exists in the database,
-    ***specifically for educational assistance requests. If it does, it raises a validation error.***
-    '''
+    period = forms.ChoiceField(choices=[], label="School Year")
+
     class Meta:
         model = AssistanceRequest
-        fields = ['assistance_type', 'full_name', 'email', 'phone', 'period']
+        fields = ['assistance_type', 'period', 'semester', 'full_name', 'email', 'phone']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['period'].choices = get_valid_school_years()
 
-        # Set help_text as placeholder
-        for field_name, field in self.fields.items():
-            if field.help_text:
-                field.widget.attrs['placeholder'] = field.help_text
-                
     def clean(self):
         cleaned_data = super().clean()
-        full_name = cleaned_data.get('full_name')
         assistance_type = cleaned_data.get('assistance_type')
+        email = cleaned_data.get('email')
         period = cleaned_data.get('period')
+        semester = cleaned_data.get('semester')
 
-        if assistance_type == 'educational' and period:
-            existing = AssistanceRequest.objects.filter(
-                full_name__iexact=full_name.strip(),
+        if assistance_type and getattr(assistance_type, 'category', '').lower() == 'educational':
+            query = AssistanceRequest.objects.filter(
                 assistance_type=assistance_type,
+                email=email,
                 period=period,
+                is_active=True,
             )
-            if existing.exists():
-                raise forms.ValidationError(
-                    "You have already submitted an educational assistance request for this school year."
-                )
+            if semester:
+                query = query.filter(semester=semester)
 
-        return cleaned_data
+            if self.instance.pk:
+                query = query.exclude(pk=self.instance.pk)
+
+            if query.exists():
+                raise forms.ValidationError(
+                    "You already have an active educational assistance request for this school year and semester."
+                )
 
 class RequestDocumentForm(forms.ModelForm):
     class Meta:

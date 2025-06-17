@@ -8,4 +8,6 @@ urlpatterns = [
     path('edit/<str:edit_code>/', views.edit_request_view, name='edit_request'),
     path('track/<str:reference_code>/', views.track_request_view, name='track_request'),
     path('qr/<str:reference_code>/<str:edit_code>/', views.generate_qr, name='generate_qr'),
+    path("assistance/resend_codes/", views.resend_codes_view, name="resend_codes"),
+
 ]
