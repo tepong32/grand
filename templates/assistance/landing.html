@@ -16,18 +16,20 @@
 
         <hr>
 
-        <h5 class="text-center mt-4 mb-3">🔎 Track or Edit Existing Request</h5>
+        <h5 class="text-center mt-4 mb-2">🔎 Track or Edit Existing Request</h5>
+        <p class="text-muted small text-center">
+          Use your <strong>Reference Code</strong> to track your request.<br>
+          Include your <strong>Edit Code</strong> only if you wish to update any information.
+        </p>
+
         {% if show_helper %}
           <div class="alert alert-info">
             🧠 <strong>Reminder:</strong> If you already submitted a request before, check your email for your reference and edit codes.<br>
             You can use them below to <strong>track</strong> or <strong>edit</strong> your request.
-            <p class="text-center mt-2 small">
-              <a href="{% url 'resend_codes' %}">📧 Didn't save your codes? Get them again via email</a>
-            </p>
           </div>
         {% endif %}
 
-        <form method="POST" class="row g-3">
+        <form method="POST" class="row g-3 mb-4">
           {% csrf_token %}
           <div class="col-md-12">
             <label class="form-label fw-bold">📌 Reference Code</label>
@@ -42,6 +44,27 @@
           <div class="col-12 d-grid">
             <button type="submit" class="btn btn-outline-primary btn-lg">
               <i class="fas fa-search me-1"></i> Continue
+            </button>
+          </div>
+        </form>
+
+        <hr class="my-4">
+
+        <h5 class="text-center mt-3">📧 Resend Your Access Codes</h5>
+        <p class="text-muted small text-center">
+          Didn’t save your codes? Enter your email address to receive them again. <br>
+          This step is optional and independent from the form above.
+        </p>
+
+        <form method="POST" action="{% url 'resend_codes' %}" class="row g-3">
+          {% csrf_token %}
+          <div class="col-md-12">
+            <label class="form-label fw-bold">📨 Email Address</label>
+            <input type="email" name="email" class="form-control" placeholder="Enter the email you used when submitting" required>
+          </div>
+          <div class="col-12 d-grid">
+            <button type="submit" class="btn btn-secondary">
+              <i class="fas fa-envelope me-1"></i> Resend Codes
             </button>
           </div>
         </form>
