@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title_ext %} - Edit Locked{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow-sm rounded-4 p-4 text-center">
+        <h4 class="mb-3">✋ Edit Request Locked</h4>
+        <p>Your request <strong>{{ request_obj.reference_code }}</strong> has already been approved or claimed and can no longer be edited.</p>
+
+        <hr>
+
+        {% if documents %}
+          <h5>📂 Uploaded Documents</h5>
+          <ul class="list-group text-start">
+            {% for doc in documents %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <a href="{{ doc.file.url }}" target="_blank">{{ doc.file.name|basename }}</a>
+                <span class="text-muted small">{{ doc.uploaded_at|date:"M d, Y H:i" }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mt-3">No documents uploaded.</p>
+        {% endif %}
+
+        <a href="{% url 'track_request' request_obj.reference_code %}" class="btn btn-outline-primary mt-4">
+          <i class="fas fa-search me-1"></i> Track Request
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

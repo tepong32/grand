@@ -25,3 +25,16 @@ def filesize(bytes_size):
 def file_ext(value):
     """Returns the file extension (e.g. 'pdf', 'jpg')."""
     return os.path.splitext(value)[1][1:].lower()  # removes the dot
+
+@register.filter
+def badge_class(status):
+    return {
+        'pending': 'secondary',
+        'approved': 'success',
+        'clearer_copy': 'warning',
+        'wrong_file': 'danger',
+        'incomplete': 'info',
+        'missing_stamp': 'primary',
+        'expired': 'dark',
+    }.get(status, 'secondary')
+

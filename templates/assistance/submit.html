@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static crispy_forms_tags %}
+
 {% block title_ext %} - Request Financial Assistance{% endblock %}
 
 {% block content %}
@@ -11,7 +12,13 @@
 
         <form method="POST" enctype="multipart/form-data" novalidate>
           {% csrf_token %}
-          {{ form|crispy }}
+
+          {{ form.assistance_type|as_crispy_field }}
+          {{ form.period|as_crispy_field }}
+          {{ form.semester|as_crispy_field }}
+          {{ form.full_name|as_crispy_field }}
+          {{ form.email|as_crispy_field }}
+          {{ form.phone|as_crispy_field }}
 
           <div class="mb-3">
             <label for="file" class="form-label fw-bold">📎 Upload Supporting Documents</label>

@@ -21,13 +21,21 @@ class AssistanceType(models.Model):
 
 class AssistanceRequest(models.Model):
     reference_code = models.CharField(max_length=20, unique=True)
-    assistance_type = models.ForeignKey(AssistanceType, on_delete=models.CASCADE)
+    assistance_type = models.ForeignKey('AssistanceType', on_delete=models.CASCADE)
     period = models.CharField(max_length=9, help_text="e.g., 2024–2025", null=True, blank=True)
+
+    SEMESTER_CHOICES = [
+        ('1st', '1st Semester'),
+        ('2nd', '2nd Semester'),
+        ('summer', 'Midyear / Summer'),
+    ]
+    semester = models.CharField(max_length=10, choices=SEMESTER_CHOICES, blank=True, null=True, help_text="Optional: for educational assistance")
+
     full_name = models.CharField(max_length=255)
     email = models.EmailField()
     phone = models.CharField(max_length=20, help_text="#s only: 09123456789", blank=False)
     submitted_at = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=True) # to mark if the request is still active or not
+    is_active = models.BooleanField(default=True)
     edit_code = models.CharField(max_length=6, blank=True, editable=False)
 
     STATUS_CHOICES = [
@@ -39,6 +47,9 @@ class AssistanceRequest(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     remarks = models.TextField(blank=True, null=True)
 
+    approved_at = models.DateTimeField(null=True, blank=True)
+    claimed_at = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return f"{self.reference_code} - {self.full_name}"
 
@@ -47,19 +58,18 @@ class AssistanceRequest(models.Model):
             self.reference_code = self.generate_reference_code()
         if not self.edit_code:
             self.edit_code = get_random_string(length=6, allowed_chars='0123456789')
+        if self.status == 'approved' and not self.approved_at:
+            self.approved_at = timezone.now()
         super().save(*args, **kwargs)
 
     def generate_reference_code(self):
         now = timezone.now()
         month = now.strftime('%m')
         year = now.strftime('%Y')
-        
-        # Count requests made this month
         count = AssistanceRequest.objects.filter(
             submitted_at__year=year,
             submitted_at__month=month
         ).count() + 1
-
         return f"MSWD-{month}-{year}-{count:04d}"
 
 
