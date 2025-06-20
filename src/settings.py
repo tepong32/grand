@@ -207,7 +207,11 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 # ACCOUNT_ADAPTER = 'users.adapters.CustomAccountAdapter'
+<<<<<<< HEAD
 SOCIALACCOUNT_ADAPTER = 'users.adapters.CustomSocialAccountAdapter' # custom adapter to handle user population from social accounts to handle user population from social accounts
+=======
+SOCIALACCOUNT_ADAPTER = 'users.adapters.CustomSocialAccountAdapter' # custom adapter to handle user population from social accounts
+>>>>>>> refs/remotes/origin/master
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
