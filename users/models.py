@@ -102,10 +102,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         return str(self.username)
 
     def get_full_name(self):
-        if self.ext_name != None:
-            return str(self.first_name)+' '+self.middle_name + ' ' +self.last_name + ' ' + self.ext_name
-        elif self.first_name and self.last_name:
-            return str(self.first_name)+' '+self.middle_name + ' ' + self.last_name
-        else:
-            return str(self.username)
+        parts = [
+            str(self.first_name or ''),
+            str(self.middle_name or ''),
+            str(self.last_name or ''),
+            str(self.ext_name or ''),
+        ]
+        return ' '.join(filter(None, parts)).strip()
+
 
