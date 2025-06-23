@@ -208,7 +208,6 @@ def assistance_landing(request):
             else:
                 return redirect('track_request', reference_code=reference_code)
 
-
         elif form_type == 'resend_codes':
             email = request.POST.get('email', '').strip()
             requests = AssistanceRequest.objects.filter(email=email).order_by('-submitted_at')
@@ -265,9 +264,6 @@ def generate_qr(request, reference_code, edit_code):
     return HttpResponse(buffer.getvalue(), content_type='image/png')
 
 
-from django.utils.html import strip_tags
-from django.core.mail import EmailMultiAlternatives
-
 def resend_codes_view(request):
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
@@ -323,3 +319,38 @@ def resend_codes_view(request):
             messages.warning(request, _("We couldn’t find any requests associated with that email address."))
 
     return redirect('assistance_landing')
+
+
+from django.http import JsonResponse
+
+def validate_codes_view(request):
+    if request.method == "POST":
+        reference_code = request.POST.get("reference_code", "").strip().upper()
+        edit_code = request.POST.get("edit_code", "").strip().upper()
+
+        response = {
+            "reference_valid": False,
+            "edit_valid": False,
+            "message": ""
+        }
+
+        base_qs = AssistanceRequest.objects.filter(reference_code=reference_code)
+
+        if not base_qs.exists():
+            response["message"] = "❌ Reference code not found."
+            return JsonResponse(response)
+
+        response["reference_valid"] = True
+
+        if edit_code:
+            if base_qs.filter(edit_code=edit_code).exists():
+                response["edit_valid"] = True
+                response["message"] = "✅ Reference and edit code match."
+            else:
+                response["message"] = "❌ Edit code does not match."
+        else:
+            response["message"] = "✅ Reference code found. Edit code optional."
+
+        return JsonResponse(response)
+    
+    return JsonResponse({"error": "Invalid request"}, status=400)
