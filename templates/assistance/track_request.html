@@ -10,7 +10,8 @@
         <h3 class="mb-4 text-center">Track Your Request</h3>
 
         <p><strong>📌 Reference Code:</strong> {{ request_obj.reference_code }}</p>
-        <p><strong>👤 Name:</strong> {{ request_obj.full_name }}</p>
+        {% comment %} removed for requester's privacy {% endcomment %}
+        {% comment %} <p><strong>👤 Name:</strong> {{ request_obj.full_name }}</p> {% endcomment %}
         <p><strong>📅 Submitted:</strong> {{ request_obj.submitted_at|date:"F d, Y H:i" }}</p>
         <p><strong>📌 Current Status:</strong> {{ request_obj.status_display|default:"Pending" }}</p>
 
