@@ -110,4 +110,3 @@ class User(AbstractBaseUser, PermissionsMixin):
         ]
         return ' '.join(filter(None, parts)).strip()
 
-

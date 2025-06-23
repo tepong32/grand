@@ -206,6 +206,7 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
+
 ACCOUNT_ADAPTER = 'users.adapters.CustomAccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'users.adapters.CustomSocialAccountAdapter' # custom adapter to handle user population from social accounts
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
