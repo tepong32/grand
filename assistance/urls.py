@@ -9,5 +9,7 @@ urlpatterns = [
     path('track/<str:reference_code>/', views.track_request_view, name='track_request'),
     path('qr/<str:reference_code>/<str:edit_code>/', views.generate_qr, name='generate_qr'),
     path('resend_codes/', views.resend_codes_view, name='resend_codes'),
+    path('validate_codes/', views.validate_codes_view, name='validate_codes'),
+
 
 ]

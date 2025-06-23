@@ -31,6 +31,8 @@
 
         <form method="POST" class="row g-3 mb-4">
           {% csrf_token %}
+          <input type="hidden" name="form_type" value="track_edit">
+          
           <div class="col-md-12">
             <label class="form-label fw-bold">📌 Reference Code</label>
             <input type="text" name="reference_code" class="form-control" placeholder="Enter your reference code..." required>
@@ -47,6 +49,7 @@
             </button>
           </div>
         </form>
+
 
         <hr class="my-4">
 
@@ -80,4 +83,54 @@
     </div>
   </div>
 </div>
+
+<script>
+  {% comment %} AJAX-ing code validations {% endcomment %}
+  document.addEventListener('DOMContentLoaded', function () {
+    const refInput = document.querySelector('input[name="reference_code"]');
+    const editInput = document.querySelector('input[name="edit_code"]');
+    const messageBox = document.createElement('div');
+    messageBox.className = "mt-2 small fw-bold";
+    refInput.closest('form').appendChild(messageBox);
+
+    function validateCodes() {
+      const reference_code = refInput.value.trim().toUpperCase();
+      const edit_code = editInput.value.trim().toUpperCase();
+
+      if (!reference_code) {
+        messageBox.textContent = "";
+        return;
+      }
+
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+      fetch("{% url 'validate_codes' %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRFToken": csrfToken
+        },
+        body: new URLSearchParams({
+          reference_code,
+          edit_code
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        messageBox.textContent = data.message;
+        messageBox.classList.toggle('text-success', data.reference_valid && (data.edit_valid || !edit_code));
+        messageBox.classList.toggle('text-danger', !data.reference_valid || (edit_code && !data.edit_valid));
+      });
+    }
+
+    refInput.addEventListener('input', () => {
+      if (refInput.value.length >= 4) validateCodes();
+    });
+
+    editInput.addEventListener('input', () => {
+      if (refInput.value.length >= 4) validateCodes();
+    });
+  });
+</script>
+
 {% endblock %}

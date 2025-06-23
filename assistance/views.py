@@ -1,3 +1,4 @@
+from urllib import request
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.http import HttpResponse
@@ -184,22 +185,28 @@ def assistance_landing(request):
         form_type = request.POST.get('form_type')
 
         if form_type == 'track_edit':
-            reference_code = request.POST.get('reference_code', '').strip()
-            edit_code = request.POST.get('edit_code', '').strip()
+            reference_code = request.POST.get('reference_code', '').strip().upper()
+            edit_code = request.POST.get('edit_code', '').strip().upper()
 
-            if reference_code:
-                if edit_code:
-                    if AssistanceRequest.objects.filter(reference_code=reference_code, edit_code=edit_code).exists():
-                        return redirect('edit_request', edit_code=edit_code)
-                    else:
-                        messages.error(request, "Invalid reference or edit code.")
-                else:
-                    if AssistanceRequest.objects.filter(reference_code=reference_code).exists():
-                        return redirect('track_request', reference_code=reference_code)
-                    else:
-                        messages.error(request, "Reference code not found.")
-            else:
+            if not reference_code:
                 messages.warning(request, "Please enter at least a reference code.")
+                return redirect('assistance_landing')
+
+            # First, check if the reference exists
+            base_qs = AssistanceRequest.objects.filter(reference_code=reference_code)
+
+            if not base_qs.exists():
+                messages.error(request, "Reference code not found.")
+                return redirect('assistance_landing')
+
+            if edit_code:
+                # Try to match both codes
+                if base_qs.filter(edit_code=edit_code).exists():
+                    return redirect('edit_request', edit_code=edit_code)
+                else:
+                    messages.error(request, "Invalid reference or edit code.")
+            else:
+                return redirect('track_request', reference_code=reference_code)
 
         elif form_type == 'resend_codes':
             email = request.POST.get('email', '').strip()
@@ -257,9 +264,6 @@ def generate_qr(request, reference_code, edit_code):
     return HttpResponse(buffer.getvalue(), content_type='image/png')
 
 
-from django.utils.html import strip_tags
-from django.core.mail import EmailMultiAlternatives
-
 def resend_codes_view(request):
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
@@ -315,3 +319,38 @@ def resend_codes_view(request):
             messages.warning(request, _("We couldn’t find any requests associated with that email address."))
 
     return redirect('assistance_landing')
+
+
+from django.http import JsonResponse
+
+def validate_codes_view(request):
+    if request.method == "POST":
+        reference_code = request.POST.get("reference_code", "").strip().upper()
+        edit_code = request.POST.get("edit_code", "").strip().upper()
+
+        response = {
+            "reference_valid": False,
+            "edit_valid": False,
+            "message": ""
+        }
+
+        base_qs = AssistanceRequest.objects.filter(reference_code=reference_code)
+
+        if not base_qs.exists():
+            response["message"] = "❌ Reference code not found."
+            return JsonResponse(response)
+
+        response["reference_valid"] = True
+
+        if edit_code:
+            if base_qs.filter(edit_code=edit_code).exists():
+                response["edit_valid"] = True
+                response["message"] = "✅ Reference and edit code match."
+            else:
+                response["message"] = "❌ Edit code does not match."
+        else:
+            response["message"] = "✅ Reference code found. Edit code optional."
+
+        return JsonResponse(response)
+    
+    return JsonResponse({"error": "Invalid request"}, status=400)
