@@ -100,12 +100,36 @@ class RequestDocument(models.Model):
     
 from users.models import User 
 class RequestLog(models.Model):
+    ACTION_CHOICES = [
+        ('status_change', 'Status Change'),
+        ('remarks_updated', 'Remarks Updated'),
+        ('document_review', 'Document Reviewed'),
+        ('manual_edit', 'Manual Edit'),
+    ]
+
     request = models.ForeignKey('AssistanceRequest', on_delete=models.CASCADE, related_name='logs')
     timestamp = models.DateTimeField(auto_now_add=True)
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    status_before = models.CharField(max_length=20)
-    status_after = models.CharField(max_length=20)
-    remarks = models.TextField(blank=True)
+    action_type = models.CharField(max_length=50, choices=ACTION_CHOICES, default='manual_edit')
+
+    status_before = models.CharField(max_length=20, blank=True, null=True)
+    status_after = models.CharField(max_length=20, blank=True, null=True)
+    remarks = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.request.reference_code} update on {self.timestamp:%Y-%m-%d %H:%M}"
+        return f"{self.request.reference_code} | {self.get_action_type_display()} @ {self.timestamp:%Y-%m-%d %H:%M}"
+
+
+class DocumentLog(models.Model):
+    document = models.ForeignKey('RequestDocument', on_delete=models.CASCADE, related_name='logs')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    status_before = models.CharField(max_length=20)
+    status_after = models.CharField(max_length=20)
+    remarks_before = models.TextField(blank=True)
+    remarks_after = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"DocLog for {self.document.request.reference_code} - File {self.document.id}"
+

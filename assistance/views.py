@@ -1,4 +1,5 @@
 from urllib import request
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.http import HttpResponse
@@ -7,10 +8,13 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils.translation import gettext as _
 from django.utils.safestring import mark_safe
-from .models import AssistanceRequest, RequestDocument
+from .models import AssistanceRequest, AssistanceType, RequestDocument, RequestLog
 from .forms import AssistanceRequestForm, AssistanceRequestEditForm, RequestDocumentForm
 from io import BytesIO
 import qrcode
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 import os
@@ -28,7 +32,7 @@ def validate_file_upload(f):
         raise ValidationError(f"File size exceeds {MAX_FILE_SIZE_MB}MB.")
 
 
-# 📨 SUBMIT REQUEST VIEW
+### Assistance Requests-related views ###
 def submit_assistance_view(request):
     if request.method == 'POST':
         form = AssistanceRequestForm(request.POST, request.FILES)
@@ -354,3 +358,144 @@ def validate_codes_view(request):
         return JsonResponse(response)
     
     return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+### MSWD Dashboard-related views ###
+from .decorators import mswd_required
+
+@login_required
+@mswd_required
+def mswd_dashboard_view(request):
+    status_filter = request.GET.get('status', '')
+    type_filter = request.GET.get('type', '')
+
+    requests = AssistanceRequest.objects.filter(is_active=True).order_by('-submitted_at')
+
+    if status_filter:
+        requests = requests.filter(status=status_filter)
+    if type_filter:
+        requests = requests.filter(assistance_type__id=type_filter)
+
+    types = AssistanceType.objects.filter(is_active=True)
+
+    context = {
+        'requests': requests,
+        'types': types,
+        'selected_status': status_filter,
+        'selected_type': type_filter,
+    }
+    return render(request, 'assistance/mswd/dashboard.html', context)
+
+
+from django.views.decorators.http import require_POST
+
+@login_required
+@mswd_required
+def mswd_request_detail_view(request, ref_code):
+    assistance_request = get_object_or_404(AssistanceRequest, reference_code=ref_code)
+    documents = assistance_request.documents.all().order_by('uploaded_at')
+
+    if request.method == "POST":
+        old_status = assistance_request.status
+        new_status = request.POST.get('status')
+        remarks = request.POST.get('remarks', '')
+
+        status_changed = new_status != old_status
+        remarks_changed = remarks != (assistance_request.remarks or '')
+
+        if status_changed or remarks_changed:
+            # Save updated values
+            assistance_request.status = new_status
+            assistance_request.remarks = remarks
+            assistance_request.save()
+
+            # Determine action type
+            if status_changed and remarks_changed:
+                action = 'manual_edit'
+            elif status_changed:
+                action = 'status_change'
+            elif remarks_changed:
+                action = 'remarks_updated'
+            else:
+                action = 'manual_edit'
+
+            # Log the change
+            RequestLog.objects.create(
+                request=assistance_request,
+                updated_by=request.user,
+                action_type=action,
+                status_before=old_status,
+                status_after=new_status,
+                remarks=remarks if remarks_changed else ''
+            )
+
+            # Send email notification
+            send_mail(
+                subject=f"Update on your Assistance Request ({assistance_request.reference_code})",
+                message=f"Dear {assistance_request.full_name},\n\n"
+                        f"Your request status has been updated to: {assistance_request.get_status_display()}.\n\n"
+                        f"Remarks: {remarks or 'None'}\n\nThank you.",
+                from_email=settings.NOTIFICATIONS_FROM_EMAIL,
+                recipient_list=[assistance_request.email],
+                fail_silently=True
+            )
+
+            messages.success(request, "Status and remarks updated. Email sent to requester.")
+
+            logger.info(
+                f"[MSWD STATUS UPDATE] Ref: {assistance_request.reference_code} | "
+                f"By: {request.user.username} | From: {old_status} → {new_status} | "
+                f"Remarks: {remarks or 'None'}"
+            )
+
+        return redirect('mswd_request_detail', ref_code=ref_code)
+
+    # 🆕 Include logs in the GET context
+    return render(request, 'assistance/mswd/request_detail.html', {
+        'request_obj': assistance_request,
+        'documents': documents,
+        'logs': assistance_request.logs.select_related('updated_by').order_by('-timestamp'),
+    })
+
+
+
+@require_POST
+@login_required
+@mswd_required
+def mswd_update_document_ajax(request, doc_id):
+    try:
+        document = RequestDocument.objects.get(pk=doc_id)
+        new_status = request.POST.get('status')
+        new_remarks = request.POST.get('remarks', '')
+
+        document.status = new_status
+        document.remarks = new_remarks
+        document.save()
+        logger.info(f"[MSWD FILE UPDATE] File ID: {document.id} | Ref: {document.request.reference_code} | "
+            f"By: {request.user.username} | Status: {new_status} | Remarks: {new_remarks}")
+
+
+        # Send email to requester
+        send_mail(
+            subject="Update on your uploaded document",
+            message=f"One of your uploaded files has been reviewed.\n\nStatus: {document.get_status_display()}\nRemarks: {new_remarks or 'None'}\n\nReference: {document.request.reference_code}",
+            from_email=settings.NOTIFICATIONS_FROM_EMAIL,
+            recipient_list=[document.request.email],
+            fail_silently=True
+        )
+
+        return JsonResponse({'success': True})
+    except Exception as e:
+        logger.error(f"[MSWD FILE UPDATE ERROR] {str(e)}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@mswd_required
+def mswd_printable_view(request, ref_code):
+    assistance_request = get_object_or_404(AssistanceRequest, reference_code=ref_code)
+    documents = assistance_request.documents.all().order_by('uploaded_at')
+    return render(request, 'assistance/mswd/printable_request.html', {
+        'request_obj': assistance_request,
+        'documents': documents,
+    })

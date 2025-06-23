@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+## [2025-06-23] Assistance Dashboard and Transparency Logs
+
+### Added
+- MSWD dynamic dashboard with recent assistance request summary and quick access to request details.
+- Per-request status change logging via `RequestLog` model (action type, who updated, timestamps).
+- Transparency log display for MSWD: “who updated what and when”.
+- Email notifications sent to citizens upon status or remarks changes.
+- Printable and downloadable request summary for MSWD using `html2pdf.js`.
+
+### Changed
+- `mswd_request_detail_view`: now logs updates, sends email, and supports printable view UI.
+- Department dashboard routing now smartly loads MSWD dashboard using the `dashboard_template` field.
+
+### Fixed
+- Resolved Django template error: inline `if...else` in logs display now uses proper `{% if %}` blocks.
+
+## [2025-06-15] Assistance App
 ### Added
 - New `assistance` app with full request lifecycle
 - Per-file review system (remarks + status flags)

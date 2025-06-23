@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h2>Welcome to MSWD Dashboard</h2>
+
+  <div class="row g-3 my-3">
+    <div class="col-md-3"><div class="card shadow-sm p-3"><strong>Total Requests:</strong> {{ request_count }}</div></div>
+    <div class="col-md-3"><div class="card shadow-sm p-3 text-warning"><strong>Pending:</strong> {{ pending_count }}</div></div>
+    <div class="col-md-3"><div class="card shadow-sm p-3 text-info"><strong>Under Review:</strong> {{ review_count }}</div></div>
+    <div class="col-md-3"><div class="card shadow-sm p-3 text-success"><strong>Approved:</strong> {{ approved_count }}</div></div>
+    <div class="col-md-3"><div class="card shadow-sm p-3 text-danger"><strong>Denied:</strong> {{ denied_count }}</div></div>
+  </div>
+
+  <div class="card mt-4">
+    <div class="card-header"><strong>📝 Recent Requests</strong></div>
+    <ul class="list-group list-group-flush">
+      {% for req in recent_requests %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ req.full_name }} <code>{{ req.reference_code }}</code></span>
+          <a href="{% url 'mswd_request_detail' ref_code=req.reference_code %}" class="btn btn-sm btn-primary">View</a>
+        </li>
+      {% empty %}
+        <li class="list-group-item text-muted">No recent requests.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

@@ -1,5 +1,6 @@
 from profiles.models import EmployeeProfile
 from leave_mgt.models import LeaveRequest
+from assistance.models import AssistanceRequest
 # from gso.models import MaintenanceTask
 # from salaries.models import PayrollBatch
 
@@ -24,6 +25,15 @@ def get_department_dashboard_context(department, user):
         case "acctg":
             context.update({
                 # "salary_batches": PayrollBatch.objects.order_by('-created_at')[:5],
+            })
+        case "mswd":
+            context.update({
+                "recent_requests": AssistanceRequest.objects.order_by('-submitted_at')[:10],
+                "request_count": AssistanceRequest.objects.count(),
+                "pending_count": AssistanceRequest.objects.filter(status='pending').count(),
+                "review_count": AssistanceRequest.objects.filter(status='review').count(),
+                "approved_count": AssistanceRequest.objects.filter(status='approved').count(),
+                "denied_count": AssistanceRequest.objects.filter(status='denied').count(),
             })
 
     # Add more elif blocks as new departments grow in complexity

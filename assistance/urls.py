@@ -11,5 +11,10 @@ urlpatterns = [
     path('resend_codes/', views.resend_codes_view, name='resend_codes'),
     path('validate_codes/', views.validate_codes_view, name='validate_codes'),
 
+    path('mswd/dashboard/', views.mswd_dashboard_view, name='mswd_dashboard'),
+    path('mswd/request/<str:ref_code>/', views.mswd_request_detail_view, name='mswd_request_detail'),
+    path('mswd/request/<str:ref_code>/print/', views.mswd_printable_view, name='mswd_request_printable'),
+    path('mswd/document/update/<int:doc_id>/', views.mswd_update_document_ajax, name='mswd_update_document_ajax'),
+
 
 ]
