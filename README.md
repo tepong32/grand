@@ -66,7 +66,11 @@
 - [x] Locked editing for approved/claimed requests  
 - [x] Message enhancements with contextual helper links  
 - [x] Landing page helper for retrieving lost access links  
-- [ ] Email confirmation system (ready, currently disabled in dev)
+- [x] MSWD dashboard with recent request summary and quick access tools  
+- [x] Printable and downloadable request views (citizen + MSWD versions)  
+- [x] Transparent per-update logs with timestamp and responsible user  
+- [x] Automatic email alerts on status/remarks change (opt-out ready)  
+- [ ] Email confirmation system (was disabled in dev — ready for prod switch)
 
 ---
 
