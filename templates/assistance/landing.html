@@ -31,6 +31,8 @@
 
         <form method="POST" class="row g-3 mb-4">
           {% csrf_token %}
+          <input type="hidden" name="form_type" value="track_edit">
+          
           <div class="col-md-12">
             <label class="form-label fw-bold">📌 Reference Code</label>
             <input type="text" name="reference_code" class="form-control" placeholder="Enter your reference code..." required>
@@ -47,6 +49,7 @@
             </button>
           </div>
         </form>
+
 
         <hr class="my-4">
 

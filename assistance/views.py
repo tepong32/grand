@@ -1,3 +1,4 @@
+from urllib import request
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.http import HttpResponse
@@ -184,22 +185,29 @@ def assistance_landing(request):
         form_type = request.POST.get('form_type')
 
         if form_type == 'track_edit':
-            reference_code = request.POST.get('reference_code', '').strip()
-            edit_code = request.POST.get('edit_code', '').strip()
+            reference_code = request.POST.get('reference_code', '').strip().upper()
+            edit_code = request.POST.get('edit_code', '').strip().upper()
 
-            if reference_code:
-                if edit_code:
-                    if AssistanceRequest.objects.filter(reference_code=reference_code, edit_code=edit_code).exists():
-                        return redirect('edit_request', edit_code=edit_code)
-                    else:
-                        messages.error(request, "Invalid reference or edit code.")
-                else:
-                    if AssistanceRequest.objects.filter(reference_code=reference_code).exists():
-                        return redirect('track_request', reference_code=reference_code)
-                    else:
-                        messages.error(request, "Reference code not found.")
-            else:
+            if not reference_code:
                 messages.warning(request, "Please enter at least a reference code.")
+                return redirect('assistance_landing')
+
+            # First, check if the reference exists
+            base_qs = AssistanceRequest.objects.filter(reference_code=reference_code)
+
+            if not base_qs.exists():
+                messages.error(request, "Reference code not found.")
+                return redirect('assistance_landing')
+
+            if edit_code:
+                # Try to match both codes
+                if base_qs.filter(edit_code=edit_code).exists():
+                    return redirect('edit_request', edit_code=edit_code)
+                else:
+                    messages.error(request, "Invalid reference or edit code.")
+            else:
+                return redirect('track_request', reference_code=reference_code)
+
 
         elif form_type == 'resend_codes':
             email = request.POST.get('email', '').strip()
