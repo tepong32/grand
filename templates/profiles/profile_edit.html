@@ -9,7 +9,15 @@
     {% csrf_token %} 
     
     <fieldset class="form-group">
-      <legend class="border-bottom mb-1">Edit your Profile Info</legend>
+      <legend class="border-bottom mb-1">
+        Edit your {{ is_employee|yesno:"Employee,Citizen" }} Profile Info
+      </legend>
+      {% if is_citizen %}
+        <div class="alert alert-info small">
+          Note: Your profile is limited to contact and address info. For more services, register at the counter or contact your barangay.
+        </div>
+      {% endif %}
+
       <small><i>Fields with <span style="color: red;">*</span> are required.</i></small>
       {{ u_form.non_field_errors }}  <!-- Display non-field errors for u_form -->
       {{ p_form.non_field_errors }}  <!-- Display non-field errors for p_form -->

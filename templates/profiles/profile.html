@@ -49,20 +49,35 @@
       <div class="card card-primary col-md-4">
         <div class="card-body box-profile">
           <div class="text-center">
-            <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5"
-           src="{{viewed_user.employeeprofile.profile_image.url}}"
-           alt="User profile picture" style="width: 250px; height: 250px">
+            {% if viewed_user.employeeprofile %}
+              <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5"
+                  src="{{viewed_user.employeeprofile.profile_image.url}}"
+                  alt="User profile picture" style="width: 250px; height: 250px">
+            {% elif viewed_user.citizenprofile %}
+              <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5"
+                  src="{% static 'defaults/default_user_dp.png' %}"
+                  alt="User profile picture" style="width: 250px; height: 250px">
+            {% endif %}
+
           </div>
           
           <!-- check logic here -->
           <!-- see if addtl if-block is needed -->
-            <h2 class="profile-username text-center">{{viewed_user.get_full_name}}</h2>
-            {% if request.user == viewed_user %}
+          <h2 class="profile-username text-center">{{viewed_user.get_full_name}}</h2>
+          {% if request.user == viewed_user %}
             <small class="float-right ml-5">
               <a title="Edit profile" class="fa fa-edit" href="{% url 'profile-edit' viewed_user.username %}"> Edit</a>
             </small>
+          {% endif %}
+
+          <p class="text-sm text-muted text-center">
+            {% if viewed_user.employeeprofile %}
+              <i>{{ viewed_user.employeeprofile.plantilla }}</i>
+            {% else %}
+              <i>Citizen User</i>
             {% endif %}
-          <p class="text-sm text-muted text-center"><i>{{viewed_user.employeeprofile.plantilla}}</i></p>
+          </p>
+
 
           <ul class="list-group list-group-unbordered mb-3">
             <li class="list-group-item">
@@ -121,9 +136,33 @@
           <div class="row">
             <div class="col-6">
               <strong><i class="fas fa-phone-alt mr-1"></i> Phone</strong>
-              <p class="text-muted">{{user.employeeprofile.contact_number}}</p>
-              <strong><i class="fas fa-phone-alt mr-1"></i> Email</strong>
-              <p class="text-muted">{{user.email}}</p>
+              <p class="text-muted">
+                {% if user.employeeprofile %}
+                  {{ user.employeeprofile.contact_number }}
+                {% elif user.citizenprofile %}
+                  {{ user.citizenprofile.contact_number }}
+                {% endif %}
+              </p>
+
+              <strong><i class="fas fa-envelope mr-1"></i> Email</strong>
+              <p class="text-muted">{{ user.email }}</p>
+
+              <strong><i class="fas fa-map-marker-alt mr-1"></i> Location</strong>
+              <p class="text-muted">
+                {% if user.employeeprofile %}
+                  {{ user.employeeprofile.address }}
+                {% elif user.citizenprofile %}
+                  {{ user.citizenprofile.address }}
+                {% endif %}
+              </p>
+
+              {% if viewed_user.employeeprofile %}
+                <!-- Other Employee-only content -->
+                 Other Employee-only content block
+
+              {% endif %}
+
+
             </div>
 
             <div class="col-6">
