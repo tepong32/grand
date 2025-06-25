@@ -5,8 +5,8 @@ from django.urls import reverse
 from users.models import User
 from departments.models import Department
 from leave_mgt.models import LeaveCredit
-from .models import EmployeeProfile
-from .forms import ProfileUpdateForm
+from .models import EmployeeProfile, CitizenProfile
+from .forms import ProfileUpdateForm, EmploymentProfileUpdateForm, CitizenProfileUpdateForm
 from users.forms import UserUpdateForm  # still pulling from users app
 
 
@@ -30,49 +30,62 @@ def profileView(request, username=None):
 
 @login_required
 def profileEditView(request, username=None):
-    '''
-    Provide a form for the user to edit their profile information.
-    Form that will be displayed will depend on whether the user is a Citizen or Employee.
-    '''
     user = get_object_or_404(User, username=username)
+    is_owner = request.user == user
+    is_admin = request.user.is_staff or request.user.is_superuser
 
-    if user != request.user:
+    # Detect profile type
+    is_employee = hasattr(user, "employeeprofile")
+    is_citizen = hasattr(user, "citizenprofile")
+
+    if not (is_owner or is_admin):
         return render(request, "profiles/error.html", {"error": "You do not have permission to edit this profile."})
 
-    # Check if user is a Citizen or Employee
-    is_employee = hasattr(user, 'employeeprofile')
-    is_citizen = hasattr(user, 'citizenprofile')
+    u_form = UserUpdateForm(request.POST or None, request.FILES or None, instance=user, prefix='user')
+
+    # Handle forms conditionally
+    p_form = None
+    hr_form = None
+    c_form = None
+
+    if is_employee:
+        profile = user.employeeprofile
+        p_form = ProfileUpdateForm(request.POST or None, request.FILES or None, instance=profile, prefix='basic')
+        if is_admin:
+            hr_form = EmploymentProfileUpdateForm(request.POST or None, request.FILES or None, instance=profile, prefix='hr')
+    elif is_citizen:
+        profile = user.citizenprofile
+        c_form = CitizenProfileUpdateForm(request.POST or None, request.FILES or None, instance=profile, prefix='citizen')
 
     if request.method == 'POST':
-        u_form = UserUpdateForm(request.POST, request.FILES, instance=request.user)
+        is_valid = u_form.is_valid()
 
         if is_employee:
-            p_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user.employeeprofile)
+            is_valid &= p_form.is_valid()
+            if is_admin and hr_form:
+                is_valid &= hr_form.is_valid()
         elif is_citizen:
-            from .forms import CitizenProfileUpdateForm
-            p_form = CitizenProfileUpdateForm(request.POST, instance=request.user.citizenprofile)
-        else:
-            return render(request, "profiles/error.html", {"error": "Profile type not recognized."})
+            is_valid &= c_form.is_valid()
 
-        if u_form.is_valid() and p_form.is_valid():
+        if is_valid:
             u_form.save()
-            p_form.save()
-            messages.success(request, "Account info has been updated.")
-            return redirect("profile", slug=request.user.citizenprofile.slug if is_citizen else request.user.employeeprofile.slug)
-
-    else:
-        u_form = UserUpdateForm(instance=request.user)
-        if is_employee:
-            p_form = ProfileUpdateForm(instance=request.user.employeeprofile)
-        elif is_citizen:
-            from .forms import CitizenProfileUpdateForm
-            p_form = CitizenProfileUpdateForm(instance=request.user.citizenprofile)
+            if p_form: p_form.save()
+            if hr_form: hr_form.save()
+            if c_form: c_form.save()
+            messages.success(request, "Profile updated successfully.")
+            return redirect(profile.get_absolute_url())
 
     context = {
         'u_form': u_form,
         'p_form': p_form,
+        'hr_form': hr_form,
+        'c_form': c_form,
         'is_employee': is_employee,
-        'is_citizen': is_citizen
+        'is_citizen': is_citizen,
+        'is_admin': is_admin,
+        'is_owner': is_owner,
+        'viewed_user': user,
     }
     return render(request, 'profiles/profile_edit.html', context)
+
 

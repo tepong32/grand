@@ -1,0 +1,16 @@
+{% load static %}
+<h2 class="profile-username text-center">{{viewed_user.get_full_name}}</h2>
+
+{% if request.user == viewed_user %}
+  <small class="float-right ml-5">
+    <a title="Edit profile" class="fa fa-edit" href="{% url 'profile-edit' viewed_user.username %}"> Edit</a>
+  </small>
+{% endif %}
+
+<p class="text-sm text-muted text-center">
+  {% if viewed_user.employeeprofile %}
+    <i>{{ viewed_user.employeeprofile.plantilla }}</i>
+  {% else %}
+    <i>Citizen User</i>
+  {% endif %}
+</p>

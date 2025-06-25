@@ -1,0 +1,40 @@
+{% load static %}
+<ul class="list-group mb-3">
+  <li class="list-group-item">
+    <b>Dept. Head:</b>
+    <a class="float-right">
+      <b>{{viewed_user.employeeprofile.assigned_department.deptHead_or_oic}}</b>
+    </a>
+  </li>
+  <li class="list-group-item">
+    <b>Assigned Department:</b>
+    <i class="float-right">
+      {% if request.user == viewed_user %}
+        {{ viewed_user.employeeprofile.assigned_department }}
+      {% else %}
+        **
+      {% endif %}
+    </i>
+    <br>
+    <small class="text-muted">
+      <b>Plantilla from: </b>
+      <i class="float-right">
+        {% if request.user == viewed_user %}
+          {{ viewed_user.employeeprofile.plantilla.department }}
+        {% else %}
+          **
+        {% endif %}
+      </i>
+    </small>
+  </li>
+  <li class="list-group-item">
+    <b>Employment Type:</b>
+    <i class="float-right">
+      {% if request.user == viewed_user %}
+        {{ viewed_user.employeeprofile.employment_type }}
+      {% else %}
+        **
+      {% endif %}
+    </i>
+  </li>
+</ul>

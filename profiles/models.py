@@ -147,7 +147,7 @@ class EmployeeProfile(models.Model):
         return 0
 
     def get_absolute_url(self):
-        return reverse('profile', kwargs={'slug': self.slug})
+        return reverse('profile', kwargs={'username': self.user.username})
 
     def save(self, *args, **kwargs):
         if not self.slug:
