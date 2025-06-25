@@ -2,11 +2,6 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<style type="text/css">
-  .announcment-widget {
-    min-height: 80vh;
-  }
-</style>
 <div class="card p-3 col-4 col-sm-12 col-md-12"> <!-- MOBILE VIEW EDIT -->
   <form method="POST" enctype="multipart/form-data">
     {{ form.media }} <!-- Required for styling/js to make ckeditor5 work -->

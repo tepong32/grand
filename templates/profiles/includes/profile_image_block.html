@@ -1,0 +1,20 @@
+{% load static %}
+<div class="card col-md-4">
+  <div class="card-body box-profile">
+    <div class="text-center">
+      {% if viewed_user.employeeprofile %}
+        <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5" src="{{viewed_user.employeeprofile.profile_image.url}}" alt="User profile picture" style="width: 250px; height: 250px">
+      {% elif viewed_user.citizenprofile %}
+        <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5" src="{% static 'defaults/default_user_dp.png' %}" alt="User profile picture" style="width: 250px; height: 250px">
+      {% endif %}
+    </div>
+    <div class="card-header">
+      {% include 'profiles/includes/profile_info_block.html' %}
+    </div>
+
+    {% if viewed_user.employeeprofile %}
+      {% include 'profiles/includes/profile_employment_block.html' %}
+    {% endif %}
+  </div>
+  
+</div>

@@ -1,9 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
 
-<!-- Users' Profile page -->
-<!-- Self-explanatory page...I guess. LOL -->
-
 {% block content %}
   <style type="text/css">
     .modal-lg {
@@ -35,155 +32,58 @@
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
     }
   </style>
-  <div id="alert-container" class="alert-container">
-    {% if messages %}
-      {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">
-            {{ message }}
-        </div>
-      {% endfor %}
-    {% endif %}
-  </div>
+
   <div class="row">
-      <!-- Profile Image -->
-      <div class="card card-primary col-md-4">
-        <div class="card-body box-profile">
-          <div class="text-center">
-            <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5"
-           src="{{viewed_user.employeeprofile.profile_image.url}}"
-           alt="User profile picture" style="width: 250px; height: 250px">
-          </div>
-          
-          <!-- check logic here -->
-          <!-- see if addtl if-block is needed -->
-            <h2 class="profile-username text-center">{{viewed_user.get_full_name}}</h2>
-            {% if request.user == viewed_user %}
-            <small class="float-right ml-5">
-              <a title="Edit profile" class="fa fa-edit" href="{% url 'profile-edit' viewed_user.username %}"> Edit</a>
-            </small>
-            {% endif %}
-          <p class="text-sm text-muted text-center"><i>{{viewed_user.employeeprofile.plantilla}}</i></p>
+    {% include 'profiles/includes/profile_image_block.html' %}
+    <div class="card col ml-1">
+      <div class="card-body">
+        {% include 'profiles/includes/profile_contact_block.html' %}
 
-          <ul class="list-group list-group-unbordered mb-3">
-            <li class="list-group-item">
-              <b>Dept. Head:</b> <a class="float-right"><b>{{viewed_user.employeeprofile.assigned_department.deptHead_or_oic}}</b></a>
-            </li>
-            <li class="list-group-item">
-              <b>Assigned Department: </b>
-              {% if request.user == user %}
-                <i class="float-right">{{viewed_user.employeeprofile.assigned_department}}</i>
-              {% else %}
-                **</i>
-              {% endif %}
-              <br>
-              <small class="text-muted">
-                <b>Platilla from: </b>
-                {% if request.user == user %}
-                  <i class="float-right">{{viewed_user.employeeprofile.plantilla.department}}</i>
-                {% else %}
-                  **</i>
-                {% endif %}
-              </small>
-            </li>
-            <!-- PROFILE OWNER-ONLY INFO -->
-            <li class="list-group-item">
-              <b>Employment Type:</b>
-                {% if request.user == viewed_user %}
-                  <i class="float-right">{{viewed_user.employeeprofile.employment_type}}</i> <br>
-                {% else %}
-                  <i class="float-right">**</i>
-                {% endif %}
-            </li>
-          </ul>
+        <hr>
+        <strong><i class="mr-1"></i>Member since {{ viewed_user.date_joined|date:"F Y" }}</strong>
 
-          <a href="#" class="btn btn-primary btn-block"><b>Link to what?</b></a>
-        </div>
-        <!-- /.card-body -->
-      </div>
-      <!-- /.card -->
+        {% if request.user.is_staff or request.user == viewed_user %}
+          <hr>
+          <button class="btn btn-outline-info btn-sm mb-2" type="button" data-toggle="collapse" data-target="#log-section">
+            View Profile Edit Logs
+          </button>
 
-      <!-- About Me Box -->
-      <div class="card card-secondary col ml-1">
-        <div class="card-header">
-          <div class="card-title row">
-            {% if user.employeeprofile.note %}
-            <a href="{% url 'profile-edit' user.username %}"><i>{{user.employeeprofile.note|safe}}</i></a>
+          <div id="log-section" class="collapse">
+            {% if edit_logs %}
+              <ul class="list-group">
+                {% for log in edit_logs %}
+                  {% if log.edited_by != viewed_user %}
+                    <li class="list-group-item bg-light border-left-info">
+                  {% else %}
+                    <li class="list-group-item">
+                  {% endif %}
+                    <small>
+                      <b>{{ log.timestamp|date:"M d, Y H:i" }}</b> –
+                      Edited by 
+                      {% if log.edited_by == viewed_user %}
+                        <i>You</i>
+                      {% else %}
+                        <i>{{ log.edited_by.get_full_name|default:"System" }}</i>
+                      {% endif %}
+                      — Section: <code>{{ log.section }}</code><br>
+                      <i>{{ log.note|default:"No details provided." }}</i>
+                    </small>
+                  </li>
+                {% endfor %}
+              </ul>
             {% else %}
-              {#% if request.user == viewed_user %#}
-                <small><i>"devnote: create a separate form for updating only the profile note"</i></small>
-                <a href="{% url 'profile-edit' user.username %}"><i title="Edit profile" class="fa fa-edit mx-3"></i></a>
-              {#% endif %#}
+              <p class="text-muted"><i>No profile edit logs available.</i></p>
             {% endif %}
           </div>
-        </div>
-        <!-- /.card-header -->
-        <div class="card-body">
-          <div class="row">
-            <div class="col-6">
-              <strong><i class="fas fa-phone-alt mr-1"></i> Phone</strong>
-              <p class="text-muted">{{user.employeeprofile.contact_number}}</p>
-              <strong><i class="fas fa-phone-alt mr-1"></i> Email</strong>
-              <p class="text-muted">{{user.email}}</p>
-            </div>
-
-            <div class="col-6">
-              {% if leave_credits %}
-              <a href="{% url 'leave_list' %}" class="nav-link">
-                <strong><i class="fas fa-calendar-alt mr-1"></i> Leave Credits</strong>
-                <p class="text-muted">
-                  Sick: {{ leave_credits.current_year_sl_credits }} days<br>
-                  Vacation: {{ leave_credits.current_year_vl_credits }} days
-                </p>
-              </a>
-              {% else %}
-                <strong><i class="fas fa-calendar-alt mr-1"></i> Leave Credits</strong>
-                <p class="text-muted">
-                  <span class="tag tag-danger">No leave credits eaarned yet.</span><br>
-                  <span class="tag tag-danger">Please contact your HR.</span>
-              {% endif %}
-            </div>
-          </div>
-
-          <hr>
-
-          <strong><i class="fas fa-map-marker-alt mr-1"></i> Location</strong>
-
-          <p class="text-muted">{{user.employeeprofile.address}}</p>
-
-
-          <hr>
-
-          
-          <strong><i class="fas fa-pencil-alt mr-1"></i> MGBEA membership record?</strong>
-
-          <p class="text-muted">
-            <span class="tag tag-danger">Add "skills" attribute to model</span><br>
-            <span class="tag tag-danger">Then use a For-Loop here</span><br>
-            <span class="tag tag-danger">To display them</span>
-
-          </p>
-
-          <hr>
-
-          <strong><i class="mr-1"></i>Member since {{ user.date_joined|date:"F Y" }}</strong>
-
-        </div>
-        <!-- /.card-body -->
+        {% endif %}
       </div>
-      <!-- /.card -->
-  </div> <!-- /.row -->
-  
+    </div>
+  </div>
 
-
-  <!-- modal for Profile Image // don't touch this -->
+  <!-- Modal for Profile Image -->
   <div id="image-modal" class="modal fade" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-md" role="document">
-      <div class="modal-content" title="{{user.username}}">
-        <!-- <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div> -->
+      <div class="modal-content" title="{{ viewed_user.username }}">
         <div class="modal-body">
           <button type="button" class="close" data-dismiss="modal" aria-label="Close">
             <span aria-hidden="true">&times;</span>
@@ -193,5 +93,4 @@
       </div>
     </div>
   </div>
-
 {% endblock %}

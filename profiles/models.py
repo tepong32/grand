@@ -147,7 +147,7 @@ class EmployeeProfile(models.Model):
         return 0
 
     def get_absolute_url(self):
-        return reverse('profile', kwargs={'slug': self.slug})
+        return reverse('profile', kwargs={'username': self.user.username})
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -222,3 +222,38 @@ class CitizenProfile(models.Model):
             self.slug = slug
         super().save(*args, **kwargs)
         logger.info("CitizenProfile saved.")
+
+
+class ProfileEditLog(models.Model):
+    PROFILE_TYPE_CHOICES = [
+        ('employee', 'Employee'),
+        ('citizen', 'Citizen'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='edited_profile_logs',
+        help_text="User whose profile was edited"
+    )
+    edited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='profile_edits_made',
+        help_text="Admin/HR/staff who made the change"
+    )
+    profile_type = models.CharField(
+        max_length=10,
+        choices=PROFILE_TYPE_CHOICES
+    )
+    section = models.CharField(
+        max_length=50,
+        help_text="Section of the profile edited (e.g., HR Fields, Basic Info)"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    note = models.TextField(blank=True, help_text="Optional note or reason for the update")
+
+    def __str__(self):
+        return f"{self.edited_by} edited {self.user}'s {self.profile_type} profile on {self.timestamp:%Y-%m-%d %H:%M}"

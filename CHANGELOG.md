@@ -1,5 +1,36 @@
 ## [Unreleased]
 
+
+## [2025-06-25] Profiles App – Edit Logs and HR Metadata Expansion
+
+### Added
+- `ProfileEditLog` model to track profile edits with section, note, timestamp, and editor metadata.
+- HR/admin edit log display in `profile.html` (visible to profile owner or admins only).
+- Colored highlight (`bg-light border-left-info`) for HR/admin-initiated changes in logs.
+- Full field support in `EmploymentProfileUpdateForm`, including:
+  - Government IDs: TIN, GSIS ID, PAG-IBIG ID, PhilHealth ID, SSS ID
+  - Dates: `jo_date_hired`, `reg_date_hired`
+  - File: `assigned_department_memo` (with preview and file path)
+
+### Changed
+- Refactored `profileEditView` to:
+  - Detect employee vs. citizen profiles and handle forms accordingly
+  - Log edits to `ProfileEditLog` with section labeling (`Basic Info`, `HR Metadata`, etc.)
+  - Support admin-only HR metadata updates conditionally
+- `profile.html` now uses partials and includes an expandable audit log section
+- Edit forms grouped visually with Bootstrap cards and consistent form controls
+
+### Fixed
+- Catch-block for missing slug in `get_absolute_url`, resolving `NoReverseMatch` on profile save
+- Template fallback for missing logs or null `edited_by` (displayed as “System”)
+- Fixed memo preview display when no file is uploaded (file path and click logic included)
+
+### Notes
+- Logs currently stored indefinitely; may paginate or archive in future
+- Profile page URLs still based on username (internal use); slug fallback maintained
+- Minimal performance impact expected due to low log volume
+
+
 ## [2025-06-23] Assistance Dashboard and Transparency Logs
 
 ### Added
@@ -15,6 +46,7 @@
 
 ### Fixed
 - Resolved Django template error: inline `if...else` in logs display now uses proper `{% if %}` blocks.
+
 
 ## [2025-06-15] Assistance App
 ### Added

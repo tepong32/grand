@@ -1,0 +1,46 @@
+<div class="card-body">
+  <div class="row">
+    <div class="col-6">
+      <strong><i class="fas fa-phone-alt mr-1"></i> Phone</strong>
+      <p class="text-muted">
+        {% if viewed_user.employeeprofile %}
+          {{ viewed_user.employeeprofile.contact_number }}
+        {% elif viewed_user.citizenprofile %}
+          {{ viewed_user.citizenprofile.contact_number }}
+        {% endif %}
+      </p>
+
+      <strong><i class="fas fa-envelope mr-1"></i> Email</strong>
+      <p class="text-muted">{{ viewed_user.email }}</p>
+    </div>
+
+    <div class="col-6">
+      {% if leave_credits %}
+        <a href="{% url 'leave_list' %}" class="nav-link">
+          <strong><i class="fas fa-calendar-alt mr-1"></i> Leave Credits</strong>
+          <p class="text-muted">
+            Sick: {{ leave_credits.current_year_sl_credits }} days<br>
+            Vacation: {{ leave_credits.current_year_vl_credits }} days
+          </p>
+        </a>
+      {% elif viewed_user.employeeprofile %}
+        <strong><i class="fas fa-calendar-alt mr-1"></i> Leave Credits</strong>
+        <p class="text-muted">
+          <span class="tag tag-danger">No leave credits earned yet.</span><br>
+          <span class="tag tag-danger">Please contact your HR.</span>
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <hr>
+
+  <strong><i class="fas fa-map-marker-alt mr-1"></i> Location</strong>
+  <p class="text-muted">
+    {% if viewed_user.employeeprofile %}
+      {{ viewed_user.employeeprofile.address }}
+    {% elif viewed_user.citizenprofile %}
+      {{ viewed_user.citizenprofile.address }}
+    {% endif %}
+  </p>
+</div>
