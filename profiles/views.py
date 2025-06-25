@@ -1,11 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.urls import reverse
+from django.utils.timezone import now
 from users.models import User
 from departments.models import Department
 from leave_mgt.models import LeaveCredit
-from .models import EmployeeProfile, CitizenProfile
+from .models import EmployeeProfile, CitizenProfile, ProfileEditLog
 from .forms import ProfileUpdateForm, EmploymentProfileUpdateForm, CitizenProfileUpdateForm
 from users.forms import UserUpdateForm  # still pulling from users app
 
@@ -15,15 +15,28 @@ def profileView(request, username=None):
     user = get_object_or_404(User, username=username)
     leave_credits = None
 
-    if request.user == user:
-        try:
-            leave_credits = LeaveCredit.objects.get(employee=request.user.employeeprofile)
-        except LeaveCredit.DoesNotExist:
-            messages.warning(request, "No leave credits recorded yet.")
+    try:
+        profile = user.employeeprofile
+    except EmployeeProfile.DoesNotExist:
+        profile = None
+
+    # Load logs conditionally
+    if request.user.is_staff:
+        edit_logs = ProfileEditLog.objects.filter(user=user).order_by('-timestamp')
+    elif request.user == user:
+        edit_logs = ProfileEditLog.objects.filter(user=user).order_by('-timestamp')[:5]
+    else:
+        edit_logs = []
+
+    try:
+        leave_credits = LeaveCredit.objects.get(employee=user.employeeprofile)
+    except LeaveCredit.DoesNotExist:
+        messages.warning(request, "No leave credits recorded yet.")
 
     context = {
         "viewed_user": user,
         "leave_credits": leave_credits,
+        "edit_logs": edit_logs,
     }
     return render(request, 'profiles/profile.html', context)
 
@@ -72,6 +85,35 @@ def profileEditView(request, username=None):
             if p_form: p_form.save()
             if hr_form: hr_form.save()
             if c_form: c_form.save()
+
+            # LOGGING STARTS HERE
+            if is_employee:
+                if is_admin and not is_owner:
+                    ProfileEditLog.objects.create(
+                        user=user,
+                        edited_by=request.user,
+                        profile_type='employee',
+                        section='HR Fields',
+                        note="Edited employee profile via ProfileEditView"
+                    )
+                elif is_owner:
+                    ProfileEditLog.objects.create(
+                        user=user,
+                        edited_by=request.user,
+                        profile_type='employee',
+                        section='Basic Info',
+                        note="Employee updated own profile"
+                    )
+            elif is_citizen and is_owner:
+                ProfileEditLog.objects.create(
+                    user=user,
+                    edited_by=request.user,
+                    profile_type='citizen',
+                    section='Citizen Info',
+                    note="Citizen updated own profile"
+                )
+            # END LOGGING
+
             messages.success(request, "Profile updated successfully.")
             return redirect(profile.get_absolute_url())
 

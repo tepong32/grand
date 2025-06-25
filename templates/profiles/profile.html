@@ -32,13 +32,50 @@
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
     }
   </style>
+
   <div class="row">
     {% include 'profiles/includes/profile_image_block.html' %}
     <div class="card col ml-1">
       <div class="card-body">
         {% include 'profiles/includes/profile_contact_block.html' %}
+
         <hr>
         <strong><i class="mr-1"></i>Member since {{ viewed_user.date_joined|date:"F Y" }}</strong>
+
+        {% if request.user.is_staff or request.user == viewed_user %}
+          <hr>
+          <button class="btn btn-outline-info btn-sm mb-2" type="button" data-toggle="collapse" data-target="#log-section">
+            View Profile Edit Logs
+          </button>
+
+          <div id="log-section" class="collapse">
+            {% if edit_logs %}
+              <ul class="list-group">
+                {% for log in edit_logs %}
+                  {% if log.edited_by != viewed_user %}
+                    <li class="list-group-item bg-light border-left-info">
+                  {% else %}
+                    <li class="list-group-item">
+                  {% endif %}
+                    <small>
+                      <b>{{ log.timestamp|date:"M d, Y H:i" }}</b> –
+                      Edited by 
+                      {% if log.edited_by == viewed_user %}
+                        <i>You</i>
+                      {% else %}
+                        <i>{{ log.edited_by.get_full_name|default:"System" }}</i>
+                      {% endif %}
+                      — Section: <code>{{ log.section }}</code><br>
+                      <i>{{ log.note|default:"No details provided." }}</i>
+                    </small>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted"><i>No profile edit logs available.</i></p>
+            {% endif %}
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>
