@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load static crispy_forms_tags %}
+
+{% block title_ext %} - Request Financial Assistance{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card shadow-sm rounded-4 p-4">
+        <h3 class="mb-4 text-center">Submit Financial Assistance Request</h3>
+
+        <form method="POST" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+
+          {{ form.assistance_type|as_crispy_field }}
+          {{ form.period|as_crispy_field }}
+          {{ form.semester|as_crispy_field }}
+          {{ form.full_name|as_crispy_field }}
+          {{ form.email|as_crispy_field }}
+          {{ form.phone|as_crispy_field }}
+
+          <div class="mb-3">
+            <label for="file" class="form-label fw-bold">📎 Upload Supporting Documents</label>
+            <input type="file" name="file" class="form-control" multiple>
+            <div class="form-text">You may select multiple files.</div>
+          </div>
+
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-paper-plane me-1"></i> Submit Request
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

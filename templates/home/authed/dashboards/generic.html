@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title_ext %} - Default {% endblock %}
+
+{% block content %}
+<h1>universal dashboard for logged-in users</h1>
+<h2>Welcome, {{ user.get_full_name }}!</h2>
+<p> GENERIC DASHBOARD </p>
+<hr>
+
+<h2>THIS MEANS EITHER: </h2>
+<ul>
+	<li>THE TEMPLATE FOR YOUR DEPARTMENT HAS NOT BEEN CREATED YET</li>
+	<li>YOU ARE NOT A MEMBER OF ANY DEPARTMENT</li>
+	<h1>OR</h1>
+	<li>ADMIN FORGOT TO SET THE PROPER TEMPLATE PATH</li>
+</ul>
+
+
+<p>Debug: {{ user }} / Authenticated: {{ user.is_authenticated }}</p>
+
+
+	<!-- REAL CONTENT ############################################################################################################### -->
+
+
+
+{% endblock content %}

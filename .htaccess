@@ -1,0 +1,10 @@
+#### create an index.html file on the PassengerAppRoot loc
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/abutdtks/test.abutchikikz.online"
+PassengerBaseURI "/"
+PassengerPython "/home/abutdtks/virtualenv/test.abutchikikz.online/3.11/bin/python"
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION BEGIN
+<IfModule Litespeed>
+</IfModule>
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION END

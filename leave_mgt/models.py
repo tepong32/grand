@@ -2,9 +2,9 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.urls import reverse
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
-from users.models import User, EmployeeProfile
+from profiles.models import EmployeeProfile
 
 
 
@@ -79,21 +79,6 @@ class LeaveCredit(models.Model):
         logger.info("Resetting credits_accrued_this_month flags to False.")
         cls.objects.all().update(credits_accrued_this_month=False)
         logger.info("Reset monthly accrual flag to False.")
-
-    @classmethod
-    def accrue_monthly_leave_credits(cls):
-        """
-        Accrues leave credits for all employees who haven't accrued credits this month.
-        This can be called on a scheduled basis.
-        """
-        leave_credits = cls.objects.filter(credits_accrued_this_month=False)
-        if leave_credits.exists():
-            for leave_credit in leave_credits:
-                leave_credit.accrue_leave_credits()  # This will call the instance method
-                leave_credit.save()  # Save changes to the database
-            logger.info("Accrued monthly leave credits successfully.")
-        else:
-            logger.warning("All leave credits have already been accrued for this month. No action taken.")
 
     def carry_over_credits(self):
         """
@@ -271,31 +256,42 @@ class LeaveRequest(models.Model):
             self.employee.save()  # Save the reverted leave credits
 
     def calculate_number_of_days(self):
-        total_days = (self.end_date - self.start_date).days + 1
-        weekend_days = sum(1 for day in range(total_days) if (self.start_date + timedelta(days=day)).weekday() >= 5)
-        return total_days - weekend_days
+        if self.end_date < self.start_date:
+            weekend_days = sum(1 for day in range(total_days) if (self.start_date + timedelta(days=day)).weekday() in {5, 6})
+            total_days = (self.end_date - self.start_date).days + 1
+            weekend_days = sum(1 for day in range(total_days) if (self.start_date + timedelta(days=day)).weekday() >= 5)
+            return total_days - weekend_days
+    
+    def get_remaining_leave_credits(self):
+        """
+        Calculates the remaining leave credits for the employee based on the leave request's status and type.
 
-        def get_remaining_leave_credits(self):
-            if self.status == 'APPROVED':
-                if self.leave_type == 'SL':
-                    return self.employee.current_year_sl_credits - self.number_of_days
-                elif self.leave_type == 'VL':
-                    return self.employee.current_year_vl_credits - self.number_of_days
+        Returns:
+            int or str: 
+                - If the leave request is approved, returns the remaining leave credits (int) after deducting the number of days from the employee's current year leave credits (either sick leave 'SL' or vacation leave 'VL').
+                - If the leave request is not approved, returns a string showing the current year leave credits minus the total number of pending leave days for the same leave type, formatted as "<credits> - <pending_days> (pending)".
+                - For special leave ('SP'), the calculation is not implemented.
+        """
+        if self.status == 'APPROVED':
+            if self.leave_type == 'SL':
+                return self.employee.current_year_sl_credits - self.number_of_days
+            elif self.leave_type == 'VL':
+                return self.employee.current_year_vl_credits - self.number_of_days
+        # Handle special leave credits if applicable
+        else:
+            pending_days = LeaveRequest.objects.filter(
+                employee=self.employee,
+                status='PENDING',
+                leave_type=self.leave_type
+            ).aggregate(total=models.Sum('number_of_days'))['total'] or 0
+            if self.leave_type == 'SL':
+                return f"{self.employee.current_year_sl_credits} - {pending_days} (pending)"
+            elif self.leave_type == 'VL':
+                return f"{self.employee.current_year_vl_credits} - {pending_days} (pending)"
             # Handle special leave credits if applicable
-            else:
-                pending_days = LeaveRequest.objects.filter(
-                    employee=self.employee,
-                    status='PENDING',
-                    leave_type=self.leave_type
-                ).aggregate(total=models.Sum('number_of_days'))['total'] or 0
-                if self.leave_type == 'SL':
-                    return f"{self.employee.current_year_sl_credits} - {pending_days} (pending)"
-                elif self.leave_type == 'VL':
-                    return f"{self.employee.current_year_vl_credits} - {pending_days} (pending)"
-                # Handle special leave credits if applicable
-                elif self.leave_type == 'SP':
-                    # handle special leave credits calculation
-                    pass
+            elif self.leave_type == 'SP':
+                # handle special leave credits calculation
+                pass
 
 class LeaveCreditLog(models.Model): # might have circular dependency problem with LeaveCredits here
     action_date = models.DateTimeField(auto_now_add=True)

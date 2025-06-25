@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load static assistance_extras %}
+
+{% block title_ext %} - MSWD Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <h1 class="mb-4">MSWD Assistance Requests</h1>
+
+  <!-- Filters -->
+  <form method="get" class="form-inline mb-3">
+    <div class="form-group mr-2">
+      <label for="type" class="mr-1">Type:</label>
+      <select name="type" id="type" class="form-control">
+        <option value="">All</option>
+        {% for type in types %}
+          <option value="{{ type.id }}" {% if type.id|stringformat:"s" == selected_type %}selected{% endif %}>{{ type.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group mr-2">
+      <label for="status" class="mr-1">Status:</label>
+      <select name="status" id="status" class="form-control">
+        <option value="">All</option>
+        <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Pending</option>
+        <option value="review" {% if selected_status == 'review' %}selected{% endif %}>Under Review</option>
+        <option value="approved" {% if selected_status == 'approved' %}selected{% endif %}>Approved</option>
+        <option value="denied" {% if selected_status == 'denied' %}selected{% endif %}>Denied</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filter</button>
+  </form>
+
+  <!-- Table -->
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover table-striped">
+      <thead class="thead-dark">
+        <tr>
+          <th>Reference</th>
+          <th>Full Name</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Submitted At</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for request in requests %}
+          <tr>
+            <td>{{ request.reference_code }}</td>
+            <td>{{ request.full_name }}</td>
+            <td>{{ request.assistance_type.name }}</td>
+            <td>
+              <span class="badge 
+                {% if request.status == 'approved' %}badge-success
+                {% elif request.status == 'denied' %}badge-danger
+                {% elif request.status == 'review' %}badge-warning
+                {% else %}badge-secondary{% endif %}">
+                {{ request.get_status_display }}
+              </span>
+            </td>
+            <td>{{ request.submitted_at|date:"M d, Y H:i" }}</td>
+            <td>
+              <a href="{% url 'mswd_request_detail' ref_code=request.reference_code %}" class="btn btn-sm btn-info">View</a>
+              <a href="{% url 'mswd_request_printable' ref_code=request.reference_code %}" class="btn btn-sm btn-secondary" target="_blank">Print</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-center">No requests found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% comment %} 
+Reusable alert component. Usage: 
+{% include 'components/alert.html' with messages=messages %}
+{% endcomment %}
+
+{% if messages %}
+  {% for message in messages %}
+    {% with message.tags as tag %}
+      <div class="alert alert-{% if 'error' in tag %}danger{% else %}{{ tag }}{% endif %} alert-dismissible fade show {% if 'success' in tag or 'info' in tag %}auto-dismiss{% endif %}" role="alert">
+        {{ message }}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    {% endwith %}
+  {% endfor %}
+{% endif %}
+
+

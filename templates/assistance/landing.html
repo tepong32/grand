@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title_ext %} - Assistance Options{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="card shadow-sm rounded-4 p-4">
+        <h3 class="mb-4 text-center">Need Financial Assistance?</h3>
+
+        <div class="d-grid gap-3 mb-4">
+          <a href="{% url 'submit_request' %}" class="btn btn-primary btn-lg">
+            <i class="fas fa-file-alt me-1"></i> Submit a New Request
+          </a>
+        </div>
+
+        <hr>
+
+        <h5 class="text-center mt-4 mb-2">🔎 Track or Edit Existing Request</h5>
+        <p class="text-muted small text-center">
+          Use your <strong>Reference Code</strong> to track your request.<br>
+          Include your <strong>Edit Code</strong> only if you wish to update any information.
+        </p>
+
+        {% if show_helper %}
+          <div class="alert alert-info">
+            🧠 <strong>Reminder:</strong> If you already submitted a request before, check your email for your reference and edit codes.<br>
+            You can use them below to <strong>track</strong> or <strong>edit</strong> your request.
+          </div>
+        {% endif %}
+
+        <form method="POST" class="row g-3 mb-4">
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="track_edit">
+          
+          <div class="col-md-12">
+            <label class="form-label fw-bold">📌 Reference Code</label>
+            <input type="text" name="reference_code" class="form-control" placeholder="Enter your reference code..." required>
+          </div>
+
+          <div class="col-md-12">
+            <label class="form-label fw-bold">🔑 Edit Code <span class="text-muted small">(Optional)</span></label>
+            <input type="text" name="edit_code" class="form-control" placeholder="Enter your edit code (only if editing)">
+          </div>
+
+          <div class="col-12 d-grid">
+            <button type="submit" class="btn btn-outline-primary btn-lg">
+              <i class="fas fa-search me-1"></i> Continue
+            </button>
+          </div>
+        </form>
+
+
+        <hr class="my-4">
+
+        <h5 class="text-center mt-3">📧 Resend Your Access Codes</h5>
+        <p class="text-muted small text-center">
+          Didn’t save your codes? Enter your email address to receive them again. <br>
+          This step is optional and independent from the form above.
+        </p>
+
+        <form method="POST" action="{% url 'resend_codes' %}" class="row g-3">
+          {% csrf_token %}
+          <div class="col-md-12">
+            <label class="form-label fw-bold">📨 Email Address</label>
+            <input type="email" name="email" class="form-control" placeholder="Enter the email you used when submitting" required>
+          </div>
+          <div class="col-12 d-grid">
+            <button type="submit" class="btn btn-secondary">
+              <i class="fas fa-envelope me-1"></i> Resend Codes
+            </button>
+          </div>
+        </form>
+
+        {% if messages %}
+          <div class="mt-4">
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  {% comment %} AJAX-ing code validations {% endcomment %}
+  document.addEventListener('DOMContentLoaded', function () {
+    const refInput = document.querySelector('input[name="reference_code"]');
+    const editInput = document.querySelector('input[name="edit_code"]');
+    const messageBox = document.createElement('div');
+    messageBox.className = "mt-2 small fw-bold";
+    refInput.closest('form').appendChild(messageBox);
+
+    function validateCodes() {
+      const reference_code = refInput.value.trim().toUpperCase();
+      const edit_code = editInput.value.trim().toUpperCase();
+
+      if (!reference_code) {
+        messageBox.textContent = "";
+        return;
+      }
+
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+      fetch("{% url 'validate_codes' %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRFToken": csrfToken
+        },
+        body: new URLSearchParams({
+          reference_code,
+          edit_code
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        messageBox.textContent = data.message;
+        messageBox.classList.toggle('text-success', data.reference_valid && (data.edit_valid || !edit_code));
+        messageBox.classList.toggle('text-danger', !data.reference_valid || (edit_code && !data.edit_valid));
+      });
+    }
+
+    refInput.addEventListener('input', () => {
+      if (refInput.value.length >= 4) validateCodes();
+    });
+
+    editInput.addEventListener('input', () => {
+      if (refInput.value.length >= 4) validateCodes();
+    });
+  });
+</script>
+
+{% endblock %}

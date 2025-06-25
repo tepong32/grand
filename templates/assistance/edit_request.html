@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags assistance_extras %}
+{% block title_ext %} - Edit Request{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="card shadow-sm rounded-4 p-4">
+        <h3 class="mb-4 text-center">Edit Your Assistance Request</h3>
+
+        <p><strong>📌 Reference Code:</strong> {{ request_obj.reference_code }}</p>
+        <p><strong>🔑 Edit Code:</strong> {{ request_obj.edit_code }}</p>
+
+        {% if request_obj.status == 'approved' or request_obj.claimed_at %}
+          <div class="alert alert-info">
+            This request is locked because it has already been <strong>approved or claimed</strong>.
+          </div>
+        {% else %}
+          <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <div class="d-grid">
+              <button type="submit" class="btn btn-success">
+                <i class="fas fa-save me-1"></i> Save Changes
+              </button>
+            </div>
+          </form>
+
+          <hr class="my-4">
+
+          <h5>📁 Upload Additional Documents</h5>
+          <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="upload_files" value="1">
+            {{ document_form.file|as_crispy_field }}
+            <button type="submit" class="btn btn-outline-primary mt-2">
+              <i class="fas fa-upload me-1"></i> Upload
+            </button>
+          </form>
+        {% endif %}
+
+        {% if documents %}
+          <div class="mt-4">
+            <h6>📂 Uploaded Documents</h6>
+            <ul class="list-group">
+              {% for doc in documents %}
+                <li class="list-group-item">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <a href="{{ doc.file.url }}" target="_blank">{{ doc.file.name|basename }}</a>
+                      <div class="text-muted small">{{ doc.uploaded_at|date:"M d, Y H:i" }}</div>
+                    </div>
+                    <span class="badge bg-{{ doc.status|badge_class }}">{{ doc.get_status_display }}</span>
+                  </div>
+                  {% if doc.remarks %}
+                    <div class="mt-1 small">
+                      <strong>Remarks:</strong> {{ doc.remarks }}
+                    </div>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

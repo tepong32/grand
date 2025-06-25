@@ -1,12 +1,11 @@
 from django.db import models
-from django.utils import timezone
-from datetime import timedelta
-from users.models import User, EmployeeProfile
+from users.models import User
 from django.utils.text import slugify
 from django.urls import reverse
 
 from django_ckeditor_5.fields import CKEditor5Field
-from PIL import Image
+from PIL import Image, ImageOps
+import re
 
 ### for debugging
 import logging
@@ -64,10 +63,16 @@ class Announcement(models.Model):
 
 class OrgPersonnel(models.Model):
 	name = models.CharField(max_length=255)
-	title = models.CharField(max_length=255, default='Department Head - ', help_text="The words 'Department Head' need to be included so they can be displayed on the org chart page properly")
+	title = models.CharField(max_length=255, default=' ', help_text="Either Titles or add OIC, your call.")
+
+	
 	def upload_directory_path(instance, filename):
-		# file will be uploaded to MEDIA_ROOT/orgpersonnel/<name>/<filename> ---check settings.py. MEDIA_ROOT=media for the exact folder/location
-		return r'orgpersonnel/{}/{}'.format(instance.name, filename)
+		# Remove all characters except letters, numbers, hyphens, underscores, and spaces
+		safe_name = re.sub(r'[^a-zA-Z0-9\s_-]', '', instance.name)
+		# Optionally replace spaces with underscores or hyphens
+		safe_name = safe_name.strip().replace(' ', '_')
+		return f'orgpersonnel/{safe_name}/{filename}'
+	
 	image = models.ImageField(default="defaults/jjvbocaue-otimized.png", blank=True, upload_to=upload_directory_path)
 	display_order = models.PositiveIntegerField(help_text="Mayor as 1, VM as 2, etc.", blank=True, null=True)
 
@@ -93,7 +98,8 @@ class OrgPersonnel(models.Model):
 class DepartmentContact(models.Model):
 	name = models.CharField(max_length=255)
 	motto = CKEditor5Field('Text', config_name='extends', null=True)
-	contact_number = models.CharField(max_length=255) # charfield for now since admin naman ang gagamit nito
+	landline = models.CharField(max_length=255, blank=True, null=True, help_text="Landline number of the department. Ex: 044-123-4567")
+	mobile = models.CharField(max_length=255, blank=True, null=True, help_text="Mobile number of the department. Ex: 0912-345-6789")
 	email = models.EmailField(unique=True, blank=True)
 	messenger_chat_link = models.CharField(max_length=255, null=True, help_text="Your Page's username or profile url here. Ex: tepong32 ")
 
@@ -106,19 +112,24 @@ class DepartmentContact(models.Model):
 		return self.name.title()
 
 	def save(self, *args, **kwargs):
+		original_image = None
+		if self.pk:
+			original_image = DepartmentContact.objects.get(pk=self.pk).image
+		super().save(*args, **kwargs)
 		# Check if an image has been uploaded
-		if self.image:
+		if self.image and (not original_image or original_image != self.image):
+			# If the image has changed or is new, process it
+			# Resize the image to fit within 600x600 pixels
 			try:
-				img = Image.open(self.image.path)  # Open the image of the current instance
-				if img.height > 600 or img.width > 600:  # Resize if necessary
-					output_size = (600, 600)
-					img.thumbnail(output_size)
-					img.save(self.image.path)
+				img = Image.open(self.image.path)
+				output_size = (600, 600)  # or whatever size suits your layout
+				img = ImageOps.fit(img, output_size, Image.ANTIALIAS)
+				img.save(self.image.path)
 			except Exception as e:
 				# Handle exceptions (e.g., file not found, invalid image)
 				print(f"Error processing image: {e}")
 
-		super().save(*args, **kwargs)  # Call the original save method
+		
 
 
 class DownloadableForm(models.Model):

@@ -3,16 +3,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages     # for flash messages regarding valid data in the form
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.http import HttpResponseRedirect, Http404
+from django.http import Http404
 from django.shortcuts import redirect, render, get_object_or_404
-from django.urls import reverse
+from django.contrib.auth.decorators import login_required
+from django.utils.timezone import now
 
+from .models import Announcement, OrgPersonnel, DepartmentContact
 
-
-
-from .models import Announcement, OrgPersonnel, DepartmentContact, DownloadableForm
-from leave_mgt.models import LeaveRequest
-from users.models import User
 
 from django.views.generic import (
     TemplateView,
@@ -32,49 +29,49 @@ class UnauthedHomeView(ListView):
     template_name = 'home/unauthed/home.html'
     context_object_name = 'announcements'
 
+    ### removed this line as i want even logged-in users to see the announcements on the home page, too
+    ### with this block, they will be redirected to their respective department dashboards when trying to view the unauthed home page.
+    # def dispatch(self, request, *args, **kwargs):
+    #     """
+    #     Redirects authenticated users to their respective department dashboards.
+    #     If the user is not authenticated, it proceeds with the normal dispatch: ListView behavior.
+    #     """
+    #     if request.user.is_authenticated:
+    #         return redirect('home_redirect')  # This sends logged-in users to their dashboards
+    #     return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Fetch public announcements and order them by created_at
+        # Fetch announcements
         public = Announcement.objects.filter(announcement_type=Announcement.PUBLIC).order_by('-created_at')
         internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL).order_by('-created_at')
 
-        # Get the latest 5 public announcements for the carousel
-        latest_public = public[:5]  # Slicing to get the latest 5
-        # Filter out the latest announcements from the public list
-        remaining_public = public[5:]  # Get all public announcements except the latest 5
+        # Split into latest (top 5) and remaining
+        latest_public = public[:5]
+        remaining_public = public[5:]
 
-        # Set up pagination for remaining public announcements
-        page_number = self.request.GET.get('page')  # Get the page number from the query parameters
-        paginator = Paginator(remaining_public, 5)  # Show 5 announcements per page
-        page_obj = paginator.get_page(page_number)  # Get the page object
+        # Paginate remaining public announcements
+        paginator = Paginator(remaining_public, 5)
+        page_number = self.request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
 
-        # Optionally, if you need published and draft announcements for admin posting purposes
+        # Admin use: published vs draft (if needed)
         published = Announcement.objects.filter(published=True)
         draft = Announcement.objects.filter(published=False)
-
-        # Manually iterated latest announcements for chaotic positioning on the bulletin board
-        latest_positions = [
-            {'announcement': latest_public[0], 'top': '23%', 'left': '30%'},
-            {'announcement': latest_public[1], 'top': '33%', 'left': '10%'},
-            {'announcement': latest_public[2], 'top': '40%', 'left': '63%'},
-            {'announcement': latest_public[3], 'top': '55%', 'left': '45%'},
-            {'announcement': latest_public[4], 'top': '68%', 'left': '25%'},
-        ]
 
         context.update({
             'public': public,
             'latest_public': latest_public,
-            'latest_positions': latest_positions,
-            'remaining_public': page_obj,  # Use the paginated announcements
+            'remaining_public': page_obj,
             'internal': internal,
             'published': published,
             'draft': draft,
-
-            'departments': DepartmentContact.objects.all(),
-            'downloadableforms': DownloadableForm.objects.all(),
         })
+        context['departments'] = DepartmentContact.objects.all().order_by('name')
+
         return context
+
 
 
 class OrgChartView(ListView):
@@ -85,13 +82,8 @@ class OrgChartView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update({
-            'departments': DepartmentContact.objects.all(),
-            'downloadableforms': DownloadableForm.objects.all(),
-        })
+        context['deptheads'] = OrgPersonnel.objects.exclude(title__in=["Mayor", "Vice Mayor", "Councilor"]).order_by('display_order')
         return context
-
-
 
 
 ####################### VIEWS THAT NEED AUTHENTICATION (INTERNAL VIEWS)
@@ -112,24 +104,26 @@ class AuthedHomeView(LoginRequiredMixin, ListView):
         context.update({
             'internal': internal,
             'published': published,
-            'draft': draft
+            'draft': draft,
         })
         return context
 
-
-
-        
 class AnnouncementList(ListView):
     model = Announcement
     template_name = 'home/authed/announcements_list.html'
     context_object_name = 'announcements'
     ordering    =   ['-created_at']
+    paginate_by = 9
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['now'] = now()
+        return context
 
 class CreateAnnouncement(LoginRequiredMixin, CreateView):       
     model = Announcement
     form_class = AnnouncementForm
-    template_name = 'home/authed/create_announcement.html'
+    template_name = 'home/authed/announcement_create.html'
     success_message = "Announcement successfully posted"
     success_url = '/'
 
@@ -138,7 +132,6 @@ class CreateAnnouncement(LoginRequiredMixin, CreateView):
         announcement = form.save()  # Save the form and get the instance
         messages.success(self.request, self.success_message)
         return redirect('announcement-detail', slug=announcement.slug)  # Redirect to the detail view using the slug
-
 
 class AnnouncementDetail(DetailView):
     model = Announcement
@@ -154,11 +147,10 @@ class AnnouncementDetail(DetailView):
             raise Http404("You do not have permission to view this announcement.")
         return announcement
 
-
 class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Announcement 
     form_class = AnnouncementForm
-    template_name = 'home/authed/update_announcement.html'
+    template_name = 'home/authed/announcement_update.html'
     success_message = "Announcement updated"
     # success_url = '/'
 
@@ -173,10 +165,9 @@ class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             return True
         return False
 
-
 class DeleteAnnouncement(LoginRequiredMixin, UserPassesTestMixin, DeleteView):      
     model = Announcement
-    template_name = 'home/authed/delete_announcement.html'
+    template_name = 'home/authed/announcement_delete.html'
     success_message = "Announcement deleted"
     success_url = '/'
 
@@ -191,7 +182,6 @@ class DeleteAnnouncement(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         if self.request.user == announcement.user:
             return True
         return False      
-
 
 def announcement_search_view(request, *args, **kwargs):
     context = {}
@@ -217,3 +207,53 @@ def announcement_search_view(request, *args, **kwargs):
             print("Search query:", search_query)
                 
     return render(request, "home/unauthed/announcement_search_results.html", context)
+
+
+from django.template.loader import get_template, TemplateDoesNotExist
+from home.utils import get_department_dashboard_context
+
+@login_required
+def department_dashboard_dynamic(request):
+    """
+    Dynamic department dashboard view that renders a department-specific template.
+    If the user does not have an employee profile or assigned department,
+    it redirects to the home page.
+    If the department's dashboard template does not exist, it falls back to a generic template.
+    Add per-department context data to the template (see home/utils.py).
+    """
+    user = request.user.employeeprofile #getattr(request.user, 'employeeprofile', None)
+    if not user:
+        # If user has no employee profile, fallback to home or a suitable page
+        return redirect('home')
+
+    department = getattr(user, 'assigned_department', None)
+    if not department:
+        return redirect('/dashboard/')  # Redirect to a default dashboard or home if no department is assigned
+
+    fallback_template = 'home/authed/dashboards/generic.html'
+    template_path = (department.dashboard_template or '').strip()
+    print("USING department_dashboard_dynamic view")
+    print(f"[DEBUG] Department slug: {department.slug}")
+
+
+    try:
+        if template_path:
+            # Check if the template actually exists
+            get_template(template_path)
+        else:
+            raise TemplateDoesNotExist("No template path specified.")
+    except TemplateDoesNotExist:
+        template_path = fallback_template
+
+    context = {
+        "department": department,
+    }
+
+    # Merge department-specific dashboard context
+    context.update(get_department_dashboard_context(department, user))
+
+    return render(request, template_path, context)
+
+
+def unauthorized_access_view(request):
+    return render(request, 'home/authed/dashboards/403_unauthorized.html', status=403)

@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% load static assistance_extras %}
+
+{% block title_ext %} - Request Detail{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <h2 class="mb-3">Assistance Request: {{ request_obj.reference_code }}</h2>
+
+  <form method="post" class="mb-4">
+    {% csrf_token %}
+    <div class="card">
+      <div class="card-header bg-primary text-white">Request Information</div>
+      <div class="card-body">
+        <p><strong>Name:</strong> {{ request_obj.full_name }}</p>
+        <p><strong>Email:</strong> {{ request_obj.email }}</p>
+        <p><strong>Phone:</strong> {{ request_obj.phone }}</p>
+        <p><strong>Type:</strong> {{ request_obj.assistance_type.name }}</p>
+        <p><strong>Submitted:</strong> {{ request_obj.submitted_at|date:"M d, Y H:i" }}</p>
+
+        <div class="form-group">
+          <label>Status:</label>
+          <select name="status" class="form-control">
+            {% for value, label in request_obj.STATUS_CHOICES %}
+              <option value="{{ value }}" {% if request_obj.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Remarks:</label>
+          <textarea name="remarks" rows="3" class="form-control">{{ request_obj.remarks }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-success">Save Status + Remarks</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Uploaded Documents -->
+  <div class="card">
+    <div class="card-header bg-info text-white">Uploaded Documents</div>
+    <div class="card-body">
+      {% for doc in documents %}
+        <div class="border rounded p-2 mb-3" id="doc-{{ doc.id }}">
+          <p><strong>File:</strong> <a href="{{ doc.file.url }}" target="_blank">{{ doc.file.name|basename }}</a></p>
+          <div class="form-row">
+            <div class="col-md-4">
+              <label>Status:</label>
+              <select class="form-control doc-status" data-doc="{{ doc.id }}">
+                {% for value, label in doc.REQUEST_STATUS_CHOICES %}
+                  <option value="{{ value }}" {% if doc.status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label>Remarks:</label>
+              <textarea rows="2" class="form-control doc-remarks" data-doc="{{ doc.id }}">{{ doc.remarks }}</textarea>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+              <button class="btn btn-primary w-100 btn-save-doc" data-doc="{{ doc.id }}">Save</button>
+            </div>
+          </div>
+          <div class="doc-status-message mt-2 text-success small" style="display: none;">✔ Updated</div>
+        </div>
+      {% empty %}
+        <p>No documents uploaded.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header bg-light d-flex align-items-center justify-content-between">
+    <strong>🕵️ Update History</strong>
+    <span class="text-muted small">Most recent first</span>
+  </div>
+  <div class="card-body small">
+    {% if logs %}
+      <ul class="list-group list-group-flush">
+        {% for log in logs %}
+          <li class="list-group-item">
+            <div class="d-flex justify-content-between">
+              <span>
+                <strong>{{ log.get_action_type_display }}</strong> 
+                by <code>{% if log.updated_by %}{{ log.updated_by.username }}{% else %}Unknown{% endif %}</code>
+              </span>
+              <span class="text-muted">{{ log.timestamp|date:"M d, Y - H:i" }}</span>
+            </div>
+            <div class="mt-1">
+              {% if log.status_before != log.status_after %}
+                <span>Status changed: <em>{{ log.status_before }}</em> → <strong>{{ log.status_after }}</strong></span><br>
+              {% endif %}
+              {% if log.remarks %}
+                <span>Remarks: {{ log.remarks }}</span>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-muted">No update history yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+
+<!-- Simple JS for AJAX -->
+<script>
+document.querySelectorAll('.btn-save-doc').forEach(function(button) {
+  button.addEventListener('click', function() {
+    const docId = this.dataset.doc;
+    const status = document.querySelector('.doc-status[data-doc="' + docId + '"]').value;
+    const remarks = document.querySelector('.doc-remarks[data-doc="' + docId + '"]').value;
+
+    fetch("{% url 'mswd_update_document_ajax' doc_id=0 %}".replace('0', docId), {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": "{{ csrf_token }}",
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: `status=${encodeURIComponent(status)}&remarks=${encodeURIComponent(remarks)}`
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.querySelector(`#doc-${docId} .doc-status-message`).style.display = 'block';
+        setTimeout(() => {
+          document.querySelector(`#doc-${docId} .doc-status-message`).style.display = 'none';
+        }, 3000);
+      } else {
+        alert("Error: " + data.error);
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

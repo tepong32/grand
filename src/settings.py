@@ -36,6 +36,7 @@ ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     
+    'admin_helper', # custom app for admin helpers, e.g. custom admin actions, custom admin views, etc.
     
     ### 3rd-party apps
     'adminlte4',
@@ -52,7 +53,11 @@ INSTALLED_APPS = [
     ### custom
     'home.apps.HomeConfig',
     'users.apps.UsersConfig',
+    'profiles.apps.ProfilesConfig',
     'leave_mgt.apps.LeaveMgtConfig',
+    'salaries.apps.SalariesConfig',
+    'departments.apps.DepartmentsConfig',
+    'assistance.apps.AssistanceConfig',
 
     ### defaults
     'django.contrib.sites', # "just-in-case". allauth needs this.
@@ -68,6 +73,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -143,18 +149,21 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
-
+# Internationalization
 USE_I18N = True
-
 USE_TZ = True
 
-USE_L10N = True
+LANGUAGE_CODE = 'en'  # Use 'en' for compatibility with LANGUAGES
 
-import pytz
+LANGUAGES = [
+    ('en', 'English'),
+    ('fil', 'Filipino'),
+]
 
+LOCALE_PATHS = [BASE_DIR / 'locale']
+
+# Time zone settings
 TIME_ZONE = 'Asia/Manila'  # or 'Asia/Kuala_Lumpur' or 'Asia/Singapore' (adjust according to your location) https://pytz.sourceforge.io/#timezone-classes
 
 
@@ -197,7 +206,9 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-ACCOUNT_ADAPTER = 'users.adapters.CustomSocialAccountAdapter' # custom adapter to handle user population from social accounts
+
+ACCOUNT_ADAPTER = 'users.adapters.CustomAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'users.adapters.CustomSocialAccountAdapter' # custom adapter to handle user population from social accounts
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
@@ -206,22 +217,29 @@ ACCOUNT_AUTHENTICATION_METHOD = "username_email"
 ACCOUNT_UNIQUE_EMAIL = True
 
 
-
-LOGIN_REDIRECT_URL = 'home'     # needed for the login.html success instance
+from django.urls import reverse_lazy
+LOGIN_REDIRECT_URL = reverse_lazy('department_dashboard') # where to redirect after login
+LOGOUT_REDIRECT_URL = '/' # where to redirect after logout (unauthedhome)
 LOGIN_URL = 'login'             # for the @login_required decorator on user.views.profileView
 
 ### PASSWORD-RESETS AND MAILINGS
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'abutchikikz.online'   #'sandbox.smtp.mailtrap.io'     #'smtp.gmail.com' # or only your domain name if you have your own mail server
-EMAIL_PORT = 465 #587
+EMAIL_PORT = 465 #587 for gmail, 465 for namecheap
 # EMAIL_USE_TLS = True
+EMAIL_USE_SSL = True
 
 ### FETCHING ENV VARIABLES ###
 # TO USE THESE VARIABLES BELOW, USE ENVIRONMENT VARIABLES TO HIDE SENSITIVE INFO
 # CHECK CoreyMs' Django TUTORIAL # 12 -- 14:20
-EMAIL_HOST_USER = os.environ.get('PWRESET_EMAIL') # var for email username
-EMAIL_HOST_PASSWORD = os.environ.get('PWRESET_PW') # var for email pw
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER    # for email-sending pw-reset requests
+
+# addt'l email addresses for separating notif emails
+ASSISTANCE_FROM_EMAIL = 'assistance@abutchikikz.online'
+NOTIFICATIONS_FROM_EMAIL = 'notifs@abutchikikz.online'
+PW_RESET_FROM_EMAIL="pw-reset@abutchikikz.online"
 
 ### Bootstrap settings for Django-AdminLTE3
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
@@ -332,8 +350,8 @@ CKEDITOR_5_FILE_UPLOAD_PERMISSION = "staff"  # Possible values: "staff", "authen
 # commented out for windows compatibility
 # CRONJOBS = [
 #     # minute hour day month weekday <command-to-execute>
-#     ''' this is running every 5 minutes but has the day-check logic so, it's safe to run it every 5 minutes'''
-#     ('0 0 * * *', 'leave_mgt.cron.update_leave_credits_from_cronPy', '>> /logs/cron.log 2>&1'), # prod path: /home/abutdtks/prototype.abutchikikz.online/logs/cron.log 2>&1'
+#     ''' this is running daily at midnight '''
+#     ('0 0 * * *', 'leave_mgt.cron.update_leave_credits_from_cronPy', '>> /logs/cron.log 2>&1'), # prod path: /home/abutdtks/test.abutchikikz.online/logs/cron.log 2>&1'
 
 # ]
 
