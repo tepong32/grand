@@ -50,6 +50,9 @@ class AssistanceRequest(models.Model):
     approved_at = models.DateTimeField(null=True, blank=True)
     claimed_at = models.DateTimeField(null=True, blank=True)
 
+    telegram_chat_id = models.CharField(max_length=100, blank=True, null=True)
+
+
     def __str__(self):
         return f"{self.reference_code} - {self.full_name}"
 
