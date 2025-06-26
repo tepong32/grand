@@ -1,5 +1,6 @@
 from urllib import request
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.http import HttpResponse
@@ -11,14 +12,13 @@ from django.utils.safestring import mark_safe
 from .models import AssistanceRequest, AssistanceType, RequestDocument, RequestLog
 from .forms import AssistanceRequestForm, AssistanceRequestEditForm, RequestDocumentForm
 from io import BytesIO
+from telegram import Bot
 import qrcode
-
+import os
 import logging
 logger = logging.getLogger(__name__)
 
 
-import os
-from django.core.exceptions import ValidationError
 
 ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt', '.rtf', '.jpg', '.jpeg', '.png', '.gif', '.xls', '.xlsx', '.csv', '.ppt', '.pptx']
 MAX_FILE_SIZE_MB = 5
@@ -440,6 +440,17 @@ def mswd_request_detail_view(request, ref_code):
                 fail_silently=True
             )
 
+            # ✅ Send Telegram message if linked
+            chat_id = assistance_request.telegram_chat_id
+            if chat_id:
+                msg = (
+                    f"📢 *Your assistance request has been updated!*\n\n"
+                    f"• Status: *{assistance_request.get_status_display()}*\n"
+                    f"• Remarks: _{remarks or 'None'}_\n\n"
+                    f"📌 Reference Code: `{assistance_request.reference_code}`"
+                )
+                send_telegram_update(chat_id, msg)
+
             messages.success(request, "Status and remarks updated. Email sent to requester.")
 
             logger.info(
@@ -490,24 +501,16 @@ def mswd_update_document_ajax(request, doc_id):
         # ✅ Send Telegram message if linked
         ### Telegram notification utility
         # This function is used to send updates to Telegram users about their assistance requests.
-
         chat_id = document.request.telegram_chat_id
         if chat_id:
-            try:
-                from telegram import Bot
-                bot = Bot(token=os.environ.get("TELEGRAM_BOT_TOKEN"))
-                bot.send_message(
-                    chat_id=chat_id,
-                    text=(
-                        f"📄 *Your uploaded document has been reviewed!*\n\n"
-                        f"• Status: *{document.get_status_display()}*\n"
-                        f"• Remarks: _{new_remarks or 'None'}_\n\n"
-                        f"📌 Reference Code: `{document.request.reference_code}`"
-                    ),
-                    parse_mode="Markdown"
-                )
-            except Exception as te:
-                logger.warning(f"[TELEGRAM ERROR] Failed to send message to chat {chat_id}: {str(te)}")
+            msg = (
+                f"📄 *Your uploaded document has been reviewed!*\n\n"
+                f"• Status: *{document.get_status_display()}*\n"
+                f"• Remarks: _{new_remarks or 'None'}_\n\n"
+                f"📌 Reference Code: `{document.request.reference_code}`"
+            )
+            send_telegram_update(chat_id, msg)
+
 
         return JsonResponse({'success': True})
     except Exception as e:
@@ -527,14 +530,14 @@ def mswd_printable_view(request, ref_code):
     })
 
 
-
-
-from telegram import Bot
-import os
-
 def send_telegram_update(chat_id, message):
+    if not chat_id or not message:
+        return  # silently fail if either is missing
+
     try:
+        from telegram import Bot
         bot = Bot(token=os.environ.get("TELEGRAM_BOT_TOKEN"))
         bot.send_message(chat_id=chat_id, text=message, parse_mode="Markdown")
     except Exception as e:
-        print(f"Telegram send failed: {e}")  # don't crash if it fails silently
+        logger.warning(f"[TELEGRAM ERROR] Failed to send message to chat {chat_id}: {str(e)}")
+
