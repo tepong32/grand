@@ -5,6 +5,9 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram import Update
 from telegram.ext import CallbackContext
 from django.utils import timezone
+import sys
+sys.path.append('/home/abutdtks/test.abutchikikz.online')
+
 from dotenv import load_dotenv
 load_dotenv()  # take environment variables
 
