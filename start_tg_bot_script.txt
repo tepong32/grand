@@ -1,0 +1,20 @@
+### tg bot script
+
+# one-liner: to keep it running in the background
+screen -dmS tg_bot bash -c 'source /home/abutdtks/virtualenv/test.abutchikikz.online/3.11/bin/activate && cd /home/abutdtks/test.abutchikikz.online && python telegram_bot/bot_handler.py'
+
+# reconnect & monitor the bot
+screen -r tg_bot
+
+
+# stop the bot
+Inside the screen (above): press Ctrl+C
+Then type: exit
+
+
+######## OR run script:
+bash start_bot.sh
+
+### code as start_bot.sh:
+#!/bin/bash
+screen -dmS tg_bot bash -c 'source /home/abutdtks/virtualenv/test.abutchikikz.online/3.11/bin/activate && cd /home/abutdtks/test.abutchikikz.online && python telegram_bot/bot_handler.py'

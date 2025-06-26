@@ -27,7 +27,7 @@ def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
         "👋 Hello! To link your assistance request, please reply with:\n\n"
         "`your-refcode::editcode`\n\n"
-        "Example:\n`MSWD-06-2025-0006::ab1234`\n\n"
+        "Example:\n`MSWD-01-2025-0001::123456`\n\n"
         "If you'd like to unlink this account later, send `/unlink`.",
         parse_mode="Markdown"
     )
