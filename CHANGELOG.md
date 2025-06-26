@@ -1,6 +1,23 @@
 ## [Unreleased]
 
 
+## [2025-06-26] Assistance App
+### ✨ Added
+- Telegram bot handler (`telegram_bot/bot_handler.py`) with `/start`, `/unlink`, and secure request linking
+- Telegram notifications for document updates (in `mswd_update_document_ajax`) if user is linked
+- Environment variable support via `.env` for `TELEGRAM_BOT_TOKEN`
+
+### 🔒 Security
+- Only requests with `claimed_at=None` can be linked or receive messages
+- Reference + Edit code required to link; prevents unauthorized access
+- Telegram messages gracefully fail if request no longer exists
+
+### 🧹 Housekeeping
+- Telegram bot logs to `telegram_bot.log`
+- Inline bot logic included in AJAX view instead of helper for now
+- Test data cleanup to be done manually before live deployment
+
+
 ## [2025-06-25] Profiles App – Edit Logs and HR Metadata Expansion
 
 ### Added

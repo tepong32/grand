@@ -471,23 +471,49 @@ def mswd_update_document_ajax(request, doc_id):
         document.status = new_status
         document.remarks = new_remarks
         document.save()
-        logger.info(f"[MSWD FILE UPDATE] File ID: {document.id} | Ref: {document.request.reference_code} | "
-            f"By: {request.user.username} | Status: {new_status} | Remarks: {new_remarks}")
 
+        logger.info(f"[MSWD FILE UPDATE] File ID: {document.id} | Ref: {document.request.reference_code} | "
+                    f"By: {request.user.username} | Status: {new_status} | Remarks: {new_remarks}")
 
         # Send email to requester
         send_mail(
             subject="Update on your uploaded document",
-            message=f"One of your uploaded files has been reviewed.\n\nStatus: {document.get_status_display()}\nRemarks: {new_remarks or 'None'}\n\nReference: {document.request.reference_code}",
+            message=f"One of your uploaded files has been reviewed.\n\n"
+                    f"Status: {document.get_status_display()}\n"
+                    f"Remarks: {new_remarks or 'None'}\n\n"
+                    f"Reference: {document.request.reference_code}",
             from_email=settings.NOTIFICATIONS_FROM_EMAIL,
             recipient_list=[document.request.email],
             fail_silently=True
         )
 
+        # ✅ Send Telegram message if linked
+        ### Telegram notification utility
+        # This function is used to send updates to Telegram users about their assistance requests.
+
+        chat_id = document.request.telegram_chat_id
+        if chat_id:
+            try:
+                from telegram import Bot
+                bot = Bot(token=os.environ.get("TELEGRAM_BOT_TOKEN"))
+                bot.send_message(
+                    chat_id=chat_id,
+                    text=(
+                        f"📄 *Your uploaded document has been reviewed!*\n\n"
+                        f"• Status: *{document.get_status_display()}*\n"
+                        f"• Remarks: _{new_remarks or 'None'}_\n\n"
+                        f"📌 Reference Code: `{document.request.reference_code}`"
+                    ),
+                    parse_mode="Markdown"
+                )
+            except Exception as te:
+                logger.warning(f"[TELEGRAM ERROR] Failed to send message to chat {chat_id}: {str(te)}")
+
         return JsonResponse({'success': True})
     except Exception as e:
         logger.error(f"[MSWD FILE UPDATE ERROR] {str(e)}")
         return JsonResponse({'success': False, 'error': str(e)})
+
 
 
 @login_required
@@ -499,3 +525,16 @@ def mswd_printable_view(request, ref_code):
         'request_obj': assistance_request,
         'documents': documents,
     })
+
+
+
+
+from telegram import Bot
+import os
+
+def send_telegram_update(chat_id, message):
+    try:
+        bot = Bot(token=os.environ.get("TELEGRAM_BOT_TOKEN"))
+        bot.send_message(chat_id=chat_id, text=message, parse_mode="Markdown")
+    except Exception as e:
+        print(f"Telegram send failed: {e}")  # don't crash if it fails silently

@@ -1,26 +1,36 @@
-# grand
-
-> Working on yet another Django project — this time, aiming for a real launch.  
-> Development in progress. Hosted at: https://github.com/tepong32/grand
-
----
-
 ## 🧩 Apps & Progress Overview
 
 ### `users` app
-
 - [x] Automatic profile creation upon user registration (with default values)
-- [x] Password reset and change workflows functioning correctly  
-  ↪ Uses [Mailtrap](https://mailtrap.io) for email testing.
+- [x] Password reset and change workflows working in both dev and production
+  ↪ Uses [Mailtrap](https://mailtrap.io) for dev; live SMTP in production
+- [x] Secure registration/login for internal users (admin/employee)
+- [x] Integrated `django-allauth` for future external signups (already-running in prod, as well)
 
 **Next steps:**  
-- [ ] Separate registration flows: internal vs external  
-- [ ] Integrate `django-allauth` for external login/signup
+- [ ] Finalize role assignment logic for external users upon registration
+
+---
+
+### `profiles` app
+
+- [x] Split from `users` for handling both `EmployeeProfile` and `CitizenProfile` data  
+- [x] Auto-generated slug URLs with fallback to username  
+- [x] Role-aware profile editing view (separate HR-only and owner-only sections)  
+- [x] HR metadata form with support for government IDs, position info, and department memo uploads  
+- [x] Editable memo image field with preview and re-saving support  
+- [x] Profile edit logging via `ProfileEditLog` model  
+  ↪ Tracks editor, section changed, notes, and timestamp  
+  ↪ Separate styling for HR/admin edits in view-only logs  
+- [x] Inline profile edit history displayed conditionally on `profile.html`
+
+**Next steps:**  
+- [ ] Add pagination or load-more for logs  
+- [ ] Optionally add reason-for-edit dropdown or tag system
 
 ---
 
 ### `leave` app
-
 - [x] Permissions handled via template logic  
 - [x] Leave request auto-deductions for SL/VL on approval  
 - [x] Automatic exclusion of weekends in date range  
@@ -36,27 +46,23 @@
 ---
 
 ### `announcements` app
-
 - [x] Basic structure: public/internal, pinned, draft vs posted  
 - [ ] Redesign user-facing views
 
 ---
 
 ### `salary` app *(remodel pending)*
-
 - [ ] Logic planning stage — will affect multiple modules  
 - [ ] Will consolidate all pay-related computations into `EmployeeSalaryDetails`
 
 ---
 
 ### `working_days` app *(not started)*
-
 - [ ] Needed for holiday detection, leave and salary integration, and calendar generation
 
 ---
 
 ### `assistance` app *(new)*
-
 - [x] User-facing financial assistance request submission with multi-file upload  
 - [x] Anonymous request editing and status tracking via secure reference and edit codes  
 - [x] Responsive AdminLTE4 + Bootstrap 5 templates for submit, edit, track, and confirmation pages  
@@ -70,67 +76,6 @@
 - [x] Printable and downloadable request views (citizen + MSWD versions)  
 - [x] Transparent per-update logs with timestamp and responsible user  
 - [x] Automatic email alerts on status/remarks change (opt-out ready)  
-- [ ] Email confirmation system (was disabled in dev — ready for prod switch)
+- [x] Email confirmation and notifications active in production
+  ↪ Status updates, file remarks, and submission confirmations all trigger alerts
 
----
-
-## 🔄 Refactor Notes
-
-As part of long-term scaling goals, the project underwent a major refactor to split responsibilities into well-scoped apps instead of overloading the `users` app.
-
-### ✅ Modularization Breakdown:
-
-- **`profiles` app**  
-  Handles personal data such as `ext_name`, `date_hired`, and other employee attributes.  
-  Designed for HR logic, export readiness, and future extensibility.
-
-- **`departments` app**  
-  Manages department listings, contact persons, and department-specific permissions  
-  (e.g., head or officer-in-charge access levels for views).
-
-- **`salaries` app**  
-  Introduced to manage salary logic in a clean, testable way.  
-  Houses initial `EmployeeSalaryDetails` model and will consolidate benefits/deductions logic later.
-
-- **`home` app**  
-  Created for general-purpose, public-facing views like department carousels, downloadable forms, and contact details.  
-  Serves as a soft landing for non-authenticated users.
-
-### 🧠 Why this matters:
-
-- Improves **code maintainability** and readability  
-- Sets up the groundwork for **Django REST Framework** support per app  
-- Enables better **role-based access**, admin controls, and future external user onboarding
-
----
-
-## 🚀 Roadmap / Future Features
-
-- [ ] Vue frontend integration (likely via DRF)  
-- [ ] Admin dashboard for summaries and analytics  
-- [ ] External user onboarding with constraints  
-- [ ] Full i18n support (English/Filipino switch)  
-- [ ] Email reminders and update notifications  
-- [ ] Print-ready formats for approvals and physical submission
-
----
-
-## ⚙️ Development Notes
-
-- Django 4+  
-- Email testing via [Mailtrap](https://mailtrap.io)  
-- Frontend currently AdminLTE4 + Bootstrap 5  
-- Uses `crispy-forms` with `bootstrap4` template pack  
-- Cron job setup ready in production config
-
----
-
-## 🤝 Contributions
-
-Not open to public contributors yet — forks, follows, and suggestions welcome.
-
----
-
-## 📁 Repository
-
-https://github.com/tepong32/grand

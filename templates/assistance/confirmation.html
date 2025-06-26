@@ -31,6 +31,26 @@
         <img src="{% url 'generate_qr' reference_code=reference_code edit_code=edit_code %}" alt="QR Code" class="img-thumbnail" style="max-width: 200px;">
       </div>
 
+      <!-- ✅ Telegram Instruction Block -->
+      <div class="alert alert-info text-start mt-4 shadow-sm" style="max-width: 600px; margin: 0 auto;">
+        <h5 class="mb-2"><i class="fab fa-telegram-plane me-2"></i>Want real-time updates via Telegram?</h5>
+        <p class="mb-1">
+          You can receive status updates and file review remarks directly in Telegram.
+        </p>
+        <p class="mb-1">
+          Just message our bot at:
+          <strong><a href="https://t.me/bocaue_assistance_bot" target="_blank">@bocaue_assistance_bot</a></strong>
+        </p>
+        <p class="mb-1">
+          Then reply with the code below to link your request:
+        </p>
+        <div class="bg-light border rounded p-2 text-center text-monospace fw-bold">
+          {{ reference_code }}::{{ edit_code }}
+        </div>
+        <small class="text-muted">Keep this code secure. Don’t share it with others.</small>
+      </div>
+      <!-- End Telegram -->
+
       <div class="mt-3">
         <p class="text-muted small">Want to track the status without editing? Use this link:</p>
         <div class="input-group mx-auto mb-3" style="max-width: 500px;">
