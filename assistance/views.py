@@ -107,7 +107,7 @@ def submit_assistance_view(request):
 
             <p>
                 You can start the bot here:<br>
-                👉 <a href={{bot_link}} target="_blank">{{bot_link}}</a>
+                👉 <a href={bot_link} target="_blank">{bot_link}</a>
             </p>
 
             <p style="font-size:0.9em;color:#888;">
