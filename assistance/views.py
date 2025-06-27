@@ -1,12 +1,14 @@
 from urllib import request
+from django.core.mail import EmailMultiAlternatives
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.core.mail import send_mail
 from django.conf import settings
+from django.utils.html import strip_tags
 from django.utils.translation import gettext as _
 from django.utils.safestring import mark_safe
 from .models import AssistanceRequest, AssistanceType, RequestDocument, RequestLog
@@ -17,7 +19,6 @@ import qrcode
 import os
 import logging
 logger = logging.getLogger(__name__)
-
 
 
 ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt', '.rtf', '.jpg', '.jpeg', '.png', '.gif', '.xls', '.xlsx', '.csv', '.ppt', '.pptx']
@@ -35,8 +36,7 @@ def validate_file_upload(f):
 ### Assistance Requests-related views ###
 def submit_assistance_view(request):
     if request.method == 'POST':
-        form = AssistanceRequestForm(request.POST, request.FILES)
-        files = request.FILES.getlist('file')
+        form = AssistanceRequestForm(request.POST)
 
         if form.is_valid():
             cleaned = form.cleaned_data
@@ -58,61 +58,99 @@ def submit_assistance_view(request):
                 existing = existing.filter(semester__isnull=True)
 
             if existing.exists():
-                # when blocking duplicate submissions
                 messages.error(request, mark_safe(
                     "You have already submitted a request for this school year and semester.<br>"
                     "Please check your email again for your <b><i><u>reference and edit codes</u></i></b> and track them here:"
                 ))
-                return redirect(f"{reverse('assistance_landing')}?duplicate=1")
+                return redirect(f"{reverse('assistance:assistance_landing')}?duplicate=1")
 
-            # Proceed if no duplicate
+            # ✅ Save request (Step 1)
             instance = form.save()
-            file_errors = []
 
-            for f in files:
-                try:
-                    validate_file_upload(f)
-                    RequestDocument.objects.create(request=instance, file=f)
-                except ValidationError as e:
-                    file_errors.append(f"{f.name}: {e}")
+            # 📩 Send email with Step 2 instructions
+            subject = 'Your Assistance Request Confirmation'
 
-            if file_errors:
-                for err in file_errors:
-                    messages.warning(request, err)
+            edit_link = request.build_absolute_uri(reverse('assistance:edit_request', args=[instance.edit_code]))
+            track_link = request.build_absolute_uri(reverse('assistance:track_request', args=[instance.reference_code]))
+            bot_link = os.getenv("ASSISTANCE_BOT_LINK")
 
-            # Generate links
-            access_link = request.build_absolute_uri(
-                reverse('edit_request', args=[instance.edit_code])
-            )
-            track_link = request.build_absolute_uri(
-                reverse('track_request', args=[instance.reference_code])
-            )
+            html_message = f"""
+            <p>Hi <strong>{instance.full_name}</strong>,</p>
 
-            # Optional: Send confirmation email
-            send_mail(
-                'Your Assistance Request Confirmation',
-                f"""Hi {instance.full_name},
+            <p>Thank you for submitting your financial assistance request.</p>
 
-Thanks for submitting your request!
+            <h4>📝 Step 1 Complete: Personal Information Submitted</h4>
+            <p>
+                Your request was received successfully.<br>
+                To complete your application, please proceed to <strong>Step 2</strong> by uploading your required supporting documents.
+            </p>
 
-📌 Reference Code: {instance.reference_code}
-🔑 Edit Code: {instance.edit_code}
+            <h5 class="mt-3">📌 Reference Code: <code>{instance.reference_code}</code></h5>
+            <h5>🔑 Edit Code: <code>{instance.edit_code}</code></h5>
 
-You may edit or track your request here:
-Edit: {access_link}
-Track: {track_link}
+            <p>
+                <a href="{edit_link}" style="background-color:#0d6efd;color:white;padding:10px 16px;border-radius:6px;text-decoration:none;display:inline-block;">
+                    ➕ Continue to Upload Supporting Documents
+                </a>
+            </p>
 
-– This is an automated message. Please do not reply.
-""",
+            <hr style="margin:20px 0;">
+
+            <h4>💬 Optional: Connect to Telegram</h4>
+            <p>
+                To receive status updates via Telegram, send the following message to our bot:
+            </p>
+
+            <pre style="background:#f8f9fa;padding:10px;border-radius:5px;">
+            /link {instance.reference_code} {instance.edit_code}
+            </pre>
+
+            <p>
+                You can start the bot here:<br>
+                👉 <a href={{bot_link}} target="_blank">{{bot_link}}</a>
+            </p>
+
+            <p style="font-size:0.9em;color:#888;">
+                This is an automated message. Please do not reply.
+            </p>
+            """
+
+            plain_message = f"""
+            Hi {instance.full_name},
+
+            Thank you for submitting your financial assistance request.
+
+            Step 1 Complete: Personal Information Submitted
+            Kindly make sure to complete Step 2 to upload your supporting documents.
+
+            Reference Code: {instance.reference_code}
+            Edit Code: {instance.edit_code}
+
+            Continue here: {edit_link}
+
+            Telegram Updates (optional):
+            To receive updates via Telegram, send the following to our bot:
+
+            /link {instance.reference_code} {instance.edit_code}
+            Bot: {{bot_link}}
+
+            – This is an automated message.
+            """
+
+            email = EmailMultiAlternatives(
+                subject,
+                plain_message,
                 settings.ASSISTANCE_FROM_EMAIL,
-                [instance.email],
-                fail_silently=True,
+                [instance.email]
             )
+            email.attach_alternative(html_message, "text/html")
+            email.send(fail_silently=True)
 
-            return redirect('confirmation_view', reference_code=instance.reference_code, edit_code=instance.edit_code)
+            # ➡️ Redirect to Step 2: Upload page
+            return redirect('assistance:edit_request', edit_code=instance.edit_code)
+
         else:
             messages.error(request, _("Please correct the errors below."))
-
     else:
         form = AssistanceRequestForm()
 
@@ -140,35 +178,57 @@ def edit_request_view(request, edit_code):
             'documents': req.documents.all().order_by('-uploaded_at'),
         })
 
-    # 🟢 Editable if still pending or under review
-    document_form = RequestDocumentForm()
     form = AssistanceRequestEditForm(instance=req)
+    document_form = RequestDocumentForm()
 
     if request.method == 'POST':
-        if 'upload_files' in request.POST:
-            files = request.FILES.getlist('file')
-            for f in files:
-                try:
-                    validate_file_upload(f)
-                    RequestDocument.objects.create(request=req, file=f)
-                except ValidationError as e:
-                    messages.warning(request, f"{f.name}: {e}")
-            messages.success(request, _("Files uploaded."))
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' and 'file' in request.FILES:
+            doc_type = request.POST.get('document_type')
+            uploaded_file = request.FILES['file']
+
+            if not doc_type:
+                return JsonResponse({'status': 'danger', 'message': 'Please select a document type.'})
+
+            try:
+                validate_file_upload(uploaded_file)
+
+                # 🧼 Delete existing doc of same type (optional: soft delete later)
+                RequestDocument.objects.filter(request=req, document_type=doc_type).delete()
+
+                # ✅ Save new file
+                RequestDocument.objects.create(
+                    request=req,
+                    file=uploaded_file,
+                    document_type=doc_type
+                )
+                return JsonResponse({'status': 'success', 'message': f'{uploaded_file.name} uploaded as {doc_type}.'})
+
+            except ValidationError as e:
+                return JsonResponse({'status': 'danger', 'message': f'{uploaded_file.name}: {str(e)}'})
+
         else:
-            form = AssistanceRequestEditForm(request.POST, request.FILES, instance=req)
+            # ✏️ Updating request info (if allowed)
+            form = AssistanceRequestEditForm(request.POST, instance=req)
             if form.is_valid():
                 form.save()
                 messages.success(request, _("Request updated."))
             else:
                 messages.error(request, _("Please fix the errors."))
 
-        return redirect('edit_request', edit_code=edit_code)
+        return redirect('assistance:edit_request', edit_code=edit_code)
+
+    locked_types = [
+        doc.document_type for doc in req.documents.all()
+        if doc.status in ['approved', 'pending']  # you can adjust this logic
+    ]
 
     return render(request, 'assistance/edit_request.html', {
         'request_obj': req,
         'form': form,
         'document_form': document_form,
         'documents': req.documents.all().order_by('-uploaded_at'),
+        'step': 2,
+        'locked_types': locked_types,
     })
 
 
@@ -181,9 +241,6 @@ def track_request_view(request, reference_code):
     })
 
 
-from django.core.mail import EmailMultiAlternatives
-from django.utils.html import strip_tags
-
 def assistance_landing(request):
     if request.method == "POST":
         form_type = request.POST.get('form_type')
@@ -194,23 +251,23 @@ def assistance_landing(request):
 
             if not reference_code:
                 messages.warning(request, "Please enter at least a reference code.")
-                return redirect('assistance_landing')
+                return redirect('assistance:assistance_landing')
 
             # First, check if the reference exists
             base_qs = AssistanceRequest.objects.filter(reference_code=reference_code)
 
             if not base_qs.exists():
                 messages.error(request, "Reference code not found.")
-                return redirect('assistance_landing')
+                return redirect('assistance:assistance_landing')
 
             if edit_code:
                 # Try to match both codes
                 if base_qs.filter(edit_code=edit_code).exists():
-                    return redirect('edit_request', edit_code=edit_code)
+                    return redirect('assistance:edit_request', edit_code=edit_code)
                 else:
                     messages.error(request, "Invalid reference or edit code.")
             else:
-                return redirect('track_request', reference_code=reference_code)
+                return redirect('assistance:track_request', reference_code=reference_code)
 
         elif form_type == 'resend_codes':
             email = request.POST.get('email', '').strip()
@@ -219,8 +276,8 @@ def assistance_landing(request):
             if requests.exists():
                 for req in requests:
                     subject = f"Your Assistance Request for {req.period} {req.get_semester_display() if req.semester else ''}".strip()
-                    track_link = request.build_absolute_uri(reverse('track_request', args=[req.reference_code]))
-                    edit_link = request.build_absolute_uri(reverse('edit_request', args=[req.edit_code]))
+                    track_link = request.build_absolute_uri(reverse('assistance:track_request', args=[req.reference_code]))
+                    edit_link = request.build_absolute_uri(reverse('assistance:edit_request', args=[req.edit_code]))
 
                     html_message = f"""
                     <p>Hi <strong>{req.full_name}</strong>,</p>
@@ -278,10 +335,10 @@ def resend_codes_view(request):
                 subject = f"Your Assistance Request for {req.period} {req.get_semester_display() if req.semester else ''}".strip()
                 
                 track_link = request.build_absolute_uri(
-                    reverse('track_request', args=[req.reference_code])
+                    reverse('assistance:track_request', args=[req.reference_code])
                 )
                 edit_link = request.build_absolute_uri(
-                    reverse('edit_request', args=[req.edit_code])
+                    reverse('assistance:edit_request', args=[req.edit_code])
                 )
 
                 html_message = f"""
@@ -322,10 +379,8 @@ def resend_codes_view(request):
         else:
             messages.warning(request, _("We couldn’t find any requests associated with that email address."))
 
-    return redirect('assistance_landing')
+    return redirect('assistance:assistance_landing')
 
-
-from django.http import JsonResponse
 
 def validate_codes_view(request):
     if request.method == "POST":
@@ -358,6 +413,71 @@ def validate_codes_view(request):
         return JsonResponse(response)
     
     return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+
+@require_POST
+def delete_document_view(request):
+    if request.headers.get('x-requested-with') != 'XMLHttpRequest':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request.'})
+
+    doc_id = request.POST.get('doc_id')
+    try:
+        doc = RequestDocument.objects.get(id=doc_id)
+        # Optional: only allow delete if not yet approved/locked
+        if doc.request.status == 'approved' or doc.request.claimed_at:
+            return JsonResponse({'status': 'error', 'message': 'Request is locked.'})
+
+        doc.delete()
+        return JsonResponse({'status': 'success', 'message': 'Document deleted.'})
+    except RequestDocument.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Document not found.'})
+
+
+@require_POST
+def upload_document_ajax(request, edit_code):
+    req = get_object_or_404(AssistanceRequest, edit_code=edit_code)
+
+    # 🔒 Prevent uploads to locked requests
+    if req.status == 'approved' or req.claimed_at:
+        return JsonResponse({'status': 'error', 'message': 'This request is locked.'})
+
+    doc_type = request.POST.get('document_type')
+    uploaded_file = request.FILES.get('file')
+
+    # 🧠 Extra safety: validate inputs
+    if not doc_type or not uploaded_file:
+        return JsonResponse({'status': 'error', 'message': 'Missing file or document type.'})
+
+    try:
+        # ✅ Validate file
+        validate_file_upload(uploaded_file)
+
+        # 💡 Optional: double-check doc_type against choices
+        valid_doc_types = dict(RequestDocumentForm().fields['document_type'].choices).keys()
+        if doc_type not in valid_doc_types:
+            return JsonResponse({'status': 'error', 'message': 'Invalid document type.'})
+
+        # 🟢 Replace or create document
+        RequestDocument.objects.update_or_create(
+            request=req,
+            document_type=doc_type,
+            defaults={
+                'file': uploaded_file,
+                'status': 'pending',
+            }
+        )
+
+        return JsonResponse({'status': 'success', 'message': 'File uploaded successfully.'})
+
+    except ValidationError as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
+    except Exception as e:
+        logger.warning(f"Unexpected upload error: {e}")
+        return JsonResponse({'status': 'error', 'message': 'Upload failed. Please try again later.'})
+
 
 
 ### MSWD Dashboard-related views ###

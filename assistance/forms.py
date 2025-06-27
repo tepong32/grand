@@ -50,7 +50,7 @@ class AssistanceRequestForm(forms.ModelForm):
 class RequestDocumentForm(forms.ModelForm):
     class Meta:
         model = RequestDocument
-        fields = ['file']
+        fields = ['document_type', 'file']
 
 class AssistanceRequestEditForm(forms.ModelForm):
     class Meta:
