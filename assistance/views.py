@@ -132,7 +132,7 @@ def submit_assistance_view(request):
             To receive updates via Telegram, send the following to our bot:
 
             /link {instance.reference_code} {instance.edit_code}
-            Bot: {{bot_link}}
+            Bot: {bot_link}
 
             – This is an automated message.
             """
