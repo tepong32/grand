@@ -9,7 +9,7 @@
         <h3 class="mb-4 text-center">Need Financial Assistance?</h3>
 
         <div class="d-grid gap-3 mb-4">
-          <a href="{% url 'submit_request' %}" class="btn btn-primary btn-lg">
+          <a href="{% url 'assistance:submit_request' %}" class="btn btn-primary btn-lg">
             <i class="fas fa-file-alt me-1"></i> Submit a New Request
           </a>
         </div>
@@ -59,7 +59,7 @@
           This step is optional and independent from the form above.
         </p>
 
-        <form method="POST" action="{% url 'resend_codes' %}" class="row g-3">
+        <form method="POST" action="{% url 'assistance:resend_codes' %}" class="row g-3">
           {% csrf_token %}
           <div class="col-md-12">
             <label class="form-label fw-bold">📨 Email Address</label>
@@ -104,7 +104,7 @@
 
       const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-      fetch("{% url 'validate_codes' %}", {
+      fetch("{% url 'assistance:validate_codes' %}", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",

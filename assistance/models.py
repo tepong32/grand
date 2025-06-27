@@ -77,6 +77,15 @@ class AssistanceRequest(models.Model):
 
 
 class RequestDocument(models.Model):
+    DOCUMENT_TYPE_CHOICES = [
+        ('birth_cert', 'Birth Certificate'),
+        ('indigency', 'Certificate of Indigency'),
+        ('school_id', 'School ID'),
+        ('grade_card', 'Report Card / Grade Card'),
+        ('cert_of_enrollment', 'Certificate of Enrollment/Registration'),
+        ('others', 'Other Supporting Document'),
+    ]
+
     REQUEST_STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('approved', 'Approved'),
@@ -88,6 +97,11 @@ class RequestDocument(models.Model):
     ]
 
     request = models.ForeignKey(AssistanceRequest, on_delete=models.CASCADE, related_name='documents')
+    document_type = models.CharField(
+        max_length=30,
+        choices=DOCUMENT_TYPE_CHOICES,
+        default='others'
+    )
     file = models.FileField(upload_to='assistance_docs/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
@@ -97,8 +111,12 @@ class RequestDocument(models.Model):
     )
     remarks = models.TextField(blank=True)
 
+    class Meta:
+        unique_together = ('request', 'document_type')  # Prevent multiple files for the same type
+
     def __str__(self):
-        return f"{self.file.name} ({self.get_status_display()})"
+        return f"{self.get_document_type_display()} ({self.get_status_display()})"
+
     
     
 from users.models import User 

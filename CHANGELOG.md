@@ -1,6 +1,35 @@
 ## [Unreleased]
 
 
+
+
+
+
+
+## 2025-06-27
+### ✨ Added
+- Two-step flow for submitting assistance requests:
+  - **Step 1**: Personal and request info
+  - **Step 2**: Upload supporting documents via edit link
+- AJAX-based document upload with:
+  - Document type selection
+  - Real-time feedback and previews
+  - Status-based restrictions (cannot replace approved files)
+- File preview thumbnails for images on the edit page
+- UI indicators (dot progress) to guide users through multi-step process
+
+### 🔧 Changed
+- Separated document upload form from the initial submission form
+- Improved status display and remark visibility for uploaded files
+- Updated submission confirmation email with clearer instructions
+
+### 🐛 Fixed
+- URL reverse errors for `upload_document_ajax`
+- Custom `basename` template filter not loading due to missing templatetag config
+- Session corruption warnings on improper form structure
+- JS logic now prevents uploads of already approved files
+
+
 ## [2025-06-26] Assistance App
 ### ✨ Added
 - Telegram bot handler (`telegram_bot/bot_handler.py`) with `/start`, `/unlink`, and secure request linking
