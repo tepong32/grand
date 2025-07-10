@@ -17,7 +17,7 @@
       {% for req in recent_requests %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
           <span>{{ req.full_name }} <code>{{ req.reference_code }}</code></span>
-          <a href="{% url 'mswd_request_detail' ref_code=req.reference_code %}" class="btn btn-sm btn-primary">View</a>
+          <a href="{% url 'assistance:mswd_request_detail' ref_code=req.reference_code %}" class="btn btn-sm btn-primary">View</a>
         </li>
       {% empty %}
         <li class="list-group-item text-muted">No recent requests.</li>

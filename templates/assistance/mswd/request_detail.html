@@ -112,7 +112,7 @@ document.querySelectorAll('.btn-save-doc').forEach(function(button) {
     const status = document.querySelector('.doc-status[data-doc="' + docId + '"]').value;
     const remarks = document.querySelector('.doc-remarks[data-doc="' + docId + '"]').value;
 
-    fetch("{% url 'mswd_update_document_ajax' doc_id=0 %}".replace('0', docId), {
+    fetch("{% url 'assistance:mswd_update_document_ajax' doc_id=0 %}".replace('0', docId), {
       method: "POST",
       headers: {
         "X-CSRFToken": "{{ csrf_token }}",
