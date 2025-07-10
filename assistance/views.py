@@ -579,7 +579,7 @@ def mswd_request_detail_view(request, ref_code):
                 f"Remarks: {remarks or 'None'}"
             )
 
-        return redirect('mswd_request_detail', ref_code=ref_code)
+        return redirect('assistance:mswd_request_detail', ref_code=ref_code)
 
     # 🆕 Include logs in the GET context
     return render(request, 'assistance/mswd/request_detail.html', {
