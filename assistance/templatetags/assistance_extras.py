@@ -38,8 +38,6 @@ def badge_class(status):
         'expired': 'dark',
     }.get(status, 'secondary')
 
-register = template.Library()
-
 @register.filter
 def file_is_image(file_name):
     file_name = file_name.lower()

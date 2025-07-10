@@ -61,8 +61,8 @@
             </td>
             <td>{{ request.submitted_at|date:"M d, Y H:i" }}</td>
             <td>
-              <a href="{% url 'mswd_request_detail' ref_code=request.reference_code %}" class="btn btn-sm btn-info">View</a>
-              <a href="{% url 'mswd_request_printable' ref_code=request.reference_code %}" class="btn btn-sm btn-secondary" target="_blank">Print</a>
+              <a href="{% url 'assistance:mswd_request_detail' ref_code=request.reference_code %}" class="btn btn-sm btn-info">View</a>
+              <a href="{% url 'assistance:mswd_request_printable' ref_code=request.reference_code %}" class="btn btn-sm btn-secondary" target="_blank">Print</a>
             </td>
           </tr>
         {% empty %}

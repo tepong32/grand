@@ -1,7 +1,7 @@
 {% comment %} use this on pages as an "include" 
     include "assistance/resend_codes_form.html"
 {% endcomment %}
-<form method="POST" action="{% url 'resend_codes' %}">
+<form method="POST" action="{% url 'assistance:resend_codes' %}">
   {% csrf_token %}
   <div class="mb-3">
     <label for="email" class="form-label fw-bold">Email address</label>
