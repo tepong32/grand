@@ -7,3 +7,4 @@ CRONJOBS = [
     # Run Telegram bot on system reboot
     ('@reboot', 'telegram_bot.cron.StartTelegramBotCron >> /home/abutdtks/test.abutchikikz.online/logs/telegram_cron.log 2>&1'),
 ]
+    

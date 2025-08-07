@@ -11,7 +11,7 @@ SECRET_KEY = os.getenv("SKEY")
 
 DEBUG = False
 
-ALLOWED_HOSTS = ["abutchikikz.online", "www.abutchikikz.online", "test.abutchikikz.online"]
+ALLOWED_HOSTS = ["abutchikikz.online", "www.abutchikikz.online", "test.abutchikikz.online", "www.test.abutchikikz.online"]
 
 # Database
 DATABASES = {
