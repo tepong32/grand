@@ -62,7 +62,7 @@
 
 ---
 
-### `assistance` app *(new)*
+### `assistance` app *(updated)*
 - [x] User-facing financial assistance request submission with multi-file upload  
 - [x] Anonymous request editing and status tracking via secure reference and edit codes  
 - [x] Responsive AdminLTE4 + Bootstrap 5 templates for submit, edit, track, and confirmation pages  
@@ -78,4 +78,6 @@
 - [x] Automatic email alerts on status/remarks change (opt-out ready)  
 - [x] Email confirmation and notifications active in production
   ↪ Status updates, file remarks, and submission confirmations all trigger alerts
+- [x] Removed Telegram bot dependency — all updates now delivered via email for broader accessibility
+
 

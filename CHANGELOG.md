@@ -1,9 +1,15 @@
 ## [Unreleased]
 
 
+## 2025-08-11
+## [Unreleased]
+### 🔧 Changed
+- Removed Telegram bot integration from assistance request workflow.
+- Updated `views.py` and `cron.py` to route status and file-related updates to email instead of Telegram.
 
-
-
+### 🧹 Housekeeping
+- Cleaned up unused Telegram bot code to reduce background processes on deployment.
+- Prepared migration path for exclusive email-based notifications.
 
 
 ## 2025-06-27
