@@ -72,7 +72,25 @@ def submit_assistance_view(request):
 
             edit_link = request.build_absolute_uri(reverse('assistance:edit_request', args=[instance.edit_code]))
             track_link = request.build_absolute_uri(reverse('assistance:track_request', args=[instance.reference_code]))
-            bot_link = os.getenv("ASSISTANCE_BOT_LINK")
+            ### disabled tg-integration for now
+            # bot_link = os.getenv("ASSISTANCE_BOT_LINK") 
+
+            ### add this block to the email should you re-enable it
+            # <hr style="margin:20px 0;">
+
+            # <h4>💬 Optional: Connect to Telegram</h4>
+            # <p>
+            #     To receive status updates via Telegram, send the following message to our bot:
+            # </p>
+
+            # <pre style="background:#f8f9fa;padding:10px;border-radius:5px;">
+            # /link {instance.reference_code} {instance.edit_code}
+            # </pre>
+
+            # <p>
+            #     You can start the bot here:<br>
+            #     👉 <a href={bot_link} target="_blank">{bot_link}</a>
+            # </p>
 
             html_message = f"""
             <p>Hi <strong>{instance.full_name}</strong>,</p>
@@ -94,22 +112,6 @@ def submit_assistance_view(request):
                 </a>
             </p>
 
-            <hr style="margin:20px 0;">
-
-            <h4>💬 Optional: Connect to Telegram</h4>
-            <p>
-                To receive status updates via Telegram, send the following message to our bot:
-            </p>
-
-            <pre style="background:#f8f9fa;padding:10px;border-radius:5px;">
-            /link {instance.reference_code} {instance.edit_code}
-            </pre>
-
-            <p>
-                You can start the bot here:<br>
-                👉 <a href={bot_link} target="_blank">{bot_link}</a>
-            </p>
-
             <p style="font-size:0.9em;color:#888;">
                 This is an automated message. Please do not reply.
             </p>
@@ -128,14 +130,14 @@ def submit_assistance_view(request):
 
             Continue here: {edit_link}
 
-            Telegram Updates (optional):
-            To receive updates via Telegram, send the following to our bot:
-
-            /link {instance.reference_code} {instance.edit_code}
-            Bot: {bot_link}
-
             – This is an automated message.
             """
+            ### add this block to the email should you re-enable it
+            # Telegram Updates (optional):
+            # To receive updates via Telegram, send the following to our bot:
+
+            # /link {instance.reference_code} {instance.edit_code}
+            # Bot: {bot_link}
 
             email = EmailMultiAlternatives(
                 subject,
