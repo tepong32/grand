@@ -167,15 +167,17 @@ class LeaveCredit(models.Model):
             # Reset accrual flags every month (probably 1st day, too)
             cls.reset_accrual_flags()
 
-            # Only accrue leave credits on the 1st day of the month
-            if timezone.now().day == 1:
-                cls.accrue_all_leave_credits()
-
             # Annual Carry-over on January 1st
             if timezone.now().month == 1 and timezone.now().day == 1:
+                logger.info("1st day of the year detected. Proceeding with carry-over of unused leave credits.")
                 cls.carry_over_unused_credits()
+                logger.info("Carry-over of unused leave credits completed.")
             else:
-                logger.info("class method: Skipped accruals - not the 1st day of the month.")
+                logger.info("class method: Skipped carry-over - not the 1st day of the year.")
+
+            # Montly accruals (can be scheduled on any day of the month)
+            cls.accrue_all_leave_credits()
+            logger.info("Monthly leave credit accrual completed.")
 
         except Exception as e:
             logger.error(f"An error occurred during leave credit update: {e}", exc_info=True)
