@@ -162,7 +162,7 @@ class LeaveCredit(models.Model):
     @classmethod
     def update_leave_credits(cls):
         try:
-            logger.info("Updating leave credits...")
+            logger.info("update_leave_credits(cls): Updating leave credits...")
 
             # Reset accrual flags every month (probably 1st day, too)
             cls.reset_accrual_flags()
@@ -173,9 +173,10 @@ class LeaveCredit(models.Model):
                 cls.carry_over_unused_credits()
                 logger.info("Carry-over of unused leave credits completed.")
             else:
-                logger.info("class method: Skipped carry-over - not the 1st day of the year.")
+                logger.info("update_leave_credits(cls): Skipped carry-over - not the 1st day of the year.")
 
             # Montly accruals (can be scheduled on any day of the month)
+            logger.info("from update_leave_credits(cls): Starting monthly accruals...")
             cls.accrue_all_leave_credits()
             logger.info("Monthly leave credit accrual completed.")
 
