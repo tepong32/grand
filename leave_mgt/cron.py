@@ -15,8 +15,7 @@ def update_leave_credits_from_cronPy():
 
 '''
 This file is for the crontab.CRONJOBS[] in settings.py file
-This works using crontab add.
-Just facing issues with SECRET_KEY env var so I set it to hard-coded value for now.
-REMEMBER to change python executable path in NC cronjobs UI. It automatically changes python3 to python3.11_bin which causes the task to not trigger.
+This works using "python manage.py crontab add"
+Just facing issues with SECRET_KEY env var so I set it to hard-coded value for now
 
 '''
