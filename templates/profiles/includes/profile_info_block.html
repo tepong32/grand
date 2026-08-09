@@ -14,3 +14,17 @@
     <i>Citizen User</i>
   {% endif %}
 </p>
+
+<p class="text-xs text-muted text-center mb-1">
+  <i class="fas fa-id-badge mr-1"></i> Username: <b>{{ viewed_user.username }}</b>
+</p>
+
+{% if viewed_user.employeeprofile %}
+  <p class="text-xs text-muted text-center mb-1">
+    <i class="fas fa-briefcase mr-1"></i> {{ viewed_user.employeeprofile.position_title|default:"Position not set" }}
+  </p>
+{% elif viewed_user.citizenprofile %}
+  <p class="text-xs text-muted text-center mb-1">
+    <i class="fas fa-user-circle mr-1"></i> Citizen Profile
+  </p>
+{% endif %}

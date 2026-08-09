@@ -3,24 +3,30 @@
   <li class="list-group-item">
     <b>Dept. Head:</b>
     <a class="float-right">
-      <b>{{viewed_user.employeeprofile.assigned_department.deptHead_or_oic}}</b>
+      <b>
+        {% if can_view_sensitive_profile %}
+          {{ viewed_user.employeeprofile.assigned_department.deptHead_or_oic|default:"Not set" }}
+        {% else %}
+          **
+        {% endif %}
+      </b>
     </a>
   </li>
   <li class="list-group-item">
     <b>Assigned Department:</b>
     <i class="float-right">
-      {% if request.user == viewed_user %}
+      {% if can_view_sensitive_profile %}
         {{ viewed_user.employeeprofile.assigned_department }}
       {% else %}
         **
       {% endif %}
     </i>
     <br>
-    <small class="text-muted">
+      <small class="text-muted">
       <b>Plantilla from: </b>
       <i class="float-right">
-        {% if request.user == viewed_user %}
-          {{ viewed_user.employeeprofile.plantilla.department }}
+        {% if can_view_sensitive_profile %}
+          {{ viewed_user.employeeprofile.plantilla.department|default:"Not set" }}
         {% else %}
           **
         {% endif %}
@@ -30,11 +36,35 @@
   <li class="list-group-item">
     <b>Employment Type:</b>
     <i class="float-right">
-      {% if request.user == viewed_user %}
+      {% if can_view_sensitive_profile %}
         {{ viewed_user.employeeprofile.employment_type }}
       {% else %}
         **
       {% endif %}
     </i>
   </li>
+  {% if can_view_sensitive_profile %}
+    <li class="list-group-item">
+      <b>Appointment:</b>
+      <i class="float-right">
+        {% if viewed_user.employeeprofile.employment_type == 'JO' %}
+          {{ viewed_user.employeeprofile.jo_date_hired|default:"Not set" }}
+        {% elif viewed_user.employeeprofile.employment_type == 'REG' or viewed_user.employeeprofile.employment_type == 'CT' %}
+          {{ viewed_user.employeeprofile.reg_date_hired|default:"Not set" }}
+        {% else %}
+          {{ viewed_user.employeeprofile.jo_date_hired|default: "" }}{% if viewed_user.employeeprofile.reg_date_hired %} / {{ viewed_user.employeeprofile.reg_date_hired }}{% endif %}
+        {% endif %}
+      </i>
+    </li>
+    <li class="list-group-item">
+      <b>Salary scale:</b>
+      <i class="float-right">
+        {% if viewed_user.employeeprofile.salary_grade %}
+          SG {{ viewed_user.employeeprofile.salary_grade }}{% if viewed_user.employeeprofile.step_increment %} Step {{ viewed_user.employeeprofile.step_increment }}{% endif %}
+        {% else %}
+          Not set
+        {% endif %}
+      </i>
+    </li>
+  {% endif %}
 </ul>

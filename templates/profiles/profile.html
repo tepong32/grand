@@ -39,6 +39,32 @@
       <div class="card-body">
         {% include 'profiles/includes/profile_contact_block.html' %}
 
+        <div class="card card-outline card-secondary mb-3">
+          <div class="card-header py-2">
+            <h6 class="card-title"><i class="fas fa-id-card mr-1"></i>Profile Snapshot</h6>
+          </div>
+          <div class="card-body p-2">
+            <p class="mb-1">
+              <strong>Profile ID:</strong> {{ viewed_user.id }}
+            </p>
+            <p class="mb-1">
+              <strong>Member:</strong> {{ viewed_user.date_joined|date:"M d, Y" }}
+            </p>
+            {% if can_view_sensitive_profile %}
+              <p class="mb-0">
+                <strong>Contact number:</strong>
+                {% if viewed_user.employeeprofile %}
+                  {{ viewed_user.employeeprofile.contact_number|default:"Not set" }}
+                {% elif viewed_user.citizenprofile %}
+                  {{ viewed_user.citizenprofile.contact_number|default:"Not set" }}
+                {% else %}
+                  Not set
+                {% endif %}
+              </p>
+            {% endif %}
+          </div>
+        </div>
+
         <hr>
         <strong><i class="mr-1"></i>Member since {{ viewed_user.date_joined|date:"F Y" }}</strong>
 

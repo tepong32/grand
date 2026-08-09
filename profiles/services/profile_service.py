@@ -29,8 +29,10 @@ def profile_view_context(viewed_user, actor_user, leave_credit):
             'viewed_user': viewed_user,
             'leave_credits': None,
             'edit_logs': [],
+            'can_view_sensitive_profile': False,
         }
 
+    can_view_sensitive_profile = bool(actor_user == viewed_user or actor_user.is_staff or actor_user.is_superuser)
     if actor_user.is_staff:
         edit_logs = ProfileEditLog.objects.filter(user=viewed_user).order_by('-timestamp')
     elif actor_user == viewed_user:
@@ -42,6 +44,7 @@ def profile_view_context(viewed_user, actor_user, leave_credit):
         'viewed_user': viewed_user,
         'leave_credits': leave_credit,
         'edit_logs': edit_logs,
+        'can_view_sensitive_profile': can_view_sensitive_profile,
     }
 
 

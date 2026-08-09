@@ -12,6 +12,11 @@
 
       <strong><i class="fas fa-envelope mr-1"></i> Email</strong>
       <p class="text-muted">{{ viewed_user.email }}</p>
+
+      <strong><i class="fas fa-info-circle mr-1"></i> Account status</strong>
+      <p class="text-muted">
+        {% if viewed_user.is_active %}Active{% else %}Inactive{% endif %}
+      </p>
     </div>
 
     <div class="col-6">
@@ -35,7 +40,7 @@
 
   <hr>
 
-  <strong><i class="fas fa-map-marker-alt mr-1"></i> Location</strong>
+      <strong><i class="fas fa-map-marker-alt mr-1"></i> Location</strong>
   <p class="text-muted">
     {% if viewed_user.employeeprofile %}
       {{ viewed_user.employeeprofile.address }}
@@ -43,4 +48,18 @@
       {{ viewed_user.citizenprofile.address }}
     {% endif %}
   </p>
+
+  <strong><i class="fas fa-clock mr-1"></i> Joined</strong>
+  <p class="text-muted">{{ viewed_user.date_joined|date:"F d, Y" }}</p>
+
+  {% if can_view_sensitive_profile %}
+    <strong><i class="fas fa-sign-in-alt mr-1"></i> Last login</strong>
+    <p class="text-muted">
+      {% if viewed_user.last_login %}
+        {{ viewed_user.last_login|date:"F d, Y H:i" }}
+      {% else %}
+        Never logged in
+      {% endif %}
+    </p>
+  {% endif %}
 </div>
