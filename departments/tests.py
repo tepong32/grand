@@ -3,7 +3,7 @@ from django.test import TestCase
 from .models import Department
 from .services import DEFAULT_DASHBOARD_TEMPLATE, get_department_home_context
 from .services.query_service import get_department_by_slug, get_department_for_user
-from .services.dashboard_service import get_dashboard_template
+from .services.query_service import get_dashboard_template
 
 
 class DepartmentServiceTests(TestCase):

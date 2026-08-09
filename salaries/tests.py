@@ -20,7 +20,7 @@ class PayrollServiceTests(SimpleTestCase):
         self.assertEqual(PayrollCalculator.resolve_pagibig(Decimal("1000.00")), Decimal("20.00"))
 
     def test_tax_banding(self):
-        self.assertEqual(PayrollCalculator.resolve_tax(Decimal("20000.00")), Decimal("1833.40"))
+        self.assertEqual(PayrollCalculator.resolve_tax(Decimal("25000.00")), Decimal("833.40"))
 
 
 class PayrollWorkingDaysTests(SimpleTestCase):

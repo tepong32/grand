@@ -6,7 +6,7 @@ from profiles.models import EmployeeProfile
 from leave_mgt.models import LeaveRequest
 from assistance.models import AssistanceRequest
 
-from .models import Department
+from ..models import Department
 
 DEFAULT_DASHBOARD_TEMPLATE = "home/authed/dashboards/generic.html"
 
