@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
@@ -9,6 +10,7 @@ from .services.query_service import get_department_by_slug
 
 
 @require_http_methods(["GET"])
+@login_required
 def department_index(request):
     """
     Lightweight department index endpoint used by internal tools and admins.

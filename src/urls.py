@@ -30,6 +30,7 @@ urlpatterns = [
     path('', include('home.urls')),
     path('assistance/', include('assistance.urls', namespace="assistance")),
     path('leave-mgt/', include('leave_mgt.urls')),
+    path('departments/', include('departments.urls')),
     path('profiles/', include('profiles.urls')),
     path('users/', include('users.urls')),
     
