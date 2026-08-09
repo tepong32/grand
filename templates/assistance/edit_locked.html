@@ -25,7 +25,7 @@
           <p class="text-muted mt-3">No documents uploaded.</p>
         {% endif %}
 
-        <a href="{% url 'track_request' request_obj.reference_code %}" class="btn btn-outline-primary mt-4">
+        <a href="{% url 'assistance:track_request' request_obj.reference_code %}" class="btn btn-outline-primary mt-4">
           <i class="fas fa-search me-1"></i> Track Request
         </a>
       </div>

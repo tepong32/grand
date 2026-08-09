@@ -284,3 +284,42 @@ LOGGING = {
 log_dir = os.path.join(BASE_DIR, 'logs')
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
+
+# Rate limiting (decorator-based defaults)
+RATELIMIT_ENABLE = os.environ.get("RATELIMIT_ENABLE", "True").lower() in {"1", "true", "yes", "on"}
+RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_RATE_DEFAULT = os.environ.get("RATELIMIT_RATE_DEFAULT", "30/m")
+
+TRACEPOINT_UPLOAD_ALLOWED_EXTENSIONS = (
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".txt",
+    ".rtf",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".xls",
+    ".xlsx",
+    ".csv",
+    ".ppt",
+    ".pptx",
+)
+
+TRACEPOINT_UPLOAD_ALLOWED_CONTENT_TYPES = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain",
+    "text/rtf",
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+]
+
+TRACEPOINT_UPLOAD_MAX_SIZE_MB = int(os.environ.get("TRACEPOINT_UPLOAD_MAX_SIZE_MB", "5"))

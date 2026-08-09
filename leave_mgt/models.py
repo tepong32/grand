@@ -303,3 +303,7 @@ class LeaveCreditLog(models.Model): # might have circular dependency problem wit
 
     def __str__(self):
         return f"{self.action_type} completed."
+
+
+# Backward-compatible alias retained for existing imports/tests.
+LeaveCredits = LeaveCredit

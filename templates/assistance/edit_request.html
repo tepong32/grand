@@ -82,7 +82,7 @@
                       {% endif %}
 
                       {% if not request_obj.claimed_at and request_obj.status != 'approved' %}
-                        <form method="POST" class="delete-form d-inline-block mt-2" data-doc-id="{{ doc.id }}">
+                        <form method="POST" class="delete-form d-inline-block mt-2" data-doc-id="{{ doc.id }}" data-edit-code="{{ request_obj.edit_code }}">
                           {% csrf_token %}
                           <button type="submit" class="btn btn-sm btn-outline-danger btn-delete-doc">
                             <i class="fas fa-trash-alt"></i> Delete
@@ -170,6 +170,7 @@
       form.addEventListener('submit', function(e) {
         e.preventDefault();
         const docId = this.dataset.docId;
+        const editCode = this.dataset.editCode;
         const csrfToken = this.querySelector('input[name=csrfmiddlewaretoken]').value;
 
         if (!confirm("Are you sure you want to delete this document?")) return;
@@ -182,7 +183,8 @@
           },
           body: new URLSearchParams({
             'csrfmiddlewaretoken': csrfToken,
-            'doc_id': docId
+            'doc_id': docId,
+            'edit_code': editCode
           })
         })
         .then(response => response.json())
