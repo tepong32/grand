@@ -1,7 +1,23 @@
 from django.test import TestCase
-from django.db.models.signals import post_save
-from unittest.mock import patch
-from django.utils import timezone
-from leave_mgt.models import LeaveCredits, LeaveRequest
-from users.models import User
+from django.urls import reverse
 
+
+class UnauthenticatedHomeTests(TestCase):
+    def test_office_portals_dropdown_present(self):
+        response = self.client.get(reverse('unauthedhome'))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn("Office Portals", content)
+        self.assertIn("Office of the Mayor", content)
+        self.assertIn("Treasury", content)
+        self.assertIn("Acctg", content)
+        self.assertIn("Budget", content)
+        self.assertIn("MENRO", content)
+        self.assertIn("GSO", content)
+
+    def test_unauthed_home_shows_office_quick_links(self):
+        response = self.client.get(reverse('unauthedhome'))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn("Office Portals", content)
+        self.assertIn("Explore Services", content)
