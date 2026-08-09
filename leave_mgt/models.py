@@ -1,17 +1,16 @@
+from __future__ import annotations
+
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.urls import reverse
-from django.utils import timezone
-from datetime import timedelta
-from decimal import Decimal
+import logging
+
 from profiles.models import EmployeeProfile
 
 
-
-import logging
-
 # Logger setup
 logger = logging.getLogger(__name__)
+
 
 class AccrualModel(models.Model):
     accrual_value = models.DecimalField(max_digits=4, decimal_places=2, default=1.2, help_text="This defaults to 1.2 per month.")
@@ -21,11 +20,13 @@ class AccrualModel(models.Model):
     class Meta:
         abstract = True
 
+
 class SL_Accrual(AccrualModel):
     '''
     Assign values here if the default (1.2) does not fit your needs.
     Useful if the changes will be made in the admin UI instead of the codebase.
     '''
+
     class Meta:
         verbose_name = "SL Accrual"
         verbose_name_plural = "SL Accruals"
@@ -33,11 +34,13 @@ class SL_Accrual(AccrualModel):
             models.UniqueConstraint(fields=['id'], name='unique_sl_accrual')
         ]
 
+
 class VL_Accrual(AccrualModel):
     '''
     Assign values here if the default (1.2) does not fit your needs.
     Useful if the changes will be made in the admin UI instead of the codebase.
     '''
+
     class Meta:
         verbose_name = "VL Accrual"
         verbose_name_plural = "VL Accruals"
@@ -64,133 +67,81 @@ class LeaveCredit(models.Model):
     def __str__(self):
         return f"{self.employee.user.get_full_name()}'s Leave Credits" 
 
-    # def get_total_special_leaves_taken(self):
-    #     return SpecialLeaves.objects.filter(leave_credits=self).count()
-
-    # def get_total_special_leaves_days(self):
-    #     return SpecialLeaves.objects.filter(leave_credits=self).aggregate(total_days=models.Sum('number_of_days'))['total_days'] or 0
-
     @classmethod
     def reset_accrual_flags(cls):
         """
         Resets the credits_accrued_this_month flags for all leave credits.
-        This can be called on a scheduled basis.
         """
+        from .services.credit_service import reset_accrual_flags
+
         logger.info("Resetting credits_accrued_this_month flags to False.")
-        cls.objects.all().update(credits_accrued_this_month=False)
-        logger.info("Reset monthly accrual flag to False.")
+        reset_count = reset_accrual_flags(cls)
+        logger.info("Reset monthly accrual flag to False for %s rows.", reset_count)
+        return reset_count
 
     def carry_over_credits(self):
         """
-        Carries over un-used Leave credits from the current year to credits_from_prev_yr, 
-        Afterwards, the current_year_xx_credits will reset to 0 and this can be basis for monetization of leave credits.
-        Add logic to handle carry-over limits if necessary.
-        Trigger on every Jan 1st ---date-checking logic removed
+        Carries over un-used Leave credits from the current year to credits_from_prev_yr.
         """
-        # Define logic:
-        # Example: Add all of / a portion of (e.g., 50%) un-used current_year credits
-        self.sl_credits_from_prev_yr += self.current_year_sl_credits  
-
-        # Add unused current year VL with a max carry-over of 20. CHANGE THIS IF YOU WANT TO CARRY OVER MORE THAN 20.
+        self.sl_credits_from_prev_yr += self.current_year_sl_credits
+        # Add unused current year VL with a max carry-over of 20.
         self.vl_credits_from_prev_yr += min(self.current_year_vl_credits, 20)
 
         # Reset current year credits after transferring
         self.current_year_sl_credits = 0
         self.current_year_vl_credits = 0
         self.save()
+
         # Log the carry-over event so users can check if there are missed carry-over events
         LeaveCreditLog.objects.create(action_type='Yearly Carry Over', leave_credits=self)
-
 
     @classmethod
     def carry_over_unused_credits(cls):
         """
         Carries over unused leave credits for all employees.
-        This can be called on a scheduled basis.
         """
-        for leave_credit in cls.objects.all():
-            leave_credit.carry_over_credits()
-            leave_credit.save()  # Save changes to the database
-        logger.info("carry_over_unused_credits() triggered. \nCarried over unused leave credits.")
-    
+        from .services.credit_service import carry_over_unused_credits
+
+        count = carry_over_unused_credits(cls)
+        logger.info("carry_over_unused_credits() triggered. Carried over unused credits for %s employees.", count)
+        return count
+
     @classmethod
     def get_accrual_value(cls, accrual_model, default_value):
         """
         Fetches the accrual value from the model or returns a default value if not found.
         """
-        try:
-            accrual = accrual_model.objects.first()
-            return accrual.accrual_value if accrual else default_value
-        except Exception as e:
-            logger.error(f"Error fetching {accrual_model.__name__}: {e}")
-            return default_value
+        from .services.credit_service import get_accrual_value
+
+        return get_accrual_value(accrual_model, default_value)
 
     @classmethod
     def accrue_all_leave_credits(cls):
         """
         Accrues leave credits based on the defined accrual models or a default value.
         """
-        # Log the start of the accrual process
+        from .services.credit_service import accrue_all_leave_credits
+
         logger.info("Starting monthly leave credit accrual...")
-
-        with transaction.atomic():
-            # Default accrual value
-            default_sl_accrual = Decimal(1.2)
-            default_vl_accrual = Decimal(1.2)
-
-            # Get SL and VL Accrual values
-            sl_accrual_value = cls.get_accrual_value(SL_Accrual, default_sl_accrual)
-            vl_accrual_value = cls.get_accrual_value(VL_Accrual, default_vl_accrual)
-
-            # Iterate over all LeaveCredit instances
-            leave_credits = cls.objects.filter(credits_accrued_this_month=False)
-            for leave_credit in leave_credits:
-                logger.info(f"Processing leave credits for {leave_credit.employee.user.get_full_name()}")
-                # Update credits for each instance
-                leave_credit.current_year_sl_credits += sl_accrual_value
-                leave_credit.current_year_vl_credits += vl_accrual_value
-                leave_credit.credits_accrued_this_month = True
-                leave_credit.save()  # Save changes to the database
-                
-
-                # Log the accrual
-                LeaveCreditLog.objects.create(action_type='Monthly credit accruals', leave_credits=leave_credit)
-                logger.info(f"Accrued {sl_accrual_value:.1f} sick leave and {vl_accrual_value:.1f} vacation leave credits for {leave_credit.employee.user.get_full_name()}.") #':.1f' format specifier ensures that the output is formatted as a floating-point number with one decimal place.
-    
-    
+        return accrue_all_leave_credits(cls, SL_Accrual, VL_Accrual)
 
     @classmethod
     def update_leave_credits(cls):
-        try:
-            logger.info("update_leave_credits(cls): Updating leave credits...")
+        """
+        Scheduled/manual refresh that handles monthly accruals and annual carry-over.
+        """
+        from .services.credit_service import update_leave_credits
 
-            # Reset accrual flags every month (probably 1st day, too)
-            cls.reset_accrual_flags()
+        logger.info("update_leave_credits(cls): Updating leave credits...")
+        # Keep behavior aligned with previous implementation: carry over only on Jan 1st.
+        return update_leave_credits(cls, SL_Accrual, VL_Accrual, from_cron=False)
 
-            # Annual Carry-over on January 1st
-            if timezone.now().month == 1 and timezone.now().day == 1:
-                logger.info("1st day of the year detected. Proceeding with carry-over of unused leave credits.")
-                cls.carry_over_unused_credits()
-                logger.info("Carry-over of unused leave credits completed.")
-            else:
-                logger.info("update_leave_credits(cls): Skipped carry-over - not the 1st day of the year.")
-
-            # Montly accruals (can be scheduled on any day of the month)
-            logger.info("from update_leave_credits(cls): Starting monthly accruals...")
-            cls.accrue_all_leave_credits()
-            logger.info("Monthly leave credit accrual completed.")
-
-        except Exception as e:
-            logger.error(f"An error occurred during leave credit update: {e}", exc_info=True)
-                # Additional error handling (optional):
-                # - Send email notifications to admins
-                # - Retry the task later
-                # - ... other actions based on your requirements
 
 def leave_form_directory_path(instance, filename):
     # Leave > LeaveCredits > Profile > User > username
     username = instance.employee.employee.user.username
     return 'users/{}/leaveForms/{}'.format(username, filename)
+
 
 class LeaveRequest(models.Model):
     LEAVE_TYPES = [
@@ -217,7 +168,7 @@ class LeaveRequest(models.Model):
     form_photo = models.ImageField(null=True, blank=True, upload_to=leave_form_directory_path, verbose_name="Form Photo (w/ Signatures): ")
 
     class Meta:
-        ordering = ['-date_filed'] # setting default ordering for LeaveRequest instances
+        ordering = ['-date_filed']
 
     def __str__(self):
         return f"{self.employee.employee.user.get_full_name()} - {self.leave_type} - {self.date_filed}"
@@ -232,48 +183,47 @@ class LeaveRequest(models.Model):
         else:
             raise ValidationError("Both start date and end date are required.")
 
+        if self.employee:
+            from .services.request_service import has_request_conflict
+            if self.status != 'CANCELLED' and has_request_conflict(
+                self.employee,
+                self.start_date,
+                self.end_date,
+                exclude_pk=self.pk,
+            ):
+                raise ValidationError("A leave request already exists for this date range.")
+
     def save(self, *args, **kwargs):
-        if not self.pk:  # Only calculate number_of_days when creating a new record
-            self.number_of_days = self.calculate_number_of_days()
+        self.number_of_days = self.calculate_number_of_days()
 
         old_status = None
-        if self.pk:  # This check ensures we're dealing with an update
+        old_leave_type = None
+        old_number_of_days = None
+
+        if self.pk:
             old_instance = LeaveRequest.objects.get(pk=self.pk)
             old_status = old_instance.status
+            old_leave_type = old_instance.leave_type
+            old_number_of_days = old_instance.number_of_days
 
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            super().save(*args, **kwargs)
 
-        # Update leave credits only if the status changes to APPROVED
-        if self.status == 'APPROVED' and old_status != 'APPROVED':
-            if self.leave_type == 'SL':
-                self.employee.current_year_sl_credits -= self.number_of_days
-            elif self.leave_type == 'VL':
-                self.employee.current_year_vl_credits -= self.number_of_days
-            self.employee.save()  # Save the updated leave credits
-        elif old_status == 'APPROVED' and self.status != 'APPROVED':
-            # Revert leave credits if the status is changed from APPROVED to something else
-            if self.leave_type == 'SL':
-                self.employee.current_year_sl_credits += self.number_of_days
-            elif self.leave_type == 'VL':
-                self.employee.current_year_vl_credits += self.number_of_days
-            self.employee.save()  # Save the reverted leave credits
+            from .services.request_service import sync_leave_credit_for_status_change
+            sync_leave_credit_for_status_change(
+                self,
+                old_status=old_status,
+                old_leave_type=old_leave_type,
+                old_number_of_days=old_number_of_days,
+            )
 
     def calculate_number_of_days(self):
-        if self.end_date < self.start_date:
-            weekend_days = sum(1 for day in range(total_days) if (self.start_date + timedelta(days=day)).weekday() in {5, 6})
-            total_days = (self.end_date - self.start_date).days + 1
-            weekend_days = sum(1 for day in range(total_days) if (self.start_date + timedelta(days=day)).weekday() >= 5)
-            return total_days - weekend_days
-    
+        from .services.request_service import calculate_request_days
+        return calculate_request_days(self.start_date, self.end_date)
+
     def get_remaining_leave_credits(self):
         """
         Calculates the remaining leave credits for the employee based on the leave request's status and type.
-
-        Returns:
-            int or str: 
-                - If the leave request is approved, returns the remaining leave credits (int) after deducting the number of days from the employee's current year leave credits (either sick leave 'SL' or vacation leave 'VL').
-                - If the leave request is not approved, returns a string showing the current year leave credits minus the total number of pending leave days for the same leave type, formatted as "<credits> - <pending_days> (pending)".
-                - For special leave ('SP'), the calculation is not implemented.
         """
         if self.status == 'APPROVED':
             if self.leave_type == 'SL':
@@ -293,10 +243,10 @@ class LeaveRequest(models.Model):
                 return f"{self.employee.current_year_vl_credits} - {pending_days} (pending)"
             # Handle special leave credits if applicable
             elif self.leave_type == 'SP':
-                # handle special leave credits calculation
-                pass
+                return None
 
-class LeaveCreditLog(models.Model): # might have circular dependency problem with LeaveCredits here
+
+class LeaveCreditLog(models.Model):
     action_date = models.DateTimeField(auto_now_add=True)
     action_type = models.CharField(max_length=50)  # e.g., 'Monthly Accrual', 'Yearly Carry Over'
     leave_credits = models.ForeignKey(LeaveCredit, on_delete=models.CASCADE, related_name='logs')

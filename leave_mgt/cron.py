@@ -1,16 +1,14 @@
-from leave_mgt.models import LeaveCredit
 from django.db import transaction
+from leave_mgt.models import LeaveCredit, SL_Accrual, VL_Accrual
+from .services.cron_service import run_leave_credit_cron_update
 import logging
 
 # Logger setup
 logger = logging.getLogger(__name__)
 
 def update_leave_credits_from_cronPy():
-    help = 'Triggers the monthly accrual for LeaveCredit instances from update_leave_credits_from_cronPy().'
-
-    # Use a transaction for accruing leave credits
     with transaction.atomic():
-        LeaveCredit.update_leave_credits()  # Call the method to update leave credits
+        run_leave_credit_cron_update(LeaveCredit, SL_Accrual, VL_Accrual)
         logger.info("leave_mgt CronJob: update_leave_credits_from_cronPy tiggered.")
 
 '''

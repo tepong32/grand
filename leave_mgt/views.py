@@ -1,12 +1,18 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.paginator import Paginator
+from django.core.exceptions import ValidationError
 
-from django.shortcuts import render, get_object_or_404, redirect
-from django.urls import reverse, reverse_lazy
+from django.shortcuts import render, redirect
+from django.urls import reverse_lazy
 
 from .forms import LeaveApplicationForm
 from .models import LeaveRequest, LeaveCredit, LeaveCreditLog
+from .services.request_service import (
+    build_leave_dashboard_context,
+    validate_request_payload,
+    revert_leave_credit_for_deleted_request,
+)
 from .utils import calculate_yearly_leave_usage
 
 from django.views.generic import (
@@ -53,42 +59,9 @@ class MyLeaveView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
 
         try:
-            user = self.request.user
-            leave_credit = user.employeeprofile.leavecredit
-
-            # All requests of this employee
-            leave_requests = LeaveRequest.objects.filter(employee=leave_credit)
-
-            # Approved leaves (for both count and pagination)
-            approved_leaves = leave_requests.filter(status='APPROVED')
-
-            # Yearly usage
-            current_year = timezone.now().year
-            current_yr_leave_usage = approved_leaves.filter(start_date__year=current_year).count()
-
-            # Leave stats helper (from your custom function)
-            stats = calculate_yearly_leave_usage(leave_requests)
-
-            # Logs (paginated)
-            logs = LeaveCreditLog.objects.filter(leave_credits=leave_credit).order_by('-action_date')
-            paginator = Paginator(logs, 10)
-            page_number = self.request.GET.get('page')
-            page_logs = paginator.get_page(page_number)
-
-            context.update({
-                'leave_credits': leave_credit,
-                'cy_sl': leave_credit.current_year_sl_credits,
-                'cy_vl': leave_credit.current_year_vl_credits,
-                'approved_leaves': approved_leaves,
-                'approved_leave_count': approved_leaves.count(),
-                'current_year': current_year,
-                'current_yr_leave_usage': current_yr_leave_usage,
-                'total_leave_taken': stats['total_leave_taken'],
-                'average_leave_per_month': stats['average_leave_per_month'],
-                'sl_vs_vl_usage': stats['sl_vs_vl_usage'],
-                'accrual_logs': page_logs,
-                'leave_requests': leave_requests,
-            })
+            leave_credit = self.request.user.employeeprofile.leavecredit
+            status_filter = self.request.GET.get('status') or None
+            context.update(build_leave_dashboard_context(leave_credit, status_filter=status_filter))
 
         except (EmployeeProfile.DoesNotExist, LeaveCredit.DoesNotExist):
             # Fallback context in case of missing data
@@ -122,7 +95,6 @@ class HRLeaveDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
         all_requests = LeaveRequest.objects.select_related('employee').all()
 
         # Example: usage stats across employees
-        from .utils import calculate_yearly_leave_usage
         context['all_leave_usage'] = calculate_yearly_leave_usage(all_requests)
 
         return context
@@ -144,32 +116,26 @@ class LeaveApplicationCreateView(CreateView, LoginRequiredMixin):
         return kwargs
 
     def form_valid(self, form):
-        leave_type = form.cleaned_data['leave_type']
-        # number_of_days = form.cleaned_data['number_of_days']
         employee = self.request.user.employeeprofile.leavecredit
-
-        # Calculate number of days here since it's hidden from the form
+        leave_type = form.cleaned_data['leave_type']
         start_date = form.cleaned_data['start_date']
         end_date = form.cleaned_data['end_date']
-        number_of_days = (end_date - start_date).days + 1
 
-        # Check leave credits based on leave type
-        if leave_type == 'SL':
-            if employee.current_year_sl_credits <= 0 or (employee.current_year_sl_credits - number_of_days < 0):
-                form.add_error(None, "Insufficient Sick Leave credits.")
-                return self.form_invalid(form)
-
-        elif leave_type == 'VL':
-            if employee.current_year_vl_credits <= 0 or (employee.current_year_vl_credits - number_of_days < 0):
-                form.add_error(None, "Insufficient Vacation Leave credits.")
-                return self.form_invalid(form)
-
-        # Set the calculated number of days to the form instance
-        form.instance.number_of_days = number_of_days
+        try:
+            number_of_days = validate_request_payload(
+                leave_credit=employee,
+                leave_type=leave_type,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            form.instance.number_of_days = number_of_days
+        except ValidationError as exc:
+            form.add_error(None, str(exc))
+            return self.form_invalid(form)
 
         # If checks pass, create the leave record
         form.instance.employee = employee  # Set the employee field
-        response = super().form_valid(form)
+        super().form_valid(form)
 
         messages.success(self.request, "Leave application submitted successfully.")
         return redirect('leave_list')  # Redirect to a success page
@@ -191,36 +157,26 @@ class LeaveApplicationUpdateView(UpdateView, LoginRequiredMixin):
 
     def form_valid(self, form):
         leave_type = form.cleaned_data['leave_type']
-        # number_of_days = form.cleaned_data['number_of_days']
         employee = self.request.user.employeeprofile.leavecredit
-
-        # Calculate number of days here since it's hidden from the form
         start_date = form.cleaned_data['start_date']
         end_date = form.cleaned_data['end_date']
-        number_of_days = (end_date - start_date).days + 1
 
-        # Check leave credits based on leave type
-        if leave_type == 'SL':
-            if employee.current_year_sl_credits <= 0 or (employee.current_year_sl_credits - number_of_days < 0):
-                messages.error(self.request, "Insufficient Sick Leave credits.")
-                return self.form_invalid(form)
+        try:
+            number_of_days = validate_request_payload(
+                leave_credit=employee,
+                leave_type=leave_type,
+                start_date=start_date,
+                end_date=end_date,
+                exclude_pk=form.instance.pk,
+                current_status=form.instance.status,
+                current_request=form.instance,
+            )
+            form.instance.number_of_days = number_of_days
+        except ValidationError as exc:
+            messages.error(self.request, str(exc))
+            return self.form_invalid(form)
 
-        elif leave_type == 'VL':
-            if employee.current_year_vl_credits <= 0 or (employee.current_year_vl_credits - number_of_days < 0):
-                messages.error(self.request, "Insufficient Vacation Leave credits.")
-                return self.form_invalid(form)
-
-        # If checks pass, update the leave record
-        response = super().form_valid(form)
-
-        # Update leave credits only if the leave is approved
-        if form.instance.status == 'APPROVED':
-            if leave_type == 'SL':
-                employee.current_year_sl_credits -= number_of_days
-            elif leave_type == 'VL':
-                employee.current_year_vl_credits -= number_of_days
-            employee.save()  # Save the updated leave credits
-
+        super().form_valid(form)
         messages.success(self.request, "Leave application updated successfully.")
         return redirect('leave_list')  # Redirect to a success page
 
@@ -246,16 +202,7 @@ class LeaveApplicationDeleteView(DeleteView, LoginRequiredMixin):
 
     def delete(self, request, *args, **kwargs):
         leave = self.get_object()
-        employee = request.user.employeeprofile.leavecredit
-
-        # If the leave is approved, add back the number of days to the corresponding credits
-        # MAKE SURE THAT ONLY ADMINS CAN DELETE ALREADY-APPROVED LEAVES
-        if leave.status == 'APPROVED':
-            if leave.leave_type == 'SL':
-                employee.current_year_sl_credits += leave.number_of_days
-            elif leave.leave_type == 'VL':
-                employee.current_year_vl_credits += leave.number_of_days
-            employee.save()  # Save the updated leave credits
+        revert_leave_credit_for_deleted_request(leave)
 
         # Call the superclass delete method
         response = super().delete(request, *args, **kwargs)
