@@ -52,7 +52,7 @@
         {% elif viewed_user.employeeprofile.employment_type == 'REG' or viewed_user.employeeprofile.employment_type == 'CT' %}
           {{ viewed_user.employeeprofile.reg_date_hired|default:"Not set" }}
         {% else %}
-          {{ viewed_user.employeeprofile.jo_date_hired|default: "" }}{% if viewed_user.employeeprofile.reg_date_hired %} / {{ viewed_user.employeeprofile.reg_date_hired }}{% endif %}
+          {{ viewed_user.employeeprofile.jo_date_hired|default:'' }}{% if viewed_user.employeeprofile.reg_date_hired %} / {{ viewed_user.employeeprofile.reg_date_hired }}{% endif %}
         {% endif %}
       </i>
     </li>
