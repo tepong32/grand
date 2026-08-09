@@ -211,6 +211,8 @@ def announcement_search_view(request, *args, **kwargs):
 
 from django.template.loader import get_template, TemplateDoesNotExist
 from home.utils import get_department_dashboard_context
+from departments.services.query_service import get_department_for_user, get_dashboard_template
+from departments.services.dashboard_service import DEFAULT_DASHBOARD_TEMPLATE
 
 @login_required
 def department_dashboard_dynamic(request):
@@ -221,17 +223,15 @@ def department_dashboard_dynamic(request):
     If the department's dashboard template does not exist, it falls back to a generic template.
     Add per-department context data to the template (see home/utils.py).
     """
-    user = request.user.employeeprofile #getattr(request.user, 'employeeprofile', None)
+    user = getattr(request.user, "employeeprofile", None)
     if not user:
-        # If user has no employee profile, fallback to home or a suitable page
         return redirect('home')
 
-    department = getattr(user, 'assigned_department', None)
+    department = get_department_for_user(request.user)
     if not department:
         return redirect('/dashboard/')  # Redirect to a default dashboard or home if no department is assigned
 
-    fallback_template = 'home/authed/dashboards/generic.html'
-    template_path = (department.dashboard_template or '').strip()
+    template_path = get_dashboard_template(department, DEFAULT_DASHBOARD_TEMPLATE)
     print("USING department_dashboard_dynamic view")
     print(f"[DEBUG] Department slug: {department.slug}")
 
@@ -243,7 +243,7 @@ def department_dashboard_dynamic(request):
         else:
             raise TemplateDoesNotExist("No template path specified.")
     except TemplateDoesNotExist:
-        template_path = fallback_template
+        template_path = DEFAULT_DASHBOARD_TEMPLATE
 
     if department.slug == "mswd":
         # Keep MSWD staff workflows aligned with the assistance dashboard CRUD

@@ -2,6 +2,12 @@ from django.db import models
 from django.conf import settings  # For referencing the User model
 from django.utils.text import slugify
 
+
+class DepartmentDefaults:
+    """Centralized Department app constants."""
+    DASHBOARD_TEMPLATE_FALLBACK = "home/authed/dashboards/generic.html"
+    DEPT_SLUG_PREFIX_LENGTH = 120
+
 class Department(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True, blank=True, null=True, help_text="Unique short code like 'hr', 'gso', 'acctg'")
@@ -40,6 +46,19 @@ class Department(models.Model):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+
+    def get_dashboard_template(self):
+        """
+        Return fallback-safe dashboard template path for this department.
+        """
+        return self.dashboard_template or DepartmentDefaults.DASHBOARD_TEMPLATE_FALLBACK
+
+    def dashboard_context(self, user):
+        """
+        Return department-specific dashboard context.
+        """
+        from .services.dashboard_service import get_department_home_context
+        return get_department_home_context(self, user)
 
 
 
