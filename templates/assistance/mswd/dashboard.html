@@ -4,72 +4,131 @@
 {% block title_ext %} - MSWD Dashboard{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-xl mx-auto py-4">
   <h1 class="mb-4">MSWD Assistance Requests</h1>
 
   <!-- Filters -->
-  <form method="get" class="form-inline mb-3">
-    <div class="form-group mr-2">
-      <label for="type" class="mr-1">Type:</label>
-      <select name="type" id="type" class="form-control">
-        <option value="">All</option>
-        {% for type in types %}
-          <option value="{{ type.id }}" {% if type.id|stringformat:"s" == selected_type %}selected{% endif %}>{{ type.name }}</option>
-        {% endfor %}
-      </select>
+  <div class="card card-outline card-primary shadow-sm">
+    <div class="card-header bg-gradient-primary text-white">
+      <h5 class="card-title mb-0">Filter requests</h5>
     </div>
-    <div class="form-group mr-2">
-      <label for="status" class="mr-1">Status:</label>
-      <select name="status" id="status" class="form-control">
-        <option value="">All</option>
-        <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Pending</option>
-        <option value="review" {% if selected_status == 'review' %}selected{% endif %}>Under Review</option>
-        <option value="approved" {% if selected_status == 'approved' %}selected{% endif %}>Approved</option>
-        <option value="denied" {% if selected_status == 'denied' %}selected{% endif %}>Denied</option>
-      </select>
+    <div class="card-body">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label for="type" class="form-label mb-1">Type:</label>
+          <select name="type" id="type" class="form-select">
+            <option value="">All</option>
+            {% for type in types %}
+              <option value="{{ type.id }}" {% if type.id|stringformat:"s" == selected_type %}selected{% endif %}>{{ type.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-4">
+          <label for="status" class="form-label mb-1">Status:</label>
+          <select name="status" id="status" class="form-select">
+            <option value="">All</option>
+            <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="review" {% if selected_status == 'review' %}selected{% endif %}>Under Review</option>
+            <option value="approved" {% if selected_status == 'approved' %}selected{% endif %}>Approved</option>
+            <option value="denied" {% if selected_status == 'denied' %}selected{% endif %}>Denied</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-2">
+          <button type="submit" class="btn btn-primary w-100">Filter</button>
+        </div>
+      </form>
     </div>
-    <button type="submit" class="btn btn-primary">Filter</button>
-  </form>
-
-  <!-- Table -->
-  <div class="table-responsive">
-    <table class="table table-bordered table-hover table-striped">
-      <thead class="thead-dark">
-        <tr>
-          <th>Reference</th>
-          <th>Full Name</th>
-          <th>Type</th>
-          <th>Status</th>
-          <th>Submitted At</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for request in requests %}
-          <tr>
-            <td>{{ request.reference_code }}</td>
-            <td>{{ request.full_name }}</td>
-            <td>{{ request.assistance_type.name }}</td>
-            <td>
-              <span class="badge 
-                {% if request.status == 'approved' %}badge-success
-                {% elif request.status == 'denied' %}badge-danger
-                {% elif request.status == 'review' %}badge-warning
-                {% else %}badge-secondary{% endif %}">
-                {{ request.get_status_display }}
-              </span>
-            </td>
-            <td>{{ request.submitted_at|date:"M d, Y H:i" }}</td>
-            <td>
-              <a href="{% url 'assistance:mswd_request_detail' ref_code=request.reference_code %}" class="btn btn-sm btn-info">View</a>
-              <a href="{% url 'assistance:mswd_request_printable' ref_code=request.reference_code %}" class="btn btn-sm btn-secondary" target="_blank">Print</a>
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="6" class="text-center">No requests found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
   </div>
+
+  {% if requests %}
+  <div class="row g-3 mt-1">
+    {% for request in requests %}
+      <div class="col-12">
+        <div class="card card-outline card-secondary shadow-sm">
+          <div class="card-header d-flex justify-content-between align-items-start">
+            <div>
+              <h5 class="card-title mb-0">{{ request.full_name }}</h5>
+              <p class="text-muted mb-0 small">Ref: <code>{{ request.reference_code }}</code> • {{ request.submitted_at|date:"M d, Y H:i" }}</p>
+            </div>
+            <span class="badge 
+              {% if request.status == 'approved' %}bg-success
+              {% elif request.status == 'denied' %}bg-danger
+              {% elif request.status == 'review' %}bg-warning
+              {% else %}bg-secondary{% endif %}">
+              {{ request.get_status_display }}
+            </span>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-7">
+                <p class="mb-1"><strong>Type:</strong> {{ request.assistance_type.name }}</p>
+                <p class="mb-1"><strong>Period:</strong> {{ request.period|default:"—" }}{% if request.semester %} ({{ request.semester }}){% endif %}</p>
+                <p class="mb-1"><strong>Email:</strong> {{ request.email }}</p>
+                <p class="mb-1"><strong>Phone:</strong> {{ request.phone }}</p>
+                <p class="mb-1"><strong>Uploaded files:</strong> {{ request.active_documents|length }}</p>
+                <p class="mb-0"><strong>Citizen:</strong> {{ request.citizen.full_name|default:"—" }}</p>
+              </div>
+              <div class="col-md-5">
+                <div class="d-flex flex-wrap gap-2">
+                  <a href="{% url 'assistance:mswd_request_detail' ref_code=request.reference_code %}" class="btn btn-info btn-sm">Open Request</a>
+                  <a href="{% url 'assistance:mswd_request_printable' ref_code=request.reference_code %}" class="btn btn-outline-secondary btn-sm" target="_blank">Print</a>
+                </div>
+                <details class="mt-3">
+                  <summary class="fw-semibold small">Quick status update</summary>
+                  <form method="post" action="{% url 'assistance:mswd_request_detail' ref_code=request.reference_code %}" class="mt-2">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                      <label for="status-{{ request.id }}" class="form-label small">Status</label>
+                      <select id="status-{{ request.id }}" name="status" class="form-select form-select-sm">
+                        {% for status_value, status_label in request.STATUS_CHOICES %}
+                          <option value="{{ status_value }}" {% if request.status == status_value %}selected{% endif %}>{{ status_label }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="mb-2">
+                      <label for="remarks-{{ request.id }}" class="form-label small">Remarks</label>
+                      <textarea id="remarks-{{ request.id }}" name="remarks" rows="2" class="form-control form-control-sm">{{ request.remarks }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-sm">Save</button>
+                  </form>
+                </details>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <h6 class="mb-2">Recent uploaded files</h6>
+              <div class="d-flex flex-wrap gap-2">
+                {% for doc in request.active_documents|slice:":3" %}
+                  <div class="border rounded p-2 bg-light" style="width: 190px;">
+                    <div class="small text-muted text-truncate mb-1">{{ doc.get_document_type_display }}</div>
+                    {% with filename=doc.file.name|lower %}
+                      {% if ".pdf" in filename %}
+                        <iframe src="{{ doc.file.url }}#view=FitH" class="w-100 border" style="height: 90px;" loading="lazy"></iframe>
+                      {% elif ".jpg" in filename or ".jpeg" in filename or ".png" in filename or ".gif" in filename or ".webp" in filename %}
+                        <img src="{{ doc.file.url }}" alt="{{ doc.file.name }}" class="img-thumbnail" style="max-height: 90px; width: 100%; object-fit: cover;">
+                      {% else %}
+                        <div class="small text-muted">Unsupported preview</div>
+                      {% endif %}
+                    {% endwith %}
+                    <div class="small mt-1 text-truncate">{{ doc.file.name|basename }}</div>
+                  </div>
+                {% empty %}
+                  <p class="text-muted small mb-0">No uploaded files yet.</p>
+                {% endfor %}
+              </div>
+              {% if request.active_documents|length > 3 %}
+                <p class="small text-muted mb-0 mt-2">
+                  +{{ request.active_documents|length|add:-3 }} more files
+                </p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <div class="alert alert-info">No requests found.</div>
+  {% endif %}
 </div>
 {% endblock %}

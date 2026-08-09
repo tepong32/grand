@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
+from django.db.models import Prefetch
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -29,7 +30,15 @@ def mswd_dashboard_view(request):
     status_filter = request.GET.get("status", "")
     type_filter = request.GET.get("type", "")
 
-    requests = AssistanceRequest.objects.filter(is_active=True).order_by("-submitted_at")
+    requests = AssistanceRequest.objects.filter(is_active=True).order_by("-submitted_at").select_related(
+        "assistance_type"
+    ).prefetch_related(
+        Prefetch(
+            "documents",
+            queryset=RequestDocument.objects.filter(is_removed=False).order_by("uploaded_at"),
+            to_attr="active_documents",
+        )
+    )
     if status_filter:
         requests = requests.filter(status=status_filter)
     if type_filter:
