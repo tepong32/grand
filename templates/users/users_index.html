@@ -2,14 +2,6 @@
 {% load static %}
 
 {% block content %}
-  <style>
-    .nav-tabs .nav-link.active {
-      background-color: #f8f9fa; /* light gray */
-      font-weight: bold;
-      border-left: 4px solid #007bff; /* optional highlight */
-    }
-  </style>
-
   <!-- Authenticated Section -->
   {% if user.is_authenticated %}
     {% if user.is_staff %}
@@ -25,7 +17,7 @@
         <div class="card-body">
           <div class="row">
             <div class="col-md-3">
-              <div class="nav flex-column nav-tabs" id="dept-tabs" role="tablist" aria-orientation="vertical">
+              <div class="nav flex-column nav-tabs gov-user-tabs" id="dept-tabs" role="tablist" aria-orientation="vertical">
                 <a class="nav-link" id="tab-all-tab" data-toggle="pill"
                   href="#tab-all" role="tab"
                   aria-controls="tab-all" aria-selected="false">

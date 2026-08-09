@@ -3,9 +3,9 @@
   <div class="card-body box-profile">
     <div class="text-center">
       {% if viewed_user.employeeprofile %}
-        <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5" src="{{viewed_user.employeeprofile.profile_image.url}}" alt="User profile picture" style="width: 250px; height: 250px">
+        <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5 gov-profile-avatar" src="{{viewed_user.employeeprofile.profile_image.url}}" alt="User profile picture">
       {% elif viewed_user.citizenprofile %}
-        <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5" src="{% static 'defaults/default_user_dp.png' %}" alt="User profile picture" style="width: 250px; height: 250px">
+        <img id="profile-image" class="profile-user-img img-fluid img-circle elevation-5 gov-profile-avatar" src="{% static 'defaults/default_user_dp.png' %}" alt="User profile picture">
       {% endif %}
     </div>
     <div class="card-header">

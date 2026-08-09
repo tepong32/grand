@@ -2,55 +2,16 @@
 {% load static %}
 
 {% block content %}
-
-
-<style type="text/css">
-	.profile-image{
-		max-height: 50px;
-		max-width: 50px;
-	}
-	.profile-image{
-		border-radius: 12px;
-	}
-	.card{
-		border-radius: 12px;
-	}
-	.friends-text{
-		color: #000;
-		font-weight: 500;
-	}
-	.friends-text-container{
-		border: 1px solid #cccccc;
-		border-radius: 12px;
-	}
-	.friends-btn:hover {
-		background-color: #bfbfbf;
-		border-color: #bfbfbf;
-	}
-	.dropdown-toggle::after { 
-		content: none; 
-	}
-	.profile-link{
-		color: #000;
-	}
-	.checkmark-icon{
-		color: green;
-	}
-	.cancel-icon{
-		color: red;
-	}
-</style>
-
-<div class="container" style="padding-top: 4em;">
+<div class="container gov-feedback-box">
 	<div class="card p-2">
 
 		{% if accounts %}
 			<div class="d-flex flex-row flex-wrap">
 			{% for account in accounts %}
-			<div class="card flex-row flex-grow-1 p-2 mx-2 my-2 align-items-center">
+			<div class="card gov-user-pill flex-row flex-grow-1 p-2 mx-2 my-2 align-items-center">
 				<a class="profile-link" href="{% url 'profile' username=user.username %}">
 					<div class="card-image m-2">
-						<img class="img-fluid profile-image" src="{{account.0.profile.image.url}}" alt="">
+						<img class="img-fluid gov-user-avatar" src="{{account.0.profile.image.url}}" alt="">
 					</div>
 				</a>
 				<a class="profile-link" href="{% url 'profile' username=user.username %}">

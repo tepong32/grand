@@ -1,59 +1,10 @@
-<style type="text/css">
-  /* logo */
-  .navbar-nav a .nav-item {
-    transition: transform 0.3s ease; /* Slightly enlarge to 110% */
-  }
-  .navbar-nav a .nav-item:hover {
-    transform: scale(1.2); /* Slightly enlarge to 110% */
-  }
-
-  /* other navbar links */
-  .navbar-nav .nav-item a {
-    position: relative; /* Position relative to allow absolute positioning of the underline */
-    text-decoration: none; /* Remove default underline */
-    transition: transform 0.3s ease; /* Smooth transition for transform */
-  }
-  
-  .navbar-nav .nav-item a:hover {
-    transform: scale(1.1); /* Slightly enlarge to 110% */
-  }
-
-  .navbar-nav .nav-item a::after {
-    content: ""; /* Create a pseudo-element for the underline */
-    position: absolute; /* Position it absolutely */
-    left: 0; /* Align to the left */
-    right: 0; /* Align to the right */
-    bottom: 0; /* Align to the bottom */
-    height: 2px; /* Height of the underline */
-    background-color: rgba(0, 0, 0, 0.5); /* Color of the underline */
-    transform: scaleX(0); /* Initially scale to 0 (hidden) */
-    transition: transform 0.3s ease; /* Smooth transition for the underline */
-  }
-  
-  .navbar-nav .nav-item a:hover::after {
-    transform: scaleX(1); /* Scale to full width on hover */
-  }
-  
-  .navbar-nav .nav-item i {
-    transition: transform 0.3s ease; 
-  }
-  
-  .navbar-nav .nav-item i:hover {
-    transform: scale(1.1); /* Enlarge icon on hover */
-  }
-</style>
-
 <!-- Navbar -->
-  <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+<nav class="main-header navbar navbar-expand navbar-white navbar-light gov-primary-nav">
     <!-- Left navbar links -->
     <ul class="navbar-nav">
       <!-- Home -->
       <a href="/" class="nav-link" title="Home">
-
-          <!-- Brand Logo -->
-          <img src="/media/defaults/jjv.png" alt="LMS Logo" class=""
-               style="height: 60px; border-radius: 10%; position: relative;">
-
+          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="gov-brand-logo gov-brand-logo-md">
       </a>
 
       <!-- Dashboard -->
@@ -108,9 +59,9 @@
       
       <!-- Messages Dropdown Menu -->
       <li class="nav-item dropdown">
-        <a class="nav-link" data-toggle="dropdown" href="#">
+        <a class="nav-link gov-nav-icon-link" data-toggle="dropdown" href="#">
           <i class="fas fa-comments"></i>
-          <span class="badge badge-danger navbar-badge">3</span>
+          <span class="badge badge-danger navbar-badge gov-nav-badge">3</span>
         </a>
         <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
           <a href="#" class="dropdown-item">
@@ -166,9 +117,9 @@
       </li>
       <!-- Notifications Dropdown Menu -->
       <li class="nav-item dropdown">
-        <a class="nav-link" data-toggle="dropdown" href="#">
+        <a class="nav-link gov-nav-icon-link" data-toggle="dropdown" href="#">
           <i class="fa fa-bell"></i>
-          <span class="badge badge-warning navbar-badge">15</span>
+          <span class="badge badge-warning navbar-badge gov-nav-badge">15</span>
         </a>
         <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
           <span class="dropdown-header">15 Notifications</span>
@@ -191,89 +142,108 @@
           <a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>
         </div>
       </li>
-      <a class="nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button">
-        <li class="nav-item">
+      <li class="nav-item">
+        <a class="nav-link gov-avatar-nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button">
           <!-- <i class="fas fa-th-large"></i> -->
-          <img src="{{request.user.employeeprofile.profile_image.url}}" style="height: 35px; border-radius: 50%;">
-        </li>
-      </a>
+          <img src="{{request.user.employeeprofile.profile_image.url}}" class="gov-user-avatar" alt="Profile picture">
+        </a>
+      </li>
       
     </ul>
   </nav>
   <!-- /.navbar -->
 
   <!-- Control Sidebar -->
-  <aside class="control-sidebar control-sidebar-light" style="opacity: .85;">
+  <aside class="control-sidebar control-sidebar-light gov-control-sidebar">
     <!-- Control sidebar content goes here -->
-    <div class="p-3">
-      <!-- User type indicator -->
-      <div>
+    <div class="gov-control-sidebar-shell">
+      <div class="gov-control-sidebar-hero">
         {% if request.user.is_superuser %}
-        <h6 class="text-center bg-success">
-          <strong><i class="fa fa-crown"></i> Super User <i class="fa fa-crown"></i></strong>
-        </h6>
+          <span class="gov-sidebar-badge gov-sidebar-badge-success"><i class="fa fa-crown"></i> Super Admin</span>
         {% elif request.user.is_staff %}
-          <h6 class="text-center bg-warning">
-            <strong><i class="fa fa-user-tie"></i> Staff <i class="fa user-group-crown"></i></strong>
-          </h6>
+          <span class="gov-sidebar-badge gov-sidebar-badge-primary"><i class="fa fa-user-tie"></i> Staff / Office</span>
         {% else %}
-          <h6 class="text-center bg-gray">
-            <strong> Normal User</strong>
-          </h6>
-        {% endif %}
-
-
-        {% if request.user.is_authenticated %}
-          <h6>User Groups:</h6>
-          <ul>
-              {% for group in request.user.groups.all %}
-                  <li>{{ group.name }}</li>
-              {% empty %}
-                  <li>No groups assigned.</li>
-              {% endfor %}
-          </ul>
-        {% else %}
-            <p>Please log in.</p>
+          <span class="gov-sidebar-badge gov-sidebar-badge-muted"><i class="fa fa-id-card"></i> {{ request.user.get_full_name|default:request.user.username }}</span>
         {% endif %}
       </div>
 
-      <div class="float-right">
-        <ul>
-          {% if user.is_authenticated %}
-            {% if user.is_superuser %}
-              <li>
-                <a href="{% url 'create-announcement' %}" class="nav-link" title="Admin UI">
-                  <small> <i class="fa fa-plus"></i> New Announcement</small>
-                </a>
-              </li>
+      <div class="p-3">
+        <div class="gov-sidebar-user-card">
+          <div class="gov-sidebar-user-meta">
+            <p class="gov-sidebar-user-badge">
+              {% if request.user.is_superuser %}
+                <i class="fa fa-crown"></i> Administrator
+              {% elif request.user.is_staff %}
+                <i class="fa fa-user-tie"></i> Staff
+              {% else %}
+                <i class="fa fa-id-card"></i> Citizen User
+              {% endif %}
+            </p>
+            <h6 class="gov-sidebar-user-name">{{ request.user.get_full_name|default:request.user }}</h6>
+            <p class="gov-sidebar-muted">
+              <i class="fa fa-circle text-success fa-xs"></i>
+              Signed in
+            </p>
+          </div>
+        </div>
 
-              <li class="">
-                <a href="/admin" class="nav-link" title="Admin UI">
-                  Admin
-                </a>
-              </li>
-            {% endif %}
+        <div class="gov-sidebar-section">
+          <h6 class="gov-sidebar-section-title">Quick Actions</h6>
+          <ul class="gov-sidebar-list gov-no-bullets">
+            <li><a href="{% url 'profile' request.user %}" class="gov-sidebar-link"><i class="fa fa-user-circle gov-sidebar-icon"></i><span>My Profile</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+            <li><a href="/" class="gov-sidebar-link"><i class="fa fa-home gov-sidebar-icon"></i><span>Back to Home</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+            <li><a href="/dashboard" class="gov-sidebar-link"><i class="fa fa-tachometer-alt gov-sidebar-icon"></i><span>Dashboard</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+            <li><a href="#" class="gov-sidebar-link"><i class="fa fa-file-alt gov-sidebar-icon"></i><span>My Requests (coming soon)</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+          </ul>
+        </div>
 
-            <!-- logout button (no-confirm logout) -->
-              <li>
-                <a href="#" onclick="document.getElementById('logout-form').submit()" class="nav-link text-danger">
-                  <i class="fa fa-power-off" title="Logout"></i> Logout
-                </a>
-              </li>
-              <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
-                {% csrf_token %}
-              </form>
-            </li>
+        <div class="gov-sidebar-section">
+          <h6 class="gov-sidebar-section-title">Team Tools</h6>
+          <ul class="gov-sidebar-list gov-no-bullets">
+            {% if request.user.is_staff %}
+              <li><a href="/users" class="gov-sidebar-link"><i class="fa fa-users gov-sidebar-icon"></i><span>Manage Users</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+              <li><a href="/users?filter=active" class="gov-sidebar-link"><i class="fa fa-user-check gov-sidebar-icon"></i><span>Active Staff</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+              <li><a href="#" class="gov-sidebar-link"><i class="fa fa-calendar-check gov-sidebar-icon"></i><span>Duty Roster (coming soon)</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
             {% else %}
-            <li class="nav-item" style="list-style: None;">
-              <a href="/login" class="nav-link">
-                <i class="nav-icon fas fa-power-off"></i>
-                  Login
-              </a>
+              <li><a href="#" class="gov-sidebar-link"><i class="fa fa-question-circle gov-sidebar-icon"></i><span>My Appointments (coming soon)</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+              <li><a href="#" class="gov-sidebar-link"><i class="fa fa-university gov-sidebar-icon"></i><span>Office Queue (coming soon)</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+            {% endif %}
+          </ul>
+        </div>
+
+        {% if request.user.is_superuser %}
+          <div class="gov-sidebar-section">
+            <h6 class="gov-sidebar-section-title">Administration</h6>
+            <ul class="gov-sidebar-list gov-no-bullets">
+              <li><a href="{% url 'create-announcement' %}" class="gov-sidebar-link"><i class="fa fa-plus gov-sidebar-icon"></i><span>Create Announcement</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+              <li><a href="/admin" class="gov-sidebar-link"><i class="fa fa-tools gov-sidebar-icon"></i><span>Admin Console</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+              <li><a href="#" class="gov-sidebar-link"><i class="fa fa-cogs gov-sidebar-icon"></i><span>Site Settings (coming soon)</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+            </ul>
+          </div>
+        {% endif %}
+
+        {% if request.user.groups.all %}
+          <div class="gov-sidebar-section">
+            <h6 class="gov-sidebar-section-title">Current Access Groups</h6>
+            <ul class="gov-sidebar-list gov-no-bullets">
+              {% for group in request.user.groups.all %}
+                <li><span class="gov-sidebar-chip"><i class="fa fa-shield-alt gov-sidebar-icon"></i>{{ group.name }}</span></li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+
+        <ul class="gov-sidebar-list gov-no-bullets">
+          {% if user.is_authenticated %}
+            <li><a href="#" onclick="document.getElementById('logout-form').submit(); return false;" class="gov-sidebar-link gov-sidebar-link-danger"><i class="fa fa-power-off gov-sidebar-icon"></i><span>Sign Out</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+            <form id="logout-form" action="{% url 'logout' %}" method="post" class="gov-hidden-form">
+              {% csrf_token %}
+            </form>
+          {% else %}
+            <li><a href="/login" class="gov-sidebar-link"><i class="fa fa-sign-in-alt gov-sidebar-icon"></i><span>Sign In</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
           {% endif %}
         </ul>
       </div>
     </div>
   </aside>
   <!-- /.control-sidebar -->
-
