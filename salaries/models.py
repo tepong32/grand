@@ -3,6 +3,8 @@ from profiles.models import EmployeeProfile
 
 from decimal import Decimal
 
+from .services.payroll_service import PayrollCalculator
+
 class EmployeeSalaryDetails(models.Model):
     employee = models.OneToOneField(EmployeeProfile, on_delete=models.CASCADE, related_name="salary_details")
 
@@ -17,63 +19,36 @@ class EmployeeSalaryDetails(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def get_base_salary(self):
-        emp = self.employee
-        if emp.employment_type in [emp.REG, emp.CT] and emp.reg_or_ct_salary:
-            return emp.reg_or_ct_salary.amount
-        elif emp.employment_type == emp.JO and emp.jo_salary:
-            return emp.jo_salary.daily_rate * Decimal(self.working_days_this_month())
-        return Decimal('0.00')
+        return PayrollCalculator.resolve_base_salary(self.employee)
 
     def working_days_this_month(self):
-        # Temporary hardcoded fallback
-        return 22  # common LGU assumption; replace with actual computation later
+        return PayrollCalculator.working_days_this_month()
 
     def compute_sss(self):
-        salary = self.get_base_salary()
-        if salary < 3250:
-            return Decimal('135.00')
-        elif salary >= 24750:
-            return Decimal('1125.00')
-        else:
-            return round(salary * Decimal('0.045'), 2)
+        breakdown = PayrollCalculator.build_breakdown(self)
+        return breakdown.sss
 
     def compute_philhealth(self):
-        salary = self.get_base_salary()
-        base = max(min(salary, Decimal('100000')), Decimal('10000'))
-        return round(base * Decimal('0.025'), 2)
+        breakdown = PayrollCalculator.build_breakdown(self)
+        return breakdown.philhealth
 
     def compute_pagibig(self):
-        salary = self.get_base_salary()
-        contribution = salary * Decimal('0.02')
-        return min(Decimal('100.00'), round(contribution, 2))
+        breakdown = PayrollCalculator.build_breakdown(self)
+        return breakdown.pagibig
 
     def compute_tax(self):
-        salary = self.get_base_salary()
-        if salary <= 20833:
-            return Decimal('0.00')
-        elif salary <= 33332:
-            return round((salary - 20833) * Decimal('0.20'), 2)
-        elif salary <= 66666:
-            return round(2500 + (salary - 33333) * Decimal('0.25'), 2)
-        elif salary <= 166666:
-            return round(10833 + (salary - 66667) * Decimal('0.30'), 2)
-        else:
-            return round(40833 + (salary - 166667) * Decimal('0.32'), 2)
+        breakdown = PayrollCalculator.build_breakdown(self)
+        return breakdown.tax
 
     def compute_total_deductions(self):
-        return sum([
-            self.compute_sss(),
-            self.compute_philhealth(),
-            self.compute_pagibig(),
-            self.compute_tax(),
-            self.other_deductions
-        ])
+        breakdown = PayrollCalculator.build_breakdown(self)
+        return breakdown.total_deductions
 
     def compute_gross(self):
-        return self.get_base_salary() + self.rice_allowance + self.hazard_pay + self.other_allowances
+        return PayrollCalculator.build_breakdown(self).gross
 
     def compute_net_pay(self):
-        return self.compute_gross() - self.compute_total_deductions()
+        return PayrollCalculator.build_breakdown(self).net
 
     def __str__(self):
         return f"Salary Details for {self.employee.user.get_full_name()}"
