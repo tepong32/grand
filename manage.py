@@ -10,7 +10,7 @@ def main():
     """Run administrative tasks."""
     os.environ.setdefault(
         'DJANGO_SETTINGS_MODULE',
-        os.environ.get("DJANGO_SETTINGS_MODULE", "src.settings.prod"),
+        os.environ.get("DJANGO_SETTINGS_MODULE", "src.settings.dev"),
     )
 
     try:
