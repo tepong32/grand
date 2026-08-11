@@ -3,13 +3,18 @@ import os
 
 from django.conf import settings
 import django
+from asgiref.sync import sync_to_async
 
 from telegram import Update
-from telegram.ext import CallbackContext, CommandHandler, MessageHandler, Filters, Updater
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
-from assistance.models import AssistanceRequest
 from telegram_bot.services.bot_config import resolve_bot_token
-from telegram_bot.services.message_service import parse_assistance_link_payload, find_request_by_reference, link_chat_to_request
+from telegram_bot.services.message_service import (
+    find_request_by_reference,
+    link_chat_to_request,
+    parse_assistance_link_payload,
+    unlink_chat_requests,
+)
 
 
 def _configure_django():
@@ -18,8 +23,12 @@ def _configure_django():
         django.setup()
 
 
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = update.effective_message
+    if message is None:
+        return
+
+    await message.reply_text(
         "Hello! To link your assistance request, reply with:\n\n"
         "`your-refcode::editcode`\n\n"
         "Example:\n`MSWD-01-2025-0001::123456`\n\n"
@@ -28,45 +37,58 @@ def start(update: Update, context: CallbackContext) -> None:
     )
 
 
-def unlink(update: Update, context: CallbackContext) -> None:
-    chat_id = str(update.message.chat_id)
-    updated = AssistanceRequest.objects.filter(
-        telegram_chat_id=chat_id,
-        claimed_at__isnull=True
-    ).update(telegram_chat_id=None)
+async def unlink(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = update.effective_message
+    chat = update.effective_chat
+    if message is None or chat is None:
+        return
 
+    updated = await sync_to_async(unlink_chat_requests)(chat.id)
     if updated:
-        update.message.reply_text("Telegram account successfully unlinked.")
+        await message.reply_text("Telegram account successfully unlinked.")
     else:
-        update.message.reply_text("No active linked request found.")
+        await message.reply_text("No active linked request found.")
 
 
-def handle_message(update: Update, context: CallbackContext) -> None:
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = update.effective_message
+    chat = update.effective_chat
+    if message is None or chat is None:
+        return
+
     try:
-        text = (update.message.text or "").strip()
+        text = (message.text or "").strip()
         parsed = parse_assistance_link_payload(text)
         if not parsed:
-            update.message.reply_text(
+            await message.reply_text(
                 "Invalid format. Send `reference::editcode`.",
                 parse_mode="Markdown"
             )
             return
 
         ref_code, edit_code = parsed
-        request = find_request_by_reference(ref_code, edit_code)
-        if not request:
-            update.message.reply_text("Request not found or already claimed.")
+        request_obj = await sync_to_async(find_request_by_reference)(ref_code, edit_code)
+        if not request_obj:
+            await message.reply_text("Request not found or already claimed.")
             return
 
-        link_chat_to_request(request, chat_id=str(update.message.chat_id))
-        update.message.reply_text(
-            f"Linked successfully to *{request.full_name}*.\n\n"
+        await sync_to_async(link_chat_to_request)(request_obj, chat_id=chat.id)
+        await message.reply_text(
+            f"Linked successfully to *{request_obj.full_name}*.\n\n"
             "You will now receive status updates via Telegram.",
             parse_mode="Markdown"
         )
     except Exception as exc:
         logging.getLogger(__name__).error("[TG MESSAGE ERROR] %s", exc)
-        update.message.reply_text("Something went wrong. Please try again later.")
+        await message.reply_text("Something went wrong. Please try again later.")
+
+
+def build_application(token):
+    application = Application.builder().token(token).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("unlink", unlink))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    return application
 
 
 def main():
@@ -78,15 +100,9 @@ def main():
         return
 
     try:
-        updater = Updater(token=token, use_context=True)
-        dispatcher = updater.dispatcher
-        dispatcher.add_handler(CommandHandler("start", start))
-        dispatcher.add_handler(CommandHandler("unlink", unlink))
-        dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
-
-        updater.start_polling()
+        application = build_application(token)
         logging.getLogger(__name__).info("Telegram bot polling started.")
-        updater.idle()
+        application.run_polling()
     except Exception as exc:
         logging.getLogger(__name__).error("[TG BOT START ERROR] %s", exc)
 

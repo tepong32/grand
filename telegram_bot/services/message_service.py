@@ -33,3 +33,10 @@ def link_chat_to_request(request_obj, chat_id):
     request_obj.telegram_chat_id = str(chat_id)
     request_obj.save(update_fields=['telegram_chat_id'])
     return request_obj
+
+
+def unlink_chat_requests(chat_id):
+    return AssistanceRequest.objects.filter(
+        telegram_chat_id=str(chat_id),
+        claimed_at__isnull=True,
+    ).update(telegram_chat_id=None)
