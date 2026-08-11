@@ -1,0 +1,41 @@
+{
+  "project": "Grand",
+  "generated_from": "synthetic showcase data",
+  "screenshots": [
+    {
+      "order": 1,
+      "file": "grand-hr-dashboard.png",
+      "title": "Department-aware HR workspace",
+      "alt": "Grand HR dashboard with live team, plantilla, vacancy, and leave metrics",
+      "capability": "Role-aware dashboards combine department metrics, team context, announcements, and workflow links."
+    },
+    {
+      "order": 2,
+      "file": "grand-dynamic-department-dashboard.png",
+      "title": "Extensible department dashboards",
+      "alt": "Grand dashboard generated for the Municipal Planning and Development Office",
+      "capability": "A safe generic dashboard automatically supports departments added after deployment."
+    },
+    {
+      "order": 3,
+      "file": "grand-mswd-operations.png",
+      "title": "Municipal assistance operations",
+      "alt": "Grand MSWD staff request queue with filters and request status",
+      "capability": "Staff can filter, review, print, and advance assistance requests from one operational queue."
+    },
+    {
+      "order": 4,
+      "file": "grand-public-services.png",
+      "title": "Digital municipal service discovery",
+      "alt": "Grand public portal showing six municipal service entry points",
+      "capability": "Residents can discover assistance, tracking, announcements, offices, contacts, and employee services."
+    },
+    {
+      "order": 5,
+      "file": "grand-assistance-portal.png",
+      "title": "Account-free citizen assistance",
+      "alt": "Grand public assistance portal with new-request and secure tracking actions",
+      "capability": "Citizens can submit and securely track assistance requests without creating an account."
+    }
+  ]
+}

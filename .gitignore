@@ -187,3 +187,6 @@ Thumbs.db
 # passenger_wsgi.py
 # src/wsgi.py
 # .htaccess
+# Local browser-showcase runtime artifacts
+output/playwright/grand-portfolio/showcase.sqlite3
+output/playwright/grand-portfolio/server*.log

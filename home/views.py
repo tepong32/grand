@@ -29,6 +29,13 @@ class UnauthedHomeView(ListView):
     template_name = 'home/unauthed/home.html'
     context_object_name = 'announcements'
 
+    def get_queryset(self):
+        """Public pages must never receive internal or draft announcements."""
+        return Announcement.objects.filter(
+            announcement_type=Announcement.PUBLIC,
+            published=True,
+        ).order_by('-is_pinned', '-created_at')
+
     ### removed this line as i want even logged-in users to see the announcements on the home page, too
     ### with this block, they will be redirected to their respective department dashboards when trying to view the unauthed home page.
     # def dispatch(self, request, *args, **kwargs):
@@ -44,8 +51,7 @@ class UnauthedHomeView(ListView):
         context = super().get_context_data(**kwargs)
 
         # Fetch announcements
-        public = Announcement.objects.filter(announcement_type=Announcement.PUBLIC).order_by('-created_at')
-        internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL).order_by('-created_at')
+        public = self.get_queryset()
 
         # Split into latest (top 5) and remaining
         latest_public = public[:5]
@@ -56,17 +62,10 @@ class UnauthedHomeView(ListView):
         page_number = self.request.GET.get('page')
         page_obj = paginator.get_page(page_number)
 
-        # Admin use: published vs draft (if needed)
-        published = Announcement.objects.filter(published=True)
-        draft = Announcement.objects.filter(published=False)
-
         context.update({
             'public': public,
             'latest_public': latest_public,
             'remaining_public': page_obj,
-            'internal': internal,
-            'published': published,
-            'draft': draft,
         })
         context['departments'] = DepartmentContact.objects.all().order_by('name')
 
@@ -115,6 +114,12 @@ class AnnouncementList(ListView):
     ordering    =   ['-created_at']
     paginate_by = 9
 
+    def get_queryset(self):
+        queryset = Announcement.objects.filter(published=True)
+        if not self.request.user.is_authenticated:
+            queryset = queryset.filter(announcement_type=Announcement.PUBLIC)
+        return queryset.order_by('-is_pinned', '-created_at')
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['now'] = now()
@@ -141,6 +146,11 @@ class AnnouncementDetail(DetailView):
     def get_object(self, queryset=None):
         # Get the announcement by slug
         announcement = get_object_or_404(Announcement, slug=self.kwargs['slug'])
+        if (
+            announcement.announcement_type == Announcement.INTERNAL
+            and not self.request.user.is_authenticated
+        ):
+            raise Http404("This announcement is available to employees only.")
         # Optionally, check if the announcement is published
         if not announcement.published and not self.request.user.is_staff:
             # If the announcement is unpublished and the user is not staff, raise a 404
@@ -210,9 +220,11 @@ def announcement_search_view(request, *args, **kwargs):
 
 
 from django.template.loader import get_template, TemplateDoesNotExist
-from home.utils import get_department_dashboard_context
 from departments.services.query_service import get_department_for_user, get_dashboard_template
-from departments.services.dashboard_service import DEFAULT_DASHBOARD_TEMPLATE
+from departments.services.dashboard_service import (
+    DEFAULT_DASHBOARD_TEMPLATE,
+    get_department_home_context,
+)
 
 @login_required
 def department_dashboard_dynamic(request):
@@ -223,25 +235,17 @@ def department_dashboard_dynamic(request):
     If the department's dashboard template does not exist, it falls back to a generic template.
     Add per-department context data to the template (see home/utils.py).
     """
-    user = getattr(request.user, "employeeprofile", None)
-    if not user:
+    profile = getattr(request.user, "employeeprofile", None)
+    if not profile:
         return redirect('home')
 
     department = get_department_for_user(request.user)
     if not department:
-        return redirect('/dashboard/')  # Redirect to a default dashboard or home if no department is assigned
+        return redirect('home')
 
     template_path = get_dashboard_template(department, DEFAULT_DASHBOARD_TEMPLATE)
-    print("USING department_dashboard_dynamic view")
-    print(f"[DEBUG] Department slug: {department.slug}")
-
-
     try:
-        if template_path:
-            # Check if the template actually exists
-            get_template(template_path)
-        else:
-            raise TemplateDoesNotExist("No template path specified.")
+        get_template(template_path)
     except TemplateDoesNotExist:
         template_path = DEFAULT_DASHBOARD_TEMPLATE
 
@@ -252,13 +256,7 @@ def department_dashboard_dynamic(request):
 
         return mswd_dashboard_view(request)
 
-    context = {
-        "department": department,
-    }
-
-    # Merge department-specific dashboard context
-    context.update(get_department_dashboard_context(department, user))
-
+    context = get_department_home_context(department, request.user)
     return render(request, template_path, context)
 
 

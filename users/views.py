@@ -11,7 +11,11 @@ from .services.export_service import (
     export_all_employees as export_all_employees_response,
     export_department_users as export_department_users_response,
 )
-from .services.query_service import search_users_by_query, users_directory_context
+from .services.query_service import (
+    can_access_users_directory,
+    search_users_by_query,
+    users_directory_context,
+)
 
 import logging
 
@@ -31,7 +35,11 @@ def register(request):
     return render(request, "auth/register.html", {"form": form})
 
 
+@login_required
 def employeeRegister(request):
+    if not can_access_users_directory(request.user):
+        messages.error(request, "Access Denied.")
+        return redirect("home")
     if request.method == "POST":
         form = UserRegisterForm(request.POST)
         if form.is_valid():
@@ -44,7 +52,11 @@ def employeeRegister(request):
     return render(request, "auth/employee_register.html", {"form": form})
 
 
+@login_required
 def user_search_view(request):
+    if not can_access_users_directory(request.user):
+        messages.error(request, "Access Denied.")
+        return redirect("home")
     context = {}
     if request.method == "GET":
         search_query = request.GET.get("q", "")

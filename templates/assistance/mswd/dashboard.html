@@ -45,9 +45,9 @@
     {% for request in requests %}
       <div class="col-12">
         <div class="card card-outline card-secondary shadow-sm">
-          <div class="card-header d-flex justify-content-between align-items-start">
-            <div>
-              <h5 class="card-title mb-0">{{ request.full_name }}</h5>
+          <div class="card-header d-flex justify-content-between align-items-start gap-3">
+            <div class="min-w-0">
+              <h5 class="mb-1 fw-bold">{{ request.full_name }}</h5>
               <p class="text-muted mb-0 small">Ref: <code>{{ request.reference_code }}</code> • {{ request.submitted_at|date:"M d, Y H:i" }}</p>
             </div>
             <span class="badge 

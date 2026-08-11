@@ -1,28 +1,109 @@
 {% extends "base.html" %}
-{% load static %}
 
-{% block title_ext %} - Default {% endblock %}
+{% block title_ext %} - {{ department.name|default:"Department" }} Dashboard{% endblock %}
 
 {% block content %}
-<h1>universal dashboard for logged-in users</h1>
-<h2>Welcome, {{ user.get_full_name }}!</h2>
-<p> GENERIC DASHBOARD </p>
-<hr>
+<div class="container-fluid pb-4">
+  <div class="row align-items-xl-center mb-4">
+    <div class="col-xl-9">
+      <p class="text-uppercase text-muted small font-weight-bold mb-1">Department workspace</p>
+      <h1 class="mb-1">{{ department.name }}</h1>
+      <p class="text-muted mb-0">
+        {% if department.description %}{{ department.description }}{% else %}A shared view of your office team, workload, and priorities.{% endif %}
+      </p>
+    </div>
+    <div class="col-xl-3 mt-3 mt-xl-0 text-xl-right">
+      <div class="font-weight-bold">Welcome, {{ request.user.get_full_name|default:request.user.username }}</div>
+      {% if department.deptHead_or_oic %}
+        <small class="text-muted">Department head/OIC: {{ department.deptHead_or_oic.get_full_name|default:department.deptHead_or_oic.username }}</small>
+      {% endif %}
+    </div>
+  </div>
 
-<h2>THIS MEANS EITHER: </h2>
-<ul>
-	<li>THE TEMPLATE FOR YOUR DEPARTMENT HAS NOT BEEN CREATED YET</li>
-	<li>YOU ARE NOT A MEMBER OF ANY DEPARTMENT</li>
-	<h1>OR</h1>
-	<li>ADMIN FORGOT TO SET THE PROPER TEMPLATE PATH</li>
-</ul>
+  <div class="row">
+    {% for metric in dashboard_metrics %}
+      <div class="col-6 col-xl-3">
+        <div class="small-box bg-{{ metric.color }}">
+          <div class="inner">
+            <h3>{{ metric.value }}</h3>
+            <p>{{ metric.label }}</p>
+          </div>
+          <div class="icon"><i class="fas {{ metric.icon }}"></i></div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
 
+  <div class="row">
+    <div class="col-xl-8">
+      <div class="card card-outline card-primary">
+        <div class="card-header border-0">
+          <h3 class="card-title font-weight-bold">Office workspace</h3>
+          <span class="float-right text-muted small">Modules can be connected as each office workflow is built</span>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            {% for section in dashboard_sections %}
+              <div class="col-md-6 mb-3">
+                <div class="border rounded h-100 p-3">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <i class="fas {{ section.icon }} fa-2x text-primary mb-3"></i>
+                    <span class="badge {% if section.status == 'Available' %}badge-success{% else %}badge-light{% endif %}">{{ section.status }}</span>
+                  </div>
+                  <h5>{{ section.title }}</h5>
+                  <p class="text-muted">{{ section.description }}</p>
+                  {% if section.url %}<a href="{{ section.url }}" class="btn btn-sm btn-outline-primary">Open module</a>{% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
 
-<p>Debug: {{ user }} / Authenticated: {{ user.is_authenticated }}</p>
+    <div class="col-xl-4">
+      <div class="card card-outline card-info">
+        <div class="card-header"><h3 class="card-title font-weight-bold">Department team</h3></div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush">
+            {% for member in team_members %}
+              <li class="list-group-item">
+                <strong>{{ member.user.get_full_name|default:member.user.username }}</strong>
+                <div class="text-muted small">{{ member.position_title|default:"Position not yet recorded" }}</div>
+              </li>
+            {% empty %}
+              <li class="list-group-item text-muted">No employees have been assigned to this department yet.</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% if team_member_count > 6 %}<div class="card-footer text-muted small">Showing 6 of {{ team_member_count }} team members.</div>{% endif %}
+      </div>
 
+      <div class="card card-outline card-secondary">
+        <div class="card-header"><h3 class="card-title font-weight-bold">Internal announcements</h3></div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush">
+            {% for announcement in recent_announcements %}
+              <li class="list-group-item">
+                <a href="{{ announcement.get_absolute_url }}">{{ announcement.title }}</a>
+                <div class="text-muted small">{{ announcement.created_at|date:"M j, Y" }}</div>
+              </li>
+            {% empty %}
+              <li class="list-group-item text-muted">No internal announcements have been published.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
 
-	<!-- REAL CONTENT ############################################################################################################### -->
-
-
-
+  {% if department.email or department.phone %}
+    <div class="alert alert-light border mt-2 mb-0">
+      <strong>Office contact:</strong>
+      {% if department.email %}<a href="mailto:{{ department.email }}">{{ department.email }}</a>{% endif %}
+      {% if department.email and department.phone %}<span class="mx-2">&middot;</span>{% endif %}
+      {% if department.phone %}{{ department.phone }}{% endif %}
+    </div>
+  {% endif %}
+</div>
 {% endblock content %}

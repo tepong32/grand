@@ -14,7 +14,7 @@ def can_access_users_directory(user):
     if not user or not user.is_authenticated:
         return False
 
-    if user.is_staff or user.is_superuser:
+    if user.is_superuser:
         return True
 
     profile = getattr(user, 'employeeprofile', None)

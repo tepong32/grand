@@ -35,7 +35,7 @@
                 </div>
                 <ul class="list-group list-group-flush">
                     {% for announcement in announcements %}
-                        {% if announcement.published and announcement.is_pinned %}
+                        {% if announcement.is_pinned %}
                         <li class="list-group-item">
                             <a href="{% url 'announcement-detail' announcement.slug %}">
                                 <i class="fa fa-thumbtack text-danger"></i> {{ announcement.title|truncatechars:50 }}
@@ -65,72 +65,81 @@
         </div>
 	</div>
 
-    <!-- BUSINESS SERVICES SECTION -->
+    <!-- PUBLIC SERVICES SECTION -->
     <section id="business-section" class="business-section py-5 bg-light my-3 gov-home-section">
-        <div class="col-lg-9 mx-auto DebugGreen">
+        <div class="col-lg-9 mx-auto">
             <div class="container my-3">
-              <h2 class="text-center mb-4">Business Services</h2>
+              <div class="text-center mb-4">
+                <p class="text-uppercase text-primary small font-weight-bold mb-1">Digital municipal services</p>
+                <h2>How can we help?</h2>
+                <p class="text-muted">Start a request, follow its progress, or find the right office.</p>
+              </div>
               <div class="row">
                   <div class="col-md-4">
-                      <div class="card shadow-sm mb-3">
+                      <div class="card shadow-sm border-0 h-100 mb-3">
                           <div class="card-body">
-                              <h5 class="card-title">Start a Business</h5>
-                              <p class="card-text">Step-by-step guide and requirements for business registration in Bocaue.</p>
-                              <a href="#" class="btn btn-sm btn-primary">Learn More</a>
+                              <i class="fas fa-hands-helping fa-2x text-primary mb-3"></i>
+                              <h5 class="card-title">Request Assistance</h5>
+                              <p class="card-text">Submit an educational or social-assistance request through a guided public flow.</p>
+                              <a href="{% url 'assistance:assistance_landing' %}" class="btn btn-sm btn-primary">Open assistance portal</a>
                           </div>
                       </div>
                   </div>
 
                   <div class="col-md-4">
-                      <div class="card shadow-sm mb-3">
+                      <div class="card shadow-sm border-0 h-100 mb-3">
                           <div class="card-body">
-                              <h5 class="card-title">Start a Business</h5>
-                              <p class="card-text">Step-by-step guide and requirements for business registration in Bocaue.</p>
-                              <a href="#" class="btn btn-sm btn-primary">Learn More</a>
+                              <i class="fas fa-search-location fa-2x text-primary mb-3"></i>
+                              <h5 class="card-title">Track a Request</h5>
+                              <p class="card-text">Return securely using your reference and edit codes—no citizen account required.</p>
+                              <a href="{% url 'assistance:assistance_landing' %}" class="btn btn-sm btn-outline-primary">Track progress</a>
                           </div>
                       </div>
                   </div>
 
                   <div class="col-md-4">
-                      <div class="card shadow-sm mb-3">
+                      <div class="card shadow-sm border-0 h-100 mb-3">
                           <div class="card-body">
-                              <h5 class="card-title">Start a Business</h5>
-                              <p class="card-text">Step-by-step guide and requirements for business registration in Bocaue.</p>
-                              <a href="#" class="btn btn-sm btn-primary">Learn More</a>
+                              <i class="fas fa-bullhorn fa-2x text-primary mb-3"></i>
+                              <h5 class="card-title">Public Announcements</h5>
+                              <p class="card-text">Read advisories, service updates, schedules, and official public notices.</p>
+                              <a href="{% url 'announcements-list' %}" class="btn btn-sm btn-outline-primary">View announcements</a>
                           </div>
                       </div>
                   </div>
 
                   <div class="col-md-4">
-                      <div class="card shadow-sm mb-3">
+                      <div class="card shadow-sm border-0 h-100 mb-3">
                           <div class="card-body">
-                              <h5 class="card-title">Start a Business</h5>
-                              <p class="card-text">Step-by-step guide and requirements for business registration in Bocaue.</p>
-                              <a href="#" class="btn btn-sm btn-primary">Learn More</a>
+                              <i class="fas fa-sitemap fa-2x text-primary mb-3"></i>
+                              <h5 class="card-title">Organization Directory</h5>
+                              <p class="card-text">Understand the municipal organization and find responsible offices.</p>
+                              <a href="{% url 'orgchart' %}" class="btn btn-sm btn-outline-primary">Explore directory</a>
                           </div>
                       </div>
                   </div>
 
                   <div class="col-md-4">
-                      <div class="card shadow-sm mb-3">
+                      <div class="card shadow-sm border-0 h-100 mb-3">
                           <div class="card-body">
-                              <h5 class="card-title">Start a Business</h5>
-                              <p class="card-text">Step-by-step guide and requirements for business registration in Bocaue.</p>
-                              <a href="#" class="btn btn-sm btn-primary">Learn More</a>
+                              <i class="fas fa-address-book fa-2x text-primary mb-3"></i>
+                              <h5 class="card-title">Department Contacts</h5>
+                              <p class="card-text">Find contact details and communication channels for municipal offices.</p>
+                              <a href="#contact-us" class="btn btn-sm btn-outline-primary">Find an office</a>
                           </div>
                       </div>
                   </div>
 
                   <div class="col-md-4">
-                      <div class="card shadow-sm mb-3">
+                      <div class="card shadow-sm border-0 h-100 mb-3">
                           <div class="card-body">
-                              <h5 class="card-title">Start a Business</h5>
-                              <p class="card-text">Step-by-step guide and requirements for business registration in Bocaue.</p>
-                              <a href="#" class="btn btn-sm btn-primary">Learn More</a>
+                              <i class="fas fa-user-shield fa-2x text-primary mb-3"></i>
+                              <h5 class="card-title">Employee Portal</h5>
+                              <p class="card-text">Authorized employees can access department dashboards and internal workflows.</p>
+                              <a href="{% url 'login' %}" class="btn btn-sm btn-outline-primary">Employee sign in</a>
                           </div>
                       </div>
                   </div>
-                  <!-- Add more blocks for Permits, Renewals, etc. -->
               </div>
             </div>
         </div>      
