@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="mb-1">Leave policy and credits</h2>
+      <p class="text-muted mb-0">Policy changes and balance adjustments are recorded for audit.</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'leave_list' %}">Back to leave dashboard</a>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-6 mb-4">
+      <div class="card h-100">
+        <div class="card-header"><strong>Active policy</strong></div>
+        <div class="card-body">
+          {% if active_policy %}
+            <div class="alert alert-info">
+              {{ active_policy.name }} · effective {{ active_policy.effective_from }} ·
+              {{ active_policy.monthly_sick_accrual }} SL and {{ active_policy.monthly_vacation_accrual }} VL per month
+            </div>
+          {% endif %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="policy">
+            {{ policy_form|crispy }}
+            <button class="btn btn-primary" type="submit">Activate policy</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+      <div class="card h-100">
+        <div class="card-header"><strong>Audited credit adjustment</strong></div>
+        <div class="card-body">
+          <p class="text-muted">Amounts must follow the active policy increment. Use <code>-0.5</code> to subtract a half-day.</p>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="adjustment">
+            {{ adjustment_form|crispy }}
+            <button class="btn btn-warning" type="submit">Record adjustment</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><strong>Recent credit activity</strong></div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Change</th><th>Balance</th><th>Actor / reason</th></tr></thead>
+        <tbody>
+          {% for entry in recent_transactions %}
+          <tr>
+            <td>{{ entry.created_at }}</td>
+            <td>{{ entry.leave_credit.employee.user.get_full_name|default:entry.leave_credit.employee.user.username }}</td>
+            <td>{{ entry.get_leave_type_display }} · {{ entry.get_transaction_type_display }}</td>
+            <td>{{ entry.amount }}</td>
+            <td>{{ entry.balance_after }}</td>
+            <td>{{ entry.actor|default:'System' }}{% if entry.reason %}<br><small>{{ entry.reason }}</small>{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center text-muted py-4">No credit activity yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock content %}
