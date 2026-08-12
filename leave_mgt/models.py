@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models, transaction
+from django.db.models import Q
 from django.urls import reverse
 import logging
 
@@ -49,6 +52,61 @@ class VL_Accrual(AccrualModel):
         ]
 
 
+class LeavePolicy(models.Model):
+    """Editable policy values used by automated accrual and leave validation."""
+
+    name = models.CharField(max_length=100, default="Standard leave policy")
+    is_active = models.BooleanField(default=True)
+    effective_from = models.DateField()
+    monthly_sick_accrual = models.DecimalField(
+        max_digits=5, decimal_places=2, default=1.20, validators=[MinValueValidator(0)]
+    )
+    monthly_vacation_accrual = models.DecimalField(
+        max_digits=5, decimal_places=2, default=1.20, validators=[MinValueValidator(0)]
+    )
+    special_leave_annual_allocation = models.DecimalField(
+        max_digits=5, decimal_places=2, default=10, validators=[MinValueValidator(0)]
+    )
+    minimum_request_increment = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=0.50,
+        validators=[MinValueValidator(0.50)],
+        help_text="Smallest leave unit employees may request. Grand's UI supports 0.5 or 1 day.",
+    )
+    sick_carryover_cap = models.DecimalField(
+        max_digits=6, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)]
+    )
+    vacation_carryover_cap = models.DecimalField(
+        max_digits=6, decimal_places=2, default=20, validators=[MinValueValidator(0)]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='leave_policies_created',
+    )
+
+    class Meta:
+        ordering = ["-effective_from", "-pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["is_active"],
+                condition=Q(is_active=True),
+                name="one_active_leave_policy",
+            )
+        ]
+        permissions = [
+            ("manage_leave_credits", "Can manage leave policies and credit adjustments"),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({'active' if self.is_active else 'inactive'})"
+
+
 class LeaveCredit(models.Model):
     employee = models.OneToOneField(EmployeeProfile, on_delete=models.CASCADE)
 
@@ -65,7 +123,16 @@ class LeaveCredit(models.Model):
     credits_accrued_this_month = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.employee.user.get_full_name()}'s Leave Credits" 
+        display_name = self.employee.user.get_full_name() or self.employee.user.username
+        return f"{display_name}'s Leave Credits"
+
+    @property
+    def total_sl_credits(self):
+        return self.current_year_sl_credits + self.sl_credits_from_prev_yr
+
+    @property
+    def total_vl_credits(self):
+        return self.current_year_vl_credits + self.vl_credits_from_prev_yr
 
     @classmethod
     def reset_accrual_flags(cls):
@@ -83,17 +150,8 @@ class LeaveCredit(models.Model):
         """
         Carries over un-used Leave credits from the current year to credits_from_prev_yr.
         """
-        self.sl_credits_from_prev_yr += self.current_year_sl_credits
-        # Add unused current year VL with a max carry-over of 20.
-        self.vl_credits_from_prev_yr += min(self.current_year_vl_credits, 20)
-
-        # Reset current year credits after transferring
-        self.current_year_sl_credits = 0
-        self.current_year_vl_credits = 0
-        self.save()
-
-        # Log the carry-over event so users can check if there are missed carry-over events
-        LeaveCreditLog.objects.create(action_type='Yearly Carry Over', leave_credits=self)
+        from .services.credit_service import carry_over_leave_instance
+        return carry_over_leave_instance(self)
 
     @classmethod
     def carry_over_unused_credits(cls):
@@ -157,12 +215,19 @@ class LeaveRequest(models.Model):
         ('CANCELLED', 'Cancelled'),
     ]
 
+    DAY_PORTIONS = [
+        ('FULL', 'Full day'),
+        ('AM', 'Morning half-day'),
+        ('PM', 'Afternoon half-day'),
+    ]
+
     employee = models.ForeignKey(LeaveCredit, on_delete=models.CASCADE, related_name='leaves')
     leave_type = models.CharField(max_length=2, choices=LEAVE_TYPES)
     date_filed = models.DateField(auto_now_add=True)
     start_date = models.DateField(null=True, blank=False)
     end_date = models.DateField(null=True, blank=False)
-    number_of_days = models.IntegerField(null=True, blank=True) # prevent manual editing
+    day_portion = models.CharField(max_length=4, choices=DAY_PORTIONS, default='FULL')
+    number_of_days = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUS_OPTIONS, default='PENDING')
     notes = models.TextField(null=True, blank=True)
     form_photo = models.ImageField(null=True, blank=True, upload_to=leave_form_directory_path, verbose_name="Form Photo (w/ Signatures): ")
@@ -193,6 +258,9 @@ class LeaveRequest(models.Model):
             ):
                 raise ValidationError("A leave request already exists for this date range.")
 
+        if self.day_portion != 'FULL' and self.start_date != self.end_date:
+            raise ValidationError("Half-day leave must start and end on the same working day.")
+
     def save(self, *args, **kwargs):
         self.number_of_days = self.calculate_number_of_days()
 
@@ -202,6 +270,8 @@ class LeaveRequest(models.Model):
 
         if self.pk:
             old_instance = LeaveRequest.objects.get(pk=self.pk)
+            if old_instance.employee_id != self.employee_id:
+                raise ValidationError("A leave request cannot be reassigned to another employee.")
             old_status = old_instance.status
             old_leave_type = old_instance.leave_type
             old_number_of_days = old_instance.number_of_days
@@ -219,7 +289,7 @@ class LeaveRequest(models.Model):
 
     def calculate_number_of_days(self):
         from .services.request_service import calculate_request_days
-        return calculate_request_days(self.start_date, self.end_date)
+        return calculate_request_days(self.start_date, self.end_date, self.day_portion)
 
     def get_remaining_leave_credits(self):
         """
@@ -227,9 +297,10 @@ class LeaveRequest(models.Model):
         """
         if self.status == 'APPROVED':
             if self.leave_type == 'SL':
-                return self.employee.current_year_sl_credits - self.number_of_days
+                return self.employee.total_sl_credits
             elif self.leave_type == 'VL':
-                return self.employee.current_year_vl_credits - self.number_of_days
+                return self.employee.total_vl_credits
+            return self.employee.current_year_special_credits
         # Handle special leave credits if applicable
         else:
             pending_days = LeaveRequest.objects.filter(
@@ -238,12 +309,12 @@ class LeaveRequest(models.Model):
                 leave_type=self.leave_type
             ).aggregate(total=models.Sum('number_of_days'))['total'] or 0
             if self.leave_type == 'SL':
-                return f"{self.employee.current_year_sl_credits} - {pending_days} (pending)"
+                return f"{self.employee.total_sl_credits} - {pending_days} (pending)"
             elif self.leave_type == 'VL':
-                return f"{self.employee.current_year_vl_credits} - {pending_days} (pending)"
+                return f"{self.employee.total_vl_credits} - {pending_days} (pending)"
             # Handle special leave credits if applicable
             elif self.leave_type == 'SP':
-                return None
+                return f"{self.employee.current_year_special_credits} - {pending_days} (pending)"
 
 
 class LeaveCreditLog(models.Model):
@@ -253,6 +324,57 @@ class LeaveCreditLog(models.Model):
 
     def __str__(self):
         return f"{self.action_type} completed."
+
+
+class LeaveCreditTransaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('ACCRUAL', 'Automatic accrual'),
+        ('ADJUSTMENT', 'Manual adjustment'),
+        ('DEDUCTION', 'Approved leave deduction'),
+        ('REVERSAL', 'Reversal'),
+        ('CARRYOVER', 'Yearly carry-over'),
+    ]
+
+    leave_credit = models.ForeignKey(
+        LeaveCredit, on_delete=models.CASCADE, related_name='transactions'
+    )
+    leave_type = models.CharField(max_length=2, choices=LeaveRequest.LEAVE_TYPES)
+    transaction_type = models.CharField(max_length=12, choices=TRANSACTION_TYPES)
+    amount = models.DecimalField(max_digits=7, decimal_places=2)
+    current_delta = models.DecimalField(max_digits=7, decimal_places=2, default=0)
+    carried_delta = models.DecimalField(max_digits=7, decimal_places=2, default=0)
+    balance_after = models.DecimalField(max_digits=7, decimal_places=2)
+    period = models.DateField(null=True, blank=True, help_text="First day of an automatic accrual month.")
+    policy = models.ForeignKey(LeavePolicy, on_delete=models.SET_NULL, null=True, blank=True)
+    leave_request = models.ForeignKey(
+        LeaveRequest, on_delete=models.SET_NULL, null=True, blank=True, related_name='credit_transactions'
+    )
+    reversal_of = models.OneToOneField(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='reversal'
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['leave_credit', 'leave_type', 'transaction_type', 'period'],
+                condition=Q(transaction_type='ACCRUAL', period__isnull=False),
+                name='unique_monthly_leave_accrual',
+            ),
+            models.UniqueConstraint(
+                fields=['leave_credit', 'leave_type', 'transaction_type', 'period'],
+                condition=Q(transaction_type='CARRYOVER', period__isnull=False),
+                name='unique_yearly_leave_carryover',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.get_transaction_type_display()}: {self.amount:+} {self.leave_type}"
 
 
 # Backward-compatible alias retained for existing imports/tests.
