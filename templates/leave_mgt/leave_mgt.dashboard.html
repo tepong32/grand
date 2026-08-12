@@ -6,6 +6,9 @@
   <div class="container mt-2"> 
     <!-- File Leave Request Button -->
     <a href="{% url 'leave_create' %}" class="btn btn-info btn-sm float-right">File Leave Request</a>
+    {% if can_manage_leave_credits %}
+      <a href="{% url 'leave_manage' %}" class="btn btn-outline-primary btn-sm float-right mr-2">Manage Leave Policy</a>
+    {% endif %}
     <ul class="nav nav-tabs" id="myTab" role="tablist">
         <li class="nav-item">
             <a class="nav-link active" id="accrual-history-tab" data-toggle="tab" href="#accrual-history" role="tab" aria-controls="accrual-history" aria-selected="false">Accrual History</a>
@@ -34,18 +37,17 @@
                     <tr>
                         <th>Date</th>
                         <th>Type</th>
-                        <th>Before Credits</th>
-                        <th>After Credits</th>
+                        <th>Change</th>
+                        <th>Balance After</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for log in accrual_logs %}
                     <tr>
-                        <td>{{ log.action_date }}</td>
-                        <td>{{ log }}</td>
-                        <!-- WORK ON THIS NEXT -->
-                        <td>{{ log.before_credits }}</td>    
-                        <td>{{ log.after_credits }}</td>
+                        <td>{{ log.created_at }}</td>
+                        <td>{{ log.get_transaction_type_display }} ({{ log.get_leave_type_display }})</td>
+                        <td>{{ log.amount }}</td>
+                        <td>{{ log.balance_after }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -121,7 +123,10 @@
                     <tr>
                     <!-- <td>{{ request.employee.employee.user.get_full_name }}</td> -->
                     <td>{{ request.get_leave_type_display }}</td>
-                    <td class="text-sm">{{ request.start_date }} to {{ request.end_date }}</td>
+                    <td class="text-sm">
+                      {{ request.start_date }} to {{ request.end_date }}<br>
+                      <span class="text-muted">{{ request.number_of_days }} day{{ request.number_of_days|pluralize }}{% if request.day_portion != 'FULL' %}, {{ request.get_day_portion_display }}{% endif %}</span>
+                    </td>
 
                     <!-- Status Badge with color -->
                     <td>
@@ -169,13 +174,13 @@
                 <tbody>
                     <tr>
                     <td>Sick Leave</td>
-                    <td>{{ cy_sl }}</td>
+                    <td>{{ cy_sl }} <small class="text-muted">({{ leave_credits.sl_credits_from_prev_yr }} carried)</small></td>
                     <td>{{ sl_used }}</td>
                     <td>{{ sl_earned }}</td>
                     </tr>
                     <tr>
                     <td>Vacation Leave</td>
-                    <td>{{ cy_vl }}</td>
+                    <td>{{ cy_vl }} <small class="text-muted">({{ leave_credits.vl_credits_from_prev_yr }} carried)</small></td>
                     <td>{{ vl_used }}</td>
                     <td>{{ vl_earned }}</td>
                     </tr>
