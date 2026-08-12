@@ -5,6 +5,11 @@ from .base import *
 DEBUG = True
 ALLOWED_HOSTS = ['*']
 
+# Keep local development and the test runner usable from a clean checkout.
+# Production overrides this value in ``src.settings.prod`` and still requires
+# SKEY to be supplied by the deployment environment.
+SECRET_KEY = os.environ.get('SKEY', 'grand-unsafe-development-only-key')
+
 # SQLite for local dev
 DATABASES = {
     'default': {
