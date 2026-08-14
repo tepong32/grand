@@ -10,7 +10,7 @@ This file records agreed future work after the MSWD Programs and Activities phas
 - Remove fabricated links, campaign-specific content, and shared-template assumptions that every authenticated user is an employee.
 - Verify responsive layouts, keyboard navigation, readable contrast, real workflows, and portfolio screenshots.
 
-## Next — Citizen profiles, review, and service history
+## Completed — Citizen profiles, review, and service history
 
 - Continue using the existing `CitizenProfile` as the canonical citizen identity; do not create a parallel identity table.
 - Provide a permission-restricted review queue/table with search, sorting, pagination, review state, assigned reviewer, review notes, review timestamps, and audit history.
@@ -20,6 +20,8 @@ This file records agreed future work after the MSWD Programs and Activities phas
 - Restrict PII columns, exports, notes, and cross-department visibility through explicit permissions; test privacy boundaries and object-level access.
 - Design a reusable service-participation contract so future permits, appointments, programs, complaints, registrations, and other approved government services can contribute history without coupling citizen identity to Assistance.
 - Define consent, correction, retention, archival, and merge/unmerge behavior before exposing citizen-facing registration or cross-service analytics.
+
+The first delivery uses Assistance as the only service-history provider. The review workflow and stable operational profile remain intentionally separate from eligibility decisions, and future service integrations must use an approved adapter rather than creating another citizen identity table.
 
 ## Later platform phases
 
