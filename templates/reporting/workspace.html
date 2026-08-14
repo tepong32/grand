@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title_ext %} - Reporting workspace{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
+    <div>
+      <p class="text-uppercase text-muted small font-weight-bold mb-1">Controlled departmental outputs</p>
+      <h1 class="mb-1">Reports and official outputs</h1>
+      <p class="text-muted mb-0">Generate familiar reports from approved {{ department.name }} datasets, then review and approve them before external use.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      {% if can_schedule_reports %}<a href="{% url 'reporting:schedule_create' %}" class="btn btn-outline-primary"><i class="fas fa-clock mr-1"></i> New schedule</a>{% endif %}
+      {% if can_manage_definitions %}<a href="{% url 'reporting:definition_create' %}" class="btn btn-primary"><i class="fas fa-plus mr-1"></i> New report definition</a>{% endif %}
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-info"><i class="fas fa-file-alt"></i></span><div><span>Available reports</span><strong>{{ definitions|length }}</strong></div></div></div>
+    <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-warning"><i class="fas fa-user-check"></i></span><div><span>Awaiting review</span><strong>{{ awaiting_review_count }}</strong></div></div></div>
+    <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-danger"><i class="fas fa-exclamation-triangle"></i></span><div><span>Failed runs</span><strong>{{ failed_count }}</strong></div></div></div>
+    <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-secondary"><i class="fas fa-calendar-times"></i></span><div><span>Overdue schedules</span><strong>{{ overdue_count }}</strong></div></div></div>
+  </div>
+
+  <div class="row">
+    <div class="col-xl-8">
+      <section class="card card-outline card-primary">
+        <div class="card-header border-0"><h2 class="card-title font-weight-bold">Approved report definitions</h2></div>
+        <div class="card-body">
+          <div class="row">
+            {% for definition in definitions %}
+              <div class="col-md-6 mb-3">
+                <a href="{{ definition.get_absolute_url }}" class="card h-100 text-decoration-none text-dark shadow-sm gov-report-card">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start"><i class="fas fa-file-invoice fa-2x text-primary"></i><span class="badge badge-light">{{ definition.get_default_format_display }}</span></div>
+                    <h3 class="h5 mt-3">{{ definition.name }}</h3>
+                    <p class="text-muted small mb-3">{{ definition.description|default:"A controlled report backed by approved application data." }}</p>
+                    <span class="small font-weight-bold text-primary">Open report <i class="fas fa-arrow-right ml-1"></i></span>
+                  </div>
+                </a>
+              </div>
+            {% empty %}<div class="col-12"><div class="alert alert-light border">No active report definitions are configured for this department yet.</div></div>{% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <section class="card card-outline card-secondary">
+        <div class="card-header border-0"><h2 class="card-title font-weight-bold">Recent report runs</h2></div>
+        <div class="table-responsive"><table class="table table-hover mb-0">
+          <thead><tr><th>Report</th><th>Period</th><th>Format</th><th>Status</th><th>Created</th></tr></thead>
+          <tbody>{% for run in recent_runs %}<tr>
+            <td><a href="{{ run.get_absolute_url }}" class="font-weight-bold">{{ run.definition.name }}</a></td><td>{{ run.period_start|date:"M j, Y" }} - {{ run.period_end|date:"M j, Y" }}</td><td>{{ run.output_format|upper }}</td>
+            <td><span class="badge {% if run.status == 'approved' %}badge-success{% elif run.status == 'failed' %}badge-danger{% elif run.status == 'reviewed' %}badge-info{% else %}badge-secondary{% endif %}">{{ run.get_status_display }}</span></td><td>{{ run.created_at|date:"M j, Y g:i A" }}</td>
+          </tr>{% empty %}<tr><td colspan="5" class="text-muted text-center py-4">No reports generated yet.</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </section>
+    </div>
+    <div class="col-xl-4">
+      <section class="card card-outline card-info"><div class="card-header"><h2 class="card-title font-weight-bold">Recurring schedule</h2></div><div class="card-body p-0"><ul class="list-group list-group-flush">
+        {% for schedule in schedules %}<li class="list-group-item"><strong>{{ schedule.name }}</strong><div class="text-muted small">{{ schedule.get_frequency_display }} &middot; next run {{ schedule.next_run_at|date:"M j, Y g:i A" }}</div></li>{% empty %}<li class="list-group-item text-muted">No recurring runs scheduled.</li>{% endfor %}
+      </ul></div></section>
+      <section class="card card-outline card-success"><div class="card-header"><h2 class="card-title font-weight-bold">Recently approved</h2></div><div class="card-body p-0"><ul class="list-group list-group-flush">
+        {% for run in recent_approved %}<li class="list-group-item"><a href="{{ run.get_absolute_url }}" class="font-weight-bold">{{ run.definition.name }}</a><div class="text-muted small">{{ run.period_start|date:"M j" }} - {{ run.period_end|date:"M j, Y" }}</div></li>{% empty %}<li class="list-group-item text-muted">No official outputs approved yet.</li>{% endfor %}
+      </ul></div></section>
+      <div class="alert alert-light border"><i class="fas fa-shield-alt text-primary mr-2"></i><strong>Controlled by design.</strong><div class="small text-muted mt-1">Uploaded forms are references only. GRAND never runs SQL, macros, Python, or executable template content supplied by users.</div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

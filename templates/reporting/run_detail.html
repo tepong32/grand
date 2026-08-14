@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title_ext %} - Report run{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a href="{{ run.definition.get_absolute_url }}" class="small"><i class="fas fa-arrow-left mr-1"></i> {{ run.definition.name }}</a>
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 my-3"><div><p class="text-uppercase text-muted small font-weight-bold mb-1">Report run ledger</p><h1 class="mb-1">{{ run.definition.name }}</h1><p class="text-muted mb-0">{{ run.period_start|date:"F j, Y" }} to {{ run.period_end|date:"F j, Y" }}</p></div><span class="badge badge-pill {% if run.status == 'approved' %}badge-success{% elif run.status == 'failed' %}badge-danger{% elif run.status == 'reviewed' %}badge-info{% else %}badge-secondary{% endif %} p-2">{{ run.get_status_display }}</span></div>
+  {% if run.status == 'failed' %}<div class="alert alert-danger"><strong>Generation failed.</strong> {{ run.error_message }}</div>{% endif %}
+  <div class="row"><div class="col-xl-8">
+    <section class="card card-outline card-primary"><div class="card-header"><h2 class="card-title font-weight-bold">Archived output</h2></div><div class="card-body"><div class="row">
+      <div class="col-md-4"><small class="text-muted">Format</small><div class="h5">{{ run.output_format|upper }}</div></div><div class="col-md-4"><small class="text-muted">Rows</small><div class="h5">{{ run.row_count }}</div></div><div class="col-md-4"><small class="text-muted">Template</small><div class="h5">Version {{ run.template_version.version }}</div></div>
+    </div>{% if run.output_file and can_download %}<a href="{% url 'reporting:run_download' run.public_id %}" class="btn btn-primary mt-3"><i class="fas fa-download mr-1"></i> Download archived output</a>{% endif %}</div></section>
+    <section class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Audit history</h2></div><div class="card-body p-0"><ul class="list-group list-group-flush">{% for event in run.events.all %}<li class="list-group-item"><div class="d-flex justify-content-between"><strong>{{ event.action|title }}</strong><small class="text-muted">{{ event.created_at|date:"M j, Y g:i A" }}</small></div><div class="small">{{ event.actor.get_full_name|default:event.actor.username }} &middot; {{ event.from_status|default:"new" }} &rarr; {{ event.to_status }}</div>{% if event.note %}<div class="text-muted small mt-1">{{ event.note }}</div>{% endif %}</li>{% empty %}<li class="list-group-item text-muted">No audit events.</li>{% endfor %}</ul></div></section>
+  </div><div class="col-xl-4">
+    <section class="card card-outline card-success"><div class="card-header"><h2 class="card-title font-weight-bold">Official review</h2></div><div class="card-body">
+      {% if run.status == 'generated' and can_review %}<form action="{% url 'reporting:run_transition' run.public_id 'review' %}" method="post">{% csrf_token %}<textarea name="note" class="form-control mb-2" rows="2" placeholder="Optional review note"></textarea><button class="btn btn-info btn-block">Mark reviewed</button></form>
+      {% elif run.status == 'reviewed' and can_approve %}<form action="{% url 'reporting:run_transition' run.public_id 'approve' %}" method="post">{% csrf_token %}<textarea name="note" class="form-control mb-2" rows="2" placeholder="Approval note"></textarea><button class="btn btn-success btn-block">Approve as official</button></form>
+      {% elif run.status == 'approved' %}<div class="text-success"><i class="fas fa-check-circle mr-1"></i> Approved for official use</div>{% if run.approved_by %}<small class="text-muted">By {{ run.approved_by.get_full_name|default:run.approved_by.username }} on {{ run.approved_at|date:"M j, Y g:i A" }}</small>{% endif %}
+      {% else %}<p class="text-muted mb-0">This run is not awaiting an action available to your account.</p>{% endif %}
+    </div></section>
+    <section class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Integrity record</h2></div><div class="card-body"><small class="text-muted">SHA-256 checksum</small><code class="d-block text-break mt-1">{{ run.checksum|default:"Not available" }}</code><hr><small class="text-muted">Ledger key</small><code class="d-block text-break mt-1">{{ run.idempotency_key }}</code></div></section>
+  </div></div>
+</div>
+{% endblock %}

@@ -3,6 +3,7 @@ from assistance.access import (
     can_review_citizen_profiles,
     can_view_citizen_pii,
 )
+from reporting.access import can_view_reporting
 
 from .models import ServiceShortcut, SiteConfiguration
 
@@ -27,4 +28,5 @@ def site_ui(request):
         "can_access_citizen_reviews": can_access_citizen_reviews(request.user),
         "can_review_citizen_profiles": can_review_citizen_profiles(request.user),
         "can_view_citizen_pii": can_view_citizen_pii(request.user),
+        "can_access_reporting": can_view_reporting(request.user),
     }
