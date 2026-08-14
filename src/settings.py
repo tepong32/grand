@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'departments.apps.DepartmentsConfig',
     'assistance.apps.AssistanceConfig',
     'social_welfare.apps.SocialWelfareConfig',
+    'reporting.apps.ReportingConfig',
 
     ### defaults
     'django.contrib.sites', # "just-in-case". allauth needs this.
