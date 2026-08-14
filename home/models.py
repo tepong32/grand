@@ -7,9 +7,113 @@ from django_ckeditor_5.fields import CKEditor5Field
 from PIL import Image, ImageOps
 import re
 
+from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
+from urllib.parse import urlparse
+
 ### for debugging
 import logging
 logger = logging.getLogger(__name__)
+
+
+hex_color_validator = RegexValidator(
+	regex=r"^#[0-9A-Fa-f]{6}$",
+	message="Use a six-digit hexadecimal color such as #123B66.",
+)
+icon_class_validator = RegexValidator(
+	regex=r"^fa[srb]? fa-[a-z0-9-]+$",
+	message="Use a Font Awesome class such as 'fas fa-hands-helping'.",
+)
+
+
+class SiteConfiguration(models.Model):
+	"""Administration-neutral institutional identity used across GRAND."""
+
+	brand_name = models.CharField(max_length=60, default="GRAND")
+	institution_name = models.CharField(max_length=160, default="Municipality of Bocaue")
+	portal_label = models.CharField(max_length=160, default="Official Digital Services Portal")
+	tagline = models.CharField(
+		max_length=200,
+		default="Clear, accessible, and accountable local public service.",
+	)
+	hero_heading = models.CharField(max_length=180, default="How can we help you today?")
+	hero_text = models.CharField(
+		max_length=280,
+		default="Find municipal services, submit a request, or contact the right office.",
+	)
+	logo = models.ImageField(upload_to="site_identity/", blank=True, null=True)
+	hero_image = models.ImageField(upload_to="site_identity/", blank=True, null=True)
+	primary_color = models.CharField(max_length=7, default="#123B66", validators=[hex_color_validator])
+	accent_color = models.CharField(max_length=7, default="#D59B2D", validators=[hex_color_validator])
+	featured_media_url = models.URLField(
+		blank=True,
+		help_text="Optional official video or public-information embed URL. Leave blank to hide the media panel.",
+	)
+	featured_media_title = models.CharField(max_length=180, blank=True)
+	contact_email = models.EmailField(blank=True, default="")
+	footer_note = models.CharField(
+		max_length=180,
+		default="Institutional information remains available across changes in administration.",
+	)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		verbose_name = "Site identity and appearance"
+		verbose_name_plural = "Site identity and appearance"
+
+	def __str__(self):
+		return f"{self.brand_name} — {self.institution_name}"
+
+	def save(self, *args, **kwargs):
+		if not self.pk and SiteConfiguration.objects.exists():
+			self.pk = SiteConfiguration.objects.values_list("pk", flat=True).first()
+		super().save(*args, **kwargs)
+
+	@property
+	def logo_url(self):
+		return self.logo.url if self.logo else "/media/defaults/grand-mark.svg"
+
+	@property
+	def hero_image_url(self):
+		return self.hero_image.url if self.hero_image else "/media/defaults/bocaue-river.jpg"
+
+
+class ServiceShortcut(models.Model):
+	PUBLIC = "public"
+	EMPLOYEE = "employee"
+	AUDIENCE_CHOICES = ((PUBLIC, "Public"), (EMPLOYEE, "Employees"))
+
+	title = models.CharField(max_length=100)
+	description = models.CharField(max_length=240)
+	icon_class = models.CharField(
+		max_length=50,
+		default="fas fa-arrow-right",
+		validators=[icon_class_validator],
+		help_text="Font Awesome icon class, for example: fas fa-bullhorn",
+	)
+	link_url = models.CharField(
+		max_length=255,
+		help_text="A local path such as /assistance/ or an approved https:// address.",
+	)
+	link_label = models.CharField(max_length=60, default="Open service")
+	audience = models.CharField(max_length=12, choices=AUDIENCE_CHOICES, default=PUBLIC)
+	display_order = models.PositiveSmallIntegerField(default=0)
+	is_featured = models.BooleanField(default=False)
+	is_active = models.BooleanField(default=True)
+
+	class Meta:
+		ordering = ("display_order", "title")
+
+	def __str__(self):
+		return self.title
+
+	def clean(self):
+		value = (self.link_url or "").strip()
+		if value.startswith("/") and not value.startswith("//"):
+			return
+		parsed = urlparse(value)
+		if parsed.scheme != "https" or not parsed.netloc:
+			raise ValidationError({"link_url": "Use a local /path/ or a secure https:// URL."})
 
 
 class Announcement(models.Model):

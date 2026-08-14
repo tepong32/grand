@@ -1,259 +1,91 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="gov-page-section">
-	<div class="hero-section text-white text-center gov-home-hero gov-home-hero-photo">
-	<h1 class="display-4 font-weight-bold">Welcome to Bocaue's Official Portal</h1>
-	<p class="lead">Empowering Citizens Through Transparency & Service</p>
-	<a href="#business-section" class="btn btn-lg mt-3">Explore Services</a>
-	</div>
-	<div id="top" class="row">
-        <!-- Left side -->
-        <div class="col-lg-8 mx-auto">
-            <!-- MAYOR'S MESSAGE VIDEO -->
-            <div class="container my-3">
-            <div class="embed-responsive embed-responsive-16by9 shadow">
-                <iframe
-                class="embed-responsive-item"
-                src="https://www.youtube.com/embed/T-msx__xlXY"
-                title="Tambalang Jonjon Villanueva at Atty. Sherwin Tugna, muling mauupo sa Bocaue, Bulacan"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerpolicy="strict-origin-when-cross-origin"
-                allowfullscreen
-                ></iframe>
-            </div>
-            </div>
-
+<main class="gov-public-home">
+  <section class="gov-civic-hero" style="background-image: linear-gradient(120deg, rgba(8, 35, 66, .94), rgba(18, 59, 102, .76)), url('{{ site_configuration.hero_image_url }}');">
+    <div class="row align-items-center">
+      <div class="col-lg-8">
+        <span class="gov-eyebrow text-white-50">{{ site_configuration.portal_label }}</span>
+        <h1>{{ site_configuration.hero_heading }}</h1>
+        <p>{{ site_configuration.hero_text }}</p>
+        <div class="gov-hero-actions">
+          <a href="#services" class="btn btn-light btn-lg"><i class="fas fa-th-large mr-2"></i>Browse services</a>
+          <a href="{% url 'assistance:assistance_landing' %}" class="btn btn-outline-light btn-lg"><i class="fas fa-search mr-2"></i>Track a request</a>
         </div>
-
-        <!-- RIGHT SIDE -->
-        <div class="col-lg-4 mx-auto">
-            <!-- PINNED + LATEST ANNOUNCEMENTS -->
-            <div class="card border-warning my-3 shadow-sm">
-                <div class="card-header bg-warning text-dark">
-                    <strong><i class="fa fa-thumbtack"></i> Announcements</strong>
-                </div>
-                <ul class="list-group list-group-flush">
-                    {% for announcement in announcements %}
-                        {% if announcement.is_pinned %}
-                        <li class="list-group-item">
-                            <a href="{% url 'announcement-detail' announcement.slug %}">
-                                <i class="fa fa-thumbtack text-danger"></i> {{ announcement.title|truncatechars:50 }}
-                            </a>
-                        </li>
-                        {% endif %}
-                    {% endfor %}
-
-                    
-                    {% for announcement in latest_public  %}
-                      {% if not announcement.is_pinned %}
-                        <li class="list-group-item">
-                            <a href="{{ announcement.get_absolute_url }}">
-                                <i class="fa fa-bullhorn text-primary"></i> {{ announcement.title|truncatechars:50 }}
-                            </a>
-                        </li>
-                      {% endif %}
-                    {% endfor %}
-                </ul>
-            </div>
-
-            <div class="text-center my-4">
-                <a href="{% url 'announcements-list' %}" class="btn btn-outline-primary">
-                    View All Announcements
-                </a>
-            </div>
+      </div>
+      <div class="col-lg-4 mt-4 mt-lg-0">
+        <div class="gov-trust-panel">
+          <div><i class="fas fa-check-circle"></i><span><strong>Official</strong><small>Verified municipal information</small></span></div>
+          <div><i class="fas fa-universal-access"></i><span><strong>Accessible</strong><small>Plain-language service guidance</small></span></div>
+          <div><i class="fas fa-history"></i><span><strong>Traceable</strong><small>Request progress and records</small></span></div>
         </div>
-	</div>
-
-    <!-- PUBLIC SERVICES SECTION -->
-    <section id="business-section" class="business-section py-5 bg-light my-3 gov-home-section">
-        <div class="col-lg-9 mx-auto">
-            <div class="container my-3">
-              <div class="text-center mb-4">
-                <p class="text-uppercase text-primary small font-weight-bold mb-1">Digital municipal services</p>
-                <h2>How can we help?</h2>
-                <p class="text-muted">Start a request, follow its progress, or find the right office.</p>
-              </div>
-              <div class="row">
-                  <div class="col-md-4">
-                      <div class="card shadow-sm border-0 h-100 mb-3">
-                          <div class="card-body">
-                              <i class="fas fa-hands-helping fa-2x text-primary mb-3"></i>
-                              <h5 class="card-title">Request Assistance</h5>
-                              <p class="card-text">Submit an educational or social-assistance request through a guided public flow.</p>
-                              <a href="{% url 'assistance:assistance_landing' %}" class="btn btn-sm btn-primary">Open assistance portal</a>
-                          </div>
-                      </div>
-                  </div>
-
-                  <div class="col-md-4">
-                      <div class="card shadow-sm border-0 h-100 mb-3">
-                          <div class="card-body">
-                              <i class="fas fa-search-location fa-2x text-primary mb-3"></i>
-                              <h5 class="card-title">Track a Request</h5>
-                              <p class="card-text">Return securely using your reference and edit codes—no citizen account required.</p>
-                              <a href="{% url 'assistance:assistance_landing' %}" class="btn btn-sm btn-outline-primary">Track progress</a>
-                          </div>
-                      </div>
-                  </div>
-
-                  <div class="col-md-4">
-                      <div class="card shadow-sm border-0 h-100 mb-3">
-                          <div class="card-body">
-                              <i class="fas fa-bullhorn fa-2x text-primary mb-3"></i>
-                              <h5 class="card-title">Public Announcements</h5>
-                              <p class="card-text">Read advisories, service updates, schedules, and official public notices.</p>
-                              <a href="{% url 'announcements-list' %}" class="btn btn-sm btn-outline-primary">View announcements</a>
-                          </div>
-                      </div>
-                  </div>
-
-                  <div class="col-md-4">
-                      <div class="card shadow-sm border-0 h-100 mb-3">
-                          <div class="card-body">
-                              <i class="fas fa-sitemap fa-2x text-primary mb-3"></i>
-                              <h5 class="card-title">Organization Directory</h5>
-                              <p class="card-text">Understand the municipal organization and find responsible offices.</p>
-                              <a href="{% url 'orgchart' %}" class="btn btn-sm btn-outline-primary">Explore directory</a>
-                          </div>
-                      </div>
-                  </div>
-
-                  <div class="col-md-4">
-                      <div class="card shadow-sm border-0 h-100 mb-3">
-                          <div class="card-body">
-                              <i class="fas fa-address-book fa-2x text-primary mb-3"></i>
-                              <h5 class="card-title">Department Contacts</h5>
-                              <p class="card-text">Find contact details and communication channels for municipal offices.</p>
-                              <a href="#contact-us" class="btn btn-sm btn-outline-primary">Find an office</a>
-                          </div>
-                      </div>
-                  </div>
-
-                  <div class="col-md-4">
-                      <div class="card shadow-sm border-0 h-100 mb-3">
-                          <div class="card-body">
-                              <i class="fas fa-user-shield fa-2x text-primary mb-3"></i>
-                              <h5 class="card-title">Employee Portal</h5>
-                              <p class="card-text">Authorized employees can access department dashboards and internal workflows.</p>
-                              <a href="{% url 'login' %}" class="btn btn-sm btn-outline-primary">Employee sign in</a>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-            </div>
-        </div>      
-    </section>
-
-    <!-- CONTACT US SECTION -->
-    <section id="contact-us" class="py-5 bg-light my-3 gov-home-section">
-    <div class="container">
-        <h2 class="text-center mb-4">Contact Us</h2>
-            <div class="row align-items-stretch">
-                <!-- LEFT: Department Carousel -->
-                <div class="col-md-6 d-flex">
-                  <div class="card w-100 shadow-sm p-3">
-                    <div id="departmentCarousel" class="carousel slide w-100" data-ride="carousel">
-                      <div class="carousel-inner">
-                        {% for dept in departments %}
-                          <div class="carousel-item {% if forloop.first %}active{% endif %}" data-image="{{ dept.image.url }}">
-                            <div class="card h-100">
-                              <div class="position-relative p-2 h-100 d-flex flex-column justify-content-between">
-                                <div class="ribbon-wrapper">
-                                  <div class="ribbon bg-primary">
-                                    <img src="../../media/defaults/jjv.png" class="gov-brand-logo gov-brand-logo-md gov-home-logo">
-                                  </div>
-                                </div>
-                                <div class="card-header">
-                                  <h5>{{ dept.name }}</h5>
-                                </div>
-                                <div class="card-body flex-grow-1">
-                                    <div class="contact-links">
-                                        {% if dept.email %}
-                                          <p class="mb-1">
-                                            <i class="fas fa-envelope text-primary"></i>
-                                            <strong class="ml-1">Email:</strong>
-                                            <a href="mailto:{{ dept.email }}" class="text-decoration-none">{{ dept.email }}</a>
-                                          </p>
-                                        {% endif %}
-                                      
-                                        {% if dept.landline %}
-                                          <p class="mb-1">
-                                            <i class="fas fa-phone text-primary"></i>
-                                            <strong class="ml-1">Landline:</strong>
-                                            <a href="tel:{{ dept.landline|cut:' ' }}" class="text-decoration-none">{{ dept.landline }}</a>
-                                          </p>
-                                        {% endif %}
-                                      
-                                        {% if dept.mobile %}
-                                          <p class="mb-1">
-                                            <i class="fas fa-mobile-alt text-primary"></i>
-                                            <strong class="ml-1">Mobile:</strong>
-                                            <a href="tel:{{ dept.mobile|cut:' ' }}" class="text-decoration-none">{{ dept.mobile }}</a>
-                                          </p>
-                                        {% endif %}
-                                      </div>
-                                  
-                                </div>
-                                <div class="btn-secondary card-footer text-center text-primary">
-                                  <a href="https://m.me/{{ dept.messenger_chat_link }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
-                                    Or chat with us on <i class="fab fa-facebook-messenger text-primary"></i> Messenger
-                                  </a>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        {% endfor %}
-                      </div>
-                      <a class="carousel-control-prev" href="#departmentCarousel" role="button" data-slide="prev">
-                        <span class="carousel-control-prev-icon"></span>
-                      </a>
-                      <a class="carousel-control-next" href="#departmentCarousel" role="button" data-slide="next">
-                        <span class="carousel-control-next-icon"></span>
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              
-                <!-- RIGHT: Image Display -->
-                <div class="col-md-6 d-flex">
-                  <div class="card w-100 shadow-sm p-3 d-flex justify-content-center align-items-center">
-                    <div class="image-wrapper w-100">
-                      <img id="dept-image-display"
-                           src="{% if departments %}{{ departments.0.image.url }}{% endif %}"
-                           class="img-fluid"
-                           alt="Department Image">
-                    </div>
-                  </div>
-                </div>
-            </div>
+      </div>
     </div>
+  </section>
+
+  <section class="gov-section" aria-labelledby="latest-updates-title">
+    <div class="gov-section-heading">
+      <div><span class="gov-eyebrow">Public information</span><h2 id="latest-updates-title">Latest official updates</h2></div>
+      <a href="{% url 'announcements-list' %}" class="btn btn-outline-primary">See all announcements</a>
+    </div>
+    <div class="row">
+      {% for announcement in latest_public|slice:":3" %}
+        <div class="col-lg-4 mb-3">
+          <a href="{{ announcement.get_absolute_url }}" class="gov-update-card">
+            <span class="gov-update-icon"><i class="fas {% if announcement.is_pinned %}fa-thumbtack{% else %}fa-bullhorn{% endif %}"></i></span>
+            <span><small>{{ announcement.created_at|date:"M j, Y" }}</small><strong>{{ announcement.title }}</strong><span>Read official notice <i class="fas fa-arrow-right ml-1"></i></span></span>
+          </a>
+        </div>
+      {% empty %}
+        <div class="col-12"><div class="gov-empty-state"><i class="fas fa-bullhorn"></i><span>No public announcements have been posted yet.</span></div></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section id="services" class="gov-section gov-section-soft" aria-labelledby="services-title">
+    <div class="gov-section-heading">
+      <div><span class="gov-eyebrow">Start here</span><h2 id="services-title">Municipal services</h2><p>Choose what you need. Each service explains the next step in plain language.</p></div>
+    </div>
+    <div class="row">
+      {% for shortcut in public_service_shortcuts %}
+        <div class="col-lg-4 col-md-6 mb-4">
+          <a href="{{ shortcut.link_url }}" class="gov-service-card {% if shortcut.is_featured %}gov-service-card-featured{% endif %}">
+            <span class="gov-service-icon"><i class="{{ shortcut.icon_class }}"></i></span>
+            <span class="gov-service-copy"><strong>{{ shortcut.title }}</strong><span>{{ shortcut.description }}</span><b>{{ shortcut.link_label }} <i class="fas fa-arrow-right ml-1"></i></b></span>
+          </a>
+        </div>
+      {% empty %}
+        <div class="col-12"><div class="gov-empty-state">Service shortcuts can be configured by an authorized administrator.</div></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if site_configuration.featured_media_url %}
+    <section class="gov-section" aria-labelledby="featured-media-title">
+      <div class="gov-section-heading"><div><span class="gov-eyebrow">Official feature</span><h2 id="featured-media-title">{{ site_configuration.featured_media_title|default:"Public information feature" }}</h2></div></div>
+      <div class="embed-responsive embed-responsive-16by9 gov-media-frame"><iframe class="embed-responsive-item" src="{{ site_configuration.featured_media_url }}" title="{{ site_configuration.featured_media_title|default:'Official public information feature' }}" allowfullscreen></iframe></div>
     </section>
+  {% endif %}
 
-    <!-- SCRIPT TO HANDLE IMAGE CHANGE -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const carousel = document.getElementById('departmentCarousel');
-        const imageDisplay = document.getElementById('dept-image-display');
-
-        if (carousel && imageDisplay) {
-        $('#departmentCarousel').on('slid.bs.carousel', function () {
-            const activeItem = carousel.querySelector('.carousel-item.active');
-            const newImageUrl = activeItem.getAttribute('data-image');
-
-            if (newImageUrl && newImageUrl !== imageDisplay.src) {
-            imageDisplay.style.opacity = 0;
-
-            setTimeout(() => {
-                imageDisplay.src = newImageUrl;
-                imageDisplay.style.opacity = 1;
-            }, 250); // half of transition duration for fade
-            }
-        });
-        }
-    });
-    </script>
-
-
-</div>
+  <section id="contact-us" class="gov-section" aria-labelledby="office-directory-title">
+    <div class="gov-section-heading">
+      <div><span class="gov-eyebrow">Get the right help</span><h2 id="office-directory-title">Office contacts</h2><p>Contact the responsible office directly using its verified details.</p></div>
+      <a href="{% url 'orgchart' %}" class="btn btn-outline-primary">View organization</a>
+    </div>
+    <div class="row">
+      {% for dept in departments %}
+        <div class="col-lg-4 col-md-6 mb-4">
+          <article class="gov-office-card">
+            {% if dept.image %}<img src="{{ dept.image.url }}" alt="{{ dept.name }}" loading="lazy">{% endif %}
+            <div><h3>{{ dept.name }}</h3>
+              {% if dept.landline %}<p><i class="fas fa-phone"></i><a href="tel:{{ dept.landline|cut:' ' }}">{{ dept.landline }}</a></p>{% endif %}
+              {% if dept.mobile %}<p><i class="fas fa-mobile-alt"></i><a href="tel:{{ dept.mobile|cut:' ' }}">{{ dept.mobile }}</a></p>{% endif %}
+              {% if dept.email %}<p><i class="fas fa-envelope"></i><a href="mailto:{{ dept.email }}">{{ dept.email }}</a></p>{% endif %}
+            </div>
+          </article>
+        </div>
+      {% empty %}<div class="col-12"><div class="gov-empty-state">Office contacts are being prepared.</div></div>{% endfor %}
+    </div>
+  </section>
+</main>
 {% endblock content %}

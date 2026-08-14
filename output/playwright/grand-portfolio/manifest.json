@@ -40,12 +40,19 @@
     {
       "order": 6,
       "file": "grand-public-services.png",
-      "title": "Digital municipal service discovery",
-      "alt": "Grand public portal showing six municipal service entry points",
-      "capability": "Residents can discover assistance, tracking, announcements, offices, contacts, and employee services."
+      "title": "Configurable civic service portal",
+      "alt": "GRAND public portal with neutral civic identity, plain-language actions, and official service navigation",
+      "capability": "Authorized administrators can update institutional identity, colors, imagery, media, service labels, icons, links, and ordering without redesigning the portal."
     },
     {
       "order": 7,
+      "file": "grand-public-services-mobile.png",
+      "title": "Resident-friendly responsive access",
+      "alt": "GRAND public service portal adapted to a narrow mobile screen",
+      "capability": "Task-first service guidance and accessible trust cues remain clear on phones used by residents and field staff."
+    },
+    {
+      "order": 8,
       "file": "grand-assistance-portal.png",
       "title": "Account-free citizen assistance",
       "alt": "Grand public assistance portal with new-request and secure tracking actions",

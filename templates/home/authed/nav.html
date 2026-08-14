@@ -1,166 +1,64 @@
-<!-- Navbar -->
-<nav class="main-header navbar navbar-expand navbar-white navbar-light gov-primary-nav">
-    <!-- Left navbar links -->
-    <ul class="navbar-nav">
-      <!-- Home -->
-      <a href="/" class="nav-link" title="Home">
-          <img src="/media/defaults/jjv.png" alt="LMS Logo" class="gov-brand-logo gov-brand-logo-md">
+<nav class="main-header navbar navbar-expand navbar-white navbar-light gov-primary-nav gov-main-nav">
+  <a href="{% url 'department_dashboard' %}" class="navbar-brand gov-institution-brand" aria-label="My department workspace">
+    <img src="{{ site_configuration.logo_url }}" alt="{{ site_configuration.institution_name }} seal or logo" class="gov-brand-logo gov-brand-logo-md">
+    <span class="gov-brand-copy d-none d-md-flex">
+      <strong>{{ site_configuration.brand_name }}</strong>
+      <small>{{ employee_department.name|default:site_configuration.portal_label }}</small>
+    </span>
+  </a>
+  <ul class="navbar-nav ml-md-4">
+    <li class="nav-item"><a href="{% url 'department_dashboard' %}" class="nav-link"><i class="fas fa-columns mr-1"></i><span class="d-none d-md-inline"> Workspace</span></a></li>
+    <li class="nav-item"><a href="{% url 'announcements-list' %}" class="nav-link"><i class="fas fa-bullhorn mr-1"></i><span class="d-none d-md-inline"> Announcements</span></a></li>
+    {% if can_view_user_directory %}<li class="nav-item"><a href="/users/" class="nav-link"><i class="fas fa-users mr-1"></i><span class="d-none d-md-inline"> Employees</span></a></li>{% endif %}
+    {% if employee_department.slug == 'mswd' %}<li class="nav-item"><a href="{% url 'social_welfare:program_list' %}" class="nav-link"><i class="fas fa-people-carry mr-1"></i><span class="d-none d-lg-inline"> Programs</span></a></li>{% endif %}
+  </ul>
+  <ul class="navbar-nav ml-auto">
+    <li class="nav-item">
+      <a class="nav-link gov-account-button" data-widget="control-sidebar" data-slide="true" href="#" role="button" aria-label="Open account and navigation menu">
+        {% if request.user.employeeprofile %}<img src="{{ request.user.employeeprofile.profile_image.url }}" class="gov-user-avatar" alt="">{% else %}<i class="fas fa-user-circle fa-lg"></i>{% endif %}
+        <span class="d-none d-md-inline ml-2">{{ request.user.first_name|default:request.user.username }}</span>
+        <i class="fas fa-chevron-down small ml-1"></i>
       </a>
+    </li>
+  </ul>
+</nav>
 
-      <!-- Dashboard -->
-      <li class="nav-item d-none d-lg-block">
-        <a href="/dashboard" class="nav-link" title="Dashboard">
-          Dashboard
-        </a>
-      </li>
-
-      <!-- All Users List for HR use -->
-       {% if request.user.is_superuser or request.user.employeeprofile.assigned_department.slug == 'hr' %}
-        <li class="nav-item d-none d-lg-block">
-          <a href="/users" class="nav-link" title="All users">
-            All users
-          </a>
-        </li>
-        <li class="nav-item d-lg-none d-sm-inline-block">
-          <a href="/users" class="nav-link" title="All Users">
-            <i class="fa fa-users"></i>
-          </a>
-        </li>
-      {% endif %}
-
-      <!-- Profile -->
-      <li class="nav-item d-none d-lg-block">
-        <a href="{% url 'profile' request.user %}" class="nav-link">
-          Profile
-        </a>
-      </li>
-      <li class="nav-item d-lg-none d-sm-inline-block">
-        <a href="{% url 'profile' request.user %}" class="nav-link" title="Profile">
-          <i class="fa fa-user-alt" title="{{request.user}}"></i>
-        </a>
-      </li>
-
-    </ul>
-
-    <!-- SEARCH FORM -->
-    {% if request.user.is_superuser or request.user.employeeprofile.assigned_department.slug == 'hr' %}
-    <form class="form-inline d-lg-block d-none ml-3" action="{% url 'user-search' %}" method="get">
-      <div class="input-group input-group-sm">
-          <input class="form-control form-control-navbar" type="search" name="q" placeholder="Search" aria-label="User Search">
-          <div class="input-group-append">
-              <button class="btn btn-navbar" type="submit">
-                  <i class="fas fa-search"></i>
-              </button>
-          </div>
-      </div>
-    </form>
-    {% endif %}
-
-    <!-- Right navbar links -->
-    <ul class="navbar-nav ml-auto">
-      
-      <li class="nav-item">
-        <a class="nav-link gov-avatar-nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button">
-          <!-- <i class="fas fa-th-large"></i> -->
-          <img src="{{request.user.employeeprofile.profile_image.url}}" class="gov-user-avatar" alt="Profile picture">
-        </a>
-      </li>
-      
-    </ul>
-  </nav>
-  <!-- /.navbar -->
-
-  <!-- Control Sidebar -->
-  <aside class="control-sidebar control-sidebar-light gov-control-sidebar">
-    <!-- Control sidebar content goes here -->
-    <div class="gov-control-sidebar-shell">
-      <div class="gov-control-sidebar-hero">
-        {% if request.user.is_superuser %}
-          <span class="gov-sidebar-badge gov-sidebar-badge-success"><i class="fa fa-crown"></i> Super Admin</span>
-        {% elif request.user.employeeprofile %}
-          <span class="gov-sidebar-badge gov-sidebar-badge-primary"><i class="fa fa-user-tie"></i> Staff / Office</span>
-        {% else %}
-          <span class="gov-sidebar-badge gov-sidebar-badge-muted"><i class="fa fa-id-card"></i> {{ request.user.get_full_name|default:request.user.username }}</span>
-        {% endif %}
-      </div>
-
-      <div class="p-3">
-        <div class="gov-sidebar-user-card">
-          <div class="gov-sidebar-user-meta">
-            <p class="gov-sidebar-user-badge">
-              {% if request.user.is_superuser %}
-                <i class="fa fa-crown"></i> Administrator
-              {% elif request.user.employeeprofile %}
-                <i class="fa fa-user-tie"></i> Employee
-              {% else %}
-                <i class="fa fa-id-card"></i> Citizen User
-              {% endif %}
-            </p>
-            <h6 class="gov-sidebar-user-name">{{ request.user.get_full_name|default:request.user }}</h6>
-            <p class="gov-sidebar-muted">
-              <i class="fa fa-circle text-success fa-xs"></i>
-              Signed in
-            </p>
-          </div>
-        </div>
-
-        <div class="gov-sidebar-section">
-          <h6 class="gov-sidebar-section-title">Quick Actions</h6>
-          <ul class="gov-sidebar-list gov-no-bullets">
-            <li><a href="{% url 'profile' request.user %}" class="gov-sidebar-link"><i class="fa fa-user-circle gov-sidebar-icon"></i><span>My Profile</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-            <li><a href="/" class="gov-sidebar-link"><i class="fa fa-home gov-sidebar-icon"></i><span>Back to Home</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-            <li><a href="/dashboard" class="gov-sidebar-link"><i class="fa fa-tachometer-alt gov-sidebar-icon"></i><span>Dashboard</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-            <li><a href="#" class="gov-sidebar-link"><i class="fa fa-file-alt gov-sidebar-icon"></i><span>My Requests (coming soon)</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-          </ul>
-        </div>
-
-        <div class="gov-sidebar-section">
-          <h6 class="gov-sidebar-section-title">Team Tools</h6>
-          <ul class="gov-sidebar-list gov-no-bullets">
-            {% if request.user.is_superuser or request.user.employeeprofile.assigned_department.slug == 'hr' %}
-              <li><a href="/users" class="gov-sidebar-link"><i class="fa fa-users gov-sidebar-icon"></i><span>Manage Users</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-              <li><a href="/users?filter=active" class="gov-sidebar-link"><i class="fa fa-user-check gov-sidebar-icon"></i><span>Active Staff</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-              <li><a href="#" class="gov-sidebar-link"><i class="fa fa-calendar-check gov-sidebar-icon"></i><span>Duty Roster (coming soon)</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-            {% else %}
-              <li><a href="#" class="gov-sidebar-link"><i class="fa fa-question-circle gov-sidebar-icon"></i><span>My Appointments (coming soon)</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-              <li><a href="#" class="gov-sidebar-link"><i class="fa fa-university gov-sidebar-icon"></i><span>Office Queue (coming soon)</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-            {% endif %}
-          </ul>
-        </div>
-
-        {% if request.user.is_superuser %}
-          <div class="gov-sidebar-section">
-            <h6 class="gov-sidebar-section-title">Administration</h6>
-            <ul class="gov-sidebar-list gov-no-bullets">
-              <li><a href="{% url 'create-announcement' %}" class="gov-sidebar-link"><i class="fa fa-plus gov-sidebar-icon"></i><span>Create Announcement</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-              <li><a href="/admin" class="gov-sidebar-link"><i class="fa fa-tools gov-sidebar-icon"></i><span>Admin Console</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-              <li><a href="#" class="gov-sidebar-link"><i class="fa fa-cogs gov-sidebar-icon"></i><span>Site Settings (coming soon)</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-            </ul>
-          </div>
-        {% endif %}
-
-        {% if request.user.groups.all %}
-          <div class="gov-sidebar-section">
-            <h6 class="gov-sidebar-section-title">Current Access Groups</h6>
-            <ul class="gov-sidebar-list gov-no-bullets">
-              {% for group in request.user.groups.all %}
-                <li><span class="gov-sidebar-chip"><i class="fa fa-shield-alt gov-sidebar-icon"></i>{{ group.name }}</span></li>
-              {% endfor %}
-            </ul>
-          </div>
-        {% endif %}
-
+<aside class="control-sidebar control-sidebar-light gov-control-sidebar">
+  <div class="gov-control-sidebar-shell">
+    <div class="gov-control-sidebar-hero">
+      <p class="text-uppercase small mb-1">Signed in as</p>
+      <h5 class="mb-1">{{ request.user.get_full_name|default:request.user.username }}</h5>
+      <span class="small">{{ employee_department.name|default:"Authorized portal user" }}</span>
+    </div>
+    <div class="p-3">
+      <div class="gov-sidebar-section">
+        <h6 class="gov-sidebar-section-title">Your work</h6>
         <ul class="gov-sidebar-list gov-no-bullets">
-          {% if user.is_authenticated %}
-            <li><a href="#" onclick="document.getElementById('logout-form').submit(); return false;" class="gov-sidebar-link gov-sidebar-link-danger"><i class="fa fa-power-off gov-sidebar-icon"></i><span>Sign Out</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
-            <form id="logout-form" action="{% url 'logout' %}" method="post" class="gov-hidden-form">
-              {% csrf_token %}
-            </form>
-          {% else %}
-            <li><a href="/login" class="gov-sidebar-link"><i class="fa fa-sign-in-alt gov-sidebar-icon"></i><span>Sign In</span><i class="fa fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+          <li><a href="{% url 'department_dashboard' %}" class="gov-sidebar-link"><i class="fas fa-columns gov-sidebar-icon"></i><span>Department workspace</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+          <li><a href="{% url 'profile' request.user %}" class="gov-sidebar-link"><i class="fas fa-id-card gov-sidebar-icon"></i><span>Profile and account</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+          <li><a href="{% url 'announcements-list' %}" class="gov-sidebar-link"><i class="fas fa-bullhorn gov-sidebar-icon"></i><span>Official announcements</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+          {% if employee_department.slug == 'mswd' %}
+            <li><a href="{% url 'assistance:mswd_dashboard' %}" class="gov-sidebar-link"><i class="fas fa-hands-helping gov-sidebar-icon"></i><span>Assistance processing</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+            <li><a href="{% url 'social_welfare:program_list' %}" class="gov-sidebar-link"><i class="fas fa-people-carry gov-sidebar-icon"></i><span>Programs and activities</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
           {% endif %}
+          {% if can_view_user_directory %}<li><a href="/users/" class="gov-sidebar-link"><i class="fas fa-users gov-sidebar-icon"></i><span>Employee directory</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>{% endif %}
         </ul>
       </div>
+      {% if request.user.is_superuser %}
+        <div class="gov-sidebar-section">
+          <h6 class="gov-sidebar-section-title">Administration</h6>
+          <ul class="gov-sidebar-list gov-no-bullets">
+            <li><a href="{% url 'create-announcement' %}" class="gov-sidebar-link"><i class="fas fa-plus gov-sidebar-icon"></i><span>Publish announcement</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+            <li><a href="/admin/home/siteconfiguration/" class="gov-sidebar-link"><i class="fas fa-palette gov-sidebar-icon"></i><span>Identity and appearance</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+            <li><a href="/admin/home/serviceshortcut/" class="gov-sidebar-link"><i class="fas fa-th-large gov-sidebar-icon"></i><span>Service shortcuts</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+            <li><a href="/admin/" class="gov-sidebar-link"><i class="fas fa-tools gov-sidebar-icon"></i><span>Administration console</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+          </ul>
+        </div>
+      {% endif %}
+      <form action="{% url 'logout' %}" method="post" class="mt-3">
+        {% csrf_token %}
+        <button class="btn btn-outline-danger btn-block" type="submit"><i class="fas fa-sign-out-alt mr-1"></i> Sign out</button>
+      </form>
     </div>
-  </aside>
-  <!-- /.control-sidebar -->
+  </div>
+</aside>

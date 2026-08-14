@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title description">
+  <title id="title">GRAND civic services mark</title>
+  <desc id="description">A neutral civic building and pathway in a rounded shield.</desc>
+  <defs>
+    <linearGradient id="shield" x1="12" y1="10" x2="82" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1c568d"/>
+      <stop offset="1" stop-color="#123b66"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#shield)" d="M48 4 86 18v27c0 23-14.7 39.5-38 47C24.7 84.5 10 68 10 45V18L48 4Z"/>
+  <path fill="#fff" d="m48 21 25 13v6H23v-6l25-13Zm-19 24h8v20h-8V45Zm15 0h8v20h-8V45Zm15 0h8v20h-8V45ZM22 69h52v7H22v-7Z"/>
+  <path fill="#d59b2d" d="M44 76h8v10h-8z"/>
+</svg>

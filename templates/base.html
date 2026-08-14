@@ -10,9 +10,9 @@ scratch. This page gets rid of all links and provides the needed markup only.
   <meta http-equiv="x-ua-compatible" content="ie=edge">
 
   
-  <title>Bᴏᴄᴀᴜᴇ Oɴʟɪɴᴇ {% block title_ext %}{% endblock %}</title>
+  <title>{{ site_configuration.brand_name }} &middot; {{ site_configuration.institution_name }}{% block title_ext %}{% endblock %}</title>
   <!-- Favicon -->
-  <link rel="icon" sizes="192x192" href="/media/defaults/jjv.png">
+  <link rel="icon" sizes="192x192" href="{{ site_configuration.logo_url }}">
 
 
   <!-- Font Awesome Icons -->
@@ -32,7 +32,7 @@ scratch. This page gets rid of all links and provides the needed markup only.
 
 
 </head>
-<body class="hold-transition sidebar-collapse">
+<body class="hold-transition sidebar-collapse" style="--gov-primary: {{ site_configuration.primary_color }}; --gov-accent: {{ site_configuration.accent_color }};">
 <div class="wrapper">
   <!-- NavBar -->
   {% include '_css.html' %}

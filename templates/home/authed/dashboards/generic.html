@@ -23,12 +23,9 @@
   <div class="row">
     {% for metric in dashboard_metrics %}
       <div class="col-6 col-xl-3">
-        <div class="small-box bg-{{ metric.color }}">
-          <div class="inner">
-            <h3>{{ metric.value }}</h3>
-            <p>{{ metric.label }}</p>
-          </div>
-          <div class="icon"><i class="fas {{ metric.icon }}"></i></div>
+        <div class="gov-metric-card">
+          <span class="gov-metric-icon gov-metric-{{ metric.color }}"><i class="fas {{ metric.icon }}"></i></span>
+          <div><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong></div>
         </div>
       </div>
     {% endfor %}
