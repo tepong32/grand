@@ -176,7 +176,7 @@ def _department_employees(department: Department) -> QuerySet[EmployeeProfile]:
     )
 
 
-def _workspace_sections(department: Department) -> list[dict]:
+def _workspace_sections(department: Department, user=None) -> list[dict]:
     slug = (department.slug or "").strip().lower()
     sections = DEPARTMENT_WORKSPACE_PRESETS.get(slug, DEFAULT_WORKSPACE_SECTIONS)
     result = deepcopy(list(sections))
@@ -212,6 +212,27 @@ def _workspace_sections(department: Department) -> list[dict]:
             },
         )
         result[2]["summary_items"] = result[1]["summary_items"]
+        from reporting.access import can_view_reporting
+
+        reporting_section = result[5]
+        if can_view_reporting(user, department):
+            from reporting.models import ReportRun, ReportSchedule
+
+            now = timezone.now()
+            reporting_section.update(
+                {
+                    "status": "Available",
+                    "url_name": "reporting:workspace",
+                    "action_label": "Open Reporting Workspace",
+                    "summary_items": (
+                        {"label": "Upcoming", "value": ReportSchedule.objects.filter(definition__department=department, is_active=True, next_run_at__gte=now).count()},
+                        {"label": "Overdue", "value": ReportSchedule.objects.filter(definition__department=department, is_active=True, next_run_at__lt=now).count()},
+                        {"label": "Failed", "value": ReportRun.objects.filter(definition__department=department, status=ReportRun.FAILED).count()},
+                    ),
+                }
+            )
+        elif reporting_section["status"] != "Planned":
+            reporting_section["status"] = "Restricted"
     return result
 
 
@@ -260,7 +281,7 @@ def get_department_dashboard_context(department: Department, user) -> dict:
     employees = _department_employees(department)
     context = {
         "dashboard_metrics": _metric_cards(department, employees),
-        "dashboard_sections": _workspace_sections(department),
+        "dashboard_sections": _workspace_sections(department, user),
         "team_members": employees[:6],
         "team_member_count": employees.count(),
         "is_department_head": department.deptHead_or_oic_id == getattr(user, "pk", None),
