@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+from assistance.models import AssistanceRequest, AssistanceType
 from .models import Department
 from .services import DEFAULT_DASHBOARD_TEMPLATE, get_department_home_context
 from .services.query_service import get_department_by_slug, get_department_for_user
@@ -70,6 +71,12 @@ class DynamicDepartmentDashboardTests(TestCase):
                 description="Development planning, projects, and local data.",
                 dashboard_template="",
             ),
+            "mswd": Department.objects.create(
+                name="Municipal Social Welfare and Development Office",
+                slug="mswd",
+                description="Social protection, citizen assistance, and community programs.",
+                dashboard_template="home/authed/dashboards/mswd.html",
+            ),
         }
 
         user_model = get_user_model()
@@ -86,6 +93,22 @@ class DynamicDepartmentDashboardTests(TestCase):
             user.employeeprofile.position_title = "Administrative Officer"
             user.employeeprofile.save()
             cls.users[slug] = user
+
+        assistance_type = AssistanceType.objects.create(
+            name="Educational Assistance",
+            slug="educational-assistance",
+            description="Student support",
+            requirements="Required records",
+        )
+        for index, status in enumerate(("submitted", "pending", "review", "approved"), start=1):
+            AssistanceRequest.objects.create(
+                reference_code=f"MSWD-DASH-{index}",
+                assistance_type=assistance_type,
+                full_name=f"Citizen {index}",
+                email=f"citizen{index}@example.com",
+                phone=f"0917000000{index}",
+                status=status,
+            )
 
     def _dashboard_for(self, department_key):
         self.client.force_login(self.users[department_key])
@@ -117,6 +140,47 @@ class DynamicDepartmentDashboardTests(TestCase):
         self.assertTemplateUsed(response, "home/authed/dashboards/acctg.html")
         self.assertContains(response, "Disbursement queue")
         self.assertContains(response, "Compliance and audit")
+
+    def test_mswd_employee_gets_department_workspace_with_assistance_module(self):
+        response = self._dashboard_for("mswd")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "home/authed/dashboards/mswd.html")
+        self.assertTemplateUsed(response, "home/authed/dashboards/generic.html")
+        self.assertFalse(
+            any(template.name == "assistance/mswd/dashboard.html" for template in response.templates)
+        )
+        self.assertContains(response, "Municipal Social Welfare and Development Office")
+        self.assertContains(response, "Assistance Requests")
+        self.assertContains(response, "Open Assistance Processing")
+        self.assertContains(response, reverse("assistance:mswd_dashboard"))
+        self.assertContains(response, "Social Welfare Programs")
+        self.assertContains(response, "Activities and Events")
+        self.assertContains(response, "Beneficiaries and Citizens")
+        self.assertNotContains(response, "Citizen 1")
+
+        assistance_section = response.context["dashboard_sections"][0]
+        summary = {item["label"]: item["value"] for item in assistance_section["summary_items"]}
+        self.assertEqual(summary, {"Active": 4, "Awaiting action": 2, "Under review": 1})
+
+    def test_mswd_missing_custom_template_uses_generic_workspace_not_assistance_queue(self):
+        department = self.departments["mswd"]
+        department.dashboard_template = "home/authed/dashboards/not-created.html"
+        department.save(update_fields=["dashboard_template"])
+
+        response = self._dashboard_for("mswd")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "home/authed/dashboards/generic.html")
+        self.assertContains(response, "Assistance Requests")
+        self.assertNotContains(response, "Citizen 1")
+
+    def test_non_mswd_employee_cannot_open_assistance_processing(self):
+        self.client.force_login(self.users["hr"])
+
+        response = self.client.get(reverse("assistance:mswd_dashboard"))
+
+        self.assertRedirects(response, reverse("home"))
 
     def test_successful_employee_login_redirects_to_assigned_department_dashboard(self):
         response = self.client.post(
