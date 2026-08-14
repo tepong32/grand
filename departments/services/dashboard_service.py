@@ -50,13 +50,17 @@ DEPARTMENT_WORKSPACE_PRESETS = {
             "icon": "fa-people-carry",
             "title": "Social Welfare Programs",
             "description": "Coordinate feeding, outreach, orientation, distribution, and intervention programs.",
-            "status": "Planned",
+            "status": "Available",
+            "url_name": "social_welfare:program_list",
+            "action_label": "Open Programs Workspace",
         },
         {
             "icon": "fa-calendar-day",
             "title": "Activities and Events",
             "description": "Schedule seminars, community activities, program sessions, and field operations.",
-            "status": "Planned",
+            "status": "Available",
+            "url_name": "social_welfare:program_list",
+            "action_label": "View Activity Schedule",
         },
         {
             "icon": "fa-user-friends",
@@ -178,6 +182,8 @@ def _workspace_sections(department: Department) -> list[dict]:
     result = deepcopy(list(sections))
     if slug == "mswd":
         from assistance.models import AssistanceRequest
+        from django.utils import timezone
+        from social_welfare.models import ProgramActivity, SocialWelfareProgram
 
         active_requests = AssistanceRequest.objects.filter(is_active=True)
         result[0]["summary_items"] = (
@@ -188,6 +194,24 @@ def _workspace_sections(department: Department) -> list[dict]:
             },
             {"label": "Under review", "value": active_requests.filter(status="review").count()},
         )
+        mswd_programs = SocialWelfareProgram.objects.filter(department=department)
+        upcoming_activities = ProgramActivity.objects.filter(
+            program__department=department,
+            starts_at__gte=timezone.now(),
+            status=ProgramActivity.STATUS_PLANNED,
+        )
+        result[1]["summary_items"] = (
+            {"label": "Active programs", "value": mswd_programs.filter(status="active").count()},
+            {"label": "Upcoming", "value": upcoming_activities.count()},
+            {
+                "label": "Completed activities",
+                "value": ProgramActivity.objects.filter(
+                    program__department=department,
+                    status=ProgramActivity.STATUS_COMPLETED,
+                ).count(),
+            },
+        )
+        result[2]["summary_items"] = result[1]["summary_items"]
     return result
 
 
@@ -241,6 +265,16 @@ def get_department_dashboard_context(department: Department, user) -> dict:
         "team_member_count": employees.count(),
         "is_department_head": department.deptHead_or_oic_id == getattr(user, "pk", None),
     }
+
+    if (department.slug or "").strip().lower() == "mswd":
+        from django.utils import timezone
+        from social_welfare.models import ProgramActivity
+
+        context["upcoming_social_welfare_activities"] = ProgramActivity.objects.filter(
+            program__department=department,
+            starts_at__gte=timezone.now(),
+            status=ProgramActivity.STATUS_PLANNED,
+        ).select_related("program").order_by("starts_at")[:5]
 
     if (department.slug or "").strip().lower() == "hr":
         context.update(

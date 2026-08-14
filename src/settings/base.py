@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'salaries.apps.SalariesConfig',
     'departments.apps.DepartmentsConfig',
     'assistance.apps.AssistanceConfig',
+    'social_welfare.apps.SocialWelfareConfig',
 
     ### defaults
     'django.contrib.sites',  # allauth needs this

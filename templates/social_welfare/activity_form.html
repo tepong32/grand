@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title_ext %} - {{ mode }} Activity{% endblock %}
+
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="row justify-content-center">
+    <div class="col-xl-8">
+      <a href="{{ program.get_absolute_url }}" class="small"><i class="fas fa-arrow-left mr-1"></i> {{ program.name }}</a>
+      <div class="card card-outline card-primary mt-3">
+        <div class="card-header">
+          <h1 class="card-title font-weight-bold">{{ mode }} program activity</h1>
+          <div class="text-muted small float-right">{{ program.code }} · {{ program.name }}</div>
+        </div>
+        <form method="post" novalidate>
+          <div class="card-body">
+            {% csrf_token %}
+            {{ form|crispy }}
+          </div>
+          <div class="card-footer d-flex justify-content-end">
+            <a href="{{ program.get_absolute_url }}" class="btn btn-outline-secondary mr-2">Cancel</a>
+            <button class="btn btn-primary" type="submit">Save activity</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
