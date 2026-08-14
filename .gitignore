@@ -190,3 +190,4 @@ Thumbs.db
 # Local browser-showcase runtime artifacts
 output/playwright/grand-portfolio/showcase.sqlite3
 output/playwright/grand-portfolio/server*.log
+.playwright-cli/

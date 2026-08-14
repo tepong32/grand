@@ -105,6 +105,8 @@ for username, first_name, last_name, department_key, position in (
     ("showcase_gso_2", "Nico", "Flores", "gso", "Supply Officer"),
     ("showcase_acctg_2", "Cara", "Ramos", "acctg", "Bookkeeper"),
     ("showcase_planning_2", "Iris", "Torres", "mpdo", "Project Development Officer"),
+    ("showcase_mswd_2", "Ramon", "Bautista", "mswd", "Community Affairs Officer"),
+    ("showcase_mswd_3", "Nina", "Aquino", "mswd", "Social Welfare Assistant"),
 ):
     employee(username, first_name, last_name, department_key, position)
 

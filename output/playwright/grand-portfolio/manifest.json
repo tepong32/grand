@@ -18,20 +18,27 @@
     },
     {
       "order": 3,
+      "file": "grand-mswd-dashboard.png",
+      "title": "Department-centered MSWD workspace",
+      "alt": "Grand MSWD department dashboard with team context, social welfare modules, and a compact assistance summary",
+      "capability": "MSWD staff land in a complete department workspace while Assistance Request Processing remains a focused linked module."
+    },
+    {
+      "order": 4,
       "file": "grand-mswd-operations.png",
       "title": "Municipal assistance operations",
       "alt": "Grand MSWD staff request queue with filters and request status",
       "capability": "Staff can filter, review, print, and advance assistance requests from one operational queue."
     },
     {
-      "order": 4,
+      "order": 5,
       "file": "grand-public-services.png",
       "title": "Digital municipal service discovery",
       "alt": "Grand public portal showing six municipal service entry points",
       "capability": "Residents can discover assistance, tracking, announcements, offices, contacts, and employee services."
     },
     {
-      "order": 5,
+      "order": 6,
       "file": "grand-assistance-portal.png",
       "title": "Account-free citizen assistance",
       "alt": "Grand public assistance portal with new-request and secure tracking actions",
