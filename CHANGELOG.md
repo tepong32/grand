@@ -1,128 +1,94 @@
-## [Unreleased]
+# Changelog
 
+Material GRAND changes are recorded here. The repository's Git history remains the detailed source of truth.
+
+## Unreleased
+
+### Documentation
+
+- Replaced the stale project overview with current setup, architecture, feature, verification, and operations guidance.
+- Added a documentation map and expanded reporting onboarding, scheduling, permissions, and existing-template guidance.
+
+## 2026-08-14
+
+### Configurable reporting automation
+
+- Added a reusable, department-bounded reporting platform piloted with MSWD.
+- Added allowlisted dataset adapters, configurable fields and filters, grouping, totals, sorting, and period selection without arbitrary SQL or executable template content.
+- Added versioned official layouts and safe reference uploads for familiar PDF, spreadsheet, Word, and image forms.
+- Added PDF, XLSX, and CSV generation with exact configuration snapshots, checksums, immutable audit events, and archived outputs.
+- Added manual and daily, weekly, monthly, quarterly, and annual scheduled runs backed by an idempotent ledger and safe retries.
+- Added generated, reviewed, approved, failed, and superseded states with explicit permissions and department boundaries.
+- Added five MSWD presets: Assistance volume and status, program accomplishments, aggregate reach, activity schedules, and workload.
+- Added reporting indicators to department dashboards and synthetic portfolio screenshots for the reporting workspace and approval flow.
+
+### Citizen profiles and service history
+
+- Added a permission-restricted citizen review queue with search, sorting, pagination, assignment, notes, review states, and audit history.
+- Added neutral Assistance usage summaries and duplicate-candidate indicators without treating frequency as fraud, risk, or eligibility evidence.
+- Kept `CitizenProfile` as the canonical citizen identity and established an adapter path for future approved government services.
+
+### Professional configurable interface
+
+- Added configurable institutional labels, colors, logos, hero imagery, footer content, service-card labels, links, icons, and ordering.
+- Improved public and employee navigation for plain-language, keyboard-accessible, responsive use.
+- Updated synthetic showcase data, screenshots, captions, and the portfolio manifest.
+
+### MSWD programs and dashboards
+
+- Reworked the MSWD login landing page as a department workspace with Assistance as a linked processing module.
+- Added internal social-welfare programs and activities with ownership, schedules, venues, operational status, aggregate attendance, outcomes, permissions, and audit timestamps.
+- Preserved reusable department-dashboard contracts for future offices and modules.
+
+### Maintenance
+
+- Updated and audited Python dependencies, security workflows, Dependabot configuration, and the minimal browser asset bundle.
+- Expanded leave-credit policy and adjustment controls while preserving predictable accrual and half-day request increments.
 
 ## 2025-08-11
-## [Unreleased]
-### 🔧 Changed
-- Removed Telegram bot integration from assistance request workflow.
-- Updated `views.py` and `cron.py` to route status and file-related updates to email instead of Telegram.
 
-### 🧹 Housekeeping
-- Cleaned up unused Telegram bot code to reduce background processes on deployment.
-- Prepared migration path for exclusive email-based notifications.
+### Changed
 
+- Removed Telegram delivery from the Assistance request workflow and routed status and document updates through email.
+- Removed unused bot behavior from the active deployment path while retaining the historical app for compatibility checks.
 
 ## 2025-06-27
-### ✨ Added
-- Two-step flow for submitting assistance requests:
-  - **Step 1**: Personal and request info
-  - **Step 2**: Upload supporting documents via edit link
-- AJAX-based document upload with:
-  - Document type selection
-  - Real-time feedback and previews
-  - Status-based restrictions (cannot replace approved files)
-- File preview thumbnails for images on the edit page
-- UI indicators (dot progress) to guide users through multi-step process
 
-### 🔧 Changed
-- Separated document upload form from the initial submission form
-- Improved status display and remark visibility for uploaded files
-- Updated submission confirmation email with clearer instructions
+### Assistance submission workflow
 
-### 🐛 Fixed
-- URL reverse errors for `upload_document_ajax`
-- Custom `basename` template filter not loading due to missing templatetag config
-- Session corruption warnings on improper form structure
-- JS logic now prevents uploads of already approved files
+- Added a two-step request flow: personal/request information followed by supporting-document upload through the secure edit link.
+- Added asynchronous upload feedback, previews, document-type selection, and approved-file replacement restrictions.
+- Added progress indicators and clearer confirmation-email instructions.
+- Fixed upload route reversal, template-filter loading, malformed form behavior, and approved-file client-side safeguards.
 
+## 2025-06-26
 
-## [2025-06-26] Assistance App
-### ✨ Added
-- Telegram bot handler (`telegram_bot/bot_handler.py`) with `/start`, `/unlink`, and secure request linking
-- Telegram notifications for document updates (in `mswd_update_document_ajax`) if user is linked
-- Environment variable support via `.env` for `TELEGRAM_BOT_TOKEN`
+### Historical Telegram integration
 
-### 🔒 Security
-- Only requests with `claimed_at=None` can be linked or receive messages
-- Reference + Edit code required to link; prevents unauthorized access
-- Telegram messages gracefully fail if request no longer exists
+- Added request linking and notifications through a Telegram bot, protected by reference and edit codes.
+- Restricted linking to unclaimed requests and added environment-based token configuration.
+- This integration was removed from active Assistance delivery on 2025-08-11.
 
-### 🧹 Housekeeping
-- Telegram bot logs to `telegram_bot.log`
-- Inline bot logic included in AJAX view instead of helper for now
-- Test data cleanup to be done manually before live deployment
+## 2025-06-25
 
+### Profiles and edit history
 
-## [2025-06-25] Profiles App – Edit Logs and HR Metadata Expansion
+- Added `ProfileEditLog` with editor, section, note, and timestamp metadata.
+- Added role-aware profile editing and restricted HR employment metadata.
+- Added government identifiers, hiring dates, department memo uploads, and profile edit-history presentation.
+- Fixed missing-slug redirects and log rendering when the editor is unavailable.
 
-### Added
-- `ProfileEditLog` model to track profile edits with section, note, timestamp, and editor metadata.
-- HR/admin edit log display in `profile.html` (visible to profile owner or admins only).
-- Colored highlight (`bg-light border-left-info`) for HR/admin-initiated changes in logs.
-- Full field support in `EmploymentProfileUpdateForm`, including:
-  - Government IDs: TIN, GSIS ID, PAG-IBIG ID, PhilHealth ID, SSS ID
-  - Dates: `jo_date_hired`, `reg_date_hired`
-  - File: `assigned_department_memo` (with preview and file path)
+## 2025-06-23
 
-### Changed
-- Refactored `profileEditView` to:
-  - Detect employee vs. citizen profiles and handle forms accordingly
-  - Log edits to `ProfileEditLog` with section labeling (`Basic Info`, `HR Metadata`, etc.)
-  - Support admin-only HR metadata updates conditionally
-- `profile.html` now uses partials and includes an expandable audit log section
-- Edit forms grouped visually with Bootstrap cards and consistent form controls
+### Assistance operations
 
-### Fixed
-- Catch-block for missing slug in `get_absolute_url`, resolving `NoReverseMatch` on profile save
-- Template fallback for missing logs or null `edited_by` (displayed as “System”)
-- Fixed memo preview display when no file is uploaded (file path and click logic included)
+- Added the original MSWD request dashboard, request status history, staff-facing transparency logs, citizen email notifications, and printable request summaries.
+- Added department-aware dashboard selection and corrected template rendering for log entries.
 
-### Notes
-- Logs currently stored indefinitely; may paginate or archive in future
-- Profile page URLs still based on username (internal use); slug fallback maintained
-- Minimal performance impact expected due to low log volume
+## 2025-06-15
 
+### Assistance foundation
 
-## [2025-06-23] Assistance Dashboard and Transparency Logs
-
-### Added
-- MSWD dynamic dashboard with recent assistance request summary and quick access to request details.
-- Per-request status change logging via `RequestLog` model (action type, who updated, timestamps).
-- Transparency log display for MSWD: “who updated what and when”.
-- Email notifications sent to citizens upon status or remarks changes.
-- Printable and downloadable request summary for MSWD using `html2pdf.js`.
-
-### Changed
-- `mswd_request_detail_view`: now logs updates, sends email, and supports printable view UI.
-- Department dashboard routing now smartly loads MSWD dashboard using the `dashboard_template` field.
-
-### Fixed
-- Resolved Django template error: inline `if...else` in logs display now uses proper `{% if %}` blocks.
-
-
-## [2025-06-15] Assistance App
-### Added
-- New `assistance` app with full request lifecycle
-- Per-file review system (remarks + status flags)
-- Duplicate prevention for educational assistance
-- Reference/edit code access via landing form
-- `/assistance` all-in-one submission/tracking/edit page
-- Email resend route (`resend_codes`) – disabled in dev
-- Global alert system with link-rich contextual messages
-- Helper message block on landing page for returning users
-
-### Changed
-- Refactored user-related logic into:
-  • `profiles` app (employee data)
-  • `departments` app (head access + contacts)
-  • `salaries` app (pay computation logic)
-  • `home` app (public content)
-- Switched to AdminLTE4 + Bootstrap 5 UI consistently
-- Improved message display and error alert readability
-
-### Fixed
-- Message visibility issues on colored backgrounds
-
-### Notes
-- Email backend set to development mode (`console` or `mailtrap`)
-- Future steps: enable resend_codes mailer and activate cron jobs for status checks
+- Added the Assistance request lifecycle, supporting-document review, duplicate-period prevention, secure tracking/edit access, and contextual messages.
+- Split people, department, salary, and public-home responsibilities into their own Django apps.
+- Standardized the interface on AdminLTE and Bootstrap styling and improved alert readability.

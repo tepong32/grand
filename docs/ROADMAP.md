@@ -1,8 +1,8 @@
 # GRAND product roadmap
 
-This file records agreed future work after the MSWD Programs and Activities phase. Each implementation phase uses a dedicated `codex/` branch, tests, synthetic showcase data, portfolio screenshots, review, CI, and merge into `master`.
+This file records agreed future work after the MSWD Programs and Activities phase. Each implementation phase uses a dedicated `codex/` branch, tests, synthetic showcase data, portfolio screenshots, review, CI, and merge into `master`. See the [documentation map](README.md) for operator and project guides.
 
-## Completed — Professional, configurable civic UI
+## Completed - Professional, configurable civic UI
 
 - Use plain-language, task-oriented public and employee navigation.
 - Preserve GRAND's institutional identity while keeping branding neutral across changes in administration.
@@ -10,7 +10,7 @@ This file records agreed future work after the MSWD Programs and Activities phas
 - Remove fabricated links, campaign-specific content, and shared-template assumptions that every authenticated user is an employee.
 - Verify responsive layouts, keyboard navigation, readable contrast, real workflows, and portfolio screenshots.
 
-## Completed — Citizen profiles, review, and service history
+## Completed - Citizen profiles, review, and service history
 
 - Continue using the existing `CitizenProfile` as the canonical citizen identity; do not create a parallel identity table.
 - Provide a permission-restricted review queue/table with search, sorting, pagination, review state, assigned reviewer, review notes, review timestamps, and audit history.
@@ -33,5 +33,14 @@ The first delivery uses Assistance as the only service-history provider. The rev
 
 ## Later platform phases
 
-- Records, attachments, retention, review, approval, supersession, and controlled exports.
-- Physical-document QR identity, custody, transfer, receiving, and acknowledgement, kept separate from Assistance secure-link QR codes.
+### Records and document workflows
+
+- Attach supporting records to programs, activities, citizen service history, and generated reports.
+- Add retention, review, approval, supersession, controlled exports, and department-bounded access.
+- Allow approved report runs to become official departmental records without losing their report configuration, checksum, or audit history.
+
+### TracePoint physical-document custody
+
+- Introduce document identities, QR labels, custody, transfer, receiving, and acknowledgement after the records foundation is stable.
+- Keep TracePoint custody codes separate from Assistance secure-link QR codes.
+- Preserve GRAND as the platform identity while TracePoint names the records and physical-custody capability.

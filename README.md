@@ -1,83 +1,84 @@
-## 🧩 Apps & Progress Overview
+# GRAND
 
-### `users` app
-- [x] Automatic profile creation upon user registration (with default values)
-- [x] Password reset and change workflows working in both dev and production
-  ↪ Uses [Mailtrap](https://mailtrap.io) for dev; live SMTP in production
-- [x] Secure registration/login for internal users (admin/employee)
-- [x] Integrated `django-allauth` for future external signups (already-running in prod, as well)
+GRAND is a department-aware local-government service platform built with Django. It gives citizens clear public service flows and gives employees workspaces that reflect their assigned department, role, and permissions.
 
-**Next steps:**  
-- [ ] Finalize role assignment logic for external users upon registration
+The current MSWD pilot combines Assistance request processing, social-welfare program operations, citizen review, and governed report generation. The same department and permission contracts are intended to support additional municipal offices without duplicating the platform.
 
----
+## Current capabilities
 
-### `profiles` app
+- Configurable public identity, service cards, icons, media, colors, and plain-language navigation.
+- Dynamic employee dashboards with department-specific modules, leadership, team, plantilla, leave, contacts, and announcements.
+- Assistance submission, secure editing and tracking, document review, status history, notifications, and separate MSWD processing views.
+- Internal social-welfare programs and activities for seminars, feeding programs, outreach, distributions, schedules, venues, attendance totals, and outcomes.
+- Permission-restricted citizen review with assistance usage history, duplicate-candidate indicators, review ownership, notes, and audit events.
+- Leave requests and predictable credit accrual with approval deductions.
+- Cross-department reporting definitions, versioned layouts, PDF/XLSX/CSV output, recurring schedules, checksums, review, approval, and supersession.
+- Public and internal announcements, employee/citizen profiles, department records, and organization views.
 
-- [x] Split from `users` for handling both `EmployeeProfile` and `CitizenProfile` data  
-- [x] Auto-generated slug URLs with fallback to username  
-- [x] Role-aware profile editing view (separate HR-only and owner-only sections)  
-- [x] HR metadata form with support for government IDs, position info, and department memo uploads  
-- [x] Editable memo image field with preview and re-saving support  
-- [x] Profile edit logging via `ProfileEditLog` model  
-  ↪ Tracks editor, section changed, notes, and timestamp  
-  ↪ Separate styling for HR/admin edits in view-only logs  
-- [x] Inline profile edit history displayed conditionally on `profile.html`
+GRAND keeps operational modules separate: an employee's dashboard summarizes work and links to specialized workspaces instead of embedding full processing screens in the landing page.
 
-**Next steps:**  
-- [ ] Add pagination or load-more for logs  
-- [ ] Optionally add reason-for-edit dropdown or tag system
+## Application map
 
----
+| Area | Django app | Primary responsibility |
+| --- | --- | --- |
+| Public portal and dashboards | `home` | Site identity, navigation, announcements, and login landing context |
+| People and identity | `users`, `profiles` | Authentication, employee profiles, citizen profiles, and review history |
+| Organization | `departments` | Department identity, leadership, membership, and department boundaries |
+| Assistance | `assistance` | Citizen requests, supporting documents, staff processing, and request audit trail |
+| Programs and activities | `social_welfare` | Internal MSWD program and activity operations |
+| Reports | `reporting` | Controlled datasets, layouts, generation, schedules, approvals, and archives |
+| Workforce | `leave_mgt`, `salaries` | Leave workflows and salary-related records |
 
-### `leave` app
-- [x] Permissions handled via template logic  
-- [x] Leave request auto-deductions for SL/VL on approval  
-- [x] Automatic exclusion of weekends in date range  
-- [x] Basic validation (`start_date < end_date`)  
-- [x] Global context processor for consistent template variables  
-- [x] Cron jobs for monthly leave accrual running as expected
+## Local development
 
-**In progress / Notes:**  
-- [ ] Manual holiday configuration (branch: `working-days`)  
-- [ ] Consider converting leave credits to 15-minute increments  
-- [ ] Policy improvements for leave accumulation
+Python 3.11 is the currently verified runtime. From PowerShell in the repository root:
 
----
+```powershell
+py -3.11 -m venv env
+.\env\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python manage.py migrate
+python manage.py seed_reporting_presets
+python manage.py runserver
+```
 
-### `announcements` app
-- [x] Basic structure: public/internal, pinned, draft vs posted  
-- [ ] Redesign user-facing views
+Local development uses SQLite, the console email backend, and `src.settings.dev` by default. Do not commit local database or uploaded-media changes. Production uses `src.settings.prod`, MySQL, HTTPS security settings, SMTP, and environment-provided secrets.
 
----
+The reporting seed command is idempotent: it creates or preserves the five MSWD pilot definitions without duplicating them. See [Reporting operations](docs/REPORTING.md) before configuring templates or scheduled runs.
 
-### `salary` app *(remodel pending)*
-- [ ] Logic planning stage — will affect multiple modules  
-- [ ] Will consolidate all pay-related computations into `EmployeeSalaryDetails`
+## Verification
 
----
+Install the development-only audit tool when performing security maintenance:
 
-### `working_days` app *(not started)*
-- [ ] Needed for holiday detection, leave and salary integration, and calendar generation
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m pip check
+python -m pip_audit -r requirements.txt
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test
+```
 
----
+Run due report schedules safely with:
 
-### `assistance` app *(updated)*
-- [x] User-facing financial assistance request submission with multi-file upload  
-- [x] Anonymous request editing and status tracking via secure reference and edit codes  
-- [x] Responsive AdminLTE4 + Bootstrap 5 templates for submit, edit, track, and confirmation pages  
-- [x] Per-file remarks and status flags for MSWD review  
-- [x] Reference code + edit code authentication for request access  
-- [x] Duplicate submission prevention based on period, semester, and email  
-- [x] Locked editing for approved/claimed requests  
-- [x] Message enhancements with contextual helper links  
-- [x] Landing page helper for retrieving lost access links  
-- [x] MSWD dashboard with recent request summary and quick access tools  
-- [x] Printable and downloadable request views (citizen + MSWD versions)  
-- [x] Transparent per-update logs with timestamp and responsible user  
-- [x] Automatic email alerts on status/remarks change (opt-out ready)  
-- [x] Email confirmation and notifications active in production
-  ↪ Status updates, file remarks, and submission confirmations all trigger alerts
-- [x] Removed Telegram bot dependency — all updates now delivered via email for broader accessibility
+```powershell
+python manage.py run_scheduled_reports
+```
 
+Repeated invocations for the same scheduled period do not create duplicate outputs.
 
+## Documentation
+
+- [Documentation map](docs/README.md)
+- [Reporting operations and governance](docs/REPORTING.md)
+- [Product roadmap](docs/ROADMAP.md)
+- [Security maintenance](SECURITY.md)
+- [Synthetic portfolio screenshots](output/playwright/grand-portfolio/README.md)
+- [Change history](CHANGELOG.md)
+
+## Product direction
+
+GRAND remains the platform identity. TracePoint is reserved for the later records and physical-document custody layer: document identities, QR labels, transfers, receiving, and acknowledgements. It will remain distinct from the secure links and QR codes used by Assistance.
+
+All showcase records and screenshots are synthetic. Production citizen data, credentials, uploaded records, and generated official reports must never be added to the repository.
