@@ -1,28 +1,17 @@
-<div class="row gov-footer-links mx-0">
-    <div class="col-md-3 col-sm-5">
-        <h6 class="footer-title">Quick Links</h6>
-        
-        <ul class="nav nav-pills flex-column gov-footer-list">
-            <li class="nav-item">
-                <a class="nav-link" href="/announcements">All Announcements</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">Downloadable Forms</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">Contact Departments</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">Careers</a> 
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <h6 class="footer-title">Follow our Official Facebook Page</h6>
-                </a> 
-            </li>
-        </ul>
+<section class="gov-footer-links" aria-label="Useful links">
+  <div class="container-fluid py-4">
+    <div class="row align-items-center">
+      <div class="col-lg-5 mb-3 mb-lg-0">
+        <strong>{{ site_configuration.institution_name }}</strong>
+        <div class="text-muted small">{{ site_configuration.portal_label }}</div>
+      </div>
+      <div class="col-lg-7 text-lg-right gov-footer-nav">
+        <a href="{% url 'unauthedhome' %}#services">Services</a>
+        <a href="{% url 'assistance:assistance_landing' %}">Assistance</a>
+        <a href="{% url 'announcements-list' %}">Announcements</a>
+        <a href="{% url 'unauthedhome' %}#contact-us">Office contacts</a>
+        {% if request.user.is_authenticated %}<a href="{% url 'department_dashboard' %}">My workspace</a>{% else %}<a href="{% url 'login' %}">Employee sign in</a>{% endif %}
+      </div>
     </div>
-    <div class="col-md-3 col-sm-5">
-        
-    </div>
-</div>
+  </div>
+</section>
