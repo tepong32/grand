@@ -20,6 +20,9 @@ from home.models import Announcement
 from leave_mgt.models import LeaveRequest
 from profiles.models import EmployeeProfile
 from social_welfare.models import ProgramActivity, SocialWelfareProgram
+from reporting.models import ReportRun, ReportSchedule
+from reporting.presets import seed_mswd_presets
+from reporting.services import generate_report, transition_run
 from users.models import User
 
 
@@ -277,7 +280,7 @@ for program_record, title, activity_type, start_offset, venue, status, expected,
         nutrition_program,
         "Nutrition Screening and Family Referral Day",
         ProgramActivity.TYPE_OUTREACH,
-        -21,
+        -7,
         "MSWD Community Center",
         ProgramActivity.STATUS_COMPLETED,
         75,
@@ -302,6 +305,50 @@ for program_record, title, activity_type, start_offset, venue, status, expected,
             "updated_by": mswd_user,
         },
     )
+
+report_presets = seed_mswd_presets(mswd_user)
+report_definitions = {definition.slug: definition for definition, _ in report_presets}
+showcase_period_start = today.replace(day=1)
+showcase_period_end = today
+for slug, desired_status, output_format in (
+    ("assistance-volume-status", ReportRun.APPROVED, "pdf"),
+    ("program-activity-accomplishment", ReportRun.REVIEWED, "xlsx"),
+    ("department-workload", ReportRun.GENERATED, "csv"),
+):
+    definition = report_definitions[slug]
+    run, _ = ReportRun.objects.get_or_create(
+        idempotency_key=f"showcase:{slug}:{showcase_period_start}:{showcase_period_end}",
+        defaults={
+            "definition": definition,
+            "template_version": definition.current_template,
+            "output_format": output_format,
+            "period_start": showcase_period_start,
+            "period_end": showcase_period_end,
+            "parameters": {},
+            "created_by": mswd_user,
+        },
+    )
+    if run.status in (ReportRun.DRAFT, ReportRun.FAILED):
+        generate_report(run)
+    if desired_status in (ReportRun.REVIEWED, ReportRun.APPROVED) and run.status == ReportRun.GENERATED:
+        transition_run(run, "review", mswd_user, "Synthetic showcase figures reviewed.")
+    if desired_status == ReportRun.APPROVED and run.status == ReportRun.REVIEWED:
+        transition_run(run, "approve", mswd_user, "Synthetic showcase output approved.")
+
+schedule_definition = report_definitions["assistance-volume-status"]
+ReportSchedule.objects.update_or_create(
+    definition=schedule_definition,
+    name="Monthly assistance status report",
+    defaults={
+        "template_version": schedule_definition.current_template,
+        "frequency": ReportSchedule.MONTHLY,
+        "output_format": "pdf",
+        "next_run_at": timezone.now() + timedelta(days=5),
+        "parameters": {},
+        "is_active": True,
+        "created_by": mswd_user,
+    },
+)
 
 print("Showcase database seeded.")
 print(f"Dashboard users: showcase_hr, showcase_gso, showcase_acctg, showcase_planning, showcase_mswd")

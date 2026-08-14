@@ -23,8 +23,15 @@ This file records agreed future work after the MSWD Programs and Activities phas
 
 The first delivery uses Assistance as the only service-history provider. The review workflow and stable operational profile remain intentionally separate from eligibility decisions, and future service integrations must use an approved adapter rather than creating another citizen identity table.
 
+## Completed - Configurable reporting automation
+
+- Provide department-bounded report definitions over an allowlisted dataset registry; never accept arbitrary SQL, Python, macros, or executable templates.
+- Preserve familiar departmental PDF, spreadsheet, document, and scanned forms as non-executable references that require mapping and approval.
+- Generate PDF, XLSX, and CSV with exact template versions, parameters, checksums, manual and recurring runs, safe retries, and auditable review and approval.
+- Pilot five real MSWD presets for Assistance volume, accomplishments, aggregate reach, schedules, and workload.
+- Retain failures and superseded approvals without deleting preceding official files or history.
+
 ## Later platform phases
 
-- Configurable cross-department reporting automation and official output templates.
 - Records, attachments, retention, review, approval, supersession, and controlled exports.
 - Physical-document QR identity, custody, transfer, receiving, and acknowledgement, kept separate from Assistance secure-link QR codes.
