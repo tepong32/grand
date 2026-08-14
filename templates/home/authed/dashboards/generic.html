@@ -78,6 +78,34 @@
           </div>
         </div>
       </div>
+
+      {% if upcoming_social_welfare_activities %}
+        <div class="card card-outline card-success">
+          <div class="card-header border-0">
+            <h3 class="card-title font-weight-bold">Upcoming social welfare activities</h3>
+            <a href="{% url 'social_welfare:program_list' %}" class="btn btn-sm btn-outline-success float-right">View full schedule</a>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead>
+                  <tr><th>Activity</th><th>Program</th><th>Schedule</th><th>Venue</th></tr>
+                </thead>
+                <tbody>
+                  {% for activity in upcoming_social_welfare_activities %}
+                    <tr>
+                      <td class="font-weight-bold">{{ activity.title }}</td>
+                      <td>{{ activity.program.name }}</td>
+                      <td>{{ activity.starts_at|date:"M j, Y · g:i A" }}</td>
+                      <td>{{ activity.venue }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      {% endif %}
     </div>
 
     <div class="col-xl-4">

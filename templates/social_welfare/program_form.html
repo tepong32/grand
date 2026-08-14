@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title_ext %} - {{ mode }} Program{% endblock %}
+
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="row justify-content-center">
+    <div class="col-xl-8">
+      <a href="{% if program %}{{ program.get_absolute_url }}{% else %}{% url 'social_welfare:program_list' %}{% endif %}" class="small"><i class="fas fa-arrow-left mr-1"></i> Back to programs</a>
+      <div class="card card-outline card-primary mt-3">
+        <div class="card-header"><h1 class="card-title font-weight-bold">{{ mode }} social welfare program</h1></div>
+        <form method="post" novalidate>
+          <div class="card-body">
+            {% csrf_token %}
+            {{ form|crispy }}
+          </div>
+          <div class="card-footer d-flex justify-content-end">
+            <a href="{% if program %}{{ program.get_absolute_url }}{% else %}{% url 'social_welfare:program_list' %}{% endif %}" class="btn btn-outline-secondary mr-2">Cancel</a>
+            <button class="btn btn-primary" type="submit">Save program</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
