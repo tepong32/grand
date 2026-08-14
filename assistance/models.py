@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.utils.crypto import get_random_string
 from django.utils.text import slugify
 from django_ckeditor_5.fields import CKEditor5Field
+import uuid
 
 
 def sample_upload_path(instance, filename):
@@ -200,32 +201,98 @@ class RequestDocument(models.Model):
 
 
 class CitizenProfile(models.Model):
-    RISK_LEVEL_CHOICES = [
-        ("normal", "Normal"),
-        ("frequent", "Frequent Requester"),
-        ("priority", "Priority Assistance"),
-        ("flagged", "Flagged for Review"),
+    REVIEW_STATUS_CHOICES = [
+        ("unreviewed", "Not yet reviewed"),
+        ("in_review", "In review"),
+        ("verified", "Reviewed and verified"),
+        ("needs_update", "Needs information update"),
     ]
 
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True)
     full_name = models.CharField(max_length=255)
     email = models.EmailField(db_index=True)
     phone = models.CharField(max_length=20, db_index=True)
 
     total_requests = models.PositiveIntegerField(default=0)
     last_request_at = models.DateTimeField(null=True, blank=True)
-    risk_level = models.CharField(
+    normalized_email = models.CharField(max_length=254, blank=True, db_index=True, editable=False)
+    normalized_phone = models.CharField(max_length=20, blank=True, db_index=True, editable=False)
+    review_status = models.CharField(
         max_length=20,
-        choices=RISK_LEVEL_CHOICES,
-        default="normal",
-        help_text="Future classification: normal, frequent, priority, flagged",
+        choices=REVIEW_STATUS_CHOICES,
+        default="unreviewed",
+        db_index=True,
     )
-    notes = models.TextField(blank=True)
+    assigned_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_citizen_reviews",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="completed_citizen_reviews",
+    )
+    review_notes = models.TextField(blank=True)
+    review_started_at = models.DateTimeField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        permissions = (
+            ("view_citizen_review_workspace", "Can access the citizen review workspace"),
+            ("review_citizen_profiles", "Can review citizen profiles"),
+            ("view_citizen_profile_pii", "Can view citizen profile personal information"),
+            ("export_citizen_profiles", "Can export citizen profile information"),
+        )
+
     def __str__(self):
         return f"{self.full_name} ({self.total_requests})"
+
+    def save(self, *args, **kwargs):
+        self.normalized_email = (self.email or "").strip().casefold()
+        self.normalized_phone = "".join(character for character in (self.phone or "") if character.isdigit())
+        super().save(*args, **kwargs)
+
+
+class CitizenReviewLog(models.Model):
+    profile = models.ForeignKey(CitizenProfile, on_delete=models.CASCADE, related_name="review_logs")
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="citizen_review_actions",
+    )
+    previous_status = models.CharField(max_length=20, blank=True)
+    new_status = models.CharField(max_length=20, blank=True)
+    previous_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="citizen_review_reassignments_from",
+    )
+    new_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="citizen_review_reassignments_to",
+    )
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def __str__(self):
+        return f"Citizen review #{self.profile_id} updated at {self.created_at:%Y-%m-%d %H:%M}"
 
 
 class RequestTimeline(models.Model):
