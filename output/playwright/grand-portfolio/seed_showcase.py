@@ -14,6 +14,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "src.settings.dev")
 django.setup()
 
 from assistance.models import AssistanceRequest, AssistanceType
+from assistance.services.citizen_service import CitizenProfileService
 from departments.models import Department, Plantilla
 from home.models import Announcement
 from leave_mgt.models import LeaveRequest
@@ -186,15 +187,22 @@ program, _ = AssistanceType.objects.update_or_create(
         "is_active": True,
     },
 )
-for index, (name, status, remarks) in enumerate(
+for index, (name, email, phone, status, remarks) in enumerate(
     (
-        ("Maria Dela Cruz", "submitted", "New online application"),
-        ("Joshua Reyes", "pending", "Documents ready for initial review"),
-        ("Angela Santos", "review", "School record verification in progress"),
-        ("Carlo Mendoza", "approved", "Approved for scheduled release"),
+        ("Maria Dela Cruz", "maria@example.com", "09170000001", "submitted", "New online application"),
+        ("Joshua Reyes", "joshua@example.com", "09170000002", "pending", "Documents ready for initial review"),
+        ("Angela Santos", "angela@example.com", "09170000003", "review", "School record verification in progress"),
+        ("Carlo Mendoza", "carlo@example.com", "09170000004", "approved", "Approved for scheduled release"),
+        ("Maria Dela Cruz", "maria@example.com", "09170000001", "approved", "Prior assistance completed"),
+        ("Maria Dela Cruz", "maria@example.com", "09170000001", "denied", "Previous request retained for service history"),
     ),
     start=1,
 ):
+    citizen = CitizenProfileService.get_or_create_citizen(
+        full_name=name,
+        email=email,
+        phone=phone,
+    )
     AssistanceRequest.objects.update_or_create(
         reference_code=f"MSWD-SHOWCASE-{index:03d}",
         defaults={
@@ -202,13 +210,15 @@ for index, (name, status, remarks) in enumerate(
             "period": "2026-2027",
             "semester": "1st",
             "full_name": name,
-            "email": f"applicant{index}@example.com",
-            "phone": f"0917000000{index}",
+            "email": email,
+            "phone": phone,
             "status": status,
             "remarks": remarks,
             "is_active": True,
+            "citizen": citizen,
         },
     )
+    CitizenProfileService.increment_request_count(citizen)
 
 nutrition_program, _ = SocialWelfareProgram.objects.update_or_create(
     department=departments["mswd"],
