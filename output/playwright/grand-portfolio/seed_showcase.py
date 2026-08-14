@@ -18,6 +18,7 @@ from departments.models import Department, Plantilla
 from home.models import Announcement
 from leave_mgt.models import LeaveRequest
 from profiles.models import EmployeeProfile
+from social_welfare.models import ProgramActivity, SocialWelfareProgram
 from users.models import User
 
 
@@ -98,6 +99,8 @@ gso_user = employee("showcase_gso", "Marco", "Santos", "gso", "Property Officer"
 acctg_user = employee("showcase_acctg", "Elena", "Cruz", "acctg", "Municipal Accountant")
 planning_user = employee("showcase_planning", "Paolo", "Mendoza", "mpdo", "Planning Officer")
 mswd_user = employee("showcase_mswd", "Liza", "Garcia", "mswd", "Social Welfare Officer")
+departments["mswd"].deptHead_or_oic = mswd_user
+departments["mswd"].save(update_fields=["deptHead_or_oic"])
 
 for username, first_name, last_name, department_key, position in (
     ("showcase_hr_2", "Mia", "Villanueva", "hr", "Administrative Assistant"),
@@ -204,6 +207,89 @@ for index, (name, status, remarks) in enumerate(
             "status": status,
             "remarks": remarks,
             "is_active": True,
+        },
+    )
+
+nutrition_program, _ = SocialWelfareProgram.objects.update_or_create(
+    department=departments["mswd"],
+    code="MSWD-NUTRITION-2026",
+    defaults={
+        "name": "Community Nutrition and Family Wellness",
+        "program_type": SocialWelfareProgram.TYPE_FEEDING,
+        "description": "Coordinated feeding, nutrition education, and family wellness activities in priority barangays.",
+        "status": SocialWelfareProgram.STATUS_ACTIVE,
+        "coordinator": mswd_user,
+        "start_date": today,
+        "end_date": today + timedelta(days=180),
+        "created_by": mswd_user,
+        "updated_by": mswd_user,
+    },
+)
+family_program, _ = SocialWelfareProgram.objects.update_or_create(
+    department=departments["mswd"],
+    code="MSWD-FAMILY-2026",
+    defaults={
+        "name": "Family Development and Protection",
+        "program_type": SocialWelfareProgram.TYPE_SEMINAR,
+        "description": "Orientations, referral pathways, and community sessions that strengthen family support systems.",
+        "status": SocialWelfareProgram.STATUS_ACTIVE,
+        "coordinator": mswd_user,
+        "start_date": today - timedelta(days=45),
+        "end_date": today + timedelta(days=120),
+        "created_by": mswd_user,
+        "updated_by": mswd_user,
+    },
+)
+for program_record, title, activity_type, start_offset, venue, status, expected, actual, outcome in (
+    (
+        nutrition_program,
+        "Community Feeding and Nutrition Seminar",
+        ProgramActivity.TYPE_FEEDING,
+        7,
+        "Barangay Mabuhay Multi-Purpose Hall",
+        ProgramActivity.STATUS_PLANNED,
+        120,
+        None,
+        "",
+    ),
+    (
+        family_program,
+        "Parent Effectiveness and Child Protection Orientation",
+        ProgramActivity.TYPE_ORIENTATION,
+        14,
+        "Municipal Training Hall",
+        ProgramActivity.STATUS_PLANNED,
+        85,
+        None,
+        "",
+    ),
+    (
+        nutrition_program,
+        "Nutrition Screening and Family Referral Day",
+        ProgramActivity.TYPE_OUTREACH,
+        -21,
+        "MSWD Community Center",
+        ProgramActivity.STATUS_COMPLETED,
+        75,
+        68,
+        "Families received nutrition screening results and service referral materials.",
+    ),
+):
+    starts_at = timezone.now() + timedelta(days=start_offset)
+    ProgramActivity.objects.update_or_create(
+        program=program_record,
+        title=title,
+        defaults={
+            "activity_type": activity_type,
+            "starts_at": starts_at,
+            "ends_at": starts_at + timedelta(hours=3),
+            "venue": venue,
+            "status": status,
+            "expected_attendance": expected,
+            "actual_attendance": actual,
+            "outcome_notes": outcome,
+            "created_by": mswd_user,
+            "updated_by": mswd_user,
         },
     )
 
