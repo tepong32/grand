@@ -5,7 +5,10 @@
 
 {% block content %}
 <div class="container-xl mx-auto py-4">
-  <h1 class="mb-4">MSWD Assistance Requests</h1>
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div><p class="gov-eyebrow mb-1">MSWD internal workspace</p><h1 class="mb-0">Assistance requests</h1></div>
+    {% if can_access_citizen_reviews %}<a href="{% url 'assistance:citizen_profile_list' %}" class="btn btn-outline-primary"><i class="fas fa-address-card mr-1"></i> Citizen profile review</a>{% endif %}
+  </div>
 
   <!-- Filters -->
   <div class="card card-outline card-primary shadow-sm">
@@ -66,7 +69,7 @@
                 <p class="mb-1"><strong>Email:</strong> {{ request.email }}</p>
                 <p class="mb-1"><strong>Phone:</strong> {{ request.phone }}</p>
                 <p class="mb-1"><strong>Uploaded files:</strong> {{ request.active_documents|length }}</p>
-                <p class="mb-0"><strong>Citizen:</strong> {{ request.citizen.full_name|default:"—" }}</p>
+                <p class="mb-0"><strong>Citizen profile:</strong> {% if request.citizen and can_access_citizen_reviews %}<a href="{% url 'assistance:citizen_profile_detail' profile_id=request.citizen.pk %}">{{ request.citizen.full_name }}</a>{% elif request.citizen %}Linked profile #{{ request.citizen.pk }}{% else %}Not linked{% endif %}</p>
               </div>
               <div class="col-md-5">
                 <div class="d-flex flex-wrap gap-2">

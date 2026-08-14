@@ -1,6 +1,13 @@
 from django.db import models
 from django.contrib import admin
-from .models import AssistanceType, AssistanceRequest, RequestDocument, RequestLog
+from .models import (
+    AssistanceRequest,
+    AssistanceType,
+    CitizenProfile,
+    CitizenReviewLog,
+    RequestDocument,
+    RequestLog,
+)
 
 
 class RequestDocumentInline(admin.TabularInline):
@@ -85,3 +92,29 @@ class RequestLogAdmin(admin.ModelAdmin):
     list_display = ('request', 'timestamp', 'updated_by', 'status_before', 'status_after')
     search_fields = ('request__reference_code',)
     list_filter = ('status_before', 'status_after')
+
+
+@admin.register(CitizenProfile)
+class CitizenProfileAdmin(admin.ModelAdmin):
+    list_display = ("full_name", "review_status", "total_requests", "last_request_at", "assigned_reviewer")
+    list_filter = ("review_status",)
+    search_fields = ("full_name", "email", "phone")
+    readonly_fields = ("normalized_email", "normalized_phone", "total_requests", "last_request_at")
+
+
+@admin.register(CitizenReviewLog)
+class CitizenReviewLogAdmin(admin.ModelAdmin):
+    list_display = ("profile", "actor", "previous_status", "new_status", "created_at")
+    list_filter = ("new_status", "created_at")
+    readonly_fields = (
+        "profile", "actor", "previous_status", "new_status", "previous_reviewer", "new_reviewer", "note", "created_at"
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

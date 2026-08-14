@@ -11,6 +11,7 @@
     <li class="nav-item"><a href="{% url 'announcements-list' %}" class="nav-link"><i class="fas fa-bullhorn mr-1"></i><span class="d-none d-md-inline"> Announcements</span></a></li>
     {% if can_view_user_directory %}<li class="nav-item"><a href="/users/" class="nav-link"><i class="fas fa-users mr-1"></i><span class="d-none d-md-inline"> Employees</span></a></li>{% endif %}
     {% if employee_department.slug == 'mswd' %}<li class="nav-item"><a href="{% url 'social_welfare:program_list' %}" class="nav-link"><i class="fas fa-people-carry mr-1"></i><span class="d-none d-lg-inline"> Programs</span></a></li>{% endif %}
+    {% if can_access_citizen_reviews %}<li class="nav-item"><a href="{% url 'assistance:citizen_profile_list' %}" class="nav-link"><i class="fas fa-address-card mr-1"></i><span class="d-none d-xl-inline"> Citizens</span></a></li>{% endif %}
   </ul>
   <ul class="navbar-nav ml-auto">
     <li class="nav-item">
@@ -40,6 +41,7 @@
           {% if employee_department.slug == 'mswd' %}
             <li><a href="{% url 'assistance:mswd_dashboard' %}" class="gov-sidebar-link"><i class="fas fa-hands-helping gov-sidebar-icon"></i><span>Assistance processing</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
             <li><a href="{% url 'social_welfare:program_list' %}" class="gov-sidebar-link"><i class="fas fa-people-carry gov-sidebar-icon"></i><span>Programs and activities</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+            {% if can_access_citizen_reviews %}<li><a href="{% url 'assistance:citizen_profile_list' %}" class="gov-sidebar-link"><i class="fas fa-address-card gov-sidebar-icon"></i><span>Citizen profile review</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>{% endif %}
           {% endif %}
           {% if can_view_user_directory %}<li><a href="/users/" class="gov-sidebar-link"><i class="fas fa-users gov-sidebar-icon"></i><span>Employee directory</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>{% endif %}
         </ul>

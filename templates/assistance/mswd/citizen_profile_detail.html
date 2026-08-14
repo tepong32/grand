@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title_ext %} - Citizen Review{% endblock %}
+
+{% block content %}
+<main class="container-xl mx-auto py-4">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
+    <div><p class="gov-eyebrow mb-1">Citizen profile #{{ profile.pk }}</p><h1 class="mb-1">{% if can_view_pii %}{{ profile.full_name }}{% else %}{{ profile.display_name }}{% endif %}</h1><p class="text-muted mb-0">Assistance service history and human review record</p></div>
+    <a href="{% url 'assistance:citizen_profile_list' %}" class="btn btn-outline-secondary">Back to citizen register</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon"><i class="fas fa-file-alt"></i></span><div><span>Total requests</span><strong>{{ request_summary.total|default:0 }}</strong></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon"><i class="fas fa-folder-open"></i></span><div><span>Active requests</span><strong>{{ request_summary.active|default:0 }}</strong></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon"><i class="fas fa-clock"></i></span><div><span>Awaiting action</span><strong>{{ request_summary.awaiting|default:0 }}</strong></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon"><i class="fas fa-search"></i></span><div><span>Under review</span><strong>{{ request_summary.under_review|default:0 }}</strong></div></div></div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-xl-8">
+      <section class="card shadow-sm mb-4">
+        <div class="card-header"><h2 class="h5 mb-0">Profile information</h2></div>
+        <div class="card-body row g-3">
+          <div class="col-md-4"><small class="text-muted d-block">Name</small><strong>{% if can_view_pii %}{{ profile.full_name }}{% else %}{{ profile.display_name }}{% endif %}</strong></div>
+          <div class="col-md-4"><small class="text-muted d-block">Email</small><span>{% if can_view_pii %}{{ profile.email }}{% else %}{{ profile.display_email }}{% endif %}</span></div>
+          <div class="col-md-4"><small class="text-muted d-block">Phone</small><span>{% if can_view_pii %}{{ profile.phone }}{% else %}{{ profile.display_phone }}{% endif %}</span></div>
+          <div class="col-12"><div class="gov-policy-note mb-0"><i class="fas fa-balance-scale mr-1"></i> Frequency is shown for workload and service continuity only. It does not determine fraud, priority, eligibility, or entitlement.</div></div>
+        </div>
+      </section>
+
+      {% if duplicate_profiles %}<section class="card border-warning shadow-sm mb-4"><div class="card-header"><h2 class="h5 mb-0">Possible duplicate identifiers</h2></div><div class="card-body"><p class="text-muted">One or more exact normalized email or phone values also appear on these profiles. No records have been merged automatically.</p>{% for duplicate in duplicate_profiles %}<a class="d-block mb-2" href="{% url 'assistance:citizen_profile_detail' profile_id=duplicate.pk %}">{% if can_view_pii %}{{ duplicate.full_name }}{% else %}{{ duplicate.display_name }}{% endif %} · Profile #{{ duplicate.pk }}</a>{% endfor %}</div></section>{% endif %}
+
+      {% if can_view_pii and identity_variants %}<section class="card shadow-sm mb-4"><div class="card-header"><h2 class="h5 mb-0">Identity details observed on requests</h2></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Name submitted</th><th>Email submitted</th><th>Phone submitted</th><th>Uses</th></tr></thead><tbody>{% for row in identity_variants %}<tr><td>{{ row.full_name }}</td><td>{{ row.email }}</td><td>{{ row.phone }}</td><td>{{ row.total }}</td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
+
+      <section class="card shadow-sm mb-4">
+        <div class="card-header"><h2 class="h5 mb-0">Assistance request history</h2></div>
+        <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Reference</th><th>Type</th><th>Status</th><th>Submitted</th><th></th></tr></thead><tbody>{% for item in requests %}<tr><td><code>{{ item.reference_code }}</code></td><td>{{ item.assistance_type.name }}</td><td><span class="badge bg-secondary">{{ item.get_status_display }}</span></td><td>{{ item.submitted_at|date:"M j, Y H:i" }}</td><td><a href="{% url 'assistance:mswd_request_detail' ref_code=item.reference_code %}" class="btn btn-sm btn-outline-primary">Open</a></td></tr>{% empty %}<tr><td colspan="5" class="text-center text-muted py-4">No linked assistance requests.</td></tr>{% endfor %}</tbody></table></div>
+      </section>
+
+      <div class="row g-4">
+        <div class="col-md-4"><section class="card shadow-sm h-100"><div class="card-header"><h2 class="h6 mb-0">By status</h2></div><ul class="list-group list-group-flush">{% for row in status_breakdown %}<li class="list-group-item d-flex justify-content-between"><span>{{ row.label }}</span><strong>{{ row.total }}</strong></li>{% empty %}<li class="list-group-item text-muted">No data</li>{% endfor %}</ul></section></div>
+        <div class="col-md-4"><section class="card shadow-sm h-100"><div class="card-header"><h2 class="h6 mb-0">By assistance type</h2></div><ul class="list-group list-group-flush">{% for row in type_breakdown %}<li class="list-group-item d-flex justify-content-between"><span>{{ row.assistance_type__name }}</span><strong>{{ row.total }}</strong></li>{% empty %}<li class="list-group-item text-muted">No data</li>{% endfor %}</ul></section></div>
+        <div class="col-md-4"><section class="card shadow-sm h-100"><div class="card-header"><h2 class="h6 mb-0">Requests by month</h2></div><ul class="list-group list-group-flush">{% for row in frequency %}<li class="list-group-item d-flex justify-content-between"><span>{{ row.submitted_at__year }}-{{ row.submitted_at__month|stringformat:"02d" }}</span><strong>{{ row.total }}</strong></li>{% empty %}<li class="list-group-item text-muted">No data</li>{% endfor %}</ul></section></div>
+      </div>
+    </div>
+
+    <aside class="col-xl-4">
+      <section class="card shadow-sm mb-4"><div class="card-header"><h2 class="h5 mb-0">Review workflow</h2></div><div class="card-body"><p><span class="badge {% if profile.review_status == 'verified' %}bg-success{% elif profile.review_status == 'in_review' %}bg-info{% elif profile.review_status == 'needs_update' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ profile.get_review_status_display }}</span></p>{% if can_review_profiles %}<form method="post">{% csrf_token %}{{ review_form.as_p }}<button class="btn btn-primary w-100" type="submit">Save review</button></form>{% else %}<dl class="mb-0"><dt>Assigned reviewer</dt><dd>{% if profile.assigned_reviewer %}{{ profile.assigned_reviewer.get_full_name|default:profile.assigned_reviewer.username }}{% else %}Unassigned{% endif %}</dd><dt>Internal notes</dt><dd class="text-muted">Restricted to authorized reviewers.</dd></dl>{% endif %}</div></section>
+      <section class="card shadow-sm"><div class="card-header"><h2 class="h5 mb-0">Review audit history</h2></div><ul class="list-group list-group-flush">{% for log in review_logs %}<li class="list-group-item"><div class="small text-muted">{{ log.created_at|date:"M j, Y H:i" }}</div><strong>{% if log.actor %}{{ log.actor.get_full_name|default:log.actor.username }}{% else %}System{% endif %}</strong><div class="small">{{ log.previous_status|default:"New"|title }} → {{ log.new_status|title }}</div>{% if can_review_profiles and log.note %}<p class="small mb-0 mt-1">{{ log.note }}</p>{% endif %}</li>{% empty %}<li class="list-group-item text-muted">No review actions yet.</li>{% endfor %}</ul></section>
+    </aside>
+  </div>
+</main>
+{% endblock %}

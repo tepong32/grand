@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title_ext %} - Citizen Profile Review{% endblock %}
+
+{% block content %}
+<main class="container-xl mx-auto py-4">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
+    <div>
+      <p class="gov-eyebrow mb-1">MSWD internal workspace</p>
+      <h1 class="mb-1">Citizen profile review</h1>
+      <p class="text-muted mb-0">Review assistance history using factual service records. Request frequency is not an eligibility or risk decision.</p>
+    </div>
+    <a href="{% url 'assistance:mswd_dashboard' %}" class="btn btn-outline-secondary">Assistance processing</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon"><i class="fas fa-users"></i></span><div><span>Citizen records</span><strong>{{ summary.total|default:0 }}</strong></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon"><i class="fas fa-inbox"></i></span><div><span>Not yet reviewed</span><strong>{{ summary.unreviewed|default:0 }}</strong></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon"><i class="fas fa-search"></i></span><div><span>In review</span><strong>{{ summary.in_review|default:0 }}</strong></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon"><i class="fas fa-check-circle"></i></span><div><span>Reviewed and verified</span><strong>{{ summary.verified|default:0 }}</strong></div></div></div>
+  </div>
+
+  <section class="card shadow-sm mb-4" aria-labelledby="citizen-filter-heading">
+    <div class="card-header"><h2 id="citizen-filter-heading" class="h5 mb-0">Find and sort profiles</h2></div>
+    <div class="card-body">
+      <form method="get" class="row g-3 align-items-end">
+        {% if can_view_pii %}
+          <div class="col-lg-5"><label class="form-label" for="citizen-search">Name, email, or phone</label><input id="citizen-search" name="q" value="{{ search }}" class="form-control" type="search" autocomplete="off"></div>
+        {% else %}
+          <div class="col-lg-5"><div class="gov-policy-note mb-0 py-2"><i class="fas fa-user-shield mr-1"></i> Personal details are masked for your role.</div></div>
+        {% endif %}
+        <div class="col-sm-6 col-lg-3"><label class="form-label" for="review-status">Review state</label><select id="review-status" name="review_status" class="form-select"><option value="">All review states</option>{% for value, label in review_status_choices %}<option value="{{ value }}" {% if selected_review_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="col-sm-6 col-lg-2"><label class="form-label" for="sort">Sort by</label><select id="sort" name="sort" class="form-select"><option value="recent" {% if selected_sort == 'recent' %}selected{% endif %}>Most recent</option><option value="requests" {% if selected_sort == 'requests' %}selected{% endif %}>Most requests</option>{% if can_view_pii %}<option value="name" {% if selected_sort == 'name' %}selected{% endif %}>Name</option>{% endif %}<option value="review" {% if selected_sort == 'review' %}selected{% endif %}>Review state</option></select></div>
+        <div class="col-lg-2"><button class="btn btn-primary w-100" type="submit">Apply</button></div>
+      </form>
+    </div>
+  </section>
+
+  <section class="card shadow-sm" aria-labelledby="citizen-register-heading">
+    <div class="card-header d-flex justify-content-between align-items-center"><h2 id="citizen-register-heading" class="h5 mb-0">Citizen register</h2><span class="small text-muted">{{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }}</span></div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead><tr><th>Citizen</th><th>Review</th><th class="text-center">Requests</th><th class="text-center">Active</th><th>Last request</th><th>Assigned to</th><th><span class="sr-only">Open</span></th></tr></thead>
+        <tbody>
+        {% for citizen in page_obj %}
+          <tr>
+            <td><strong>{% if can_view_pii %}{{ citizen.full_name }}{% else %}{{ citizen.display_name }}{% endif %}</strong><div class="small text-muted">Profile #{{ citizen.pk }}{% if citizen.has_duplicate_identifiers %} <span class="badge bg-warning text-dark ml-1">Possible duplicate identifiers</span>{% endif %}</div>{% if can_view_pii %}<div class="small text-muted">{{ citizen.email }} · {{ citizen.phone }}</div>{% endif %}</td>
+            <td><span class="badge {% if citizen.review_status == 'verified' %}bg-success{% elif citizen.review_status == 'in_review' %}bg-info{% elif citizen.review_status == 'needs_update' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ citizen.get_review_status_display }}</span></td>
+            <td class="text-center"><strong>{{ citizen.request_total }}</strong></td>
+            <td class="text-center">{{ citizen.active_request_total }}</td>
+            <td>{{ citizen.latest_request_at|date:"M j, Y"|default:"No requests" }}</td>
+            <td>{% if citizen.assigned_reviewer %}{{ citizen.assigned_reviewer.get_full_name|default:citizen.assigned_reviewer.username }}{% else %}Unassigned{% endif %}</td>
+            <td class="text-right"><a href="{% url 'assistance:citizen_profile_detail' profile_id=citizen.pk %}" class="btn btn-sm btn-outline-primary">Review history</a></td>
+          </tr>
+        {% empty %}<tr><td colspan="7" class="text-center text-muted py-5">No citizen profiles match these filters.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.has_other_pages %}<div class="card-footer d-flex justify-content-between align-items-center"><span class="small text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span><div>{% if page_obj.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?page={{ page_obj.previous_page_number }}&q={{ search|urlencode }}&review_status={{ selected_review_status }}&sort={{ selected_sort }}">Previous</a>{% endif %}{% if page_obj.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?page={{ page_obj.next_page_number }}&q={{ search|urlencode }}&review_status={{ selected_review_status }}&sort={{ selected_sort }}">Next</a>{% endif %}</div></div>{% endif %}
+  </section>
+</main>
+{% endblock %}

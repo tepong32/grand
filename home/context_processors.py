@@ -1,3 +1,9 @@
+from assistance.access import (
+    can_access_citizen_reviews,
+    can_review_citizen_profiles,
+    can_view_citizen_pii,
+)
+
 from .models import ServiceShortcut, SiteConfiguration
 
 
@@ -18,4 +24,7 @@ def site_ui(request):
         ) if request.user.is_authenticated else ServiceShortcut.objects.none(),
         "employee_department": department,
         "can_view_user_directory": bool(request.user.is_authenticated and (request.user.is_superuser or is_hr)),
+        "can_access_citizen_reviews": can_access_citizen_reviews(request.user),
+        "can_review_citizen_profiles": can_review_citizen_profiles(request.user),
+        "can_view_citizen_pii": can_view_citizen_pii(request.user),
     }
