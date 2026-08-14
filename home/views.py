@@ -249,13 +249,6 @@ def department_dashboard_dynamic(request):
     except TemplateDoesNotExist:
         template_path = DEFAULT_DASHBOARD_TEMPLATE
 
-    if department.slug == "mswd":
-        # Keep MSWD staff workflows aligned with the assistance dashboard CRUD
-        # (request filtering, status + remarks updates, document review actions).
-        from assistance.views.staff import mswd_dashboard_view
-
-        return mswd_dashboard_view(request)
-
     context = get_department_home_context(department, request.user)
     return render(request, template_path, context)
 

@@ -48,11 +48,30 @@
                 <div class="border rounded h-100 p-3">
                   <div class="d-flex justify-content-between align-items-start">
                     <i class="fas {{ section.icon }} fa-2x text-primary mb-3"></i>
-                    <span class="badge {% if section.status == 'Available' %}badge-success{% else %}badge-light{% endif %}">{{ section.status }}</span>
+                    <span class="badge {% if section.status == 'Available' %}badge-success{% else %}badge-secondary{% endif %}">{{ section.status }}</span>
                   </div>
                   <h5>{{ section.title }}</h5>
                   <p class="text-muted">{{ section.description }}</p>
-                  {% if section.url %}<a href="{{ section.url }}" class="btn btn-sm btn-outline-primary">Open module</a>{% endif %}
+                  {% if section.summary_items %}
+                    <div class="row no-gutters border rounded bg-light mb-3" aria-label="{{ section.title }} summary">
+                      {% for item in section.summary_items %}
+                        <div class="col text-center p-2{% if not forloop.last %} border-right{% endif %}">
+                          <div class="h5 mb-0">{{ item.value }}</div>
+                          <small class="text-muted">{{ item.label }}</small>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                  {% if section.url_name %}
+                    {% url section.url_name as section_url %}
+                    <a href="{{ section_url }}" class="btn btn-sm btn-outline-primary">
+                      {{ section.action_label|default:"Open module" }}
+                    </a>
+                  {% elif section.url %}
+                    <a href="{{ section.url }}" class="btn btn-sm btn-outline-primary">
+                      {{ section.action_label|default:"Open module" }}
+                    </a>
+                  {% endif %}
                 </div>
               </div>
             {% endfor %}
@@ -98,7 +117,7 @@
   </div>
 
   {% if department.email or department.phone %}
-    <div class="alert alert-light border mt-2 mb-0">
+    <div class="alert alert-light border text-dark mt-2 mb-0">
       <strong>Office contact:</strong>
       {% if department.email %}<a href="mailto:{{ department.email }}">{{ department.email }}</a>{% endif %}
       {% if department.email and department.phone %}<span class="mx-2">&middot;</span>{% endif %}

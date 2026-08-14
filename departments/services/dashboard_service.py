@@ -37,6 +37,46 @@ DEFAULT_WORKSPACE_SECTIONS = (
 )
 
 DEPARTMENT_WORKSPACE_PRESETS = {
+    "mswd": (
+        {
+            "icon": "fa-hands-helping",
+            "title": "Assistance Requests",
+            "description": "Review citizen assistance applications, supporting documents, and request progress.",
+            "status": "Available",
+            "url_name": "assistance:mswd_dashboard",
+            "action_label": "Open Assistance Processing",
+        },
+        {
+            "icon": "fa-people-carry",
+            "title": "Social Welfare Programs",
+            "description": "Coordinate feeding, outreach, orientation, distribution, and intervention programs.",
+            "status": "Planned",
+        },
+        {
+            "icon": "fa-calendar-day",
+            "title": "Activities and Events",
+            "description": "Schedule seminars, community activities, program sessions, and field operations.",
+            "status": "Planned",
+        },
+        {
+            "icon": "fa-user-friends",
+            "title": "Beneficiaries and Citizens",
+            "description": "Connect reusable citizen records with the services and programs they receive.",
+            "status": "Planned",
+        },
+        {
+            "icon": "fa-folder-open",
+            "title": "Records and Documents",
+            "description": "Maintain program records, supporting documents, and official office files.",
+            "status": "Planned",
+        },
+        {
+            "icon": "fa-chart-line",
+            "title": "Reports and Statistics",
+            "description": "Prepare service-volume, accomplishment, participation, and performance reports.",
+            "status": "Planned",
+        },
+    ),
     "hr": (
         {
             "icon": "fa-users",
@@ -135,7 +175,20 @@ def _department_employees(department: Department) -> QuerySet[EmployeeProfile]:
 def _workspace_sections(department: Department) -> list[dict]:
     slug = (department.slug or "").strip().lower()
     sections = DEPARTMENT_WORKSPACE_PRESETS.get(slug, DEFAULT_WORKSPACE_SECTIONS)
-    return deepcopy(list(sections))
+    result = deepcopy(list(sections))
+    if slug == "mswd":
+        from assistance.models import AssistanceRequest
+
+        active_requests = AssistanceRequest.objects.filter(is_active=True)
+        result[0]["summary_items"] = (
+            {"label": "Active", "value": active_requests.count()},
+            {
+                "label": "Awaiting action",
+                "value": active_requests.filter(status__in=("submitted", "pending")).count(),
+            },
+            {"label": "Under review", "value": active_requests.filter(status="review").count()},
+        )
+    return result
 
 
 def _metric_cards(department: Department, employees: QuerySet[EmployeeProfile]) -> list[dict]:
