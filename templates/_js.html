@@ -40,13 +40,17 @@ document.addEventListener('DOMContentLoaded', function () {
     console.error('Chart.js is not loaded.');
     return;
   }
+  const chartCanvas = document.getElementById('leaveUsageChart');
+  if (!chartCanvas) {
+    return;
+  }
   // Check if the chart data is available
   if (!{{ monthly_leave_data|default:'[]'|safe }} || !{{ chart_labels|default:'[]'|safe }}) {
     console.warn('No data available for the leave usage chart.');
     return;
   }
   // Create the leave usage chart
-  const ctx = document.getElementById('leaveUsageChart').getContext('2d');
+  const ctx = chartCanvas.getContext('2d');
   const leaveChart = new Chart(ctx, {
     type: 'bar',
     data: {
