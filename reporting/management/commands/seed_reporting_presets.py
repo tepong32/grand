@@ -13,4 +13,3 @@ class Command(BaseCommand):
             return
         created = sum(1 for _, changed in results if changed)
         self.stdout.write(self.style.SUCCESS(f"MSWD reporting presets ready: {len(results)} total, {created} newly configured."))
-

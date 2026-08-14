@@ -40,4 +40,3 @@ def seed_mswd_presets(actor=None):
         )
         created.append((definition, was_created or template_created))
     return created
-
