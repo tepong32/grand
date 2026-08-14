@@ -17,6 +17,8 @@ urlpatterns = [
 
 
     path('mswd/dashboard/', views.mswd_dashboard_view, name='mswd_dashboard'),
+    path('mswd/citizens/', views.citizen_profile_list_view, name='citizen_profile_list'),
+    path('mswd/citizens/<int:profile_id>/', views.citizen_profile_detail_view, name='citizen_profile_detail'),
     path('mswd/request/<str:ref_code>/', views.mswd_request_detail_view, name='mswd_request_detail'),
     path('mswd/request/<str:ref_code>/print/', views.mswd_printable_view, name='mswd_request_printable'),
     path('mswd/document/update/<int:doc_id>/', views.mswd_update_document_ajax, name='mswd_update_document_ajax'),

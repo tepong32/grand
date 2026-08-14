@@ -11,6 +11,8 @@ from .public import (
     upload_document_ajax,
 )
 from .staff import (
+    citizen_profile_detail_view,
+    citizen_profile_list_view,
     mswd_dashboard_view,
     mswd_request_detail_view,
     mswd_printable_view,

@@ -1,5 +1,5 @@
 from django import forms
-from .models import AssistanceRequest, RequestDocument
+from .models import AssistanceRequest, CitizenProfile, RequestDocument
 import datetime
 
 
@@ -56,3 +56,27 @@ class AssistanceRequestEditForm(forms.ModelForm):
     class Meta:
         model = AssistanceRequest
         fields = ['full_name', 'email', 'phone', ]  # example
+
+
+class CitizenReviewForm(forms.ModelForm):
+    class Meta:
+        model = CitizenProfile
+        fields = ("review_status", "assigned_reviewer", "review_notes")
+        widgets = {"review_notes": forms.Textarea(attrs={"rows": 4})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["review_status"].widget.attrs["class"] = "form-select"
+        self.fields["assigned_reviewer"].widget.attrs["class"] = "form-select"
+        self.fields["review_notes"].widget.attrs["class"] = "form-control"
+        self.fields["assigned_reviewer"].queryset = self.fields[
+            "assigned_reviewer"
+        ].queryset.filter(employeeprofile__assigned_department__slug__iexact="mswd").order_by(
+            "first_name", "last_name", "username"
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("review_status") == "needs_update" and not (cleaned.get("review_notes") or "").strip():
+            self.add_error("review_notes", "Explain what information needs to be updated.")
+        return cleaned
