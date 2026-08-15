@@ -74,20 +74,34 @@
     },
     {
       "order": 11,
+      "file": "grand-records-workspace.png",
+      "title": "Governed department records workspace",
+      "alt": "GRAND department records registry with draft, review, official, retention, confidentiality, custodian, and record-type indicators",
+      "capability": "Departments can register operational sources and separate files, enforce restricted visibility, and manage review, approval, retention, legal holds, supersession, and disposition through explicit roles."
+    },
+    {
+      "order": 12,
+      "file": "grand-record-detail.png",
+      "title": "Auditable official record detail",
+      "alt": "GRAND official program record showing its linked operational source, checksum-backed supporting file, approval state, retention controls, and audit history",
+      "capability": "Operational files stay authoritative in their source module while the records ledger preserves typed links, controlled downloads, integrity evidence, lifecycle decisions, and a complete audit trail."
+    },
+    {
+      "order": 13,
       "file": "grand-public-services.png",
       "title": "Configurable civic service portal",
       "alt": "GRAND public portal with neutral civic identity, plain-language actions, and official service navigation",
       "capability": "Authorized administrators can update institutional identity, colors, imagery, media, service labels, icons, links, and ordering without redesigning the portal."
     },
     {
-      "order": 12,
+      "order": 14,
       "file": "grand-public-services-mobile.png",
       "title": "Resident-friendly responsive access",
       "alt": "GRAND public service portal adapted to a narrow mobile screen",
       "capability": "Task-first service guidance and accessible trust cues remain clear on phones used by residents and field staff."
     },
     {
-      "order": 13,
+      "order": 15,
       "file": "grand-assistance-portal.png",
       "title": "Account-free citizen assistance",
       "alt": "Grand public assistance portal with new-request and secure tracking actions",
