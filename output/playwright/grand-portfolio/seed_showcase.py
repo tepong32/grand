@@ -308,6 +308,12 @@ for program_record, title, activity_type, start_offset, venue, status, expected,
 
 report_presets = seed_mswd_presets(mswd_user)
 report_definitions = {definition.slug: definition for definition, _ in report_presets}
+validated_template = report_definitions["assistance-volume-status"].current_template
+validated_template.fidelity_status = validated_template.OFFICIAL
+validated_template.fidelity_notes = "Synthetic side-by-side comparison completed against the showcase MSWD monthly form."
+validated_template.fidelity_validated_by = mswd_user
+validated_template.fidelity_validated_at = timezone.now()
+validated_template.save(update_fields=("fidelity_status", "fidelity_notes", "fidelity_validated_by", "fidelity_validated_at"))
 showcase_period_start = today.replace(day=1)
 showcase_period_end = today
 for slug, desired_status, output_format in (

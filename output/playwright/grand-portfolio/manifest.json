@@ -55,15 +55,15 @@
       "order": 8,
       "file": "grand-reporting-workspace.png",
       "title": "Configurable government reporting workspace",
-      "alt": "GRAND reporting workspace with approved MSWD report definitions, governance indicators, recurring schedules, and recent output states",
-      "capability": "Departments can generate familiar PDF, XLSX, and CSV reports from approved datasets while controlled templates, schedules, review states, and an idempotent ledger preserve accountability."
+      "alt": "GRAND reporting workspace with MSWD report definitions, governance indicators, recurring schedules, recent output states, and permission-aware print and download actions",
+      "capability": "Departments can generate PDF, XLSX, and CSV reports from approved datasets while pilot-versus-official layout validation, controlled templates, schedules, and an idempotent ledger preserve accountability."
     },
     {
       "order": 9,
       "file": "grand-report-run-approval.png",
       "title": "Auditable official report approval",
-      "alt": "GRAND report-run ledger showing archived PDF metadata, checksum, template version, audit events, and approved status",
-      "capability": "Every generated report preserves its parameters, template version, checksum, creator, review history, and approval status before it is treated as an official output."
+      "alt": "GRAND report-run ledger showing archived PDF metadata, print and download actions, checksum, validated template fidelity, audit events, and approved status",
+      "capability": "Every generated report preserves its parameters, versioned print layout, checksum, creator, department fidelity evidence, and review history before it is treated as an official output."
     },
     {
       "order": 10,

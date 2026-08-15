@@ -4,6 +4,14 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Report-template fidelity
+
+- Added versioned paper size, orientation, margins, borders, repeating headers, logos, footer, page-number, and document-control settings for native PDF and XLSX layouts.
+- Separated controlled pilot generation from department-validated official layouts and blocked pilot runs from official approval.
+- Added evidence-backed fidelity validation after side-by-side comparison with the department's current form.
+- Added permission-aware PDF print previews and archived output downloads, hiding actions when the format or employee permission does not apply.
+- Added a department template-intake checklist and documented that mapped Excel, Word, and exact PDF modes require representative source forms before implementation.
+
 ### Documentation
 
 - Replaced the stale project overview with current setup, architecture, feature, verification, and operations guidance.

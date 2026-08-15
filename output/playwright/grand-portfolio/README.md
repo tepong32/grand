@@ -11,8 +11,8 @@ This folder contains reproducible, portfolio-ready captures of Grand's municipal
 - `grand-mswd-dashboard.png` - department-centered MSWD workspace with live Assistance and social-welfare program summaries
 - `grand-mswd-programs.png` - internal programs and activities workspace with schedules, aggregate reach, outcomes, and role-aware management
 - `grand-mswd-operations.png` - operational assistance-request queue for MSWD staff
-- `grand-reporting-workspace.png` - cross-department reporting workspace with five MSWD pilot reports, governance indicators, schedules, and approved outputs
-- `grand-report-run-approval.png` - auditable report-run detail with archived output integrity, review history, and official approval state
+- `grand-reporting-workspace.png` - cross-department reporting workspace with five MSWD reports, governance indicators, schedules, pilot/official distinctions, and permission-aware output actions
+- `grand-report-run-approval.png` - auditable report-run detail with archived output integrity, print/download actions, template-fidelity evidence, review history, and official approval state
 
 The machine-readable `manifest.json` is the source of truth for portfolio captions, alt text, ordering, and feature descriptions.
 
