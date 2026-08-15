@@ -10,8 +10,9 @@ from .access import (
     can_manage_templates, can_review_reports, can_schedule_reports, department_for_user,
     can_view_department_reports, reporting_access_required, reporting_permission_required,
 )
-from .forms import ManualReportForm, ReportDefinitionForm, ReportScheduleForm, ReportTemplateVersionForm
-from .models import ReportDefinition, ReportRun, ReportSchedule, ReportTemplateVersion
+from .forms import ManualReportForm, ReportDefinitionForm, ReportScheduleForm, ReportTemplateMappingFieldForm, ReportTemplateVersionForm
+from .mappers import TemplateMappingError, preflight_template
+from .models import ReportDefinition, ReportRun, ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion
 from .services import create_manual_run, transition_run
 
 
@@ -105,6 +106,8 @@ def template_create(request, pk):
         template.full_clean()
         template.save()
         messages.success(request, f"Template version {template.version} saved for controlled review.")
+        if template.render_mode != ReportTemplateVersion.RENDER_NATIVE:
+            return redirect("reporting:template_mapping", pk=template.pk)
         return redirect(definition)
     return render(request, "reporting/template_form.html", {"form": form, "definition": definition})
 
@@ -113,11 +116,81 @@ def template_create(request, pk):
 @require_POST
 def template_approve(request, pk):
     template = get_object_or_404(ReportTemplateVersion, pk=pk, definition__department=department_for_user(request.user))
+    if not template.is_mapping_ready:
+        messages.error(request, "Run template preflight successfully before approval.")
+        return redirect("reporting:template_mapping", pk=template.pk)
+    if template.render_mode != ReportTemplateVersion.RENDER_NATIVE:
+        try:
+            preflight_template(template, request.user)
+        except TemplateMappingError as exc:
+            messages.error(request, f"Approval blocked because preflight no longer passes: {exc}")
+            return redirect("reporting:template_mapping", pk=template.pk)
+        template.refresh_from_db()
     template.approved_by = request.user
     template.approved_at = timezone.now()
+    template.full_clean()
     template.save(update_fields=("approved_by", "approved_at"))
     messages.success(request, f"Template version {template.version} is approved for controlled pilot generation. Department fidelity validation is still required before official use.")
     return redirect(template.definition)
+
+
+@reporting_permission_required(can_manage_templates)
+@require_http_methods(["GET", "POST"])
+def template_mapping(request, pk):
+    template = get_object_or_404(ReportTemplateVersion, pk=pk, definition__department=department_for_user(request.user))
+    if template.render_mode == ReportTemplateVersion.RENDER_NATIVE:
+        messages.info(request, "Native layouts do not require a mapper.")
+        return redirect(template.definition)
+    if template.approved_at and request.method == "POST":
+        messages.error(request, "Approved template mappings are immutable. Create a new version instead.")
+        return redirect("reporting:template_mapping", pk=template.pk)
+    form = None
+    if template.render_mode == ReportTemplateVersion.RENDER_PDF_OVERLAY:
+        form = ReportTemplateMappingFieldForm(request.POST or None, template_version=template)
+        if request.method == "POST" and form.is_valid():
+            form.save()
+            messages.success(request, "Coordinate mapping saved. Run preflight again before approval.")
+            return redirect("reporting:template_mapping", pk=template.pk)
+    return render(request, "reporting/template_mapping.html", {"template": template, "form": form, "mappings": template.overlay_fields.all()})
+
+
+@reporting_permission_required(can_manage_templates)
+@require_POST
+def template_mapping_delete(request, pk, mapping_pk):
+    template = get_object_or_404(ReportTemplateVersion, pk=pk, definition__department=department_for_user(request.user))
+    mapping = get_object_or_404(ReportTemplateMappingField, pk=mapping_pk, template_version=template)
+    try:
+        mapping.delete()
+    except Exception as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, "Coordinate mapping removed. Run preflight again before approval.")
+    return redirect("reporting:template_mapping", pk=template.pk)
+
+
+@reporting_permission_required(can_manage_templates)
+@require_POST
+def template_preflight(request, pk):
+    template = get_object_or_404(ReportTemplateVersion, pk=pk, definition__department=department_for_user(request.user))
+    if template.approved_at:
+        messages.info(request, "This approved mapping is immutable and already validated.")
+        return redirect("reporting:template_mapping", pk=template.pk)
+    try:
+        summary = preflight_template(template, request.user)
+    except TemplateMappingError as exc:
+        messages.error(request, f"Preflight failed: {exc}")
+    else:
+        messages.success(request, f"Preflight passed. The reference checksum and {summary.get('mapping_count', summary.get('row_capacity', 0))} mapped area(s) were recorded.")
+    return redirect("reporting:template_mapping", pk=template.pk)
+
+
+@reporting_permission_required(can_manage_templates)
+def template_reference_download(request, pk):
+    template = get_object_or_404(ReportTemplateVersion, pk=pk, definition__department=department_for_user(request.user))
+    if not template.reference_file:
+        from django.http import Http404
+        raise Http404
+    return FileResponse(template.reference_file.open("rb"), as_attachment=True, filename=template.reference_file.name.rsplit("/", 1)[-1])
 
 
 @reporting_permission_required(can_approve_reports)
