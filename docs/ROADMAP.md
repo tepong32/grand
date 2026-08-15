@@ -46,13 +46,15 @@ The first delivery uses Assistance as the only service-history provider. The rev
 - Lock approved source files and mappings, snapshot mapper evidence into every run, and reject incompatible output formats before generation or scheduling.
 - Keep DOCX and image uploads as intake evidence rather than introducing a fragile desktop-office rendering dependency.
 
-## Later platform phases
-
-### Records and document workflows
+## Completed - Records and document workflows
 
 - Attach supporting records to programs, activities, citizen service history, and generated reports.
 - Add retention, review, approval, supersession, controlled exports, and department-bounded access.
 - Allow approved report runs to become official departmental records without losing their report configuration, checksum, or audit history.
+- Preserve existing operational files in place and store only typed references so Assistance and Reporting remain authoritative.
+- Record controlled downloads, confidentiality boundaries, legal holds, retention due dates, and disposition decisions in an audit ledger.
+
+## Later platform phase
 
 ### TracePoint physical-document custody
 

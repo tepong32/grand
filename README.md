@@ -13,6 +13,7 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 - Permission-restricted citizen review with assistance usage history, duplicate-candidate indicators, review ownership, notes, and audit events.
 - Leave requests and predictable credit accrual with approval deductions.
 - Cross-department reporting definitions, native print layouts, controlled mapped-XLSX and exact-PDF compatibility, recurring schedules, checksums, fidelity validation, permission-aware print/download actions, review, approval, and supersession.
+- Department-bounded records with source-in-place links, checksum-backed uploads, confidentiality controls, review and approval, audited downloads, retention, legal holds, supersession, archival, and disposition.
 - Public and internal announcements, employee/citizen profiles, department records, and organization views.
 
 GRAND keeps operational modules separate: an employee's dashboard summarizes work and links to specialized workspaces instead of embedding full processing screens in the landing page.
@@ -27,6 +28,7 @@ GRAND keeps operational modules separate: an employee's dashboard summarizes wor
 | Assistance | `assistance` | Citizen requests, supporting documents, staff processing, and request audit trail |
 | Programs and activities | `social_welfare` | Internal MSWD program and activity operations |
 | Reports | `reporting` | Controlled datasets, layouts, generation, schedules, approvals, and archives |
+| Records | `records` | Official department registry, source links, files, review, retention, and controlled retrieval |
 | Workforce | `leave_mgt`, `salaries` | Leave workflows and salary-related records |
 
 ## Local development
@@ -73,6 +75,7 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 - [Documentation map](docs/README.md)
 - [Reporting operations and governance](docs/REPORTING.md)
 - [Department report-template intake](docs/REPORT_TEMPLATE_INTAKE.md)
+- [Department records operations](docs/RECORDS.md)
 - [Product roadmap](docs/ROADMAP.md)
 - [Security maintenance](SECURITY.md)
 - [Synthetic portfolio screenshots](output/playwright/grand-portfolio/README.md)
@@ -80,6 +83,6 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 
 ## Product direction
 
-GRAND remains the platform identity. TracePoint is reserved for the later records and physical-document custody layer: document identities, QR labels, transfers, receiving, and acknowledgements. It will remain distinct from the secure links and QR codes used by Assistance.
+GRAND remains the platform identity. TracePoint is reserved for the later physical-document custody layer: physical document identities, QR labels, transfers, receiving, and acknowledgements. It will build on the governed Records registry and remain distinct from the secure links and QR codes used by Assistance.
 
 All showcase records and screenshots are synthetic. Production citizen data, credentials, uploaded records, and generated official reports must never be added to the repository.

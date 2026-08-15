@@ -4,6 +4,17 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Department records and document workflows
+
+- Added a reusable, department-bounded Records workspace for Assistance cases, citizen service history, social-welfare programs and activities, approved reports, and separate departmental files.
+- Kept operational source files authoritative in their existing modules while recording typed references, file metadata, SHA-256 checksums, and an auditable lifecycle ledger.
+- Added explicit permissions for workspace access, management, review, approval, downloads, retention, and restricted/confidential visibility.
+- Added draft, review, approval, archival, supersession, and disposition workflows with immutable official metadata, legal holds, retention due dates, and safe department boundaries.
+- Allowed department-validated official report outputs to be filed idempotently as records without duplicating generated files or losing report-run evidence.
+- Added contextual record actions to Assistance, Citizen Review, Programs, Activities, and Reporting, plus live Records summaries on department dashboards.
+- Restored the authenticated employee logo link to the public portal so administrators can inspect public-facing changes.
+- Restored the Dev Zone legacy-project footer card and added an in-template maintainer note requiring future redesigns to preserve it.
+
 ### Report-template fidelity
 
 - Added versioned paper size, orientation, margins, borders, repeating headers, logos, footer, page-number, and document-control settings for native PDF and XLSX layouts.
