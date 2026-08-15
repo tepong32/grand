@@ -29,6 +29,8 @@ from reporting.mappers import preflight_template
 from reporting.models import ReportRun, ReportSchedule, ReportTemplateVersion
 from reporting.presets import seed_mswd_presets
 from reporting.services import generate_report, transition_run
+from records.models import DepartmentRecord
+from records.services import create_record, file_approved_report, transition_record
 from users.models import User
 
 
@@ -390,6 +392,52 @@ for slug, desired_status, output_format in (
     if desired_status == ReportRun.APPROVED and run.status == ReportRun.REVIEWED:
         transition_run(run, "approve", mswd_user, "Synthetic showcase output approved.")
 
+approved_run = ReportRun.objects.get(
+    idempotency_key=f"showcase:assistance-volume-status:{showcase_period_start}:{showcase_period_end}"
+)
+file_approved_report(approved_run, mswd_user)
+
+program_record = DepartmentRecord.objects.filter(
+    department=departments["mswd"], title="Community Nutrition Program Accomplishment File"
+).first()
+if not program_record:
+    program_record = create_record(
+        department=departments["mswd"], actor=mswd_user,
+        title="Community Nutrition Program Accomplishment File",
+        description="Approved program file linking the operating program with its signed accomplishment note.",
+        classification=DepartmentRecord.CLASS_PROGRAM, custodian=mswd_user, retention_years=5,
+        retention_notes="Synthetic five-year departmental retention example for portfolio QA.",
+        sources=(nutrition_program,),
+        uploaded_file=ContentFile(b"Synthetic signed accomplishment note.", name="nutrition-accomplishment-note.txt"),
+        uploaded_description="Synthetic signed accomplishment note for visual testing.",
+    )
+    transition_record(program_record, "submit", mswd_user, "Prepared for records review.")
+    transition_record(program_record, "approve", mswd_user, "Source and file integrity checked.")
+
+request_for_record = AssistanceRequest.objects.get(reference_code="MSWD-SHOWCASE-002")
+if not DepartmentRecord.objects.filter(
+    department=departments["mswd"], title="Assistance Case File — MSWD-SHOWCASE-002"
+).exists():
+    assistance_record = create_record(
+        department=departments["mswd"], actor=mswd_user,
+        title="Assistance Case File — MSWD-SHOWCASE-002",
+        description="Restricted case record linked to its live Assistance request.",
+        classification=DepartmentRecord.CLASS_ASSISTANCE,
+        confidentiality=DepartmentRecord.CONFIDENTIALITY_CONFIDENTIAL,
+        custodian=mswd_user, sources=(request_for_record,),
+    )
+    transition_record(assistance_record, "submit", mswd_user, "Ready for records review.")
+
+if not DepartmentRecord.objects.filter(
+    department=departments["mswd"], title="2026 Records Retention Schedule Review"
+).exists():
+    create_record(
+        department=departments["mswd"], actor=mswd_user,
+        title="2026 Records Retention Schedule Review",
+        description="Draft working file for aligning department records with the approved retention schedule.",
+        classification=DepartmentRecord.CLASS_GENERAL, custodian=mswd_user,
+    )
+
 schedule_definition = report_definitions["assistance-volume-status"]
 ReportSchedule.objects.update_or_create(
     definition=schedule_definition,
@@ -408,3 +456,4 @@ ReportSchedule.objects.update_or_create(
 print("Showcase database seeded.")
 print(f"Dashboard users: showcase_hr, showcase_gso, showcase_acctg, showcase_planning, showcase_mswd")
 print(f"Password: {SHOWCASE_PASSWORD}")
+print(f"Records detail: {program_record.get_absolute_url()}")

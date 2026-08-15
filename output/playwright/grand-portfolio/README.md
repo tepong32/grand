@@ -14,6 +14,8 @@ This folder contains reproducible, portfolio-ready captures of Grand's municipal
 - `grand-reporting-workspace.png` - cross-department reporting workspace with five MSWD reports, governance indicators, schedules, pilot/official distinctions, and permission-aware output actions
 - `grand-report-run-approval.png` - auditable report-run detail with archived output integrity, print/download actions, template-fidelity evidence, review history, and official approval state
 - `grand-report-template-mapping.png` - controlled compatibility workspace for preserving familiar departmental Excel and PDF forms through checksum-backed mapping
+- `grand-records-workspace.png` - department records registry with official, review, draft, confidentiality, and retention indicators
+- `grand-record-detail.png` - governed record detail with source-in-place links, checksum, approval, retention, and audit evidence
 
 The machine-readable `manifest.json` is the source of truth for portfolio captions, alt text, ordering, and feature descriptions.
 

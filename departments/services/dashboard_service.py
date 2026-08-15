@@ -180,6 +180,29 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
     slug = (department.slug or "").strip().lower()
     sections = DEPARTMENT_WORKSPACE_PRESETS.get(slug, DEFAULT_WORKSPACE_SECTIONS)
     result = deepcopy(list(sections))
+    from records.access import can_view_records
+    if can_view_records(user, department):
+        from records.models import DepartmentRecord
+
+        records_section = next(
+            (item for item in result if item["title"].strip().lower() == "records and documents"),
+            None,
+        )
+        if records_section is None:
+            records_section = {
+                "icon": "fa-folder-open", "title": "Records and Documents",
+                "description": "Register, review, retain, and retrieve official department records.",
+            }
+            result.append(records_section)
+        records = DepartmentRecord.objects.filter(department=department)
+        records_section.update({
+            "status": "Available", "url_name": "records:workspace", "action_label": "Open Records Workspace",
+            "summary_items": (
+                {"label": "Official", "value": records.filter(status=DepartmentRecord.APPROVED).count()},
+                {"label": "For review", "value": records.filter(status=DepartmentRecord.UNDER_REVIEW).count()},
+                {"label": "Archived", "value": records.filter(status=DepartmentRecord.ARCHIVED).count()},
+            ),
+        })
     if slug == "mswd":
         from assistance.models import AssistanceRequest
         from django.utils import timezone

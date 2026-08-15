@@ -221,7 +221,17 @@ def template_validate_fidelity(request, pk):
 def run_detail(request, public_id):
     run = get_object_or_404(_runs_visible_to(request.user).select_related("definition__department", "template_version", "created_by", "reviewed_by", "approved_by"), public_id=public_id)
     can_download = can_download_reports(request.user)
-    return render(request, "reporting/run_detail.html", {"run": run, "can_review": can_review_reports(request.user), "can_approve": can_approve_reports(request.user), "can_download": can_download, "can_print": can_download and run.is_printable})
+    official_record = None
+    if run.is_official_output:
+        from django.contrib.contenttypes.models import ContentType
+        from records.models import RecordAssociation
+
+        content_type = ContentType.objects.get_for_model(run)
+        association = RecordAssociation.objects.filter(
+            content_type=content_type, object_id=run.pk, role="official_source"
+        ).select_related("record").first()
+        official_record = association.record if association else None
+    return render(request, "reporting/run_detail.html", {"run": run, "can_review": can_review_reports(request.user), "can_approve": can_approve_reports(request.user), "can_download": can_download, "can_print": can_download and run.is_printable, "official_record": official_record})
 
 
 @reporting_access_required

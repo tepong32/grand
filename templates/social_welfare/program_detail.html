@@ -13,6 +13,7 @@
     </div>
     {% if can_manage_programs %}
       <div class="mt-3 mt-lg-0">
+        {% if can_manage_records %}<a href="{% url 'records:record_create' %}?source_type=program&amp;source_id={{ program.pk }}" class="btn btn-outline-secondary mr-2"><i class="fas fa-folder-plus mr-1"></i> Add to records</a>{% endif %}
         <a href="{% url 'social_welfare:program_update' program.pk %}" class="btn btn-outline-primary mr-2"><i class="fas fa-edit mr-1"></i> Edit program</a>
         <a href="{% url 'social_welfare:activity_create' program.pk %}" class="btn btn-primary"><i class="fas fa-calendar-plus mr-1"></i> Schedule activity</a>
       </div>
@@ -40,7 +41,7 @@
                 <td>{{ activity.venue }}</td>
                 <td><span class="badge {% if activity.status == 'completed' %}badge-success{% elif activity.status == 'cancelled' %}badge-danger{% elif activity.status == 'ongoing' %}badge-info{% else %}badge-secondary{% endif %}">{{ activity.get_status_display }}</span></td>
                 <td>{% if activity.actual_attendance is not None %}{{ activity.actual_attendance }} actual{% else %}{{ activity.expected_attendance }} expected{% endif %}</td>
-                {% if can_manage_programs %}<td class="text-right"><a href="{% url 'social_welfare:activity_update' activity.pk %}" class="btn btn-sm btn-outline-primary">Update</a></td>{% endif %}
+                {% if can_manage_programs %}<td class="text-right">{% if can_manage_records %}<a href="{% url 'records:record_create' %}?source_type=activity&amp;source_id={{ activity.pk }}" class="btn btn-sm btn-outline-secondary">File</a>{% endif %} <a href="{% url 'social_welfare:activity_update' activity.pk %}" class="btn btn-sm btn-outline-primary">Update</a></td>{% endif %}
               </tr>
               {% if activity.outcome_notes %}<tr class="bg-light"><td colspan="{% if can_manage_programs %}6{% else %}5{% endif %}" class="small"><strong>Outcome:</strong> {{ activity.outcome_notes }}</td></tr>{% endif %}
             {% empty %}
