@@ -22,15 +22,15 @@ Never place production citizen data in the repository or synthetic showcase pack
 | Mode | Use when | Current state |
 | --- | --- | --- |
 | Native GRAND layout | The office accepts a controlled data table with configurable print identity and geometry | Supported for PDF and XLSX |
-| Mapped Excel workbook | The existing workbook's cells, merged headers, formulas, print areas, and sheets must be retained | Planned after a real workbook is reviewed |
-| Mapped Word document | The report combines narrative sections, expanding tables, and official signatory blocks | Planned after a real document is reviewed |
-| Exact PDF form or overlay | A receiving agency mandates fixed boxes, coordinates, or fillable fields | Planned after the exact form is reviewed |
+| Mapped Excel workbook | The existing workbook's cells, merged headers, formulas, print areas, and sheets must be retained | Supported for macro-free XLSX through reserved named ranges and preflight |
+| Mapped Word document | The report combines narrative sections, expanding tables, and official signatory blocks | Intake/reference only; use native PDF or XLSX unless a later governed renderer is approved |
+| Exact PDF form or overlay | A receiving agency mandates fixed boxes and coordinates | Supported through reviewed coordinate mappings and preflight |
 
-Uploaded PDF, spreadsheet, document, and image files remain non-executable references until an approved mapper exists. GRAND does not run macros, embedded queries, scripts, or arbitrary template expressions.
+Uploaded documents and images remain non-executable references. Mapped XLSX and PDF files are data-free layout sources: the mapper writes only allowlisted application fields after checksum-backed preflight. GRAND does not run macros, embedded queries, scripts, or arbitrary template expressions.
 
 ## Pilot comparison
 
-1. Configure a versioned native layout or retain the source form as a reference.
+1. Configure a versioned native layout, mapped XLSX, or exact PDF overlay and complete controlled preflight.
 2. Generate the same covered period through the existing process and GRAND.
 3. Compare totals, labels, row ordering, rounding, page breaks, logos, borders, repeating headings, footers, signatories, annexes, and print output.
 4. Record every mismatch and resolve it in a new template version when print geometry or mappings change.

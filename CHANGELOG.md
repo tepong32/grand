@@ -10,7 +10,10 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 - Separated controlled pilot generation from department-validated official layouts and blocked pilot runs from official approval.
 - Added evidence-backed fidelity validation after side-by-side comparison with the department's current form.
 - Added permission-aware PDF print previews and archived output downloads, hiding actions when the format or employee permission does not apply.
-- Added a department template-intake checklist and documented that mapped Excel, Word, and exact PDF modes require representative source forms before implementation.
+- Added controlled mapped-XLSX generation using reserved named ranges while preserving departmental formatting, formulas, print setup, and fixed row capacity.
+- Added exact PDF overlays using reviewed, allowlisted coordinate mappings without replacing the source form.
+- Added checksum-backed mapper preflight, mapping invalidation, immutable approved mappings, run snapshots, and format compatibility checks for manual and scheduled reports.
+- Kept DOCX and image forms as non-executable intake evidence to avoid desktop-office dependencies in scheduled production jobs.
 
 ### Documentation
 

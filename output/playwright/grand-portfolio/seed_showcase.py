@@ -1,12 +1,17 @@
 """Seed a disposable Grand database for browser QA and portfolio screenshots."""
 
 from datetime import timedelta
+import io
 import os
 from pathlib import Path
 import sys
 
 import django
 from django.utils import timezone
+from django.core.files.base import ContentFile
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.workbook.defined_name import DefinedName
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -20,7 +25,8 @@ from home.models import Announcement
 from leave_mgt.models import LeaveRequest
 from profiles.models import EmployeeProfile
 from social_welfare.models import ProgramActivity, SocialWelfareProgram
-from reporting.models import ReportRun, ReportSchedule
+from reporting.mappers import preflight_template
+from reporting.models import ReportRun, ReportSchedule, ReportTemplateVersion
 from reporting.presets import seed_mswd_presets
 from reporting.services import generate_report, transition_run
 from users.models import User
@@ -314,6 +320,49 @@ validated_template.fidelity_notes = "Synthetic side-by-side comparison completed
 validated_template.fidelity_validated_by = mswd_user
 validated_template.fidelity_validated_at = timezone.now()
 validated_template.save(update_fields=("fidelity_status", "fidelity_notes", "fidelity_validated_by", "fidelity_validated_at"))
+
+# A synthetic current-office workbook demonstrates controlled compatibility without
+# committing citizen data or a department-owned source file to the repository.
+mapped_template = ReportTemplateVersion.objects.filter(
+    definition=report_definitions["assistance-volume-status"], version=2,
+).first()
+if not mapped_template:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Monthly Assistance Form"
+    sheet.merge_cells("A1:C1")
+    sheet["A1"] = "MUNICIPAL SOCIAL WELFARE AND DEVELOPMENT OFFICE"
+    sheet["A1"].font = Font(bold=True, color="FFFFFF", size=13)
+    sheet["A1"].fill = PatternFill("solid", fgColor="17365D")
+    sheet["A1"].alignment = Alignment(horizontal="center")
+    for cell, label in zip(("A6", "B6", "C6"), ("Assistance type", "Status", "Requests")):
+        sheet[cell] = label
+        sheet[cell].font = Font(bold=True, color="FFFFFF")
+        sheet[cell].fill = PatternFill("solid", fgColor="2B579A")
+    thin = Side(style="thin", color="9AA7B2")
+    for row in sheet.iter_rows(min_row=6, max_row=18, min_col=1, max_col=3):
+        for cell in row:
+            cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    sheet.column_dimensions["A"].width = 34
+    sheet.column_dimensions["B"].width = 20
+    sheet.column_dimensions["C"].width = 14
+    workbook.defined_names.add(DefinedName("GRAND_TITLE", attr_text="'Monthly Assistance Form'!$A$2"))
+    workbook.defined_names.add(DefinedName("GRAND_PERIOD", attr_text="'Monthly Assistance Form'!$A$3"))
+    workbook.defined_names.add(DefinedName("GRAND_CONTROL_ID", attr_text="'Monthly Assistance Form'!$A$4"))
+    workbook.defined_names.add(DefinedName("GRAND_DATA_AREA", attr_text="'Monthly Assistance Form'!$A$7:$C$17"))
+    workbook.defined_names.add(DefinedName("GRAND_TOTALS_AREA", attr_text="'Monthly Assistance Form'!$A$18:$C$18"))
+    workbook_bytes = io.BytesIO()
+    workbook.save(workbook_bytes)
+    mapped_template = ReportTemplateVersion(
+        definition=report_definitions["assistance-volume-status"], version=2,
+        title="Current MSWD Monthly Assistance Form", render_mode=ReportTemplateVersion.RENDER_XLSX_TEMPLATE,
+        reference_kind=ReportTemplateVersion.REFERENCE_XLSX,
+        mapping_notes="Synthetic workbook with controlled named ranges for portfolio demonstration.", created_by=mswd_user,
+    )
+    mapped_template.reference_file.save("synthetic-mswd-monthly-form.xlsx", ContentFile(workbook_bytes.getvalue()), save=False)
+    mapped_template.full_clean()
+    mapped_template.save()
+preflight_template(mapped_template, mswd_user)
 showcase_period_start = today.replace(day=1)
 showcase_period_end = today
 for slug, desired_status, output_format in (

@@ -67,20 +67,27 @@
     },
     {
       "order": 10,
+      "file": "grand-report-template-mapping.png",
+      "title": "Familiar forms without brittle automation",
+      "alt": "GRAND controlled template mapping workspace showing Excel named-range rules, successful checksum preflight, and governance guidance",
+      "capability": "Departments can preserve approved Excel or PDF layouts while GRAND restricts data placement to reviewed mappings, records a source checksum, and locks approved versions."
+    },
+    {
+      "order": 11,
       "file": "grand-public-services.png",
       "title": "Configurable civic service portal",
       "alt": "GRAND public portal with neutral civic identity, plain-language actions, and official service navigation",
       "capability": "Authorized administrators can update institutional identity, colors, imagery, media, service labels, icons, links, and ordering without redesigning the portal."
     },
     {
-      "order": 11,
+      "order": 12,
       "file": "grand-public-services-mobile.png",
       "title": "Resident-friendly responsive access",
       "alt": "GRAND public service portal adapted to a narrow mobile screen",
       "capability": "Task-first service guidance and accessible trust cues remain clear on phones used by residents and field staff."
     },
     {
-      "order": 12,
+      "order": 13,
       "file": "grand-assistance-portal.png",
       "title": "Account-free citizen assistance",
       "alt": "Grand public assistance portal with new-request and secure tracking actions",
