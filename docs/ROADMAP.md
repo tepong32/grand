@@ -37,7 +37,14 @@ The first delivery uses Assistance as the only service-history provider. The rev
 - Configure versioned paper size, orientation, margins, page borders, repeating headers, logos, footers, page numbers, document-control identifiers, and signatories.
 - Block pilot outputs from official approval while allowing authorized side-by-side comparison.
 - Show Print only for archived PDFs and Download only for authorized archived outputs.
-- Keep mapped Excel, Word, and exact PDF rendering pending review of representative departmental templates.
+
+## Completed - Existing-template compatibility
+
+- Preserve macro-free departmental XLSX forms through fixed, reviewed named ranges without destroying formatting, formulas, print areas, or neighboring cells.
+- Preserve exact PDF pages and overlay only allowlisted report metadata, dataset fields, and configured totals at reviewed coordinates.
+- Require checksum-backed preflight before approval and invalidate evidence after any mapping change.
+- Lock approved source files and mappings, snapshot mapper evidence into every run, and reject incompatible output formats before generation or scheduling.
+- Keep DOCX and image uploads as intake evidence rather than introducing a fragile desktop-office rendering dependency.
 
 ## Later platform phases
 

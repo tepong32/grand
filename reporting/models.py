@@ -152,6 +152,14 @@ class ReportTemplateVersion(models.Model):
     BORDER_NONE = "none"
     BORDER_SINGLE = "single"
     BORDER_CHOICES = ((BORDER_NONE, "No page border"), (BORDER_SINGLE, "Single page border"))
+    RENDER_NATIVE = "native"
+    RENDER_XLSX_TEMPLATE = "xlsx_template"
+    RENDER_PDF_OVERLAY = "pdf_overlay"
+    RENDER_MODE_CHOICES = (
+        (RENDER_NATIVE, "Native GRAND layout"),
+        (RENDER_XLSX_TEMPLATE, "Mapped Excel workbook"),
+        (RENDER_PDF_OVERLAY, "Exact PDF overlay"),
+    )
 
     definition = models.ForeignKey(ReportDefinition, on_delete=models.CASCADE, related_name="template_versions")
     version = models.PositiveIntegerField()
@@ -171,6 +179,11 @@ class ReportTemplateVersion(models.Model):
         help_text="Stored as a non-executable reference. Mapping and approval are required before official use.",
     )
     mapping_notes = models.TextField(blank=True)
+    render_mode = models.CharField(max_length=20, choices=RENDER_MODE_CHOICES, default=RENDER_NATIVE)
+    mapping_checksum = models.CharField(max_length=64, blank=True)
+    mapping_summary = models.JSONField(default=dict, blank=True)
+    mapping_validated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="preflighted_report_templates")
+    mapping_validated_at = models.DateTimeField(null=True, blank=True)
     fidelity_status = models.CharField(max_length=12, choices=FIDELITY_CHOICES, default=PILOT)
     fidelity_notes = models.TextField(blank=True, help_text="Record the department comparison, governing form, and sign-off basis.")
     page_size = models.CharField(max_length=10, choices=PAGE_SIZE_CHOICES, default=PAGE_A4)
@@ -202,9 +215,26 @@ class ReportTemplateVersion(models.Model):
 
     @property
     def is_official_ready(self):
-        return self.fidelity_status == self.OFFICIAL and bool(self.fidelity_validated_at and self.approved_at)
+        return self.is_mapping_ready and self.fidelity_status == self.OFFICIAL and bool(self.fidelity_validated_at and self.approved_at)
+
+    @property
+    def is_mapping_ready(self):
+        return self.render_mode == self.RENDER_NATIVE or bool(self.mapping_checksum and self.mapping_validated_at)
+
+    @property
+    def supported_formats(self):
+        if self.render_mode == self.RENDER_XLSX_TEMPLATE:
+            return (ReportDefinition.FORMAT_XLSX,)
+        if self.render_mode == self.RENDER_PDF_OVERLAY:
+            return (ReportDefinition.FORMAT_PDF,)
+        return tuple(value for value, _label in ReportDefinition.FORMAT_CHOICES)
+
+    def supports_format(self, output_format):
+        return output_format in self.supported_formats
 
     def clean(self):
+        if self.reference_file and getattr(self.reference_file, "size", 0) > 10 * 1024 * 1024:
+            raise ValidationError({"reference_file": "Report template references must be 10 MB or smaller."})
         if self.reference_kind == self.REFERENCE_NONE and self.reference_file:
             raise ValidationError({"reference_kind": "Identify the uploaded reference format."})
         if self.reference_kind != self.REFERENCE_NONE and not self.reference_file and self.pk is None:
@@ -213,12 +243,22 @@ class ReportTemplateVersion(models.Model):
             raise ValidationError({"signatories": "Signatories must be a list of role and name mappings."})
         if not isinstance(self.layout_config, dict):
             raise ValidationError({"layout_config": "Layout configuration must be a controlled mapping."})
+        if not isinstance(self.mapping_summary, dict):
+            raise ValidationError({"mapping_summary": "Mapping validation must be a controlled summary."})
+        if self.render_mode == self.RENDER_XLSX_TEMPLATE and self.reference_kind != self.REFERENCE_XLSX:
+            raise ValidationError({"reference_kind": "Mapped Excel layouts require an XLSX workbook reference."})
+        if self.render_mode == self.RENDER_PDF_OVERLAY and self.reference_kind != self.REFERENCE_PDF:
+            raise ValidationError({"reference_kind": "Exact PDF overlays require a PDF reference."})
+        if self.render_mode == self.RENDER_XLSX_TEMPLATE and self.reference_file and not self.reference_file.name.lower().endswith(".xlsx"):
+            raise ValidationError({"reference_file": "Mapped workbooks must use the macro-free XLSX format."})
+        if self.approved_at and not self.is_mapping_ready:
+            raise ValidationError({"approved_at": "Mapped templates must pass preflight before approval."})
         if self.fidelity_status == self.OFFICIAL and not self.fidelity_validated_at:
             raise ValidationError({"fidelity_status": "Official layouts require recorded department validation."})
         if self.pk:
             prior = type(self).objects.filter(pk=self.pk).first()
             if prior and prior.approved_at:
-                immutable_fields = ("title", "header_text", "certification_text", "footer_text", "document_control_prefix", "signatories", "layout_config", "reference_kind", "mapping_notes", "page_size", "orientation", "margin_mm", "page_border", "repeat_header", "show_footer", "show_page_numbers", "show_document_control")
+                immutable_fields = ("title", "header_text", "certification_text", "footer_text", "document_control_prefix", "signatories", "layout_config", "reference_kind", "mapping_notes", "render_mode", "mapping_checksum", "mapping_summary", "page_size", "orientation", "margin_mm", "page_border", "repeat_header", "show_footer", "show_page_numbers", "show_document_control")
                 changed = any(getattr(prior, field) != getattr(self, field) for field in immutable_fields)
                 changed = changed or prior.reference_file.name != self.reference_file.name or prior.primary_logo.name != self.primary_logo.name or prior.secondary_logo.name != self.secondary_logo.name
                 if changed:
@@ -227,6 +267,74 @@ class ReportTemplateVersion(models.Model):
                 fidelity_fields = ("fidelity_status", "fidelity_notes", "fidelity_validated_by_id", "fidelity_validated_at")
                 if any(getattr(prior, field) != getattr(self, field) for field in fidelity_fields):
                     raise ValidationError("Department fidelity evidence is immutable. Create a new template version for a different validation.")
+
+
+class ReportTemplateMappingField(models.Model):
+    ALIGN_LEFT = "left"
+    ALIGN_CENTER = "center"
+    ALIGN_RIGHT = "right"
+    ALIGNMENT_CHOICES = ((ALIGN_LEFT, "Left"), (ALIGN_CENTER, "Center"), (ALIGN_RIGHT, "Right"))
+
+    template_version = models.ForeignKey(ReportTemplateVersion, on_delete=models.CASCADE, related_name="overlay_fields")
+    source_key = models.CharField(max_length=100)
+    page_number = models.PositiveSmallIntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(100)])
+    x_mm = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0), MaxValueValidator(500)])
+    y_mm = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0), MaxValueValidator(500)], help_text="Distance from the top edge of the page.")
+    width_mm = models.DecimalField(max_digits=6, decimal_places=2, default=60, validators=[MinValueValidator(5), MaxValueValidator(500)])
+    font_size = models.DecimalField(max_digits=4, decimal_places=1, default=9, validators=[MinValueValidator(5), MaxValueValidator(24)])
+    alignment = models.CharField(max_length=8, choices=ALIGNMENT_CHOICES, default=ALIGN_LEFT)
+    repeat_for_rows = models.BooleanField(default=False)
+    row_height_mm = models.DecimalField(max_digits=5, decimal_places=2, default=5, validators=[MinValueValidator(2), MaxValueValidator(30)])
+    max_rows = models.PositiveSmallIntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(500)])
+    display_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("page_number", "display_order", "pk")
+
+    def __str__(self):
+        return f"{self.template_version}: {self.source_key}"
+
+    @property
+    def is_dataset_field(self):
+        return self.source_key in (self.template_version.definition.selected_fields or [])
+
+    def clean(self):
+        if self.template_version_id and self.template_version.render_mode != ReportTemplateVersion.RENDER_PDF_OVERLAY:
+            raise ValidationError({"template_version": "Coordinate mappings belong only to exact PDF overlay templates."})
+        metadata_keys = {"header", "title", "period", "period_start", "period_end", "control_id", "row_count"}
+        selected = set(self.template_version.definition.selected_fields or []) if self.template_version_id else set()
+        total_keys = {f"total:{key}" for key in self.template_version.definition.totals or []} if self.template_version_id else set()
+        if self.source_key not in metadata_keys | selected | total_keys:
+            raise ValidationError({"source_key": "Choose document metadata or a field exposed by this report definition."})
+        if self.repeat_for_rows and self.source_key not in selected:
+            raise ValidationError({"repeat_for_rows": "Only dataset fields may repeat down a PDF table area."})
+        if not self.repeat_for_rows and self.max_rows != 1:
+            raise ValidationError({"max_rows": "Non-repeating mappings must use one row."})
+
+    def _assert_editable(self):
+        if self.template_version_id and self.template_version.approved_at:
+            raise ValidationError("Approved template mappings are immutable. Create a new template version instead.")
+
+    def _invalidate_preflight(self):
+        ReportTemplateVersion.objects.filter(pk=self.template_version_id).update(
+            mapping_checksum="", mapping_summary={}, mapping_validated_by=None, mapping_validated_at=None,
+        )
+
+    def save(self, *args, **kwargs):
+        self._assert_editable()
+        self.full_clean()
+        result = super().save(*args, **kwargs)
+        self._invalidate_preflight()
+        return result
+
+    def delete(self, *args, **kwargs):
+        self._assert_editable()
+        template_id = self.template_version_id
+        result = super().delete(*args, **kwargs)
+        ReportTemplateVersion.objects.filter(pk=template_id).update(
+            mapping_checksum="", mapping_summary={}, mapping_validated_by=None, mapping_validated_at=None,
+        )
+        return result
 
 
 class ReportSchedule(models.Model):
@@ -258,6 +366,8 @@ class ReportSchedule(models.Model):
     def clean(self):
         if self.template_version_id and self.definition_id and self.template_version.definition_id != self.definition_id:
             raise ValidationError({"template_version": "The template must belong to this report definition."})
+        if self.template_version_id and not self.template_version.supports_format(self.output_format):
+            raise ValidationError({"output_format": "This output format is not supported by the selected template mapper."})
         if self.template_version_id and not self.template_version.approved_at:
             raise ValidationError({"template_version": "Scheduled reports require an approved template version."})
 
@@ -317,6 +427,8 @@ class ReportRun(models.Model):
             raise ValidationError({"period_end": "The reporting period cannot end before it starts."})
         if self.template_version_id and self.definition_id and self.template_version.definition_id != self.definition_id:
             raise ValidationError({"template_version": "The template must belong to this report definition."})
+        if self.template_version_id and not self.template_version.supports_format(self.output_format):
+            raise ValidationError({"output_format": "This output format is not supported by the selected template mapper."})
 
 
 class ReportRunEvent(models.Model):

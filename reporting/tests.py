@@ -12,7 +12,11 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, PatternFill
+from openpyxl.workbook.defined_name import DefinedName
+from pypdf import PdfReader
+from reportlab.pdfgen import canvas
 
 from assistance.models import AssistanceRequest, AssistanceType
 from departments.models import Department
@@ -20,7 +24,8 @@ from social_welfare.models import ProgramActivity, SocialWelfareProgram
 
 from .access import can_view_reporting
 from .datasets import build_dataset
-from .models import ReportDefinition, ReportRun, ReportSchedule, ReportTemplateVersion
+from .mappers import TemplateMappingError, preflight_template
+from .models import ReportDefinition, ReportRun, ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion
 from .presets import seed_mswd_presets
 from .services import create_manual_run, execute_schedule, transition_run
 
@@ -64,6 +69,36 @@ class ReportingPlatformTests(TestCase):
     def _generate(self, output_format="pdf", actor=None):
         today = timezone.localdate()
         return create_manual_run(self.definition, self.template, output_format, today - timedelta(days=7), today, {}, actor or self.operator)
+
+    def _xlsx_reference(self, rows=4):
+        output = io.BytesIO()
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Current MSWD Form"
+        sheet.merge_cells("A1:C1")
+        sheet["A1"] = "MUNICIPAL SOCIAL WELFARE REPORT"
+        sheet["A1"].font = Font(bold=True, color="FFFFFF")
+        sheet["A1"].fill = PatternFill("solid", fgColor="17365D")
+        sheet["A6"] = "Assistance type"
+        sheet["B6"] = "Status"
+        sheet["C6"] = "Requests"
+        sheet["E1"] = "=SUM(C7:C10)"
+        workbook.defined_names.add(DefinedName("GRAND_TITLE", attr_text="'Current MSWD Form'!$A$2"))
+        workbook.defined_names.add(DefinedName("GRAND_PERIOD", attr_text="'Current MSWD Form'!$A$3"))
+        workbook.defined_names.add(DefinedName("GRAND_CONTROL_ID", attr_text="'Current MSWD Form'!$A$4"))
+        workbook.defined_names.add(DefinedName("GRAND_DATA_AREA", attr_text=f"'Current MSWD Form'!$A$7:$C${6 + rows}"))
+        workbook.defined_names.add(DefinedName("GRAND_TOTALS_AREA", attr_text=f"'Current MSWD Form'!$A${7 + rows}:$C${7 + rows}"))
+        workbook.save(output)
+        return output.getvalue()
+
+    def _pdf_reference(self):
+        output = io.BytesIO()
+        document = canvas.Canvas(output)
+        document.setFont("Helvetica-Bold", 12)
+        document.drawString(40, 800, "Existing MSWD Accomplishment Form")
+        document.rect(35, 650, 520, 120)
+        document.save()
+        return output.getvalue()
 
     def test_department_head_and_explicit_permission_can_access_workspace(self):
         self.assertTrue(can_view_reporting(self.head))
@@ -321,3 +356,113 @@ class ReportingPlatformTests(TestCase):
         self.assertNotContains(detail, "Download PDF")
         self.assertContains(detail, "Printing and downloading require report download permission")
         self.assertEqual(self.client.get(reverse("reporting:run_print_preview", args=(run.public_id,))).status_code, 403)
+
+    def test_mapped_xlsx_preserves_department_layout_and_populates_reserved_ranges(self):
+        template = ReportTemplateVersion.objects.create(
+            definition=self.definition, version=2, title="Current MSWD spreadsheet",
+            render_mode=ReportTemplateVersion.RENDER_XLSX_TEMPLATE,
+            reference_kind=ReportTemplateVersion.REFERENCE_XLSX,
+            reference_file=SimpleUploadedFile("current-mswd.xlsx", self._xlsx_reference()), created_by=self.head,
+        )
+        summary = preflight_template(template, self.head)
+        template.refresh_from_db()
+        self.assertEqual(summary["row_capacity"], 4)
+        template.approved_by = self.head
+        template.approved_at = timezone.now()
+        template.full_clean()
+        template.save(update_fields=("approved_by", "approved_at"))
+        today = timezone.localdate()
+        run = create_manual_run(self.definition, template, "xlsx", today - timedelta(days=7), today, {}, self.operator)
+        workbook = load_workbook(run.output_file.path, data_only=False)
+        sheet = workbook["Current MSWD Form"]
+        self.assertEqual(sheet["A1"].value, "MUNICIPAL SOCIAL WELFARE REPORT")
+        self.assertEqual(sheet["A1"].fill.fgColor.rgb, "0017365D")
+        self.assertEqual(sheet["A2"].value, template.title)
+        self.assertEqual(sheet["A7"].value, "Medical assistance")
+        self.assertEqual(sheet["C7"].value, 1)
+        self.assertEqual(sheet["E1"].value, "=SUM(C7:C10)")
+        self.assertEqual(run.parameters["_template_snapshot"]["mapping_checksum"], template.mapping_checksum)
+
+    def test_mapped_xlsx_rejects_wrong_output_and_capacity_overflow(self):
+        template = ReportTemplateVersion.objects.create(
+            definition=self.definition, version=2, title="One-row form",
+            render_mode=ReportTemplateVersion.RENDER_XLSX_TEMPLATE,
+            reference_kind=ReportTemplateVersion.REFERENCE_XLSX,
+            reference_file=SimpleUploadedFile("one-row.xlsx", self._xlsx_reference(rows=1)), created_by=self.head,
+        )
+        preflight_template(template, self.head)
+        template.refresh_from_db()
+        template.approved_by, template.approved_at = self.head, timezone.now()
+        template.full_clean()
+        template.save(update_fields=("approved_by", "approved_at"))
+        today = timezone.localdate()
+        with self.assertRaisesMessage(ValueError, "does not support"):
+            create_manual_run(self.definition, template, "pdf", today, today, {}, self.operator)
+        from .datasets import dataset_registry
+        adapter = dataset_registry[self.definition.dataset_key]
+        with patch("reporting.services.build_dataset", return_value=(adapter, [{"assistance_type": "A", "status": "Submitted", "request_count": 1}, {"assistance_type": "B", "status": "Pending", "request_count": 1}], {"request_count": 2})):
+            with self.assertRaisesMessage(TemplateMappingError, "reserves 1 row"):
+                create_manual_run(self.definition, template, "xlsx", today, today, {}, self.operator)
+        self.assertEqual(ReportRun.objects.latest("created_at").status, ReportRun.FAILED)
+
+    def test_pdf_overlay_keeps_original_form_and_adds_controlled_values(self):
+        template = ReportTemplateVersion.objects.create(
+            definition=self.definition, version=2, title="Existing PDF form",
+            render_mode=ReportTemplateVersion.RENDER_PDF_OVERLAY,
+            reference_kind=ReportTemplateVersion.REFERENCE_PDF,
+            reference_file=SimpleUploadedFile("existing-form.pdf", self._pdf_reference()), created_by=self.head,
+        )
+        ReportTemplateMappingField.objects.create(template_version=template, source_key="title", page_number=1, x_mm=15, y_mm=25, width_mm=120)
+        ReportTemplateMappingField.objects.create(template_version=template, source_key="assistance_type", page_number=1, x_mm=15, y_mm=45, width_mm=70, repeat_for_rows=True, max_rows=10)
+        ReportTemplateMappingField.objects.create(template_version=template, source_key="request_count", page_number=1, x_mm=150, y_mm=45, width_mm=25, alignment="right", repeat_for_rows=True, max_rows=10)
+        preflight_template(template, self.head)
+        template.refresh_from_db()
+        template.approved_by, template.approved_at = self.head, timezone.now()
+        template.full_clean()
+        template.save(update_fields=("approved_by", "approved_at"))
+        today = timezone.localdate()
+        run = create_manual_run(self.definition, template, "pdf", today - timedelta(days=7), today, {}, self.operator)
+        text = "\n".join(page.extract_text() or "" for page in PdfReader(run.output_file.path).pages)
+        self.assertIn("Existing MSWD Accomplishment Form", text)
+        self.assertIn("Existing PDF form", text)
+        self.assertIn("Medical assistance", text)
+
+    def test_mapping_changes_invalidate_preflight_and_approved_mapping_is_locked(self):
+        template = ReportTemplateVersion.objects.create(
+            definition=self.definition, version=2, title="Governed PDF",
+            render_mode=ReportTemplateVersion.RENDER_PDF_OVERLAY,
+            reference_kind=ReportTemplateVersion.REFERENCE_PDF,
+            reference_file=SimpleUploadedFile("governed.pdf", self._pdf_reference()), created_by=self.head,
+        )
+        mapping = ReportTemplateMappingField.objects.create(template_version=template, source_key="title", page_number=1, x_mm=15, y_mm=25, width_mm=120)
+        preflight_template(template, self.head)
+        mapping.x_mm = 20
+        mapping.save()
+        template.refresh_from_db()
+        self.assertFalse(template.is_mapping_ready)
+        preflight_template(template, self.head)
+        template.refresh_from_db()
+        template.approved_by, template.approved_at = self.head, timezone.now()
+        template.full_clean()
+        template.save(update_fields=("approved_by", "approved_at"))
+        mapping.refresh_from_db()
+        mapping.x_mm = 25
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            mapping.save()
+
+    def test_mapper_workspace_obeys_department_and_management_permissions(self):
+        template = ReportTemplateVersion.objects.create(
+            definition=self.definition, version=2, title="Managed workbook",
+            render_mode=ReportTemplateVersion.RENDER_XLSX_TEMPLATE,
+            reference_kind=ReportTemplateVersion.REFERENCE_XLSX,
+            reference_file=SimpleUploadedFile("managed.xlsx", self._xlsx_reference()), created_by=self.head,
+        )
+        self.client.force_login(self.head)
+        response = self.client.get(reverse("reporting:template_mapping", args=(template.pk,)))
+        self.assertContains(response, "GRAND_DATA_AREA")
+        self.outsider.user_permissions.add(Permission.objects.get(codename="manage_report_templates"))
+        self.outsider = get_user_model().objects.get(pk=self.outsider.pk)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(reverse("reporting:template_mapping", args=(template.pk,))).status_code, 404)
+        self.client.force_login(self.operator)
+        self.assertEqual(self.client.get(reverse("reporting:template_mapping", args=(template.pk,))).status_code, 403)

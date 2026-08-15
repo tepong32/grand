@@ -12,7 +12,7 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 - Internal social-welfare programs and activities for seminars, feeding programs, outreach, distributions, schedules, venues, attendance totals, and outcomes.
 - Permission-restricted citizen review with assistance usage history, duplicate-candidate indicators, review ownership, notes, and audit events.
 - Leave requests and predictable credit accrual with approval deductions.
-- Cross-department reporting definitions, versioned print layouts and logos, PDF/XLSX/CSV output, recurring schedules, checksums, department fidelity validation, permission-aware print/download actions, review, approval, and supersession.
+- Cross-department reporting definitions, native print layouts, controlled mapped-XLSX and exact-PDF compatibility, recurring schedules, checksums, fidelity validation, permission-aware print/download actions, review, approval, and supersession.
 - Public and internal announcements, employee/citizen profiles, department records, and organization views.
 
 GRAND keeps operational modules separate: an employee's dashboard summarizes work and links to specialized workspaces instead of embedding full processing screens in the landing page.

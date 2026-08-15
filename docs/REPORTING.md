@@ -6,26 +6,30 @@ The employee workspace is available at `/reports/`. Access is department-bounded
 
 ## Existing government templates
 
-Authorized template managers may attach PDF, XLSX, XLS, DOCX, PNG, or JPEG reference files. GRAND stores these as non-executable references only. An uploaded file does not become an official generator and GRAND never runs embedded queries, scripts, macros, or template code.
+Authorized template managers may attach PDF, XLSX, XLS, DOCX, PNG, or JPEG reference files. GRAND stores them as non-executable references unless an XLSX or PDF version is explicitly configured with one of the controlled mappers below. GRAND never runs embedded queries, scripts, macros, or template code.
 
 Each usable layout is represented by a versioned `ReportTemplateVersion` containing its title, institutional header, certification text, signatory lines, footer, document-control prefix, logos, paper geometry, page-border behavior, and controlled layout settings. Technical approval permits manual or scheduled pilot generation. A separate department fidelity validation is required before a run can be approved as an official output.
 
-PDF is best treated as a visual or fixed-form reference. Spreadsheet and Word references are usually easier to map when tables expand. A scanned form can also be retained as a reference, but it needs a reviewed overlay or native layout before use.
+Three rendering modes are supported:
+
+- **Native GRAND layout** generates PDF, XLSX, or CSV using versioned identity and print settings.
+- **Mapped Excel workbook** preserves an uploaded macro-free `.xlsx` and writes only to reviewed workbook-level named ranges. `GRAND_DATA_AREA` is required. Optional anchors are `GRAND_TOTALS_AREA`, `GRAND_HEADER`, `GRAND_TITLE`, `GRAND_PERIOD`, `GRAND_PERIOD_START`, `GRAND_PERIOD_END`, `GRAND_CONTROL_ID`, and `GRAND_ROW_COUNT`. External-file formulas, mismatched columns, and row overflow fail safely.
+- **Exact PDF overlay** preserves the uploaded PDF pages and adds allowlisted metadata, selected dataset fields, or configured totals at reviewed page coordinates. Encrypted or rotated source pages and out-of-bounds mappings fail preflight.
+
+DOCX and image files remain intake evidence. GRAND does not depend on desktop Word or LibreOffice for scheduled production rendering.
 
 ### Onboarding a familiar office form
 
 1. Create or clone a report definition using an approved dataset.
 2. Select only the fields, filters, period behavior, grouping, totals, and ordering that the office needs.
 3. Upload the existing form as a reference when it helps reviewers compare the result.
-4. Create a native layout version with the institutional header, versioned logos, paper size, orientation, margins, page border, repeating header, certification text, signatories, footer, page numbering, and document-control behavior.
-5. Have an authorized template manager approve that version for pilot generation.
+4. Choose native rendering or configure the controlled Excel/PDF mapper.
+5. Run mapper preflight, which records a SHA-256 checksum and validated layout summary, then have an authorized approver approve the version for pilot generation.
 6. Generate the same period through GRAND and the department's current process, then compare both outputs.
 7. Record the comparison and department sign-off as fidelity evidence.
 8. Only then validate the template for official report approval and distribution.
 
-Uploading a PDF is therefore optional. It preserves visual intent but does not convert the PDF into an executable template or automatically place data into it.
-
-Use the [department template-intake checklist](REPORT_TEMPLATE_INTAKE.md) to inventory actual forms. Mapped Excel, Word, and exact PDF modes remain deliberately unavailable until representative departmental files establish their safe mapping contracts.
+Use the [department template-intake checklist](REPORT_TEMPLATE_INTAKE.md) to inventory actual forms. Any coordinate, reserved range, or source-file change invalidates preflight; approved versions are immutable and must be replaced with a new version.
 
 ## Approved datasets
 
@@ -39,7 +43,7 @@ Generated outputs begin in `generated` state. Reviewers move them to `reviewed`;
 
 A reviewed run that uses a pilot template cannot become `approved`. Authorized employees may still print or download it for side-by-side comparison. Print is offered only for archived PDF output; Download is offered for PDF, XLSX, and CSV. Both actions require download permission and remain inside the user's department boundary.
 
-Every archived run records its department, report definition, template version, period, parameters, format, creator, timestamps, row count, checksum, status, output file, and event history. Generation failures are saved as `failed` and never overwrite the preceding successful output.
+Every archived run records its department, report definition, template version, mapping checksum and validation summary, period, parameters, format, creator, timestamps, row count, output checksum, status, output file, and event history. Generation failures are saved as `failed` and never overwrite the preceding successful output.
 
 Permissions are independently assignable for workspace access, definition management, template management, scheduling, generation, review, approval, download, and department-wide visibility. A permission never bypasses the employee's assigned department boundary. Department heads/OICs receive equivalent authority for their own department by role.
 

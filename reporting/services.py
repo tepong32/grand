@@ -24,7 +24,8 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from reportlab.lib.utils import ImageReader
 
 from .datasets import build_dataset
-from .models import ReportDefinition, ReportRun, ReportRunEvent, ReportSchedule
+from .mappers import generate_mapped_xlsx, generate_pdf_overlay
+from .models import ReportDefinition, ReportRun, ReportRunEvent, ReportSchedule, ReportTemplateVersion
 
 
 def display_value(value):
@@ -48,9 +49,16 @@ def definition_snapshot(definition):
     }
 
 
-def run_parameters(definition, runtime_parameters=None):
+def run_parameters(definition, runtime_parameters=None, template_version=None):
     parameters = dict(runtime_parameters or {})
     parameters["_definition_snapshot"] = definition_snapshot(definition)
+    if template_version:
+        parameters["_template_snapshot"] = {
+            "version": template_version.version,
+            "render_mode": template_version.render_mode,
+            "mapping_checksum": template_version.mapping_checksum,
+            "mapping_summary": dict(template_version.mapping_summary or {}),
+        }
     return parameters
 
 
@@ -275,7 +283,16 @@ def generate_report(run):
     try:
         adapter, rows, totals = build_dataset(run.definition, run.period_start, run.period_end, run.parameters)
         labels = adapter.labels_for(_selected_fields(run))
-        if run.output_format == ReportDefinition.FORMAT_CSV:
+        template = run.template_version
+        if not template.supports_format(run.output_format):
+            raise ValueError("The selected template does not support this output format.")
+        if not template.is_mapping_ready:
+            raise ValueError("The selected mapped template has not passed preflight.")
+        if template.render_mode == ReportTemplateVersion.RENDER_XLSX_TEMPLATE:
+            payload = generate_mapped_xlsx(run, _document_metadata(run), rows, totals, _selected_fields(run), display_value)
+        elif template.render_mode == ReportTemplateVersion.RENDER_PDF_OVERLAY:
+            payload = generate_pdf_overlay(run, _document_metadata(run), rows, totals, display_value)
+        elif run.output_format == ReportDefinition.FORMAT_CSV:
             payload = _generate_csv(run, labels, rows)
         else:
             payload = GENERATORS[run.output_format](run, labels, rows, totals)
@@ -302,9 +319,13 @@ def generate_report(run):
 
 
 def create_manual_run(definition, template_version, output_format, period_start, period_end, parameters, actor):
+    if not template_version.supports_format(output_format):
+        raise ValueError("The selected template does not support this output format.")
+    if not template_version.is_mapping_ready:
+        raise ValueError("The selected mapped template has not passed preflight.")
     run = ReportRun(
         definition=definition, template_version=template_version, output_format=output_format,
-        period_start=period_start, period_end=period_end, parameters=run_parameters(definition, parameters),
+        period_start=period_start, period_end=period_end, parameters=run_parameters(definition, parameters, template_version),
         idempotency_key=f"manual:{uuid.uuid4()}", created_by=actor,
     )
     run.full_clean()
@@ -364,7 +385,7 @@ def execute_schedule(schedule, scheduled_for=None):
     with transaction.atomic():
         run, created = ReportRun.objects.get_or_create(
             idempotency_key=key,
-            defaults={"definition": schedule.definition, "template_version": schedule.template_version, "schedule": schedule, "output_format": schedule.output_format, "period_start": period_start, "period_end": period_end, "parameters": run_parameters(schedule.definition, schedule.parameters), "scheduled_for": scheduled_for, "created_by": schedule.created_by},
+            defaults={"definition": schedule.definition, "template_version": schedule.template_version, "schedule": schedule, "output_format": schedule.output_format, "period_start": period_start, "period_end": period_end, "parameters": run_parameters(schedule.definition, schedule.parameters, schedule.template_version), "scheduled_for": scheduled_for, "created_by": schedule.created_by},
         )
     if created or run.status == ReportRun.FAILED:
         generate_report(run)

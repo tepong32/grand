@@ -33,6 +33,7 @@ prompt_toolkit==3.0.48
 pycparser==2.22
 PyJWT==2.13.0
 PyMySQL==1.1.1
+pypdf==6.16.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 python-telegram-bot==22.8

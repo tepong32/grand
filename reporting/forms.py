@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from .datasets import DATASETS, available_datasets, dataset_registry
-from .models import ReportDefinition, ReportSchedule, ReportTemplateVersion
+from .models import ReportDefinition, ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion
 
 
 class ReportDefinitionForm(forms.ModelForm):
@@ -91,7 +91,7 @@ class ReportTemplateVersionForm(forms.ModelForm):
             "title", "header_text", "certification_text", "footer_text", "document_control_prefix",
             "page_size", "orientation", "margin_mm", "page_border", "repeat_header", "show_footer",
             "show_page_numbers", "show_document_control", "primary_logo", "secondary_logo",
-            "reference_kind", "reference_file", "mapping_notes",
+            "render_mode", "reference_kind", "reference_file", "mapping_notes",
         )
         widgets = {
             "certification_text": forms.Textarea(attrs={"rows": 3}),
@@ -132,7 +132,40 @@ class ManualReportForm(forms.Form):
         cleaned = super().clean()
         if cleaned.get("period_start") and cleaned.get("period_end") and cleaned["period_end"] < cleaned["period_start"]:
             self.add_error("period_end", "The reporting period cannot end before it starts.")
+        template = cleaned.get("template_version")
+        output_format = cleaned.get("output_format")
+        if template and output_format and not template.supports_format(output_format):
+            self.add_error("output_format", "Choose the output format supported by this template.")
+        if template and not template.is_mapping_ready:
+            self.add_error("template_version", "This mapped template must pass preflight before it can generate reports.")
         return cleaned
+
+
+class ReportTemplateMappingFieldForm(forms.ModelForm):
+    class Meta:
+        model = ReportTemplateMappingField
+        fields = ("source_key", "page_number", "x_mm", "y_mm", "width_mm", "font_size", "alignment", "repeat_for_rows", "row_height_mm", "max_rows", "display_order")
+
+    def __init__(self, *args, template_version=None, **kwargs):
+        self.template_version = template_version
+        super().__init__(*args, **kwargs)
+        metadata = (
+            ("header", "Department header"), ("title", "Report title"), ("period", "Covered period"),
+            ("period_start", "Period start"), ("period_end", "Period end"),
+            ("control_id", "Document control ID"), ("row_count", "Row count"),
+        )
+        adapter = dataset_registry[template_version.definition.dataset_key]
+        column_labels = {column.key: column.label for column in adapter.columns}
+        dataset = [(key, column_labels.get(key, key.replace("_", " ").title())) for key in template_version.definition.selected_fields]
+        totals = [(f"total:{key}", f"Total: {column_labels.get(key, key)}") for key in template_version.definition.totals or []]
+        self.fields["source_key"] = forms.ChoiceField(choices=list(metadata) + dataset + totals)
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.template_version = self.template_version
+        if commit:
+            instance.save()
+        return instance
 
 
 class ReportScheduleForm(forms.ModelForm):
@@ -146,6 +179,13 @@ class ReportScheduleForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["definition"].queryset = ReportDefinition.objects.filter(department=department, is_active=True)
         self.fields["template_version"].queryset = ReportTemplateVersion.objects.filter(definition__department=department, is_active=True, approved_at__isnull=False)
+
+    def clean(self):
+        cleaned = super().clean()
+        template = cleaned.get("template_version")
+        if template and not template.is_mapping_ready:
+            self.add_error("template_version", "This mapped template must pass preflight before it can be scheduled.")
+        return cleaned
 
     def save(self, commit=True):
         instance = super().save(commit=False)

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import ReportDefinition, ReportRun, ReportRunEvent, ReportSchedule, ReportTemplateVersion
+from .models import ReportDefinition, ReportRun, ReportRunEvent, ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion
 
 
 class ReportTemplateInline(admin.TabularInline):
@@ -20,8 +20,14 @@ class ReportDefinitionAdmin(admin.ModelAdmin):
 
 @admin.register(ReportTemplateVersion)
 class ReportTemplateVersionAdmin(admin.ModelAdmin):
-    list_display = ("definition", "version", "reference_kind", "fidelity_status", "page_size", "orientation", "is_active", "approved_at")
-    list_filter = ("definition__department", "reference_kind", "fidelity_status", "page_size", "orientation", "is_active")
+    list_display = ("definition", "version", "render_mode", "reference_kind", "fidelity_status", "mapping_validated_at", "is_active", "approved_at")
+    list_filter = ("definition__department", "render_mode", "reference_kind", "fidelity_status", "is_active")
+
+
+@admin.register(ReportTemplateMappingField)
+class ReportTemplateMappingFieldAdmin(admin.ModelAdmin):
+    list_display = ("template_version", "source_key", "page_number", "x_mm", "y_mm", "repeat_for_rows", "max_rows")
+    list_filter = ("template_version__definition__department", "repeat_for_rows", "alignment")
 
 
 @admin.register(ReportSchedule)
