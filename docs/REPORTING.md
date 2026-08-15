@@ -8,7 +8,7 @@ The employee workspace is available at `/reports/`. Access is department-bounded
 
 Authorized template managers may attach PDF, XLSX, XLS, DOCX, PNG, or JPEG reference files. GRAND stores these as non-executable references only. An uploaded file does not become an official generator and GRAND never runs embedded queries, scripts, macros, or template code.
 
-Each usable layout is represented by a versioned `ReportTemplateVersion` containing its title, institutional header, certification text, signatory lines, footer, document-control prefix, and controlled layout settings. The version must be approved before manual or scheduled generation. This lets an office retain a familiar form while its approved fields are mapped safely.
+Each usable layout is represented by a versioned `ReportTemplateVersion` containing its title, institutional header, certification text, signatory lines, footer, document-control prefix, logos, paper geometry, page-border behavior, and controlled layout settings. Technical approval permits manual or scheduled pilot generation. A separate department fidelity validation is required before a run can be approved as an official output.
 
 PDF is best treated as a visual or fixed-form reference. Spreadsheet and Word references are usually easier to map when tables expand. A scanned form can also be retained as a reference, but it needs a reviewed overlay or native layout before use.
 
@@ -17,11 +17,15 @@ PDF is best treated as a visual or fixed-form reference. Spreadsheet and Word re
 1. Create or clone a report definition using an approved dataset.
 2. Select only the fields, filters, period behavior, grouping, totals, and ordering that the office needs.
 3. Upload the existing form as a reference when it helps reviewers compare the result.
-4. Create a native layout version with the institutional header, certification text, signatories, footer, document-control prefix, and controlled layout settings.
-5. Have an authorized template manager approve that version.
-6. Generate a draft output, verify it against the familiar form, and complete review and approval before distribution.
+4. Create a native layout version with the institutional header, versioned logos, paper size, orientation, margins, page border, repeating header, certification text, signatories, footer, page numbering, and document-control behavior.
+5. Have an authorized template manager approve that version for pilot generation.
+6. Generate the same period through GRAND and the department's current process, then compare both outputs.
+7. Record the comparison and department sign-off as fidelity evidence.
+8. Only then validate the template for official report approval and distribution.
 
 Uploading a PDF is therefore optional. It preserves visual intent but does not convert the PDF into an executable template or automatically place data into it.
+
+Use the [department template-intake checklist](REPORT_TEMPLATE_INTAKE.md) to inventory actual forms. Mapped Excel, Word, and exact PDF modes remain deliberately unavailable until representative departmental files establish their safe mapping contracts.
 
 ## Approved datasets
 
@@ -32,6 +36,8 @@ The MSWD pilot includes assistance volume and status, program accomplishments, a
 ## Generation and governance
 
 Generated outputs begin in `generated` state. Reviewers move them to `reviewed`; approvers may then mark them `approved`. Approving a replacement for the same report period supersedes the earlier approved run while preserving its file, checksum, and audit events.
+
+A reviewed run that uses a pilot template cannot become `approved`. Authorized employees may still print or download it for side-by-side comparison. Print is offered only for archived PDF output; Download is offered for PDF, XLSX, and CSV. Both actions require download permission and remain inside the user's department boundary.
 
 Every archived run records its department, report definition, template version, period, parameters, format, creator, timestamps, row count, checksum, status, output file, and event history. Generation failures are saved as `failed` and never overwrite the preceding successful output.
 

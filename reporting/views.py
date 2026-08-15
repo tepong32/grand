@@ -39,8 +39,9 @@ def workspace(request):
         "failed_count": visible_runs.filter(status=ReportRun.FAILED).count(),
         "awaiting_review_count": visible_runs.filter(status=ReportRun.GENERATED).count(),
         "overdue_count": ReportSchedule.objects.filter(definition__department=department, is_active=True, next_run_at__lt=now).count(),
-        "recent_approved": visible_runs.filter(status=ReportRun.APPROVED).select_related("definition")[:5],
+        "recent_approved": visible_runs.filter(status=ReportRun.APPROVED, template_version__fidelity_status=ReportTemplateVersion.OFFICIAL, template_version__fidelity_validated_at__isnull=False).select_related("definition")[:5],
         "can_manage_definitions": can_manage_definitions(request.user), "can_schedule_reports": can_schedule_reports(request.user),
+        "can_download": can_download_reports(request.user),
     })
 
 
@@ -59,7 +60,8 @@ def definition_detail(request, pk):
             except Exception:
                 messages.error(request, "The report run failed. Its error was recorded and can be safely retried.")
             else:
-                messages.success(request, "Report generated as a draft output. Review and approval are still required before official use.")
+                scope = "official-layout candidate" if run.template_version.is_official_ready else "pilot comparison"
+                messages.success(request, f"Report generated as a {scope}. Review is required before further use.")
                 return redirect(run)
     runs = _runs_visible_to(request.user).filter(definition=definition).select_related("created_by")[:15]
     return render(request, "reporting/definition_detail.html", {"definition": definition, "form": form, "runs": runs, "templates": definition.template_versions.all(), "can_generate": can_generate_reports(request.user), "can_manage_templates": can_manage_templates(request.user), "can_manage_definitions": can_manage_definitions(request.user), "can_approve_templates": can_approve_reports(request.user)})
@@ -114,14 +116,39 @@ def template_approve(request, pk):
     template.approved_by = request.user
     template.approved_at = timezone.now()
     template.save(update_fields=("approved_by", "approved_at"))
-    messages.success(request, f"Template version {template.version} is approved for official generation.")
+    messages.success(request, f"Template version {template.version} is approved for controlled pilot generation. Department fidelity validation is still required before official use.")
+    return redirect(template.definition)
+
+
+@reporting_permission_required(can_approve_reports)
+@require_POST
+def template_validate_fidelity(request, pk):
+    template = get_object_or_404(ReportTemplateVersion, pk=pk, definition__department=department_for_user(request.user))
+    if template.is_official_ready:
+        messages.info(request, "This template version already has immutable department fidelity validation.")
+        return redirect(template.definition)
+    if not template.approved_at:
+        messages.error(request, "Approve the controlled template before recording department fidelity validation.")
+        return redirect(template.definition)
+    note = request.POST.get("fidelity_notes", "").strip()
+    if not note:
+        messages.error(request, "Record what departmental form and comparison were used for validation.")
+        return redirect(template.definition)
+    template.fidelity_status = ReportTemplateVersion.OFFICIAL
+    template.fidelity_notes = note
+    template.fidelity_validated_by = request.user
+    template.fidelity_validated_at = timezone.now()
+    template.full_clean()
+    template.save(update_fields=("fidelity_status", "fidelity_notes", "fidelity_validated_by", "fidelity_validated_at"))
+    messages.success(request, f"Template version {template.version} is department-validated for official outputs.")
     return redirect(template.definition)
 
 
 @reporting_access_required
 def run_detail(request, public_id):
     run = get_object_or_404(_runs_visible_to(request.user).select_related("definition__department", "template_version", "created_by", "reviewed_by", "approved_by"), public_id=public_id)
-    return render(request, "reporting/run_detail.html", {"run": run, "can_review": can_review_reports(request.user), "can_approve": can_approve_reports(request.user), "can_download": can_download_reports(request.user)})
+    can_download = can_download_reports(request.user)
+    return render(request, "reporting/run_detail.html", {"run": run, "can_review": can_review_reports(request.user), "can_approve": can_approve_reports(request.user), "can_download": can_download, "can_print": can_download and run.is_printable})
 
 
 @reporting_access_required
@@ -151,6 +178,18 @@ def run_download(request, public_id):
         from django.http import Http404
         raise Http404
     return FileResponse(run.output_file.open("rb"), as_attachment=True, filename=run.output_file.name.rsplit("/", 1)[-1])
+
+
+@reporting_access_required
+def run_print_preview(request, public_id):
+    if not can_download_reports(request.user):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    run = get_object_or_404(_runs_visible_to(request.user), public_id=public_id, output_format=ReportDefinition.FORMAT_PDF)
+    if not run.output_file:
+        from django.http import Http404
+        raise Http404
+    return FileResponse(run.output_file.open("rb"), as_attachment=False, filename=run.output_file.name.rsplit("/", 1)[-1], content_type="application/pdf")
 
 
 @reporting_permission_required(can_schedule_reports)

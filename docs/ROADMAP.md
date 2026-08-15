@@ -31,6 +31,14 @@ The first delivery uses Assistance as the only service-history provider. The rev
 - Pilot five real MSWD presets for Assistance volume, accomplishments, aggregate reach, schedules, and workload.
 - Retain failures and superseded approvals without deleting preceding official files or history.
 
+## Completed - Native template fidelity controls
+
+- Separate technical approval for pilot generation from evidence-backed department validation for official use.
+- Configure versioned paper size, orientation, margins, page borders, repeating headers, logos, footers, page numbers, document-control identifiers, and signatories.
+- Block pilot outputs from official approval while allowing authorized side-by-side comparison.
+- Show Print only for archived PDFs and Download only for authorized archived outputs.
+- Keep mapped Excel, Word, and exact PDF rendering pending review of representative departmental templates.
+
 ## Later platform phases
 
 ### Records and document workflows

@@ -87,8 +87,19 @@ class ReportTemplateVersionForm(forms.ModelForm):
 
     class Meta:
         model = ReportTemplateVersion
-        fields = ("title", "header_text", "certification_text", "footer_text", "document_control_prefix", "reference_kind", "reference_file", "mapping_notes")
-        widgets = {"certification_text": forms.Textarea(attrs={"rows": 3}), "mapping_notes": forms.Textarea(attrs={"rows": 3})}
+        fields = (
+            "title", "header_text", "certification_text", "footer_text", "document_control_prefix",
+            "page_size", "orientation", "margin_mm", "page_border", "repeat_header", "show_footer",
+            "show_page_numbers", "show_document_control", "primary_logo", "secondary_logo",
+            "reference_kind", "reference_file", "mapping_notes",
+        )
+        widgets = {
+            "certification_text": forms.Textarea(attrs={"rows": 3}),
+            "mapping_notes": forms.Textarea(attrs={"rows": 4}),
+            "primary_logo": forms.ClearableFileInput(attrs={"accept": ".png,.jpg,.jpeg"}),
+            "secondary_logo": forms.ClearableFileInput(attrs={"accept": ".png,.jpg,.jpeg"}),
+            "reference_file": forms.ClearableFileInput(attrs={"accept": ".pdf,.xlsx,.xls,.docx,.png,.jpg,.jpeg"}),
+        }
 
     def save(self, commit=True):
         instance = super().save(commit=False)

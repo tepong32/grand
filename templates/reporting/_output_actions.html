@@ -1,0 +1,12 @@
+{% if run.output_file and can_download %}
+<div class="d-flex flex-wrap gap-2 report-output-actions">
+  {% if run.is_printable %}
+    <a href="{% url 'reporting:run_print_preview' run.public_id %}" target="_blank" rel="noopener" class="btn btn-outline-secondary {{ button_class|default:'' }}">
+      <i class="fas fa-print mr-1"></i> Print PDF
+    </a>
+  {% endif %}
+  <a href="{% url 'reporting:run_download' run.public_id %}" class="btn btn-primary {{ button_class|default:'' }}">
+    <i class="fas fa-download mr-1"></i> Download {{ run.output_format|upper }}
+  </a>
+</div>
+{% endif %}
