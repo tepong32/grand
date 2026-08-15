@@ -4,7 +4,7 @@ import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
 from django.db import models
 from django.urls import reverse
 
@@ -12,6 +12,7 @@ from departments.models import Department
 
 
 REFERENCE_EXTENSIONS = ("pdf", "xlsx", "xls", "docx", "png", "jpg", "jpeg")
+IMAGE_EXTENSIONS = ("png", "jpg", "jpeg")
 
 
 def report_reference_path(instance, filename):
@@ -20,6 +21,10 @@ def report_reference_path(instance, filename):
 
 def report_output_path(instance, filename):
     return f"reporting/outputs/{instance.definition.department.slug}/{instance.definition.slug}/{filename}"
+
+
+def report_identity_path(instance, filename):
+    return f"reporting/identity/{instance.definition.department.slug}/{instance.definition.slug}/v{instance.version}/{filename}"
 
 
 class ReportDefinition(models.Model):
@@ -131,6 +136,23 @@ class ReportTemplateVersion(models.Model):
         (REFERENCE_IMAGE, "Scanned or image reference"),
     )
 
+    PILOT = "pilot"
+    OFFICIAL = "official"
+    FIDELITY_CHOICES = (
+        (PILOT, "Pilot - internal comparison only"),
+        (OFFICIAL, "Department-validated official layout"),
+    )
+    PAGE_A4 = "a4"
+    PAGE_LETTER = "letter"
+    PAGE_LEGAL = "legal"
+    PAGE_SIZE_CHOICES = ((PAGE_A4, "A4"), (PAGE_LETTER, "Letter"), (PAGE_LEGAL, "Legal"))
+    PORTRAIT = "portrait"
+    LANDSCAPE = "landscape"
+    ORIENTATION_CHOICES = ((PORTRAIT, "Portrait"), (LANDSCAPE, "Landscape"))
+    BORDER_NONE = "none"
+    BORDER_SINGLE = "single"
+    BORDER_CHOICES = ((BORDER_NONE, "No page border"), (BORDER_SINGLE, "Single page border"))
+
     definition = models.ForeignKey(ReportDefinition, on_delete=models.CASCADE, related_name="template_versions")
     version = models.PositiveIntegerField()
     title = models.CharField(max_length=180)
@@ -149,11 +171,25 @@ class ReportTemplateVersion(models.Model):
         help_text="Stored as a non-executable reference. Mapping and approval are required before official use.",
     )
     mapping_notes = models.TextField(blank=True)
+    fidelity_status = models.CharField(max_length=12, choices=FIDELITY_CHOICES, default=PILOT)
+    fidelity_notes = models.TextField(blank=True, help_text="Record the department comparison, governing form, and sign-off basis.")
+    page_size = models.CharField(max_length=10, choices=PAGE_SIZE_CHOICES, default=PAGE_A4)
+    orientation = models.CharField(max_length=10, choices=ORIENTATION_CHOICES, default=LANDSCAPE)
+    margin_mm = models.PositiveSmallIntegerField(default=14, validators=[MinValueValidator(5), MaxValueValidator(30)])
+    page_border = models.CharField(max_length=10, choices=BORDER_CHOICES, default=BORDER_SINGLE)
+    repeat_header = models.BooleanField(default=True)
+    show_footer = models.BooleanField(default=True)
+    show_page_numbers = models.BooleanField(default=True)
+    show_document_control = models.BooleanField(default=True)
+    primary_logo = models.ImageField(upload_to=report_identity_path, max_length=500, blank=True, validators=[FileExtensionValidator(IMAGE_EXTENSIONS)])
+    secondary_logo = models.ImageField(upload_to=report_identity_path, max_length=500, blank=True, validators=[FileExtensionValidator(IMAGE_EXTENSIONS)])
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_report_templates")
     approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="approved_report_templates")
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
+    fidelity_validated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="validated_report_templates")
+    fidelity_validated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("definition", "-version")
@@ -164,6 +200,10 @@ class ReportTemplateVersion(models.Model):
     def __str__(self):
         return f"{self.definition.name} v{self.version}"
 
+    @property
+    def is_official_ready(self):
+        return self.fidelity_status == self.OFFICIAL and bool(self.fidelity_validated_at and self.approved_at)
+
     def clean(self):
         if self.reference_kind == self.REFERENCE_NONE and self.reference_file:
             raise ValidationError({"reference_kind": "Identify the uploaded reference format."})
@@ -173,14 +213,20 @@ class ReportTemplateVersion(models.Model):
             raise ValidationError({"signatories": "Signatories must be a list of role and name mappings."})
         if not isinstance(self.layout_config, dict):
             raise ValidationError({"layout_config": "Layout configuration must be a controlled mapping."})
+        if self.fidelity_status == self.OFFICIAL and not self.fidelity_validated_at:
+            raise ValidationError({"fidelity_status": "Official layouts require recorded department validation."})
         if self.pk:
             prior = type(self).objects.filter(pk=self.pk).first()
             if prior and prior.approved_at:
-                immutable_fields = ("title", "header_text", "certification_text", "footer_text", "document_control_prefix", "signatories", "layout_config", "reference_kind", "mapping_notes")
+                immutable_fields = ("title", "header_text", "certification_text", "footer_text", "document_control_prefix", "signatories", "layout_config", "reference_kind", "mapping_notes", "page_size", "orientation", "margin_mm", "page_border", "repeat_header", "show_footer", "show_page_numbers", "show_document_control")
                 changed = any(getattr(prior, field) != getattr(self, field) for field in immutable_fields)
-                changed = changed or prior.reference_file.name != self.reference_file.name
+                changed = changed or prior.reference_file.name != self.reference_file.name or prior.primary_logo.name != self.primary_logo.name or prior.secondary_logo.name != self.secondary_logo.name
                 if changed:
                     raise ValidationError("Approved template versions are immutable. Create a new version instead.")
+            if prior and prior.fidelity_validated_at:
+                fidelity_fields = ("fidelity_status", "fidelity_notes", "fidelity_validated_by_id", "fidelity_validated_at")
+                if any(getattr(prior, field) != getattr(self, field) for field in fidelity_fields):
+                    raise ValidationError("Department fidelity evidence is immutable. Create a new template version for a different validation.")
 
 
 class ReportSchedule(models.Model):
@@ -257,6 +303,14 @@ class ReportRun(models.Model):
 
     def get_absolute_url(self):
         return reverse("reporting:run_detail", kwargs={"public_id": self.public_id})
+
+    @property
+    def is_printable(self):
+        return self.output_format == ReportDefinition.FORMAT_PDF and bool(self.output_file)
+
+    @property
+    def is_official_output(self):
+        return self.status == self.APPROVED and self.template_version.is_official_ready
 
     def clean(self):
         if self.period_end < self.period_start:

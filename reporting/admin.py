@@ -6,8 +6,8 @@ from .models import ReportDefinition, ReportRun, ReportRunEvent, ReportSchedule,
 class ReportTemplateInline(admin.TabularInline):
     model = ReportTemplateVersion
     extra = 0
-    fields = ("version", "title", "reference_kind", "is_active", "approved_at")
-    readonly_fields = ("approved_at",)
+    fields = ("version", "title", "reference_kind", "fidelity_status", "is_active", "approved_at", "fidelity_validated_at")
+    readonly_fields = ("approved_at", "fidelity_validated_at")
 
 
 @admin.register(ReportDefinition)
@@ -20,8 +20,8 @@ class ReportDefinitionAdmin(admin.ModelAdmin):
 
 @admin.register(ReportTemplateVersion)
 class ReportTemplateVersionAdmin(admin.ModelAdmin):
-    list_display = ("definition", "version", "reference_kind", "is_active", "approved_at")
-    list_filter = ("definition__department", "reference_kind", "is_active")
+    list_display = ("definition", "version", "reference_kind", "fidelity_status", "page_size", "orientation", "is_active", "approved_at")
+    list_filter = ("definition__department", "reference_kind", "fidelity_status", "page_size", "orientation", "is_active")
 
 
 @admin.register(ReportSchedule)

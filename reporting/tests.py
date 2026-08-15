@@ -58,7 +58,8 @@ class ReportingPlatformTests(TestCase):
         ProgramActivity.objects.create(program=program, title="Nutrition session", activity_type="feeding", starts_at=timezone.now() - timedelta(days=2), venue="Civic Hall", status="completed", expected_attendance=60, actual_attendance=54, outcome_notes="Session completed.", created_by=cls.head, updated_by=cls.head)
 
         cls.definition = ReportDefinition.objects.create(department=cls.mswd, name="Assistance Volume", slug="assistance-volume", description="Volume by type and status.", dataset_key="mswd_assistance_volume", selected_fields=["assistance_type", "status", "request_count"], totals=["request_count"], default_format="pdf", created_by=cls.head, updated_by=cls.head)
-        cls.template = ReportTemplateVersion.objects.create(definition=cls.definition, version=1, title="Assistance Volume and Status", header_text="Municipal Social Welfare and Development Office", certification_text="Certified from approved operational records.", footer_text="Controlled output", document_control_prefix="MSWD-RPT", signatories=[{"role": "Prepared by", "name": "Reporting Officer"}], created_by=cls.head, approved_by=cls.head, approved_at=timezone.now())
+        validated_at = timezone.now()
+        cls.template = ReportTemplateVersion.objects.create(definition=cls.definition, version=1, title="Assistance Volume and Status", header_text="Municipal Social Welfare and Development Office", certification_text="Certified from approved operational records.", footer_text="Controlled output", document_control_prefix="MSWD-RPT", signatories=[{"role": "Prepared by", "name": "Reporting Officer"}], fidelity_status=ReportTemplateVersion.OFFICIAL, fidelity_notes="Compared with the department's current form and approved for synthetic tests.", fidelity_validated_by=cls.head, fidelity_validated_at=validated_at, created_by=cls.head, approved_by=cls.head, approved_at=validated_at)
 
     def _generate(self, output_format="pdf", actor=None):
         today = timezone.localdate()
@@ -129,6 +130,9 @@ class ReportingPlatformTests(TestCase):
         self.assertEqual(sheet["A2"].value, self.template.title)
         self.assertEqual(sheet["A6"].value, "Assistance type")
         self.assertEqual(sheet["C7"].value, 1)
+        self.assertEqual(sheet.page_setup.orientation, "landscape")
+        self.assertEqual(sheet.print_title_rows, "$6:$6")
+        self.assertIn("Page &P of &N", sheet.oddFooter.center.text)
         csv_run = self._generate("csv")
         text = Path(csv_run.output_file.path).read_text(encoding="utf-8-sig")
         self.assertIn("Document control", text)
@@ -143,6 +147,55 @@ class ReportingPlatformTests(TestCase):
         run.refresh_from_db()
         self.assertEqual(run.status, ReportRun.APPROVED)
         self.assertEqual(run.events.count(), 3)
+
+    def test_pilot_template_blocks_official_approval_until_fidelity_validation(self):
+        pilot = ReportTemplateVersion.objects.create(
+            definition=self.definition, version=2, title="Current office form pilot",
+            created_by=self.head, approved_by=self.head, approved_at=timezone.now(),
+        )
+        today = timezone.localdate()
+        run = create_manual_run(self.definition, pilot, "pdf", today, today, {}, self.operator)
+        transition_run(run, "review", self.reviewer)
+        with self.assertRaisesMessage(ValueError, "pilot layout"):
+            transition_run(run, "approve", self.reviewer)
+        run.refresh_from_db()
+        self.assertEqual(run.status, ReportRun.REVIEWED)
+
+    def test_department_fidelity_validation_requires_evidence_and_unlocks_official_use(self):
+        pilot = ReportTemplateVersion.objects.create(
+            definition=self.definition, version=2, title="Validated office form",
+            created_by=self.head, approved_by=self.head, approved_at=timezone.now(),
+        )
+        self.client.force_login(self.reviewer)
+        url = reverse("reporting:template_validate_fidelity", args=(pilot.pk,))
+        response = self.client.post(url, {"fidelity_notes": ""})
+        self.assertRedirects(response, self.definition.get_absolute_url())
+        pilot.refresh_from_db()
+        self.assertFalse(pilot.is_official_ready)
+        response = self.client.post(url, {"fidelity_notes": "Compared side by side with the current signed MSWD form on 2026-08-15."})
+        self.assertRedirects(response, self.definition.get_absolute_url())
+        pilot.refresh_from_db()
+        self.assertTrue(pilot.is_official_ready)
+        self.assertEqual(pilot.fidelity_validated_by, self.reviewer)
+
+    def test_legacy_approval_without_fidelity_is_not_presented_as_current_official_output(self):
+        pilot = ReportTemplateVersion.objects.create(
+            definition=self.definition, version=2, title="Earlier approved form",
+            created_by=self.head, approved_by=self.head, approved_at=timezone.now(),
+        )
+        today = timezone.localdate()
+        run = ReportRun.objects.create(
+            definition=self.definition, template_version=pilot, output_format="pdf", period_start=today,
+            period_end=today, parameters={}, idempotency_key="legacy:approved-pilot", status=ReportRun.APPROVED,
+            created_by=self.operator, approved_by=self.reviewer, approved_at=timezone.now(),
+        )
+        self.assertFalse(run.is_official_output)
+        self.client.force_login(self.operator)
+        detail = self.client.get(run.get_absolute_url())
+        self.assertContains(detail, "Earlier approval retained")
+        self.assertNotContains(detail, "Approved for official use")
+        workspace = self.client.get(reverse("reporting:workspace"))
+        self.assertContains(workspace, "No official outputs approved yet")
 
     def test_new_approval_supersedes_same_period_without_deleting_prior_output(self):
         first = self._generate()
@@ -209,6 +262,12 @@ class ReportingPlatformTests(TestCase):
         with self.assertRaises(ValidationError):
             template.full_clean()
 
+    def test_approved_template_print_geometry_cannot_be_edited_in_place(self):
+        template = ReportTemplateVersion.objects.get(pk=self.template.pk)
+        template.margin_mm = 22
+        with self.assertRaises(ValidationError):
+            template.full_clean()
+
     def test_preset_seeding_is_repeatable_and_creates_five_approved_reports(self):
         self.definition.delete()
         first = seed_mswd_presets(self.head)
@@ -234,3 +293,31 @@ class ReportingPlatformTests(TestCase):
         self.operator = get_user_model().objects.get(pk=self.operator.pk)
         self.client.force_login(self.operator)
         self.assertEqual(self.client.get(reverse("reporting:run_download", args=(run.public_id,))).status_code, 403)
+
+    def test_print_action_is_visible_only_for_authorized_pdf_outputs(self):
+        pdf_run = self._generate("pdf")
+        xlsx_run = self._generate("xlsx")
+        self.client.force_login(self.operator)
+        pdf_detail = self.client.get(pdf_run.get_absolute_url())
+        self.assertContains(pdf_detail, "Print PDF")
+        preview = self.client.get(reverse("reporting:run_print_preview", args=(pdf_run.public_id,)))
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview["Content-Type"], "application/pdf")
+        self.assertIn("inline", preview["Content-Disposition"])
+        xlsx_detail = self.client.get(xlsx_run.get_absolute_url())
+        self.assertNotContains(xlsx_detail, "Print PDF")
+        self.assertEqual(self.client.get(reverse("reporting:run_print_preview", args=(xlsx_run.public_id,))).status_code, 404)
+
+    def test_print_and_download_actions_are_hidden_without_download_permission(self):
+        run = self._generate("pdf")
+        self.client.force_login(self.limited)
+        self.assertEqual(self.client.get(run.get_absolute_url()).status_code, 404)
+        self.client.force_login(self.operator)
+        self.operator.user_permissions.remove(Permission.objects.get(codename="download_reports"))
+        self.operator = get_user_model().objects.get(pk=self.operator.pk)
+        self.client.force_login(self.operator)
+        detail = self.client.get(run.get_absolute_url())
+        self.assertNotContains(detail, "Print PDF")
+        self.assertNotContains(detail, "Download PDF")
+        self.assertContains(detail, "Printing and downloading require report download permission")
+        self.assertEqual(self.client.get(reverse("reporting:run_print_preview", args=(run.public_id,))).status_code, 403)

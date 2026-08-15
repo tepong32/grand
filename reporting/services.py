@@ -12,14 +12,16 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.formats import date_format
 from openpyxl import Workbook
+from openpyxl.drawing.image import Image as SpreadsheetImage
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.pagesizes import A4, LEGAL, LETTER, landscape, portrait
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.lib.utils import ImageReader
 
 from .datasets import build_dataset
 from .models import ReportDefinition, ReportRun, ReportRunEvent, ReportSchedule
@@ -67,6 +69,26 @@ def _document_metadata(run):
     }
 
 
+def _page_layout(template):
+    sizes = {
+        template.PAGE_A4: A4,
+        template.PAGE_LETTER: LETTER,
+        template.PAGE_LEGAL: LEGAL,
+    }
+    base_size = sizes.get(template.page_size, A4)
+    page_size = portrait(base_size) if template.orientation == template.PORTRAIT else landscape(base_size)
+    return page_size, template.margin_mm * mm
+
+
+def _stored_image_path(field):
+    if not field:
+        return None
+    try:
+        return field.path
+    except (NotImplementedError, ValueError):
+        return None
+
+
 def _generate_csv(run, labels, rows):
     output = io.StringIO(newline="")
     writer = csv.writer(output)
@@ -87,6 +109,7 @@ def _generate_xlsx(run, labels, rows, totals):
     sheet = workbook.active
     sheet.title = "Official Report"
     metadata = _document_metadata(run)
+    template = run.template_version
     column_count = max(len(labels), 1)
     sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=column_count)
     sheet["A1"] = metadata["header"]
@@ -100,6 +123,12 @@ def _generate_xlsx(run, labels, rows, totals):
         cell.alignment = Alignment(horizontal="center")
     sheet["A1"].font = Font(bold=True, size=13)
     sheet["A2"].font = Font(bold=True, size=16, color="17365D")
+    paper_sizes = {template.PAGE_A4: sheet.PAPERSIZE_A4, template.PAGE_LETTER: sheet.PAPERSIZE_LETTER, template.PAGE_LEGAL: sheet.PAPERSIZE_LEGAL}
+    sheet.page_setup.paperSize = paper_sizes.get(template.page_size, sheet.PAPERSIZE_A4)
+    sheet.page_setup.orientation = template.orientation
+    margin_inches = template.margin_mm / 25.4
+    sheet.page_margins.left = sheet.page_margins.right = margin_inches
+    sheet.page_margins.top = sheet.page_margins.bottom = margin_inches
     header_row = 6
     navy = "17365D"
     for index, label in enumerate(labels, 1):
@@ -127,6 +156,8 @@ def _generate_xlsx(run, labels, rows, totals):
                 cell = sheet.cell(totals_row, _selected_fields(run).index(key) + 1, value)
                 cell.font = Font(bold=True)
     sheet.freeze_panes = f"A{header_row + 1}"
+    if template.repeat_header:
+        sheet.print_title_rows = f"{header_row}:{header_row}"
     sheet.auto_filter.ref = f"A{header_row}:{sheet.cell(header_row + len(rows), column_count).coordinate}"
     for column_index, column in enumerate(sheet.columns, 1):
         letter = get_column_letter(column_index)
@@ -137,7 +168,24 @@ def _generate_xlsx(run, labels, rows, totals):
         sheet.cell(signatory_row, 1, signatory.get("role", "Prepared by"))
         sheet.cell(signatory_row + 2, 1, signatory.get("name", "____________________________"))
         signatory_row += 4
-    sheet.oddFooter.center.text = f"{run.template_version.footer_text} | &P of &N"
+    for image_field, anchor in ((template.primary_logo, "A1"), (template.secondary_logo, get_column_letter(column_count) + "1")):
+        image_path = _stored_image_path(image_field)
+        if image_path:
+            image = SpreadsheetImage(image_path)
+            image.height = 42
+            image.width = 42
+            sheet.add_image(image, anchor)
+    footer_parts = []
+    if template.show_footer and template.footer_text:
+        footer_parts.append(template.footer_text)
+    if template.show_page_numbers:
+        footer_parts.append("Page &P of &N")
+    if template.show_document_control:
+        footer_parts.append(metadata["control_id"])
+    sheet.oddFooter.center.text = " | ".join(footer_parts)
+    sheet.sheet_properties.pageSetUpPr.fitToPage = True
+    sheet.page_setup.fitToWidth = 1
+    sheet.page_setup.fitToHeight = 0
     output = io.BytesIO()
     workbook.save(output)
     return output.getvalue()
@@ -145,15 +193,22 @@ def _generate_xlsx(run, labels, rows, totals):
 
 def _generate_pdf(run, labels, rows, totals):
     output = io.BytesIO()
-    page_size = landscape(A4)
+    template = run.template_version
+    page_size, margin = _page_layout(template)
     metadata = _document_metadata(run)
-    document = SimpleDocTemplate(output, pagesize=page_size, leftMargin=14 * mm, rightMargin=14 * mm, topMargin=14 * mm, bottomMargin=16 * mm, title=metadata["title"], author=run.definition.department.name)
+    has_logo = bool(template.primary_logo or template.secondary_logo)
+    header_band = 20 * mm if template.repeat_header or has_logo else 0
+    footer_band = 8 * mm if template.show_footer or template.show_page_numbers or template.show_document_control else 0
+    document = SimpleDocTemplate(output, pagesize=page_size, leftMargin=margin, rightMargin=margin, topMargin=margin + header_band, bottomMargin=margin + footer_band, title=metadata["title"], author=run.definition.department.name)
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle("OfficialTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=15, leading=18, alignment=TA_CENTER, textColor=colors.HexColor("#17365D"), spaceAfter=5)
     center_style = ParagraphStyle("Center", parent=styles["Normal"], alignment=TA_CENTER, fontSize=9, leading=12)
     cell_style = ParagraphStyle("Cell", parent=styles["BodyText"], fontSize=7.5, leading=9)
     header_cell_style = ParagraphStyle("HeaderCell", parent=cell_style, fontName="Helvetica-Bold", textColor=colors.white)
-    story = [Paragraph(metadata["header"], center_style), Paragraph(metadata["title"], title_style), Paragraph(f"Covered period: {metadata['period']} &nbsp;&nbsp; | &nbsp;&nbsp; Document control: {metadata['control_id']}", center_style), Spacer(1, 7 * mm)]
+    story = []
+    if not template.repeat_header:
+        story.append(Paragraph(metadata["header"], center_style))
+    story.extend([Paragraph(metadata["title"], title_style), Paragraph(f"Covered period: {metadata['period']}" + (f" &nbsp;&nbsp; | &nbsp;&nbsp; Document control: {metadata['control_id']}" if template.show_document_control else ""), center_style), Spacer(1, 7 * mm)])
     data = [[Paragraph(str(label), header_cell_style) for label in labels]]
     for row in rows:
         data.append([Paragraph(display_value(row[key]).replace("&", "&amp;").replace("<", "&lt;"), cell_style) for key in _selected_fields(run)])
@@ -162,7 +217,7 @@ def _generate_pdf(run, labels, rows, totals):
         for index, key in enumerate(_selected_fields(run)):
             total_row.append(Paragraph("Totals" if index == 0 else display_value(totals.get(key, "")), cell_style))
         data.append(total_row)
-    usable_width = page_size[0] - 28 * mm
+    usable_width = page_size[0] - (2 * margin)
     widths = [usable_width / max(len(labels), 1)] * max(len(labels), 1)
     table = Table(data, colWidths=widths, repeatRows=1, hAlign="LEFT")
     table.setStyle(TableStyle([
@@ -178,15 +233,36 @@ def _generate_pdf(run, labels, rows, totals):
         story.append(Paragraph(f"{signatory.get('role', 'Prepared by')}: ____________________________ &nbsp;&nbsp; {signatory.get('name', '')}", styles["BodyText"]))
         story.append(Spacer(1, 4 * mm))
 
-    def footer(canvas, doc):
+    def decorate_page(canvas, doc):
         canvas.saveState()
+        width, height = page_size
+        if template.page_border == template.BORDER_SINGLE:
+            canvas.setStrokeColor(colors.HexColor("#65717C"))
+            canvas.setLineWidth(0.6)
+            canvas.rect(margin / 2, margin / 2, width - margin, height - margin)
+        if template.repeat_header:
+            canvas.setFont("Helvetica-Bold", 9)
+            canvas.setFillColor(colors.HexColor("#23384D"))
+            canvas.drawCentredString(width / 2, height - margin - 4 * mm, metadata["header"])
+        logo_y = height - margin - 13 * mm
+        for image_field, x in ((template.primary_logo, margin), (template.secondary_logo, width - margin - 12 * mm)):
+            image_path = _stored_image_path(image_field)
+            if image_path:
+                canvas.drawImage(ImageReader(image_path), x, logo_y, width=12 * mm, height=12 * mm, preserveAspectRatio=True, mask="auto")
         canvas.setFont("Helvetica", 7)
         canvas.setFillColor(colors.HexColor("#4F5B66"))
-        canvas.drawString(14 * mm, 8 * mm, run.template_version.footer_text or "Controlled departmental report")
-        canvas.drawRightString(page_size[0] - 14 * mm, 8 * mm, f"Page {doc.page} | {metadata['control_id']}")
+        if template.show_footer and template.footer_text:
+            canvas.drawString(margin, margin, template.footer_text)
+        right_parts = []
+        if template.show_page_numbers:
+            right_parts.append(f"Page {doc.page}")
+        if template.show_document_control:
+            right_parts.append(metadata["control_id"])
+        if right_parts:
+            canvas.drawRightString(width - margin, margin, " | ".join(right_parts))
         canvas.restoreState()
 
-    document.build(story, onFirstPage=footer, onLaterPages=footer)
+    document.build(story, onFirstPage=decorate_page, onLaterPages=decorate_page)
     return output.getvalue()
 
 
@@ -243,6 +319,8 @@ def transition_run(run, action, actor, note=""):
     if action == "review" and run.status == ReportRun.GENERATED:
         run.status, run.reviewed_by, run.reviewed_at = ReportRun.REVIEWED, actor, now
     elif action == "approve" and run.status == ReportRun.REVIEWED:
+        if not run.template_version.is_official_ready:
+            raise ValueError("This output uses a pilot layout. Validate the template against the department's current form before approving it as official.")
         previous_approved = list(ReportRun.objects.filter(definition=run.definition, period_start=run.period_start, period_end=run.period_end, status=ReportRun.APPROVED).exclude(pk=run.pk))
         for prior in previous_approved:
             prior.status = ReportRun.SUPERSEDED

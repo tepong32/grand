@@ -46,11 +46,12 @@
       <section class="card card-outline card-secondary">
         <div class="card-header border-0"><h2 class="card-title font-weight-bold">Recent report runs</h2></div>
         <div class="table-responsive"><table class="table table-hover mb-0">
-          <thead><tr><th>Report</th><th>Period</th><th>Format</th><th>Status</th><th>Created</th></tr></thead>
+          <thead><tr><th>Report</th><th>Period</th><th>Format</th><th>Status</th><th>Created</th><th class="text-right">Output</th></tr></thead>
           <tbody>{% for run in recent_runs %}<tr>
             <td><a href="{{ run.get_absolute_url }}" class="font-weight-bold">{{ run.definition.name }}</a></td><td>{{ run.period_start|date:"M j, Y" }} - {{ run.period_end|date:"M j, Y" }}</td><td>{{ run.output_format|upper }}</td>
             <td><span class="badge {% if run.status == 'approved' %}badge-success{% elif run.status == 'failed' %}badge-danger{% elif run.status == 'reviewed' %}badge-info{% else %}badge-secondary{% endif %}">{{ run.get_status_display }}</span></td><td>{{ run.created_at|date:"M j, Y g:i A" }}</td>
-          </tr>{% empty %}<tr><td colspan="5" class="text-muted text-center py-4">No reports generated yet.</td></tr>{% endfor %}</tbody>
+            <td class="text-right">{% if run.output_file and can_download %}{% if run.is_printable %}<a href="{% url 'reporting:run_print_preview' run.public_id %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary" aria-label="Print {{ run.definition.name }} PDF"><i class="fas fa-print"></i></a>{% endif %}<a href="{% url 'reporting:run_download' run.public_id %}" class="btn btn-sm btn-outline-primary" aria-label="Download {{ run.definition.name }}"><i class="fas fa-download"></i></a>{% else %}<span class="text-muted">&mdash;</span>{% endif %}</td>
+          </tr>{% empty %}<tr><td colspan="6" class="text-muted text-center py-4">No reports generated yet.</td></tr>{% endfor %}</tbody>
         </table></div>
       </section>
     </div>
