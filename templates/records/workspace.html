@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title_ext %} - Department records{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start mb-4">
+    <div>
+      <p class="text-uppercase text-muted small font-weight-bold mb-1">Controlled department files</p>
+      <h1 class="mb-1">Records and documents</h1>
+      <p class="text-muted mb-0">Register official files, preserve their source and history, and manage review and retention from one workspace.</p>
+    </div>
+    {% if can_manage %}<a href="{% url 'records:record_create' %}" class="btn btn-primary mt-3 mt-lg-0"><i class="fas fa-folder-plus mr-1"></i> Register a record</a>{% endif %}
+  </div>
+
+  <div class="row">
+    <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-secondary"><i class="fas fa-edit"></i></span><div><span>Drafts</span><strong>{{ draft_count }}</strong></div></div></div>
+    <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-warning"><i class="fas fa-user-check"></i></span><div><span>For review</span><strong>{{ review_count }}</strong></div></div></div>
+    <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-info"><i class="fas fa-stamp"></i></span><div><span>Official</span><strong>{{ official_count }}</strong></div></div></div>
+    <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-danger"><i class="fas fa-hourglass-end"></i></span><div><span>Retention due</span><strong>{{ retention_due_count }}</strong></div></div></div>
+  </div>
+
+  <section class="card card-outline card-primary">
+    <div class="card-header border-0"><h2 class="card-title font-weight-bold">Department registry</h2></div>
+    <div class="card-body border-bottom">
+      <form method="get" class="row align-items-end">
+        <div class="col-lg-6 mb-2"><label for="records-search">Search</label><input id="records-search" name="q" value="{{ query }}" class="form-control" placeholder="Record number, title, or description"></div>
+        <div class="col-md-3 mb-2"><label for="records-status">Status</label><select id="records-status" name="status" class="form-control"><option value="">All statuses</option>{% for value, label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="col-md-3 mb-2"><label for="records-class">Record type</label><select id="records-class" name="classification" class="form-control"><option value="">All record types</option>{% for value, label in classification_choices %}<option value="{{ value }}" {% if selected_classification == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="col-12 mt-1"><button class="btn btn-outline-primary"><i class="fas fa-search mr-1"></i> Apply filters</button>{% if query or selected_status or selected_classification %}<a href="{% url 'records:workspace' %}" class="btn btn-link">Clear</a>{% endif %}</div>
+      </form>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Record</th><th>Type</th><th>Status</th><th>Access</th><th>Custodian</th><th>Retention</th><th>Updated</th></tr></thead>
+        <tbody>
+        {% for record in records %}<tr>
+          <td><a href="{{ record.get_absolute_url }}" class="font-weight-bold">{{ record.record_number }}</a><div>{{ record.title }}</div></td>
+          <td>{{ record.get_classification_display }}</td>
+          <td><span class="badge {% if record.status == 'approved' %}badge-success{% elif record.status == 'under_review' %}badge-warning{% elif record.status == 'disposed' %}badge-dark{% else %}badge-secondary{% endif %}">{{ record.get_status_display }}</span></td>
+          <td>{% if record.confidentiality == 'internal' %}<i class="fas fa-building text-muted mr-1"></i>{% else %}<i class="fas fa-lock text-warning mr-1"></i>{% endif %}{{ record.get_confidentiality_display }}</td>
+          <td>{% if record.custodian %}{{ record.custodian.get_full_name|default:record.custodian.username }}{% else %}Unassigned{% endif %}</td>
+          <td>{% if record.legal_hold %}<span class="badge badge-danger">Legal hold</span>{% elif record.disposition_due_date %}{{ record.disposition_due_date|date:"M j, Y" }}{% else %}<span class="text-muted">Not assigned</span>{% endif %}</td>
+          <td>{{ record.updated_at|date:"M j, Y" }}</td>
+        </tr>{% empty %}<tr><td colspan="7" class="text-center text-muted py-5"><i class="far fa-folder-open fa-2x d-block mb-2"></i>No records match this view.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-footer small text-muted"><i class="fas fa-shield-alt mr-1"></i> Restricted and confidential records only appear to employees with explicit access.</div>
+  </section>
+</div>
+{% endblock %}

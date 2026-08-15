@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title_ext %} - Register record{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a href="{% url 'records:workspace' %}" class="small"><i class="fas fa-arrow-left mr-1"></i> Records and documents</a>
+  <div class="row justify-content-center mt-3"><div class="col-xl-9">
+    <div class="card card-outline card-primary">
+      <div class="card-header"><h1 class="card-title h4 font-weight-bold">Register a department record</h1></div>
+      <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+        <div class="card-body">
+          {% if source %}<div class="alert alert-info"><i class="fas fa-link mr-2"></i><strong>Linked source:</strong> {{ source }}<div class="small mt-1">The operational item remains in its original workspace. This registry keeps a governed reference instead of duplicating it.</div></div>{% endif %}
+          {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+          {{ form.source_type }}{{ form.source_id }}
+          <div class="form-group"><label for="{{ form.title.id_for_label }}">Record title</label>{{ form.title }}{{ form.title.errors }}</div>
+          <div class="form-group"><label for="{{ form.description.id_for_label }}">Description</label>{{ form.description }}{{ form.description.errors }}</div>
+          <div class="row"><div class="col-md-6 form-group"><label for="{{ form.classification.id_for_label }}">Record type</label>{{ form.classification }}{{ form.classification.errors }}</div><div class="col-md-6 form-group"><label for="{{ form.confidentiality.id_for_label }}">Who may see it</label>{{ form.confidentiality }}{{ form.confidentiality.errors }}</div></div>
+          <div class="row"><div class="col-md-6 form-group"><label for="{{ form.custodian.id_for_label }}">Custodian</label>{{ form.custodian }}{{ form.custodian.errors }}</div><div class="col-md-6 form-group"><label for="{{ form.retention_years.id_for_label }}">Retention period in years</label>{{ form.retention_years }}{{ form.retention_years.errors }}</div></div>
+          <div class="form-group"><label for="{{ form.retention_notes.id_for_label }}">Retention basis or notes</label>{{ form.retention_notes }}{{ form.retention_notes.errors }}</div>
+          <hr><h2 class="h5">Optional initial file</h2><p class="text-muted small">Upload only a new departmental file. Existing Assistance and Reporting outputs should be linked from their source pages.</p>
+          <div class="row"><div class="col-md-6 form-group"><label for="{{ form.initial_file.id_for_label }}">Choose file</label>{{ form.initial_file }}{{ form.initial_file.errors }}</div><div class="col-md-6 form-group"><label for="{{ form.file_description.id_for_label }}">File description</label>{{ form.file_description }}{{ form.file_description.errors }}</div></div>
+        </div>
+        <div class="card-footer d-flex justify-content-between"><a href="{% url 'records:workspace' %}" class="btn btn-light">Cancel</a><button class="btn btn-primary"><i class="fas fa-save mr-1"></i> Save draft record</button></div>
+      </form>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
