@@ -19,6 +19,8 @@ From the repository root, install both requirement sets and run:
 
 Run reporting-specific tests with `manage.py test reporting`. Generated report files and uploaded reference templates are media, not source assets; production storage must be access-controlled and backed up with its database metadata.
 
+TracePoint employee QR URLs contain short-lived bearer tokens even though the database stores only token digests. Configure reverse-proxy and application access logging so full scan paths are not retained, revoke or replace exposed daily codes, and keep packet/detail access behind authentication and object-level authorization.
+
 The security workflow repeats these checks for pull requests, pushes to `master`, a weekly schedule, and manual dispatches. Dependabot checks Python dependencies weekly and GitHub Actions monthly.
 
 ## Bundled browser assets

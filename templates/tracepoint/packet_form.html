@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title_ext %} - Prepare TracePoint packet{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4"><a href="{% url 'tracepoint:workspace' %}" class="small"><i class="fas fa-arrow-left mr-1"></i> TracePoint workspace</a>
+  <div class="row justify-content-center mt-3"><div class="col-xl-9"><div class="card card-outline card-primary">
+    <div class="card-header"><h1 class="card-title h4 font-weight-bold">Prepare a physical packet</h1></div>
+    <form method="post" novalidate>{% csrf_token %}<div class="card-body">
+      <div class="alert alert-info text-dark"><i class="fas fa-map-marker-alt mr-2"></i>Choose the <strong>final destination</strong>. Intermediate offices do not need to be predicted; TracePoint records the route that actually happens.</div>
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="form-group"><label for="{{ form.title.id_for_label }}">Packet title</label>{{ form.title }}{{ form.title.errors }}<small class="form-text text-muted">Use a plain description employees will recognize at the receiving counter.</small></div>
+      <div class="form-group"><label for="{{ form.contents_manifest.id_for_label }}">What is physically inside?</label>{{ form.contents_manifest }}{{ form.contents_manifest.errors }}<small class="form-text text-muted">List the bundled documents and attachments well enough for a receiver to check them.</small></div>
+      <div class="row"><div class="col-md-4 form-group"><label for="{{ form.expected_document_count.id_for_label }}">Document / folder count</label>{{ form.expected_document_count }}{{ form.expected_document_count.errors }}</div><div class="col-md-4 form-group"><label for="{{ form.expected_page_count.id_for_label }}">Approximate page count</label>{{ form.expected_page_count }}{{ form.expected_page_count.errors }}</div><div class="col-md-4 form-group"><label for="{{ form.confidentiality.id_for_label }}">Handling level</label>{{ form.confidentiality }}{{ form.confidentiality.errors }}</div></div>
+      <hr><h2 class="h5">Where should it ultimately arrive?</h2>
+      <div class="row"><div class="col-md-6 form-group"><label for="{{ form.final_destination_department.id_for_label }}">Final department</label>{{ form.final_destination_department }}{{ form.final_destination_department.errors }}</div><div class="col-md-6 form-group"><label for="{{ form.final_destination_employee.id_for_label }}">Specific final employee (optional)</label>{{ form.final_destination_employee }}{{ form.final_destination_employee.errors }}<small class="form-text text-muted">{{ form.final_destination_employee.help_text }}</small></div></div>
+      <hr><h2 class="h5">Optional governed source</h2><p class="small text-muted">Link an existing record or validated official report. TracePoint will not duplicate its file or bypass its download permissions.</p>
+      <div class="row"><div class="col-md-6 form-group"><label for="{{ form.department_record.id_for_label }}">Department record</label>{{ form.department_record }}{{ form.department_record.errors }}</div><div class="col-md-6 form-group"><label for="{{ form.report_run.id_for_label }}">Official report output</label>{{ form.report_run }}{{ form.report_run.errors }}</div></div>
+    </div><div class="card-footer d-flex justify-content-between"><a href="{% url 'tracepoint:workspace' %}" class="btn btn-light">Cancel</a><button class="btn btn-primary"><i class="fas fa-tag mr-1"></i> Create packet and label</button></div></form>
+  </div></div></div>
+</div>
+{% endblock %}

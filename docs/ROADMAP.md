@@ -54,7 +54,7 @@ The first delivery uses Assistance as the only service-history provider. The rev
 - Preserve existing operational files in place and store only typed references so Assistance and Reporting remain authoritative.
 - Record controlled downloads, confidentiality boundaries, legal holds, retention due dates, and disposition decisions in an audit ledger.
 
-## In delivery - TracePoint physical-document custody
+## Completed - TracePoint physical-document custody
 
 - Tag each physical paper/report bundle with one stable, opaque packet QR.
 - Issue active employees random, revocable daily QR credentials without exposing identity data in the code.
@@ -64,3 +64,5 @@ The first delivery uses Assistance as the only service-history provider. The rev
 - Link physical packets to governed Records and approved report runs without copying or weakening access to their authoritative files.
 - Keep TracePoint codes separate from Assistance secure-link QR codes and preserve GRAND as the platform identity.
 - Deliver the capability through the reviewed `0.6.x` patch train documented in [TracePoint physical custody](TRACEPOINT.md).
+
+The `0.6.0` through `0.6.5` train now includes the operating workspace, print labels, daily-code presentation, shared-station confirmation, department dashboard indicators, exception controls, automated regressions, and synthetic portfolio evidence. Production rollout should begin with a small inter-office pilot and written receiving procedure before expanding LGU-wide.

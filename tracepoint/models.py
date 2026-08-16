@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.urls import reverse
 from django.utils import timezone
 
 from departments.models import Department
@@ -120,6 +121,9 @@ class TrackedPacket(models.Model):
     def __str__(self):
         return f"{self.tracking_number} - {self.title}"
 
+    def get_absolute_url(self):
+        return reverse("tracepoint:packet_detail", kwargs={"public_id": self.public_id})
+
     @staticmethod
     def _department_for_employee(employee):
         profile = getattr(employee, "employeeprofile", None)
@@ -208,6 +212,10 @@ class PacketEvent(models.Model):
 
     def __str__(self):
         return f"{self.packet.tracking_number}: {self.action}"
+
+    @property
+    def action_label(self):
+        return self.action.replace("_", " ").title()
 
 
 class DailyEmployeeCredential(models.Model):

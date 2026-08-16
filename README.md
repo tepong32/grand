@@ -14,6 +14,7 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 - Leave requests and predictable credit accrual with approval deductions.
 - Cross-department reporting definitions, native print layouts, controlled mapped-XLSX and exact-PDF compatibility, recurring schedules, checksums, fidelity validation, permission-aware print/download actions, review, approval, and supersession.
 - Department-bounded records with source-in-place links, checksum-backed uploads, confidentiality controls, review and approval, audited downloads, retention, legal holds, supersession, archival, and disposition.
+- TracePoint physical-paper custody with stable packet labels, revocable daily employee QR codes, explicit receipt confirmation, immutable handoff history, flexible routing, discrepancy handling, and separate delivery/completion states.
 - Public and internal announcements, employee/citizen profiles, department records, and organization views.
 
 GRAND keeps operational modules separate: an employee's dashboard summarizes work and links to specialized workspaces instead of embedding full processing screens in the landing page.
@@ -29,6 +30,7 @@ GRAND keeps operational modules separate: an employee's dashboard summarizes wor
 | Programs and activities | `social_welfare` | Internal MSWD program and activity operations |
 | Reports | `reporting` | Controlled datasets, layouts, generation, schedules, approvals, and archives |
 | Records | `records` | Official department registry, source links, files, review, retention, and controlled retrieval |
+| Physical custody | `tracepoint` | QR-tagged paper packets, daily employee codes, confirmed handoffs, exceptions, and completion |
 | Workforce | `leave_mgt`, `salaries` | Leave workflows and salary-related records |
 
 ## Local development

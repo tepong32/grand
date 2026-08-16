@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from io import BytesIO
+import re
 from urllib.parse import quote, urljoin, urlsplit
 
 import qrcode
@@ -29,6 +30,16 @@ def employee_qr_payload(token, *, base_url=""):
         raise QRPayloadError("The daily employee token is malformed.")
     path = f"tracepoint/scan/employee/{quote(token, safe='-_')}/"
     return urljoin(_base_url(base_url), path)
+
+
+def extract_employee_token(value):
+    value = (value or "").strip()
+    if "/tracepoint/scan/employee/" in value:
+        path = urlsplit(value).path.rstrip("/")
+        value = path.rsplit("/", 1)[-1]
+    if not re.fullmatch(r"[A-Za-z0-9_-]{40,80}", value):
+        raise QRPayloadError("The scanned employee code is not in a recognized TracePoint format.")
+    return value
 
 
 def render_qr_png(payload):
