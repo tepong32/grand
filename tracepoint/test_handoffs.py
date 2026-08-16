@@ -87,6 +87,7 @@ class TracePointHandoffTests(TestCase):
         self.assertEqual(handoff.to_employee_name, "Maria Preparer")
         self.assertEqual(handoff.to_position_title, "Social Welfare Officer")
         self.assertEqual(packet.status, TrackedPacket.ACTIVE)
+        self.assertIsNone(packet.delivered_at)
         self.assertEqual(packet.current_holder, self.preparer)
         self.assertEqual(packet.current_department, self.mswd)
         self.assertEqual(packet.state_version, 1)
@@ -120,9 +121,12 @@ class TracePointHandoffTests(TestCase):
         self.assertEqual(receipt.to_department_name, self.accounting.name)
         self.assertEqual(packet.current_holder, self.receiver)
         self.assertEqual(packet.current_department, self.accounting)
+        self.assertEqual(packet.status, TrackedPacket.DELIVERED)
+        self.assertIsNotNone(packet.delivered_at)
         self.assertEqual(packet.state_version, 2)
         self.assertEqual(receiver_code.credential.use_count, 1)
         self.assertEqual(packet.events.filter(action="custody_transferred").count(), 1)
+        self.assertEqual(packet.events.filter(action="delivered").count(), 1)
 
     def test_open_session_blocks_a_competing_station(self):
         packet = self._packet()

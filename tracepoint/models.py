@@ -93,6 +93,17 @@ class TrackedPacket(models.Model):
     activated_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="completed_tracepoint_packets",
+    )
+    held_at = models.DateTimeField(null=True, blank=True)
+    hold_reason = models.TextField(blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.TextField(blank=True)
 
     class Meta:
         ordering = ("-updated_at", "-pk")
@@ -140,6 +151,14 @@ class TrackedPacket(models.Model):
             errors["status"] = "Draft packets cannot have active custody."
         if self.status != self.DRAFT and not self.current_holder_id and self.status not in (self.CANCELLED,):
             errors["current_holder"] = "A circulating packet must have a current holder."
+        if self.status == self.DELIVERED and not self.delivered_at:
+            errors["delivered_at"] = "Delivered packets require their server receipt time."
+        if self.status == self.COMPLETED and (not self.completed_at or not self.completed_by_id):
+            errors["completed_at"] = "Completed packets require the responsible employee and server completion time."
+        if self.status == self.ON_HOLD and (not self.held_at or not self.hold_reason.strip()):
+            errors["hold_reason"] = "On-hold packets require a reason and server time."
+        if self.status == self.CANCELLED and (not self.cancelled_at or not self.cancellation_reason.strip()):
+            errors["cancellation_reason"] = "Cancelled packets require a reason and server time."
 
         if self.department_record_id:
             record = self.department_record
@@ -416,3 +435,117 @@ class PacketHandoff(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Confirmed custody receipts cannot be deleted.")
+
+
+class PacketDiscrepancy(models.Model):
+    MISSING_CONTENTS = "missing_contents"
+    WRONG_RECIPIENT = "wrong_recipient"
+    DAMAGED = "damaged"
+    OTHER = "other"
+    CATEGORY_CHOICES = (
+        (MISSING_CONTENTS, "Missing contents"),
+        (WRONG_RECIPIENT, "Wrong recipient or route"),
+        (DAMAGED, "Damaged packet or contents"),
+        (OTHER, "Other discrepancy"),
+    )
+    OPEN = "open"
+    RESOLVED = "resolved"
+    STATUS_CHOICES = ((OPEN, "Open"), (RESOLVED, "Resolved"))
+
+    packet = models.ForeignKey(TrackedPacket, on_delete=models.PROTECT, related_name="discrepancies")
+    related_handoff = models.ForeignKey(
+        PacketHandoff,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="discrepancies",
+    )
+    category = models.CharField(max_length=24, choices=CATEGORY_CHOICES)
+    description = models.TextField()
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=OPEN, db_index=True)
+    reported_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="reported_tracepoint_discrepancies")
+    reported_at = models.DateTimeField(auto_now_add=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resolved_tracepoint_discrepancies",
+    )
+    resolution = models.TextField(blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-reported_at", "-pk")
+
+    def __str__(self):
+        return f"{self.packet.tracking_number}: {self.get_category_display()}"
+
+    def clean(self):
+        errors = {}
+        if self.related_handoff_id and self.related_handoff.packet_id != self.packet_id:
+            errors["related_handoff"] = "The referenced receipt must belong to this packet."
+        if self.status == self.RESOLVED and (not self.resolved_by_id or not self.resolved_at or not self.resolution.strip()):
+            errors["resolution"] = "Resolved discrepancies require a decision, resolver, and server time."
+        if self.pk:
+            previous = type(self).objects.filter(pk=self.pk).first()
+            if previous:
+                report_fields = ("packet_id", "related_handoff_id", "category", "description", "reported_by_id", "reported_at")
+                if any(getattr(previous, field) != getattr(self, field) for field in report_fields):
+                    errors["description"] = "The original discrepancy report is immutable."
+                if previous.resolved_at:
+                    resolution_fields = ("status", "resolved_by_id", "resolution", "resolved_at")
+                    if any(getattr(previous, field) != getattr(self, field) for field in resolution_fields):
+                        errors["resolution"] = "A resolved discrepancy is immutable. Add a new correction event if needed."
+        if errors:
+            raise ValidationError(errors)
+
+
+class PacketCorrection(models.Model):
+    packet = models.ForeignKey(TrackedPacket, on_delete=models.PROTECT, related_name="corrections")
+    related_handoff = models.ForeignKey(
+        PacketHandoff,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="corrections",
+    )
+    prior_holder = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tracepoint_corrections_from",
+    )
+    corrected_holder = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="tracepoint_corrections_to",
+    )
+    prior_holder_name = models.CharField(max_length=255, blank=True)
+    corrected_holder_name = models.CharField(max_length=255)
+    prior_department_name = models.CharField(max_length=100, blank=True)
+    corrected_department_name = models.CharField(max_length=100)
+    reason = models.TextField()
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="tracepoint_corrections_created")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def __str__(self):
+        return f"{self.packet.tracking_number}: custody correction"
+
+    def clean(self):
+        if self.related_handoff_id and self.related_handoff.packet_id != self.packet_id:
+            raise ValidationError({"related_handoff": "The referenced receipt must belong to this packet."})
+        if self.prior_holder_id and self.prior_holder_id == self.corrected_holder_id:
+            raise ValidationError({"corrected_holder": "The correction must identify a different holder."})
+
+    def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk).exists():
+            raise ValidationError("Custody correction events are immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Custody correction events cannot be deleted.")
