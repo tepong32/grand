@@ -16,6 +16,9 @@ This folder contains reproducible, portfolio-ready captures of Grand's municipal
 - `grand-report-template-mapping.png` - controlled compatibility workspace for preserving familiar departmental Excel and PDF forms through checksum-backed mapping
 - `grand-records-workspace.png` - department records registry with official, review, draft, confidentiality, and retention indicators
 - `grand-record-detail.png` - governed record detail with source-in-place links, checksum, approval, retention, and audit evidence
+- `grand-tracepoint-workspace.png` - cross-department physical-custody register with live status, responsibility, destination, and exception indicators
+- `grand-tracepoint-packet-route.png` - immutable employee-to-employee receipt route linked to a governed official report
+- `grand-tracepoint-daily-code.png` - random, day-limited employee QR identity with replacement and revocation guidance
 
 The machine-readable `manifest.json` is the source of truth for portfolio captions, alt text, ordering, and feature descriptions.
 

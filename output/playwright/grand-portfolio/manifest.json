@@ -88,20 +88,41 @@
     },
     {
       "order": 13,
+      "file": "grand-tracepoint-workspace.png",
+      "title": "TracePoint physical-custody workspace",
+      "alt": "GRAND TracePoint workspace showing QR-tagged paper packets, custody status, current responsibility, final destinations, and open discrepancies",
+      "capability": "Departments can find physical paper bundles quickly, see who currently holds them, and distinguish drafts, in-transit work, delivered packets, and exceptions without replacing the underlying report or records systems."
+    },
+    {
+      "order": 14,
+      "file": "grand-tracepoint-packet-route.png",
+      "title": "Immutable real-route custody history",
+      "alt": "GRAND TracePoint packet detail showing a voucher bundle's flexible inter-office route, server-timed receipts, final destination, linked official report, and discrepancy",
+      "capability": "Every confirmed physical receipt appends employee and department snapshots to an auditable route while linked reports retain their own governance and earlier receipts remain unchanged."
+    },
+    {
+      "order": 15,
+      "file": "grand-tracepoint-daily-code.png",
+      "title": "Revocable daily employee QR identity",
+      "alt": "GRAND employee daily-code screen with a time-limited QR, plain-language privacy guidance, replacement, and revocation controls",
+      "capability": "Active employees use random, day-limited QR credentials for physical receipt; GRAND stores only a digest and lets the employee replace or revoke an exposed code immediately."
+    },
+    {
+      "order": 16,
       "file": "grand-public-services.png",
       "title": "Configurable civic service portal",
       "alt": "GRAND public portal with neutral civic identity, plain-language actions, and official service navigation",
       "capability": "Authorized administrators can update institutional identity, colors, imagery, media, service labels, icons, links, and ordering without redesigning the portal."
     },
     {
-      "order": 14,
+      "order": 17,
       "file": "grand-public-services-mobile.png",
       "title": "Resident-friendly responsive access",
       "alt": "GRAND public service portal adapted to a narrow mobile screen",
       "capability": "Task-first service guidance and accessible trust cues remain clear on phones used by residents and field staff."
     },
     {
-      "order": 15,
+      "order": 18,
       "file": "grand-assistance-portal.png",
       "title": "Account-free citizen assistance",
       "alt": "Grand public assistance portal with new-request and secure tracking actions",

@@ -18,6 +18,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "src.settings.dev")
 django.setup()
 
+from django.contrib.auth.models import Permission
 from assistance.models import AssistanceRequest, AssistanceType
 from assistance.services.citizen_service import CitizenProfileService
 from departments.models import Department, Plantilla
@@ -32,6 +33,11 @@ from reporting.services import generate_report, transition_run
 from records.models import DepartmentRecord
 from records.services import create_record, file_approved_report, transition_record
 from users.models import User
+from tracepoint.controls import report_discrepancy
+from tracepoint.credentials import issue_daily_credential
+from tracepoint.handoffs import attach_recipient_code, confirm_handoff, start_scan_session
+from tracepoint.models import PacketDiscrepancy, TrackedPacket
+from tracepoint.services import create_packet
 
 
 SHOWCASE_PASSWORD = "GrandShowcase2026!"
@@ -113,6 +119,13 @@ planning_user = employee("showcase_planning", "Paolo", "Mendoza", "mpdo", "Plann
 mswd_user = employee("showcase_mswd", "Liza", "Garcia", "mswd", "Social Welfare Officer")
 departments["mswd"].deptHead_or_oic = mswd_user
 departments["mswd"].save(update_fields=["deptHead_or_oic"])
+
+tracepoint_permissions = Permission.objects.filter(codename__in=(
+    "view_tracepoint_workspace", "prepare_tracked_packets", "print_packet_labels",
+    "complete_tracked_packets", "resolve_tracepoint_exceptions", "view_restricted_tracepoint",
+))
+mswd_user.user_permissions.add(*tracepoint_permissions)
+acctg_user.user_permissions.add(*tracepoint_permissions)
 
 for username, first_name, last_name, department_key, position in (
     ("showcase_hr_2", "Mia", "Villanueva", "hr", "Administrative Assistant"),
@@ -453,7 +466,78 @@ ReportSchedule.objects.update_or_create(
     },
 )
 
+# Synthetic custody routes demonstrate physical-paper traceability without using
+# production employees, reports, records, or citizen information.
+route_packet = TrackedPacket.objects.filter(title="Monthly Assistance Voucher Bundle — July 2026").first()
+if not route_packet:
+    route_packet = create_packet(
+        actor=mswd_user,
+        title="Monthly Assistance Voucher Bundle — July 2026",
+        contents_manifest="One approved summary report, twelve voucher folders, and signed supporting attachments.",
+        expected_document_count=13,
+        expected_page_count=86,
+        confidentiality=TrackedPacket.RESTRICTED,
+        final_destination_department=departments["acctg"],
+        final_destination_employee=acctg_user,
+        report_run=approved_run,
+    )
+
+
+def confirm_showcase_receipt(packet, receiver, operator, key):
+    issued = issue_daily_credential(employee=receiver, actor=receiver, replace=True)
+    scan = start_scan_session(packet=packet, operator=operator, idempotency_key=key)
+    attach_recipient_code(session=scan, operator=operator, token=issued.token)
+    return confirm_handoff(
+        session=scan,
+        operator=operator,
+        receipt_note="Physical contents counted and accepted for the next processing step.",
+    )
+
+
+if route_packet.status == TrackedPacket.DRAFT:
+    confirm_showcase_receipt(route_packet, mswd_user, mswd_user, "showcase-tracepoint-activate")
+    route_packet.refresh_from_db()
+if route_packet.status == TrackedPacket.ACTIVE and route_packet.current_holder_id == mswd_user.pk:
+    confirm_showcase_receipt(route_packet, planning_user, planning_user, "showcase-tracepoint-planning")
+    route_packet.refresh_from_db()
+if route_packet.status == TrackedPacket.ACTIVE and route_packet.current_holder_id == planning_user.pk:
+    final_handoff = confirm_showcase_receipt(route_packet, acctg_user, acctg_user, "showcase-tracepoint-accounting")
+    route_packet.refresh_from_db()
+    report_discrepancy(
+        packet=route_packet,
+        actor=acctg_user,
+        category=PacketDiscrepancy.MISSING_CONTENTS,
+        description="Control sheet notes thirteen items; receiving count found twelve pending preparer verification.",
+        related_handoff=final_handoff,
+    )
+
+active_packet = TrackedPacket.objects.filter(title="Nutrition Program Liquidation Packet").first()
+if not active_packet:
+    active_packet = create_packet(
+        actor=mswd_user,
+        title="Nutrition Program Liquidation Packet",
+        contents_manifest="Activity accomplishment report, attendance totals, receipts, and liquidation worksheet.",
+        expected_document_count=8,
+        confidentiality=TrackedPacket.INTERNAL,
+        final_destination_department=departments["acctg"],
+        department_record=program_record,
+    )
+if active_packet.status == TrackedPacket.DRAFT:
+    confirm_showcase_receipt(active_packet, mswd_user, mswd_user, "showcase-tracepoint-active")
+
+draft_packet = TrackedPacket.objects.filter(title="Family Development Seminar Records").first()
+if not draft_packet:
+    draft_packet = create_packet(
+        actor=mswd_user,
+        title="Family Development Seminar Records",
+        contents_manifest="Seminar completion note, aggregate attendance sheet, and supporting program documents.",
+        expected_document_count=5,
+        confidentiality=TrackedPacket.INTERNAL,
+        final_destination_department=departments["mswd"],
+    )
+
 print("Showcase database seeded.")
 print(f"Dashboard users: showcase_hr, showcase_gso, showcase_acctg, showcase_planning, showcase_mswd")
 print(f"Password: {SHOWCASE_PASSWORD}")
 print(f"Records detail: {program_record.get_absolute_url()}")
+print(f"TracePoint route detail: {route_packet.get_absolute_url()}")

@@ -5,6 +5,7 @@ from assistance.access import (
 )
 from reporting.access import can_view_reporting
 from records.access import can_manage_records, can_view_records
+from tracepoint.access import can_prepare_packets, can_view_workspace
 
 from .models import ServiceShortcut, SiteConfiguration
 
@@ -32,4 +33,6 @@ def site_ui(request):
         "can_access_reporting": can_view_reporting(request.user),
         "can_access_records": can_view_records(request.user),
         "can_manage_records": can_manage_records(request.user),
+        "can_access_tracepoint": can_view_workspace(request.user),
+        "can_prepare_tracepoint": can_prepare_packets(request.user),
     }

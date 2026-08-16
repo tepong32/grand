@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 
 from profiles.models import EmployeeProfile
 from leave_mgt.models import LeaveRequest
@@ -180,6 +180,28 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
     slug = (department.slug or "").strip().lower()
     sections = DEPARTMENT_WORKSPACE_PRESETS.get(slug, DEFAULT_WORKSPACE_SECTIONS)
     result = deepcopy(list(sections))
+    from tracepoint.access import can_view_workspace
+    if can_view_workspace(user, department):
+        from tracepoint.models import PacketDiscrepancy, TrackedPacket
+
+        packets = TrackedPacket.objects.filter(
+            Q(origin_department=department)
+            | Q(current_department=department)
+            | Q(final_destination_department=department)
+        ).distinct()
+        result.append({
+            "icon": "fa-route",
+            "title": "TracePoint Physical Custody",
+            "description": "Tag paper bundles, confirm employee-to-employee receipt, and see their real route to the destination.",
+            "status": "Available",
+            "url_name": "tracepoint:workspace",
+            "action_label": "Open TracePoint",
+            "summary_items": (
+                {"label": "In transit", "value": packets.filter(status=TrackedPacket.ACTIVE).count()},
+                {"label": "Delivered", "value": packets.filter(status=TrackedPacket.DELIVERED).count()},
+                {"label": "Open issues", "value": PacketDiscrepancy.objects.filter(packet__in=packets, status=PacketDiscrepancy.OPEN).count()},
+            ),
+        })
     from records.access import can_view_records
     if can_view_records(user, department):
         from records.models import DepartmentRecord

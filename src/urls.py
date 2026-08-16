@@ -32,6 +32,7 @@ urlpatterns = [
     path('social-welfare/', include('social_welfare.urls', namespace="social_welfare")),
     path('reports/', include('reporting.urls', namespace="reporting")),
     path('records/', include('records.urls', namespace="records")),
+    path('tracepoint/', include('tracepoint.urls', namespace="tracepoint")),
     path('leave-mgt/', include('leave_mgt.urls')),
     path('departments/', include('departments.urls')),
     path('profiles/', include('profiles.urls')),

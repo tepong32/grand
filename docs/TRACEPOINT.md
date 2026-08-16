@@ -80,6 +80,20 @@ TracePoint is delivered as a reviewed `0.6.x` patch train. Here, patch numbers i
 
 Every slice receives focused tests, Django checks, migration-drift checks, the complete suite, synthetic screenshots where applicable, a detailed commit, branch review, CI, and merge before the next branch begins. The repository `VERSION` file advances with each slice; the completed train receives a versioned release commit and annotated Git tag after final verification.
 
+## Operator quick start
+
+1. An authorized preparer opens **TracePoint**, selects **Prepare a packet**, records a plain-language manifest and final office or employee, then prints the stable packet label.
+2. The preparer opens **My daily code**. At a shared receiving station, staff scan the packet label first and the preparer's daily code second, compare the physical bundle with the confirmation screen, and confirm activation.
+3. Every receiving employee repeats the same packet-code, employee-code, review, and confirmation sequence. The real route may pass through any eligible employee; it does not have to be predicted in advance.
+4. The declared final receipt changes the packet to **Delivered**. An authorized destination employee marks it **Completed** only after the underlying office work is finished.
+5. Missing contents, damage, or a wrong route are recorded as discrepancies. Authorized supervisors resolve issues or append a custody correction; they never rewrite an earlier receipt.
+
+Daily codes are bearer credentials for the current local day. Employees should display them only during a handoff, replace or revoke a photographed or exposed code immediately, and never send them through ordinary chat. Production access logs should avoid retaining full scan URLs because those URLs contain the short-lived bearer token.
+
+## Rollout guidance
+
+Begin with one repeatable route, such as MSWD-prepared voucher bundles received by Accounting. Place the shared station where the physical receiving step already happens, name the person responsible for exceptions, and compare TracePoint against the paper log during the pilot. Expand only after employees can complete the two-code confirmation reliably and management has agreed on label placement, packet manifests, end-of-day code practice, and completion responsibility.
+
 ## Deferred scope
 
 The initial train deliberately excludes GPS surveillance, biometrics, public tracking, required personal phones, fixed route plans, offline synchronization, warehouse inventory, and bulk receipt. Batch scanning can follow once individual receipt behavior is proven in real LGU use.

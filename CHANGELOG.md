@@ -4,6 +4,14 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### TracePoint operations workspace (0.6.5)
+
+- Added a plain-language, department-bounded TracePoint workspace with live draft, in-transit, delivered, and discrepancy indicators.
+- Added packet preparation, governed source links, stable printable QR labels, daily employee code display/replacement/revocation, and minimal authenticated scan landing pages.
+- Added shared-station receipt screens that visibly separate scanning from the final custody confirmation and record optional physical-count notes.
+- Added permission-aware custody timelines, immutable receipt details, delivery/completion controls, holds, discrepancies, resolutions, and append-only custody corrections.
+- Added dashboard and employee-navigation entry points, browser-facing authorization and workflow regressions, synthetic custody routes, and portfolio-ready UI captures.
+
 ### TracePoint delivery and exception controls (0.6.4)
 
 - Mark packets delivered automatically when a confirmed receipt matches the preparer's declared final employee or department.
