@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import PacketEvent, TrackedPacket
+from .models import DailyEmployeeCredential, EmployeeCredentialEvent, PacketEvent, TrackedPacket
 
 
 class PacketEventInline(admin.TabularInline):
@@ -29,6 +29,40 @@ class TrackedPacketAdmin(admin.ModelAdmin):
 class PacketEventAdmin(admin.ModelAdmin):
     list_display = ("packet", "action", "actor", "from_status", "to_status", "created_at")
     readonly_fields = ("packet", "actor", "action", "from_status", "to_status", "note", "metadata", "created_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class EmployeeCredentialEventInline(admin.TabularInline):
+    model = EmployeeCredentialEvent
+    extra = 0
+    can_delete = False
+    readonly_fields = ("actor", "action", "note", "metadata", "created_at")
+
+
+@admin.register(DailyEmployeeCredential)
+class DailyEmployeeCredentialAdmin(admin.ModelAdmin):
+    list_display = ("employee", "valid_on", "issued_at", "expires_at", "revoked_at", "use_count")
+    list_filter = ("valid_on", "revoked_at")
+    search_fields = ("employee__username", "employee__email")
+    readonly_fields = tuple(field.name for field in DailyEmployeeCredential._meta.fields)
+    inlines = (EmployeeCredentialEventInline,)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(EmployeeCredentialEvent)
+class EmployeeCredentialEventAdmin(admin.ModelAdmin):
+    list_display = ("credential", "action", "actor", "created_at")
+    readonly_fields = ("credential", "actor", "action", "note", "metadata", "created_at")
 
     def has_add_permission(self, request):
         return False
