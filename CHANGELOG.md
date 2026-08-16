@@ -4,6 +4,14 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### TracePoint QR credentials (0.6.2)
+
+- Added stable, opaque packet QR payloads that contain no packet title, employee identity, citizen data, or document details.
+- Added random daily employee credentials that expire at the configured Asia/Manila day boundary and store only a SHA-256 token digest.
+- Added explicit replacement and revocation, immediately invalidating earlier codes and recording append-only credential events.
+- Revalidate account activity and department assignment whenever a daily code is resolved, so departed, disabled, or unassigned users cannot receive packets.
+- Added safe QR PNG rendering shared by packet labels and employee daily-code presentation.
+
 ### TracePoint packet foundation (0.6.1)
 
 - Added stable physical-packet identities, human-readable tracking references, contents manifests, declared final departments or employees, and separate current-custody fields.

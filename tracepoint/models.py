@@ -6,6 +6,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Q
+from django.utils import timezone
 
 from departments.models import Department
 
@@ -187,3 +189,91 @@ class PacketEvent(models.Model):
 
     def __str__(self):
         return f"{self.packet.tracking_number}: {self.action}"
+
+
+class DailyEmployeeCredential(models.Model):
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    employee = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="tracepoint_daily_credentials")
+    token_digest = models.CharField(max_length=64, unique=True, editable=False)
+    valid_on = models.DateField(db_index=True)
+    expires_at = models.DateTimeField(db_index=True)
+    issued_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="issued_tracepoint_credentials")
+    issued_at = models.DateTimeField(auto_now_add=True)
+    revoked_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="revoked_tracepoint_credentials",
+    )
+    revocation_reason = models.CharField(max_length=255, blank=True)
+    replaced_by = models.OneToOneField(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="replaces",
+    )
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    use_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ("-valid_on", "-issued_at")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("employee", "valid_on"),
+                condition=Q(revoked_at__isnull=True),
+                name="one_active_daily_tracepoint_credential",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.employee} - {self.valid_on:%Y-%m-%d}"
+
+    @property
+    def is_valid(self):
+        profile = getattr(self.employee, "employeeprofile", None)
+        return bool(
+            self.revoked_at is None
+            and self.valid_on == timezone.localdate()
+            and timezone.now() < self.expires_at
+            and self.employee.is_active
+            and getattr(profile, "assigned_department_id", None)
+        )
+
+    def clean(self):
+        errors = {}
+        profile = getattr(self.employee, "employeeprofile", None) if self.employee_id else None
+        if self.employee_id and (not self.employee.is_active or not getattr(profile, "assigned_department_id", None)):
+            errors["employee"] = "Daily credentials require an active employee with a department assignment."
+        if self.issued_by_id and not self.issued_by.is_active:
+            errors["issued_by"] = "The issuing account must be active."
+        if self.expires_at and self.valid_on and timezone.localtime(self.expires_at).date() <= self.valid_on:
+            errors["expires_at"] = "A daily credential must expire after its valid business date."
+        if self.revoked_at and not self.revoked_by_id:
+            errors["revoked_by"] = "A revoked credential must identify who revoked it."
+        if self.revoked_at and not self.revocation_reason.strip():
+            errors["revocation_reason"] = "A revoked credential requires a reason."
+        if self.replaced_by_id:
+            if self.replaced_by.employee_id != self.employee_id or self.replaced_by.valid_on != self.valid_on:
+                errors["replaced_by"] = "A replacement must belong to the same employee and business date."
+            if not self.revoked_at:
+                errors["replaced_by"] = "A credential must be revoked before it can be replaced."
+        if errors:
+            raise ValidationError(errors)
+
+
+class EmployeeCredentialEvent(models.Model):
+    credential = models.ForeignKey(DailyEmployeeCredential, on_delete=models.CASCADE, related_name="events")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="tracepoint_credential_events")
+    action = models.CharField(max_length=32)
+    note = models.CharField(max_length=255, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def __str__(self):
+        return f"{self.credential}: {self.action}"
