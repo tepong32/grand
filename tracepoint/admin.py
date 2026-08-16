@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import DailyEmployeeCredential, EmployeeCredentialEvent, PacketEvent, TrackedPacket
+from .models import (
+    DailyEmployeeCredential,
+    EmployeeCredentialEvent,
+    PacketEvent,
+    PacketHandoff,
+    PacketScanSession,
+    TrackedPacket,
+)
 
 
 class PacketEventInline(admin.TabularInline):
@@ -63,6 +70,33 @@ class DailyEmployeeCredentialAdmin(admin.ModelAdmin):
 class EmployeeCredentialEventAdmin(admin.ModelAdmin):
     list_display = ("credential", "action", "actor", "created_at")
     readonly_fields = ("credential", "actor", "action", "note", "metadata", "created_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(PacketScanSession)
+class PacketScanSessionAdmin(admin.ModelAdmin):
+    list_display = ("packet", "status", "initiated_by", "recipient", "created_at", "expires_at", "confirmed_at")
+    list_filter = ("status", "created_at")
+    readonly_fields = tuple(field.name for field in PacketScanSession._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(PacketHandoff)
+class PacketHandoffAdmin(admin.ModelAdmin):
+    list_display = ("packet", "sequence", "transfer_type", "from_holder", "to_holder", "confirmed_at")
+    list_filter = ("transfer_type", "to_department", "confirmed_at")
+    search_fields = ("packet__tracking_number", "from_employee_name", "to_employee_name")
+    readonly_fields = tuple(field.name for field in PacketHandoff._meta.fields)
 
     def has_add_permission(self, request):
         return False

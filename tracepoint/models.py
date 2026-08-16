@@ -277,3 +277,142 @@ class EmployeeCredentialEvent(models.Model):
 
     def __str__(self):
         return f"{self.credential}: {self.action}"
+
+
+class PacketScanSession(models.Model):
+    PENDING = "pending"
+    READY = "ready"
+    CONFIRMED = "confirmed"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+    STATUS_CHOICES = (
+        (PENDING, "Waiting for employee code"),
+        (READY, "Ready for confirmation"),
+        (CONFIRMED, "Confirmed"),
+        (CANCELLED, "Cancelled"),
+        (EXPIRED, "Expired"),
+    )
+    OPEN_STATUSES = (PENDING, READY)
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    packet = models.ForeignKey(TrackedPacket, on_delete=models.PROTECT, related_name="scan_sessions")
+    initiated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="initiated_tracepoint_scans")
+    recipient_credential = models.ForeignKey(
+        DailyEmployeeCredential,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="scan_sessions",
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tracepoint_receipt_scans",
+    )
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=PENDING, db_index=True)
+    packet_state_version = models.PositiveIntegerField()
+    idempotency_key = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("packet",),
+                condition=Q(status__in=("pending", "ready")),
+                name="one_open_tracepoint_scan_per_packet",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.packet.tracking_number}: {self.get_status_display()}"
+
+    @property
+    def is_expired(self):
+        return timezone.now() >= self.expires_at
+
+    def clean(self):
+        errors = {}
+        if self.recipient_credential_id and self.recipient_id != self.recipient_credential.employee_id:
+            errors["recipient"] = "The proposed recipient must match the scanned employee credential."
+        if self.status == self.READY and not self.recipient_credential_id:
+            errors["recipient_credential"] = "A ready scan requires a validated employee credential."
+        if self.status == self.CONFIRMED and not self.confirmed_at:
+            errors["confirmed_at"] = "A confirmed scan requires its server confirmation time."
+        if self.expires_at and self.created_at and self.expires_at <= self.created_at:
+            errors["expires_at"] = "A scan session must expire after it is created."
+        if errors:
+            raise ValidationError(errors)
+
+
+class PacketHandoff(models.Model):
+    ACTIVATION = "activation"
+    RECEIPT = "receipt"
+    TYPE_CHOICES = ((ACTIVATION, "Initial activation"), (RECEIPT, "Custody receipt"))
+
+    packet = models.ForeignKey(TrackedPacket, on_delete=models.PROTECT, related_name="handoffs")
+    sequence = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    scan_session = models.OneToOneField(PacketScanSession, on_delete=models.PROTECT, related_name="handoff")
+    idempotency_key = models.CharField(max_length=64, unique=True)
+    transfer_type = models.CharField(max_length=12, choices=TYPE_CHOICES)
+    from_holder = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tracepoint_handoffs_sent",
+    )
+    to_holder = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="tracepoint_handoffs_received")
+    from_department = models.ForeignKey(
+        Department,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tracepoint_handoffs_sent",
+    )
+    to_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="tracepoint_handoffs_received")
+    from_employee_name = models.CharField(max_length=255, blank=True)
+    from_position_title = models.CharField(max_length=100, blank=True)
+    from_department_name = models.CharField(max_length=100, blank=True)
+    to_employee_name = models.CharField(max_length=255)
+    to_position_title = models.CharField(max_length=100, blank=True)
+    to_department_name = models.CharField(max_length=100)
+    status_before = models.CharField(max_length=16)
+    status_after = models.CharField(max_length=16)
+    receipt_note = models.TextField(blank=True)
+    confirmed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="confirmed_tracepoint_handoffs")
+    confirmed_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        ordering = ("sequence", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("packet", "sequence"), name="unique_tracepoint_handoff_sequence"),
+        )
+
+    def __str__(self):
+        return f"{self.packet.tracking_number} receipt {self.sequence}"
+
+    def clean(self):
+        errors = {}
+        if self.transfer_type == self.ACTIVATION and self.from_holder_id:
+            errors["from_holder"] = "Initial activation cannot have a prior holder."
+        if self.transfer_type == self.RECEIPT and not self.from_holder_id:
+            errors["from_holder"] = "A custody receipt requires the preceding holder."
+        if self.from_holder_id and self.from_holder_id == self.to_holder_id:
+            errors["to_holder"] = "A holder cannot hand a packet to themselves."
+        if self.scan_session_id and self.scan_session.packet_id != self.packet_id:
+            errors["scan_session"] = "The scan session must belong to this packet."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk).exists():
+            raise ValidationError("Confirmed custody receipts are immutable. Record a correction event instead.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Confirmed custody receipts cannot be deleted.")

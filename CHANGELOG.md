@@ -4,6 +4,14 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### TracePoint handoff ledger (0.6.3)
+
+- Added five-minute scan sessions that pair a packet with a validated receiving employee while leaving custody unchanged until confirmation.
+- Added atomic initial activation and repeated employee-to-employee receipt flows backed by row locks and packet state versions.
+- Added immutable, sequenced handoff receipts with employee, position, and department snapshots plus server confirmation times.
+- Added idempotency for repeated scan starts and confirmation submissions, one-open-session constraints, stale-session rejection, and self-transfer prevention.
+- Revalidate daily credentials at confirmation and record credential usage without weakening replacement, revocation, or expiry behavior.
+
 ### TracePoint QR credentials (0.6.2)
 
 - Added stable, opaque packet QR payloads that contain no packet title, employee identity, citizen data, or document details.
