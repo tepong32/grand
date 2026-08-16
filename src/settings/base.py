@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'social_welfare.apps.SocialWelfareConfig',
     'reporting.apps.ReportingConfig',
     'records.apps.RecordsConfig',
+    'tracepoint.apps.TracepointConfig',
 
     ### defaults
     'django.contrib.sites',  # allauth needs this
