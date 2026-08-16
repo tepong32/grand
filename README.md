@@ -76,6 +76,7 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 - [Reporting operations and governance](docs/REPORTING.md)
 - [Department report-template intake](docs/REPORT_TEMPLATE_INTAKE.md)
 - [Department records operations](docs/RECORDS.md)
+- [TracePoint physical-custody contract](docs/TRACEPOINT.md)
 - [Product roadmap](docs/ROADMAP.md)
 - [Security maintenance](SECURITY.md)
 - [Synthetic portfolio screenshots](output/playwright/grand-portfolio/README.md)
@@ -83,6 +84,6 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 
 ## Product direction
 
-GRAND remains the platform identity. TracePoint is reserved for the later physical-document custody layer: physical document identities, QR labels, transfers, receiving, and acknowledgements. It will build on the governed Records registry and remain distinct from the secure links and QR codes used by Assistance.
+GRAND remains the platform identity. TracePoint is its physical-document custody capability: stable packet labels, daily employee QR credentials, confirmed transfers, delivery, and completion. It builds on the governed Records registry while remaining distinct from the secure links and QR codes used by Assistance. Delivery follows the reviewed `0.6.x` patch train in the [TracePoint contract](docs/TRACEPOINT.md).
 
 All showcase records and screenshots are synthetic. Production citizen data, credentials, uploaded records, and generated official reports must never be added to the repository.

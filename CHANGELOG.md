@@ -4,6 +4,15 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### TracePoint custody planning (0.6.0)
+
+- Defined the stable packet QR plus daily employee QR workflow for shared LGU receiving stations and optional personal devices.
+- Required authenticated review and confirmation before custody changes; scanning a code alone never records a transfer.
+- Defined immutable, idempotent handoff receipts, real-route tracking, final-destination rules, and concurrency protection.
+- Separated physical delivery from completion of the underlying departmental work.
+- Established privacy, department-boundary, credential-revocation, correction, and discrepancy rules.
+- Added a one-branch-per-slice `0.6.x` TracePoint delivery train and versioned release gate.
+
 ### Department records and document workflows
 
 - Added a reusable, department-bounded Records workspace for Assistance cases, citizen service history, social-welfare programs and activities, approved reports, and separate departmental files.
