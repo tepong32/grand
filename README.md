@@ -86,6 +86,6 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 
 ## Product direction
 
-GRAND remains the platform identity. TracePoint is its physical-document custody capability: stable packet labels, daily employee QR credentials, confirmed transfers, delivery, and completion. It builds on the governed Records registry while remaining distinct from the secure links and QR codes used by Assistance. Delivery follows the reviewed `0.6.x` patch train in the [TracePoint contract](docs/TRACEPOINT.md).
+GRAND remains the platform identity. TracePoint is its physical-document custody capability: stable packet labels, daily employee QR credentials, confirmed transfers, delivery, and completion. It builds on the governed Records registry while remaining distinct from the secure links and QR codes used by Assistance. The completed `0.6.x` delivery train and rollout guidance are recorded in the [TracePoint contract](docs/TRACEPOINT.md).
 
 All showcase records and screenshots are synthetic. Production citizen data, credentials, uploaded records, and generated official reports must never be added to the repository.

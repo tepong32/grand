@@ -1,5 +1,7 @@
 # TracePoint physical custody
 
+Release status: delivered in GRAND `0.6.5` through the reviewed `0.6.0`–`0.6.5` patch train.
+
 TracePoint is GRAND's physical-document custody capability. It records who is responsible for a tagged paper packet, when responsibility changed, and whether the packet merely reached its destination or the underlying work was completed.
 
 TracePoint does not replace the Records registry, Reporting, or Assistance. Those modules remain authoritative for their digital files and business workflows. TracePoint links to them when useful and adds an auditable trail for the physical bundle.
