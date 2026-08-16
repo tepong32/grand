@@ -146,14 +146,21 @@ def confirm_handoff(*, session, operator, receipt_note=""):
             if receiver.pk != packet.prepared_by_id:
                 raise HandoffError("Only the preparer can activate this packet.")
             transfer_type = PacketHandoff.ACTIVATION
-            status_after = TrackedPacket.ACTIVE
+            normal_status_after = TrackedPacket.ACTIVE
         elif packet.status == TrackedPacket.ACTIVE:
             if not sender or sender.pk == receiver.pk:
                 raise HandoffError("A custody receipt must move the packet to another employee.")
             transfer_type = PacketHandoff.RECEIPT
-            status_after = TrackedPacket.ACTIVE
+            normal_status_after = TrackedPacket.ACTIVE
         else:
             raise HandoffError("This packet can no longer be transferred through the standard scanner.")
+
+        reached_destination = (
+            receiver.pk == packet.final_destination_employee_id
+            if packet.final_destination_employee_id
+            else receiver_snapshot["department"].pk == packet.final_destination_department_id
+        )
+        status_after = TrackedPacket.DELIVERED if reached_destination else normal_status_after
 
         status_before = packet.status
         sequence = (packet.handoffs.order_by("-sequence").values_list("sequence", flat=True).first() or 0) + 1
@@ -188,9 +195,11 @@ def confirm_handoff(*, session, operator, receipt_note=""):
         packet.state_version += 1
         if transfer_type == PacketHandoff.ACTIVATION:
             packet.activated_at = handoff.confirmed_at
+        if reached_destination:
+            packet.delivered_at = handoff.confirmed_at
         packet.full_clean()
         packet.save(update_fields=(
-            "current_holder", "current_department", "status", "state_version", "activated_at", "updated_at",
+            "current_holder", "current_department", "status", "state_version", "activated_at", "delivered_at", "updated_at",
         ))
 
         DailyEmployeeCredential.objects.filter(pk=credential.pk).update(
@@ -217,4 +226,23 @@ def confirm_handoff(*, session, operator, receipt_note=""):
                 "scan_session_id": str(locked_session.public_id),
             },
         )
+        if reached_destination:
+            PacketEvent.objects.create(
+                packet=packet,
+                actor=operator,
+                action="delivered",
+                from_status=status_before,
+                to_status=TrackedPacket.DELIVERED,
+                note="Received by the declared final destination.",
+                metadata={"handoff_id": handoff.pk, "sequence": handoff.sequence},
+            )
     return handoff
+
+
+def cancel_scan_session(*, session, operator):
+    _require_session_operator(session, operator)
+    if session.status not in PacketScanSession.OPEN_STATUSES:
+        return session
+    session.status = PacketScanSession.CANCELLED
+    session.save(update_fields=("status",))
+    return session

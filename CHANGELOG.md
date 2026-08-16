@@ -4,6 +4,14 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### TracePoint delivery and exception controls (0.6.4)
+
+- Mark packets delivered automatically when a confirmed receipt matches the preparer's declared final employee or department.
+- Keep delivery separate from permission-restricted completion and record both with server times and responsible employees.
+- Add reasoned hold, resume, and cancellation workflows that invalidate open scans and advance packet state versions.
+- Add employee-reported missing-content, wrong-route, damage, and other discrepancies with immutable reports and governed resolution.
+- Add supervisor-only current-custody corrections as separate immutable events referencing the affected receipt when applicable; confirmed receipts remain unchanged.
+
 ### TracePoint handoff ledger (0.6.3)
 
 - Added five-minute scan sessions that pair a packet with a validated receiving employee while leaving custody unchanged until confirmation.

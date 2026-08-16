@@ -3,6 +3,8 @@ from django.contrib import admin
 from .models import (
     DailyEmployeeCredential,
     EmployeeCredentialEvent,
+    PacketCorrection,
+    PacketDiscrepancy,
     PacketEvent,
     PacketHandoff,
     PacketScanSession,
@@ -97,6 +99,31 @@ class PacketHandoffAdmin(admin.ModelAdmin):
     list_filter = ("transfer_type", "to_department", "confirmed_at")
     search_fields = ("packet__tracking_number", "from_employee_name", "to_employee_name")
     readonly_fields = tuple(field.name for field in PacketHandoff._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(PacketDiscrepancy)
+class PacketDiscrepancyAdmin(admin.ModelAdmin):
+    list_display = ("packet", "category", "status", "reported_by", "reported_at", "resolved_by", "resolved_at")
+    list_filter = ("category", "status", "reported_at")
+    readonly_fields = tuple(field.name for field in PacketDiscrepancy._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(PacketCorrection)
+class PacketCorrectionAdmin(admin.ModelAdmin):
+    list_display = ("packet", "prior_holder", "corrected_holder", "created_by", "created_at")
+    readonly_fields = tuple(field.name for field in PacketCorrection._meta.fields)
 
     def has_add_permission(self, request):
         return False
