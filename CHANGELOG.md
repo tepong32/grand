@@ -4,6 +4,10 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+No material changes are pending release.
+
+## 0.6.5 - 2026-08-16
+
 ### TracePoint operations workspace (0.6.5)
 
 - Added a plain-language, department-bounded TracePoint workspace with live draft, in-transit, delivered, and discrepancy indicators.
