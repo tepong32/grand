@@ -4,6 +4,14 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### TracePoint packet foundation (0.6.1)
+
+- Added stable physical-packet identities, human-readable tracking references, contents manifests, declared final departments or employees, and separate current-custody fields.
+- Added explicit internal, restricted, and confidential classifications plus department-bounded workspace, preparation, printing, completion, exception, credential, and oversight permissions.
+- Allowed packets to reference governed department records and department-validated official reports without copying their authoritative files.
+- Added model validation for employee assignments, destination membership, source ownership, confidentiality inheritance, custody consistency, and post-activation immutability.
+- Added auditable packet creation and draft updates with collision-resistant tracking references and transactional writes.
+
 ### TracePoint custody planning (0.6.0)
 
 - Defined the stable packet QR plus daily employee QR workflow for shared LGU receiving stations and optional personal devices.
