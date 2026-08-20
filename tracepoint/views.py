@@ -34,13 +34,31 @@ from .controls import (
     report_discrepancy,
     resolve_discrepancy,
     resume_packet,
+    skip_checkpoint,
 )
 from .credentials import CredentialError, issue_daily_credential, resolve_daily_credential, revoke_daily_credential
-from .forms import DiscrepancyForm, EmployeeCodeScanForm, TrackedPacketForm
+from .forms import (
+    DiscrepancyForm,
+    EmployeeCodeScanForm,
+    PacketCheckpointForm,
+    PacketItemForm,
+    PacketRebundleForm,
+    PacketSplitForm,
+    ReceiptConfirmationForm,
+    TrackedPacketForm,
+)
 from .handoffs import HandoffError, attach_recipient_code, confirm_handoff, start_scan_session
-from .models import DailyEmployeeCredential, PacketDiscrepancy, PacketScanSession, TrackedPacket
+from .models import DailyEmployeeCredential, PacketCheckpoint, PacketDiscrepancy, PacketScanSession, TrackedPacket
 from .qr import QRPayloadError, employee_qr_payload, extract_employee_token, packet_qr_payload, render_qr_png
-from .services import PacketWorkflowError, create_packet
+from .services import (
+    PacketWorkflowError,
+    add_checkpoint,
+    add_packet_item,
+    create_packet,
+    rebundle_packet_items,
+    remove_checkpoint,
+    split_packet_items,
+)
 
 
 def _require_employee(user):
@@ -52,10 +70,16 @@ def _visible_packets(user):
     department = department_for_user(user)
     if not department:
         return TrackedPacket.objects.none()
-    direct = Q(prepared_by=user) | Q(current_holder=user) | Q(final_destination_employee=user) | Q(handoffs__confirmed_by=user)
+    direct = (
+        Q(prepared_by=user) | Q(current_holder=user) | Q(final_destination_employee=user)
+        | Q(handoffs__confirmed_by=user) | Q(checkpoints__employee=user)
+    )
     scope = direct
     if can_view_workspace(user, department):
-        scope |= Q(origin_department=department) | Q(current_department=department) | Q(final_destination_department=department)
+        scope |= (
+            Q(origin_department=department) | Q(current_department=department)
+            | Q(final_destination_department=department) | Q(checkpoints__department=department)
+        )
     queryset = TrackedPacket.objects.filter(scope).select_related(
         "origin_department", "prepared_by", "final_destination_department", "final_destination_employee",
         "current_holder", "current_department", "department_record", "report_run__definition",
@@ -152,19 +176,47 @@ def packet_detail(request, public_id):
         ).select_related("employeeprofile__assigned_department").order_by(
             "employeeprofile__assigned_department__name", "last_name", "first_name", "username",
         )
+    can_manage_bundle = (
+        packet.status == TrackedPacket.DRAFT
+        and packet.prepared_by_id == request.user.pk
+        and can_prepare_packets(request.user, packet.origin_department)
+    ) or (packet.status == TrackedPacket.ACTIVE and packet.current_holder_id == request.user.pk)
+    rebundle_targets = TrackedPacket.objects.none()
+    if can_manage_bundle:
+        rebundle_targets = TrackedPacket.objects.filter(
+            origin_department=packet.origin_department,
+            status=packet.status,
+        ).exclude(pk=packet.pk)
+        if packet.status == TrackedPacket.DRAFT:
+            rebundle_targets = rebundle_targets.filter(prepared_by=request.user)
+        else:
+            rebundle_targets = rebundle_targets.filter(current_holder=request.user)
     return render(request, "tracepoint/packet_detail.html", {
         "packet": packet,
         "handoffs": packet.handoffs.select_related("from_holder", "to_holder", "from_department", "to_department"),
         "events": packet.events.select_related("actor")[:100],
         "discrepancies": packet.discrepancies.select_related("reported_by", "resolved_by", "related_handoff"),
         "corrections": packet.corrections.select_related("prior_holder", "corrected_holder", "created_by", "related_handoff"),
+        "voucher_items": packet.voucher_items.prefetch_related("moves__from_packet", "moves__to_packet"),
+        "checkpoints": packet.checkpoints.select_related(
+            "department", "employee", "completed_by", "completed_handoff", "skipped_by",
+        ),
+        "child_packets": packet.split_packets.all(),
         "discrepancy_form": DiscrepancyForm(),
+        "item_form": PacketItemForm(),
+        "checkpoint_form": PacketCheckpointForm(),
+        "split_form": PacketSplitForm(packet=packet),
+        "rebundle_form": PacketRebundleForm(packet=packet, targets=rebundle_targets),
         "can_print": can_print_labels(request.user, packet.origin_department),
         "can_complete": packet.status == TrackedPacket.DELIVERED and can_complete_packets(request.user, packet.final_destination_department),
         "can_hold": packet.status == TrackedPacket.ACTIVE and (packet.current_holder_id == request.user.pk or can_resolve),
         "can_resume": packet.status == TrackedPacket.ON_HOLD and (packet.current_holder_id == request.user.pk or can_resolve),
         "can_cancel": packet.status in (TrackedPacket.DRAFT, TrackedPacket.ACTIVE, TrackedPacket.ON_HOLD) and (packet.prepared_by_id == request.user.pk or can_resolve),
         "can_resolve": can_resolve,
+        "can_add_items": packet.status == TrackedPacket.DRAFT and can_manage_bundle,
+        "can_add_checkpoints": packet.status == TrackedPacket.DRAFT and packet.prepared_by_id == request.user.pk,
+        "can_manage_bundle": can_manage_bundle,
+        "has_rebundle_targets": rebundle_targets.exists(),
         "correction_employees": correction_employees,
         "department": department,
     })
@@ -292,7 +344,11 @@ def scan_session(request, public_id):
         else:
             return redirect("tracepoint:scan_session", public_id=session.public_id)
     session.refresh_from_db()
-    return render(request, "tracepoint/scan_session.html", {"scan": session, "form": form})
+    return render(request, "tracepoint/scan_session.html", {
+        "scan": session,
+        "form": form,
+        "confirmation_form": ReceiptConfirmationForm(scan=session) if session.status == PacketScanSession.READY else None,
+    })
 
 
 @login_required
@@ -316,14 +372,134 @@ def employee_scan(request, token):
 def scan_confirm(request, public_id):
     _require_employee(request.user)
     session = _owned_scan_session(request.user, public_id)
+    form = ReceiptConfirmationForm(request.POST, scan=session)
+    if not form.is_valid():
+        messages.error(request, "Review the receipt type and route checkpoint before confirming.")
+        return redirect("tracepoint:scan_session", public_id=session.public_id)
     try:
-        handoff = confirm_handoff(session=session, operator=request.user, receipt_note=request.POST.get("receipt_note", ""))
+        handoff = confirm_handoff(
+            session=session,
+            operator=request.user,
+            receipt_note=form.cleaned_data["receipt_note"],
+            terminal_delivery=form.cleaned_data.get("terminal_delivery", False),
+            checkpoint=form.cleaned_data.get("checkpoint"),
+        )
     except HandoffError as error:
         messages.error(request, str(error))
         return redirect("tracepoint:scan_session", public_id=session.public_id)
     request.session.pop("tracepoint_scan_session", None)
     messages.success(request, f"Receipt recorded. {handoff.to_employee_name} is now responsible for {handoff.packet.tracking_number}.")
     return redirect(handoff.packet)
+
+
+@login_required
+@require_POST
+def packet_item_add(request, public_id):
+    packet = _packet(request.user, public_id)
+    form = PacketItemForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Complete the voucher title and use valid non-negative counts.")
+        return redirect(packet)
+    try:
+        add_packet_item(packet=packet, actor=request.user, **form.cleaned_data)
+    except (PacketWorkflowError, ValidationError) as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Voucher added to the bundle with a stable TracePoint reference.")
+    return redirect(packet)
+
+
+@login_required
+@require_POST
+def checkpoint_add(request, public_id):
+    packet = _packet(request.user, public_id)
+    form = PacketCheckpointForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Review the checkpoint office, purpose, and optional named employee.")
+        return redirect(packet)
+    try:
+        add_checkpoint(packet=packet, actor=request.user, **form.cleaned_data)
+    except (PacketWorkflowError, ValidationError) as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Route checkpoint added. Offices may appear more than once for different purposes.")
+    return redirect(packet)
+
+
+@login_required
+@require_POST
+def checkpoint_remove(request, public_id, checkpoint_id):
+    packet = _packet(request.user, public_id)
+    checkpoint = get_object_or_404(packet.checkpoints, pk=checkpoint_id)
+    try:
+        remove_checkpoint(checkpoint=checkpoint, actor=request.user)
+    except PacketWorkflowError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Draft checkpoint removed with an audit entry.")
+    return redirect(packet)
+
+
+@login_required
+@require_POST
+def checkpoint_skip(request, public_id, checkpoint_id):
+    packet = _packet(request.user, public_id)
+    checkpoint = get_object_or_404(packet.checkpoints, pk=checkpoint_id)
+    try:
+        skip_checkpoint(checkpoint=checkpoint, actor=request.user, reason=request.POST.get("reason", ""))
+    except PacketControlError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Checkpoint exception recorded; its original route remains visible.")
+    return redirect(packet)
+
+
+@login_required
+@require_POST
+def packet_split(request, public_id):
+    packet = _packet(request.user, public_id)
+    form = PacketSplitForm(request.POST, packet=packet)
+    if not form.is_valid():
+        messages.error(request, "Choose the vouchers and name the new child packet.")
+        return redirect(packet)
+    try:
+        child = split_packet_items(packet=packet, actor=request.user, **form.cleaned_data)
+    except (PacketWorkflowError, ValidationError) as error:
+        messages.error(request, str(error))
+        return redirect(packet)
+    messages.success(request, f"Selected vouchers now travel under child packet {child.tracking_number}.")
+    return redirect(child)
+
+
+@login_required
+@require_POST
+def packet_rebundle(request, public_id):
+    packet = _packet(request.user, public_id)
+    if packet.status == TrackedPacket.DRAFT:
+        targets = TrackedPacket.objects.filter(
+            origin_department=packet.origin_department, status=packet.status, prepared_by=request.user,
+        ).exclude(pk=packet.pk)
+    else:
+        targets = TrackedPacket.objects.filter(
+            origin_department=packet.origin_department, status=packet.status, current_holder=request.user,
+        ).exclude(pk=packet.pk)
+    form = PacketRebundleForm(request.POST, packet=packet, targets=targets)
+    if not form.is_valid():
+        messages.error(request, "Choose vouchers and a compatible destination bundle.")
+        return redirect(packet)
+    try:
+        target = rebundle_packet_items(
+            source_packet=packet,
+            target_packet=form.cleaned_data["target_packet"],
+            items=form.cleaned_data["items"],
+            actor=request.user,
+            note=form.cleaned_data["note"],
+        )
+    except (PacketWorkflowError, ValidationError) as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, f"Selected vouchers moved to {target.tracking_number}; both packet histories were updated.")
+    return redirect(packet)
 
 
 @login_required

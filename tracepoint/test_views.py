@@ -6,7 +6,8 @@ from django.urls import reverse
 from departments.models import Department
 
 from .credentials import issue_daily_credential
-from .models import PacketHandoff, PacketScanSession, TrackedPacket
+from .handoffs import attach_recipient_code, confirm_handoff, start_scan_session
+from .models import PacketCheckpoint, PacketHandoff, PacketItem, PacketScanSession, TrackedPacket
 from .services import create_packet
 
 
@@ -164,3 +165,58 @@ class TracePointOperatorViewTests(TestCase):
         self.assertEqual(self.client.get(reverse("tracepoint:daily_code_revoke")).status_code, 405)
         self.assertEqual(self.client.get(reverse("tracepoint:packet_action", args=(packet.public_id, "cancel"))).status_code, 405)
         self.assertEqual(self.client.get(reverse("tracepoint:discrepancy_report", args=(packet.public_id,))).status_code, 405)
+
+    def test_preparer_builds_individual_voucher_manifest_and_repeatable_route(self):
+        packet = self._packet()
+        item_response = self.client.post(reverse("tracepoint:packet_item_add", args=(packet.public_id,)), {
+            "title": "Voucher 2026-001",
+            "description": "Synthetic disbursement voucher with attachments",
+            "expected_attachment_count": 4,
+            "expected_page_count": 12,
+        })
+        self.assertRedirects(item_response, packet.get_absolute_url())
+        self.assertEqual(PacketItem.objects.get(current_packet=packet).expected_attachment_count, 4)
+
+        for label, purpose in (("Accounting signature", PacketCheckpoint.SIGNATURE), ("Final accounting return", PacketCheckpoint.CERTIFICATION)):
+            response = self.client.post(reverse("tracepoint:checkpoint_add", args=(packet.public_id,)), {
+                "department": self.accounting.pk,
+                "employee": self.receiver.pk,
+                "purpose": purpose,
+                "label": label,
+                "instructions": "Receive and verify the physical papers.",
+                "required": "on",
+            })
+            self.assertRedirects(response, packet.get_absolute_url())
+
+        detail = self.client.get(packet.get_absolute_url())
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, "Voucher manifest")
+        self.assertContains(detail, "Voucher 2026-001")
+        self.assertContains(detail, "Accounting signature")
+        self.assertContains(detail, "Final accounting return")
+        self.assertEqual(packet.checkpoints.filter(department=self.accounting).count(), 2)
+
+    def test_destination_confirmation_defaults_to_temporary_and_requires_explicit_terminal_choice(self):
+        packet = self._packet()
+        preparer_code = issue_daily_credential(employee=self.preparer)
+        activation = start_scan_session(packet=packet, operator=self.preparer, idempotency_key="view-terminal-activate")
+        attach_recipient_code(session=activation, operator=self.preparer, token=preparer_code.token)
+        confirm_handoff(session=activation, operator=self.preparer)
+        packet.refresh_from_db()
+
+        receiver_code = issue_daily_credential(employee=self.receiver)
+        receipt = start_scan_session(packet=packet, operator=self.station, idempotency_key="view-terminal-review")
+        attach_recipient_code(session=receipt, operator=self.station, token=receiver_code.token)
+        self.client.force_login(self.station)
+        review = self.client.get(reverse("tracepoint:scan_session", args=(receipt.public_id,)))
+
+        self.assertContains(review, "This is the final, terminal delivery")
+        self.assertContains(review, "Leave this unchecked when the papers are here only for signing")
+        response = self.client.post(reverse("tracepoint:scan_confirm", args=(receipt.public_id,)), {
+            "checkpoint": "",
+            "receipt_note": "Received for signature only.",
+        })
+        self.assertRedirects(response, packet.get_absolute_url())
+        packet.refresh_from_db()
+        self.assertEqual(packet.status, TrackedPacket.ACTIVE)
+        self.assertIsNone(packet.delivered_at)
