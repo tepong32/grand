@@ -18,6 +18,7 @@ No material changes are pending release.
 - Preserved historical delivered receipts during migration and retained simple packet-level manifests for backwards compatibility.
 - Added operational UI for voucher manifests, bundle lineage, checkpoint progress, split/rebundle controls, and plain-language terminal-receipt guidance.
 - Added regression coverage for repeated destination visits, premature delivery rejection, active split concurrency, and split/rebundle voucher lineage.
+- Updated `sqlparse` to 0.6.0 to resolve the four dependency advisories detected by the release security gate.
 
 ## 0.6.5 - 2026-08-16
 
