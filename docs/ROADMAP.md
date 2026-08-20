@@ -66,3 +66,14 @@ The first delivery uses Assistance as the only service-history provider. The rev
 - Deliver the capability through the reviewed `0.6.x` patch train documented in [TracePoint physical custody](TRACEPOINT.md).
 
 The `0.6.0` through `0.6.6` train now includes the operating workspace, print labels, daily-code presentation, shared-station confirmation, individual voucher manifests, controlled bundle splitting/rebundling, repeatable office checkpoints, deliberate terminal receipt, department dashboard indicators, exception controls, automated regressions, and synthetic portfolio evidence. Production rollout should begin with a small inter-office pilot and written receiving procedure before expanding LGU-wide.
+
+## Completed - Finance Setup Center foundation
+
+- Govern future voucher configuration through effective-dated releases and stable, retire-not-delete versions.
+- Separate Finance Configuration Manager preparation from Finance Configuration Approver review and activation; retain an append-only event history even for superusers.
+- Cover transaction/payee/fund/responsibility/payment/account/obligation/tax/document/routing/confidentiality configuration without inventing authoritative defaults.
+- Govern signatory validity, acting assignments, and fiscal-year/document numbering without issuing transaction numbers in setup.
+- Accept macro-free `.xlsx` voucher templates with reviewed workbook names, checksums, print-area/row-capacity validation, external-link and suspicious-formula rejection, and synthetic-only preview.
+- Explain incomplete official readiness through stable reason codes and block activation until every applicable requirement passes.
+
+The next recommended phase is `codex/voucher-workbench-foundation`. It must pin the active configuration release and template version, remain in sandbox/shadow mode until local Accounting and COA Audit Team validation, and keep financial fields out of TracePoint.
