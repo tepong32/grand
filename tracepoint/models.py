@@ -87,6 +87,13 @@ class TrackedPacket(models.Model):
         blank=True,
         related_name="tracepoint_packets",
     )
+    parent_packet = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="split_packets",
+    )
 
     state_version = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -178,10 +185,16 @@ class TrackedPacket(models.Model):
             if not run.is_official_output:
                 errors["report_run"] = "Only approved, department-validated official report outputs may be linked."
 
+        if self.parent_packet_id:
+            if self.parent_packet_id == self.pk:
+                errors["parent_packet"] = "A packet cannot be its own parent."
+            elif self.parent_packet.origin_department_id != self.origin_department_id:
+                errors["parent_packet"] = "Split packets must remain within the originating department."
+
         if self.pk:
             previous = type(self).objects.filter(pk=self.pk).first()
             if previous:
-                immutable = ("public_id", "tracking_number", "origin_department_id", "prepared_by_id")
+                immutable = ("public_id", "tracking_number", "origin_department_id", "prepared_by_id", "parent_packet_id")
                 if any(getattr(previous, field) != getattr(self, field) for field in immutable):
                     errors["tracking_number"] = "Packet identity, origin, and preparer are immutable."
                 if previous.status != self.DRAFT:
@@ -193,6 +206,198 @@ class TrackedPacket(models.Model):
                     if any(getattr(previous, field) != getattr(self, field) for field in draft_fields):
                         errors["status"] = "Packet contents, sources, and destination are immutable after activation."
 
+        if errors:
+            raise ValidationError(errors)
+
+
+class PacketItem(models.Model):
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True)
+    reference_number = models.CharField(max_length=50, unique=True, db_index=True)
+    origin_packet = models.ForeignKey(TrackedPacket, on_delete=models.PROTECT, related_name="originated_items")
+    current_packet = models.ForeignKey(TrackedPacket, on_delete=models.PROTECT, related_name="voucher_items")
+    title = models.CharField(max_length=220)
+    description = models.TextField(blank=True)
+    expected_attachment_count = models.PositiveIntegerField(default=0)
+    expected_page_count = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_tracepoint_items",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("reference_number", "pk")
+
+    def __str__(self):
+        return f"{self.reference_number} - {self.title}"
+
+    def clean(self):
+        errors = {}
+        if self.origin_packet_id and self.current_packet_id:
+            if self.origin_packet.origin_department_id != self.current_packet.origin_department_id:
+                errors["current_packet"] = "A voucher item cannot be rebundled outside its originating department."
+        if self.pk:
+            previous = type(self).objects.filter(pk=self.pk).first()
+            if previous:
+                immutable = ("public_id", "reference_number", "origin_packet_id", "created_by_id", "created_at")
+                if any(getattr(previous, field) != getattr(self, field) for field in immutable):
+                    errors["reference_number"] = "Voucher identity and origin are immutable."
+        if errors:
+            raise ValidationError(errors)
+
+
+class PacketItemMove(models.Model):
+    REGISTERED = "registered"
+    SPLIT = "split"
+    REBUNDLED = "rebundled"
+    ACTION_CHOICES = (
+        (REGISTERED, "Registered in bundle"),
+        (SPLIT, "Split into child packet"),
+        (REBUNDLED, "Moved between packets"),
+    )
+
+    item = models.ForeignKey(PacketItem, on_delete=models.PROTECT, related_name="moves")
+    action = models.CharField(max_length=12, choices=ACTION_CHOICES)
+    from_packet = models.ForeignKey(
+        TrackedPacket,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="item_moves_out",
+    )
+    to_packet = models.ForeignKey(TrackedPacket, on_delete=models.PROTECT, related_name="item_moves_in")
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="tracepoint_item_moves",
+    )
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("created_at", "pk")
+
+    def __str__(self):
+        return f"{self.item.reference_number}: {self.get_action_display()}"
+
+    def clean(self):
+        errors = {}
+        if self.from_packet_id and self.from_packet_id == self.to_packet_id:
+            errors["to_packet"] = "A voucher movement must name a different destination packet."
+        if self.action == self.REGISTERED and self.from_packet_id:
+            errors["from_packet"] = "Initial voucher registration cannot have a prior packet."
+        if self.action in (self.SPLIT, self.REBUNDLED) and not self.from_packet_id:
+            errors["from_packet"] = "A moved voucher must identify its preceding packet."
+        if self.item_id and self.to_packet_id and self.item.current_packet_id != self.to_packet_id:
+            errors["to_packet"] = "The movement destination must match the voucher's recorded current packet."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk).exists():
+            raise ValidationError("Voucher movement entries are immutable.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Voucher movement entries cannot be deleted.")
+
+
+class PacketCheckpoint(models.Model):
+    REVIEW = "review"
+    SIGNATURE = "signature"
+    APPROVAL = "approval"
+    CERTIFICATION = "certification"
+    RELEASE = "release"
+    OTHER = "other"
+    PURPOSE_CHOICES = (
+        (REVIEW, "Review"),
+        (SIGNATURE, "Signature"),
+        (APPROVAL, "Approval"),
+        (CERTIFICATION, "Certification"),
+        (RELEASE, "Release / routing"),
+        (OTHER, "Other"),
+    )
+    PENDING = "pending"
+    COMPLETED = "completed"
+    SKIPPED = "skipped"
+    STATUS_CHOICES = (
+        (PENDING, "Pending"),
+        (COMPLETED, "Completed"),
+        (SKIPPED, "Skipped by exception resolver"),
+    )
+
+    packet = models.ForeignKey(TrackedPacket, on_delete=models.PROTECT, related_name="checkpoints")
+    sequence = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="tracepoint_checkpoints")
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tracepoint_checkpoints",
+    )
+    purpose = models.CharField(max_length=16, choices=PURPOSE_CHOICES)
+    label = models.CharField(max_length=160)
+    instructions = models.TextField(blank=True)
+    required = models.BooleanField(default=True)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=PENDING, db_index=True)
+    completed_handoff = models.OneToOneField(
+        "PacketHandoff",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="completed_checkpoint",
+    )
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="completed_tracepoint_checkpoints",
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
+    skipped_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="skipped_tracepoint_checkpoints",
+    )
+    skipped_at = models.DateTimeField(null=True, blank=True)
+    skip_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("sequence", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("packet", "sequence"), name="unique_tracepoint_checkpoint_sequence"),
+        )
+
+    def __str__(self):
+        return f"{self.packet.tracking_number} checkpoint {self.sequence}: {self.label}"
+
+    def clean(self):
+        errors = {}
+        if self.employee_id:
+            employee_department = TrackedPacket._department_for_employee(self.employee)
+            if employee_department != self.department:
+                errors["employee"] = "The named checkpoint employee must belong to its department."
+        if self.status == self.COMPLETED:
+            if not self.completed_handoff_id or not self.completed_by_id or not self.completed_at:
+                errors["status"] = "A completed checkpoint requires its immutable receipt and server time."
+            elif self.completed_handoff.packet_id != self.packet_id:
+                errors["completed_handoff"] = "The checkpoint receipt must belong to this packet."
+        if self.status == self.SKIPPED and (not self.skipped_by_id or not self.skipped_at or not self.skip_reason.strip()):
+            errors["skip_reason"] = "A skipped checkpoint requires an exception resolver, reason, and server time."
+        if self.pk:
+            previous = type(self).objects.filter(pk=self.pk).first()
+            if previous and previous.packet.status != TrackedPacket.DRAFT:
+                planned = ("packet_id", "sequence", "department_id", "employee_id", "purpose", "label", "instructions", "required")
+                if any(getattr(previous, field) != getattr(self, field) for field in planned):
+                    errors["status"] = "Checkpoint routing cannot be rewritten after packet activation."
         if errors:
             raise ValidationError(errors)
 
@@ -410,6 +615,7 @@ class PacketHandoff(models.Model):
     to_department_name = models.CharField(max_length=100)
     status_before = models.CharField(max_length=16)
     status_after = models.CharField(max_length=16)
+    is_terminal_receipt = models.BooleanField(default=False)
     receipt_note = models.TextField(blank=True)
     confirmed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="confirmed_tracepoint_handoffs")
     confirmed_at = models.DateTimeField(db_index=True)
@@ -427,12 +633,16 @@ class PacketHandoff(models.Model):
         errors = {}
         if self.transfer_type == self.ACTIVATION and self.from_holder_id:
             errors["from_holder"] = "Initial activation cannot have a prior holder."
+        if self.transfer_type == self.ACTIVATION and self.is_terminal_receipt:
+            errors["is_terminal_receipt"] = "Initial activation cannot be a terminal receipt."
         if self.transfer_type == self.RECEIPT and not self.from_holder_id:
             errors["from_holder"] = "A custody receipt requires the preceding holder."
         if self.from_holder_id and self.from_holder_id == self.to_holder_id:
             errors["to_holder"] = "A holder cannot hand a packet to themselves."
         if self.scan_session_id and self.scan_session.packet_id != self.packet_id:
             errors["scan_session"] = "The scan session must belong to this packet."
+        if self.is_terminal_receipt and self.status_after != TrackedPacket.DELIVERED:
+            errors["status_after"] = "Terminal receipts must record the delivered state."
         if errors:
             raise ValidationError(errors)
 
