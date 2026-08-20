@@ -225,6 +225,26 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
                 {"label": "Archived", "value": records.filter(status=DepartmentRecord.ARCHIVED).count()},
             ),
         })
+    from finance.access import can_view_finance_setup
+    if can_view_finance_setup(user, department):
+        from finance.models import FinanceConfigurationRelease
+        from finance.services import evaluate_readiness
+
+        active_release = FinanceConfigurationRelease.objects.filter(department=department, status="active").first()
+        readiness = evaluate_readiness(active_release) if active_release else None
+        result.append({
+            "icon": "fa-sliders-h",
+            "title": "Finance Setup Center",
+            "description": "Prepare and govern master data, rules, signatories, numbering, and Excel form versions before official voucher work begins.",
+            "status": "Available",
+            "url_name": "finance:workspace",
+            "action_label": "Open Finance Setup Center",
+            "summary_items": (
+                {"label": "Active release", "value": 1 if active_release else 0},
+                {"label": "Ready checks", "value": sum(item["passed"] for item in readiness["checks"]) if readiness else 0},
+                {"label": "Blocking", "value": len(readiness["blocking"]) if readiness else 6},
+            ),
+        })
     if slug == "mswd":
         from assistance.models import AssistanceRequest
         from django.utils import timezone

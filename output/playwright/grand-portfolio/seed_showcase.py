@@ -38,6 +38,11 @@ from tracepoint.credentials import issue_daily_credential
 from tracepoint.handoffs import attach_recipient_code, confirm_handoff, start_scan_session
 from tracepoint.models import PacketCheckpoint, PacketDiscrepancy, TrackedPacket
 from tracepoint.services import add_checkpoint, add_packet_item, create_packet
+from finance.models import (
+    FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
+    FinanceSignatory, FinanceTemplateVersion,
+)
+from finance.services import preflight_finance_template, transition_release
 
 
 SHOWCASE_PASSWORD = "GrandShowcase2026!"
@@ -159,6 +164,83 @@ for profile in EmployeeProfile.objects.filter(assigned_department=departments["h
         profile.save(update_fields=["plantilla"])
 
 today = timezone.localdate()
+
+# Finance showcase data is synthetic and exists only in the disposable portfolio
+# database. It demonstrates governance/readiness, never an official LGU rule set.
+acctg_approver = User.objects.get(username="showcase_acctg_2")
+acctg_user.user_permissions.add(*Permission.objects.filter(content_type__app_label="finance", codename__in=(
+    "view_finance_setup", "manage_finance_configuration", "manage_finance_templates",
+)))
+acctg_approver.user_permissions.add(*Permission.objects.filter(content_type__app_label="finance", codename__in=(
+    "view_finance_setup", "approve_finance_configuration",
+)))
+finance_release, _ = FinanceConfigurationRelease.objects.get_or_create(
+    department=departments["acctg"], code=f"synthetic-fy-{today.year}", version=1,
+    defaults={
+        "title": f"Synthetic Finance Controls FY {today.year}", "fiscal_year": today.year,
+        "effective_from": today, "created_by": acctg_user,
+    },
+)
+for category, code, label, configuration in (
+    ("transaction_type", "synthetic-disbursement", "Synthetic disbursement type", {"sandbox_only": True}),
+    ("document_requirement", "synthetic-dv-checklist", "Synthetic DV checklist", {"items": ["Synthetic obligation reference", "Synthetic supporting schedule"]}),
+    ("fund", "synthetic-general-fund", "Synthetic General Fund", {"demonstration": True}),
+    ("payment_method", "synthetic-ada", "Synthetic ADA payment method", {"demonstration": True}),
+    ("tax_rule", "synthetic-withholding", "Synthetic withholding illustration", {"rate": "demonstration-only", "authoritative": False}),
+    ("approval_route", "synthetic-standard-route", "Synthetic Accounting review route", {"steps": ["prepare", "review", "approve"]}),
+):
+    FinanceConfigurationItem.objects.get_or_create(
+        department=departments["acctg"], release=finance_release, category=category, code=code, version=1,
+        defaults={"label": label, "configuration": configuration, "effective_from": today, "created_by": acctg_user},
+    )
+FinanceSignatory.objects.get_or_create(
+    department=departments["acctg"], release=finance_release, role_code="approved-by",
+    defaults={
+        "display_name": "Alex Reyes (Synthetic)", "position_title": "Authorized Official — demonstration",
+        "acting": True, "valid_from": today, "created_by": acctg_user,
+    },
+)
+FinanceNumberingSequence.objects.get_or_create(
+    department=departments["acctg"], release=finance_release, fiscal_year=today.year, document_type="disbursement-voucher",
+    defaults={"prefix": "SYN-DV-", "padding": 6, "next_number": 1, "created_by": acctg_user},
+)
+finance_template = FinanceTemplateVersion.objects.filter(
+    department=departments["acctg"], document_type="disbursement-voucher", version=1,
+).first()
+if not finance_template:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Synthetic DV"
+    sheet.merge_cells("A1:H1")
+    sheet["A1"] = "GRAND SYNTHETIC DISBURSEMENT VOUCHER PREVIEW"
+    sheet["A1"].font = Font(bold=True, color="FFFFFF", size=14)
+    sheet["A1"].fill = PatternFill("solid", fgColor="17365D")
+    sheet["A1"].alignment = Alignment(horizontal="center")
+    for name, coordinate in {
+        "GRAND_DV_NUMBER": "$G$2", "GRAND_DV_DATE": "$G$3", "GRAND_PAYEE": "$B$4",
+        "GRAND_PARTICULARS": "$B$6", "GRAND_GROSS_AMOUNT": "$F$22", "GRAND_TOTAL_DEDUCTIONS": "$G$22",
+        "GRAND_NET_AMOUNT": "$H$22", "GRAND_LINE_ITEMS": "$A$12:$D$20", "GRAND_PREPARED_BY": "$B$25",
+        "GRAND_CERTIFIED_BY": "$D$25", "GRAND_APPROVED_BY": "$F$25",
+    }.items():
+        workbook.defined_names.add(DefinedName(name, attr_text=f"'Synthetic DV'!{coordinate}"))
+    sheet.print_area = "A1:H28"
+    sheet.sheet_properties.pageSetUpPr.fitToPage = True
+    sheet.page_setup.fitToWidth = 1
+    payload = io.BytesIO(); workbook.save(payload)
+    finance_template = FinanceTemplateVersion(
+        department=departments["acctg"], release=finance_release, document_type="disbursement-voucher",
+        version=1, title="Synthetic controlled DV workbook", effective_from=today, created_by=acctg_user,
+    )
+    finance_template.workbook.save("synthetic-controlled-dv.xlsx", ContentFile(payload.getvalue()), save=False)
+    finance_template.full_clean(); finance_template.save()
+if finance_template.status == "draft" and not finance_template.preflight_passed:
+    preflight_finance_template(finance_template, acctg_user)
+finance_release.refresh_from_db()
+if finance_release.status == "draft":
+    transition_release(finance_release, "submit", acctg_user)
+    transition_release(finance_release, "approve", acctg_approver, "Synthetic Accounting approval basis for portfolio demonstration only.")
+    transition_release(finance_release, "activate", acctg_approver)
+
 next_monday = today + timedelta(days=(7 - today.weekday()) % 7 or 7)
 LeaveRequest.objects.get_or_create(
     employee=hr_user.employeeprofile.leavecredit,
@@ -609,3 +691,4 @@ print(f"Dashboard users: showcase_hr, showcase_gso, showcase_acctg, showcase_pla
 print(f"Password: {SHOWCASE_PASSWORD}")
 print(f"Records detail: {program_record.get_absolute_url()}")
 print(f"TracePoint route detail: {route_packet.get_absolute_url()}")
+print(f"Finance setup detail: /finance/setup/releases/{finance_release.pk}/")

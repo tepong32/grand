@@ -4,7 +4,13 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
-No material changes are pending release.
+### Finance Setup Center (target 0.7.0)
+
+- Added department-bounded, effective-dated finance configuration releases with explicit preparation, separate Accounting approval, scheduling/activation states, supersession, retirement, and append-only audit snapshots.
+- Added versioned finance master data and rules, validity-dated signatories, acting assignments, fiscal-year/document numbering policies, and retire-not-delete governance without creating a voucher transaction engine.
+- Added stable readiness reason codes for approved templates, transaction checklists, signatories, funds/payment accounts, tax rules, numbering, and activation-date conflicts; incomplete releases cannot activate.
+- Added macro-free `.xlsx` intake with controlled voucher named ranges, SHA-256 workbook/mapping evidence, print-area and line-capacity validation, macro/external-link/suspicious-formula rejection, and synthetic-only preview downloads.
+- Added Finance Setup Center workspace, department dashboard/navigation entry points, explicit manager/approver/template permissions, cross-department authorization tests, and operating documentation.
 
 ## 0.6.6 - 2026-08-20
 

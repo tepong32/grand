@@ -1,0 +1,170 @@
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.http import FileResponse, Http404, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+
+from .access import (
+    can_approve_finance_configuration, can_manage_finance_configuration,
+    can_manage_finance_templates, department_for_user, finance_access_required,
+    finance_permission_required,
+)
+from .forms import (
+    FinanceItemForm, FinanceNumberingSequenceForm, FinanceReleaseForm,
+    FinanceSignatoryForm, FinanceTemplateForm,
+)
+from .models import FinanceConfigurationRelease, FinanceTemplateVersion
+from .services import (
+    FinanceTemplateError, evaluate_readiness, preflight_finance_template,
+    record_event, synthetic_preview, transition_release,
+)
+
+
+@finance_access_required
+def workspace(request):
+    department = department_for_user(request.user)
+    releases = FinanceConfigurationRelease.objects.filter(department=department).prefetch_related("items", "templates", "signatories", "numbering_sequences")
+    active = releases.filter(status="active").first()
+    readiness = evaluate_readiness(active) if active else None
+    return render(request, "finance/workspace.html", {
+        "department": department, "releases": releases, "active_release": active, "readiness": readiness,
+        "can_manage": can_manage_finance_configuration(request.user, department),
+        "can_approve": can_approve_finance_configuration(request.user, department),
+        "can_manage_templates": can_manage_finance_templates(request.user, department),
+    })
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def release_create(request):
+    department = department_for_user(request.user)
+    form = FinanceReleaseForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        release = form.save(False)
+        release.department, release.created_by = department, request.user
+        release.full_clean()
+        release.save()
+        record_event(release, request.user, "created")
+        messages.success(request, "Draft finance configuration release created.")
+        return redirect("finance:release_detail", pk=release.pk)
+    return render(request, "finance/form.html", {"form": form, "title": "Create finance configuration release", "guidance": "A release groups reviewed master data, rules, signatories, numbering, and workbook versions for one effective period."})
+
+
+@finance_access_required
+def release_detail(request, pk):
+    department = department_for_user(request.user)
+    release = get_object_or_404(FinanceConfigurationRelease.objects.prefetch_related("items", "templates", "signatories", "numbering_sequences", "events__actor"), pk=pk, department=department)
+    return render(request, "finance/release_detail.html", {
+        "release": release, "readiness": evaluate_readiness(release),
+        "today": timezone.localdate(),
+        "can_manage": can_manage_finance_configuration(request.user, department),
+        "can_approve": can_approve_finance_configuration(request.user, department),
+        "can_manage_templates": can_manage_finance_templates(request.user, department),
+    })
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def item_create(request):
+    department = department_for_user(request.user)
+    initial = {"release": request.GET.get("release")}
+    form = FinanceItemForm(request.POST or None, department=department, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.department, item.created_by = department, request.user
+        item.full_clean()
+        item.save()
+        record_event(item, request.user, "created")
+        messages.success(request, "Draft finance master-data version created.")
+        return redirect("finance:release_detail", pk=item.release_id)
+    return render(request, "finance/form.html", {"form": form, "title": "Add finance configuration", "guidance": "Use synthetic examples only until local Accounting reviews the release. Existing approved versions are never overwritten."})
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def signatory_create(request):
+    department = department_for_user(request.user)
+    form = FinanceSignatoryForm(request.POST or None, department=department, initial={"release": request.GET.get("release")})
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.department, item.created_by = department, request.user
+        item.full_clean(); item.save(); record_event(item, request.user, "created")
+        messages.success(request, "Draft signatory assignment created.")
+        return redirect("finance:release_detail", pk=item.release_id)
+    return render(request, "finance/form.html", {"form": form, "title": "Add signatory assignment", "guidance": "Record the role, acting status, and exact validity period. Signature images are intentionally not collected."})
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def sequence_create(request):
+    department = department_for_user(request.user)
+    form = FinanceNumberingSequenceForm(request.POST or None, department=department, initial={"release": request.GET.get("release")})
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.department, item.created_by = department, request.user
+        item.full_clean(); item.save(); record_event(item, request.user, "created")
+        messages.success(request, "Draft numbering sequence created. No number is consumed during setup.")
+        return redirect("finance:release_detail", pk=item.release_id)
+    return render(request, "finance/form.html", {"form": form, "title": "Add numbering sequence", "guidance": "Sequences are scoped by fiscal year and document type. This setup phase never issues an official voucher number."})
+
+
+@finance_permission_required(can_manage_finance_templates)
+def template_create(request):
+    department = department_for_user(request.user)
+    form = FinanceTemplateForm(request.POST or None, request.FILES or None, department=department, initial={"release": request.GET.get("release")})
+    if request.method == "POST" and form.is_valid():
+        template = form.save(False)
+        template.department, template.created_by = department, request.user
+        template.full_clean(); template.save(); record_event(template, request.user, "uploaded")
+        messages.success(request, "Workbook version uploaded. Run preflight before review.")
+        return redirect("finance:release_detail", pk=template.release_id)
+    return render(request, "finance/form.html", {"form": form, "title": "Upload finance workbook version", "multipart": True, "guidance": "Only macro-free .xlsx files are accepted. External links and suspicious formulas are rejected during preflight."})
+
+
+@finance_permission_required(can_manage_finance_templates)
+def template_preflight(request, pk):
+    if request.method != "POST":
+        raise Http404
+    department = department_for_user(request.user)
+    template = get_object_or_404(FinanceTemplateVersion, pk=pk, department=department)
+    try:
+        result = preflight_finance_template(template, request.user)
+    except (FinanceTemplateError, ValidationError) as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(request, result["message"])
+    return redirect("finance:release_detail", pk=template.release_id)
+
+
+@finance_access_required
+def template_download(request, pk):
+    department = department_for_user(request.user)
+    template = get_object_or_404(FinanceTemplateVersion, pk=pk, department=department)
+    template.workbook.open("rb")
+    return FileResponse(template.workbook, as_attachment=True, filename=template.workbook.name.rsplit("/", 1)[-1])
+
+
+@finance_access_required
+def template_preview(request, pk):
+    department = department_for_user(request.user)
+    template = get_object_or_404(FinanceTemplateVersion, pk=pk, department=department)
+    try:
+        payload = synthetic_preview(template, request.user)
+    except FinanceTemplateError as exc:
+        messages.error(request, str(exc))
+        return redirect("finance:release_detail", pk=template.release_id)
+    response = HttpResponse(payload, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = f'attachment; filename="synthetic-{template.document_type}-v{template.version}.xlsx"'
+    response["X-GRAND-Preview"] = "synthetic-only"
+    return response
+
+
+@finance_access_required
+def release_action(request, pk, action):
+    if request.method != "POST":
+        raise Http404
+    department = department_for_user(request.user)
+    release = get_object_or_404(FinanceConfigurationRelease, pk=pk, department=department)
+    try:
+        transition_release(release, action, request.user, request.POST.get("reason", ""))
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(request, f"Release {action} recorded in the immutable finance audit history.")
+    return redirect("finance:release_detail", pk=release.pk)

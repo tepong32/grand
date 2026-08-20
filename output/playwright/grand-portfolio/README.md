@@ -19,6 +19,9 @@ This folder contains reproducible, portfolio-ready captures of Grand's municipal
 - `grand-tracepoint-workspace.png` - cross-department physical-custody register with live status, responsibility, destination, and exception indicators
 - `grand-tracepoint-packet-route.png` - voucher manifest, repeatable office checkpoints, temporary destination visit, and immutable employee-to-employee receipt route linked to a governed official report
 - `grand-tracepoint-daily-code.png` - random, day-limited employee QR identity with replacement and revocation guidance
+- `grand-finance-setup-center.png` - active synthetic finance release with plain-language official-readiness evidence
+- `grand-finance-release-detail.png` - versioned master data and reusable readiness reason codes under one approved release
+- `grand-finance-template-governance.png` - checksum-backed Excel preflight, synthetic preview, signatory/numbering governance, and immutable lifecycle evidence
 
 The machine-readable `manifest.json` is the source of truth for portfolio captions, alt text, ordering, and feature descriptions.
 
