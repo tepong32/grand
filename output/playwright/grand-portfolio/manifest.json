@@ -109,20 +109,41 @@
     },
     {
       "order": 16,
+      "file": "grand-finance-setup-center.png",
+      "title": "Governed finance readiness",
+      "alt": "GRAND Finance Setup Center showing an active synthetic configuration release and seven passed readiness controls",
+      "capability": "Finance employees can see whether approved templates, transaction checklists, signatories, funds, payment methods, tax rules, numbering, and effective dates are ready before official voucher work begins."
+    },
+    {
+      "order": 17,
+      "file": "grand-finance-release-detail.png",
+      "title": "Versioned finance policy release",
+      "alt": "Synthetic active finance release with versioned master data and structured readiness reason codes",
+      "capability": "Effective-dated finance master data remains grouped under a separately approved release while stable reason codes explain every readiness decision."
+    },
+    {
+      "order": 18,
+      "file": "grand-finance-template-governance.png",
+      "title": "Checksum-backed voucher template governance",
+      "alt": "Finance setup detail showing a passed workbook preflight, synthetic preview, signatory validity, numbering policy, and immutable audit history",
+      "capability": "Macro-free voucher workbooks retain exact source and mapping checksums, controlled row capacity, synthetic-only preview, signatory and numbering context, and attributed lifecycle evidence."
+    },
+    {
+      "order": 19,
       "file": "grand-public-services.png",
       "title": "Configurable civic service portal",
       "alt": "GRAND public portal with neutral civic identity, plain-language actions, and official service navigation",
       "capability": "Authorized administrators can update institutional identity, colors, imagery, media, service labels, icons, links, and ordering without redesigning the portal."
     },
     {
-      "order": 17,
+      "order": 20,
       "file": "grand-public-services-mobile.png",
       "title": "Resident-friendly responsive access",
       "alt": "GRAND public service portal adapted to a narrow mobile screen",
       "capability": "Task-first service guidance and accessible trust cues remain clear on phones used by residents and field staff."
     },
     {
-      "order": 18,
+      "order": 21,
       "file": "grand-assistance-portal.png",
       "title": "Account-free citizen assistance",
       "alt": "Grand public assistance portal with new-request and secure tracking actions",
