@@ -6,6 +6,20 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 No material changes are pending release.
 
+## 0.6.6 - 2026-08-20
+
+### TracePoint voucher batches and repeatable checkpoints
+
+- Added stable per-voucher references, expected attachment/page details, and immutable movement ledgers for bundled physical vouchers.
+- Added controlled child-packet splits and compatible rebundling while preserving origin, current custody, pending route work, state-version safety, and both packet histories.
+- Added repeatable office checkpoints for review, signature, approval, certification, and release, including optional named employees and governed exception skips.
+- Changed arrival at the declared destination to an ordinary active receipt by default, allowing temporary signature visits and onward movement.
+- Added a deliberate terminal-delivery choice, final-recipient validation, and required-checkpoint enforcement before delivery can close.
+- Preserved historical delivered receipts during migration and retained simple packet-level manifests for backwards compatibility.
+- Added operational UI for voucher manifests, bundle lineage, checkpoint progress, split/rebundle controls, and plain-language terminal-receipt guidance.
+- Added regression coverage for repeated destination visits, premature delivery rejection, active split concurrency, and split/rebundle voucher lineage.
+- Updated `sqlparse` to 0.6.0 to resolve the four dependency advisories detected by the release security gate.
+
 ## 0.6.5 - 2026-08-16
 
 ### TracePoint operations workspace (0.6.5)

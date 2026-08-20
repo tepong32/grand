@@ -13,6 +13,7 @@ from .access import (
 from .handoffs import _employee_snapshot
 from .models import (
     PacketCorrection,
+    PacketCheckpoint,
     PacketDiscrepancy,
     PacketEvent,
     PacketScanSession,
@@ -25,11 +26,13 @@ class PacketControlError(ValueError):
 
 
 def _participant_departments(packet):
-    return {
+    departments = {
         packet.origin_department_id,
         packet.current_department_id,
         packet.final_destination_department_id,
     }
+    departments.update(packet.checkpoints.values_list("department_id", flat=True))
+    return departments
 
 
 def _can_resolve_packet(actor, packet):
@@ -232,3 +235,37 @@ def correct_current_custody(*, packet, actor, corrected_holder, reason, related_
             metadata={"correction_id": correction.pk, "related_handoff_id": getattr(related_handoff, "pk", None)},
         )
     return correction
+
+
+def skip_checkpoint(*, checkpoint, actor, reason):
+    reason = reason.strip()
+    packet = checkpoint.packet
+    if not _can_resolve_packet(actor, packet):
+        raise PacketControlError("Only an authorized exception resolver can skip a planned checkpoint.")
+    if not reason:
+        raise PacketControlError("Record why this route checkpoint cannot be completed normally.")
+    with transaction.atomic():
+        locked = PacketCheckpoint.objects.select_for_update().select_related("packet").get(pk=checkpoint.pk)
+        if locked.status == PacketCheckpoint.SKIPPED:
+            return locked
+        if locked.status != PacketCheckpoint.PENDING or locked.packet.status not in (
+            TrackedPacket.ACTIVE, TrackedPacket.ON_HOLD,
+        ):
+            raise PacketControlError("Only a pending checkpoint on a circulating packet can be skipped.")
+        now = timezone.now()
+        locked.status = PacketCheckpoint.SKIPPED
+        locked.skipped_by = actor
+        locked.skipped_at = now
+        locked.skip_reason = reason
+        locked.full_clean()
+        locked.save(update_fields=("status", "skipped_by", "skipped_at", "skip_reason"))
+        PacketEvent.objects.create(
+            packet=locked.packet,
+            actor=actor,
+            action="checkpoint_skipped",
+            from_status=locked.packet.status,
+            to_status=locked.packet.status,
+            note=reason,
+            metadata={"checkpoint_id": locked.pk, "sequence": locked.sequence},
+        )
+    return locked

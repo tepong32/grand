@@ -73,12 +73,12 @@ def packet_is_visible(user, packet):
         packet.prepared_by_id,
         packet.current_holder_id,
         packet.final_destination_employee_id,
-    } or packet.handoffs.filter(confirmed_by=user).exists()
+    } or packet.handoffs.filter(confirmed_by=user).exists() or packet.checkpoints.filter(employee=user).exists()
     department_participant = department.pk in {
         packet.origin_department_id,
         packet.final_destination_department_id,
         packet.current_department_id,
-    }
+    } or packet.checkpoints.filter(department=department).exists()
     if not direct_participant and not (department_participant and can_view_workspace(user, department)):
         return False
     if packet.confidentiality == packet.INTERNAL:

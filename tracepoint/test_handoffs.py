@@ -107,7 +107,12 @@ class TracePointHandoffTests(TestCase):
         session = start_scan_session(packet=packet, operator=self.station_operator, idempotency_key="receipt-accounting-001")
         attach_recipient_code(session=session, operator=self.station_operator, token=receiver_code.token)
 
-        receipt = confirm_handoff(session=session, operator=self.station_operator, receipt_note="Received at Accounting counter")
+        receipt = confirm_handoff(
+            session=session,
+            operator=self.station_operator,
+            receipt_note="Received at Accounting counter",
+            terminal_delivery=True,
+        )
         repeated = confirm_handoff(session=session, operator=self.station_operator, receipt_note="Duplicate click")
         packet.refresh_from_db()
         receiver_code.credential.refresh_from_db()

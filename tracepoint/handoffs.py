@@ -12,6 +12,7 @@ from .models import (
     DailyEmployeeCredential,
     PacketEvent,
     PacketHandoff,
+    PacketCheckpoint,
     PacketScanSession,
     TrackedPacket,
 )
@@ -113,7 +114,7 @@ def attach_recipient_code(*, session, operator, token):
     return session
 
 
-def confirm_handoff(*, session, operator, receipt_note=""):
+def confirm_handoff(*, session, operator, receipt_note="", terminal_delivery=False, checkpoint=None):
     _require_session_operator(session, operator)
     with transaction.atomic():
         locked_session = PacketScanSession.objects.select_for_update().select_related(
@@ -155,12 +156,41 @@ def confirm_handoff(*, session, operator, receipt_note=""):
         else:
             raise HandoffError("This packet can no longer be transferred through the standard scanner.")
 
-        reached_destination = (
+        destination_matches = (
             receiver.pk == packet.final_destination_employee_id
             if packet.final_destination_employee_id
             else receiver_snapshot["department"].pk == packet.final_destination_department_id
         )
-        status_after = TrackedPacket.DELIVERED if reached_destination else normal_status_after
+        selected_checkpoint = None
+        checkpoint_id = getattr(checkpoint, "pk", checkpoint)
+        if checkpoint_id and transfer_type == PacketHandoff.ACTIVATION:
+            raise HandoffError("Activation cannot complete a route checkpoint; record it on a later physical receipt.")
+        if checkpoint_id:
+            selected_checkpoint = PacketCheckpoint.objects.select_for_update().filter(
+                pk=checkpoint_id,
+                packet=packet,
+            ).first()
+            if not selected_checkpoint or selected_checkpoint.status != PacketCheckpoint.PENDING:
+                raise HandoffError("The selected route checkpoint is no longer pending for this packet.")
+            if selected_checkpoint.department_id != receiver_snapshot["department"].pk:
+                raise HandoffError("The receiving employee does not belong to the selected checkpoint office.")
+            if selected_checkpoint.employee_id and selected_checkpoint.employee_id != receiver.pk:
+                raise HandoffError("This checkpoint is assigned to a different receiving employee.")
+
+        if terminal_delivery:
+            if transfer_type == PacketHandoff.ACTIVATION:
+                raise HandoffError("Activation establishes first custody; it cannot also be final delivery.")
+            if not destination_matches:
+                raise HandoffError("Only the declared final employee or office can confirm terminal delivery.")
+            remaining_required = packet.checkpoints.filter(
+                required=True,
+                status=PacketCheckpoint.PENDING,
+            )
+            if selected_checkpoint:
+                remaining_required = remaining_required.exclude(pk=selected_checkpoint.pk)
+            if remaining_required.exists():
+                raise HandoffError("Complete or formally skip every required checkpoint before final delivery.")
+        status_after = TrackedPacket.DELIVERED if terminal_delivery else normal_status_after
 
         status_before = packet.status
         sequence = (packet.handoffs.order_by("-sequence").values_list("sequence", flat=True).first() or 0) + 1
@@ -182,6 +212,7 @@ def confirm_handoff(*, session, operator, receipt_note=""):
             to_department_name=receiver_snapshot["department_name"],
             status_before=status_before,
             status_after=status_after,
+            is_terminal_receipt=terminal_delivery,
             receipt_note=receipt_note.strip(),
             confirmed_by=operator,
             confirmed_at=timezone.now(),
@@ -195,7 +226,7 @@ def confirm_handoff(*, session, operator, receipt_note=""):
         packet.state_version += 1
         if transfer_type == PacketHandoff.ACTIVATION:
             packet.activated_at = handoff.confirmed_at
-        if reached_destination:
+        if terminal_delivery:
             packet.delivered_at = handoff.confirmed_at
         packet.full_clean()
         packet.save(update_fields=(
@@ -224,16 +255,39 @@ def confirm_handoff(*, session, operator, receipt_note=""):
                 "to_employee_id": receiver.pk,
                 "to_department_id": receiver_snapshot["department"].pk,
                 "scan_session_id": str(locked_session.public_id),
+                "checkpoint_id": getattr(selected_checkpoint, "pk", None),
+                "terminal_delivery": terminal_delivery,
             },
         )
-        if reached_destination:
+        if selected_checkpoint:
+            selected_checkpoint.status = PacketCheckpoint.COMPLETED
+            selected_checkpoint.completed_handoff = handoff
+            selected_checkpoint.completed_by = receiver
+            selected_checkpoint.completed_at = handoff.confirmed_at
+            selected_checkpoint.full_clean()
+            selected_checkpoint.save(update_fields=("status", "completed_handoff", "completed_by", "completed_at"))
+            PacketEvent.objects.create(
+                packet=packet,
+                actor=operator,
+                action="checkpoint_completed",
+                from_status=status_before,
+                to_status=status_after,
+                note=selected_checkpoint.label,
+                metadata={
+                    "checkpoint_id": selected_checkpoint.pk,
+                    "sequence": selected_checkpoint.sequence,
+                    "handoff_id": handoff.pk,
+                    "department_id": selected_checkpoint.department_id,
+                },
+            )
+        if terminal_delivery:
             PacketEvent.objects.create(
                 packet=packet,
                 actor=operator,
                 action="delivered",
                 from_status=status_before,
                 to_status=TrackedPacket.DELIVERED,
-                note="Received by the declared final destination.",
+                note="Terminal delivery deliberately confirmed by the declared final destination.",
                 metadata={"handoff_id": handoff.pk, "sequence": handoff.sequence},
             )
     return handoff

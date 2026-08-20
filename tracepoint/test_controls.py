@@ -14,11 +14,12 @@ from .controls import (
     report_discrepancy,
     resolve_discrepancy,
     resume_packet,
+    skip_checkpoint,
 )
 from .credentials import issue_daily_credential
 from .handoffs import HandoffError, attach_recipient_code, confirm_handoff, start_scan_session
-from .models import PacketDiscrepancy, PacketScanSession, TrackedPacket
-from .services import create_packet
+from .models import PacketCheckpoint, PacketDiscrepancy, PacketScanSession, TrackedPacket
+from .services import add_checkpoint, create_packet
 
 
 class TracePointDeliveryControlTests(TestCase):
@@ -58,11 +59,11 @@ class TracePointDeliveryControlTests(TestCase):
             final_destination_employee=self.receiver if named_receiver else None,
         )
 
-    def _receive(self, packet, employee, operator, key):
+    def _receive(self, packet, employee, operator, key, terminal_delivery=False):
         issued = issue_daily_credential(employee=employee)
         session = start_scan_session(packet=packet, operator=operator, idempotency_key=key)
         attach_recipient_code(session=session, operator=operator, token=issued.token)
-        handoff = confirm_handoff(session=session, operator=operator)
+        handoff = confirm_handoff(session=session, operator=operator, terminal_delivery=terminal_delivery)
         packet.refresh_from_db()
         return handoff
 
@@ -75,7 +76,7 @@ class TracePointDeliveryControlTests(TestCase):
 
     def _deliver(self, packet):
         self._to_intermediary(packet)
-        return self._receive(packet, self.receiver, self.finisher, "controls-final-receipt")
+        return self._receive(packet, self.receiver, self.finisher, "controls-final-receipt", terminal_delivery=True)
 
     def test_final_receipt_delivers_but_does_not_complete_work(self):
         packet = self._packet()
@@ -99,7 +100,7 @@ class TracePointDeliveryControlTests(TestCase):
     def test_department_destination_is_delivered_to_any_employee_in_that_department(self):
         packet = self._packet(named_receiver=False)
         self._to_intermediary(packet)
-        self._receive(packet, self.finisher, self.finisher, "controls-department-final")
+        self._receive(packet, self.finisher, self.finisher, "controls-department-final", terminal_delivery=True)
         packet.refresh_from_db()
         self.assertEqual(packet.status, TrackedPacket.DELIVERED)
         self.assertEqual(packet.current_holder, self.finisher)
@@ -194,3 +195,25 @@ class TracePointDeliveryControlTests(TestCase):
                 corrected_holder=self.finisher,
                 reason="Attempted reassignment after delivery",
             )
+
+    def test_only_exception_resolver_can_skip_required_checkpoint_with_reason(self):
+        packet = self._packet()
+        checkpoint = add_checkpoint(
+            packet=packet,
+            actor=self.preparer,
+            department=self.budget,
+            purpose=PacketCheckpoint.APPROVAL,
+            label="Budget approval",
+        )
+        self._to_intermediary(packet)
+        with self.assertRaises(PacketControlError):
+            skip_checkpoint(checkpoint=checkpoint, actor=self.intermediary, reason="Approver absent")
+
+        skipped = skip_checkpoint(
+            checkpoint=checkpoint,
+            actor=self.resolver,
+            reason="Formal written waiver attached by the authorized budget resolver.",
+        )
+        self.assertEqual(skipped.status, PacketCheckpoint.SKIPPED)
+        self.assertEqual(skipped.skipped_by, self.resolver)
+        self.assertEqual(packet.events.filter(action="checkpoint_skipped").count(), 1)

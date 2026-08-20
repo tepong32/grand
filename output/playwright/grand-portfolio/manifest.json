@@ -96,9 +96,9 @@
     {
       "order": 14,
       "file": "grand-tracepoint-packet-route.png",
-      "title": "Immutable real-route custody history",
-      "alt": "GRAND TracePoint packet detail showing a voucher bundle's flexible inter-office route, server-timed receipts, final destination, linked official report, and discrepancy",
-      "capability": "Every confirmed physical receipt appends employee and department snapshots to an auditable route while linked reports retain their own governance and earlier receipts remain unchanged."
+      "title": "Voucher-batch custody with repeatable checkpoints",
+      "alt": "GRAND TracePoint packet detail showing individually identified vouchers, repeated Accounting checkpoints, a temporary signature visit, server-timed receipts, and deliberate terminal delivery",
+      "capability": "Bundled vouchers retain stable identities through splits or rebundling, the same office can receive temporarily and later terminally, and every confirmed physical receipt remains immutable and auditable."
     },
     {
       "order": 15,
