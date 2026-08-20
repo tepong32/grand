@@ -1,5 +1,7 @@
 # Finance Setup Center operations
 
+Release status: delivered in GRAND `0.7.0`; official voucher transactions remain a future, separately validated phase.
+
 The Finance Setup Center is GRAND's governed configuration boundary for future voucher work. It does not create, number, approve, post, or pay vouchers. Its operating rule is: **editable configuration for the future; immutable history for the past**.
 
 ## Responsibilities and permissions

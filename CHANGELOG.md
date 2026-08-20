@@ -4,7 +4,11 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
-### Finance Setup Center (target 0.7.0)
+No material changes are pending release.
+
+## 0.7.0 - 2026-08-21
+
+### Finance Setup Center foundation
 
 - Added department-bounded, effective-dated finance configuration releases with explicit preparation, separate Accounting approval, scheduling/activation states, supersession, retirement, and append-only audit snapshots.
 - Added versioned finance master data and rules, validity-dated signatories, acting assignments, fiscal-year/document numbering policies, and retire-not-delete governance without creating a voucher transaction engine.
