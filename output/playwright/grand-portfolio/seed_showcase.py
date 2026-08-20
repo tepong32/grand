@@ -36,8 +36,8 @@ from users.models import User
 from tracepoint.controls import report_discrepancy
 from tracepoint.credentials import issue_daily_credential
 from tracepoint.handoffs import attach_recipient_code, confirm_handoff, start_scan_session
-from tracepoint.models import PacketDiscrepancy, TrackedPacket
-from tracepoint.services import create_packet
+from tracepoint.models import PacketCheckpoint, PacketDiscrepancy, TrackedPacket
+from tracepoint.services import add_checkpoint, add_packet_item, create_packet
 
 
 SHOWCASE_PASSWORD = "GrandShowcase2026!"
@@ -482,8 +482,56 @@ if not route_packet:
         report_run=approved_run,
     )
 
+if route_packet.status == TrackedPacket.DRAFT and not route_packet.voucher_items.exists():
+    for number, title in enumerate((
+        "Emergency assistance voucher — Garcia household",
+        "Medical assistance voucher — Reyes household",
+        "Burial assistance voucher — Santos household",
+        "Transportation assistance voucher — Mendoza household",
+    ), start=1):
+        add_packet_item(
+            packet=route_packet,
+            actor=mswd_user,
+            title=title,
+            description=f"Synthetic showcase voucher {number}; no real citizen data.",
+            expected_attachment_count=4,
+            expected_page_count=7,
+        )
 
-def confirm_showcase_receipt(packet, receiver, operator, key):
+if route_packet.status == TrackedPacket.DRAFT:
+    if not route_packet.checkpoints.filter(label="Accounting signature and initial verification").exists():
+        add_checkpoint(
+            packet=route_packet,
+            actor=mswd_user,
+            department=departments["acctg"],
+            employee=acctg_user,
+            purpose=PacketCheckpoint.SIGNATURE,
+            label="Accounting signature and initial verification",
+            instructions="Verify voucher totals, sign the control sheet, then route onward.",
+        )
+    if not route_packet.checkpoints.filter(label="Planning certification").exists():
+        add_checkpoint(
+            packet=route_packet,
+            actor=mswd_user,
+            department=departments["mpdo"],
+            employee=planning_user,
+            purpose=PacketCheckpoint.CERTIFICATION,
+            label="Planning certification",
+            instructions="Confirm the linked accomplishment figures before final return.",
+        )
+    if not route_packet.checkpoints.filter(label="Final Accounting custody").exists():
+        add_checkpoint(
+            packet=route_packet,
+            actor=mswd_user,
+            department=departments["acctg"],
+            employee=acctg_user,
+            purpose=PacketCheckpoint.RELEASE,
+            label="Final Accounting custody",
+            instructions="Retain the completed voucher bundle as the declared terminal destination.",
+        )
+
+
+def confirm_showcase_receipt(packet, receiver, operator, key, checkpoint=None, terminal=False):
     issued = issue_daily_credential(employee=receiver, actor=receiver, replace=True)
     scan = start_scan_session(packet=packet, operator=operator, idempotency_key=key)
     attach_recipient_code(session=scan, operator=operator, token=issued.token)
@@ -491,6 +539,8 @@ def confirm_showcase_receipt(packet, receiver, operator, key):
         session=scan,
         operator=operator,
         receipt_note="Physical contents counted and accepted for the next processing step.",
+        checkpoint=checkpoint,
+        terminal_delivery=terminal,
     )
 
 
@@ -498,18 +548,36 @@ if route_packet.status == TrackedPacket.DRAFT:
     confirm_showcase_receipt(route_packet, mswd_user, mswd_user, "showcase-tracepoint-activate")
     route_packet.refresh_from_db()
 if route_packet.status == TrackedPacket.ACTIVE and route_packet.current_holder_id == mswd_user.pk:
-    confirm_showcase_receipt(route_packet, planning_user, planning_user, "showcase-tracepoint-planning")
+    checkpoint = route_packet.checkpoints.filter(label="Accounting signature and initial verification").first()
+    confirm_showcase_receipt(
+        route_packet, acctg_user, acctg_user, "showcase-tracepoint-accounting-signature", checkpoint=checkpoint,
+    )
+    route_packet.refresh_from_db()
+if route_packet.status == TrackedPacket.ACTIVE and route_packet.current_holder_id == acctg_user.pk:
+    checkpoint = route_packet.checkpoints.filter(label="Planning certification").first()
+    confirm_showcase_receipt(
+        route_packet, planning_user, planning_user, "showcase-tracepoint-planning", checkpoint=checkpoint,
+    )
     route_packet.refresh_from_db()
 if route_packet.status == TrackedPacket.ACTIVE and route_packet.current_holder_id == planning_user.pk:
-    final_handoff = confirm_showcase_receipt(route_packet, acctg_user, acctg_user, "showcase-tracepoint-accounting")
-    route_packet.refresh_from_db()
-    report_discrepancy(
-        packet=route_packet,
-        actor=acctg_user,
-        category=PacketDiscrepancy.MISSING_CONTENTS,
-        description="Control sheet notes thirteen items; receiving count found twelve pending preparer verification.",
-        related_handoff=final_handoff,
+    checkpoint = route_packet.checkpoints.filter(label="Final Accounting custody").first()
+    final_handoff = confirm_showcase_receipt(
+        route_packet,
+        acctg_user,
+        acctg_user,
+        "showcase-tracepoint-accounting-terminal",
+        checkpoint=checkpoint,
+        terminal=True,
     )
+    route_packet.refresh_from_db()
+    if not route_packet.discrepancies.exists():
+        report_discrepancy(
+            packet=route_packet,
+            actor=acctg_user,
+            category=PacketDiscrepancy.MISSING_CONTENTS,
+            description="Control sheet notes thirteen items; receiving count found twelve pending preparer verification.",
+            related_handoff=final_handoff,
+        )
 
 active_packet = TrackedPacket.objects.filter(title="Nutrition Program Liquidation Packet").first()
 if not active_packet:

@@ -14,7 +14,7 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 - Leave requests and predictable credit accrual with approval deductions.
 - Cross-department reporting definitions, native print layouts, controlled mapped-XLSX and exact-PDF compatibility, recurring schedules, checksums, fidelity validation, permission-aware print/download actions, review, approval, and supersession.
 - Department-bounded records with source-in-place links, checksum-backed uploads, confidentiality controls, review and approval, audited downloads, retention, legal holds, supersession, archival, and disposition.
-- TracePoint physical-paper custody with stable packet labels, revocable daily employee QR codes, explicit receipt confirmation, immutable handoff history, flexible routing, discrepancy handling, and separate delivery/completion states.
+- TracePoint physical-paper custody with stable packet labels, revocable daily employee QR codes, individual voucher manifests, split/rebundle lineage, repeatable office checkpoints, explicit terminal receipt, immutable handoff history, and separate delivery/completion states.
 - Public and internal announcements, employee/citizen profiles, department records, and organization views.
 
 GRAND keeps operational modules separate: an employee's dashboard summarizes work and links to specialized workspaces instead of embedding full processing screens in the landing page.
@@ -86,6 +86,6 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 
 ## Product direction
 
-GRAND remains the platform identity. TracePoint is its physical-document custody capability: stable packet labels, daily employee QR credentials, confirmed transfers, delivery, and completion. It builds on the governed Records registry while remaining distinct from the secure links and QR codes used by Assistance. The completed `0.6.x` delivery train and rollout guidance are recorded in the [TracePoint contract](docs/TRACEPOINT.md).
+GRAND remains the platform identity. TracePoint is its physical-document custody capability: stable packet labels, daily employee QR credentials, voucher-bundle lineage, repeatable checkpoints, confirmed transfers, deliberate terminal delivery, and completion. It builds on the governed Records registry while remaining distinct from the secure links and QR codes used by Assistance. The completed `0.6.x` delivery train and rollout guidance are recorded in the [TracePoint contract](docs/TRACEPOINT.md).
 
 All showcase records and screenshots are synthetic. Production citizen data, credentials, uploaded records, and generated official reports must never be added to the repository.
