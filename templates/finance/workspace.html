@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Finance Setup Center{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div><p class="text-uppercase text-primary small font-weight-bold mb-1">{{ department.name }}</p><h1 class="h3 mb-1">Finance Setup Center</h1><p class="text-muted mb-0">Editable configuration for the future; immutable history for the past.</p></div>
+    {% if can_manage %}<a class="btn btn-primary mt-2" href="{% url 'finance:release_create' %}"><i class="fas fa-layer-group mr-1"></i> New configuration release</a>{% endif %}
+  </div>
+  <div class="alert alert-info"><strong>Configuration and governance only.</strong> This area does not create, number, approve, or post official vouchers. Local Accounting approval is required before activation.</div>
+  <div class="row">
+    <div class="col-lg-4">
+      <div class="card card-outline {% if active_release and readiness.ready %}card-success{% else %}card-warning{% endif %}"><div class="card-header"><h2 class="card-title font-weight-bold">Official-operation readiness</h2></div><div class="card-body">
+        {% if active_release %}<p><strong>{{ active_release }}</strong></p>{% for check in readiness.checks %}<div class="d-flex mb-2" id="{{ check.help_anchor }}"><i class="fas {% if check.passed %}fa-check-circle text-success{% else %}fa-exclamation-circle text-warning{% endif %} mt-1 mr-2"></i><span class="small">{{ check.message }}</span></div>{% endfor %}
+        {% else %}<p class="mb-2"><strong>Not ready for official finance operations.</strong></p><p class="small text-muted">No active, Accounting-approved configuration release exists. Synthetic sandbox previews remain available for validated draft workbooks.</p>{% endif %}
+      </div></div>
+    </div>
+    <div class="col-lg-8">
+      <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Configuration releases</h2></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Release</th><th>Effective period</th><th>Components</th><th>Status</th></tr></thead><tbody>
+        {% for release in releases %}<tr><td><a href="{% url 'finance:release_detail' release.pk %}"><strong>{{ release.title }}</strong></a><div class="small text-muted">{{ release.code }} · v{{ release.version }} · FY {{ release.fiscal_year }}</div></td><td>{{ release.effective_from|date:'M j, Y' }}{% if release.effective_to %}<br><span class="small text-muted">through {{ release.effective_to|date:'M j, Y' }}</span>{% endif %}</td><td class="small">{{ release.items.count }} rules/master data<br>{{ release.templates.count }} workbook version{{ release.templates.count|pluralize }}</td><td><span class="badge badge-{% if release.status == 'active' %}success{% elif release.status == 'draft' %}secondary{% elif release.status == 'submitted' %}info{% else %}primary{% endif %}">{{ release.get_status_display }}</span></td></tr>
+        {% empty %}<tr><td colspan="4" class="text-center text-muted py-5">No finance configuration release has been prepared for this office.</td></tr>{% endfor %}
+      </tbody></table></div></div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

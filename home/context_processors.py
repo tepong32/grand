@@ -15,7 +15,7 @@ def site_ui(request):
     profile = getattr(request.user, "employeeprofile", None) if request.user.is_authenticated else None
     department = getattr(profile, "assigned_department", None)
     is_hr = bool(department and (department.slug or "").strip().lower() == "hr")
-    return {
+    context = {
         "site_configuration": configuration,
         "public_service_shortcuts": ServiceShortcut.objects.filter(
             audience=ServiceShortcut.PUBLIC,
@@ -36,3 +36,9 @@ def site_ui(request):
         "can_access_tracepoint": can_view_workspace(request.user),
         "can_prepare_tracepoint": can_prepare_packets(request.user),
     }
+    if getattr(request, "user", None) and request.user.is_authenticated:
+        from finance.access import can_view_finance_setup
+        context["can_access_finance_setup"] = can_view_finance_setup(request.user)
+    else:
+        context["can_access_finance_setup"] = False
+    return context
