@@ -1,0 +1,364 @@
+from datetime import date
+from decimal import Decimal
+import io
+import tempfile
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase
+from django.test import override_settings
+from django.urls import reverse
+from django.utils import timezone
+
+from departments.models import Department
+from finance.models import (
+    FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
+    FinanceParty, FinancePartyClaimant, FinanceSignatory, FinanceTemplateVersion,
+)
+from finance.services import preflight_finance_template
+from openpyxl import Workbook
+from openpyxl.workbook.defined_name import DefinedName
+from records.services import RecordWorkflowError, source_department
+from tracepoint.models import PacketItem, TrackedPacket
+
+from .access import can_view_workbench
+from .models import PaymentInstrument, VoucherCase, VoucherEvent, VoucherNumberIssue
+from .services import (
+    approve_override, cancel_check, certify_budget, create_budget_case,
+    finalize_bank_advice, generate_shadow_dv, issue_check, link_tracepoint_item, prepare_voucher, record_signature_return,
+    release_check, request_override, return_case, submit_checks_for_advice,
+    validate_accounting,
+)
+
+
+class VoucherWorkflowTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._media_directory = tempfile.TemporaryDirectory()
+        cls._media_override = override_settings(MEDIA_ROOT=cls._media_directory.name)
+        cls._media_override.enable()
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        cls._media_override.disable()
+        cls._media_directory.cleanup()
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.budget = Department.objects.create(name="Municipal Budget Office", slug="voucher-budget")
+        cls.accounting = Department.objects.create(name="Municipal Accounting Office", slug="voucher-accounting")
+        cls.treasury = Department.objects.create(name="Municipal Treasury Office", slug="voucher-treasury")
+        cls.requesting = Department.objects.create(name="General Services Office", slug="voucher-gso")
+
+        cls.budget_user = cls.employee("budget.clerk", cls.budget, "view_voucher_workbench", "initiate_budget_case", "certify_budget_obligation", "return_voucher_case", "view_voucher_audit")
+        cls.preparer = cls.employee("accounting.preparer", cls.accounting, "view_voucher_workbench", "prepare_disbursement_voucher", "track_wet_signatures", "link_tracepoint_custody", "validate_accounting_voucher", "finalize_bank_advice", "return_voucher_case", "view_voucher_audit")
+        cls.validator = cls.employee("accounting.validator", cls.accounting, "view_voucher_workbench", "validate_accounting_voucher", "finalize_bank_advice", "approve_control_overrides", "return_voucher_case", "view_voucher_audit")
+        cls.treasury_user = cls.employee("treasury.cashier", cls.treasury, "view_voucher_workbench", "issue_payment_instruments", "release_payment_instruments", "manage_payment_exceptions", "return_voucher_case", "view_voucher_audit")
+        cls.outsider = cls.employee("mpdo.viewer", cls.requesting)
+        cls.superuser = cls.employee("platform.superuser", cls.accounting, is_superuser=True)
+        cls.preparer.user_permissions.add(Permission.objects.get(content_type__app_label="finance", codename="manage_finance_templates"))
+        cls.preparer.user_permissions.add(Permission.objects.get(content_type__app_label="tracepoint", codename="view_tracepoint_workspace"))
+
+        cls.release = FinanceConfigurationRelease.objects.create(
+            department=cls.accounting, code="synthetic-pilot", version=1, title="Synthetic voucher pilot setup",
+            fiscal_year=timezone.localdate().year, status="active", effective_from=date(2026, 1, 1),
+            created_by=cls.preparer, activated_by=cls.validator, activated_at=timezone.now(),
+        )
+        for category, code, label in (
+            ("transaction_type", "ordinary-supplier-claim", "Ordinary supplier claim"),
+            ("fund", "general-fund", "General Fund"),
+            ("responsibility_center", "gso", "General Services Office"),
+            ("account_classification", "5-02-03", "Office supplies expense"),
+            ("tax_rule", "ewt", "Expanded withholding tax"),
+            ("document_requirement", "invoice", "Sales invoice"),
+            ("bank_account", "gf-lbp", "General Fund — LandBank"),
+        ):
+            FinanceConfigurationItem.objects.create(
+                department=cls.accounting, release=cls.release, category=category, code=code,
+                version=1, label=label, status="active", effective_from=date(2026, 1, 1), created_by=cls.preparer,
+            )
+        for document_type, prefix in (("obr", "OBR-"), ("disbursement-voucher", "DV-")):
+            FinanceNumberingSequence.objects.create(
+                department=cls.accounting, release=cls.release, fiscal_year=timezone.localdate().year,
+                document_type=document_type, prefix=prefix, padding=5, next_number=1,
+                status="active", created_by=cls.preparer,
+            )
+        for role, name, position in (
+            ("department-head", "Synthetic Department Head", "Department Head"),
+            ("municipal-accountant", "Synthetic Municipal Accountant", "Municipal Accountant"),
+        ):
+            FinanceSignatory.objects.create(
+                department=cls.accounting, release=cls.release, role_code=role, display_name=name,
+                position_title=position, valid_from=date(2026, 1, 1), status="active", created_by=cls.preparer,
+            )
+        cls.party = FinanceParty.objects.create(
+            department=cls.accounting, release=cls.release, code="synthetic-supplier", version=1,
+            display_name="Synthetic Office Supply Co.", party_type=FinanceParty.SUPPLIER,
+            effective_from=date(2026, 1, 1), status="active", created_by=cls.preparer,
+        )
+        cls.claimant = FinancePartyClaimant.objects.create(
+            party=cls.party, display_name="Synthetic Authorized Claimant", relationship="Authorized representative",
+            valid_from=date(2026, 1, 1), status="active", created_by=cls.preparer,
+        )
+
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Voucher"
+        for index, name in enumerate(FinanceTemplateVersion.REQUIRED_NAMES, start=1):
+            if name == "GRAND_LINE_ITEMS":
+                coordinate = "$A$12:$D$20"
+            else:
+                row = ((index - 1) // 4) + 1
+                column = ((index - 1) % 4) + 1
+                coordinate = f"${chr(64 + column)}${row}"
+            workbook.defined_names.add(DefinedName(name, attr_text=f"'Voucher'!{coordinate}"))
+        sheet.print_area = "A1:H30"
+        stream = io.BytesIO(); workbook.save(stream)
+        cls.template = FinanceTemplateVersion.objects.create(
+            department=cls.accounting, release=cls.release, document_type="disbursement-voucher", version=1,
+            title="Synthetic controlled DV", workbook=SimpleUploadedFile("synthetic-dv.xlsx", stream.getvalue()),
+            effective_from=date(2026, 1, 1), created_by=cls.preparer,
+        )
+        preflight_finance_template(cls.template, cls.preparer)
+        cls.template.status = "active"; cls.template.save(update_fields=("status",))
+
+    @classmethod
+    def employee(cls, username, department, *permissions, is_superuser=False):
+        user = get_user_model().objects.create_user(
+            username=username, email=f"{username}@example.gov", password="voucher-test-password",
+            is_superuser=is_superuser, is_staff=is_superuser,
+        )
+        user.employeeprofile.assigned_department = department
+        user.employeeprofile.position_title = "Synthetic Test Officer"
+        user.employeeprofile.save()
+        if permissions:
+            user.user_permissions.add(*Permission.objects.filter(content_type__app_label="vouchers", codename__in=permissions))
+        return user
+
+    def create_case(self, key="create-case"):
+        return create_budget_case(
+            actor=self.budget_user, requesting_department=self.requesting, payee=self.party,
+            particulars="Synthetic office supply payment", transaction_type="ordinary-supplier-claim",
+            idempotency_key=key,
+        )
+
+    def budget_certify(self, case, key="budget-certify"):
+        return certify_budget(
+            case=case, actor=self.budget_user, obligation_date=date(2026, 8, 25),
+            budget_source_reference="SYNTHETIC-APPROPRIATION-01",
+            allocations=[{"fund_code": "general-fund", "responsibility_center_code": "gso", "account_code": "5-02-03", "amount": Decimal("1000.00")}],
+            expected_version=case.state_version, idempotency_key=key,
+        )
+
+    def accounting_prepare(self, case, key="prepare-dv"):
+        case.refresh_from_db()
+        return prepare_voucher(
+            case=case, actor=self.preparer, voucher_date=date(2026, 8, 25), gross_amount=Decimal("1000.00"),
+            deductions=[{"code": "ewt", "description": "Expanded withholding tax", "amount": Decimal("100.00")}],
+            line_description="Synthetic office supplies", line_account_code="5-02-03", document_codes=["invoice"],
+            expected_version=case.state_version, idempotency_key=key,
+        )
+
+    def return_signatures(self, case):
+        for index, task in enumerate(case.signature_tasks.order_by("sequence"), start=1):
+            case.refresh_from_db()
+            record_signature_return(
+                case=case, task=task, actor=self.preparer, note="Wet-signed paper returned",
+                expected_version=case.state_version, idempotency_key=f"signature-{index}",
+            )
+        case.refresh_from_db()
+        return case
+
+    def ready_for_treasury(self):
+        case = self.create_case()
+        self.budget_certify(case)
+        self.accounting_prepare(case)
+        self.return_signatures(case)
+        validate_accounting(
+            case=case, actor=self.validator, jev_number="JEV-00001", jev_date=date(2026, 8, 25), note="Validated",
+            expected_version=case.state_version, idempotency_key="validate-accounting",
+        )
+        case.refresh_from_db()
+        return case
+
+    def test_complete_supplier_disbursement_route_uses_one_shared_case(self):
+        case = self.ready_for_treasury()
+        first = issue_check(
+            case=case, actor=self.treasury_user, bank_account_code="gf-lbp", check_number="000101", amount=Decimal("400.00"),
+            expected_version=case.state_version, idempotency_key="issue-check-1",
+        )
+        case.refresh_from_db()
+        second = issue_check(
+            case=case, actor=self.treasury_user, bank_account_code="gf-lbp", check_number="000102", amount=Decimal("500.00"),
+            expected_version=case.state_version, idempotency_key="issue-check-2",
+        )
+        case.refresh_from_db()
+        submit_checks_for_advice(case=case, actor=self.treasury_user, expected_version=case.state_version, idempotency_key="submit-checks")
+        case.refresh_from_db()
+        batch = finalize_bank_advice(
+            case=case, actor=self.validator, advice_number="ADV-00001", advice_date=date(2026, 8, 25),
+            expected_version=case.state_version, idempotency_key="finalize-advice",
+        )
+        self.assertEqual(batch.items.count(), 2)
+        case.refresh_from_db(); first.refresh_from_db(); second.refresh_from_db()
+        release_check(case=case, instrument=first, actor=self.treasury_user, claimant=self.claimant, receipt_reference="RECEIPT-1", expected_version=case.state_version, idempotency_key="release-1")
+        case.refresh_from_db()
+        release_check(case=case, instrument=second, actor=self.treasury_user, claimant=self.claimant, receipt_reference="RECEIPT-2", expected_version=case.state_version, idempotency_key="release-2")
+        case.refresh_from_db()
+
+        self.assertEqual(case.current_stage, VoucherCase.COMPLETED)
+        self.assertEqual(case.payment_instruments.filter(status=PaymentInstrument.RELEASED).count(), 2)
+        self.assertEqual(case.obligation.certified_amount, case.disbursement_voucher.gross_amount)
+        self.assertEqual(case.disbursement_voucher.net_amount, Decimal("900.00"))
+        self.assertEqual(case.events.filter(action="disbursement_completed").count(), 1)
+        self.assertTrue(all(event.actor_department_id for event in case.events.all()))
+
+    def test_segregation_of_duties_requires_separately_approved_override(self):
+        case = self.create_case("sod-create")
+        self.budget_certify(case, "sod-budget")
+        self.accounting_prepare(case, "sod-prepare")
+        self.return_signatures(case)
+        with self.assertRaises(ValidationError):
+            validate_accounting(
+                case=case, actor=self.preparer, jev_number="JEV-SOD", jev_date=date(2026, 8, 25), note="",
+                expected_version=case.state_version, idempotency_key="sod-denied",
+            )
+        override = request_override(case=case, actor=self.preparer, action_code="accounting-self-validation", reason="Emergency staffing shortage")
+        approve_override(override=override, actor=self.validator)
+        validate_accounting(
+            case=case, actor=self.preparer, jev_number="JEV-SOD", jev_date=date(2026, 8, 25), note="Emergency override used",
+            expected_version=case.state_version, idempotency_key="sod-approved",
+        )
+        override.refresh_from_db(); case.refresh_from_db()
+        self.assertEqual(override.status, "used")
+        self.assertEqual(case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
+
+    def test_explicit_permissions_do_not_follow_superuser_status(self):
+        self.assertFalse(can_view_workbench(self.superuser))
+        with self.assertRaises(PermissionDenied):
+            create_budget_case(
+                actor=self.superuser, requesting_department=self.requesting, payee=self.party,
+                particulars="Not authorized", transaction_type="ordinary-supplier-claim", idempotency_key="superuser-denied",
+            )
+
+    def test_stale_version_and_idempotent_numbering_protect_concurrent_actions(self):
+        case = self.create_case("version-create")
+        self.budget_certify(case, "version-budget")
+        case.refresh_from_db()
+        issued = VoucherNumberIssue.objects.get(case=case, document_type="obr")
+        certify_budget(
+            case=case, actor=self.budget_user, obligation_date=date(2026, 8, 25), budget_source_reference="ignored",
+            allocations=[{"fund_code": "general-fund", "responsibility_center_code": "gso", "account_code": "", "amount": Decimal("5.00")}],
+            expected_version=0, idempotency_key="version-budget",
+        )
+        self.assertEqual(VoucherNumberIssue.objects.filter(case=case, document_type="obr").count(), 1)
+        self.assertEqual(VoucherNumberIssue.objects.get(case=case, document_type="obr").pk, issued.pk)
+        with self.assertRaises(ValidationError):
+            prepare_voucher(
+                case=case, actor=self.preparer, voucher_date=date(2026, 8, 25), gross_amount=Decimal("1000.00"),
+                deductions=[], line_description="Stale page", line_account_code="5-02-03", document_codes=["invoice"],
+                expected_version=0, idempotency_key="wrong-version",
+            )
+
+    def test_return_and_cancel_preserve_case_and_check_history(self):
+        case = self.ready_for_treasury()
+        check = issue_check(
+            case=case, actor=self.treasury_user, bank_account_code="gf-lbp", check_number="000201", amount=Decimal("900.00"),
+            expected_version=case.state_version, idempotency_key="cancel-issue",
+        )
+        case.refresh_from_db()
+        cancel_check(
+            case=case, instrument=check, actor=self.treasury_user, reason="Synthetic spoiled check",
+            expected_version=case.state_version, idempotency_key="cancel-check",
+        )
+        case.refresh_from_db(); check.refresh_from_db()
+        self.assertEqual(check.status, PaymentInstrument.CANCELLED)
+        self.assertEqual(case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
+        self.assertTrue(case.events.filter(action="check_cancelled", reason="Synthetic spoiled check").exists())
+        with self.assertRaises(ValidationError):
+            issue_check(
+                case=case, actor=self.treasury_user, bank_account_code="gf-lbp", check_number="000201", amount=Decimal("900.00"),
+                expected_version=case.state_version, idempotency_key="reuse-cancelled-number",
+            )
+        replacement = issue_check(
+            case=case, actor=self.treasury_user, bank_account_code="gf-lbp", check_number="000202", amount=Decimal("900.00"),
+            replaces=check, expected_version=case.state_version, idempotency_key="replacement-check",
+        )
+        self.assertEqual(replacement.replaces, check)
+
+    def test_accounting_correction_keeps_dv_number_and_creates_new_signature_round(self):
+        case = self.create_case("correction-create")
+        self.budget_certify(case, "correction-budget")
+        self.accounting_prepare(case, "correction-prepare-1")
+        original_number = case.disbursement_voucher.dv_number
+        self.return_signatures(case)
+        return_case(
+            case=case, actor=self.validator, target_stage=VoucherCase.ACCOUNTING_PREPARATION,
+            reason="Correct the supporting description", expected_version=case.state_version,
+            idempotency_key="correction-return",
+        )
+        case.refresh_from_db()
+        prepare_voucher(
+            case=case, actor=self.preparer, voucher_date=date(2026, 8, 25), gross_amount=Decimal("1000.00"),
+            deductions=[{"code": "ewt", "description": "Expanded withholding tax", "amount": Decimal("100.00")}],
+            line_description="Corrected synthetic office supplies", line_account_code="5-02-03", document_codes=["invoice"],
+            expected_version=case.state_version, idempotency_key="correction-prepare-2",
+        )
+        case.refresh_from_db()
+        self.assertEqual(case.disbursement_voucher.dv_number, original_number)
+        self.assertEqual(case.signature_tasks.values("round_number").distinct().count(), 2)
+        self.assertTrue(case.events.filter(action="dv_corrected", metadata__signature_round=2).exists())
+        self.assertEqual(VoucherNumberIssue.objects.filter(case=case, document_type="disbursement-voucher").count(), 1)
+
+    def test_workspace_and_case_ui_are_permission_aware_and_selection_driven(self):
+        self.client.force_login(self.budget_user)
+        response = self.client.get(reverse("vouchers:case_create"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.party.display_name)
+        self.assertContains(response, "Ordinary supplier claim")
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(reverse("vouchers:workspace")).status_code, 403)
+
+    def test_shadow_dv_output_pins_template_snapshot_and_checksum(self):
+        case = self.create_case("output-create")
+        self.budget_certify(case, "output-budget")
+        self.accounting_prepare(case, "output-prepare")
+        case.refresh_from_db()
+        output = generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="output-generate")
+        self.assertEqual(output.status, "shadow")
+        self.assertEqual(output.template, self.template)
+        self.assertEqual(len(output.checksum), 64)
+        self.assertEqual(output.input_snapshot["dv_number"], case.disbursement_voucher.dv_number)
+        self.assertEqual(output.input_snapshot["template_checksum"], self.template.workbook_checksum)
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("vouchers:output_download", kwargs={"public_id": case.public_id, "output_pk": output.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["X-GRAND-Output-Mode"], "shadow")
+        self.assertEqual(response["X-GRAND-SHA256"], output.checksum)
+        with self.assertRaises(RecordWorkflowError):
+            source_department(output)
+
+    def test_tracepoint_link_records_only_custody_reference_not_financial_fields(self):
+        case = self.create_case("tracepoint-create")
+        packet = TrackedPacket.objects.create(
+            tracking_number="TP-SYNTHETIC-001", title="Synthetic voucher bundle", contents_manifest="One synthetic voucher",
+            status=TrackedPacket.ACTIVE, origin_department=self.accounting, prepared_by=self.preparer,
+            final_destination_department=self.accounting, current_holder=self.preparer,
+            current_department=self.accounting, activated_at=timezone.now(),
+        )
+        item = PacketItem.objects.create(
+            reference_number="TP-ITEM-001", origin_packet=packet, current_packet=packet,
+            title="Synthetic voucher item", created_by=self.preparer,
+        )
+        link_tracepoint_item(
+            case=case, item=item, actor=self.preparer, expected_version=case.state_version,
+            idempotency_key="link-tracepoint",
+        )
+        case.refresh_from_db()
+        self.assertEqual(case.tracepoint_item, item)
+        self.assertFalse(any(field.name in {"gross_amount", "net_amount", "certified_amount"} for field in PacketItem._meta.fields))
+        self.assertTrue(case.events.filter(action="tracepoint_item_linked", metadata__reference_number="TP-ITEM-001").exists())

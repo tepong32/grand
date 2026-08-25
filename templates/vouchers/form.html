@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title_ext %} · {{ title }}{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a class="small" href="{% url 'vouchers:workspace' %}">← Voucher Workbench</a>
+  <div class="row mt-2"><div class="col-lg-8 col-xl-6">
+    <div class="card card-outline card-primary">
+      <div class="card-header"><h1 class="card-title font-weight-bold">{{ title }}</h1></div>
+      <form method="post"><div class="card-body">
+        {% csrf_token %}
+        {% if guidance %}<div class="alert alert-info small">{{ guidance }}</div>{% endif %}
+        {{ form.as_p }}
+      </div><div class="card-footer"><button class="btn btn-primary">Save and continue</button></div></form>
+    </div>
+  </div></div>
+</div>
+{% endblock %}

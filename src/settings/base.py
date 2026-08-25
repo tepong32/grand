@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'records.apps.RecordsConfig',
     'tracepoint.apps.TracepointConfig',
     'finance.apps.FinanceConfig',
+    'vouchers.apps.VouchersConfig',
 
     ### defaults
     'django.contrib.sites',  # allauth needs this

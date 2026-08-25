@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Voucher Workbench{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div><p class="text-uppercase text-primary small font-weight-bold mb-1">Finance operations</p><h1 class="h3 mb-1">Voucher and Disbursement Workbench</h1><p class="text-muted mb-0">One shared case from Budget obligation through Treasury release.</p></div>
+    <div class="mt-2">{% if permissions.initiate %}<a class="btn btn-primary" href="{% url 'vouchers:case_create' %}"><i class="fas fa-plus mr-1"></i> Open Budget case</a>{% endif %}<a class="btn btn-outline-secondary" href="{% url 'finance:workspace' %}">Finance Setup</a></div>
+  </div>
+  <div class="alert alert-warning"><strong>Shadow comparison mode.</strong> GRAND records and compares this pilot workflow; the approved eGAPS/paper process remains authoritative until formal sign-off.</div>
+  <div class="row">
+    <div class="col-md-4"><div class="small-box bg-info"><div class="inner"><h3>{{ open_count }}</h3><p>Open shared cases</p></div><div class="icon"><i class="fas fa-route"></i></div></div></div>
+    <div class="col-md-4"><div class="small-box bg-warning"><div class="inner"><h3>{{ stage_counts.accounting_validation|default:0 }}</h3><p>Awaiting Accounting validation</p></div><div class="icon"><i class="fas fa-clipboard-check"></i></div></div></div>
+    <div class="col-md-4"><div class="small-box bg-success"><div class="inner"><h3>{{ completed_count }}</h3><p>Released and completed</p></div><div class="icon"><i class="fas fa-check-circle"></i></div></div></div>
+  </div>
+  <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Department action queue</h2></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0">
+    <thead><tr><th>Case</th><th>Payee / purpose</th><th>Stage</th><th>Current office</th><th>Checks</th><th>Updated</th></tr></thead><tbody>
+    {% for case in cases %}<tr><td><a href="{{ case.get_absolute_url }}"><strong>{{ case.reference_code }}</strong></a><div class="small text-muted">{{ case.requesting_department.name }}</div></td><td>{{ case.payee_name }}<div class="small text-muted text-truncate" style="max-width:28rem">{{ case.particulars }}</div></td><td><span class="badge badge-{% if case.current_stage == 'completed' %}success{% elif case.current_stage == 'cancelled' %}danger{% else %}info{% endif %}">{{ case.get_current_stage_display }}</span></td><td>{{ case.current_department.name }}</td><td>{{ case.check_count }}</td><td>{{ case.updated_at|date:'M j, Y g:i A' }}</td></tr>
+    {% empty %}<tr><td colspan="6" class="text-center text-muted py-5">No voucher cases yet. Budget can open the first governed shadow case.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+</div>
+{% endblock %}

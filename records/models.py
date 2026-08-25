@@ -132,6 +132,7 @@ class RecordAssociation(models.Model):
     ALLOWED_MODELS = {
         "assistance.assistancerequest", "assistance.requestdocument", "assistance.citizenprofile",
         "social_welfare.socialwelfareprogram", "social_welfare.programactivity", "reporting.reportrun",
+        "vouchers.voucheroutput",
     }
 
     record = models.ForeignKey(DepartmentRecord, on_delete=models.CASCADE, related_name="associations")

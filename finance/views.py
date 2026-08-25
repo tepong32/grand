@@ -11,9 +11,9 @@ from .access import (
 )
 from .forms import (
     FinanceItemForm, FinanceNumberingSequenceForm, FinanceReleaseForm,
-    FinanceSignatoryForm, FinanceTemplateForm,
+    FinancePartyClaimantForm, FinancePartyForm, FinanceSignatoryForm, FinanceTemplateForm,
 )
-from .models import FinanceConfigurationRelease, FinanceTemplateVersion
+from .models import FinanceConfigurationRelease, FinanceParty, FinanceTemplateVersion
 from .services import (
     FinanceTemplateError, evaluate_readiness, preflight_finance_template,
     record_event, synthetic_preview, transition_release,
@@ -23,7 +23,7 @@ from .services import (
 @finance_access_required
 def workspace(request):
     department = department_for_user(request.user)
-    releases = FinanceConfigurationRelease.objects.filter(department=department).prefetch_related("items", "templates", "signatories", "numbering_sequences")
+    releases = FinanceConfigurationRelease.objects.filter(department=department).prefetch_related("items", "templates", "signatories", "numbering_sequences", "parties")
     active = releases.filter(status="active").first()
     readiness = evaluate_readiness(active) if active else None
     return render(request, "finance/workspace.html", {
@@ -52,7 +52,7 @@ def release_create(request):
 @finance_access_required
 def release_detail(request, pk):
     department = department_for_user(request.user)
-    release = get_object_or_404(FinanceConfigurationRelease.objects.prefetch_related("items", "templates", "signatories", "numbering_sequences", "events__actor"), pk=pk, department=department)
+    release = get_object_or_404(FinanceConfigurationRelease.objects.prefetch_related("items", "templates", "signatories", "numbering_sequences", "parties__authorized_claimants", "events__actor"), pk=pk, department=department)
     return render(request, "finance/release_detail.html", {
         "release": release, "readiness": evaluate_readiness(release),
         "today": timezone.localdate(),
@@ -102,6 +102,33 @@ def sequence_create(request):
         messages.success(request, "Draft numbering sequence created. No number is consumed during setup.")
         return redirect("finance:release_detail", pk=item.release_id)
     return render(request, "finance/form.html", {"form": form, "title": "Add numbering sequence", "guidance": "Sequences are scoped by fiscal year and document type. This setup phase never issues an official voucher number."})
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def party_create(request):
+    department = department_for_user(request.user)
+    form = FinancePartyForm(request.POST or None, department=department, initial={"release": request.GET.get("release")})
+    if request.method == "POST" and form.is_valid():
+        party = form.save(False)
+        party.department, party.created_by = department, request.user
+        party.full_clean(); party.save(); record_event(party, request.user, "created")
+        messages.success(request, "Draft supplier/payee version created.")
+        return redirect("finance:release_detail", pk=party.release_id)
+    return render(request, "finance/form.html", {"form": form, "title": "Add supplier or payee", "guidance": "Maintain a reviewed selectable party. Do not store bank credentials or unnecessary identity-document numbers."})
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def claimant_create(request, party_pk):
+    department = department_for_user(request.user)
+    party = get_object_or_404(FinanceParty, pk=party_pk, department=department, status="draft")
+    form = FinancePartyClaimantForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        claimant = form.save(False)
+        claimant.party, claimant.created_by = party, request.user
+        claimant.full_clean(); claimant.save(); record_event(party, request.user, "claimant_added", claimant.display_name)
+        messages.success(request, "Authorized check claimant added to the draft party.")
+        return redirect("finance:release_detail", pk=party.release_id)
+    return render(request, "finance/form.html", {"form": form, "title": f"Add authorized claimant — {party.display_name}", "guidance": "Record a selectable claimant name and validity period; do not copy identity-document numbers into this label."})
 
 
 @finance_permission_required(can_manage_finance_templates)

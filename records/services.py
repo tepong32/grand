@@ -13,6 +13,7 @@ from assistance.models import AssistanceRequest, CitizenProfile, RequestDocument
 from assistance.services.file_validation import validate_uploaded_file
 from reporting.models import ReportRun
 from social_welfare.models import ProgramActivity, SocialWelfareProgram
+from vouchers.models import VoucherOutput
 
 from .models import DepartmentRecord, RecordAssociation, RecordEvent, RecordFile
 
@@ -22,6 +23,10 @@ class RecordWorkflowError(ValueError):
 
 
 def source_department(source):
+    if isinstance(source, VoucherOutput):
+        if source.status != VoucherOutput.OFFICIAL:
+            raise RecordWorkflowError("Only an approved official voucher output may be filed in Records; shadow comparisons stay in Voucher Workbench.")
+        return source.case.configuration_release.department
     if isinstance(source, ReportRun):
         return source.definition.department
     if isinstance(source, SocialWelfareProgram):
@@ -179,6 +184,8 @@ def file_approved_report(run, actor):
 
 def association_label(association):
     source = association.content_object
+    if isinstance(source, VoucherOutput):
+        return f"Voucher output: {source.case.reference_code} / {source.output_type} v{source.version}"
     if isinstance(source, ReportRun):
         return f"Report run: {source.definition.name} ({source.period_start} to {source.period_end})"
     if isinstance(source, RequestDocument):
@@ -196,6 +203,8 @@ def association_label(association):
 
 def association_url(association):
     source = association.content_object
+    if isinstance(source, VoucherOutput):
+        return source.case.get_absolute_url()
     if isinstance(source, ReportRun):
         return source.get_absolute_url()
     if isinstance(source, RequestDocument):
@@ -211,6 +220,8 @@ def association_url(association):
 
 def association_file(association):
     source = association.content_object
+    if isinstance(source, VoucherOutput) and source.file:
+        return source.file, source.file.name.rsplit("/", 1)[-1]
     if isinstance(source, ReportRun) and source.output_file:
         return source.output_file, source.output_file.name.rsplit("/", 1)[-1]
     if isinstance(source, RequestDocument) and source.file and not source.is_removed:

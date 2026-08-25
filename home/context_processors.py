@@ -38,7 +38,10 @@ def site_ui(request):
     }
     if getattr(request, "user", None) and request.user.is_authenticated:
         from finance.access import can_view_finance_setup
+        from vouchers.access import can_view_workbench
         context["can_access_finance_setup"] = can_view_finance_setup(request.user)
+        context["can_access_vouchers"] = can_view_workbench(request.user)
     else:
         context["can_access_finance_setup"] = False
+        context["can_access_vouchers"] = False
     return context

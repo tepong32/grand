@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from .models import (
     FinanceAuditEvent, FinanceConfigurationItem, FinanceConfigurationRelease,
-    FinanceNumberingSequence, FinanceSignatory, FinanceTemplateVersion,
+    FinanceNumberingSequence, FinanceParty, FinancePartyClaimant, FinanceSignatory, FinanceTemplateVersion,
 )
 
 
@@ -22,6 +22,8 @@ class FinanceConfigurationItemAdmin(admin.ModelAdmin):
 admin.site.register(FinanceSignatory)
 admin.site.register(FinanceNumberingSequence)
 admin.site.register(FinanceTemplateVersion)
+admin.site.register(FinanceParty)
+admin.site.register(FinancePartyClaimant)
 
 
 @admin.register(FinanceAuditEvent)

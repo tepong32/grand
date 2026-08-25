@@ -4,7 +4,14 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
-No material changes are pending release.
+### Voucher and Disbursement Workbench
+
+- Added one shared Budget–Accounting–Treasury voucher case with explicit, state-versioned stages from OBR allocation through advised check release.
+- Added governed supplier/payee and authorized-claimant setup alongside selectable transaction, account, fund, responsibility, tax, document, bank, and signatory data.
+- Added atomic OBR/DV numbering, monetary reconciliation, ordered wet-signature rounds, JEV references, multiple checks, cancellation/non-reuse, bank advice, release, returns, and correction history.
+- Added explicit financial permissions, segregation-of-duties enforcement, separately approved emergency overrides, idempotent actions, append-only events, and department work queues.
+- Added checksum-backed shadow DV XLSX outputs plus Records and TracePoint boundaries that prevent shadow filing and financial-data leakage into physical custody.
+- Added end-to-end and regression coverage for authorization, stale submissions, numbering, corrections, payment exceptions, output evidence, and cross-app isolation.
 
 ## 0.7.0 - 2026-08-21
 

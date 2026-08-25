@@ -16,6 +16,7 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 - Department-bounded records with source-in-place links, checksum-backed uploads, confidentiality controls, review and approval, audited downloads, retention, legal holds, supersession, archival, and disposition.
 - TracePoint physical-paper custody with stable packet labels, revocable daily employee QR codes, individual voucher manifests, split/rebundle lineage, repeatable office checkpoints, explicit terminal receipt, immutable handoff history, and separate delivery/completion states.
 - Finance Setup Center with effective-dated releases, versioned master data and rules, separate preparation/approval, signatory and numbering governance, safe macro-free Excel intake, synthetic previews, and structured readiness blockers.
+- Voucher and Disbursement Workbench with one shared Budget–Accounting–Treasury case, governed supplier/payee selectors, OBR and DV numbering, wet-signature rounds, JEV references, multi-check controls, bank advice, release, correction history, and checksum-backed shadow outputs.
 - Public and internal announcements, employee/citizen profiles, department records, and organization views.
 
 GRAND keeps operational modules separate: an employee's dashboard summarizes work and links to specialized workspaces instead of embedding full processing screens in the landing page.
@@ -33,6 +34,7 @@ GRAND keeps operational modules separate: an employee's dashboard summarizes wor
 | Records | `records` | Official department registry, source links, files, review, retention, and controlled retrieval |
 | Physical custody | `tracepoint` | QR-tagged paper packets, daily employee codes, confirmed handoffs, exceptions, and completion |
 | Finance setup | `finance` | Approved master data, rules, signatories, numbering policies, voucher workbook versions, and readiness |
+| Voucher operations | `vouchers` | Cross-office OBR, DV, signature, Accounting, check, advice, and release workflow |
 | Workforce | `leave_mgt`, `salaries` | Leave workflows and salary-related records |
 
 ## Local development
@@ -82,6 +84,7 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 - [Department records operations](docs/RECORDS.md)
 - [TracePoint physical-custody contract](docs/TRACEPOINT.md)
 - [Finance Setup Center operations](docs/FINANCE_SETUP.md)
+- [Voucher and Disbursement Workbench](docs/VOUCHER_WORKBENCH.md)
 - [Product roadmap](docs/ROADMAP.md)
 - [Security maintenance](SECURITY.md)
 - [Synthetic portfolio screenshots](output/playwright/grand-portfolio/README.md)
@@ -89,6 +92,6 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 
 ## Product direction
 
-GRAND remains the platform identity. TracePoint is its physical-document custody capability; Finance Setup Center is the governed configuration boundary for future official voucher work. The setup phase deliberately stops before transaction entry or accounting posting. Its rollout and Accounting validation contract are documented in [Finance Setup Center operations](docs/FINANCE_SETUP.md).
+GRAND remains the platform identity. TracePoint owns physical-document custody, Finance Setup owns governed financial master data and forms, and Voucher Workbench owns the cross-office transaction. Voucher operations remain in shadow comparison mode until local Finance and COA validation. The setup contract is documented in [Finance Setup Center operations](docs/FINANCE_SETUP.md), and the operational route in [Voucher and Disbursement Workbench](docs/VOUCHER_WORKBENCH.md).
 
 All showcase records and screenshots are synthetic. Production citizen data, credentials, uploaded records, and generated official reports must never be added to the repository.

@@ -34,6 +34,7 @@ urlpatterns = [
     path('records/', include('records.urls', namespace="records")),
     path('tracepoint/', include('tracepoint.urls', namespace="tracepoint")),
     path('finance/setup/', include('finance.urls', namespace="finance")),
+    path('finance/vouchers/', include('vouchers.urls', namespace="vouchers")),
     path('leave-mgt/', include('leave_mgt.urls')),
     path('departments/', include('departments.urls')),
     path('profiles/', include('profiles.urls')),

@@ -1,0 +1,55 @@
+from functools import wraps
+
+from django.contrib.auth.views import redirect_to_login
+from django.core.exceptions import PermissionDenied
+
+
+ACTION_PERMISSIONS = (
+    "vouchers.initiate_budget_case",
+    "vouchers.certify_budget_obligation",
+    "vouchers.prepare_disbursement_voucher",
+    "vouchers.track_wet_signatures",
+    "vouchers.link_tracepoint_custody",
+    "vouchers.validate_accounting_voucher",
+    "vouchers.issue_payment_instruments",
+    "vouchers.finalize_bank_advice",
+    "vouchers.release_payment_instruments",
+    "vouchers.manage_payment_exceptions",
+    "vouchers.return_voucher_case",
+    "vouchers.approve_control_overrides",
+)
+
+
+def department_for_user(user):
+    profile = getattr(user, "employeeprofile", None)
+    return getattr(profile, "assigned_department", None)
+
+
+def has_explicit_permission(user, permission):
+    if not getattr(user, "is_authenticated", False) or not getattr(user, "is_active", False):
+        return False
+    if department_for_user(user) is None:
+        return False
+    app_label, codename = permission.split(".", 1)
+    return bool(
+        user.user_permissions.filter(content_type__app_label=app_label, codename=codename).exists()
+        or user.groups.filter(permissions__content_type__app_label=app_label, permissions__codename=codename).exists()
+    )
+
+
+def can_view_workbench(user):
+    return has_explicit_permission(user, "vouchers.view_voucher_workbench") or any(
+        has_explicit_permission(user, permission) for permission in ACTION_PERMISSIONS
+    )
+
+
+def voucher_access_required(view):
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect_to_login(request.get_full_path())
+        if not can_view_workbench(request.user):
+            raise PermissionDenied
+        return view(request, *args, **kwargs)
+
+    return wrapper

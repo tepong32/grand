@@ -245,6 +245,24 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
                 {"label": "Blocking", "value": len(readiness["blocking"]) if readiness else 6},
             ),
         })
+    from vouchers.access import can_view_workbench
+    if can_view_workbench(user):
+        from vouchers.models import VoucherCase
+
+        open_cases = VoucherCase.objects.exclude(current_stage__in=(VoucherCase.COMPLETED, VoucherCase.CANCELLED))
+        result.append({
+            "icon": "fa-file-invoice-dollar",
+            "title": "Voucher and Disbursement Workbench",
+            "description": "Work one shared Budget–Accounting–Treasury case from OBR allocation through advised check release.",
+            "status": "Available",
+            "url_name": "vouchers:workspace",
+            "action_label": "Open Voucher Workbench",
+            "summary_items": (
+                {"label": "Open", "value": open_cases.count()},
+                {"label": "At Accounting", "value": open_cases.filter(current_stage__in=(VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.AWAITING_SIGNATURES, VoucherCase.ACCOUNTING_VALIDATION, VoucherCase.ACCOUNTING_BANK_ADVICE)).count()},
+                {"label": "At Treasury", "value": open_cases.filter(current_stage__in=(VoucherCase.TREASURY_CHECK_PREPARATION, VoucherCase.TREASURY_RELEASE)).count()},
+            ),
+        })
     if slug == "mswd":
         from assistance.models import AssistanceRequest
         from django.utils import timezone

@@ -1,0 +1,5 @@
+<div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Selectable suppliers, payees, and authorized claimants</h2></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
+  <thead><tr><th>Party</th><th>Type</th><th>Selectable claimants</th><th>Status</th></tr></thead><tbody>
+  {% for party in release.parties.all %}<tr><td><strong>{{ party.display_name }}</strong><div class="small text-muted"><code>{{ party.code }}</code> · v{{ party.version }}</div></td><td>{{ party.get_party_type_display }}</td><td>{% for claimant in party.authorized_claimants.all %}{{ claimant.display_name }}{% if not forloop.last %}<br>{% endif %}{% empty %}<span class="text-muted">Payee only</span>{% endfor %}{% if release.status == 'draft' and can_manage %}<div><a class="small" href="{% url 'finance:claimant_create' party.pk %}">Add authorized claimant</a></div>{% endif %}</td><td>{{ party.get_status_display }}</td></tr>
+  {% empty %}<tr><td colspan="4" class="text-muted text-center py-4">No selectable suppliers or payees yet.</td></tr>{% endfor %}
+  </tbody></table></div></div></div>

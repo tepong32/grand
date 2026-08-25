@@ -4,7 +4,7 @@ from django import forms
 
 from .models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
-    FinanceSignatory, FinanceTemplateVersion,
+    FinanceParty, FinancePartyClaimant, FinanceSignatory, FinanceTemplateVersion,
 )
 
 
@@ -99,3 +99,27 @@ class FinanceNumberingSequenceForm(forms.ModelForm):
         if department:
             self.instance.department = department
             self.fields["release"].queryset = FinanceConfigurationRelease.objects.filter(department=department, status="draft")
+
+
+class FinancePartyForm(forms.ModelForm):
+    class Meta:
+        model = FinanceParty
+        fields = (
+            "release", "code", "version", "display_name", "party_type", "address",
+            "tax_identifier", "effective_from", "effective_to", "supersedes",
+        )
+        widgets = {"effective_from": DateInput(), "effective_to": DateInput(), "address": forms.Textarea(attrs={"rows": 3})}
+
+    def __init__(self, *args, department=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if department:
+            self.instance.department = department
+            self.fields["release"].queryset = FinanceConfigurationRelease.objects.filter(department=department, status="draft")
+            self.fields["supersedes"].queryset = FinanceParty.objects.filter(department=department).exclude(status="draft")
+
+
+class FinancePartyClaimantForm(forms.ModelForm):
+    class Meta:
+        model = FinancePartyClaimant
+        fields = ("display_name", "relationship", "valid_from", "valid_to")
+        widgets = {"valid_from": DateInput(), "valid_to": DateInput()}
