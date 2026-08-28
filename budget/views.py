@@ -11,13 +11,13 @@ from src.export_archive import archive_export
 
 from .access import budget_access_required, budget_permission_required, department_for_user, has_budget_permission
 from .forms import (
-    BudgetCallForm, BudgetCeilingForm, BudgetConsolidationForm, BudgetProposalLineForm,
+    AppropriationAuthorizationForm, BudgetCallForm, BudgetCeilingForm, BudgetConsolidationForm, BudgetProposalLineForm,
     BudgetResourceEstimateForm, BudgetReviewCommentForm, BudgetVersionForm,
 )
-from .models import BudgetAuditEvent, BudgetCall, BudgetVersion
+from .models import AppropriationAuthorization, BudgetAuditEvent, BudgetCall, BudgetVersion
 from .services import (
     actor_label, ceiling_differences, compare_versions, consolidate_versions,
-    record_event, transition_call, transition_version,
+    record_event, transition_authorization, transition_call, transition_version,
 )
 
 
@@ -252,3 +252,68 @@ def version_compare(request, public_id):
     right = get_object_or_404(BudgetVersion, public_id=right_id, department_id=department.pk) if right_id else None
     candidates = BudgetVersion.objects.filter(department_id=department.pk, fiscal_year=left.fiscal_year).exclude(pk=left.pk)
     return render(request, "budget/compare.html", {"left": left, "right": right, "candidates": candidates, "rows": compare_versions(left, right) if right else []})
+
+
+@budget_permission_required("prepare_budget_proposals")
+def authorization_create(request):
+    department = department_for_user(request.user)
+    form = AppropriationAuthorizationForm(request.POST or None, department_id=department.pk)
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.department_id, item.department_label = department.pk, department.name
+        item.created_by_id, item.created_by_label = request.user.pk, actor_label(request.user)
+        try:
+            item.full_clean(); item.save(); record_event(item.version, "appropriation_evidence_created", request.user, snapshot={"authorization_id": str(item.public_id), "spendable": False})
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Draft appropriation authority evidence created. It is not spendable until independent authorization.")
+            return redirect("budget:authorization_detail", public_id=item.public_id)
+    return render(request, "budget/form.html", {"form": form, "title": "Record appropriation authorization evidence", "guidance": "Use the exact approved final/supplemental/reenacted version, ordinance and review evidence, effectivity, and signed control total."})
+
+
+@budget_access_required
+def authorization_detail(request, public_id):
+    department = department_for_user(request.user)
+    item = get_object_or_404(AppropriationAuthorization.objects.select_related("version", "version__fiscal_year").prefetch_related("schedule_lines"), public_id=public_id, department_id=department.pk)
+    return render(request, "budget/authorization_detail.html", {
+        "authorization": item,
+        "can_prepare": has_budget_permission(request.user, "prepare_budget_proposals"),
+        "can_authorize": has_budget_permission(request.user, "authorize_appropriations"),
+    })
+
+
+@require_POST
+@budget_access_required
+def authorization_action(request, public_id, action):
+    department = department_for_user(request.user)
+    item = get_object_or_404(AppropriationAuthorization, public_id=public_id, department_id=department.pk)
+    permission = "authorize_appropriations" if action in ("authorize", "return") else "prepare_budget_proposals"
+    if not has_budget_permission(request.user, permission):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    try:
+        transition_authorization(item, action, request.user, request.POST.get("reason", ""))
+    except ValidationError as exc:
+        _message_error(request, exc)
+    else:
+        messages.success(request, f"Appropriation {action} recorded.")
+    return redirect("budget:authorization_detail", public_id=item.public_id)
+
+
+@require_GET
+@budget_access_required
+def authorization_export(request, public_id):
+    department = department_for_user(request.user)
+    item = get_object_or_404(AppropriationAuthorization.objects.select_related("version", "version__fiscal_year"), public_id=public_id, department_id=department.pk, status=AppropriationAuthorization.AUTHORIZED)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    writer = csv.writer(response)
+    writer.writerow(("export_kind", "fiscal_year", "authority_type", "ordinance_number", "effectivity_date", "review_status", "review_reference", "snapshot_checksum", "fund", "responsibility_center", "ppa", "funding_source", "account", "expense_class", "appropriation_type", "particulars", "performance_target", "authorized_amount"))
+    for line in item.schedule_lines.all():
+        writer.writerow(("authorized_appropriation_schedule", item.version.fiscal_year.year, item.authority_type, item.ordinance_number, item.effectivity_date, item.review_status, item.review_reference, item.snapshot_checksum, line.fund_code, line.responsibility_center_code, line.program_code, line.funding_source_code, line.account_code, line.expense_class, line.appropriation_type, line.particulars, line.performance_target, line.amount))
+    filename = f"authorized-appropriation-{slugify(item.ordinance_number)}.csv"
+    archived = archive_export(content=response.content, department=department, user=request.user, category="finance-authorized-appropriations", filename=filename, metadata={"authorization_public_id": str(item.public_id), "version_public_id": str(item.version.public_id), "snapshot_checksum": item.snapshot_checksum, "official_status": "controlled schedule export; exact official form acceptance remains required"})
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"], response["X-GRAND-Export-SHA256"] = "true", archived["sha256"]
+    record_event(item.version, "appropriation_exported", request.user, snapshot={"relative_path": archived["relative_path"], "sha256": archived["sha256"]})
+    return response

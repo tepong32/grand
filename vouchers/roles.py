@@ -31,6 +31,11 @@ FINANCE_ROLE_PERMISSIONS = {
         "budget.review_budget_proposals",
         "budget.view_budget_audit",
     ),
+    "Budget Appropriation Authorizer": (
+        "budget.view_budget_workspace",
+        "budget.authorize_appropriations",
+        "budget.view_budget_audit",
+    ),
     "Accounting DV Preparer": (
         "finance.view_finance_setup",
         "vouchers.view_voucher_workbench",

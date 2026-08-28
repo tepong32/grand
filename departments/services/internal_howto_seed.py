@@ -104,6 +104,21 @@ ACCOUNTING_GUIDES = (
 
 BUDGET_GUIDES = (
     {
+        "slug": "finance-appropriation-authorization",
+        "title": "Authorize operational appropriations",
+        "summary": "Turn only the exact approved final, supplemental, or reenacted version into operational authority after ordinance, review, effectivity, and control totals agree.",
+        "permission": "budget.authorize_appropriations",
+        "patterns": ["budget:authorization_*", "budget:version_detail"],
+        "order": 5,
+        "steps": (
+            ("Verify the exact approved version", "Open the linked final, supplemental, or reenacted version and compare its classified lines, targets, source lineage, and total to the accepted signed schedule.", "The evidence record points to the exact independently approved version.", "A department, executive, or Sanggunian proposal is not yet operational authority.", "Open Annual Budget", "budget:workspace"),
+            ("Check authority and review", "Verify the ordinance or applicable authority number/date, effectivity, review reference/date/result, and every condition against accepted evidence.", "The review is favorable or favorable with fully recorded conditions.", "Do not authorize a pending or adverse review result.", "", ""),
+            ("Reconcile the signed control total", "Confirm the signed appropriation schedule total equals GRAND's exact version total with zero difference.", "The control difference is exactly zero.", "Never insert a balancing line merely to force agreement.", "", ""),
+            ("Authorize independently", "Record the authorization basis. GRAND snapshots every classified line, computes a checksum, and marks the version spendable only after this action.", "An immutable operational appropriation schedule and checksum are created.", "The evidence preparer cannot authorize the same record.", "", ""),
+            ("Correct through a successor", "After authorization, preserve the original. Use the applicable supplemental, reenacted, or other formally approved successor version and repeat the evidence gate.", "Original and successor authority remain reconstructible.", "Never silently edit an authorized schedule.", "", ""),
+        ),
+    },
+    {
         "slug": "finance-annual-budget-preparation",
         "title": "Prepare the annual budget call and proposals",
         "summary": "Set reviewed department ceilings, prepare classified proposal versions, and keep proposals visibly separate from spendable authority.",

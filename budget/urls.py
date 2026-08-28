@@ -19,4 +19,8 @@ urlpatterns = [
     path("versions/<uuid:public_id>/export/", views.version_export, name="version_export"),
     path("versions/<uuid:public_id>/compare/", views.version_compare, name="version_compare"),
     path("versions/<uuid:public_id>/<slug:action>/", views.version_action, name="version_action"),
+    path("appropriations/new/", views.authorization_create, name="authorization_create"),
+    path("appropriations/<uuid:public_id>/", views.authorization_detail, name="authorization_detail"),
+    path("appropriations/<uuid:public_id>/export/", views.authorization_export, name="authorization_export"),
+    path("appropriations/<uuid:public_id>/<slug:action>/", views.authorization_action, name="authorization_action"),
 ]

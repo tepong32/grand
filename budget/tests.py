@@ -11,8 +11,8 @@ from django.urls import reverse
 from accounting.models import FiscalYear, Fund, LedgerAccount, ProgramActivityProject, ResponsibilityCenter
 from departments.models import Department
 
-from .models import BudgetCall, BudgetCeiling, BudgetProposalLine, BudgetVersion
-from .services import compare_versions, consolidate_versions, transition_call, transition_version
+from .models import AppropriationAuthorization, BudgetCall, BudgetCeiling, BudgetProposalLine, BudgetVersion
+from .services import compare_versions, consolidate_versions, transition_authorization, transition_call, transition_version
 
 
 class AnnualBudgetPreparationTests(TestCase):
@@ -26,6 +26,7 @@ class AnnualBudgetPreparationTests(TestCase):
         cls.other_office = Department.objects.create(name="Human Resources Office", slug="annual-hr")
         cls.preparer = cls.employee(cls.budget_office, "budget.preparer", "view_budget_workspace", "prepare_budget_calls", "prepare_budget_proposals")
         cls.reviewer = cls.employee(cls.budget_office, "budget.reviewer", "view_budget_workspace", "approve_budget_calls", "review_budget_proposals", "view_budget_audit")
+        cls.authorizer = cls.employee(cls.budget_office, "budget.authorizer", "view_budget_workspace", "authorize_appropriations", "view_budget_audit")
         cls.outsider = cls.employee(cls.other_office, "budget.outsider", "view_budget_workspace", "prepare_budget_proposals")
         owner = {"department_id": cls.accounting_office.pk, "department_label": cls.accounting_office.name}
         cls.fiscal_year = FiscalYear.objects.create(
@@ -170,5 +171,71 @@ class AnnualBudgetPreparationTests(TestCase):
             self.assertEqual(response["X-GRAND-Export-Archived"], "true")
             self.assertIn(b"spendable_authority", response.content)
             self.assertIn(b",no,", response.content)
+            from pathlib import Path
+            self.assertEqual(len(list(Path(directory).rglob("*.manifest.json"))), 1)
+
+    def test_final_version_requires_exact_independent_authorization_snapshot(self):
+        call = self.make_call(BudgetCall.PUBLISHED)
+        self.add_ceiling(call)
+        version = BudgetVersion.objects.create(
+            department_id=self.budget_office.pk, department_label=self.budget_office.name,
+            budget_call=call, fiscal_year=self.fiscal_year, kind=BudgetVersion.FINAL, version=1,
+            title="FY 2027 final approved budget", change_explanation="Synthetic final deliberated version.",
+            status=BudgetVersion.APPROVED, created_by_id=self.preparer.pk, created_by_label=self.preparer.username,
+        )
+        self.add_line(version, "75000")
+        authorization = AppropriationAuthorization.objects.create(
+            department_id=self.budget_office.pk, department_label=self.budget_office.name,
+            version=version, authority_type=AppropriationAuthorization.ORDINANCE,
+            ordinance_number="Synthetic Ordinance 2026-101", ordinance_date=date(2026, 12, 15),
+            effectivity_date=date(2027, 1, 1), review_status=AppropriationAuthorization.FAVORABLE,
+            review_reference="Synthetic favorable review 2026-22", review_date=date(2026, 12, 28),
+            evidence_reference="Synthetic signed ordinance, review, and appropriation schedule references.",
+            signed_control_total=Decimal("75000"), created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        authorization = transition_authorization(authorization, "submit", self.preparer)
+        with self.assertRaisesMessage(ValidationError, "cannot authorize"):
+            transition_authorization(authorization, "authorize", self.preparer, "Self authorization")
+        authorization = transition_authorization(
+            authorization, "authorize", self.authorizer, "Verified ordinance, favorable review, effectivity, and signed total.",
+        )
+        self.assertEqual(authorization.status, AppropriationAuthorization.AUTHORIZED)
+        self.assertEqual(authorization.schedule_lines.count(), 1)
+        self.assertEqual(len(authorization.snapshot_checksum), 64)
+        version.refresh_from_db()
+        self.assertTrue(version.is_spendable_authority)
+        authorization.evidence_reference = "Silently replaced evidence reference."
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            authorization.full_clean()
+
+    def test_authorization_rejects_control_difference_and_exports_snapshot(self):
+        call = self.make_call(BudgetCall.PUBLISHED)
+        self.add_ceiling(call)
+        version = BudgetVersion.objects.create(
+            department_id=self.budget_office.pk, department_label=self.budget_office.name,
+            budget_call=call, fiscal_year=self.fiscal_year, kind=BudgetVersion.FINAL, version=1,
+            title="FY 2027 final export budget", change_explanation="Synthetic final version.",
+            status=BudgetVersion.APPROVED, created_by_id=self.preparer.pk, created_by_label=self.preparer.username,
+        )
+        self.add_line(version, "75000")
+        item = AppropriationAuthorization.objects.create(
+            department_id=self.budget_office.pk, department_label=self.budget_office.name, version=version,
+            authority_type=AppropriationAuthorization.ORDINANCE, ordinance_number="Synthetic Ordinance 2026-102",
+            ordinance_date=date(2026, 12, 15), effectivity_date=date(2027, 1, 1),
+            review_status=AppropriationAuthorization.FAVORABLE, review_reference="Synthetic review",
+            review_date=date(2026, 12, 28), evidence_reference="Synthetic accepted references.",
+            signed_control_total=Decimal("74999"), created_by_id=self.preparer.pk, created_by_label=self.preparer.username,
+        )
+        with self.assertRaisesMessage(ValidationError, "must equal"):
+            transition_authorization(item, "submit", self.preparer)
+        item.signed_control_total = Decimal("75000"); item.save(update_fields=("signed_control_total",))
+        transition_authorization(item, "submit", self.preparer)
+        item = transition_authorization(item, "authorize", self.authorizer, "Independent synthetic acceptance.")
+        self.client.force_login(self.authorizer)
+        with tempfile.TemporaryDirectory() as directory, override_settings(GRAND_EXPORT_ROOT=directory):
+            response = self.client.get(reverse("budget:authorization_export", args=(item.public_id,)))
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(item.snapshot_checksum.encode(), response.content)
             from pathlib import Path
             self.assertEqual(len(list(Path(directory).rglob("*.manifest.json"))), 1)
