@@ -52,6 +52,9 @@ class BudgetCall(BudgetOwnedModel):
             ("review_budget_proposals", "Can review and consolidate annual budget proposals"),
             ("authorize_appropriations", "Can authorize final operational appropriations"),
             ("view_budget_audit", "Can view annual Budget audit evidence"),
+            ("view_allotment_control", "Can view appropriation and allotment control"),
+            ("prepare_allotment_releases", "Can prepare allotment release orders"),
+            ("approve_allotment_releases", "Can independently post allotment release orders"),
         )
 
     def __str__(self):
@@ -299,6 +302,10 @@ class AuthorizedAppropriationLine(BudgetOwnedModel):
         ordering = ("fund_code", "responsibility_center_code", "program_code", "account_code", "pk")
         constraints = (models.UniqueConstraint(fields=("authorization", "source_line_id"), name="unique_authorized_appropriation_source_line"),)
 
+    def __str__(self):
+        ppa = f" / {self.program_code}" if self.program_code else ""
+        return f"{self.fund_code} / {self.responsibility_center_code}{ppa} / {self.account_code} — {self.particulars}"
+
     def save(self, *args, **kwargs):
         if self.authorization.status == AppropriationAuthorization.AUTHORIZED:
             raise ValidationError("Authorized appropriation schedule snapshots are immutable.")
@@ -306,6 +313,169 @@ class AuthorizedAppropriationLine(BudgetOwnedModel):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Authorized appropriation schedule history cannot be deleted.")
+
+
+class AllotmentReleaseOrder(BudgetOwnedModel):
+    INITIAL, LATER, RESERVE, DEFERRAL, ADJUSTMENT, RETURN, CANCELLATION = (
+        "initial", "later", "reserve", "deferral", "adjustment", "return", "cancellation"
+    )
+    KIND_CHOICES = (
+        (INITIAL, "Initial allotment release"), (LATER, "Later allotment release"),
+        (RESERVE, "Reserve / withholding"), (DEFERRAL, "Deferral"),
+        (ADJUSTMENT, "Allotment adjustment"), (RETURN, "Allotment return"),
+        (CANCELLATION, "Allotment cancellation"),
+    )
+    DRAFT, FOR_REVIEW, RETURNED, POSTED = "draft", "for_review", "returned", "posted"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft"), (FOR_REVIEW, "For independent review"),
+        (RETURNED, "Returned for correction"), (POSTED, "Posted to allotment ledger"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    authorization = models.ForeignKey(AppropriationAuthorization, on_delete=models.PROTECT, related_name="allotment_orders")
+    fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT, related_name="allotment_release_orders")
+    order_number = models.CharField(max_length=100)
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES)
+    release_date = models.DateField()
+    effective_date = models.DateField()
+    authority_reference = models.CharField(max_length=180)
+    evidence_reference = models.TextField(help_text="Reference the accepted ARO/equivalent and signed schedule; keep synthetic UAT evidence non-sensitive.")
+    purpose = models.TextField()
+    signed_control_total = models.DecimalField(max_digits=18, decimal_places=2)
+    corrects = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="correction_orders")
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    snapshot_checksum = models.CharField(max_length=64, blank=True)
+    created_by_id = models.PositiveBigIntegerField()
+    created_by_label = models.CharField(max_length=160)
+    submitted_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    submitted_by_label = models.CharField(max_length=160, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    posted_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    posted_by_label = models.CharField(max_length=160, blank=True)
+    posted_at = models.DateTimeField(null=True, blank=True)
+    decision_reason = models.TextField(blank=True)
+    state_version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-fiscal_year__year", "-effective_date", "-created_at")
+        constraints = (
+            models.UniqueConstraint(fields=("department_id", "fiscal_year", "order_number"), name="unique_allotment_order_number"),
+        )
+
+    def __str__(self):
+        return f"FY {self.fiscal_year.year} · {self.order_number}"
+
+    @property
+    def computed_total(self):
+        return self.lines.aggregate(total=models.Sum("amount"))["total"] or Decimal("0")
+
+    @property
+    def control_difference(self):
+        return self.signed_control_total - self.computed_total
+
+    def clean(self):
+        if self.department_id != self.authorization.department_id:
+            raise ValidationError("The allotment order must belong to the appropriation's Budget office.")
+        if self.authorization.status != AppropriationAuthorization.AUTHORIZED:
+            raise ValidationError({"authorization": "Only an operationally authorized appropriation may release allotment."})
+        if self.fiscal_year_id != self.authorization.version.fiscal_year_id:
+            raise ValidationError({"fiscal_year": "The order must use the authorized appropriation fiscal year."})
+        if not (self.fiscal_year.starts_on <= self.effective_date <= self.fiscal_year.ends_on):
+            raise ValidationError({"effective_date": "The effective date must fall inside the selected fiscal year."})
+        if self.effective_date < self.authorization.effectivity_date:
+            raise ValidationError({"effective_date": "Allotment cannot take effect before its appropriation authority."})
+        if self.corrects_id:
+            if self.corrects_id == self.pk or self.corrects.department_id != self.department_id or self.corrects.status != self.POSTED:
+                raise ValidationError({"corrects": "A correction may reference only a posted order in the same Budget office."})
+            if self.corrects.authorization_id != self.authorization_id or self.corrects.fiscal_year_id != self.fiscal_year_id:
+                raise ValidationError({"corrects": "A correcting order must use the same appropriation authority and fiscal year."})
+            if self.kind not in (self.ADJUSTMENT, self.RETURN, self.CANCELLATION):
+                raise ValidationError({"corrects": "Only adjustment, return, or cancellation orders may correct a posted order."})
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.status == self.POSTED:
+                governed = (
+                    "authorization_id", "fiscal_year_id", "order_number", "kind", "release_date", "effective_date",
+                    "authority_reference", "evidence_reference", "purpose", "signed_control_total", "corrects_id", "snapshot_checksum",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError("Posted allotment orders are immutable. Record a linked correcting order.")
+
+
+class AllotmentOrderLine(BudgetOwnedModel):
+    RELEASE, RELEASE_REDUCTION, RESERVE, RESERVE_RELEASE, DEFERRAL, DEFERRAL_RELEASE, RETURN, CANCELLATION = (
+        "release", "release_reduction", "reserve", "reserve_release", "deferral", "deferral_release", "return", "cancellation"
+    )
+    MOVEMENT_CHOICES = (
+        (RELEASE, "Release allotment"), (RELEASE_REDUCTION, "Reduce released allotment"),
+        (RESERVE, "Place reserve / withholding"), (RESERVE_RELEASE, "Release reserve / withholding"),
+        (DEFERRAL, "Defer available allotment"), (DEFERRAL_RELEASE, "Lift deferral"),
+        (RETURN, "Return allotment"), (CANCELLATION, "Cancel allotment"),
+    )
+    ALLOWED_BY_ORDER = {
+        AllotmentReleaseOrder.INITIAL: (RELEASE,), AllotmentReleaseOrder.LATER: (RELEASE,),
+        AllotmentReleaseOrder.RESERVE: (RESERVE, RESERVE_RELEASE),
+        AllotmentReleaseOrder.DEFERRAL: (DEFERRAL, DEFERRAL_RELEASE),
+        AllotmentReleaseOrder.ADJUSTMENT: (RELEASE, RELEASE_REDUCTION, RESERVE, RESERVE_RELEASE, DEFERRAL, DEFERRAL_RELEASE),
+        AllotmentReleaseOrder.RETURN: (RETURN,), AllotmentReleaseOrder.CANCELLATION: (CANCELLATION,),
+    }
+
+    order = models.ForeignKey(AllotmentReleaseOrder, on_delete=models.PROTECT, related_name="lines")
+    appropriation_line = models.ForeignKey(AuthorizedAppropriationLine, on_delete=models.PROTECT, related_name="allotment_order_lines")
+    movement_type = models.CharField(max_length=24, choices=MOVEMENT_CHOICES)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    remarks = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("appropriation_line__fund_code", "appropriation_line__responsibility_center_code", "appropriation_line__account_code", "pk")
+
+    def clean(self):
+        if self.amount <= Decimal("0"):
+            raise ValidationError({"amount": "A movement amount must be greater than zero."})
+        if self.appropriation_line.authorization_id != self.order.authorization_id:
+            raise ValidationError({"appropriation_line": "Choose a line from this order's exact authorized appropriation."})
+        if self.department_id != self.order.department_id:
+            raise ValidationError("The order line and order must belong to the same Budget office.")
+        if self.movement_type not in self.ALLOWED_BY_ORDER.get(self.order.kind, ()):
+            raise ValidationError({"movement_type": "That movement is not valid for this order type."})
+    def save(self, *args, **kwargs):
+        if self.order.status not in (AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED):
+            raise ValidationError("Allotment lines are editable only while the order is draft or returned.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.order.status not in (AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED):
+            raise ValidationError("Posted or submitted allotment schedule lines cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class AllotmentMovement(BudgetOwnedModel):
+    order = models.ForeignKey(AllotmentReleaseOrder, on_delete=models.PROTECT, related_name="movements")
+    source_line_id = models.PositiveBigIntegerField()
+    appropriation_line = models.ForeignKey(AuthorizedAppropriationLine, on_delete=models.PROTECT, related_name="allotment_movements")
+    movement_type = models.CharField(max_length=24, choices=AllotmentOrderLine.MOVEMENT_CHOICES)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    release_effect = models.DecimalField(max_digits=18, decimal_places=2)
+    hold_effect = models.DecimalField(max_digits=18, decimal_places=2)
+    effective_date = models.DateField()
+    order_number_snapshot = models.CharField(max_length=100)
+    authority_reference_snapshot = models.CharField(max_length=180)
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("effective_date", "pk")
+        constraints = (models.UniqueConstraint(fields=("order", "source_line_id"), name="unique_allotment_movement_source"),)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Posted allotment movements are append-only and immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Posted allotment movements cannot be deleted.")
 
 
 class BudgetReviewComment(BudgetOwnedModel):

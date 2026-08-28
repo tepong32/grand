@@ -14,6 +14,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "accounting.view_accounting_workspace",
         "accounting.view_general_ledger",
         "budget.view_budget_workspace",
+        "budget.view_allotment_control",
     ),
     "Budget Voucher Officer": (
         "budget.view_budget_workspace",
@@ -30,11 +31,15 @@ FINANCE_ROLE_PERMISSIONS = {
         "budget.approve_budget_calls",
         "budget.review_budget_proposals",
         "budget.view_budget_audit",
+        "budget.view_allotment_control",
+        "budget.prepare_allotment_releases",
     ),
     "Budget Appropriation Authorizer": (
         "budget.view_budget_workspace",
         "budget.authorize_appropriations",
         "budget.view_budget_audit",
+        "budget.view_allotment_control",
+        "budget.approve_allotment_releases",
     ),
     "Accounting DV Preparer": (
         "finance.view_finance_setup",

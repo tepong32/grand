@@ -21,6 +21,7 @@ Use this page as the entry point for project and operator documentation.
 - [Finance fiscal-year and classification foundation](FINANCE_FISCAL_FOUNDATION.md) documents the F2.1 typed year, calendar, effective-dated classifications, readiness layers, setup-release adoption, and synthetic acceptance procedure.
 - [Finance opening balances and control-total intake](FINANCE_OPENING_BALANCES.md) documents the F2.2 staged import, reasoned correction, independent approval, opening-JEV posting, reconciliation, and controlled export workflow.
 - [Finance annual budget preparation](FINANCE_ANNUAL_BUDGET.md) documents F3.1 calls, ceilings, classified proposals and targets, resource estimates, consolidation, review, comparison, and the non-spendable authority boundary.
+- [Finance allotment release control](FINANCE_ALLOTMENT_CONTROL.md) documents F4.1 release/reserve/deferral/adjustment movements, balance locks, independent posting, correction lineage, and portable schedules.
 - [Finance process fidelity baseline](FINANCE_PROCESS_FIDELITY_BASELINE.md) maps the full annual-budget-to-close cycle to current GRAND coverage, evidence still required, and the complete-cycle and voucher-subcycle divergences.
 - [Product roadmap](ROADMAP.md) records completed platform phases and points to the canonical long-term Finance delivery train.
 - [Security maintenance](../SECURITY.md) covers dependency auditing, CI checks, Dependabot, and bundled browser assets.

@@ -6,10 +6,10 @@ This is the comparison starting point before full LGU field evidence is collecte
 
 | Seq. | Required capability/stage | Intended owner | GRAND position | Current finding and evidence required |
 |---:|---|---|---|---|
-| 1 | Budget call, departmental proposals, PPAs, targets, and revenue/resource estimates | LCE, departments, Planning/LFC, Budget, Treasury | Not implemented in Finance | **Missing complete-cycle foundation.** Obtain approved process, versions, classifications, calendars, ceilings, and sign-off. |
-| 2 | Executive budget, Sanggunian authorization, appropriation ordinance, and review | LCE, Sanggunian, Budget, reviewing authority | Not implemented | **Missing legal-authority lineage.** Obtain annual/supplemental/reenacted forms, review results, conditions, and approved control totals. |
-| 3 | Fiscal-year opening, approved appropriations, continuing items, and opening balances | Budget and Accounting | Setup foundation exists; authoritative opening does not | **Missing operational authority.** Reconcile approved schedules and opening balances to source books/system. |
-| 4 | Allotment Release Orders, reserves, deferrals, and adjustments | Budget Officer and LCE/authorized approver | Not implemented | **Missing.** Confirm applicable ARO forms, release authority, numbering, classifications, and balance rules. |
+| 1 | Budget call, departmental proposals, PPAs, targets, and revenue/resource estimates | LCE, departments, Planning/LFC, Budget, Treasury | F3.1 synthetic controls implemented | **Implemented, acceptance pending.** Obtain approved process, versions, classifications, calendars, ceilings, forms, and sign-off. |
+| 2 | Executive budget, Sanggunian authorization, appropriation ordinance, and review | LCE, Sanggunian, Budget, reviewing authority | F3.2 authority lineage and immutable schedules implemented | **Implemented, acceptance pending.** Reconcile annual/supplemental/reenacted forms, review results, conditions, and signed control totals. |
+| 3 | Fiscal-year opening, approved appropriations, continuing items, and opening balances | Budget and Accounting | F2.1–F2.2 fiscal/opening controls and F3.2 appropriations implemented | **Implemented, acceptance pending.** Reconcile approved schedules and opening balances to source books/system. |
+| 4 | Allotment Release Orders, reserves, deferrals, and adjustments | Budget Officer and LCE/authorized approver | F4.1 immutable movement and balance control implemented | **Implemented, acceptance pending.** Confirm applicable ARO/equivalent forms, release authority, numbering, classifications, signatures, and signed balances. |
 | 5 | ALOBS/ORS/OBR and RAAO/equivalent obligation registry | Requesting office and Budget | Pilot OBR certification exists without authoritative balance engine | **Partial prototype.** Confirm preparer/certifier, exact form, registry, concurrency, rejection, cancellation, and adjustment behavior. |
 | 6 | Request, procurement/delivery, acceptance, and payable readiness | Requesting office, procurement/inspection, Accounting | Case fields and document checklist exist; transaction variants and upstream integrations do not | **Partial.** Replay one ordinary supplier and each later transaction variant from source evidence. |
 | 7 | Accounting DV preparation | Accounting preparer | Implemented shadow route | Exact fields, document checks, tax/deduction rules, number timing, obligation adjustment, and maker responsibilities remain LGU-unverified. |
@@ -31,12 +31,12 @@ Approved annual budget -> appropriation -> allotment release
 -> obligation request/certification -> payable -> DV
 
 GRAND today
-Finance Setup release -> Budget opens voucher case
--> pilot OBR certification without authoritative appropriation/allotment balance
+Fiscal/opening control -> annual budget -> authorized appropriation
+-> posted allotment movement -> pilot OBR certification without authoritative obligation linkage
 -> DV
 ```
 
-GRAND therefore cannot yet be used to train the annual budget, appropriation, allotment, or authoritative obligation-control cycle as though those controls were implemented.
+GRAND now supports synthetic training for annual budget, appropriation, and allotment controls, but it cannot represent those steps as locally accepted official operation until signed schedules/forms reconcile and process owners approve them. Authoritative obligation control remains unimplemented until F4.2.
 
 Within the narrower implemented voucher subcycle, the earliest confirmed mismatch remains printing and physical custody:
 

@@ -4,6 +4,12 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance allotment release control
+
+- Added F4.1 ARO/equivalent preparation for initial/later releases, reserves, deferrals, adjustments, returns, and cancellations against exact immutable authorized appropriation lines.
+- Added zero-difference signed controls, independent posting, line-locked cumulative balance validation, append-only movements/checksums, and linked successor correction instead of posted-record editing.
+- Added authorized/released/held/unreleased/executable drilldowns, department-bounded permissions, a role-specific Internal How-To, and TraceSync-ready posted-schedule CSV archives.
+
 ### Finance annual budget preparation
 
 - Added the F3.1 Annual Budget workspace for independently reviewed calls and department ceilings, classified proposal/target/resource versions, traceable executive consolidation, comparison, audit evidence, and TraceSync-ready CSV exports.
