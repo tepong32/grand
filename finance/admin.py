@@ -1,30 +1,27 @@
 from django.contrib import admin
 
-from .models import (
-    FinanceAuditEvent, FinanceConfigurationItem, FinanceConfigurationRelease,
-    FinanceNumberingSequence, FinanceParty, FinancePartyClaimant, FinanceSignatory,
-    FinanceTemplateVersion, FinanceWorkflowExemption,
-)
+from .models import FinanceAuditEvent, FinanceConfigurationRelease, FinanceWorkflowExemption
+
+
+class ReadOnlyFinanceAdmin(admin.ModelAdmin):
+    def get_readonly_fields(self, request, obj=None):
+        return tuple(field.name for field in self.model._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(FinanceConfigurationRelease)
-class FinanceConfigurationReleaseAdmin(admin.ModelAdmin):
+class FinanceConfigurationReleaseAdmin(ReadOnlyFinanceAdmin):
     list_display = ("title", "version", "department", "fiscal_year", "status", "effective_from")
     list_filter = ("department", "status", "fiscal_year")
-    readonly_fields = ("created_at", "updated_at", "submitted_at", "approved_at", "activated_at")
-
-
-@admin.register(FinanceConfigurationItem)
-class FinanceConfigurationItemAdmin(admin.ModelAdmin):
-    list_display = ("label", "category", "code", "version", "department", "status")
-    list_filter = ("department", "category", "status")
-
-
-admin.site.register(FinanceSignatory)
-admin.site.register(FinanceNumberingSequence)
-admin.site.register(FinanceTemplateVersion)
-admin.site.register(FinanceParty)
-admin.site.register(FinancePartyClaimant)
+    search_fields = ("title", "code")
 
 
 @admin.register(FinanceWorkflowExemption)
@@ -74,15 +71,7 @@ class FinanceWorkflowExemptionAdmin(admin.ModelAdmin):
 
 
 @admin.register(FinanceAuditEvent)
-class FinanceAuditEventAdmin(admin.ModelAdmin):
+class FinanceAuditEventAdmin(ReadOnlyFinanceAdmin):
     list_display = ("created_at", "department", "target_type", "action", "actor")
-    readonly_fields = tuple(field.name for field in FinanceAuditEvent._meta.fields)
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
+    list_filter = ("department", "target_type", "action")
+    search_fields = ("target_id", "actor__username", "reason")

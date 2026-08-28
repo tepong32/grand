@@ -31,7 +31,12 @@ def has_explicit_permission(user, permission):
 
 
 def can_view_accounting(user):
-    return any(has_explicit_permission(user, permission) for permission in ACCOUNTING_PERMISSIONS)
+    from vouchers.roles import is_finance_uat_viewer
+
+    viewer = is_finance_uat_viewer(user) and department_for_user(user) is not None
+    return viewer or any(
+        has_explicit_permission(user, permission) for permission in ACCOUNTING_PERMISSIONS
+    )
 
 
 def can_manage_setup(user):

@@ -1,65 +1,48 @@
 from django.contrib import admin
 
-from .models import (
-    AccountingValidation, BankAdviceBatch, BankAdviceItem, BudgetAllocationLine,
-    BudgetObligation, ControlOverride, DisbursementVoucher, PaymentInstrument,
-    VoucherCase, VoucherDeduction, VoucherDocumentCheck, VoucherEvent, VoucherNonFinancialAmendment,
-    VoucherLineItem, VoucherNumberIssue, VoucherOutput, VoucherTask, WetSignatureTask,
-)
+from .models import VoucherCase, VoucherEvent, VoucherNonFinancialAmendment
 
 
-class BudgetAllocationInline(admin.TabularInline):
-    model = BudgetAllocationLine
-    extra = 0
+class ReadOnlyWorkflowAdmin(admin.ModelAdmin):
+    """Keep support evidence inspectable without exposing workflow CRUD."""
 
+    def get_readonly_fields(self, request, obj=None):
+        return tuple(field.name for field in self.model._meta.fields)
 
-@admin.register(BudgetObligation)
-class BudgetObligationAdmin(admin.ModelAdmin):
-    list_display = ("obr_number", "case", "certified_amount", "certified_by", "certified_at")
-    inlines = (BudgetAllocationInline,)
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(VoucherCase)
-class VoucherCaseAdmin(admin.ModelAdmin):
-    list_display = ("reference_code", "payee_name", "current_stage", "current_department", "shadow_mode", "updated_at")
+class VoucherCaseAdmin(ReadOnlyWorkflowAdmin):
+    list_display = (
+        "reference_code", "payee_name", "current_stage", "current_department",
+        "shadow_mode", "updated_at",
+    )
     list_filter = ("current_stage", "current_department", "shadow_mode")
     search_fields = ("reference_code", "payee_name", "particulars")
-    readonly_fields = ("public_id", "reference_code", "state_version", "created_at", "updated_at", "completed_at", "cancelled_at")
 
 
 @admin.register(VoucherEvent)
-class VoucherEventAdmin(admin.ModelAdmin):
-    list_display = ("created_at", "case", "action", "actor", "from_stage", "to_stage", "state_version")
-    readonly_fields = tuple(field.name for field in VoucherEvent._meta.fields)
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
+class VoucherEventAdmin(ReadOnlyWorkflowAdmin):
+    list_display = (
+        "created_at", "case", "action", "actor", "from_stage", "to_stage", "state_version",
+    )
+    list_filter = ("action", "from_stage", "to_stage")
+    search_fields = ("case__reference_code", "actor__username", "reason")
 
 
 @admin.register(VoucherNonFinancialAmendment)
-class VoucherNonFinancialAmendmentAdmin(admin.ModelAdmin):
-    list_display = ("case", "version", "old_voucher_date", "new_voucher_date", "status", "amended_by", "amended_at")
-    readonly_fields = tuple(field.name for field in VoucherNonFinancialAmendment._meta.fields)
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-
-for model in (
-    AccountingValidation, BankAdviceBatch, BankAdviceItem, ControlOverride,
-    DisbursementVoucher, PaymentInstrument, VoucherDeduction, VoucherDocumentCheck,
-    VoucherLineItem, VoucherNumberIssue, VoucherOutput, VoucherTask, WetSignatureTask,
-):
-    admin.site.register(model)
+class VoucherNonFinancialAmendmentAdmin(ReadOnlyWorkflowAdmin):
+    list_display = (
+        "case", "version", "old_voucher_date", "new_voucher_date",
+        "status", "amended_by", "amended_at",
+    )
+    list_filter = ("status",)
+    search_fields = ("case__reference_code", "reason")

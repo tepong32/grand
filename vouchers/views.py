@@ -12,6 +12,7 @@ from .forms import (
     TracePointLinkForm,
 )
 from .models import PaymentInstrument, VoucherCase, VoucherOutput
+from .roles import STAGE_NEXT_ACTION, finance_workspace_profile
 from .services import (
     VoucherWorkflowError, _active_release, amend_nonfinancial_voucher, cancel_check, certify_budget, create_budget_case,
     finalize_bank_advice, generate_shadow_dv, issue_check, link_tracepoint_item, prepare_voucher, record_signature_return,
@@ -37,14 +38,58 @@ def _permissions(user):
     }
 
 
+def _actionable_stages(permissions, can_access_accounting=False):
+    stages = []
+    for allowed, stage in (
+        (permissions["certify"], VoucherCase.BUDGET_DRAFT),
+        (permissions["prepare"], VoucherCase.ACCOUNTING_PREPARATION),
+        (permissions["signatures"], VoucherCase.AWAITING_SIGNATURES),
+        (permissions["validate"], VoucherCase.ACCOUNTING_VALIDATION),
+        (can_access_accounting, VoucherCase.ACCOUNTING_POSTING),
+        (permissions["issue"], VoucherCase.TREASURY_CHECK_PREPARATION),
+        (permissions["advice"], VoucherCase.ACCOUNTING_BANK_ADVICE),
+        (permissions["release"], VoucherCase.TREASURY_RELEASE),
+    ):
+        if allowed:
+            stages.append(stage)
+    return tuple(stages)
+
+
+def _decorate_cases(cases, actionable_stages=()):
+    actionable_stages = set(actionable_stages)
+    rows = list(cases)
+    for case in rows:
+        case.next_action_label = STAGE_NEXT_ACTION.get(case.current_stage, case.get_current_stage_display())
+        case.ready_for_user = case.current_stage in actionable_stages
+    return rows
+
+
 @voucher_access_required
 def workspace(request):
     cases = VoucherCase.objects.select_related(
         "requesting_department", "current_department", "payee", "configuration_release",
     ).annotate(check_count=Count("payment_instruments"))
+    permissions = _permissions(request.user)
+    profile = finance_workspace_profile(request.user, request.GET.get("office"))
+    from accounting.access import can_post_journals, can_prepare_journals
+    can_handle_posting = can_prepare_journals(request.user) or can_post_journals(request.user)
+    actionable_stages = _actionable_stages(
+        permissions,
+        can_handle_posting and not profile["is_uat_viewer"],
+    )
+    queue_stages = profile["stages"] if profile["is_uat_viewer"] else actionable_stages
+    queue_query = cases.filter(current_stage__in=queue_stages)
+    queue_ids = list(queue_query.values_list("pk", flat=True)[:100])
+    queue_cases = _decorate_cases(
+        cases.filter(pk__in=queue_ids).order_by("-updated_at", "-pk"),
+        actionable_stages,
+    )
+    other_cases = _decorate_cases(cases.exclude(pk__in=queue_ids)[:100], actionable_stages)
     stage_counts = {stage: cases.filter(current_stage=stage).count() for stage, _label in VoucherCase.STAGE_CHOICES}
     return render(request, "vouchers/workspace.html", {
-        "cases": cases[:100], "stage_counts": stage_counts, "permissions": _permissions(request.user),
+        "cases": other_cases, "queue_cases": queue_cases, "workspace_profile": profile,
+        "stage_counts": stage_counts, "permissions": permissions,
+        "queue_count": queue_query.count(),
         "open_count": cases.exclude(current_stage__in=(VoucherCase.COMPLETED, VoucherCase.CANCELLED)).count(),
         "completed_count": stage_counts[VoucherCase.COMPLETED],
     })
@@ -91,6 +136,13 @@ def _case(public_id):
 def case_detail(request, public_id):
     case = _case(public_id)
     permissions = _permissions(request.user)
+    profile = finance_workspace_profile(request.user)
+    from accounting.access import can_post_journals, can_prepare_journals
+    can_handle_posting = can_prepare_journals(request.user) or can_post_journals(request.user)
+    actionable_stages = _actionable_stages(
+        permissions,
+        can_handle_posting and not profile["is_uat_viewer"],
+    )
     amendment_stages = {
         VoucherCase.AWAITING_SIGNATURES,
         VoucherCase.ACCOUNTING_VALIDATION,
@@ -98,7 +150,9 @@ def case_detail(request, public_id):
         VoucherCase.TREASURY_CHECK_PREPARATION,
     }
     return render(request, "vouchers/case_detail.html", {
-        "case": case, "permissions": permissions,
+        "case": case, "permissions": permissions, "workspace_profile": profile,
+        "next_action_label": STAGE_NEXT_ACTION.get(case.current_stage, case.get_current_stage_display()),
+        "case_ready_for_user": case.current_stage in actionable_stages,
         "budget_form": BudgetCertificationForm(case=case),
         "voucher_form": VoucherPreparationForm(case=case),
         "signature_form": SignatureReturnForm(case=case),
