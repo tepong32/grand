@@ -8,12 +8,12 @@ from .access import can_view_workbench, has_explicit_permission, voucher_access_
 from .forms import (
     AccountingValidationForm, BankAdviceForm, BudgetCaseForm, BudgetCertificationForm,
     CancelCheckForm, CheckIssueForm, CheckReleaseForm, ReturnCaseForm,
-    SignatureReturnForm, SubmitChecksForm, VoucherPreparationForm,
+    NonFinancialAmendmentForm, SignatureReturnForm, SubmitChecksForm, VoucherPreparationForm,
     TracePointLinkForm,
 )
 from .models import PaymentInstrument, VoucherCase, VoucherOutput
 from .services import (
-    VoucherWorkflowError, _active_release, cancel_check, certify_budget, create_budget_case,
+    VoucherWorkflowError, _active_release, amend_nonfinancial_voucher, cancel_check, certify_budget, create_budget_case,
     finalize_bank_advice, generate_shadow_dv, issue_check, link_tracepoint_item, prepare_voucher, record_signature_return,
     release_check, return_case, submit_checks_for_advice, validate_accounting,
 )
@@ -32,6 +32,7 @@ def _permissions(user):
         "release": has_explicit_permission(user, "vouchers.release_payment_instruments"),
         "exceptions": has_explicit_permission(user, "vouchers.manage_payment_exceptions"),
         "return": has_explicit_permission(user, "vouchers.return_voucher_case"),
+        "amend_nonfinancial": has_explicit_permission(user, "vouchers.amend_nonfinancial_voucher"),
         "audit": has_explicit_permission(user, "vouchers.view_voucher_audit"),
     }
 
@@ -81,6 +82,7 @@ def _case(public_id):
             "payment_instruments__advice_item__batch", "events__actor", "events__actor_department",
             "tasks", "payee__authorized_claimants", "outputs__template",
             "posting_requests",
+            "nonfinancial_amendments__amended_by",
         ), public_id=public_id,
     )
 
@@ -88,8 +90,15 @@ def _case(public_id):
 @voucher_access_required
 def case_detail(request, public_id):
     case = _case(public_id)
+    permissions = _permissions(request.user)
+    amendment_stages = {
+        VoucherCase.AWAITING_SIGNATURES,
+        VoucherCase.ACCOUNTING_VALIDATION,
+        VoucherCase.ACCOUNTING_POSTING,
+        VoucherCase.TREASURY_CHECK_PREPARATION,
+    }
     return render(request, "vouchers/case_detail.html", {
-        "case": case, "permissions": _permissions(request.user),
+        "case": case, "permissions": permissions,
         "budget_form": BudgetCertificationForm(case=case),
         "voucher_form": VoucherPreparationForm(case=case),
         "signature_form": SignatureReturnForm(case=case),
@@ -101,6 +110,13 @@ def case_detail(request, public_id):
         "return_form": ReturnCaseForm(case=case),
         "cancel_form": CancelCheckForm(case=case),
         "tracepoint_form": TracePointLinkForm(case=case),
+        "amendment_form": NonFinancialAmendmentForm(case=case),
+        "can_amend_nonfinancial": bool(
+            permissions["amend_nonfinancial"]
+            and hasattr(case, "disbursement_voucher")
+            and case.current_stage in amendment_stages
+            and not case.payment_instruments.exists()
+        ),
     })
 
 
@@ -122,6 +138,7 @@ def case_action(request, public_id, action):
         "cancel-check": CancelCheckForm,
         "generate-dv": SubmitChecksForm,
         "link-tracepoint": TracePointLinkForm,
+        "amend-nonfinancial": NonFinancialAmendmentForm,
     }
     form_class = forms.get(action)
     if not form_class:
@@ -168,6 +185,13 @@ def case_action(request, public_id, action):
             from tracepoint.models import PacketItem
             item = get_object_or_404(PacketItem, reference_number=data["reference_number"])
             link_tracepoint_item(**common, item=item)
+        elif action == "amend-nonfinancial":
+            amend_nonfinancial_voucher(
+                **common,
+                voucher_date=data["voucher_date"],
+                signatories=data["signatories"],
+                reason=data["reason"],
+            )
     except ValidationError as exc:
         messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
     else:

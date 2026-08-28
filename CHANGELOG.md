@@ -15,6 +15,8 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 - Added a dedicated Accounting posting queue and source-status guidance that advances Treasury only after independent JEV posting, while preventing posted vouchers from being silently rewritten.
 - Added reason-required reversing JEVs that swap the original lines, retain direct correction lineage, preserve the posted source, and pass through the normal maker-checker workflow.
 - Extended the synthetic end-to-end suite through Budget, voucher validation, GRAND ledger posting, Treasury advice, and final check release without any eGAPS connection or data.
+- Added audited, permission-bound DV date and signatory amendments before check issuance, retaining the same case, DV number, amounts, and posted JEV while creating replacement signature and workbook versions.
+- Blocked non-financial amendments after any check issuance and kept JEV dates, accounting periods, allocations, deductions, and amounts outside this convenience workflow.
 
 ### Voucher and Disbursement Workbench
 

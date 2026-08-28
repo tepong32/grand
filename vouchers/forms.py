@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from departments.models import Department
-from finance.models import FinanceConfigurationItem, FinanceParty, FinancePartyClaimant
+from finance.models import FinanceConfigurationItem, FinanceParty, FinancePartyClaimant, FinanceSignatory
 
 from .models import PaymentInstrument, VoucherCase, WetSignatureTask
 
@@ -110,6 +110,70 @@ class SignatureReturnForm(WorkflowForm):
         super().__init__(*args, case=case, **kwargs)
         if case:
             self.fields["task"].queryset = case.signature_tasks.filter(status=WetSignatureTask.PENDING).order_by("sequence")
+
+
+class SignatorySelectionField(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, signatory):
+        acting = " · acting" if signatory.acting else ""
+        return f"{signatory.role_code} — {signatory.display_name} ({signatory.position_title}{acting})"
+
+
+class NonFinancialAmendmentForm(WorkflowForm):
+    voucher_date = forms.DateField(
+        label="Disbursement voucher date",
+        widget=DateInput,
+        help_text="This does not change the JEV posting date or accounting period.",
+    )
+    signatories = SignatorySelectionField(
+        queryset=FinanceSignatory.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Choose exactly one approved person for every required signature role.",
+    )
+    reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Explain the date or signatory correction for the permanent audit trail.",
+    )
+
+    def __init__(self, *args, case=None, **kwargs):
+        super().__init__(*args, case=case, **kwargs)
+        if not case or not hasattr(case, "disbursement_voucher"):
+            return
+        department_id = case.configuration_release.department_id
+        queryset = FinanceSignatory.objects.filter(
+            department_id=department_id, status="active",
+        ).select_related("release").order_by("role_code", "display_name", "pk")
+        self.fields["signatories"].queryset = queryset
+        self.fields["voucher_date"].initial = case.disbursement_voucher.voucher_date
+        latest_round = case.signature_tasks.order_by("-round_number").values_list("round_number", flat=True).first()
+        if latest_round:
+            current = case.signature_tasks.filter(round_number=latest_round)
+            selected = []
+            for task in current:
+                match = queryset.filter(
+                    role_code=task.role_code,
+                    display_name=task.signatory_name_snapshot,
+                    position_title=task.position_snapshot,
+                ).first()
+                if match:
+                    selected.append(match.pk)
+            self.fields["signatories"].initial = selected
+
+    def clean(self):
+        cleaned = super().clean()
+        voucher_date = cleaned.get("voucher_date")
+        signatories = list(cleaned.get("signatories") or [])
+        if not voucher_date:
+            return cleaned
+        invalid = [
+            item for item in signatories
+            if item.valid_from > voucher_date or (item.valid_to and item.valid_to < voucher_date)
+        ]
+        if invalid:
+            self.add_error("signatories", "Every selected signatory must be valid on the revised voucher date.")
+        roles = [item.role_code for item in signatories]
+        if len(roles) != len(set(roles)):
+            self.add_error("signatories", "Choose only one person for each signature role.")
+        return cleaned
 
 
 class AccountingValidationForm(WorkflowForm):

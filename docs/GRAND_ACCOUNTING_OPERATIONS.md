@@ -50,6 +50,14 @@ Assign permissions through an approved role/group procedure. The preparer and po
 
 For Voucher Workbench cases, Accounting validation creates an immutable, checksum-backed posting request in GRAND's core database. The Accounting workspace materializes that request into the separate GRAND finance database. The operation is idempotent: retrying opens the same JEV rather than creating a duplicate. After independent posting, a recoverable reconciliation step advances the same voucher case to Treasury. A posted source JEV blocks silent voucher rewrites.
 
+### Date and signatory corrections before check issuance
+
+The separate `amend_nonfinancial_voucher` permission allows an authorized Accounting user to correct the DV document date and choose one currently approved, date-valid person for every required signatory role. This remains available after JEV posting as long as no check— including a later-cancelled check—has ever been issued for the case.
+
+The amendment keeps the same case and DV number, snapshots the unchanged gross/deductions/net/certified amounts, preserves the posted JEV, supersedes earlier generated DV workbooks, and creates a replacement wet-signature round. Earlier signature evidence remains in history. After the replacement round is completed, the case resumes the stage it occupied before the amendment. The replacement workbook uses the revised DV date and selected approval signatory.
+
+This route does not change the JEV date, accounting period, fund, accounts, allocations, deductions, or amounts. Those are financial corrections and continue to require the accounting return/reversal workflow.
+
 Master records used by journals are archived instead of deleted. Codes and names already used in history cannot be silently redefined.
 
 ## Excel templates
@@ -58,4 +66,4 @@ GRAND's existing Finance Setup Center already accepts macro-free `.xlsx` version
 
 ## Current implementation boundary
 
-The current native slice covers setup, manual and voucher-generated journals, controlled posting mappings, cross-database handoff/retry, submit/return/post controls, correction reversals, audit evidence, general ledger, and trial balance. Subsidiary ledgers, automated payment-side postings, closing entries, financial statements, and the visual Template Studio remain subsequent phases. Historical eGAPS migration is optional and will be designed only if separately authorized.
+The current native slice covers setup, manual and voucher-generated journals, controlled posting mappings, cross-database handoff/retry, submit/return/post controls, pre-check non-financial DV amendments, correction reversals, audit evidence, general ledger, and trial balance. Subsidiary ledgers, automated payment-side postings, closing entries, financial statements, and the visual Template Studio remain subsequent phases. Historical eGAPS migration is optional and will be designed only if separately authorized.

@@ -22,7 +22,8 @@ from .models import (
     AccountingValidation, BankAdviceBatch, BankAdviceItem, BudgetAllocationLine,
     BudgetObligation, ControlOverride, DisbursementVoucher, PaymentInstrument,
     VoucherCase, VoucherDeduction, VoucherDocumentCheck, VoucherEvent,
-    VoucherLineItem, VoucherNumberIssue, VoucherOutput, VoucherPostingRequest, VoucherTask, WetSignatureTask,
+    VoucherLineItem, VoucherNonFinancialAmendment, VoucherNumberIssue, VoucherOutput,
+    VoucherPostingRequest, VoucherTask, WetSignatureTask,
 )
 
 
@@ -124,17 +125,33 @@ def _consume_number(case, actor, document_type):
 
 
 def _create_signature_round(case, voucher_date):
-    previous_round = case.signature_tasks.order_by("-round_number").values_list("round_number", flat=True).first() or 0
-    round_number = previous_round + 1
     signatories = FinanceSignatory.objects.filter(
         release=case.configuration_release, status="active", valid_from__lte=voucher_date,
     ).filter(Q(valid_to__isnull=True) | Q(valid_to__gte=voucher_date)).order_by("role_code", "pk")
+    return _create_signature_round_from_signatories(case, signatories)
+
+
+def _create_signature_round_from_signatories(case, signatories):
+    previous_round = case.signature_tasks.order_by("-round_number").values_list("round_number", flat=True).first() or 0
+    round_number = previous_round + 1
+    signatories = list(signatories)
     for index, signatory in enumerate(signatories, start=1):
         WetSignatureTask.objects.create(
             case=case, round_number=round_number, sequence=index, role_code=signatory.role_code,
             signatory_name_snapshot=signatory.display_name, position_snapshot=signatory.position_title,
         )
-    return round_number, signatories.exists()
+    return round_number, bool(signatories)
+
+
+def _signatory_snapshot(signatory):
+    return {
+        "assignment_id": signatory.pk,
+        "release_id": signatory.release_id,
+        "role_code": signatory.role_code,
+        "display_name": signatory.display_name,
+        "position_title": signatory.position_title,
+        "acting": signatory.acting,
+    }
 
 
 @transaction.atomic
@@ -255,7 +272,144 @@ def record_signature_return(*, case, task, actor, note, expected_version, idempo
         case.save(update_fields=("state_version", "updated_at"))
         _event(case, actor, "wet_signature_returned", case.current_stage, note, {"role_code": task.role_code}, idempotency_key)
         return case
+    amendment = case.nonfinancial_amendments.filter(
+        status=VoucherNonFinancialAmendment.AWAITING_SIGNATURES,
+        signature_round_number=task.round_number,
+    ).first()
+    if amendment:
+        amendment.status = VoucherNonFinancialAmendment.COMPLETED
+        amendment.completed_at = timezone.now()
+        amendment.save(update_fields=("status", "completed_at"))
+        return _advance(
+            case,
+            actor,
+            amendment.resume_stage,
+            "nonfinancial_amendment_signatures_completed",
+            idempotency_key,
+            note,
+            {"amendment_id": amendment.pk, "amendment_version": amendment.version},
+        )
     return _advance(case, actor, VoucherCase.ACCOUNTING_VALIDATION, "wet_signatures_completed", idempotency_key, note)
+
+
+@transaction.atomic
+def amend_nonfinancial_voucher(*, case, actor, voucher_date, signatories, reason, expected_version, idempotency_key):
+    """Change only the DV date/signatory evidence before any check has been issued."""
+    _require(actor, "vouchers.amend_nonfinancial_voucher")
+    case, existing = _locked(case, expected_version, idempotency_key)
+    if existing:
+        return case.nonfinancial_amendments.get(pk=existing.metadata["amendment_id"])
+    allowed_stages = {
+        VoucherCase.AWAITING_SIGNATURES,
+        VoucherCase.ACCOUNTING_VALIDATION,
+        VoucherCase.ACCOUNTING_POSTING,
+        VoucherCase.TREASURY_CHECK_PREPARATION,
+    }
+    if case.current_stage not in allowed_stages or not hasattr(case, "disbursement_voucher"):
+        raise VoucherWorkflowError("This voucher is not at a stage where non-financial details can be amended.")
+    if case.payment_instruments.exists():
+        raise VoucherWorkflowError("A check has already been issued for this voucher. Its date and signatory evidence can no longer be amended here.")
+    if case.nonfinancial_amendments.filter(status=VoucherNonFinancialAmendment.AWAITING_SIGNATURES).exists():
+        raise VoucherWorkflowError("Complete the current replacement signature round before starting another amendment.")
+    reason = reason.strip()
+    if not reason:
+        raise VoucherWorkflowError("Explain why the date or signatory assignment is being amended.")
+
+    selected_ids = [item.pk for item in signatories]
+    if not selected_ids:
+        raise VoucherWorkflowError("Choose the approved signatories for the replacement signature round.")
+    department_id = case.configuration_release.department_id
+    approved_signatories = list(
+        FinanceSignatory.objects.filter(
+            pk__in=selected_ids,
+            department_id=department_id,
+            status="active",
+            valid_from__lte=voucher_date,
+        ).filter(Q(valid_to__isnull=True) | Q(valid_to__gte=voucher_date)).order_by("role_code", "display_name", "pk")
+    )
+    if {item.pk for item in approved_signatories} != set(selected_ids):
+        raise VoucherWorkflowError("Choose only active, approved signatories valid on the revised voucher date.")
+    selected_roles = [item.role_code for item in approved_signatories]
+    if len(selected_roles) != len(set(selected_roles)):
+        raise VoucherWorkflowError("Choose exactly one approved person for each signature role.")
+
+    latest_round = case.signature_tasks.order_by("-round_number").values_list("round_number", flat=True).first()
+    old_tasks = list(case.signature_tasks.filter(round_number=latest_round).order_by("sequence", "pk")) if latest_round else []
+    required_roles = {task.role_code for task in old_tasks}
+    if required_roles and set(selected_roles) != required_roles:
+        raise VoucherWorkflowError("Keep every required signature role and choose exactly one approved person for each.")
+    old_signatories = [
+        {
+            "role_code": task.role_code,
+            "display_name": task.signatory_name_snapshot,
+            "position_title": task.position_snapshot,
+            "status": task.status,
+            "round_number": task.round_number,
+        }
+        for task in old_tasks
+    ]
+    new_signatories = [_signatory_snapshot(item) for item in approved_signatories]
+    voucher = case.disbursement_voucher
+    if voucher.voucher_date == voucher_date and [
+        (item["role_code"], item["display_name"], item["position_title"])
+        for item in old_signatories
+    ] == [
+        (item["role_code"], item["display_name"], item["position_title"])
+        for item in new_signatories
+    ]:
+        raise VoucherWorkflowError("Change the voucher date or at least one signatory before saving the amendment.")
+
+    financial_snapshot = {
+        "gross_amount": str(voucher.gross_amount),
+        "total_deductions": str(voucher.total_deductions),
+        "net_amount": str(voucher.net_amount),
+        "certified_amount": str(case.obligation.certified_amount),
+    }
+    prior_stage = case.current_stage
+    resume_stage = VoucherCase.ACCOUNTING_VALIDATION if prior_stage == VoucherCase.AWAITING_SIGNATURES else prior_stage
+    case.signature_tasks.filter(status=WetSignatureTask.PENDING).update(
+        status=WetSignatureTask.DECLINED,
+        note="Superseded by a non-financial date/signatory amendment.",
+    )
+    signature_round, has_signatories = _create_signature_round_from_signatories(case, approved_signatories)
+    if not has_signatories:
+        raise VoucherWorkflowError("At least one approved signatory is required.")
+    old_date = voucher.voucher_date
+    voucher.voucher_date = voucher_date
+    voucher.save(update_fields=("voucher_date",))
+    case.outputs.exclude(status=VoucherOutput.SUPERSEDED).update(status=VoucherOutput.SUPERSEDED)
+    version = (case.nonfinancial_amendments.aggregate(value=Max("version"))["value"] or 0) + 1
+    amendment = VoucherNonFinancialAmendment.objects.create(
+        case=case,
+        version=version,
+        prior_stage=prior_stage,
+        resume_stage=resume_stage,
+        signature_round_number=signature_round,
+        old_voucher_date=old_date,
+        new_voucher_date=voucher_date,
+        old_signatories=old_signatories,
+        new_signatories=new_signatories,
+        financial_snapshot=financial_snapshot,
+        reason=reason,
+        amended_by=actor,
+    )
+    _advance(
+        case,
+        actor,
+        VoucherCase.AWAITING_SIGNATURES,
+        "voucher_nonfinancial_amended",
+        idempotency_key,
+        reason,
+        {
+            "amendment_id": amendment.pk,
+            "amendment_version": amendment.version,
+            "old_voucher_date": old_date.isoformat(),
+            "new_voucher_date": voucher_date.isoformat(),
+            "financial_snapshot": financial_snapshot,
+            "resume_stage": resume_stage,
+        },
+    )
+    return amendment
 
 
 def _approved_override(case, action_code, actor):
@@ -527,6 +681,13 @@ def generate_shadow_dv(*, case, actor, idempotency_key):
     except FinanceTemplateError as exc:
         raise VoucherWorkflowError(str(exc)) from exc
     voucher = case.disbursement_voucher
+    latest_signature_round = case.signature_tasks.order_by("-round_number").values_list("round_number", flat=True).first()
+    signature_tasks = list(
+        case.signature_tasks.filter(round_number=latest_signature_round).order_by("sequence", "pk")
+    ) if latest_signature_round else []
+    approval_task = next((task for task in signature_tasks if task.role_code == "department-head"), None)
+    if approval_task is None and signature_tasks:
+        approval_task = signature_tasks[-1]
     values = {
         "GRAND_DV_NUMBER": voucher.dv_number,
         "GRAND_DV_DATE": voucher.voucher_date,
@@ -537,7 +698,7 @@ def generate_shadow_dv(*, case, actor, idempotency_key):
         "GRAND_NET_AMOUNT": voucher.net_amount,
         "GRAND_PREPARED_BY": voucher.prepared_by.get_full_name() or voucher.prepared_by.username,
         "GRAND_CERTIFIED_BY": case.obligation.certified_by.get_full_name() or case.obligation.certified_by.username,
-        "GRAND_APPROVED_BY": "WET SIGNATURE — VERIFY ORIGINAL",
+        "GRAND_APPROVED_BY": approval_task.signatory_name_snapshot if approval_task else "WET SIGNATURE — VERIFY ORIGINAL",
     }
     for name, value in values.items():
         sheet, coordinate = _destination(workbook, name)
@@ -566,6 +727,15 @@ def generate_shadow_dv(*, case, actor, idempotency_key):
         "obr_number": case.obligation.obr_number, "dv_number": voucher.dv_number,
         "gross_amount": str(voucher.gross_amount), "deductions": str(voucher.total_deductions),
         "net_amount": str(voucher.net_amount), "template_checksum": template.workbook_checksum,
+        "signature_round": latest_signature_round,
+        "signatories": [
+            {
+                "role_code": task.role_code,
+                "display_name": task.signatory_name_snapshot,
+                "position_title": task.position_snapshot,
+            }
+            for task in signature_tasks
+        ],
     }
     output = VoucherOutput(
         case=case, output_type="disbursement-voucher", version=version, template=template,

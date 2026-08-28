@@ -3,7 +3,7 @@ from django.contrib import admin
 from .models import (
     AccountingValidation, BankAdviceBatch, BankAdviceItem, BudgetAllocationLine,
     BudgetObligation, ControlOverride, DisbursementVoucher, PaymentInstrument,
-    VoucherCase, VoucherDeduction, VoucherDocumentCheck, VoucherEvent,
+    VoucherCase, VoucherDeduction, VoucherDocumentCheck, VoucherEvent, VoucherNonFinancialAmendment,
     VoucherLineItem, VoucherNumberIssue, VoucherOutput, VoucherTask, WetSignatureTask,
 )
 
@@ -31,6 +31,21 @@ class VoucherCaseAdmin(admin.ModelAdmin):
 class VoucherEventAdmin(admin.ModelAdmin):
     list_display = ("created_at", "case", "action", "actor", "from_stage", "to_stage", "state_version")
     readonly_fields = tuple(field.name for field in VoucherEvent._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(VoucherNonFinancialAmendment)
+class VoucherNonFinancialAmendmentAdmin(admin.ModelAdmin):
+    list_display = ("case", "version", "old_voucher_date", "new_voucher_date", "status", "amended_by", "amended_at")
+    readonly_fields = tuple(field.name for field in VoucherNonFinancialAmendment._meta.fields)
 
     def has_add_permission(self, request):
         return False

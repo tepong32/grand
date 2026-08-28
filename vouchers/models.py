@@ -82,6 +82,7 @@ class VoucherCase(models.Model):
             ("release_payment_instruments", "Can release checks and payment instruments"),
             ("manage_payment_exceptions", "Can cancel and replace payment instruments"),
             ("return_voucher_case", "Can return a voucher case for correction"),
+            ("amend_nonfinancial_voucher", "Can amend voucher dates and signatories before check issuance"),
             ("view_voucher_audit", "Can view voucher audit history"),
             ("approve_control_overrides", "Can approve voucher control overrides"),
         )
@@ -200,6 +201,49 @@ class AccountingValidation(models.Model):
     note = models.TextField(blank=True)
     validated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="accounting_validations")
     validated_at = models.DateTimeField()
+
+
+class VoucherNonFinancialAmendment(models.Model):
+    AWAITING_SIGNATURES = "awaiting_signatures"
+    COMPLETED = "completed"
+    STATUS_CHOICES = (
+        (AWAITING_SIGNATURES, "Awaiting replacement signatures"),
+        (COMPLETED, "Completed"),
+    )
+
+    case = models.ForeignKey(VoucherCase, on_delete=models.PROTECT, related_name="nonfinancial_amendments")
+    version = models.PositiveSmallIntegerField()
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=AWAITING_SIGNATURES)
+    prior_stage = models.CharField(max_length=40, choices=VoucherCase.STAGE_CHOICES)
+    resume_stage = models.CharField(max_length=40, choices=VoucherCase.STAGE_CHOICES)
+    signature_round_number = models.PositiveSmallIntegerField()
+    old_voucher_date = models.DateField()
+    new_voucher_date = models.DateField()
+    old_signatories = models.JSONField(default=list)
+    new_signatories = models.JSONField(default=list)
+    financial_snapshot = models.JSONField(default=dict)
+    reason = models.TextField()
+    amended_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="voucher_nonfinancial_amendments")
+    amended_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-version", "-pk")
+        constraints = (
+            models.UniqueConstraint(fields=("case", "version"), name="unique_voucher_nonfinancial_amendment_version"),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            immutable = (
+                "case_id", "version", "prior_stage", "resume_stage", "signature_round_number",
+                "old_voucher_date", "new_voucher_date", "old_signatories", "new_signatories",
+                "financial_snapshot", "reason", "amended_by_id", "amended_at",
+            )
+            if any(getattr(prior, field) != getattr(self, field) for field in immutable):
+                raise ValidationError("Non-financial amendment evidence is immutable.")
+        return super().save(*args, **kwargs)
 
 
 class VoucherPostingRequest(models.Model):

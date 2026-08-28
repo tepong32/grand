@@ -16,6 +16,7 @@ ACTION_PERMISSIONS = (
     "vouchers.release_payment_instruments",
     "vouchers.manage_payment_exceptions",
     "vouchers.return_voucher_case",
+    "vouchers.amend_nonfinancial_voucher",
     "vouchers.approve_control_overrides",
 )
 

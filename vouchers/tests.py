@@ -26,10 +26,13 @@ from records.services import RecordWorkflowError, source_department
 from tracepoint.models import PacketItem, TrackedPacket
 
 from .access import can_view_workbench
-from .models import PaymentInstrument, VoucherCase, VoucherEvent, VoucherNumberIssue, VoucherPostingRequest
+from .models import (
+    PaymentInstrument, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
+    VoucherNumberIssue, VoucherPostingRequest,
+)
 from .posting import materialize_voucher_journal, reconcile_posted_voucher_entry
 from .services import (
-    approve_override, cancel_check, certify_budget, create_budget_case,
+    amend_nonfinancial_voucher, approve_override, cancel_check, certify_budget, create_budget_case,
     finalize_bank_advice, generate_shadow_dv, issue_check, link_tracepoint_item, prepare_voucher, record_signature_return,
     release_check, request_override, return_case, submit_checks_for_advice,
     validate_accounting,
@@ -59,7 +62,7 @@ class VoucherWorkflowTests(TestCase):
         cls.requesting = Department.objects.create(name="General Services Office", slug="voucher-gso")
 
         cls.budget_user = cls.employee("budget.clerk", cls.budget, "view_voucher_workbench", "initiate_budget_case", "certify_budget_obligation", "return_voucher_case", "view_voucher_audit")
-        cls.preparer = cls.employee("accounting.preparer", cls.accounting, "view_voucher_workbench", "prepare_disbursement_voucher", "track_wet_signatures", "link_tracepoint_custody", "validate_accounting_voucher", "finalize_bank_advice", "return_voucher_case", "view_voucher_audit")
+        cls.preparer = cls.employee("accounting.preparer", cls.accounting, "view_voucher_workbench", "prepare_disbursement_voucher", "amend_nonfinancial_voucher", "track_wet_signatures", "link_tracepoint_custody", "validate_accounting_voucher", "finalize_bank_advice", "return_voucher_case", "view_voucher_audit")
         cls.validator = cls.employee("accounting.validator", cls.accounting, "view_voucher_workbench", "validate_accounting_voucher", "finalize_bank_advice", "approve_control_overrides", "return_voucher_case", "view_voucher_audit")
         cls.treasury_user = cls.employee("treasury.cashier", cls.treasury, "view_voucher_workbench", "issue_payment_instruments", "release_payment_instruments", "manage_payment_exceptions", "return_voucher_case", "view_voucher_audit")
         cls.outsider = cls.employee("mpdo.viewer", cls.requesting)
@@ -401,6 +404,129 @@ class VoucherWorkflowTests(TestCase):
             replaces=check, expected_version=case.state_version, idempotency_key="replacement-check",
         )
         self.assertEqual(replacement.replaces, check)
+
+    def test_date_and_signatory_amendment_keeps_amounts_and_posted_jev_before_check(self):
+        case = self.ready_for_treasury()
+        original_output = generate_shadow_dv(
+            case=case,
+            actor=self.preparer,
+            idempotency_key="nonfinancial-original-output",
+        )
+        case.refresh_from_db()
+        self.client.force_login(self.preparer)
+        self.assertContains(
+            self.client.get(reverse("vouchers:case_detail", args=(case.public_id,))),
+            "Correct DV date / signatories",
+        )
+        voucher = case.disbursement_voucher
+        original_voucher_id = voucher.pk
+        original_dv_number = voucher.dv_number
+        original_amounts = (voucher.gross_amount, voucher.total_deductions, voucher.net_amount)
+        posting_request = case.posting_requests.get(status=VoucherPostingRequest.POSTED)
+        entry = JournalEntry.objects.get(public_id=posting_request.accounting_entry_public_id)
+        original_entry_snapshot = entry.source_snapshot.copy()
+        municipal_accountant = FinanceSignatory.objects.get(
+            department=self.accounting,
+            release=self.release,
+            role_code="municipal-accountant",
+            display_name="Synthetic Municipal Accountant",
+        )
+        acting_head = FinanceSignatory.objects.create(
+            department=self.accounting,
+            release=self.release,
+            role_code="department-head",
+            display_name="Synthetic Acting Department Head",
+            position_title="Acting Department Head",
+            acting=True,
+            valid_from=date(2026, 8, 26),
+            status="active",
+            created_by=self.preparer,
+        )
+
+        amendment = amend_nonfinancial_voucher(
+            case=case,
+            actor=self.preparer,
+            voucher_date=date(2026, 8, 26),
+            signatories=[acting_head, municipal_accountant],
+            reason="Acting department head designated for the revised document date",
+            expected_version=case.state_version,
+            idempotency_key="nonfinancial-amendment",
+        )
+        case.refresh_from_db()
+        voucher.refresh_from_db()
+        entry.refresh_from_db()
+        posting_request.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.AWAITING_SIGNATURES)
+        self.assertEqual(voucher.pk, original_voucher_id)
+        self.assertEqual(voucher.dv_number, original_dv_number)
+        self.assertEqual((voucher.gross_amount, voucher.total_deductions, voucher.net_amount), original_amounts)
+        self.assertEqual(voucher.voucher_date, date(2026, 8, 26))
+        self.assertEqual(entry.status, JournalEntry.POSTED)
+        self.assertEqual(entry.source_snapshot, original_entry_snapshot)
+        self.assertEqual(posting_request.status, VoucherPostingRequest.POSTED)
+        self.assertEqual(amendment.financial_snapshot["net_amount"], "900.00")
+        original_output.refresh_from_db()
+        self.assertEqual(original_output.status, "superseded")
+        self.assertEqual(
+            case.signature_tasks.filter(round_number=amendment.signature_round_number).count(),
+            2,
+        )
+
+        replacement_output = generate_shadow_dv(
+            case=case,
+            actor=self.preparer,
+            idempotency_key="nonfinancial-replacement-output",
+        )
+        self.assertEqual(replacement_output.version, original_output.version + 1)
+        self.assertEqual(replacement_output.input_snapshot["signature_round"], amendment.signature_round_number)
+        self.assertIn(
+            "Synthetic Acting Department Head",
+            [item["display_name"] for item in replacement_output.input_snapshot["signatories"]],
+        )
+        case.refresh_from_db()
+
+        for index, task in enumerate(
+            case.signature_tasks.filter(round_number=amendment.signature_round_number).order_by("sequence"),
+            start=1,
+        ):
+            case.refresh_from_db()
+            record_signature_return(
+                case=case,
+                task=task,
+                actor=self.preparer,
+                note="Replacement wet signature returned",
+                expected_version=case.state_version,
+                idempotency_key=f"amendment-signature-{index}",
+            )
+        case.refresh_from_db()
+        amendment.refresh_from_db()
+        self.assertEqual(amendment.status, VoucherNonFinancialAmendment.COMPLETED)
+        self.assertEqual(case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
+
+        issue_check(
+            case=case,
+            actor=self.treasury_user,
+            bank_account_code="gf-lbp",
+            check_number="000250",
+            amount=Decimal("900.00"),
+            expected_version=case.state_version,
+            idempotency_key="amendment-check-issued",
+        )
+        case.refresh_from_db()
+        self.assertNotContains(
+            self.client.get(reverse("vouchers:case_detail", args=(case.public_id,))),
+            "Correct DV date / signatories",
+        )
+        with self.assertRaisesMessage(ValidationError, "check has already been issued"):
+            amend_nonfinancial_voucher(
+                case=case,
+                actor=self.preparer,
+                voucher_date=date(2026, 8, 27),
+                signatories=[acting_head, municipal_accountant],
+                reason="Attempted amendment after check issuance",
+                expected_version=case.state_version,
+                idempotency_key="amendment-after-check-denied",
+            )
 
     def test_accounting_correction_keeps_dv_number_and_creates_new_signature_round(self):
         case = self.create_case("correction-create")
