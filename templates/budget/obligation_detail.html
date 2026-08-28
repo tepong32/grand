@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title_ext %} - Obligation {{ obligation }}{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a href="{% url 'budget:obligation_workspace' %}" class="small">&larr; Obligation control and RAAO</a>
+  <div class="d-flex flex-column flex-lg-row justify-content-between mt-2 mb-3">
+    <div><p class="text-uppercase text-muted small mb-1">{{ obligation.get_form_type_display }} · {{ obligation.get_kind_display }}</p><h1>{{ obligation.obligation_number|default:obligation.request_reference }}</h1><p class="text-muted">{{ obligation.requesting_department_label }} · FY {{ obligation.fiscal_year.year }}</p></div>
+    <div>{% if can_edit and obligation.status == 'draft' or can_edit and obligation.status == 'returned' %}<a class="btn btn-outline-secondary" href="{% url 'budget:obligation_edit' obligation.public_id %}">Edit request</a><a class="btn btn-primary" href="{% url 'budget:obligation_line_create' obligation.public_id %}">Add schedule line</a>{% endif %}</div>
+  </div>
+  <div class="alert {% if obligation.status == 'certified' %}alert-success{% else %}alert-warning{% endif %}"><strong>{{ obligation.get_status_display }}.</strong> Signed/computed/difference: {{ obligation.signed_control_total|floatformat:2 }} / {{ obligation.computed_effect_total|floatformat:2 }} / {{ obligation.control_difference|floatformat:2 }}. {% if obligation.status == 'certified' %}The registry movements are immutable.{% else %}No obligation balance changes until Budget certification.{% endif %}</div>
+  {% if downstream_boundary %}<div class="alert alert-danger"><strong>Later issuance boundary reached:</strong> a linked {{ downstream_boundary }} exists. Do not create an obligation-only rewrite; use the coordinated voucher/payment correction route.</div>{% endif %}
+  <div class="row">
+    <div class="col-xl-8"><div class="card mb-3"><div class="card-body"><dl class="row mb-0">
+      <dt class="col-sm-4">Request reference</dt><dd class="col-sm-8">{{ obligation.request_reference }}</dd>
+      <dt class="col-sm-4">Obligation number</dt><dd class="col-sm-8">{{ obligation.obligation_number|default:"Assigned by Budget at certification" }}</dd>
+      <dt class="col-sm-4">Authority</dt><dd class="col-sm-8"><a href="{% url 'budget:authorization_detail' obligation.authorization.public_id %}">{{ obligation.authorization.ordinance_number }}</a></dd>
+      <dt class="col-sm-4">Date / claimant or payee</dt><dd class="col-sm-8">{{ obligation.obligation_date }} · {{ obligation.claimant_payee }}</dd>
+      <dt class="col-sm-4">Particulars</dt><dd class="col-sm-8">{{ obligation.particulars|linebreaksbr }}</dd>
+      <dt class="col-sm-4">Evidence reference</dt><dd class="col-sm-8">{{ obligation.evidence_reference|linebreaksbr }}</dd>
+      <dt class="col-sm-4">Correction lineage</dt><dd class="col-sm-8">{% if obligation.corrects %}<a href="{% url 'budget:obligation_detail' obligation.corrects.public_id %}">Corrects {{ obligation.corrects }}</a>{% else %}Original request{% endif %}</dd>
+      <dt class="col-sm-4">Snapshot checksum</dt><dd class="col-sm-8"><code>{{ obligation.snapshot_checksum|default:"Created only at certification" }}</code></dd>
+    </dl></div></div></div>
+    <div class="col-xl-4"><div class="card mb-3"><div class="card-header"><h2 class="card-title font-weight-bold">Controlled action</h2></div><div class="card-body">
+      {% if can_edit and obligation.status == 'draft' or can_edit and obligation.status == 'returned' %}<form method="post" action="{% url 'budget:obligation_action' obligation.public_id 'submit' %}">{% csrf_token %}<button class="btn btn-primary btn-block">Submit to Budget</button></form>{% endif %}
+      {% if can_certify and obligation.status == 'for_certification' %}<form method="post" action="{% url 'budget:obligation_action' obligation.public_id 'certify' %}">{% csrf_token %}<input name="obligation_number" required class="form-control mb-2" placeholder="Controlled ALOBS/ORS/OBR number"><textarea name="reason" required class="form-control mb-2" placeholder="Budget authority, classification, and balance-review basis"></textarea><button class="btn btn-success btn-block">Certify and post obligation</button></form><hr><form method="post" action="{% url 'budget:obligation_action' obligation.public_id 'return' %}">{% csrf_token %}<textarea name="reason" required class="form-control mb-2" placeholder="Specific guided correction reason"></textarea><button class="btn btn-outline-danger btn-block">Return to requesting office</button></form>{% endif %}
+      {% if obligation.status == 'certified' %}<p class="small text-muted mb-0">Create a linked adjustment, return, or cancellation to change the certified balance while no DV/check has been issued. Certified rows are never edited.</p>{% endif %}
+    </div></div></div>
+  </div>
+  <div class="card card-outline card-primary"><div class="card-header"><h2 class="card-title font-weight-bold">Authoritative obligation schedule</h2></div><div class="table-responsive"><table class="table table-sm table-hover mb-0">
+    <thead><tr><th>Appropriation line</th><th>Movement</th><th class="text-right">Effect</th><th class="text-right">Released</th><th class="text-right">Held</th><th class="text-right">Executable</th><th class="text-right">Obligated</th><th class="text-right">Unobligated</th>{% if can_edit and obligation.status == 'draft' or can_edit and obligation.status == 'returned' %}<th>Draft actions</th>{% endif %}</tr></thead>
+    <tbody>{% for row in line_rows %}<tr><td>{{ row.line.appropriation_line }}<div class="small text-muted">{{ row.line.remarks|default:"No line remarks" }}</div></td><td>{{ row.line.get_movement_type_display }}</td><td class="text-right">{{ row.line.effect|floatformat:2 }}</td><td class="text-right">{{ row.balance.released|floatformat:2 }}</td><td class="text-right">{{ row.balance.held|floatformat:2 }}</td><td class="text-right">{{ row.balance.executable|floatformat:2 }}</td><td class="text-right">{{ row.balance.obligated|floatformat:2 }}</td><td class="text-right">{{ row.balance.unobligated|floatformat:2 }}</td>{% if can_edit and obligation.status == 'draft' or can_edit and obligation.status == 'returned' %}<td><a class="btn btn-sm btn-outline-secondary" href="{% url 'budget:obligation_line_edit' obligation.public_id row.line.pk %}">Correct</a><form method="post" action="{% url 'budget:obligation_line_delete' obligation.public_id row.line.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Remove</button></form></td>{% endif %}</tr>{% empty %}<tr><td colspan="9" class="text-center text-muted py-4">No obligation schedule line yet.</td></tr>{% endfor %}</tbody>
+  </table></div></div>
+</div>
+{% endblock %}

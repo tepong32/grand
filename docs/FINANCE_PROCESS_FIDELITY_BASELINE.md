@@ -10,7 +10,7 @@ This is the comparison starting point before full LGU field evidence is collecte
 | 2 | Executive budget, Sanggunian authorization, appropriation ordinance, and review | LCE, Sanggunian, Budget, reviewing authority | F3.2 authority lineage and immutable schedules implemented | **Implemented, acceptance pending.** Reconcile annual/supplemental/reenacted forms, review results, conditions, and signed control totals. |
 | 3 | Fiscal-year opening, approved appropriations, continuing items, and opening balances | Budget and Accounting | F2.1–F2.2 fiscal/opening controls and F3.2 appropriations implemented | **Implemented, acceptance pending.** Reconcile approved schedules and opening balances to source books/system. |
 | 4 | Allotment Release Orders, reserves, deferrals, and adjustments | Budget Officer and LCE/authorized approver | F4.1 immutable movement and balance control implemented | **Implemented, acceptance pending.** Confirm applicable ARO/equivalent forms, release authority, numbering, classifications, signatures, and signed balances. |
-| 5 | ALOBS/ORS/OBR and RAAO/equivalent obligation registry | Requesting office and Budget | Pilot OBR certification exists without authoritative balance engine | **Partial prototype.** Confirm preparer/certifier, exact form, registry, concurrency, rejection, cancellation, and adjustment behavior. |
+| 5 | ALOBS/ORS/OBR and RAAO/equivalent obligation registry | Requesting office and Budget | F4.2 authoritative request, certification, immutable movement, and balance control implemented | **Implemented, acceptance pending.** Confirm preparer/certifier, exact form/number/signatures, registry columns, return/rejection, period, cancellation, adjustment, and signed control totals. |
 | 6 | Request, procurement/delivery, acceptance, and payable readiness | Requesting office, procurement/inspection, Accounting | Case fields and document checklist exist; transaction variants and upstream integrations do not | **Partial.** Replay one ordinary supplier and each later transaction variant from source evidence. |
 | 7 | Accounting DV preparation | Accounting preparer | Implemented shadow route | Exact fields, document checks, tax/deduction rules, number timing, obligation adjustment, and maker responsibilities remain LGU-unverified. |
 | 8 | Controlled official print and packet assembly | Accounting/authorized print custodian | Immutable shadow XLSX exists; print is not an explicit state/action | **Confirmed voucher-subcycle divergence.** Confirm printer/form control, official-number point, copy count, packet manifest, reprint, and supersession. |
@@ -32,11 +32,11 @@ Approved annual budget -> appropriation -> allotment release
 
 GRAND today
 Fiscal/opening control -> annual budget -> authorized appropriation
--> posted allotment movement -> pilot OBR certification without authoritative obligation linkage
+-> posted allotment movement -> authoritative obligation certification and registry movement
 -> DV
 ```
 
-GRAND now supports synthetic training for annual budget, appropriation, and allotment controls, but it cannot represent those steps as locally accepted official operation until signed schedules/forms reconcile and process owners approve them. Authoritative obligation control remains unimplemented until F4.2.
+GRAND now supports synthetic training for annual budget, appropriation, allotment, and obligation controls, but it cannot represent those steps as locally accepted official operation until signed schedules/forms reconcile and process owners approve them. The earliest unimplemented complete-cycle link is F5 request/procurement/delivery/payable intake and authoritative connection from the obligation UUID to the shared voucher case.
 
 Within the narrower implemented voucher subcycle, the earliest confirmed mismatch remains printing and physical custody:
 

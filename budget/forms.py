@@ -6,6 +6,7 @@ from departments.models import Department
 from .models import (
     AllotmentOrderLine, AllotmentReleaseOrder, AppropriationAuthorization,
     BudgetCall, BudgetCeiling, BudgetProposalLine, BudgetResourceEstimate, BudgetReviewComment, BudgetVersion,
+    ObligationRequest, ObligationRequestLine,
 )
 
 
@@ -195,4 +196,70 @@ class AllotmentOrderLineForm(forms.ModelForm):
         allowed = set(AllotmentOrderLine.ALLOWED_BY_ORDER.get(order.kind, ()))
         self.fields["movement_type"].choices = [
             choice for choice in AllotmentOrderLine.MOVEMENT_CHOICES if choice[0] in allowed
+        ]
+
+
+class ObligationRequestForm(forms.ModelForm):
+    class Meta:
+        model = ObligationRequest
+        fields = (
+            "authorization", "kind", "form_type", "request_reference", "obligation_date",
+            "claimant_payee", "particulars", "evidence_reference", "signed_control_total", "corrects",
+        )
+        widgets = {
+            "obligation_date": DateInput(), "particulars": forms.Textarea(attrs={"rows": 4}),
+            "evidence_reference": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def __init__(self, *args, requesting_department=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.requesting_department = requesting_department
+        current_authorization_id = self.instance.authorization_id if self.instance and self.instance.pk else None
+        authorizations = AppropriationAuthorization.objects.filter(
+            status=AppropriationAuthorization.AUTHORIZED,
+        ).select_related("version", "version__fiscal_year")
+        if current_authorization_id:
+            authorizations = authorizations.filter(pk=current_authorization_id)
+            self.fields["authorization"].disabled = True
+        self.fields["authorization"].queryset = authorizations
+        corrections = ObligationRequest.objects.filter(
+            requesting_department_id=requesting_department.pk, status=ObligationRequest.CERTIFIED,
+        ) if requesting_department else ObligationRequest.objects.none()
+        if self.instance and self.instance.pk:
+            corrections = corrections.exclude(pk=self.instance.pk)
+        self.fields["corrects"].queryset = corrections
+
+    def _post_clean(self):
+        authorization = self.cleaned_data.get("authorization")
+        if authorization:
+            self.instance.authorization = authorization
+            self.instance.fiscal_year = authorization.version.fiscal_year
+            self.instance.department_id = authorization.department_id
+            self.instance.department_label = authorization.department_label
+        if self.requesting_department:
+            self.instance.requesting_department_id = self.requesting_department.pk
+            self.instance.requesting_department_label = self.requesting_department.name
+        super()._post_clean()
+
+
+class ObligationRequestLineForm(forms.ModelForm):
+    class Meta:
+        model = ObligationRequestLine
+        fields = ("appropriation_line", "movement_type", "amount", "remarks")
+        widgets = {"remarks": forms.Textarea(attrs={"rows": 2})}
+
+    def __init__(self, *args, request_item=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.request_item = request_item
+        self.instance.request = request_item
+        self.instance.department_id = request_item.department_id
+        self.instance.department_label = request_item.department_label
+        self.fields["appropriation_line"].queryset = request_item.authorization.schedule_lines.all()
+        allowed = {ObligationRequestLine.OBLIGATE, ObligationRequestLine.REDUCE}
+        if request_item.kind == ObligationRequest.ORIGINAL:
+            allowed = {ObligationRequestLine.OBLIGATE}
+        elif request_item.kind in (ObligationRequest.RETURN, ObligationRequest.CANCELLATION):
+            allowed = {ObligationRequestLine.REDUCE}
+        self.fields["movement_type"].choices = [
+            choice for choice in ObligationRequestLine.MOVEMENT_CHOICES if choice[0] in allowed
         ]

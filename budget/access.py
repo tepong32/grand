@@ -26,6 +26,7 @@ def can_view(user):
             "view_budget_workspace", "prepare_budget_calls", "approve_budget_calls",
             "prepare_budget_proposals", "review_budget_proposals", "authorize_appropriations",
             "view_allotment_control", "prepare_allotment_releases", "approve_allotment_releases",
+            "view_obligation_registry", "initiate_obligation_requests", "certify_obligations",
         ))
     )
 

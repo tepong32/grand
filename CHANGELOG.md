@@ -4,6 +4,12 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance obligation control and RAAO registry
+
+- Added F4.2 requesting-office ALOBS/ORS/OBR initiation with exact appropriation-line scheduling, Budget return/certification, controlled numbering, concurrency-safe unobligated-allotment validation, and immutable checksum-backed movements.
+- Added RAAO-equivalent appropriation/released/held/executable/obligated/unobligated views, PPA/account/office lineage, duplicate and excess controls, period protection, and safeguards preventing later allotment changes below certified obligations.
+- Added guided draft/returned modification, linked pre-DV/check adjustment/return/cancellation, post-issuance correction blocking, department-specific requester/Budget Internal How-Tos, and TraceSync-ready registry CSV archives.
+
 ### Finance allotment release control
 
 - Added F4.1 ARO/equivalent preparation for initial/later releases, reserves, deferrals, adjustments, returns, and cancellations against exact immutable authorized appropriation lines.

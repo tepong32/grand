@@ -13,6 +13,7 @@ from .models import (
     AllotmentMovement, AllotmentOrderLine, AllotmentReleaseOrder,
     AppropriationAuthorization, AuthorizedAppropriationLine, BudgetAuditEvent, BudgetCall,
     BudgetProposalLine, BudgetResourceEstimate, BudgetVersion, BudgetVersionSource,
+    ObligationMovement, ObligationRequest, ObligationRequestLine,
 )
 
 
@@ -326,6 +327,13 @@ def validate_allotment_order(order, *, lock_lines=False):
             raise ValidationError(f"{line.appropriation_line}: the order would lift more deferral than remains held.")
         if balance["executable"] < 0:
             raise ValidationError(f"{line.appropriation_line}: reserve or deferral would exceed released allotment.")
+        obligated = line.appropriation_line.obligation_movements.aggregate(
+            total=models.Sum("obligation_effect")
+        )["total"] or Decimal("0")
+        if balance["executable"] < obligated:
+            raise ValidationError(
+                f"{line.appropriation_line}: the allotment change would fall below already certified obligations."
+            )
     return lines, projected
 
 
@@ -393,3 +401,171 @@ def transition_allotment_order(order, action, user, reason=""):
         "movement_count": order.movements.count(),
     })
     return order
+
+
+def obligation_line_balance(appropriation_line, *, as_of=None):
+    allotment = allotment_line_balance(appropriation_line, as_of=as_of)
+    movements = appropriation_line.obligation_movements.all()
+    if as_of:
+        movements = movements.filter(effective_date__lte=as_of)
+    obligated = movements.aggregate(total=models.Sum("obligation_effect"))["total"] or Decimal("0")
+    return {
+        **allotment,
+        "obligated": obligated,
+        "unobligated": allotment["executable"] - obligated,
+    }
+
+
+def authorization_obligation_totals(authorization):
+    keys = (
+        "authorized", "released", "reserved", "deferred", "held", "unreleased",
+        "executable", "obligated", "unobligated",
+    )
+    totals = {key: Decimal("0") for key in keys}
+    for line in authorization.schedule_lines.all():
+        balance = obligation_line_balance(line)
+        for key in keys:
+            totals[key] += balance[key]
+    return totals
+
+
+def obligation_lineage_request_ids(request):
+    root, seen = request, set()
+    while root.corrects_id and root.pk not in seen:
+        seen.add(root.pk)
+        root = root.corrects
+    lineage, frontier = set(), [root.pk]
+    while frontier:
+        batch = [pk for pk in frontier if pk not in lineage]
+        if not batch:
+            break
+        lineage.update(batch)
+        frontier = list(ObligationRequest.objects.filter(
+            corrects_id__in=batch, status=ObligationRequest.CERTIFIED,
+        ).values_list("pk", flat=True))
+    return lineage
+
+
+def downstream_issuance_boundary(request):
+    """Return the first issued downstream artifact without making it a runtime dependency."""
+    from vouchers.models import DisbursementVoucher, PaymentInstrument
+    case_ids = list(ObligationRequest.objects.filter(
+        pk__in=obligation_lineage_request_ids(request), linked_voucher_case_public_id__isnull=False,
+    ).values_list("linked_voucher_case_public_id", flat=True))
+    if PaymentInstrument.objects.filter(case__public_id__in=case_ids).exclude(status=PaymentInstrument.DRAFT).exists():
+        return "check"
+    if DisbursementVoucher.objects.filter(case__public_id__in=case_ids).exists():
+        return "disbursement voucher"
+    return ""
+
+
+def validate_obligation_request(request, *, lock_lines=False):
+    request.full_clean()
+    if request.control_difference != Decimal("0"):
+        raise ValidationError("The signed obligation control total must equal the signed effect of the exact schedule.")
+    lines = list(request.lines.select_related("appropriation_line"))
+    if not lines:
+        raise ValidationError("Add at least one authorized appropriation line before submission.")
+    if request.kind != ObligationRequest.ORIGINAL:
+        boundary = downstream_issuance_boundary(request.corrects)
+        if boundary:
+            raise ValidationError(
+                f"The corrected obligation already has an issued {boundary}; use the later voucher/payment reversal or cancellation route."
+            )
+    line_ids = sorted({item.appropriation_line_id for item in lines})
+    queryset = AuthorizedAppropriationLine.objects.filter(pk__in=line_ids)
+    if lock_lines:
+        queryset = queryset.select_for_update()
+    locked = {item.pk: item for item in queryset}
+    projected = defaultdict(lambda: Decimal("0"))
+    for item in lines:
+        if item.appropriation_line_id not in locked:
+            raise ValidationError("An obligation line no longer resolves to its authorized appropriation.")
+        projected[item.appropriation_line_id] += item.effect
+    for line_id, effect in projected.items():
+        line = locked[line_id]
+        if request.kind != ObligationRequest.ORIGINAL and effect < Decimal("0"):
+            lineage_ids = obligation_lineage_request_ids(request.corrects)
+            lineage_effect = ObligationMovement.objects.filter(
+                request_id__in=lineage_ids, appropriation_line_id=line_id,
+            ).aggregate(total=models.Sum("obligation_effect"))["total"] or Decimal("0")
+            if lineage_effect + effect < Decimal("0"):
+                raise ValidationError(
+                    f"The reduction exceeds the remaining obligation in the linked correction lineage for {line}."
+                )
+        dated = obligation_line_balance(line, as_of=request.obligation_date)
+        current = obligation_line_balance(line)
+        for label, balance in (("effective-date", dated), ("current", current)):
+            resulting = balance["obligated"] + effect
+            if resulting < Decimal("0"):
+                raise ValidationError(f"The {label} obligation balance cannot be reduced below zero for {line}.")
+            if resulting > balance["executable"]:
+                raise ValidationError(f"The request exceeds the {label} unobligated allotment for {line}.")
+    return lines
+
+
+@transaction.atomic
+def transition_obligation_request(request, action, user, reason="", obligation_number=""):
+    request = ObligationRequest.objects.select_for_update().select_related(
+        "authorization", "authorization__version", "fiscal_year", "corrects"
+    ).get(pk=request.pk)
+    now, label = timezone.now(), actor_label(user)
+    actor_department = getattr(getattr(user, "employeeprofile", None), "assigned_department", None)
+    if action == "submit" and request.status in (ObligationRequest.DRAFT, ObligationRequest.RETURNED):
+        if not actor_department or actor_department.pk != request.requesting_department_id:
+            raise ValidationError("Only the recorded requesting office may submit this obligation request.")
+        validate_obligation_request(request)
+        request.status = ObligationRequest.FOR_CERTIFICATION
+        request.submitted_by_id, request.submitted_by_label, request.submitted_at = user.pk, label, now
+    elif action == "certify" and request.status == ObligationRequest.FOR_CERTIFICATION:
+        if not actor_department or actor_department.pk != request.department_id:
+            raise ValidationError("Only the owning Budget office may certify this obligation.")
+        if request.submitted_by_id == user.pk:
+            raise ValidationError("The requesting-office submitter cannot certify the same obligation.")
+        if not obligation_number.strip():
+            raise ValidationError("Assign the controlled ALOBS/ORS/OBR number at certification.")
+        if not reason.strip():
+            raise ValidationError("Record the Budget certification and balance-review basis.")
+        request.obligation_number = obligation_number.strip()
+        lines = validate_obligation_request(request, lock_lines=True)
+        if request.movements.exists():
+            raise ValidationError("Certified movements already exist; do not post this request twice.")
+        payload, movements = [], []
+        for line in lines:
+            item = {
+                "source_line_id": line.pk, "appropriation_line_id": line.appropriation_line_id,
+                "movement_type": line.movement_type, "amount": str(line.amount),
+                "obligation_effect": str(line.effect), "remarks": line.remarks,
+            }
+            payload.append(item)
+            movements.append(ObligationMovement(
+                department_id=request.department_id, department_label=request.department_label,
+                request=request, source_line_id=line.pk, appropriation_line=line.appropriation_line,
+                movement_type=line.movement_type, amount=line.amount, obligation_effect=line.effect,
+                effective_date=request.obligation_date, obligation_number_snapshot=request.obligation_number,
+                requesting_department_snapshot=request.requesting_department_label,
+                claimant_payee_snapshot=request.claimant_payee, particulars_snapshot=request.particulars,
+                remarks=line.remarks,
+            ))
+        ObligationMovement.objects.bulk_create(movements)
+        request.snapshot_checksum = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+        request.status = ObligationRequest.CERTIFIED
+        request.certified_by_id, request.certified_by_label, request.certified_at = user.pk, label, now
+        request.decision_reason = reason.strip()
+    elif action == "return" and request.status == ObligationRequest.FOR_CERTIFICATION:
+        if not actor_department or actor_department.pk != request.department_id:
+            raise ValidationError("Only the owning Budget office may return this obligation request.")
+        if not reason.strip():
+            raise ValidationError("Record a specific guided correction reason.")
+        request.status, request.decision_reason = ObligationRequest.RETURNED, reason.strip()
+    else:
+        raise ValidationError("That obligation transition is unavailable from the current state.")
+    request.state_version += 1
+    request.full_clean()
+    request.save()
+    record_event(request, f"obligation_{action}", user, reason, {
+        "request_reference": request.request_reference, "obligation_number": request.obligation_number,
+        "status": request.status, "signed_control_total": str(request.signed_control_total),
+        "snapshot_checksum": request.snapshot_checksum,
+    })
+    return request

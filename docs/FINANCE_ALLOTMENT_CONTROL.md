@@ -29,7 +29,7 @@ For each authorized appropriation line:
 
 Posting is rejected when released allotment would exceed the authorized appropriation or fall below zero, a reserve/deferral would exceed released allotment, or a release/lift would reduce held balances below zero. The posting transaction locks the affected authorized schedule rows so two reviewers cannot validly consume the same remaining balance in parallel.
 
-F4.1 intentionally does not subtract obligations yet. F4.2 will add authoritative ALOBS/ORS/OBR initiation and certification, then compute unobligated allotment from posted movements and obligation movements under the same locking boundary.
+F4.2 now subtracts certified obligation movements from executable allotment to produce unobligated balances. Allotment posting also refuses any later reserve, deferral, return, cancellation, or reduction that would push executable allotment below obligations already certified; see [Finance obligation control](FINANCE_OBLIGATION_CONTROL.md).
 
 ## Modification allowance
 
@@ -65,4 +65,4 @@ The adjacent manifest records SHA-256, size, exporting identity, department, and
 - posted order/movement mutation fails and linked corrections retain original history;
 - repeated posting cannot create duplicate movements;
 - CSV bytes and the TraceSync-ready archived artifact share the recorded checksum;
-- F4.2 does not begin official obligation use until accepted ALOBS/ORS/OBR and RAAO equivalents reconcile to signed references.
+- certified obligations constrain later allotment changes, and accepted ALOBS/ORS/OBR and RAAO equivalents must still reconcile to signed references before official use.

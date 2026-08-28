@@ -10,6 +10,7 @@
     </div>
     <div>
       <a class="btn btn-outline-secondary" href="{% url 'budget:workspace' %}">Annual budget</a>
+      <a class="btn btn-outline-success" href="{% url 'budget:obligation_workspace' %}">Obligation control / RAAO</a>
       {% if can_prepare %}<a class="btn btn-primary" href="{% url 'budget:allotment_create' %}">New release order</a>{% endif %}
     </div>
   </div>

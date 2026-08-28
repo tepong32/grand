@@ -1,23 +1,28 @@
 from datetime import date
 from decimal import Decimal
 import tempfile
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounting.models import FiscalYear, Fund, LedgerAccount, ProgramActivityProject, ResponsibilityCenter
 from departments.models import Department
+from departments.services.internal_howto_seed import seed_finance_internal_howtos
 
 from .models import (
     AllotmentMovement, AllotmentOrderLine, AllotmentReleaseOrder, AppropriationAuthorization,
     BudgetAuditEvent, BudgetCall, BudgetCeiling, BudgetProposalLine, BudgetVersion,
+    ObligationMovement, ObligationRequest, ObligationRequestLine,
 )
 from .services import (
     allotment_line_balance, authorization_allotment_totals, compare_versions, consolidate_versions,
-    transition_allotment_order, transition_authorization, transition_call, transition_version,
+    obligation_line_balance, transition_allotment_order, transition_authorization, transition_call,
+    transition_obligation_request, transition_version,
 )
 
 
@@ -31,9 +36,11 @@ class AnnualBudgetPreparationTests(TestCase):
         cls.requesting_office = Department.objects.create(name="General Services Office", slug="annual-gso")
         cls.other_office = Department.objects.create(name="Human Resources Office", slug="annual-hr")
         cls.preparer = cls.employee(cls.budget_office, "budget.preparer", "view_budget_workspace", "prepare_budget_calls", "prepare_budget_proposals", "view_allotment_control", "prepare_allotment_releases")
+        cls.certifier = cls.employee(cls.budget_office, "budget.certifier", "view_budget_workspace", "view_obligation_registry", "certify_obligations")
         cls.reviewer = cls.employee(cls.budget_office, "budget.reviewer", "view_budget_workspace", "approve_budget_calls", "review_budget_proposals", "view_budget_audit")
         cls.authorizer = cls.employee(cls.budget_office, "budget.authorizer", "view_budget_workspace", "authorize_appropriations", "view_budget_audit", "view_allotment_control", "approve_allotment_releases")
         cls.outsider = cls.employee(cls.other_office, "budget.outsider", "view_budget_workspace", "prepare_budget_proposals", "view_allotment_control", "prepare_allotment_releases")
+        cls.requester = cls.employee(cls.requesting_office, "gso.requester", "view_budget_workspace", "initiate_obligation_requests")
         owner = {"department_id": cls.accounting_office.pk, "department_label": cls.accounting_office.name}
         cls.fiscal_year = FiscalYear.objects.create(
             **owner, year=2027, label="FY 2027", starts_on=date(2027, 1, 1), ends_on=date(2027, 12, 31),
@@ -429,3 +436,177 @@ class AnnualBudgetPreparationTests(TestCase):
         order.save(update_fields=("signed_control_total",))
         transition_allotment_order(order, "submit", self.preparer)
         self.assertEqual(self.client.get(reverse("budget:allotment_line_edit", args=(order.public_id, line.pk))).status_code, 404)
+
+    def make_executable_authority(self, amount="75000.00", release="60000.00"):
+        authorization = self.make_authorized_appropriation(amount)
+        order = self.make_allotment_order(authorization, total=release)
+        self.add_allotment_line(order, release)
+        transition_allotment_order(order, "submit", self.preparer)
+        transition_allotment_order(order, "post", self.authorizer, "Independent synthetic release review.")
+        return authorization
+
+    def make_obligation_request(self, authorization, *, reference="GSO-REQ-001", total="10000.00", kind=ObligationRequest.ORIGINAL, corrects=None):
+        return ObligationRequest.objects.create(
+            department_id=self.budget_office.pk, department_label=self.budget_office.name,
+            authorization=authorization, fiscal_year=self.fiscal_year,
+            requesting_department_id=self.requesting_office.pk,
+            requesting_department_label=self.requesting_office.name,
+            kind=kind, form_type=ObligationRequest.OBR, request_reference=reference,
+            obligation_date=date(2027, 1, 15), claimant_payee="Synthetic Office Supplier",
+            particulars="Synthetic accountable office supply obligation.",
+            evidence_reference="Synthetic request and support references.",
+            signed_control_total=Decimal(total), corrects=corrects,
+            created_by_id=self.requester.pk, created_by_label=self.requester.username,
+        )
+
+    def add_obligation_line(self, request, amount="10000.00", movement=ObligationRequestLine.OBLIGATE):
+        return ObligationRequestLine.objects.create(
+            department_id=self.budget_office.pk, department_label=self.budget_office.name,
+            request=request, appropriation_line=request.authorization.schedule_lines.get(),
+            movement_type=movement, amount=Decimal(amount), remarks="Synthetic obligation schedule line.",
+        )
+
+    def test_requesting_office_submits_and_budget_certifies_exact_obligation_once(self):
+        authorization = self.make_executable_authority()
+        item = self.make_obligation_request(authorization)
+        source = self.add_obligation_line(item)
+        item = transition_obligation_request(item, "submit", self.requester)
+        self.assertEqual(item.status, ObligationRequest.FOR_CERTIFICATION)
+        with self.assertRaisesMessage(ValidationError, "owning Budget office"):
+            transition_obligation_request(item, "certify", self.requester, "Self certification", "OBR-2027-0001")
+        item = transition_obligation_request(
+            item, "certify", self.certifier, "Matched authority, classification, support, and unobligated allotment.", "OBR-2027-0001",
+        )
+        self.assertEqual(item.status, ObligationRequest.CERTIFIED)
+        self.assertEqual(len(item.snapshot_checksum), 64)
+        movement = item.movements.get()
+        self.assertEqual((movement.source_line_id, movement.obligation_effect), (source.pk, Decimal("10000")))
+        balance = obligation_line_balance(authorization.schedule_lines.get())
+        self.assertEqual((balance["executable"], balance["obligated"], balance["unobligated"]), (
+            Decimal("60000"), Decimal("10000"), Decimal("50000"),
+        ))
+        with self.assertRaisesMessage(ValidationError, "unavailable"):
+            transition_obligation_request(item, "certify", self.certifier, "Duplicate", "OBR-2027-0001")
+
+    def test_obligation_rejects_control_difference_excess_and_duplicate_request(self):
+        authorization = self.make_executable_authority(release="12000.00")
+        mismatch = self.make_obligation_request(authorization, reference="GSO-MISMATCH", total="9000")
+        self.add_obligation_line(mismatch, "10000")
+        with self.assertRaisesMessage(ValidationError, "signed obligation control total"):
+            transition_obligation_request(mismatch, "submit", self.requester)
+
+        excess = self.make_obligation_request(authorization, reference="GSO-EXCESS", total="12000.01")
+        self.add_obligation_line(excess, "12000.01")
+        with self.assertRaisesMessage(ValidationError, "exceeds"):
+            transition_obligation_request(excess, "submit", self.requester)
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            self.make_obligation_request(authorization, reference="GSO-EXCESS", total="1")
+
+    def test_linked_return_restores_balance_and_certified_history_is_immutable(self):
+        authorization = self.make_executable_authority()
+        original = self.make_obligation_request(authorization)
+        self.add_obligation_line(original, "10000")
+        transition_obligation_request(original, "submit", self.requester)
+        original = transition_obligation_request(original, "certify", self.certifier, "Independent certification.", "OBR-2027-0001")
+
+        unrelated = self.make_obligation_request(authorization, reference="GSO-REQ-OTHER", total="5000")
+        self.add_obligation_line(unrelated, "5000")
+        transition_obligation_request(unrelated, "submit", self.requester)
+        transition_obligation_request(unrelated, "certify", self.certifier, "Independent unrelated certification.", "OBR-2027-OTHER")
+
+        excessive_lineage_return = self.make_obligation_request(
+            authorization, reference="GSO-RET-EXCESS", total="-11000", kind=ObligationRequest.RETURN, corrects=original,
+        )
+        self.add_obligation_line(excessive_lineage_return, "11000", ObligationRequestLine.REDUCE)
+        with self.assertRaisesMessage(ValidationError, "linked correction lineage"):
+            transition_obligation_request(excessive_lineage_return, "submit", self.requester)
+
+        over_hold = self.make_allotment_order(
+            authorization, number="ARO-2027-POST-OBL-HOLD", kind=AllotmentReleaseOrder.RESERVE, total="50000.01",
+        )
+        self.add_allotment_line(over_hold, "50000.01", AllotmentOrderLine.RESERVE)
+        with self.assertRaisesMessage(ValidationError, "already certified obligations"):
+            transition_allotment_order(over_hold, "submit", self.preparer)
+
+        returned = self.make_obligation_request(
+            authorization, reference="GSO-RET-001", total="-2500", kind=ObligationRequest.RETURN, corrects=original,
+        )
+        self.add_obligation_line(returned, "2500", ObligationRequestLine.REDUCE)
+        transition_obligation_request(returned, "submit", self.requester)
+        returned = transition_obligation_request(returned, "certify", self.certifier, "Reviewed pre-DV return.", "OBR-2027-0002")
+        balance = obligation_line_balance(authorization.schedule_lines.get())
+        self.assertEqual((balance["obligated"], balance["unobligated"]), (Decimal("12500"), Decimal("47500")))
+
+        original.particulars = "Silently changed particulars"
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            original.full_clean()
+        movement = ObligationMovement.objects.get(request=original)
+        movement.amount = Decimal("1")
+        with self.assertRaisesMessage(ValidationError, "append-only"):
+            movement.save()
+
+    def test_later_issuance_boundary_blocks_obligation_only_correction(self):
+        authorization = self.make_executable_authority()
+        original = self.make_obligation_request(authorization)
+        self.add_obligation_line(original)
+        transition_obligation_request(original, "submit", self.requester)
+        original = transition_obligation_request(original, "certify", self.certifier, "Independent certification.", "OBR-2027-0001")
+        correction = self.make_obligation_request(
+            authorization, reference="GSO-ADJ-001", total="-1000", kind=ObligationRequest.ADJUSTMENT, corrects=original,
+        )
+        self.add_obligation_line(correction, "1000", ObligationRequestLine.REDUCE)
+        with patch("budget.services.downstream_issuance_boundary", return_value="disbursement voucher"):
+            with self.assertRaisesMessage(ValidationError, "reversal or cancellation"):
+                transition_obligation_request(correction, "submit", self.requester)
+
+    def test_obligation_scope_guided_edit_and_tracesync_registry_export(self):
+        authorization = self.make_executable_authority()
+        seed_finance_internal_howtos()
+        self.client.force_login(self.requester)
+        response = self.client.post(reverse("budget:obligation_create"), {
+            "authorization": authorization.pk, "kind": ObligationRequest.ORIGINAL,
+            "form_type": ObligationRequest.OBR, "request_reference": "GSO-WEB-001",
+            "obligation_date": "2027-01-15", "claimant_payee": "Synthetic Web Supplier",
+            "particulars": "Synthetic web-created request.", "evidence_reference": "Synthetic support reference.",
+            "signed_control_total": "5000.00", "corrects": "",
+        })
+        self.assertEqual(response.status_code, 302)
+        item = ObligationRequest.objects.get(request_reference="GSO-WEB-001")
+        detail = self.client.get(reverse("budget:obligation_detail", args=(item.public_id,)))
+        self.assertContains(detail, "Prepare and submit an obligation request")
+        self.assertContains(detail, "private step checklist")
+        response = self.client.post(reverse("budget:obligation_line_create", args=(item.public_id,)), {
+            "appropriation_line": authorization.schedule_lines.get().pk,
+            "movement_type": ObligationRequestLine.OBLIGATE, "amount": "5000.00", "remarks": "Initial web line",
+        })
+        self.assertEqual(response.status_code, 302)
+        line = item.lines.get()
+        response = self.client.post(reverse("budget:obligation_line_edit", args=(item.public_id, line.pk)), {
+            "appropriation_line": authorization.schedule_lines.get().pk,
+            "movement_type": ObligationRequestLine.OBLIGATE, "amount": "5000.00", "remarks": "Guided correction",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(BudgetAuditEvent.objects.filter(target_id=str(item.public_id), action="obligation_line_edited").exists())
+        transition_obligation_request(item, "submit", self.requester)
+        self.assertEqual(self.client.get(reverse("budget:obligation_line_edit", args=(item.public_id, line.pk))).status_code, 404)
+
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(reverse("budget:obligation_detail", args=(item.public_id,))).status_code, 403)
+        transition_obligation_request(item, "certify", self.certifier, "Independent web request review.", "OBR-2027-WEB1")
+        self.client.force_login(self.certifier)
+        workspace = self.client.get(reverse("budget:obligation_workspace"))
+        self.assertEqual(workspace.status_code, 200)
+        self.assertContains(workspace, "RAAO-equivalent control totals")
+        self.assertContains(workspace, "55000.00")
+        self.assertContains(workspace, "Certify obligations and reconcile RAAO balances")
+        with tempfile.TemporaryDirectory() as directory, override_settings(GRAND_EXPORT_ROOT=directory):
+            response = self.client.get(reverse("budget:obligation_registry_export"))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+            self.assertIn(b"unobligated_balance", response.content)
+            self.assertIn(item.snapshot_checksum.encode(), response.content)
+            from pathlib import Path
+            manifests = list(Path(directory).rglob("*.manifest.json"))
+            self.assertEqual(len(manifests), 1)
+            self.assertIn("finance-obligation-registry", str(manifests[0]))
