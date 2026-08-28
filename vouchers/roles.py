@@ -58,6 +58,14 @@ FINANCE_ROLE_PERMISSIONS = {
         "finance.manage_finance_configuration",
         "finance.manage_finance_templates",
         "finance.manage_finance_providers",
+        "accounting.view_accounting_workspace",
+        "accounting.manage_accounting_setup",
+    ),
+    "Finance Configuration Approver": (
+        "finance.view_finance_setup",
+        "finance.approve_finance_configuration",
+        "accounting.view_accounting_workspace",
+        "accounting.approve_fiscal_readiness",
     ),
 }
 

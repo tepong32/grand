@@ -9,6 +9,7 @@ Use this package to turn interviews, approved references, redacted artifacts, an
 | Artifact | Purpose |
 |---|---|
 | [Evidence register](EVIDENCE_REGISTER.md) | Index authorities and artifacts without storing confidential material. |
+| [Official COA/DBM source register](OFFICIAL_SOURCE_REGISTER.md) | Track current public authority, prescribed forms, amendments/deferments, applicability, and the implementation slice each source governs. |
 | [Interview kit](INTERVIEW_KIT.md) | Prepare and run office interviews in the order authority and paper actually move. |
 | [Transaction catalog](TRANSACTION_CATALOG.md) | Separate ordinary supplier, payroll, reimbursement, and other locally approved variants. |
 | [Role and signature matrix](ROLE_SIGNATURE_MATRIX.md) | Distinguish work, approval, wet signature, custody, and system access by transaction type. |

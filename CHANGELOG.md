@@ -4,9 +4,19 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance fiscal-year and classification foundation
+
+- Added the F2.1 typed fiscal year and business-date lifecycle in the isolated Finance store, with maker-checker approval, state versions, and append-only evidence.
+- Added effective-dated funding sources and MFO/program/PPA/project/activity hierarchies plus stable UUID and account/office dimensions for existing ledger masters.
+- Added independently evidenced technical, Budget, Accounting, Treasury, and forms readiness layers that block activation until structural checks and all decisions pass.
+- Added checksum-pinned, idempotent adoption of approved Finance Setup releases and an additive migration path for existing periods and accounting masters.
+- Added guided setup screens, explicit configuration-manager/approver roles, synthetic regression tests, and an F2.1 operating/acceptance guide.
+- Added a reason-required guided modification allowance before any affected DV/check issuance; edits retain before/after evidence, reopen impacted readiness, and close in favor of successor/correction workflows after issuance.
+
 ### Finance evidence and interview foundation
 
 - Added the F0.1 Finance evidence register and interview kit, including repository-safe authority, transaction, role/signature, actual-step, decision, redaction, and synthetic-replay templates.
+- Added an initial COA/DBM official-source and template register, including effectivity/scope cautions for the 2023 LGU Budget Operations Manual, LGU NGAS/RCA materials, deferred 2020 GAM for LGUs, updated documentary requirements, and DV form lineage.
 
 ### Complete-cycle Finance information architecture
 

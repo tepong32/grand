@@ -2,30 +2,46 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.db.models import Count, Max, Q, Sum
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .access import (
-    accounting_access_required, accounting_permission_required, can_manage_setup,
+    accounting_access_required, accounting_permission_required, can_approve_fiscal_readiness, can_govern_setup, can_manage_setup,
     can_post_journals, can_prepare_journals, can_view_ledger, department_for_user,
 )
 from .forms import (
-    AccountingPeriodForm, FundForm, JournalEntryForm, JournalLineForm,
-    LedgerAccountForm, PostingMappingForm, ResponsibilityCenterForm, ReversalForm,
+    AccountingPeriodForm, FiscalYearForm, FundForm, FundingSourceForm, JournalEntryForm, JournalLineForm,
+    LedgerAccountForm, PostingMappingForm, ProgramActivityProjectForm, ResponsibilityCenterForm, ReversalForm,
 )
-from .models import AccountingPeriod, Fund, JournalEntry, JournalLine, LedgerAccount, PostingMapping, ResponsibilityCenter
-from .services import close_period, create_reversal, discard_draft, post_entry, return_entry, submit_entry
+from .models import (
+    AccountingPeriod, FiscalYear, FiscalYearReadinessApproval, Fund, FundingSource, JournalEntry,
+    JournalLine, LedgerAccount, PostingMapping, ProgramActivityProject, ResponsibilityCenter,
+)
+from .services import (
+    adopt_configuration_release, begin_foundation_amendment, close_period, create_reversal,
+    decide_readiness_layer, discard_draft, ensure_readiness_layers, evaluate_fiscal_year_readiness,
+    finalize_foundation_amendment, post_entry, return_entry, submit_entry, transition_fiscal_year,
+)
 
 
 SETUP_TYPES = {
+    "fiscal-years": (FiscalYear, FiscalYearForm, "Fiscal year"),
     "periods": (AccountingPeriod, AccountingPeriodForm, "Accounting period"),
     "funds": (Fund, FundForm, "Fund"),
     "centers": (ResponsibilityCenter, ResponsibilityCenterForm, "Responsibility center"),
     "accounts": (LedgerAccount, LedgerAccountForm, "Ledger account"),
+    "funding-sources": (FundingSource, FundingSourceForm, "Funding source"),
+    "programs": (ProgramActivityProject, ProgramActivityProjectForm, "PPA / MFO / project / activity"),
     "mappings": (PostingMapping, PostingMappingForm, "Posting mapping"),
 }
+
+FOUNDATION_EDIT_TYPES = (
+    FiscalYear, AccountingPeriod, Fund, ResponsibilityCenter, LedgerAccount,
+    FundingSource, ProgramActivityProject,
+)
 
 
 def _department_values(department):
@@ -78,15 +94,29 @@ def workspace(request):
 
 
 @require_GET
-@accounting_permission_required(can_manage_setup)
+@accounting_permission_required(can_govern_setup)
 def setup_workspace(request):
     department = department_for_user(request.user)
+    fiscal_year_rows = []
+    for fiscal_year in FiscalYear.objects.filter(department_id=department.pk):
+        fiscal_year_rows.append({"record": fiscal_year, "readiness": evaluate_fiscal_year_readiness(fiscal_year)})
+    from finance.models import FinanceConfigurationRelease
     return render(request, "accounting/setup.html", {
+        "fiscal_year_rows": fiscal_year_rows,
         "periods": AccountingPeriod.objects.filter(department_id=department.pk),
         "funds": Fund.objects.filter(department_id=department.pk),
         "centers": ResponsibilityCenter.objects.filter(department_id=department.pk),
         "accounts": LedgerAccount.objects.filter(department_id=department.pk).select_related("parent"),
         "mappings": PostingMapping.objects.filter(department_id=department.pk).select_related("account"),
+        "funding_sources": FundingSource.objects.filter(department_id=department.pk).select_related("fiscal_year", "fund"),
+        "programs": ProgramActivityProject.objects.filter(department_id=department.pk).select_related(
+            "fiscal_year", "parent", "responsibility_center", "funding_source",
+        ),
+        "releases": FinanceConfigurationRelease.objects.filter(
+            department=department, status__in=("approved", "scheduled", "active", "superseded"),
+        ),
+        "can_approve_readiness": can_approve_fiscal_readiness(request.user),
+        "can_manage_setup": can_manage_setup(request.user),
     })
 
 
@@ -99,8 +129,13 @@ def setup_item_create(request, kind):
         item = form.save(commit=False)
         for field, value in _department_values(department).items():
             setattr(item, field, value)
+        if isinstance(item, FiscalYear):
+            item.created_by_id = request.user.pk
+            item.created_by_label = request.user.get_full_name() or request.user.username
         item.full_clean()
         item.save()
+        if isinstance(item, FiscalYear):
+            ensure_readiness_layers(item)
         messages.success(request, f"{SETUP_TYPES[kind][2]} created.")
         return redirect("accounting:setup")
     return render(request, "accounting/form.html", {"form": form, "title": f"Add {SETUP_TYPES[kind][2].lower()}", "cancel_url": "accounting:setup"})
@@ -115,19 +150,44 @@ def setup_item_edit(request, kind, pk):
     except KeyError as exc:
         raise Http404 from exc
     item = get_object_or_404(model, pk=pk, department_id=department.pk)
+    requires_change_reason = isinstance(item, FOUNDATION_EDIT_TYPES)
+    amendment_context = None
+    amendment_error = None
+    if request.method == "POST" and requires_change_reason:
+        try:
+            amendment_context = begin_foundation_amendment(
+                item, request.user, request.POST.get("change_reason", ""),
+            )
+        except ValidationError as exc:
+            amendment_error = " ".join(exc.messages)
+        else:
+            item._governed_amendment = True
     form = _form_for_setup(kind, request.POST or None, instance=item, department=department)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, f"{label} updated.")
-        return redirect("accounting:setup")
-    return render(request, "accounting/form.html", {"form": form, "title": f"Edit {label.lower()}", "cancel_url": "accounting:setup"})
+    if amendment_error:
+        form.add_error(None, amendment_error)
+    if request.method == "POST" and form.is_valid() and (not requires_change_reason or amendment_context is not None):
+        try:
+            with transaction.atomic(using="finance"):
+                saved = form.save()
+                if amendment_context is not None:
+                    finalize_foundation_amendment(saved, request.user, amendment_context)
+        except ValidationError as exc:
+            form.add_error(None, " ".join(exc.messages))
+        else:
+            messages.success(request, f"{label} updated. Affected readiness approvals were reopened.")
+            return redirect("accounting:setup")
+    return render(request, "accounting/form.html", {
+        "form": form, "title": f"Edit {label.lower()}", "cancel_url": "accounting:setup",
+        "requires_change_reason": requires_change_reason,
+        "change_reason": request.POST.get("change_reason", ""),
+    })
 
 
 @require_POST
 @accounting_permission_required(can_manage_setup)
 def setup_item_toggle(request, kind, pk):
     department = department_for_user(request.user)
-    if kind not in ("funds", "centers", "accounts", "mappings"):
+    if kind not in ("funds", "centers", "accounts", "mappings", "funding-sources", "programs"):
         raise Http404
     model, _form_class, label = SETUP_TYPES[kind]
     item = get_object_or_404(model, pk=pk, department_id=department.pk)
@@ -136,14 +196,74 @@ def setup_item_toggle(request, kind, pk):
             in_progress = item.journal_entries.exclude(status__in=(JournalEntry.POSTED, JournalEntry.VOIDED)).exists()
         elif kind in ("centers", "accounts"):
             in_progress = item.journal_lines.exclude(entry__status__in=(JournalEntry.POSTED, JournalEntry.VOIDED)).exists()
+        elif kind in ("funding-sources", "programs"):
+            in_progress = False
         else:
             in_progress = False
         if in_progress:
             messages.error(request, f"{label} is used by unfinished journals and cannot be archived yet.")
             return redirect("accounting:setup")
     item.is_active = not item.is_active
-    item.save(update_fields=("is_active",))
+    try:
+        item.full_clean()
+        item.save(update_fields=("is_active",))
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+        return redirect("accounting:setup")
     messages.success(request, f"{label} {'activated' if item.is_active else 'archived'}.")
+    return redirect("accounting:setup")
+
+
+@require_POST
+@accounting_permission_required(can_manage_setup)
+def configuration_release_adopt(request, pk):
+    department = department_for_user(request.user)
+    from finance.models import FinanceConfigurationRelease
+    release = get_object_or_404(FinanceConfigurationRelease, pk=pk, department=department)
+    try:
+        fiscal_year, counts = adopt_configuration_release(
+            release, request.user, change_reason=request.POST.get("change_reason", ""),
+        )
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(
+            request,
+            f"Adopted {release} into {fiscal_year}. New records: "
+            f"{counts['funds']} funds, {counts['centers']} centers, {counts['accounts']} accounts, "
+            f"{counts['funding_sources']} funding sources, {counts['classifications']} classifications; "
+            f"{len(counts['skipped'])} item(s) need review.",
+        )
+    return redirect("accounting:setup")
+
+
+@require_POST
+@accounting_access_required
+def fiscal_year_transition(request, pk, action):
+    department = department_for_user(request.user)
+    fiscal_year = get_object_or_404(FiscalYear, pk=pk, department_id=department.pk)
+    try:
+        transition_fiscal_year(fiscal_year, action, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, f"Fiscal year {action} completed.")
+    return redirect("accounting:setup")
+
+
+@require_POST
+@accounting_permission_required(can_approve_fiscal_readiness)
+def readiness_decision(request, pk, decision):
+    department = department_for_user(request.user)
+    layer = get_object_or_404(FiscalYearReadinessApproval, pk=pk, department_id=department.pk)
+    try:
+        decide_readiness_layer(
+            layer, request.user, decision=decision, evidence_note=request.POST.get("evidence_note", ""),
+        )
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, f"{layer.get_layer_display()} marked {decision}.")
     return redirect("accounting:setup")
 
 
