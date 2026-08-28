@@ -4,6 +4,13 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### GRAND Finance complete-cycle roadmap
+
+- Added a canonical F0–F11 delivery and acceptance roadmap from annual budget preparation through appropriation, allotment, obligation, payable/DV, wet-signature custody, posting, payment, reporting, reconciliation, training, and cutover.
+- Reclassified the existing Voucher Workbench as a reusable F5–F8 shadow vertical slice and recorded annual appropriation/allotment/obligation authority as the earliest complete-cycle gap.
+- Expanded finance discovery and fidelity documentation to require reconciled budget, registry, ledger, payment, bank, report, physical-custody, correction, and transaction-variant evidence before claiming eGAPS equivalence or official use.
+- Aligned Finance Setup, Accounting, Voucher Workbench, TracePoint, project roadmap, and documentation entry points to the same role-shaped complete-cycle destination.
+
 ### Standalone GRAND Accounting foundation
 
 - Added a separately routed GRAND finance database with no eGAPS endpoint, credentials, database attachment, or runtime dependency.

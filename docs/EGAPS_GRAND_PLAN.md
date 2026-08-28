@@ -1,10 +1,10 @@
 # eGAPS-to-GRAND finance modernization plan
 
-Status: standalone GRAND implementation started on `codex/egaps-integration-prototype`. eGAPS remains untouched and is a functional reference only, never a runtime dependency.
+Status: standalone GRAND foundations are implemented and remain in shadow/UAT mode. eGAPS remains untouched and is a functional reference only, never a runtime dependency. The [GRAND Finance complete-cycle roadmap](FINANCE_ROADMAP.md) is the canonical delivery order and acceptance contract.
 
 ## Purpose
 
-Reproduce the useful financial controls and outputs of eGAPS in GRAND, then improve them with clearer workflows, safer CRUD behavior, stronger auditability, a dedicated finance database, and no-code Excel template maintenance.
+Reproduce the essential control coverage and official outputs of the observed eGAPS Budget Monitoring and Management, eNGAS/accounting, and Cash Disbursement modules in GRAND, then improve them with complete-cycle traceability, role-shaped workspaces, safer workflow behavior, stronger auditability, a dedicated finance database, and low-code template maintenance.
 
 This plan is based on read-only inspection of the installed client, its launch/configuration topology, exposed navigation, and GRAND's existing Finance Setup, Voucher Workbench, Reporting, Records, and TracePoint contracts. It intentionally contains no credentials, production record values, personal identifiers, server addresses, or proprietary eGAPS source artifacts.
 
@@ -80,6 +80,7 @@ All optional adapters write only to `grand_finance_stage`. A separate promotion 
 Replace module/file menus with a task-first finance workspace:
 
 - **My work** — drafts, returned items, due reviews, and blocking issues.
+- **Requests** — requesting-office funded requests, document readiness, returns, and status follow-up.
 - **Budget** — appropriations, allotments, obligations/OBRs, balances, and budget-versus-actual.
 - **Payables** — voucher preparation, supporting documents, deductions, and signatories.
 - **Accounting** — JEV preparation/review/posting, journals, ledgers, closing periods, and statements.
@@ -114,9 +115,10 @@ Accessibility and usability requirements include keyboard navigation, strong foc
 
 ### Budget and obligation
 
-`Draft budget → Review → Approved budget → Allotment → Obligation/OBR → Adjusted/Closed`
+`Department proposal → Executive proposal → Authorized/reviewed appropriation → Allotment release → ALOBS/ORS/OBR → Adjusted/Closed`
 
-- Maintain fiscal-year versions and period locks.
+- Preserve proposal, executive, Sanggunian-approved, reviewed, supplemental/reenacted, and operational versions rather than overwriting one budget row.
+- Maintain fiscal-year versions, opening reconciliation, appropriation/allotment/obligation movement ledgers, and period locks.
 - Prevent negative or over-obligated balances unless a separately approved statutory override exists.
 - Adjust approved entries with append-only adjustment documents, never silent edits.
 
@@ -177,6 +179,8 @@ Template mapping modes should include single cell, merged range, repeating table
 
 ## Phased delivery
 
+The phases below are the original technical work-package view. They must be scheduled and accepted through the evidence labels, F0–F11 gates, current implementation matrix, and release discipline in the [canonical complete-cycle roadmap](FINANCE_ROADMAP.md). In particular, the existing voucher prototype cannot become official before annual appropriation, allotment, and obligation authority are implemented and reconciled.
+
 ### Phase 0 — Governance and safety gate
 
 Deliverables:
@@ -193,12 +197,12 @@ Exit: owners approve the discovery boundary and rollback/escalation procedure.
 
 Deliverables:
 
-- workshops with Budget, Accounting, Treasury, IT, and COA Audit Team;
-- page/process inventory for BMS, eNGAS, and cash disbursement;
+- workshops with requesting offices, Planning/LFC participants, Budget, Accounting, Treasury, IT, management, and audit stakeholders;
+- page/process inventory for annual budget preparation/authorization/review, BMS, eNGAS, cash disbursement, reconciliation, and closing;
 - data dictionary for funds, accounts, offices, SL references, banks, deductions, DV/JEV, advice, payments, journals, ledgers, and periods;
 - stable identifier and status mapping to GRAND;
 - blank/redacted forms and expected totals/rounding/numbering rules;
-- current exception, correction, cancellation, and approval paths.
+- current print/wet-signature/custody, exception, adjustment, return, correction, reversal, cancellation, replacement, reconciliation, and close paths.
 
 Exit: every planned field and state has an owner, definition, source, sensitivity, and acceptance example.
 
@@ -218,14 +222,15 @@ Exit: GRAND can configure and post a balanced synthetic journal entirely inside 
 
 Deliverables:
 
-- extend Finance Setup for the observed eGAPS master-data coverage;
+- extend Finance Setup for the observed eGAPS master-data coverage, PPAs/projects, funding sources, finance calendars, and fiscal-year readiness;
 - import/mapping review queues with duplicate detection and effective dates;
+- reconciled opening-balance intake and approval evidence;
 - no-code forms, guided validation, separate approval, activation, retirement, and lineage;
 - role-specific Setup dashboard and readiness blockers.
 
 Exit: approved synthetic master data can drive downstream forms without free-text re-entry.
 
-### Phase 4 — Excel Template Studio
+### Phase 4 — Excel Template Studio foundation
 
 Deliverables:
 
@@ -234,28 +239,30 @@ Deliverables:
 - synthetic preview, workbook/mapping diffs, review, approval, and activation;
 - golden-workbook regression suite for DV, advice, check registers, JEV, ledgers, and financial statements.
 
-Exit: an authorized non-developer can revise a blank template, remap it, validate it, and publish a new approved version without code changes.
+Exit: an authorized non-developer can revise a blank template, remap it, validate it, and publish a new approved version without code changes. Official finance use still waits for the related complete-cycle authority and output acceptance gates.
 
-### Phase 5 — Budget and obligation control
+### Phase 5 — Annual budget, allotment, and obligation control
 
 Deliverables:
 
-- appropriations/allotments, obligation/OBR workflow, adjustments, period controls, and balance projections;
-- Budget queues, certification, returns, approvals, and budget-versus-actual views;
+- budget call/proposals, executive and authorized versions, appropriation ordinance/review evidence, supplemental/reenacted handling, and operational appropriations;
+- Allotment Release Orders, reserves/deferrals, ALOBS/ORS/OBR, authoritative RAAO/equivalent registry, adjustments, period controls, and balance projections;
+- requesting-office and Budget queues, certification, returns, approvals, and appropriation/allotment/obligation views;
 - immutable movement ledger and reconciliation-ready source references.
 
-Exit: synthetic budget cases reconcile from approved budget through obligation without negative-balance defects.
+Exit: signed synthetic control totals reconcile from approved budget through appropriation, allotment, and obligation under concurrent use without negative-balance defects.
 
-### Phase 6 — Voucher and payables completion
+### Phase 6 — Request, payable, DV, and controlled-paper completion
 
 Deliverables:
 
-- extend the existing Voucher Workbench for all locally validated DV categories, deductions, documents, signatories, corrections, and outputs;
+- extend the existing Voucher Workbench for locally validated request/payable/DV categories, upstream evidence, obligation adjustments, deductions, documents, signatories, corrections, and outputs;
 - guided data entry with reusable payee/office/account selectors;
-- TracePoint and Records links that preserve source ownership;
+- explicit print/version/reprint states, mandatory locally approved TracePoint custody linkage, and wet-signature rounds;
+- TracePoint and Records links that preserve source ownership and do not impersonate a financial approval;
 - controlled DV/register/transmittal outputs using approved templates.
 
-Exit: ordinary-supplier and assistance scenarios pass role, amount, numbering, correction, and output acceptance tests in shadow mode.
+Exit: ordinary-supplier and each enabled variant pass authority, role, amount, numbering, paper-custody, correction, and output acceptance tests in shadow mode.
 
 ### Phase 7 — JEV, journals, and posting engine
 
@@ -274,11 +281,11 @@ Implementation progress on `codex/grand-finance-complete-cycle`: the recognition
 
 Deliverables:
 
-- bank/payment-account controls, instrument issuance, cancellation/replacement, advice batching, reconciliation, and claimant release;
+- cash-program/availability controls, bank/payment-account controls, instrument issuance/printing/custody, cancellation/replacement, advice batching, claimant release, remittance, and bank reconciliation;
 - Treasury work queues and Accounting finalization boundary;
 - RCI, RCD/RD, liquidation, tax, and bank-advice outputs.
 
-Exit: issued, advised, released, cancelled, and replacement instruments reconcile exactly and retain lineage.
+Exit: issued, advised, released, cancelled, replacement, remitted, and bank-reconciled instruments agree exactly with vouchers, postings, registers, and bank evidence.
 
 ### Phase 9 — Ledgers and financial reporting
 
@@ -326,6 +333,8 @@ Exit: Budget, Accounting, Treasury, IT, management, and the COA Audit Team sign 
 
 ## First prototype increments on this branch
 
+This list records the original implementation start and is not the current priority order. Current work must be selected from the [complete-cycle roadmap](FINANCE_ROADMAP.md), beginning with F0 evidence and the F2–F4 authority gap before the voucher prototype is considered for official use.
+
 1. Add the separate finance database/router with environment-driven configuration and no eGAPS endpoint.
 2. Add native periods, funds, responsibility centers, chart of accounts, JEVs, lines, and append-only workflow evidence.
 3. Add guided setup, draft CRUD, balanced submission, independent posting, ledger, and trial-balance views.
@@ -334,4 +343,4 @@ Exit: Budget, Accounting, Treasury, IT, management, and the COA Audit Team sign 
 6. Expand accounting into period close, reversal, subsidiary ledgers, and controlled statements.
 7. Consider a removable historical-import tool only after explicit data-owner approval.
 
-Implementation must remain synthetic until Phase 0 and Phase 1 approvals are complete.
+Implementation and replay data must remain synthetic or explicitly approved/redacted until the applicable F0 evidence and acceptance gates are complete.

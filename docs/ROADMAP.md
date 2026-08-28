@@ -1,6 +1,6 @@
 # GRAND product roadmap
 
-This file records agreed future work after the MSWD Programs and Activities phase. Each implementation phase uses a dedicated `codex/` branch, tests, synthetic showcase data, portfolio screenshots, review, CI, and merge into `master`. See the [documentation map](README.md) for operator and project guides.
+This file records the platform-level delivery history and product direction. Each implementation phase uses a dedicated `codex/` branch, tests, synthetic showcase data, portfolio screenshots, review, CI, and merge into `master`. See the [documentation map](README.md) for operator and project guides.
 
 ## Completed - Professional, configurable civic UI
 
@@ -84,4 +84,24 @@ The `0.6.0` through `0.6.6` train now includes the operating workspace, print la
 - Generate checksum-backed shadow DV workbooks and preserve strict boundaries with TracePoint custody, Records, MPDO, and other departmental apps.
 - Keep official use, exact remaining-budget authority, full JEV posting, and direct check printing blocked until their local evidence and validation requirements are met.
 
-The next phase is a supervised ordinary-supplier shadow pilot using blank/redacted local OBR, DV, advice, check-register, and release-receipt samples. Differences must be resolved and signed off before an official-use switch is designed.
+The vertical slice proves that one shared Budget–Accounting–Treasury case can work in GRAND. It does not prove the complete LGU cycle or authorize official use.
+
+## Planned - GRAND Finance complete cycle
+
+The [GRAND Finance complete-cycle roadmap](FINANCE_ROADMAP.md) is the canonical plan for the long-term Finance sub-application. It replaces the earlier assumption that the next material step is only an ordinary-supplier voucher pilot.
+
+The essential delivery order is:
+
+1. governance, evidence, local authority, terminology, roles, and audit foundation;
+2. governed finance master data, fiscal-year readiness, and reconciled opening balances;
+3. annual budget preparation, authorization, review, and approved appropriations;
+4. allotment releases, ALOBS/ORS/OBR, the obligation registry, and authoritative balance control;
+5. transaction-specific request, procurement/delivery, payable, and DV workflows;
+6. controlled printing, wet-signature rounds, and mandatory physical-custody evidence;
+7. accounting recognition, JEVs, posting, ledgers, period control, and corrections;
+8. cash control, checks/payment instruments, advice, release, remittance, and bank reconciliation;
+9. statutory reports, financial statements, governed templates, shadow comparison, training, and explicit cutover.
+
+Existing Finance Setup, Accounting, Voucher Workbench, Reporting, Records, and TracePoint features are foundations to extend, not separate replacement systems. Historical eGAPS migration remains optional and cannot block standalone GRAND operation.
+
+The earliest complete-cycle gap is before voucher creation: GRAND does not yet own authoritative annual appropriations, allotment releases, or obligation balances. Printing remains the earliest confirmed mismatch only within the implemented voucher subcycle.

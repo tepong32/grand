@@ -1,12 +1,14 @@
 # Voucher and Disbursement Workbench
 
-GRAND's Voucher Workbench is a shared, permission-aware disbursement case. It does not copy a voucher between departmental databases. Budget, Accounting, and Treasury act on the same case and append evidence to one history.
+GRAND's Voucher Workbench is the implemented shadow vertical slice for part of F5–F8 in the [complete-cycle roadmap](FINANCE_ROADMAP.md). It is a shared, permission-aware disbursement case and does not copy a voucher between departmental databases. Budget, Accounting, and Treasury act on the same case and append evidence to one history.
 
 The initial controlled route is:
 
 `Budget OBR/allocation → Accounting DV → wet signatures → Accounting validation/JEV reference → Treasury checks → Accounting bank advice → Treasury release`
 
 The workbench is intentionally locked to shadow comparison mode until the LGU's Budget, Accounting, Treasury, and COA Audit Team validate local rules and blank/redacted forms. It does not replace the current authoritative process merely because the software route completes.
+
+Its current entry point is intentionally provisional. A complete-cycle GRAND case will originate from a valid requesting-office transaction and authoritative appropriation/allotment/obligation lineage, not from a free-standing Budget voucher case.
 
 ## Database and app boundaries
 
@@ -83,9 +85,9 @@ Django Admin exposes only read-only voucher support evidence, read-only finance 
 
 ## Operating workflow
 
-1. Budget selects the requesting office, approved supplier/payee, transaction type, and particulars, then certifies an OBR against existing approved budget-source references. Budget formulation is outside this release.
+1. Budget selects the requesting office, approved supplier/payee, transaction type, and particulars, then certifies a pilot OBR against referenced budget sources. Budget formulation, approved appropriations, AROs, RAAO/equivalent balances, and authoritative over-obligation prevention are outside this release.
 2. Accounting prepares the DV from the same case. The gross amount must equal the certified OBR amount in the pilot rule; deductions produce the net payable.
-3. GRAND snapshots ordered, currently effective signatories. Staff record return of the actual wet-signed paper; GRAND does not claim that the clerk's entry is a digital signature.
+3. GRAND snapshots ordered, currently effective signatories. Staff record return of the actual wet-signed paper; GRAND does not claim that the clerk's entry is a digital signature. The current route does not yet make official printing, packet assembly, or TracePoint activation mandatory states.
 4. A different Accounting validator accepts the voucher and creates a checksum-backed posting request. Accounting then materializes balanced GRAND journal lines, submits the entry, and an independently authorized poster posts it before the case moves to Treasury.
 5. Treasury registers one or more physical checks. Active checks must exactly reconcile to the DV net before advice.
 6. Accounting finalizes an immutable advice batch for one bank account. Treasury may release only advised checks to an active authorized claimant.
@@ -93,9 +95,22 @@ Django Admin exposes only read-only voucher support evidence, read-only finance 
 
 Every consequential service uses a database transaction, row lock, expected state version, and idempotency key. Duplicate submissions return the recorded result; stale pages must reload.
 
+## Complete-cycle integration target
+
+F3–F6 will refactor the workbench boundary without discarding its shared-case, audit, numbering, correction, and maker-checker controls:
+
+1. A requesting office initiates an approved transaction variant and supplies the references it owns.
+2. Budget selects the exact fiscal year, fund, office, PPA/project/activity, object/account, appropriation, and released allotment; certification creates an immutable obligation movement in the authoritative registry.
+3. Procurement, delivery/acceptance, payroll, claim, or other locally applicable evidence makes a payable eligible for Accounting intake.
+4. Accounting prepares one or more valid DVs against the obligation/payable lineage. The data model must support partial, progress, consolidated, final, adjustment, and liquidation relationships only where LGU evidence approves them.
+5. GRAND freezes an explicit official print version, assembles/links the TracePoint packet, records required wet-signature checkpoints, and invalidates obsolete signing copies after a material correction.
+6. Accounting recognition/payment postings and Treasury actions continue on the same case lineage while retaining separate financial states and permissions.
+
+The role-shaped UI remains: employees receive a My Work queue and the phase panel relevant to their office, while authorized users can follow the complete timeline. The product should not force users through legacy module menus or expose every phase's edit controls on one all-powerful screen.
+
 ## Outputs, Records, and custody
 
-The pinned, preflighted DV workbook can generate a shadow XLSX containing a reproducible input snapshot and SHA-256 checksum. Each regeneration is a new immutable output version. Exact official OBR, advice, register, receipt, and check layouts require blank/redacted approved samples before their mapping can be certified. Direct check printing is deferred until bank-form and printer-alignment validation.
+The pinned, preflighted DV workbook can generate a shadow XLSX containing a reproducible input snapshot and SHA-256 checksum. Each regeneration is a new immutable output version. F6 must add explicit Ready to print, Printed, Awaiting wet signatures, Signed packet returned, Superseded, and Reprinted evidence. Exact official ARO, ALOBS/ORS/OBR, DV, advice, register, receipt, and check layouts require blank/redacted approved samples before their mapping can be certified. Direct check printing is deferred until bank-form, form-stock, custody, and printer-alignment validation.
 
 TracePoint may be linked by its item reference when the employee can already see the physical packet. Voucher amounts are never copied into TracePoint, and physical receipt never advances the financial workflow automatically.
 
@@ -104,6 +119,7 @@ Only an output explicitly promoted through a future formal official-use decision
 ## Current deliberate limits
 
 - no budget formulation, opening-balance import, or authoritative remaining-balance calculation;
+- no approved appropriation versions, Allotment Release Orders, or RAAO/equivalent obligation movement ledger;
 - one OBR per voucher, with the service/model supporting multiple allocation lines;
 - standalone GRAND journal materialization and maker-checker posting are implemented, while opening balances, authoritative legacy-ledger import, and full production reconciliation remain outside this release;
 - check registration, cancellation, replacement, advice, and release controls, but no direct check printing;

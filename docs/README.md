@@ -10,10 +10,11 @@ Use this page as the entry point for project and operator documentation.
 - [Department records operations](RECORDS.md) explains source-in-place filing, permissions, approval, retention, legal holds, controlled downloads, and disposition.
 - [TracePoint physical custody](TRACEPOINT.md) defines packet identity, daily employee credentials, confirmed handoffs, delivery/completion semantics, security boundaries, and the `0.6.x` delivery train.
 - [Finance Setup Center](FINANCE_SETUP.md) defines finance roles, effective-dated configuration, readiness, safe Excel intake, approval, activation, and domain boundaries.
+- [GRAND Finance complete-cycle roadmap](FINANCE_ROADMAP.md) is the canonical delivery plan from annual budget preparation through appropriation, allotment, obligation, DV, wet-signature custody, accounting, payment, reporting, reconciliation, and cutover.
 - [eGAPS-to-GRAND finance modernization plan](EGAPS_GRAND_PLAN.md) records the read-only findings, separate-database architecture, workflow and CRUD contract, no-code Excel Template Studio, and phased prototype-to-cutover plan.
 - [Finance process discovery protocol](FINANCE_PROCESS_DISCOVERY.md) defines the redacted voucher replay, office interview, evidence, comparison, and acceptance procedure used before claiming process fidelity.
-- [Finance process fidelity baseline](FINANCE_PROCESS_FIDELITY_BASELINE.md) maps every implemented GRAND voucher stage to the LGU evidence still required and records the earliest confirmed divergence.
-- [Product roadmap](ROADMAP.md) records completed phases and the planned TracePoint custody layer.
+- [Finance process fidelity baseline](FINANCE_PROCESS_FIDELITY_BASELINE.md) maps the full annual-budget-to-close cycle to current GRAND coverage, evidence still required, and the complete-cycle and voucher-subcycle divergences.
+- [Product roadmap](ROADMAP.md) records completed platform phases and points to the canonical long-term Finance delivery train.
 - [Security maintenance](../SECURITY.md) covers dependency auditing, CI checks, Dependabot, and bundled browser assets.
 - [Change history](../CHANGELOG.md) summarizes material delivered work.
 
@@ -34,4 +35,6 @@ The [portfolio screenshot guide](../output/playwright/grand-portfolio/README.md)
 - A TracePoint scan identifies a packet or employee credential; only an authenticated, confirmed receipt changes custody.
 - TracePoint delivery records physical arrival. Completion is a separate authorization that records finished work.
 - Finance configuration must pass a separate local Accounting approval and readiness gate; platform administration alone cannot activate financial policy.
+- An approved budget, released allotment, recorded obligation, accounting recognition, and cash disbursement are distinct authorities and balances.
+- A finance screen is not complete merely because it is implemented; the applicable roadmap exit gate and process-owner evidence are required before official use.
 - Local databases, uploaded citizen files, secrets, and generated official reports do not belong in source control.
