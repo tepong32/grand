@@ -14,7 +14,9 @@ Use this page as the entry point for project and operator documentation.
 - [eGAPS-to-GRAND finance modernization plan](EGAPS_GRAND_PLAN.md) records the read-only findings, separate-database architecture, workflow and CRUD contract, no-code Excel Template Studio, and phased prototype-to-cutover plan.
 - [Finance process discovery protocol](FINANCE_PROCESS_DISCOVERY.md) defines the redacted voucher replay, office interview, evidence, comparison, and acceptance procedure used before claiming process fidelity.
 - [Finance evidence register and interview kit](finance-discovery/README.md) provides repository-safe F0.1 templates for evidence, transaction variants, roles/signatures, actual steps, decisions, and redacted synthetic replay.
+- [Initial COA/DBM official-source register](finance-discovery/OFFICIAL_SOURCE_REGISTER.md) maps public budget, accounting, documentary, form, and internal-control references to roadmap slices while keeping applicability questions explicit.
 - [Complete-cycle Finance information architecture](finance-ia/README.md) defines the F1.1 role, workspace, case/timeline/search, status, responsive, and clickable synthetic-prototype contract.
+- [Finance fiscal-year and classification foundation](FINANCE_FISCAL_FOUNDATION.md) documents the F2.1 typed year, calendar, effective-dated classifications, readiness layers, setup-release adoption, and synthetic acceptance procedure.
 - [Finance process fidelity baseline](FINANCE_PROCESS_FIDELITY_BASELINE.md) maps the full annual-budget-to-close cycle to current GRAND coverage, evidence still required, and the complete-cycle and voucher-subcycle divergences.
 - [Product roadmap](ROADMAP.md) records completed platform phases and points to the canonical long-term Finance delivery train.
 - [Security maintenance](../SECURITY.md) covers dependency auditing, CI checks, Dependabot, and bundled browser assets.

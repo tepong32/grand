@@ -7,17 +7,24 @@ from django.db import connections
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from departments.models import Department
 from profiles.models import EmployeeProfile
-from finance.models import FinanceWorkflowExemption
+from finance.models import FinanceConfigurationItem, FinanceConfigurationRelease, FinanceWorkflowExemption
+from vouchers.models import DisbursementVoucher, PaymentInstrument, VoucherCase
 
 from .access import can_post_journals, can_prepare_journals, can_view_accounting
 from .models import (
-    AccountingAuditEvent, AccountingPeriod, Fund, JournalEntry, JournalLine,
-    LedgerAccount, ResponsibilityCenter,
+    AccountingAuditEvent, AccountingPeriod, FiscalYear, FiscalYearReadinessApproval,
+    Fund, FundingSource, JournalEntry, JournalLine, LedgerAccount,
+    ProgramActivityProject, ResponsibilityCenter,
 )
-from .services import create_reversal, discard_draft, post_entry, submit_entry
+from .services import (
+    adopt_configuration_release, begin_foundation_amendment, create_reversal, decide_readiness_layer,
+    discard_draft, ensure_readiness_layers,
+    evaluate_fiscal_year_readiness, post_entry, submit_entry, transition_fiscal_year,
+)
 
 
 class StandaloneAccountingTests(TestCase):
@@ -29,11 +36,13 @@ class StandaloneAccountingTests(TestCase):
         cls.other_department = Department.objects.create(name="Human Resources", slug="hr")
         cls.preparer = cls._employee("ledger.preparer", cls.accounting_department)
         cls.poster = cls._employee("ledger.poster", cls.accounting_department)
+        cls.setup_approver = cls._employee("setup.approver", cls.accounting_department)
         cls.viewer = cls._employee("ledger.viewer", cls.accounting_department)
         cls.outsider = cls._employee("other.viewer", cls.other_department)
         cls.superuser = cls._employee("platform.admin", cls.accounting_department, is_superuser=True, is_staff=True)
         cls._grant(cls.preparer, "view_accounting_workspace", "prepare_journal_entries", "manage_accounting_setup")
         cls._grant(cls.poster, "view_accounting_workspace", "post_journal_entries", "view_general_ledger")
+        cls._grant(cls.setup_approver, "view_accounting_workspace", "approve_fiscal_readiness")
         cls._grant(cls.viewer, "view_accounting_workspace")
         cls._grant(cls.outsider, "view_accounting_workspace")
 
@@ -89,6 +98,356 @@ class StandaloneAccountingTests(TestCase):
             debit=Decimal("0.00"), credit=Decimal("100.00" if balanced else "90.00"),
         )
         return entry
+
+    def _fiscal_foundation(self, year=2027):
+        fiscal_year = FiscalYear.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            year=year,
+            label=f"FY {year}",
+            starts_on=date(year, 1, 1),
+            ends_on=date(year, 12, 31),
+            business_date=date(year, 1, 1),
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        self.period.fiscal_year_record = fiscal_year
+        self.period.full_clean()
+        self.period.save(update_fields=("fiscal_year_record",))
+        source = FundingSource.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            fiscal_year=fiscal_year,
+            fund=self.fund,
+            code="SYN-LOCAL",
+            name="Synthetic local source",
+            kind="local",
+            authority_reference="Synthetic appropriation ordinance",
+            effective_from=date(year, 1, 1),
+        )
+        ProgramActivityProject.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            fiscal_year=fiscal_year,
+            code="SYN-MFO-01",
+            name="Synthetic public service MFO",
+            kind="mfo",
+            responsibility_center=self.center,
+            funding_source=source,
+            authority_reference="Synthetic approved budget",
+            effective_from=date(year, 1, 1),
+        )
+        return fiscal_year
+
+    def test_typed_fiscal_year_requires_independent_layered_readiness_before_activation(self):
+        fiscal_year = self._fiscal_foundation()
+        self._grant(self.preparer, "approve_fiscal_readiness")
+        transition_fiscal_year(fiscal_year, "submit", self.preparer)
+        with self.assertRaisesMessage(ValidationError, "different"):
+            transition_fiscal_year(fiscal_year, "approve", self.preparer)
+        transition_fiscal_year(fiscal_year, "approve", self.setup_approver)
+        fiscal_year.refresh_from_db()
+        with self.assertRaisesMessage(ValidationError, "five readiness layers"):
+            transition_fiscal_year(fiscal_year, "activate", self.setup_approver)
+
+        readiness = evaluate_fiscal_year_readiness(fiscal_year)
+        self.assertEqual(len(readiness["layers"]), 5)
+        for result in readiness["layers"]:
+            decide_readiness_layer(
+                result["record"], self.setup_approver,
+                decision=FiscalYearReadinessApproval.APPROVED,
+                evidence_note=f"Synthetic {result['record'].layer} acceptance evidence.",
+            )
+        transition_fiscal_year(fiscal_year, "activate", self.setup_approver)
+        fiscal_year.refresh_from_db()
+        self.assertEqual(fiscal_year.status, FiscalYear.ACTIVE)
+        self.assertTrue(evaluate_fiscal_year_readiness(fiscal_year)["ready"])
+        self.assertTrue(AccountingAuditEvent.objects.filter(action="fiscal_year_activate").exists())
+
+    def test_budget_readiness_cannot_be_approved_without_funding_and_program_classification(self):
+        fiscal_year = FiscalYear.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            year=2028,
+            label="FY 2028",
+            starts_on=date(2028, 1, 1),
+            ends_on=date(2028, 12, 31),
+            business_date=date(2028, 1, 1),
+            created_by_id=self.preparer.pk,
+        )
+        ensure_readiness_layers(fiscal_year)
+        budget_layer = next(
+            item["record"] for item in evaluate_fiscal_year_readiness(fiscal_year)["layers"]
+            if item["record"].layer == FiscalYearReadinessApproval.BUDGET
+        )
+        with self.assertRaisesMessage(ValidationError, "funding source"):
+            decide_readiness_layer(
+                budget_layer, self.setup_approver,
+                decision=FiscalYearReadinessApproval.APPROVED,
+                evidence_note="Premature synthetic acceptance.",
+            )
+
+    def test_classifications_enforce_department_and_fiscal_year_boundaries(self):
+        fiscal_year = self._fiscal_foundation()
+        foreign_fund = Fund.objects.create(
+            department_id=self.other_department.pk,
+            department_label=self.other_department.name,
+            code="HR-FUND",
+            name="Foreign department fund",
+        )
+        source = FundingSource(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            fiscal_year=fiscal_year,
+            fund=foreign_fund,
+            code="BAD-SOURCE",
+            name="Invalid cross-department source",
+            effective_from=date(2027, 1, 1),
+        )
+        with self.assertRaisesMessage(ValidationError, "fund must belong"):
+            source.full_clean()
+
+    def test_approved_setup_release_is_adopted_by_snapshot_without_cross_database_relations(self):
+        release = FinanceConfigurationRelease.objects.create(
+            department=self.accounting_department,
+            code="fy-2027-classifications",
+            version=2,
+            title="Synthetic approved FY 2027 classifications",
+            fiscal_year=2027,
+            status="approved",
+            effective_from=date(2027, 1, 1),
+            created_by=self.preparer,
+            approved_by=self.setup_approver,
+        )
+        item_values = (
+            ("fund", "GF-ADOPT", "Adopted General Fund", {"category": "general"}),
+            ("funding_source", "LOCAL-ADOPT", "Adopted local revenue", {"kind": "local", "fund_code": "GF-ADOPT"}),
+            ("ppa_mfo", "MFO-ADOPT", "Adopted public service MFO", {"kind": "mfo", "funding_source_code": "LOCAL-ADOPT"}),
+        )
+        for category, code, label, configuration in item_values:
+            FinanceConfigurationItem.objects.create(
+                department=self.accounting_department,
+                release=release,
+                category=category,
+                code=code,
+                version=1,
+                label=label,
+                configuration=configuration,
+                status="approved",
+                effective_from=date(2027, 1, 1),
+                created_by=self.preparer,
+            )
+        fiscal_year, counts = adopt_configuration_release(release, self.preparer)
+        self.assertEqual(fiscal_year.source_release_id, release.pk)
+        self.assertEqual(len(fiscal_year.source_checksum), 64)
+        self.assertEqual(counts["funding_sources"], 1)
+        self.assertEqual(counts["classifications"], 1)
+        self.period.refresh_from_db()
+        self.assertEqual(self.period.fiscal_year_record, fiscal_year)
+        self.assertNotIn("department", [field.name for field in FiscalYear._meta.fields])
+        self.assertTrue(AccountingAuditEvent.objects.filter(action="configuration_release_adopted").exists())
+
+    def test_successor_release_for_governed_year_requires_reason_and_reopens_readiness_before_issue(self):
+        fiscal_year = self._fiscal_foundation()
+        ensure_readiness_layers(fiscal_year)
+        fiscal_year.status = FiscalYear.ACTIVE
+        fiscal_year.source_checksum = "0" * 64
+        fiscal_year.save(update_fields=("status", "source_checksum"))
+        FiscalYearReadinessApproval.objects.filter(fiscal_year=fiscal_year).update(
+            status=FiscalYearReadinessApproval.APPROVED,
+            evidence_note="Synthetic prior approval",
+            decided_by_id=self.setup_approver.pk,
+            decided_by_label=self.setup_approver.username,
+        )
+        release = FinanceConfigurationRelease.objects.create(
+            department=self.accounting_department,
+            code="fy-2027-successor",
+            version=3,
+            title="Synthetic successor classifications",
+            fiscal_year=2027,
+            status="approved",
+            effective_from=date(2027, 1, 1),
+            created_by=self.preparer,
+            approved_by=self.setup_approver,
+        )
+        FinanceConfigurationItem.objects.create(
+            department=self.accounting_department,
+            release=release,
+            category="fund",
+            code="GF-SUCCESSOR",
+            version=1,
+            label="Successor General Fund",
+            configuration={"category": "general"},
+            status="approved",
+            effective_from=date(2027, 1, 1),
+            created_by=self.preparer,
+        )
+        with self.assertRaisesMessage(ValidationError, "Explain why"):
+            adopt_configuration_release(release, self.preparer)
+
+        adopted, counts = adopt_configuration_release(
+            release,
+            self.preparer,
+            change_reason="Adopt the corrected approved classification release before any DV or check issue.",
+        )
+        adopted.refresh_from_db()
+        self.assertEqual(adopted.status, FiscalYear.DRAFT)
+        self.assertEqual(adopted.source_release_id, release.pk)
+        self.assertEqual(counts["funds"], 1)
+        self.assertTrue(adopted.readiness_layers.filter(status=FiscalYearReadinessApproval.PENDING).exists())
+        self.assertTrue(AccountingAuditEvent.objects.filter(action="foundation_amended").exists())
+
+    def test_guided_setup_renders_for_manager_and_independent_approver(self):
+        fiscal_year = self._fiscal_foundation()
+        ensure_readiness_layers(fiscal_year)
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("accounting:setup"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Typed fiscal years and readiness")
+        self.assertContains(response, "Budget approval")
+        self.assertContains(response, "Synthetic public service MFO")
+
+        self.client.force_login(self.setup_approver)
+        response = self.client.get(reverse("accounting:setup"))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Approve year")
+        self.assertNotContains(response, "Adopt / reconcile")
+
+    def test_guided_period_form_requires_and_pins_the_typed_fiscal_year(self):
+        fiscal_year = self._fiscal_foundation()
+        self.client.force_login(self.preparer)
+        response = self.client.post(reverse("accounting:setup_create", args=("periods",)), {
+            "fiscal_year_record": fiscal_year.pk,
+            "period_number": 2,
+            "label": "February",
+            "starts_on": "2027-02-01",
+            "ends_on": "2027-02-28",
+            "is_adjustment_period": False,
+        })
+        self.assertEqual(response.status_code, 302)
+        period = AccountingPeriod.objects.get(department_id=self.accounting_department.pk, period_number=2)
+        self.assertEqual(period.fiscal_year_record, fiscal_year)
+        self.assertEqual(period.fiscal_year, 2027)
+
+    def test_guided_foundation_edit_is_allowed_before_voucher_issue_and_reopens_readiness(self):
+        fiscal_year = self._fiscal_foundation()
+        ensure_readiness_layers(fiscal_year)
+        fiscal_year.status = FiscalYear.ACTIVE
+        fiscal_year.save(update_fields=("status",))
+        FiscalYearReadinessApproval.objects.filter(fiscal_year=fiscal_year).update(
+            status=FiscalYearReadinessApproval.APPROVED,
+            evidence_note="Synthetic prior approval",
+            decided_by_id=self.setup_approver.pk,
+            decided_by_label=self.setup_approver.username,
+        )
+        program = fiscal_year.program_classifications.get(code="SYN-MFO-01")
+        self.client.force_login(self.preparer)
+        response = self.client.post(reverse("accounting:setup_edit", args=("programs", program.pk)), {
+            "fiscal_year": fiscal_year.pk,
+            "code": program.code,
+            "name": "Corrected synthetic public service MFO",
+            "kind": program.kind,
+            "parent": "",
+            "responsibility_center": self.center.pk,
+            "funding_source": program.funding_source_id,
+            "authority_reference": "Synthetic approved correction",
+            "effective_from": "2027-01-01",
+            "effective_to": "",
+            "is_active": "on",
+            "change_reason": "Correct the approved synthetic classification before any DV or check is issued.",
+        })
+        self.assertEqual(response.status_code, 302)
+        program.refresh_from_db()
+        fiscal_year.refresh_from_db()
+        self.assertEqual(program.name, "Corrected synthetic public service MFO")
+        self.assertEqual(fiscal_year.status, FiscalYear.DRAFT)
+        self.assertEqual(
+            fiscal_year.readiness_layers.get(layer=FiscalYearReadinessApproval.BUDGET).status,
+            FiscalYearReadinessApproval.PENDING,
+        )
+        event = AccountingAuditEvent.objects.get(action="foundation_amended")
+        self.assertEqual(event.snapshot["before"]["name"], "Synthetic public service MFO")
+        self.assertEqual(event.snapshot["after"]["name"], "Corrected synthetic public service MFO")
+
+    def test_foundation_edit_is_blocked_after_disbursement_voucher_issue(self):
+        fiscal_year = self._fiscal_foundation()
+        release = FinanceConfigurationRelease.objects.create(
+            department=self.accounting_department,
+            code="fy-2027-issued",
+            version=1,
+            title="Synthetic issued-voucher setup",
+            fiscal_year=2027,
+            status="active",
+            effective_from=date(2027, 1, 1),
+            created_by=self.preparer,
+        )
+        fiscal_year.source_release_id = release.pk
+        fiscal_year.source_release_code = release.code
+        fiscal_year.source_release_version = release.version
+        fiscal_year.save(update_fields=("source_release_id", "source_release_code", "source_release_version"))
+        case = VoucherCase.objects.create(
+            reference_code="SYN-MOD-BLOCK",
+            requesting_department=self.accounting_department,
+            current_department=self.accounting_department,
+            configuration_release=release,
+            payee_name="Synthetic modification boundary payee",
+            particulars="Synthetic issued DV modification boundary",
+            created_by=self.preparer,
+        )
+        DisbursementVoucher.objects.create(
+            case=case,
+            dv_number="SYN-DV-MOD-BLOCK",
+            voucher_date=date(2027, 2, 1),
+            gross_amount=Decimal("100.00"),
+            total_deductions=Decimal("0.00"),
+            net_amount=Decimal("100.00"),
+            prepared_by=self.preparer,
+            prepared_at=timezone.now(),
+        )
+        program = fiscal_year.program_classifications.get(code="SYN-MFO-01")
+        with self.assertRaisesMessage(ValidationError, "modification window is closed"):
+            begin_foundation_amendment(program, self.preparer, "Attempted change after DV issue")
+
+    def test_foundation_edit_is_blocked_after_check_issue_even_if_check_is_later_cancelled(self):
+        fiscal_year = self._fiscal_foundation()
+        release = FinanceConfigurationRelease.objects.create(
+            department=self.accounting_department,
+            code="fy-2027-check-issued",
+            version=1,
+            title="Synthetic issued-check setup",
+            fiscal_year=2027,
+            status="active",
+            effective_from=date(2027, 1, 1),
+            created_by=self.preparer,
+        )
+        fiscal_year.source_release_id = release.pk
+        fiscal_year.source_release_code = release.code
+        fiscal_year.source_release_version = release.version
+        fiscal_year.save(update_fields=("source_release_id", "source_release_code", "source_release_version"))
+        case = VoucherCase.objects.create(
+            reference_code="SYN-CHECK-MOD-BLOCK",
+            requesting_department=self.accounting_department,
+            current_department=self.accounting_department,
+            configuration_release=release,
+            payee_name="Synthetic issued-check payee",
+            particulars="Synthetic issued check modification boundary",
+            created_by=self.preparer,
+        )
+        PaymentInstrument.objects.create(
+            case=case,
+            bank_account_code="SYN-BANK",
+            check_number="SYN-CHECK-001",
+            amount=Decimal("100.00"),
+            status=PaymentInstrument.CANCELLED,
+            issued_by=self.preparer,
+            issued_at=timezone.now(),
+            cancelled_by=self.preparer,
+            cancelled_at=timezone.now(),
+            cancellation_reason="Synthetic spoilage after issuance",
+        )
+        program = fiscal_year.program_classifications.get(code="SYN-MFO-01")
+        with self.assertRaisesMessage(ValidationError, "modification window is closed"):
+            begin_foundation_amendment(program, self.preparer, "Attempted change after check issue")
 
     def test_accounting_models_are_routed_only_to_finance_database(self):
         self.assertEqual(JournalEntry.objects.db, "finance")

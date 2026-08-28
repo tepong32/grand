@@ -45,7 +45,7 @@ Available controls cover Finance Setup self-approval, Budget-certifier/DV prepar
 
 ## Operator workflow
 
-1. In **Accounting → Setup**, add an open period, fund, optional responsibility centers, posting accounts, and controlled voucher posting mappings.
+1. In **Accounting → Setup**, create or adopt the typed fiscal year, add its calendar periods, funds, responsibility centers, posting accounts, funding sources and PPA/MFO/project/activity classifications, then obtain the five independent readiness decisions described in the [F2.1 operating guide](FINANCE_FISCAL_FOUNDATION.md).
 2. Create a journal from **Accounting → New journal entry**.
 3. Add debit and credit lines. GRAND explains missing or invalid values next to the affected field.
 4. Confirm the live balance card shows equal non-zero debits and credits.
@@ -66,7 +66,7 @@ The amendment keeps the same case and DV number, snapshots the unchanged gross/d
 
 This route does not change the JEV date, accounting period, fund, accounts, allocations, deductions, or amounts. Those are financial corrections and continue to require the accounting return/reversal workflow.
 
-Master records used by journals are archived instead of deleted. Codes and names already used in history cannot be silently redefined.
+Master records used by journals are archived instead of deleted. Codes, effective dates, account/office dimensions, and names already used in history cannot be silently redefined. Active fiscal-year classifications and readiness evidence require a governed successor rather than in-place rewriting.
 
 ## Excel templates
 

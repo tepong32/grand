@@ -1,6 +1,9 @@
 from django import forms
 
-from .models import AccountingPeriod, Fund, JournalEntry, JournalLine, LedgerAccount, PostingMapping, ResponsibilityCenter
+from .models import (
+    AccountingPeriod, FiscalYear, Fund, FundingSource, JournalEntry, JournalLine,
+    LedgerAccount, PostingMapping, ProgramActivityProject, ResponsibilityCenter,
+)
 
 
 class StyledModelForm(forms.ModelForm):
@@ -18,26 +21,57 @@ class StyledModelForm(forms.ModelForm):
 class AccountingPeriodForm(StyledModelForm):
     class Meta:
         model = AccountingPeriod
-        fields = ("fiscal_year", "period_number", "label", "starts_on", "ends_on")
+        fields = ("fiscal_year_record", "period_number", "label", "starts_on", "ends_on", "is_adjustment_period")
         widgets = {"starts_on": forms.DateInput(attrs={"type": "date"}), "ends_on": forms.DateInput(attrs={"type": "date"})}
+
+    def __init__(self, *args, department, **kwargs):
+        super().__init__(*args, department=department, **kwargs)
+        self.fields["fiscal_year_record"].queryset = FiscalYear.objects.filter(department_id=department.pk)
+        self.fields["fiscal_year_record"].required = True
+
+    def clean_fiscal_year_record(self):
+        fiscal_year = self.cleaned_data["fiscal_year_record"]
+        self.instance.fiscal_year = fiscal_year.year
+        return fiscal_year
+
+    def save(self, commit=True):
+        self.instance.fiscal_year = self.cleaned_data["fiscal_year_record"].year
+        return super().save(commit=commit)
+
+
+class FiscalYearForm(StyledModelForm):
+    class Meta:
+        model = FiscalYear
+        fields = ("year", "label", "starts_on", "ends_on", "business_date")
+        widgets = {
+            "starts_on": forms.DateInput(attrs={"type": "date"}),
+            "ends_on": forms.DateInput(attrs={"type": "date"}),
+            "business_date": forms.DateInput(attrs={"type": "date"}),
+        }
 
 
 class FundForm(StyledModelForm):
     class Meta:
         model = Fund
-        fields = ("code", "name", "description", "is_active")
+        fields = ("code", "name", "category", "description", "effective_from", "effective_to", "is_active")
+        widgets = {"effective_from": forms.DateInput(attrs={"type": "date"}), "effective_to": forms.DateInput(attrs={"type": "date"})}
 
 
 class ResponsibilityCenterForm(StyledModelForm):
     class Meta:
         model = ResponsibilityCenter
-        fields = ("code", "name", "description", "is_active")
+        fields = ("code", "name", "office_id", "office_code", "description", "effective_from", "effective_to", "is_active")
+        widgets = {"effective_from": forms.DateInput(attrs={"type": "date"}), "effective_to": forms.DateInput(attrs={"type": "date"})}
 
 
 class LedgerAccountForm(StyledModelForm):
     class Meta:
         model = LedgerAccount
-        fields = ("code", "title", "account_type", "normal_balance", "parent", "allow_posting", "is_active")
+        fields = (
+            "code", "title", "government_account_code", "account_type", "normal_balance", "parent",
+            "subsidiary_reference_type", "effective_from", "effective_to", "allow_posting", "is_active",
+        )
+        widgets = {"effective_from": forms.DateInput(attrs={"type": "date"}), "effective_to": forms.DateInput(attrs={"type": "date"})}
 
     def __init__(self, *args, department, **kwargs):
         super().__init__(*args, department=department, **kwargs)
@@ -45,6 +79,47 @@ class LedgerAccountForm(StyledModelForm):
         if self.instance.pk:
             parents = parents.exclude(pk=self.instance.pk)
         self.fields["parent"].queryset = parents
+
+
+class FundingSourceForm(StyledModelForm):
+    class Meta:
+        model = FundingSource
+        fields = (
+            "fiscal_year", "fund", "code", "name", "kind", "authority_reference",
+            "effective_from", "effective_to", "is_active",
+        )
+        widgets = {"effective_from": forms.DateInput(attrs={"type": "date"}), "effective_to": forms.DateInput(attrs={"type": "date"})}
+
+    def __init__(self, *args, department, **kwargs):
+        super().__init__(*args, department=department, **kwargs)
+        self.fields["fiscal_year"].queryset = FiscalYear.objects.filter(department_id=department.pk)
+        self.fields["fund"].queryset = Fund.objects.filter(department_id=department.pk, is_active=True)
+
+
+class ProgramActivityProjectForm(StyledModelForm):
+    class Meta:
+        model = ProgramActivityProject
+        fields = (
+            "fiscal_year", "code", "name", "kind", "parent", "responsibility_center",
+            "funding_source", "authority_reference", "effective_from", "effective_to", "is_active",
+        )
+        widgets = {"effective_from": forms.DateInput(attrs={"type": "date"}), "effective_to": forms.DateInput(attrs={"type": "date"})}
+
+    def __init__(self, *args, department, **kwargs):
+        super().__init__(*args, department=department, **kwargs)
+        self.fields["fiscal_year"].queryset = FiscalYear.objects.filter(department_id=department.pk)
+        self.fields["parent"].queryset = ProgramActivityProject.objects.filter(department_id=department.pk)
+        self.fields["responsibility_center"].queryset = ResponsibilityCenter.objects.filter(department_id=department.pk, is_active=True)
+        self.fields["funding_source"].queryset = FundingSource.objects.filter(department_id=department.pk, is_active=True)
+
+    def clean(self):
+        cleaned = super().clean()
+        fiscal_year = cleaned.get("fiscal_year")
+        for field_name in ("parent", "funding_source"):
+            related = cleaned.get(field_name)
+            if fiscal_year and related and related.fiscal_year_id != fiscal_year.pk:
+                self.add_error(field_name, "Choose a value from the selected fiscal year.")
+        return cleaned
 
 
 class PostingMappingForm(StyledModelForm):
