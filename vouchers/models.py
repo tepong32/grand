@@ -11,7 +11,10 @@ from django.db import models
 from django.urls import reverse
 
 from departments.models import Department
-from finance.models import FinanceConfigurationRelease, FinanceParty, FinancePartyClaimant, FinanceTemplateVersion
+from finance.models import (
+    FinanceConfigurationRelease, FinanceDocumentRule, FinanceParty, FinancePartyClaimant,
+    FinanceTemplateVersion,
+)
 
 
 MONEY = {"max_digits": 18, "decimal_places": 2, "default": Decimal("0.00")}
@@ -34,6 +37,8 @@ class VoucherCase(models.Model):
         (BINDING_FAILED, "Authoritative obligation link needs reconciliation"),
     )
     BUDGET_DRAFT = "budget_draft"
+    PAYABLE_PREPARATION = "payable_preparation"
+    PAYABLE_REVIEW = "payable_review"
     ACCOUNTING_PREPARATION = "accounting_preparation"
     AWAITING_SIGNATURES = "awaiting_signatures"
     ACCOUNTING_VALIDATION = "accounting_validation"
@@ -45,6 +50,8 @@ class VoucherCase(models.Model):
     CANCELLED = "cancelled"
     STAGE_CHOICES = (
         (BUDGET_DRAFT, "Budget allocation draft"),
+        (PAYABLE_PREPARATION, "Requesting-office payable preparation"),
+        (PAYABLE_REVIEW, "Accounting payable-readiness review"),
         (ACCOUNTING_PREPARATION, "Accounting DV preparation"),
         (AWAITING_SIGNATURES, "Awaiting wet signatures"),
         (ACCOUNTING_VALIDATION, "Accounting validation"),
@@ -89,6 +96,7 @@ class VoucherCase(models.Model):
             ("view_voucher_workbench", "Can access the voucher workbench"),
             ("initiate_budget_case", "Can initiate budget voucher cases"),
             ("initiate_payable_case", "Can initiate payable cases from certified obligations"),
+            ("review_payable_intake", "Can review payable readiness independently"),
             ("certify_budget_obligation", "Can certify budget obligations"),
             ("prepare_disbursement_voucher", "Can prepare disbursement vouchers"),
             ("track_wet_signatures", "Can track wet signature circulation"),
@@ -151,6 +159,15 @@ class BudgetAllocationLine(models.Model):
 class PayableIntake(models.Model):
     """Pinned requesting-office readiness evidence; authoritative source files remain in their owning systems."""
 
+    DRAFT = "draft"
+    FOR_REVIEW = "for_review"
+    RETURNED = "returned"
+    READY = "ready"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft evidence intake"), (FOR_REVIEW, "For Accounting review"),
+        (RETURNED, "Returned for correction"), (READY, "Payment-ready for DV preparation"),
+    )
+
     case = models.OneToOneField(VoucherCase, on_delete=models.PROTECT, related_name="payable_intake")
     claim_reference = models.CharField(max_length=120)
     invoice_number = models.CharField(max_length=120, blank=True)
@@ -162,6 +179,18 @@ class PayableIntake(models.Model):
     evidence_reference = models.TextField()
     duplicate_warning = models.TextField(blank=True)
     duplicate_review_note = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=DRAFT)
+    decision_reason = models.TextField(blank=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_payable_intakes",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_payable_intakes",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
     prepared_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="prepared_payable_intakes")
     prepared_at = models.DateTimeField(auto_now_add=True)
 
@@ -179,6 +208,56 @@ class PayableIntake(models.Model):
                 "The payable amount must equal the currently linked obligation amount. "
                 "Record a governed obligation adjustment before intake when the final claim changes."
             )
+
+
+class PayableDocumentEvidence(models.Model):
+    PENDING = "pending"
+    PRESENT = "present"
+    NOT_APPLICABLE = "not_applicable"
+    WAIVED = "waived"
+    STATUS_CHOICES = (
+        (PENDING, "Pending"), (PRESENT, "Present and referenced"),
+        (NOT_APPLICABLE, "Condition not applicable"), (WAIVED, "Waived by reviewed authority"),
+    )
+
+    case = models.ForeignKey(VoucherCase, on_delete=models.PROTECT, related_name="payable_document_evidence")
+    source_rule = models.ForeignKey(FinanceDocumentRule, on_delete=models.PROTECT, related_name="payable_evidence")
+    rule_public_id_snapshot = models.UUIDField()
+    requirement_code = models.SlugField(max_length=80)
+    requirement_label = models.CharField(max_length=180)
+    evidence_kind = models.CharField(max_length=32)
+    required = models.BooleanField()
+    waiver_allowed = models.BooleanField()
+    condition_description = models.TextField(blank=True)
+    authority_reference = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
+    evidence_reference = models.TextField(blank=True)
+    decision_note = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="recorded_payable_document_evidence",
+    )
+    recorded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("source_rule__display_order", "requirement_code")
+        constraints = (
+            models.UniqueConstraint(fields=("case", "requirement_code"), name="unique_payable_requirement_per_case"),
+        )
+
+    def clean(self):
+        if self.status == self.PRESENT and not self.evidence_reference.strip():
+            raise ValidationError({"evidence_reference": "Reference the reviewed evidence that is present."})
+        if self.status == self.WAIVED:
+            if not self.waiver_allowed:
+                raise ValidationError({"status": "This requirement cannot be waived under the configured rule."})
+            if not self.decision_note.strip():
+                raise ValidationError({"decision_note": "Record the specific waiver decision and authority."})
+        if self.status == self.NOT_APPLICABLE:
+            if self.required:
+                raise ValidationError({"status": "A required item must be present or use an explicitly allowed waiver."})
+            if not self.decision_note.strip():
+                raise ValidationError({"decision_note": "Explain why the configured condition does not apply."})
 
 
 class DisbursementVoucher(models.Model):

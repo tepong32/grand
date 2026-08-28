@@ -73,6 +73,7 @@ class Command(BaseCommand):
         guide_counts = seed_finance_internal_howtos()
         self.stdout.write(
             f"Internal How-Tos: {guide_counts['guides_created']} created; "
+            f"{guide_counts['guides_retired']} superseded; "
             f"{guide_counts['guides_preserved']} published guide(s) preserved."
         )
 

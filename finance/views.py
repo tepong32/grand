@@ -10,8 +10,9 @@ from .access import (
     finance_permission_required,
 )
 from .forms import (
-    FinanceItemForm, FinanceNumberingSequenceForm, FinanceReleaseForm,
+    FinanceDocumentRuleForm, FinanceItemForm, FinanceNumberingSequenceForm, FinanceReleaseForm,
     FinancePartyClaimantForm, FinancePartyForm, FinanceSignatoryForm, FinanceTemplateForm,
+    FinanceTransactionVariantForm,
 )
 from .models import FinanceConfigurationRelease, FinanceParty, FinanceTemplateVersion
 from .services import (
@@ -52,7 +53,10 @@ def release_create(request):
 @finance_access_required
 def release_detail(request, pk):
     department = department_for_user(request.user)
-    release = get_object_or_404(FinanceConfigurationRelease.objects.prefetch_related("items", "templates", "signatories", "numbering_sequences", "parties__authorized_claimants", "events__actor"), pk=pk, department=department)
+    release = get_object_or_404(FinanceConfigurationRelease.objects.prefetch_related(
+        "items", "templates", "signatories", "numbering_sequences", "parties__authorized_claimants",
+        "transaction_variants__document_rules", "events__actor",
+    ), pk=pk, department=department)
     return render(request, "finance/release_detail.html", {
         "release": release, "readiness": evaluate_readiness(release),
         "today": timezone.localdate(),
@@ -76,6 +80,42 @@ def item_create(request):
         messages.success(request, "Draft finance master-data version created.")
         return redirect("finance:release_detail", pk=item.release_id)
     return render(request, "finance/form.html", {"form": form, "title": "Add finance configuration", "guidance": "Use synthetic examples only until local Accounting reviews the release. Existing approved versions are never overwritten."})
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def variant_create(request):
+    department = department_for_user(request.user)
+    form = FinanceTransactionVariantForm(
+        request.POST or None, department=department, initial={"release": request.GET.get("release")},
+    )
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.department, item.created_by = department, request.user
+        item.full_clean(); item.save(); record_event(item, request.user, "created")
+        messages.success(request, "Draft transaction variant created. Add its reviewed document rules before submission.")
+        return redirect("finance:release_detail", pk=item.release_id)
+    return render(request, "finance/form.html", {
+        "form": form, "title": "Add governed transaction variant",
+        "guidance": "Configure each locally approved variant separately. A public COA/DBM source is evidence to review, not automatic proof that the exact local route or form has been accepted.",
+    })
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def document_rule_create(request):
+    department = department_for_user(request.user)
+    form = FinanceDocumentRuleForm(
+        request.POST or None, department=department, initial={"variant": request.GET.get("variant")},
+    )
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.created_by = request.user
+        item.full_clean(); item.save(); record_event(item, request.user, "document_rule_created")
+        messages.success(request, "Draft transaction-specific document rule created.")
+        return redirect("finance:release_detail", pk=item.variant.release_id)
+    return render(request, "finance/form.html", {
+        "form": form, "title": "Add transaction document rule",
+        "guidance": "State whether the evidence is required, conditional, or waivable and cite the reviewed authority. Do not upload sensitive source documents into setup.",
+    })
 
 
 @finance_permission_required(can_manage_finance_configuration)

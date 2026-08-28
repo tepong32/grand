@@ -4,6 +4,12 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance transaction variants and payable readiness
+
+- Added F5.2 typed ordinary-supplier, payroll, reimbursement, utility, financial-assistance, cash-advance/liquidation, infrastructure/progress-billing, and locally approved transaction variants with effective-dated authority/applicability evidence.
+- Added ordered required/conditional documentary rules, explicit applicability conditions, governed waivers, immutable case snapshots, requesting-office evidence decisions, and an independent Accounting accept/return gate before DV preparation.
+- Added obligation-freshness rechecks, reviewer-office and segregation controls, correction/resubmission history, permission-accurate payable UI, and versioned requester/Accounting Internal How-Tos whose private progress is not copied forward.
+
 ### Finance payable intake and obligation handoff
 
 - Added F5.1 requesting-office payable intake from an unlinked certified F4.2 obligation, with pinned UUID, controlled number, corrected lineage amount, checksum, and classified compatibility projection instead of a second Budget certification.

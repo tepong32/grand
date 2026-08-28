@@ -35,7 +35,7 @@ Route patterns use named Django routes and shell-style wildcards—for example `
 
 ## Finance starter guides
 
-`python manage.py seed_internal_howtos` idempotently creates Finance guides for departments whose name/slug identifies Accounting/Finance, Budget, or Treasury. `configure_finance_roles` also invokes the seed, and the post-migration hook seeds existing matching departments. Published guides are preserved rather than overwritten.
+`python manage.py seed_internal_howtos` idempotently creates Finance guides for departments whose name/slug identifies Accounting/Finance, Budget, or Treasury. `configure_finance_roles` also invokes the seed, and the post-migration hook seeds existing matching departments. A definition at the same or an older version preserves the published guide. A reviewed newer definition retires the old published guide and publishes its successor without changing old steps or moving private progress.
 
 The initial set covers:
 
@@ -43,6 +43,7 @@ The initial set covers:
 - opening-balance staging/correction, independent approval, posting/reconciliation, and portable export;
 - manual JEV preparation and independent posting/correction;
 - Accounting DV preparation and wet-signature/custody routing;
+- requesting-office transaction-specific payable preparation and independent Accounting readiness review;
 - Budget case initiation/certification; and
 - Treasury check preparation, cancellation/replacement, advice, and release.
 

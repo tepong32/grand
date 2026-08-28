@@ -13,9 +13,15 @@ from django.urls import reverse
 from accounting.models import FiscalYear, Fund, LedgerAccount, ProgramActivityProject, ResponsibilityCenter
 from departments.models import Department
 from departments.services.internal_howto_seed import seed_finance_internal_howtos
-from finance.models import FinanceConfigurationItem, FinanceConfigurationRelease, FinanceParty
-from vouchers.models import PayableIntake, VoucherCase
-from vouchers.services import create_payable_case_from_obligation, prepare_voucher
+from finance.models import (
+    FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule, FinanceParty,
+    FinanceTransactionVariant,
+)
+from vouchers.models import PayableDocumentEvidence, PayableIntake, VoucherCase
+from vouchers.services import (
+    create_payable_case_from_obligation, prepare_voucher, record_payable_document_evidence,
+    review_payable_intake, submit_payable_intake,
+)
 
 from .models import (
     AllotmentMovement, AllotmentOrderLine, AllotmentReleaseOrder, AppropriationAuthorization,
@@ -506,6 +512,10 @@ class AnnualBudgetPreparationTests(TestCase):
         accountant.user_permissions.add(Permission.objects.get(
             content_type__app_label="vouchers", codename="prepare_disbursement_voucher",
         ))
+        review_permission = Permission.objects.get(
+            content_type__app_label="vouchers", codename="review_payable_intake",
+        )
+        accountant.user_permissions.add(review_permission)
         release = FinanceConfigurationRelease.objects.create(
             department=self.accounting_office, code="f5-payable-test", version=1,
             title="Synthetic F5 payable setup", fiscal_year=2026, status="active",
@@ -516,6 +526,24 @@ class AnnualBudgetPreparationTests(TestCase):
             department=self.accounting_office, release=release, category="transaction_type",
             code="ordinary-supplier-claim", version=1, label="Ordinary supplier claim",
             status="active", effective_from=date(2026, 1, 1), created_by=accountant,
+        )
+        variant = FinanceTransactionVariant.objects.create(
+            department=self.accounting_office, release=release, code="ordinary-supplier-claim",
+            label="Ordinary supplier claim", kind=FinanceTransactionVariant.ORDINARY_SUPPLIER,
+            description="Synthetic one-to-one supplier payable readiness route.",
+            authority_reference="Synthetic reviewed COA/DBM/local applicability decision.",
+            effective_from=date(2026, 1, 1), status="active", created_by=accountant,
+        )
+        required_rule = FinanceDocumentRule.objects.create(
+            variant=variant, code="invoice", label="Invoice / billing",
+            evidence_kind=FinanceDocumentRule.INVOICE, required=True, waiver_allowed=False,
+            authority_reference="Synthetic reviewed invoice requirement.", created_by=accountant,
+        )
+        conditional_rule = FinanceDocumentRule.objects.create(
+            variant=variant, code="inspection", label="Inspection and acceptance",
+            evidence_kind=FinanceDocumentRule.INSPECTION, required=False, waiver_allowed=False,
+            condition_description="Applicable only when goods or completed work require inspection.",
+            authority_reference="Synthetic reviewed conditional inspection rule.", created_by=accountant,
         )
         party = FinanceParty.objects.create(
             department=self.accounting_office, release=release, code="f5-supplier", version=1,
@@ -533,11 +561,70 @@ class AnnualBudgetPreparationTests(TestCase):
         item.refresh_from_db(); case.refresh_from_db()
         self.assertEqual(item.linked_voucher_case_public_id, case.public_id)
         self.assertEqual(case.obligation_binding_status, VoucherCase.BINDING_LINKED)
-        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_PREPARATION)
+        self.assertEqual(case.current_stage, VoucherCase.PAYABLE_PREPARATION)
         self.assertEqual(case.obligation.source_kind, "authoritative_f4_projection")
         self.assertEqual(case.obligation.certified_amount, Decimal("10000"))
         self.assertEqual(PayableIntake.objects.get(case=case).claim_reference, "CLAIM-2027-001")
         self.assertEqual(item.movements.count(), 1)
+        with self.assertRaisesMessage(ValidationError, "Resolve every documentary rule"):
+            submit_payable_intake(
+                case=case, actor=self.requester, expected_version=case.state_version,
+                idempotency_key="premature-payable-submit",
+            )
+        invoice = case.payable_document_evidence.get(source_rule=required_rule)
+        record_payable_document_evidence(
+            case=case, evidence=invoice, actor=self.requester, status=PayableDocumentEvidence.PRESENT,
+            evidence_reference="Synthetic invoice INV-001", decision_note="",
+            expected_version=case.state_version, idempotency_key="payable-invoice-present",
+        )
+        case.refresh_from_db()
+        inspection = case.payable_document_evidence.get(source_rule=conditional_rule)
+        record_payable_document_evidence(
+            case=case, evidence=inspection, actor=self.requester,
+            status=PayableDocumentEvidence.NOT_APPLICABLE, evidence_reference="",
+            decision_note="Synthetic service did not involve inspectable goods.",
+            expected_version=case.state_version, idempotency_key="payable-inspection-na",
+        )
+        case.refresh_from_db()
+        accountant.user_permissions.remove(review_permission)
+        with self.assertRaisesMessage(ValidationError, "No active Accounting payable reviewer"):
+            submit_payable_intake(
+                case=case, actor=self.requester, expected_version=case.state_version,
+                idempotency_key="payable-submit-without-reviewer",
+            )
+        accountant.user_permissions.add(review_permission)
+        submit_payable_intake(
+            case=case, actor=self.requester, expected_version=case.state_version,
+            idempotency_key="payable-submit",
+        )
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.PAYABLE_REVIEW)
+        self.assertEqual(case.current_department, self.accounting_office)
+        review_payable_intake(
+            case=case, actor=accountant, decision=PayableIntake.RETURNED,
+            reason="Clarify the synthetic inspection not-applicable decision.",
+            expected_version=case.state_version, idempotency_key="payable-return",
+        )
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.PAYABLE_PREPARATION)
+        self.assertEqual(case.current_department, self.requesting_office)
+        self.assertEqual(case.payable_intake.status, PayableIntake.RETURNED)
+        submit_payable_intake(
+            case=case, actor=self.requester, expected_version=case.state_version,
+            idempotency_key="payable-resubmit",
+        )
+        case.refresh_from_db()
+        self.assertIsNone(case.payable_intake.reviewed_by)
+        self.assertIsNone(case.payable_intake.reviewed_at)
+        self.assertEqual(case.payable_intake.decision_reason, "")
+        review_payable_intake(
+            case=case, actor=accountant, decision=PayableIntake.READY,
+            reason="Independent synthetic review of obligation, claim, and documentary rules.",
+            expected_version=case.state_version, idempotency_key="payable-ready",
+        )
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_PREPARATION)
+        self.assertEqual(case.payable_intake.status, PayableIntake.READY)
         correction = self.make_obligation_request(
             authorization, reference="GSO-PAYABLE-ADJ", total="-1000",
             kind=ObligationRequest.ADJUSTMENT, corrects=item,

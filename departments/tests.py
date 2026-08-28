@@ -398,3 +398,37 @@ class InternalHowToTests(TestCase):
             slug="finance-opening-prepare",
             status=InternalHowTo.PUBLISHED,
         ).exists())
+
+    def test_finance_seed_supersedes_an_old_guide_without_copying_personal_progress(self):
+        old = InternalHowTo.objects.create(
+            department=self.accounting,
+            slug="finance-requesting-office-payable-intake",
+            version=1,
+            title="Old payable intake guide",
+            summary="Synthetic predecessor instructions.",
+            required_permission="vouchers.initiate_payable_case",
+            page_patterns=["vouchers:*"],
+            status=InternalHowTo.DRAFT,
+        )
+        old_step = InternalHowToStep.objects.create(
+            how_to=old, position=1, title="Old step", instruction="Follow the predecessor instruction.",
+        )
+        old.status = InternalHowTo.PUBLISHED
+        old.save(update_fields=("status", "updated_at"))
+        InternalHowToStepCompletion.objects.create(
+            user=self.preparer, step=old_step, department=self.accounting,
+        )
+
+        counts = seed_finance_internal_howtos()
+
+        old.refresh_from_db()
+        current = InternalHowTo.objects.get(
+            department=self.accounting,
+            slug="finance-requesting-office-payable-intake",
+            status=InternalHowTo.PUBLISHED,
+        )
+        self.assertEqual(old.status, InternalHowTo.RETIRED)
+        self.assertEqual(current.version, 2)
+        self.assertGreaterEqual(counts["guides_retired"], 1)
+        self.assertTrue(InternalHowToStepCompletion.objects.filter(user=self.preparer, step=old_step).exists())
+        self.assertFalse(InternalHowToStepCompletion.objects.filter(user=self.preparer, step__how_to=current).exists())

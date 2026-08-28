@@ -9,7 +9,7 @@ from .forms import (
     AccountingValidationForm, BankAdviceForm, BudgetCertificationForm, PayableIntakeForm,
     CancelCheckForm, CheckIssueForm, CheckReleaseForm, ReturnCaseForm,
     NonFinancialAmendmentForm, SignatureReturnForm, SubmitChecksForm, VoucherPreparationForm,
-    TracePointLinkForm,
+    TracePointLinkForm, PayableEvidenceForm, PayableReviewForm, PayableSubmitForm,
 )
 from .models import PaymentInstrument, VoucherCase, VoucherOutput
 from .roles import STAGE_NEXT_ACTION, finance_workspace_profile
@@ -18,16 +18,15 @@ from .services import (
     create_payable_case_from_obligation,
     finalize_bank_advice, generate_shadow_dv, issue_check, link_tracepoint_item, prepare_voucher, record_signature_return,
     reconcile_authoritative_obligation, release_check, return_case, submit_checks_for_advice, validate_accounting,
+    record_payable_document_evidence, review_payable_intake, submit_payable_intake,
 )
 
 
 def _permissions(user):
     return {
-        "initiate": (
-            has_explicit_permission(user, "vouchers.initiate_payable_case")
-            or has_explicit_permission(user, "vouchers.initiate_budget_case")
-        ),
+        "initiate_payable": has_explicit_permission(user, "vouchers.initiate_payable_case"),
         "certify": has_explicit_permission(user, "vouchers.certify_budget_obligation"),
+        "review_payable": has_explicit_permission(user, "vouchers.review_payable_intake"),
         "prepare": has_explicit_permission(user, "vouchers.prepare_disbursement_voucher"),
         "signatures": has_explicit_permission(user, "vouchers.track_wet_signatures"),
         "tracepoint_link": has_explicit_permission(user, "vouchers.link_tracepoint_custody"),
@@ -46,6 +45,8 @@ def _actionable_stages(permissions, can_access_accounting=False):
     stages = []
     for allowed, stage in (
         (permissions["certify"], VoucherCase.BUDGET_DRAFT),
+        (permissions["initiate_payable"], VoucherCase.PAYABLE_PREPARATION),
+        (permissions["review_payable"], VoucherCase.PAYABLE_REVIEW),
         (permissions["prepare"], VoucherCase.ACCOUNTING_PREPARATION),
         (permissions["signatures"], VoucherCase.AWAITING_SIGNATURES),
         (permissions["validate"], VoucherCase.ACCOUNTING_VALIDATION),
@@ -101,10 +102,7 @@ def workspace(request):
 
 @voucher_access_required
 def case_create(request):
-    if not (
-        has_explicit_permission(request.user, "vouchers.initiate_payable_case")
-        or has_explicit_permission(request.user, "vouchers.initiate_budget_case")
-    ):
+    if not has_explicit_permission(request.user, "vouchers.initiate_payable_case"):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     try:
@@ -122,7 +120,10 @@ def case_create(request):
             form.add_error(None, exc)
         else:
             if case.obligation_binding_status == VoucherCase.BINDING_LINKED:
-                messages.success(request, "Payable case linked to the certified obligation and routed to Accounting.")
+                messages.success(
+                    request,
+                    "Payable case linked to the certified obligation. Complete its transaction-specific checklist before Accounting review.",
+                )
             else:
                 messages.warning(request, "Payable case retained, but its obligation link needs reconciliation before Accounting can proceed.")
             return redirect(case)
@@ -143,6 +144,7 @@ def _case(public_id):
             "tasks", "payee__authorized_claimants", "outputs__template",
             "posting_requests",
             "nonfinancial_amendments__amended_by",
+            "payable_document_evidence__source_rule", "payable_document_evidence__recorded_by",
         ), public_id=public_id,
     )
 
@@ -180,6 +182,9 @@ def case_detail(request, public_id):
         "cancel_form": CancelCheckForm(case=case),
         "tracepoint_form": TracePointLinkForm(case=case),
         "amendment_form": NonFinancialAmendmentForm(case=case),
+        "payable_evidence_form": PayableEvidenceForm(case=case),
+        "payable_submit_form": PayableSubmitForm(case=case),
+        "payable_review_form": PayableReviewForm(case=case),
         "can_amend_nonfinancial": bool(
             permissions["amend_nonfinancial"]
             and hasattr(case, "disbursement_voucher")
@@ -209,6 +214,9 @@ def case_action(request, public_id, action):
         "link-tracepoint": TracePointLinkForm,
         "amend-nonfinancial": NonFinancialAmendmentForm,
         "reconcile-obligation": SubmitChecksForm,
+        "record-payable-evidence": PayableEvidenceForm,
+        "submit-payable": PayableSubmitForm,
+        "review-payable": PayableReviewForm,
     }
     form_class = forms.get(action)
     if not form_class:
@@ -227,6 +235,15 @@ def case_action(request, public_id, action):
             )
         elif action == "reconcile-obligation":
             reconcile_authoritative_obligation(**common)
+        elif action == "record-payable-evidence":
+            record_payable_document_evidence(
+                **common, evidence=data["evidence"], status=data["status"],
+                evidence_reference=data["evidence_reference"], decision_note=data["decision_note"],
+            )
+        elif action == "submit-payable":
+            submit_payable_intake(**common)
+        elif action == "review-payable":
+            review_payable_intake(**common, decision=data["decision"], reason=data["reason"])
         elif action == "prepare-dv":
             deductions = []
             if data.get("deduction_code"):

@@ -9,7 +9,7 @@
       <p class="text-muted mb-0">{{ workspace_profile.description }}</p>
     </div>
     <div class="mt-2">
-      {% if permissions.initiate %}
+      {% if permissions.initiate_payable %}
         <a class="btn btn-primary" href="{% url 'vouchers:case_create' %}">
           <i class="fas fa-plus mr-1"></i>Open payable
         </a>

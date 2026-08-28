@@ -57,6 +57,7 @@ FINANCE_ROLE_PERMISSIONS = {
     "Accounting DV Preparer": (
         "finance.view_finance_setup",
         "vouchers.view_voucher_workbench",
+        "vouchers.review_payable_intake",
         "vouchers.prepare_disbursement_voucher",
         "vouchers.track_wet_signatures",
         "vouchers.link_tracepoint_custody",
@@ -108,6 +109,15 @@ FINANCE_ROLE_PERMISSIONS = {
 
 
 ROLE_PROFILES = {
+    "requesting": {
+        "eyebrow": "Requesting Office",
+        "title": "Payable preparation workspace",
+        "description": "Complete transaction-specific evidence against the certified obligation before Accounting review.",
+        "queue_title": "Payables ready for your office",
+        "empty_message": "No payable intake is waiting for this requesting office.",
+        "stages": ("payable_preparation",),
+        "icon": "fa-file-invoice-dollar",
+    },
     "budget": {
         "eyebrow": "Budget Office",
         "title": "Budget voucher workspace",
@@ -124,7 +134,7 @@ ROLE_PROFILES = {
         "queue_title": "Accounting cases ready for review",
         "empty_message": "No voucher case is waiting for Accounting action.",
         "stages": (
-            "accounting_preparation", "awaiting_signatures", "accounting_validation",
+            "payable_review", "accounting_preparation", "awaiting_signatures", "accounting_validation",
             "accounting_posting", "accounting_bank_advice",
         ),
         "icon": "fa-balance-scale",
@@ -145,7 +155,7 @@ ROLE_PROFILES = {
         "queue_title": "Open finance cases",
         "empty_message": "No finance case is currently open.",
         "stages": (
-            "budget_draft", "accounting_preparation", "awaiting_signatures", "accounting_validation",
+            "budget_draft", "payable_preparation", "payable_review", "accounting_preparation", "awaiting_signatures", "accounting_validation",
             "accounting_posting", "treasury_check_preparation", "accounting_bank_advice", "treasury_release",
         ),
         "icon": "fa-route",
@@ -155,6 +165,8 @@ ROLE_PROFILES = {
 
 STAGE_NEXT_ACTION = {
     "budget_draft": "Complete shadow OBR compatibility step",
+    "payable_preparation": "Complete the transaction-specific payable checklist",
+    "payable_review": "Review payable readiness or return specific corrections",
     "accounting_preparation": "Prepare the disbursement voucher",
     "awaiting_signatures": "Record returned wet signatures",
     "accounting_validation": "Validate the voucher and request a JEV",
@@ -187,6 +199,10 @@ def department_workspace_role(user) -> str:
         return "accounting"
     if "treasur" in identity:
         return "treasury"
+    if user.user_permissions.filter(content_type__app_label="vouchers", codename="initiate_payable_case").exists() or user.groups.filter(
+        permissions__content_type__app_label="vouchers", permissions__codename="initiate_payable_case",
+    ).exists():
+        return "requesting"
     return "oversight"
 
 

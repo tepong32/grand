@@ -9,9 +9,12 @@ from django.utils import timezone
 
 from departments.models import Department
 from budget.models import ObligationRequest
-from finance.models import FinanceConfigurationItem, FinanceParty, FinancePartyClaimant, FinanceSignatory
+from finance.models import (
+    FinanceConfigurationItem, FinanceParty, FinancePartyClaimant, FinanceSignatory,
+    FinanceTransactionVariant,
+)
 
-from .models import PaymentInstrument, VoucherCase, WetSignatureTask
+from .models import PayableDocumentEvidence, PayableIntake, PaymentInstrument, VoucherCase, WetSignatureTask
 
 
 class DateInput(forms.DateInput):
@@ -108,7 +111,13 @@ class PayableIntakeForm(forms.Form):
             self.fields["payee"].queryset = FinanceParty.objects.filter(
                 release=release, status="active", effective_from__lte=today,
             ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today)).order_by("display_name")
-            self.fields["transaction_type"].choices = _items(release, "transaction_type")
+            typed = list(
+                FinanceTransactionVariant.objects.filter(
+                    release=release, status="active", effective_from__lte=today,
+                ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
+                .order_by("label").values_list("code", "label")
+            )
+            self.fields["transaction_type"].choices = typed or _items(release, "transaction_type")
 
     def clean(self):
         cleaned = super().clean()
@@ -127,6 +136,35 @@ class PayableIntakeForm(forms.Form):
                     "Use a governed obligation adjustment before intake when the final claim differs.",
                 )
         return cleaned
+
+
+class PayableEvidenceForm(WorkflowForm):
+    evidence = forms.ModelChoiceField(queryset=PayableDocumentEvidence.objects.none(), label="Checklist item")
+    status = forms.ChoiceField(choices=PayableDocumentEvidence.STATUS_CHOICES)
+    evidence_reference = forms.CharField(
+        required=False, widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Reference the source record; do not paste sensitive source content.",
+    )
+    decision_note = forms.CharField(
+        required=False, widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Required for a conditional not-applicable decision or authorized waiver.",
+    )
+
+    def __init__(self, *args, case=None, **kwargs):
+        super().__init__(*args, case=case, **kwargs)
+        if case:
+            self.fields["evidence"].queryset = case.payable_document_evidence.order_by(
+                "source_rule__display_order", "requirement_code",
+            )
+
+
+class PayableSubmitForm(WorkflowForm):
+    pass
+
+
+class PayableReviewForm(WorkflowForm):
+    decision = forms.ChoiceField(choices=((PayableIntake.READY, "Accept as payment-ready"), (PayableIntake.RETURNED, "Return for correction")))
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
 
 
 class BudgetCertificationForm(WorkflowForm):

@@ -89,6 +89,7 @@ ACCOUNTING_GUIDES = (
     },
     {
         "slug": "finance-configure",
+        "version": 2,
         "title": "Prepare governed Finance setup",
         "summary": "Version master data, rules, signatories, numbering, and templates before transaction users depend on them.",
         "permission": "finance.manage_finance_configuration",
@@ -96,6 +97,7 @@ ACCOUNTING_GUIDES = (
         "order": 10,
         "steps": (
             ("Work in a draft release", "Create or open the correct department and fiscal-year configuration release before changing controlled setup.", "Changes are isolated from active transaction policy.", "", "Open Finance Setup", "finance:workspace"),
+            ("Define transaction variants and rules", "Add each locally enabled transaction variant, then add its ordered required or conditional documentary rules. State the exact applicability condition and whether reviewed authority permits a waiver.", "Every enabled payable route has a typed, reviewable checklist before release activation.", "Do not infer local applicability or form acceptance from a public COA/DBM source alone.", "", ""),
             ("Record authority and effectivity", "For each code/rule, enter the authority reference, effective dates, version, and locally confirmed scope.", "The release explains which authority and period it implements.", "An official source still requires applicability confirmation.", "", ""),
             ("Resolve readiness blockers", "Complete required funds/accounts, signatories, numbering, document rules, and accepted templates, then submit for independent approval.", "Readiness has no blocking items and an approver can review the release.", "", "", ""),
         ),
@@ -120,7 +122,22 @@ REQUESTING_GUIDES = (
         ),
     },
     {
+        "slug": "finance-payable-readiness-review",
+        "title": "Review payable documentary readiness",
+        "summary": "Independently accept a transaction-specific payable checklist or return the same case with a precise correction basis.",
+        "permission": "vouchers.review_payable_intake",
+        "patterns": ["vouchers:*"],
+        "order": 75,
+        "steps": (
+            ("Open the Accounting review queue", "Select a case at Accounting payable-readiness review. Confirm that the current requesting office—not Accounting—submitted the intake.", "The shared case shows the pinned certified obligation, claim, transaction variant, and documentary checklist.", "Do not review a case prepared or submitted by you, and do not accept work assigned to another Accounting office.", "Open Finance Queue", "vouchers:workspace"),
+            ("Recheck obligation freshness", "Compare the pinned obligation number, UUID, amount, and lineage checksum with the current governed obligation history.", "The payable still equals the current certified obligation lineage.", "If a pre-DV obligation correction changed the amount or checksum, return for reconciliation instead of continuing.", "Open Obligation Control", "budget:obligation_workspace"),
+            ("Review every configured rule", "For each pinned rule, inspect the authority/applicability basis and the referenced source evidence. Confirm required items are present, conditional items have a specific not-applicable decision, and any waiver is explicitly allowed.", "Every checklist result is supported without copying sensitive source documents into GRAND.", "A public COA/DBM source is evidence for review; it is not automatic proof of local applicability or template acceptance.", "", ""),
+            ("Accept or return the same case", "Accept only when the obligation, claim, duplicate review, and checklist are payment-ready. Otherwise return with a correction reason the requesting office can act on.", "Acceptance routes the same case to DV preparation; return reopens its requesting-office checklist with full history retained.", "Do not create a replacement case merely to correct the intake.", "", ""),
+        ),
+    },
+    {
         "slug": "finance-requesting-office-payable-intake",
+        "version": 2,
         "title": "Open a payable from a certified obligation",
         "summary": "Carry one certified obligation into Accounting without recreating its Budget authority or hiding document gaps.",
         "permission": "vouchers.initiate_payable_case",
@@ -128,9 +145,11 @@ REQUESTING_GUIDES = (
         "order": 2,
         "steps": (
             ("Select your certified obligation", "Open the Finance Queue and select an unlinked certified obligation belonging to your current department.", "The payable inherits the controlled obligation number, checksum, current corrected amount, and schedule lineage.", "Do not create a second Budget allocation or select another department's obligation.", "Open Finance Queue", "vouchers:workspace"),
-            ("Reference payable evidence", "Choose the governed payee and transaction type, then record the claim, invoice, procurement, delivery, inspection/acceptance, and evidence references that apply.", "Accounting can trace the source evidence without GRAND duplicating an authoritative procurement or records system.", "Use locally accepted requirements; blank optional references are not proof that a document is unnecessary.", "New Payable", "vouchers:case_create"),
+            ("Choose the governed transaction variant", "Choose the governed payee and the exact locally approved transaction variant, then record the claim and source-record references that apply.", "The case pins the active variant and its authority-backed documentary rules without duplicating the authoritative procurement or records system.", "A public COA/DBM source or a generic transaction label is not automatic proof of local applicability.", "New Payable", "vouchers:case_create"),
             ("Match the final claim", "Confirm the payable amount equals the current obligation lineage. If the final claim changed, complete a governed obligation adjustment before intake.", "The payment-ready claim is fully budget-supported with zero unexplained difference.", "Do not force the claim to fit or overwrite a certified obligation.", "Open Obligation Control", "budget:obligation_workspace"),
+            ("Resolve the pinned checklist", "Open the new case and record each documentary rule as present, condition not applicable, or expressly waived where the reviewed rule permits it. Reference the source record and explain every not-applicable or waiver decision.", "No documentary rule remains pending, every required item is present or validly waived, and conditional decisions are explicit.", "Do not paste sensitive source content, mark a required item not applicable, or invent a waiver that Finance Setup does not allow.", "", ""),
             ("Review duplicate warnings", "Investigate similar payee/invoice or claim references and record a human review note when needed.", "The warning is resolved by an authorized person rather than treated as an automatic accusation.", "A warning is not proof of duplicate payment.", "", ""),
+            ("Submit and correct the same case", "Send the completed checklist to Accounting. If it is returned, read the recorded reason, correct the evidence decisions, and resubmit the same case.", "Accounting receives an independently reviewable intake; a return preserves prior review evidence while reopening your checklist.", "Tutorial checkmarks are only your private learning aid; they do not submit, approve, or prove completion of this payable.", "", ""),
             ("Recover a partial handoff", "If the case says its authoritative link needs reconciliation, use Reconcile obligation link before Accounting prepares the DV.", "Both databases agree on the same case and obligation UUID.", "Do not advance a pending or failed handoff.", "", ""),
         ),
     },
@@ -246,33 +265,35 @@ def _department_kind(department):
 
 @transaction.atomic
 def seed_finance_internal_howtos():
-    counts = {"departments": 0, "guides_created": 0, "guides_preserved": 0}
+    counts = {"departments": 0, "guides_created": 0, "guides_preserved": 0, "guides_retired": 0}
     definitions = {"accounting": ACCOUNTING_GUIDES, "budget": BUDGET_GUIDES, "treasury": TREASURY_GUIDES}
     for department in Department.objects.all().order_by("pk"):
         kind = _department_kind(department)
         counts["departments"] += 1
         department_guides = REQUESTING_GUIDES + definitions.get(kind, ())
         for definition in department_guides:
+            target_version = definition.get("version", 1)
             published = InternalHowTo.objects.filter(
                 department=department,
                 slug=definition["slug"],
                 status=InternalHowTo.PUBLISHED,
-            ).first()
-            if published:
+            ).order_by("-version").first()
+            if published and published.version >= target_version:
                 counts["guides_preserved"] += 1
                 continue
-            retired = InternalHowTo.objects.filter(
+            target_retired = InternalHowTo.objects.filter(
                 department=department,
                 slug=definition["slug"],
+                version=target_version,
                 status=InternalHowTo.RETIRED,
             ).exists()
-            if retired:
+            if target_retired:
                 counts["guides_preserved"] += 1
                 continue
             guide, created = InternalHowTo.objects.update_or_create(
                 department=department,
                 slug=definition["slug"],
-                version=1,
+                version=target_version,
                 defaults={
                     "title": definition["title"],
                     "summary": definition["summary"],
@@ -297,6 +318,10 @@ def seed_finance_internal_howtos():
                 for position, (title, instruction, expected, caution, action_label, action_route)
                 in enumerate(definition["steps"], start=1)
             ])
+            if published:
+                published.status = InternalHowTo.RETIRED
+                published.save(update_fields=("status", "updated_at"))
+                counts["guides_retired"] += 1
             guide.status = InternalHowTo.PUBLISHED
             guide.full_clean()
             guide.save(update_fields=("status", "updated_at"))

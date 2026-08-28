@@ -16,6 +16,7 @@ from .access import can_approve_finance_configuration, can_manage_finance_config
 from .models import (
     FinanceAuditEvent, FinanceConfigurationItem, FinanceConfigurationRelease,
     FinanceNumberingSequence, FinanceParty, FinanceSignatory, FinanceTemplateVersion,
+    FinanceTransactionVariant,
 )
 
 
@@ -67,6 +68,7 @@ def transition_release(release, action, actor, reason=""):
         release.signatories.filter(status="draft").update(status="submitted")
         release.parties.filter(status="draft").update(status="submitted")
         release.numbering_sequences.filter(status="draft").update(status="submitted")
+        release.transaction_variants.filter(status="draft").update(status="submitted")
         fields = ("status", "submitted_by", "submitted_at", "updated_at")
     elif action == "approve":
         if not can_approve_finance_configuration(actor, release.department):
@@ -106,6 +108,7 @@ def transition_release(release, action, actor, reason=""):
         for party in release.parties.all():
             party.authorized_claimants.filter(status="draft").update(status="approved")
         release.numbering_sequences.filter(status="submitted").update(status="approved")
+        release.transaction_variants.filter(status="submitted").update(status="approved")
         release.accounting_approval_note = reason.strip()
         fields = ("status", "approved_by", "approved_at", "accounting_approval_note", "updated_at")
     elif action == "activate":
@@ -138,6 +141,7 @@ def transition_release(release, action, actor, reason=""):
             for party in prior.parties.all():
                 party.authorized_claimants.filter(status="active").update(status="superseded")
             prior.numbering_sequences.filter(status="active").update(status="superseded")
+            prior.transaction_variants.filter(status="active").update(status="superseded")
             record_event(prior, actor, "superseded", f"Superseded by {release}.")
         release.status, release.activated_by, release.activated_at = "active", actor, timezone.now()
         release.items.filter(status__in=("approved", "scheduled")).update(status="active")
@@ -147,6 +151,7 @@ def transition_release(release, action, actor, reason=""):
         for party in release.parties.all():
             party.authorized_claimants.filter(status__in=("approved", "scheduled")).update(status="active")
         release.numbering_sequences.filter(status__in=("approved", "scheduled")).update(status="active")
+        release.transaction_variants.filter(status__in=("approved", "scheduled")).update(status="active")
         fields = ("status", "activated_by", "activated_at", "updated_at")
     elif action == "schedule":
         if not can_approve_finance_configuration(actor, release.department):
@@ -159,6 +164,7 @@ def transition_release(release, action, actor, reason=""):
         release.signatories.filter(status="approved").update(status="scheduled")
         release.parties.filter(status="approved").update(status="scheduled")
         release.numbering_sequences.filter(status="approved").update(status="scheduled")
+        release.transaction_variants.filter(status="approved").update(status="scheduled")
         fields = ("status", "updated_at")
     elif action == "rollback":
         if not can_approve_finance_configuration(actor, release.department):
@@ -183,6 +189,7 @@ def transition_release(release, action, actor, reason=""):
         for party in release.parties.all():
             party.authorized_claimants.filter(status="superseded").update(status="active")
         release.numbering_sequences.filter(status="superseded").update(status="active")
+        release.transaction_variants.filter(status="superseded").update(status="active")
         fields = ("status", "activated_by", "activated_at", "updated_at")
     elif action == "retire":
         if not can_approve_finance_configuration(actor, release.department):
@@ -205,9 +212,18 @@ def evaluate_readiness(release, as_of=None):
         models_q_open_ended("effective_to", as_of)
     )
     categories = set(items.values_list("category", flat=True))
+    typed_variants = release.transaction_variants.filter(
+        status__in=governed_statuses, effective_from__lte=as_of,
+    ).filter(models_q_open_ended("effective_to", as_of))
+    typed_variant_ready = typed_variants.exists() and not typed_variants.filter(document_rules__isnull=True).exists()
     checks = [
         ("approved_voucher_template", release.templates.filter(status__in=governed_statuses, preflighted_at__isnull=False, effective_from__lte=as_of).filter(models_q_open_ended("effective_to", as_of)).exists(), "An approved, checksum-verified voucher template applies.", "No approved, preflighted voucher template applies."),
-        ("transaction_type_checklist", "transaction_type" in categories and "document_requirement" in categories, "An approved transaction type and supporting-document checklist apply.", "A transaction type and its supporting-document checklist are required."),
+        (
+            "transaction_type_checklist",
+            typed_variant_ready or ("transaction_type" in categories and "document_requirement" in categories),
+            "An approved transaction variant and supporting-document checklist apply.",
+            "At least one typed transaction variant with document rules, or a legacy transaction/document checklist, is required.",
+        ),
         ("active_signatory", release.signatories.filter(status__in=governed_statuses, valid_from__lte=as_of).filter(models_q_open_ended("valid_to", as_of)).exists(), "An approved signatory assignment covers the applicable date.", "No approved signatory is valid for the applicable date."),
         ("fund_and_payment_account", "fund" in categories and bool(categories & {"bank_account", "payment_method"}), "An approved fund and payment account or method apply.", "An approved fund and payment account or method are required."),
         ("approved_tax_rule", "tax_rule" in categories, "An approved tax/deduction rule is available.", "No approved tax/deduction rule is available."),

@@ -3,8 +3,9 @@ import json
 from django import forms
 
 from .models import (
-    FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
+    FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule, FinanceNumberingSequence,
     FinanceParty, FinancePartyClaimant, FinanceSignatory, FinanceTemplateVersion,
+    FinanceTransactionVariant,
 )
 
 
@@ -55,6 +56,48 @@ class FinanceItemForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class FinanceTransactionVariantForm(forms.ModelForm):
+    class Meta:
+        model = FinanceTransactionVariant
+        fields = (
+            "release", "code", "label", "kind", "description", "authority_reference",
+            "effective_from", "effective_to",
+        )
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "authority_reference": forms.Textarea(attrs={"rows": 3}),
+            "effective_from": DateInput(), "effective_to": DateInput(),
+        }
+
+    def __init__(self, *args, department=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if department:
+            self.instance.department = department
+            self.fields["release"].queryset = FinanceConfigurationRelease.objects.filter(
+                department=department, status="draft",
+            )
+
+
+class FinanceDocumentRuleForm(forms.ModelForm):
+    class Meta:
+        model = FinanceDocumentRule
+        fields = (
+            "variant", "code", "label", "evidence_kind", "required", "waiver_allowed",
+            "condition_description", "authority_reference", "display_order",
+        )
+        widgets = {
+            "condition_description": forms.Textarea(attrs={"rows": 2}),
+            "authority_reference": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, department=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if department:
+            self.fields["variant"].queryset = FinanceTransactionVariant.objects.filter(
+                department=department, release__status="draft",
+            ).select_related("release").order_by("release", "label")
 
 
 class FinanceTemplateForm(forms.ModelForm):

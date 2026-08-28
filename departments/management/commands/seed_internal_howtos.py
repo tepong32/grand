@@ -12,5 +12,6 @@ class Command(BaseCommand):
             "Internal How-Tos: "
             f"{counts['departments']} department(s), "
             f"{counts['guides_created']} created, "
+            f"{counts['guides_retired']} superseded, "
             f"{counts['guides_preserved']} published guide(s) preserved."
         ))

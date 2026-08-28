@@ -19,9 +19,9 @@ Before a DV or check is issued, correct obligation amount through a linked F4.2 
 
 ## Still to do in F5
 
-- locally approved completeness and conditional-document rules, waivers, returns, and payable recognition decisions;
+- F5.2 now implements configurable completeness and conditional-document rules, authority-backed waivers, and requesting-office/Accounting return routes; local rule acceptance and payable recognition policy remain open;
 - one-to-many, many-to-one, partial, progress, and final-payment relationships where accepted;
-- payroll, reimbursement, utility, financial assistance, cash advance/liquidation, infrastructure/progress billing, and other approved variants;
+- F5.2 can govern payroll, reimbursement, utility, financial assistance, cash advance/liquidation, infrastructure/progress billing, and other variants, but each enabled variant still needs accepted rules and a redacted replay;
 - accepted COA/DBM/local templates and replay of redacted completed cases through the parent F5 exit gate;
 - controlled payable/transaction exports in the shared TraceSync-ready archive where required.
 

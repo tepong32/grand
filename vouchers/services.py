@@ -16,7 +16,7 @@ from django.utils import timezone
 from finance.exemptions import workflow_exemption_for, workflow_exemption_snapshot
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
-    FinanceSignatory, FinanceWorkflowExemption,
+    FinanceSignatory, FinanceTransactionVariant, FinanceWorkflowExemption,
 )
 from finance.services import FinanceTemplateError, _destination, inspect_finance_workbook, verify_template_evidence
 from profiles.models import EmployeeProfile
@@ -25,7 +25,7 @@ from .access import department_for_user, has_explicit_permission
 from .models import (
     AccountingValidation, BankAdviceBatch, BankAdviceItem, BudgetAllocationLine,
     BudgetObligation, ControlOverride, DisbursementVoucher, PaymentInstrument,
-    PayableIntake,
+    PayableDocumentEvidence, PayableIntake,
     VoucherCase, VoucherDeduction, VoucherDocumentCheck, VoucherEvent,
     VoucherLineItem, VoucherNonFinancialAmendment, VoucherNumberIssue, VoucherOutput,
     VoucherPostingRequest, VoucherTask, WetSignatureTask,
@@ -38,6 +38,8 @@ class VoucherWorkflowError(ValidationError):
 
 STAGE_PERMISSION = {
     VoucherCase.BUDGET_DRAFT: "vouchers.certify_budget_obligation",
+    VoucherCase.PAYABLE_PREPARATION: "vouchers.initiate_payable_case",
+    VoucherCase.PAYABLE_REVIEW: "vouchers.review_payable_intake",
     VoucherCase.ACCOUNTING_PREPARATION: "vouchers.prepare_disbursement_voucher",
     VoucherCase.AWAITING_SIGNATURES: "vouchers.track_wet_signatures",
     VoucherCase.ACCOUNTING_VALIDATION: "vouchers.validate_accounting_voucher",
@@ -94,14 +96,14 @@ def _locked(case, expected_version, idempotency_key):
     return locked, None
 
 
-def _advance(case, actor, stage, action, idempotency_key, reason="", metadata=None):
+def _advance(case, actor, stage, action, idempotency_key, reason="", metadata=None, destination_department=None):
     previous = case.current_stage
     now = timezone.now()
     case.tasks.filter(status=VoucherTask.OPEN).update(status=VoucherTask.COMPLETED, completed_at=now)
     case.current_stage = stage
     permission = STAGE_PERMISSION.get(stage)
     if permission:
-        case.current_department = _department_for_permission(permission, department_for_user(actor))
+        case.current_department = destination_department or _department_for_permission(permission, department_for_user(actor))
         VoucherTask.objects.create(case=case, stage=stage, department=case.current_department)
     case.state_version += 1
     if stage == VoucherCase.COMPLETED:
@@ -288,6 +290,8 @@ def create_payable_case_from_obligation(
         raise VoucherWorkflowError("Select an active supplier/payee from the current Finance Setup release.")
     if not FinanceConfigurationItem.objects.filter(
         release=release, status="active", category="transaction_type", code=transaction_type,
+    ).exists() and not FinanceTransactionVariant.objects.filter(
+        release=release, status="active", code=transaction_type,
     ).exists():
         raise VoucherWorkflowError("Select an approved transaction type from Finance Setup.")
     duplicate_qs = PayableIntake.objects.filter(case__payee=payee)
@@ -296,20 +300,26 @@ def create_payable_case_from_obligation(
         warnings.append(f"A payable for this payee already uses invoice {invoice_number.strip()}.")
     if duplicate_qs.filter(claim_reference__iexact=claim_reference.strip()).exists():
         warnings.append(f"A payable for this payee already uses claim reference {claim_reference.strip()}.")
-    accounting_department = _department_for_permission("vouchers.prepare_disbursement_voucher", actor_department)
+    variant = FinanceTransactionVariant.objects.filter(
+        release=release, status="active", code=transaction_type,
+    ).prefetch_related("document_rules").first()
+    initial_stage = VoucherCase.PAYABLE_PREPARATION if variant else VoucherCase.ACCOUNTING_PREPARATION
+    initial_department = actor_department if variant else _department_for_permission(
+        "vouchers.prepare_disbursement_voucher", actor_department,
+    )
     certifier = get_user_model().objects.filter(pk=obligation.certified_by_id).first() or actor
     with transaction.atomic():
         case = VoucherCase.objects.create(
             reference_code=f"CASE-{timezone.localdate():%Y}-{uuid.uuid4().hex[:10].upper()}",
             transaction_type=transaction_type, requesting_department=actor_department,
-            current_department=accounting_department, configuration_release=release, payee=payee,
+            current_department=initial_department, configuration_release=release, payee=payee,
             payee_name=payee.display_name, particulars=obligation.particulars, created_by=actor,
             authoritative_obligation_public_id=obligation.public_id,
             authoritative_obligation_number=obligation.obligation_number,
             authoritative_obligation_checksum=snapshot["checksum"],
             authoritative_obligation_amount=snapshot["amount"],
             obligation_binding_status=VoucherCase.BINDING_PENDING,
-            current_stage=VoucherCase.ACCOUNTING_PREPARATION,
+            current_stage=initial_stage,
         )
         projection = BudgetObligation.objects.create(
             case=case, obr_number=obligation.obligation_number, obligation_date=obligation.obligation_date,
@@ -333,7 +343,19 @@ def create_payable_case_from_obligation(
             duplicate_review_note=duplicate_review_note.strip(), prepared_by=actor,
         )
         intake.full_clean(); intake.save()
-        VoucherTask.objects.create(case=case, stage=case.current_stage, department=accounting_department)
+        if variant:
+            for rule in variant.document_rules.all():
+                PayableDocumentEvidence.objects.create(
+                    case=case, source_rule=rule, rule_public_id_snapshot=rule.public_id,
+                    requirement_code=rule.code, requirement_label=rule.label,
+                    evidence_kind=rule.evidence_kind, required=rule.required,
+                    waiver_allowed=rule.waiver_allowed,
+                    condition_description=rule.condition_description,
+                    authority_reference=rule.authority_reference,
+                )
+        VoucherTask.objects.create(
+            case=case, stage=case.current_stage, department=initial_department, assigned_to=actor if variant else None,
+        )
         _event(case, actor, "payable_intake_created", "", "", {
             "authoritative_obligation_public_id": str(obligation.public_id),
             "authoritative_obligation_checksum": snapshot["checksum"],
@@ -354,6 +376,140 @@ def create_payable_case_from_obligation(
         locked.obligation_binding_error = ""
         locked.save(update_fields=("obligation_binding_status", "obligation_binding_error", "updated_at"))
     return locked
+
+
+def _validate_payable_freshness(case):
+    if case.obligation_binding_status != VoucherCase.BINDING_LINKED:
+        raise VoucherWorkflowError("Reconcile the authoritative obligation handoff before payable review.")
+    from budget.models import ObligationRequest
+    source = ObligationRequest.objects.get(public_id=case.authoritative_obligation_public_id)
+    _source, current = _authoritative_obligation_snapshot(source)
+    if (
+        current["checksum"] != case.authoritative_obligation_checksum
+        or current["amount"] != case.authoritative_obligation_amount
+    ):
+        raise VoucherWorkflowError(
+            "The obligation changed through a governed pre-DV correction. "
+            "Reconcile the payable amount and evidence to the current obligation before continuing."
+        )
+    return current
+
+
+@transaction.atomic
+def record_payable_document_evidence(
+    *, case, evidence, actor, status, evidence_reference, decision_note,
+    expected_version, idempotency_key,
+):
+    _require(actor, "vouchers.initiate_payable_case")
+    case, existing = _locked(case, expected_version, idempotency_key)
+    if existing:
+        return case
+    if case.current_stage != VoucherCase.PAYABLE_PREPARATION:
+        raise VoucherWorkflowError("Payable document evidence is editable only in requesting-office preparation.")
+    if department_for_user(actor).pk != case.requesting_department_id or evidence.case_id != case.pk:
+        raise PermissionDenied
+    intake = case.payable_intake
+    if intake.status not in (PayableIntake.DRAFT, PayableIntake.RETURNED):
+        raise VoucherWorkflowError("This payable checklist is currently under review or already accepted.")
+    evidence.status = status
+    evidence.evidence_reference = evidence_reference.strip()
+    evidence.decision_note = decision_note.strip()
+    evidence.recorded_by = actor
+    evidence.recorded_at = timezone.now()
+    evidence.full_clean(); evidence.save()
+    case.state_version += 1
+    case.save(update_fields=("state_version", "updated_at"))
+    _event(case, actor, "payable_document_evidence_recorded", case.current_stage, "", {
+        "requirement_code": evidence.requirement_code, "status": evidence.status,
+        "rule_public_id": str(evidence.rule_public_id_snapshot),
+    }, idempotency_key)
+    return case
+
+
+def _validate_payable_checklist(case):
+    evidence = list(case.payable_document_evidence.all())
+    if not evidence:
+        raise VoucherWorkflowError("The configured transaction variant has no pinned documentary rules.")
+    pending = [item.requirement_label for item in evidence if item.status == PayableDocumentEvidence.PENDING]
+    if pending:
+        raise VoucherWorkflowError("Resolve every documentary rule before submission: " + "; ".join(pending))
+    invalid = []
+    for item in evidence:
+        allowed_statuses = {PayableDocumentEvidence.PRESENT}
+        if item.waiver_allowed:
+            allowed_statuses.add(PayableDocumentEvidence.WAIVED)
+        if item.required and item.status not in allowed_statuses:
+            invalid.append(item.requirement_label)
+    if invalid:
+        raise VoucherWorkflowError("Required evidence is unresolved: " + "; ".join(invalid))
+    return evidence
+
+
+@transaction.atomic
+def submit_payable_intake(*, case, actor, expected_version, idempotency_key):
+    _require(actor, "vouchers.initiate_payable_case")
+    case, existing = _locked(case, expected_version, idempotency_key)
+    if existing:
+        return case
+    if case.current_stage != VoucherCase.PAYABLE_PREPARATION or department_for_user(actor).pk != case.requesting_department_id:
+        raise VoucherWorkflowError("Only the recorded requesting office can submit this payable intake.")
+    _validate_payable_freshness(case)
+    evidence = _validate_payable_checklist(case)
+    accounting_department = _department_for_permission("vouchers.review_payable_intake", None)
+    if accounting_department is None:
+        raise VoucherWorkflowError(
+            "No active Accounting payable reviewer is assigned. Ask an administrator to configure the independent review role."
+        )
+    intake = case.payable_intake
+    intake.status = PayableIntake.FOR_REVIEW
+    intake.submitted_by, intake.submitted_at = actor, timezone.now()
+    intake.reviewed_by = None
+    intake.reviewed_at = None
+    intake.decision_reason = ""
+    intake.save(update_fields=(
+        "status", "submitted_by", "submitted_at", "reviewed_by", "reviewed_at", "decision_reason",
+    ))
+    return _advance(
+        case, actor, VoucherCase.PAYABLE_REVIEW, "payable_submitted", idempotency_key,
+        metadata={"claim_amount": str(intake.claim_amount), "document_rule_count": len(evidence)},
+        destination_department=accounting_department,
+    )
+
+
+@transaction.atomic
+def review_payable_intake(*, case, actor, decision, reason, expected_version, idempotency_key):
+    _require(actor, "vouchers.review_payable_intake")
+    case, existing = _locked(case, expected_version, idempotency_key)
+    if existing:
+        return case
+    if case.current_stage != VoucherCase.PAYABLE_REVIEW:
+        raise VoucherWorkflowError("This payable is not awaiting Accounting review.")
+    if department_for_user(actor).pk != case.current_department_id:
+        raise VoucherWorkflowError("Only the Accounting office currently assigned this payable may review it.")
+    intake = case.payable_intake
+    if intake.submitted_by_id == actor.pk or intake.prepared_by_id == actor.pk:
+        raise VoucherWorkflowError("The requesting-office preparer cannot review the same payable intake.")
+    reason = reason.strip()
+    if not reason:
+        raise VoucherWorkflowError("Record the Accounting review or return basis.")
+    intake.reviewed_by, intake.reviewed_at, intake.decision_reason = actor, timezone.now(), reason
+    if decision == PayableIntake.RETURNED:
+        intake.status = PayableIntake.RETURNED
+        intake.save(update_fields=("status", "reviewed_by", "reviewed_at", "decision_reason"))
+        return _advance(
+            case, actor, VoucherCase.PAYABLE_PREPARATION, "payable_returned", idempotency_key,
+            reason=reason, destination_department=case.requesting_department,
+        )
+    if decision != PayableIntake.READY:
+        raise VoucherWorkflowError("Choose a valid payable review decision.")
+    _validate_payable_freshness(case)
+    evidence = _validate_payable_checklist(case)
+    intake.status = PayableIntake.READY
+    intake.save(update_fields=("status", "reviewed_by", "reviewed_at", "decision_reason"))
+    return _advance(
+        case, actor, VoucherCase.ACCOUNTING_PREPARATION, "payable_accepted", idempotency_key,
+        reason=reason, metadata={"claim_amount": str(intake.claim_amount), "document_rule_count": len(evidence)},
+    )
 
 
 @transaction.atomic
@@ -391,22 +547,10 @@ def prepare_voucher(*, case, actor, voucher_date, gross_amount, deductions, line
         return case
     if case.current_stage != VoucherCase.ACCOUNTING_PREPARATION:
         raise VoucherWorkflowError("This case is not awaiting Accounting DV preparation.")
+    if case.payable_document_evidence.exists() and case.payable_intake.status != PayableIntake.READY:
+        raise VoucherWorkflowError("Accounting must accept the transaction-specific payable checklist before DV preparation.")
     if case.authoritative_obligation_public_id:
-        if case.obligation_binding_status != VoucherCase.BINDING_LINKED:
-            raise VoucherWorkflowError(
-                "The authoritative obligation handoff needs reconciliation before DV preparation."
-            )
-        from budget.models import ObligationRequest
-        source = ObligationRequest.objects.get(public_id=case.authoritative_obligation_public_id)
-        _source, current = _authoritative_obligation_snapshot(source)
-        if (
-            current["checksum"] != case.authoritative_obligation_checksum
-            or current["amount"] != case.authoritative_obligation_amount
-        ):
-            raise VoucherWorkflowError(
-                "The obligation changed through a governed pre-DV correction after payable intake. "
-                "Reconcile the payable evidence to the current obligation before preparing the DV."
-            )
+        _validate_payable_freshness(case)
     workflow_exemption = None
     if actor.pk == case.obligation.certified_by_id:
         exemption = workflow_exemption_for(

@@ -68,6 +68,9 @@ class VoucherWorkflowTests(TestCase):
         cls.preparer = cls.employee("accounting.preparer", cls.accounting, "view_voucher_workbench", "prepare_disbursement_voucher", "amend_nonfinancial_voucher", "track_wet_signatures", "link_tracepoint_custody", "validate_accounting_voucher", "finalize_bank_advice", "return_voucher_case", "view_voucher_audit")
         cls.validator = cls.employee("accounting.validator", cls.accounting, "view_voucher_workbench", "validate_accounting_voucher", "finalize_bank_advice", "approve_control_overrides", "return_voucher_case", "view_voucher_audit")
         cls.treasury_user = cls.employee("treasury.cashier", cls.treasury, "view_voucher_workbench", "issue_payment_instruments", "release_payment_instruments", "manage_payment_exceptions", "return_voucher_case", "view_voucher_audit")
+        cls.requesting_user = cls.employee(
+            "gso.requester", cls.requesting, "view_voucher_workbench", "initiate_payable_case", "view_voucher_audit",
+        )
         cls.outsider = cls.employee("mpdo.viewer", cls.requesting)
         cls.superuser = cls.employee("platform.superuser", cls.accounting, is_superuser=True)
         cls.preparer.user_permissions.add(Permission.objects.get(content_type__app_label="finance", codename="manage_finance_templates"))
@@ -611,11 +614,13 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(VoucherNumberIssue.objects.filter(case=case, document_type="disbursement-voucher").count(), 1)
 
     def test_workspace_and_case_ui_are_permission_aware_and_selection_driven(self):
-        self.client.force_login(self.budget_user)
+        self.client.force_login(self.requesting_user)
         response = self.client.get(reverse("vouchers:case_create"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.party.display_name)
         self.assertContains(response, "Ordinary supplier claim")
+        self.client.force_login(self.budget_user)
+        self.assertEqual(self.client.get(reverse("vouchers:case_create")).status_code, 403)
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.get(reverse("vouchers:workspace")).status_code, 403)
 

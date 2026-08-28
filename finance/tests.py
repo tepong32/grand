@@ -19,8 +19,9 @@ from profiles.models import EmployeeProfile
 from .access import can_approve_finance_configuration, can_manage_finance_configuration
 from .exemptions import workflow_exemption_for
 from .models import (
-    FinanceAuditEvent, FinanceConfigurationItem, FinanceConfigurationRelease,
+    FinanceAuditEvent, FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule,
     FinanceNumberingSequence, FinanceSignatory, FinanceTemplateVersion, FinanceWorkflowExemption,
+    FinanceTransactionVariant,
 )
 from .services import (
     FinanceTemplateError, evaluate_readiness, inspect_finance_workbook,
@@ -273,3 +274,45 @@ class FinanceSetupCenterTests(TestCase):
         event = FinanceAuditEvent.objects.get(action="created", target_type="financeconfigurationitem")
         self.assertEqual(event.actor, self.manager)
         self.assertEqual(event.department, self.accounting)
+
+    def test_typed_transaction_variant_and_document_rule_are_department_scoped_and_locked_with_release(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(reverse("finance:variant_create"), {
+            "release": self.release.pk, "code": "ordinary-supplier-claim",
+            "label": "Ordinary supplier claim", "kind": FinanceTransactionVariant.ORDINARY_SUPPLIER,
+            "description": "Synthetic supplier payable route.",
+            "authority_reference": "Synthetic reviewed COA/DBM/local applicability decision.",
+            "effective_from": "2027-01-01", "effective_to": "",
+        })
+        self.assertRedirects(response, reverse("finance:release_detail", args=(self.release.pk,)))
+        variant = FinanceTransactionVariant.objects.get(code="ordinary-supplier-claim")
+        response = self.client.post(reverse("finance:document_rule_create"), {
+            "variant": variant.pk, "code": "invoice", "label": "Invoice / billing",
+            "evidence_kind": FinanceDocumentRule.INVOICE, "required": "on",
+            "waiver_allowed": "", "condition_description": "",
+            "authority_reference": "Synthetic reviewed invoice requirement.", "display_order": 10,
+        })
+        self.assertRedirects(response, reverse("finance:release_detail", args=(self.release.pk,)))
+        rule = variant.document_rules.get()
+        self.assertTrue(rule.required)
+        self.assertEqual(rule.department, self.accounting)
+        conditional_without_scope = FinanceDocumentRule(
+            variant=variant, code="conditional-without-scope", label="Unscoped conditional evidence",
+            evidence_kind=FinanceDocumentRule.OTHER, required=False, waiver_allowed=False,
+            condition_description="", authority_reference="Synthetic reviewed applicability decision.",
+            created_by=self.manager,
+        )
+        with self.assertRaisesMessage(ValidationError, "must state when it applies"):
+            conditional_without_scope.full_clean()
+        self.assertTrue(FinanceAuditEvent.objects.filter(
+            target_type="financetransactionvariant", action="created",
+        ).exists())
+        self.assertTrue(FinanceAuditEvent.objects.filter(
+            target_type="financedocumentrule", action="document_rule_created",
+        ).exists())
+        transition_release(self.release, "submit", self.manager)
+        variant.refresh_from_db()
+        self.assertEqual(variant.status, "submitted")
+        variant.label = "Silently changed variant"
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            variant.full_clean()

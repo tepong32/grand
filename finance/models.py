@@ -136,6 +136,144 @@ class FinanceConfigurationItem(models.Model):
                     raise ValidationError("Approved finance configuration is immutable. Create a new version.")
 
 
+class FinanceTransactionVariant(models.Model):
+    ORDINARY_SUPPLIER = "ordinary_supplier"
+    PAYROLL = "payroll"
+    REIMBURSEMENT = "reimbursement"
+    UTILITY = "utility"
+    FINANCIAL_ASSISTANCE = "financial_assistance"
+    CASH_ADVANCE = "cash_advance"
+    LIQUIDATION = "liquidation"
+    INFRASTRUCTURE = "infrastructure"
+    OTHER = "other"
+    KIND_CHOICES = (
+        (ORDINARY_SUPPLIER, "Ordinary supplier / contractor"),
+        (PAYROLL, "Payroll"),
+        (REIMBURSEMENT, "Employee reimbursement"),
+        (UTILITY, "Utility / recurring billing"),
+        (FINANCIAL_ASSISTANCE, "Financial assistance"),
+        (CASH_ADVANCE, "Cash advance"),
+        (LIQUIDATION, "Cash advance liquidation"),
+        (INFRASTRUCTURE, "Infrastructure / progress billing"),
+        (OTHER, "Other locally approved variant"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="finance_transaction_variants")
+    release = models.ForeignKey(FinanceConfigurationRelease, on_delete=models.PROTECT, related_name="transaction_variants")
+    code = models.SlugField(max_length=80)
+    label = models.CharField(max_length=180)
+    kind = models.CharField(max_length=32, choices=KIND_CHOICES)
+    description = models.TextField()
+    authority_reference = models.TextField(
+        help_text="Cite the reviewed COA/DBM/local authority and applicability decision; do not imply acceptance from a public source alone."
+    )
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=16, choices=LIFECYCLE_CHOICES, default="draft")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_finance_transaction_variants")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("label", "code")
+        constraints = (
+            models.UniqueConstraint(fields=("release", "code"), name="unique_finance_variant_per_release"),
+        )
+
+    def __str__(self):
+        return self.label
+
+    def clean(self):
+        if self.release_id and self.release.department_id != self.department_id:
+            raise ValidationError("The transaction variant and release must belong to the same finance office.")
+        if self.effective_to and self.effective_to < self.effective_from:
+            raise ValidationError({"effective_to": "The end date cannot precede the effective date."})
+        if not self.authority_reference.strip():
+            raise ValidationError({"authority_reference": "Record the reviewed authority and local applicability basis."})
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and (prior.status != "draft" or prior.release.status != "draft"):
+                governed = (
+                    "department_id", "release_id", "code", "label", "kind", "description",
+                    "authority_reference", "effective_from", "effective_to",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError("Approved transaction variants are immutable. Create them in a successor release.")
+
+
+class FinanceDocumentRule(models.Model):
+    REQUEST = "request"
+    PROCUREMENT = "procurement"
+    CONTRACT = "contract"
+    DELIVERY = "delivery"
+    INSPECTION = "inspection_acceptance"
+    INVOICE = "invoice_billing"
+    PAYROLL = "payroll"
+    TRAVEL = "travel_reimbursement"
+    ASSISTANCE = "assistance_claim"
+    LIQUIDATION = "liquidation"
+    OTHER = "other"
+    EVIDENCE_KIND_CHOICES = (
+        (REQUEST, "Request / initiating authority"),
+        (PROCUREMENT, "Procurement evidence"),
+        (CONTRACT, "Contract / purchase order"),
+        (DELIVERY, "Delivery / accomplishment evidence"),
+        (INSPECTION, "Inspection / acceptance"),
+        (INVOICE, "Invoice / billing"),
+        (PAYROLL, "Payroll schedule / certification"),
+        (TRAVEL, "Travel / reimbursement claim"),
+        (ASSISTANCE, "Assistance eligibility / claim authority"),
+        (LIQUIDATION, "Liquidation evidence"),
+        (OTHER, "Other reviewed evidence"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    variant = models.ForeignKey(FinanceTransactionVariant, on_delete=models.PROTECT, related_name="document_rules")
+    code = models.SlugField(max_length=80)
+    label = models.CharField(max_length=180)
+    evidence_kind = models.CharField(max_length=32, choices=EVIDENCE_KIND_CHOICES)
+    required = models.BooleanField(default=True)
+    waiver_allowed = models.BooleanField(default=False)
+    condition_description = models.TextField(blank=True)
+    authority_reference = models.TextField()
+    display_order = models.PositiveSmallIntegerField(default=10)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_finance_document_rules")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("display_order", "code")
+        constraints = (
+            models.UniqueConstraint(fields=("variant", "code"), name="unique_document_rule_per_variant"),
+        )
+
+    @property
+    def department(self):
+        return self.variant.department
+
+    @property
+    def release(self):
+        return self.variant.release
+
+    def __str__(self):
+        return f"{self.variant.code}: {self.label}"
+
+    def clean(self):
+        if self.variant_id and self.variant.release.status != "draft":
+            raise ValidationError("Document rules can be changed only inside a draft configuration release.")
+        if not self.required and not self.condition_description.strip():
+            raise ValidationError({
+                "condition_description": "A conditional document rule must state when it applies."
+            })
+        if self.waiver_allowed and not self.authority_reference.strip():
+            raise ValidationError({"authority_reference": "A permitted waiver requires its reviewed authority basis."})
+        if self.required and not self.authority_reference.strip():
+            raise ValidationError({"authority_reference": "A required document needs its reviewed authority basis."})
+        if self.pk:
+            prior = type(self).objects.select_related("variant__release").get(pk=self.pk)
+            if prior.variant.release.status in LOCKED_STATES:
+                raise ValidationError("Approved document rules are immutable. Use a successor release.")
+
+
 class FinanceSignatory(models.Model):
     department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="finance_signatories")
     release = models.ForeignKey(FinanceConfigurationRelease, on_delete=models.PROTECT, related_name="signatories")
