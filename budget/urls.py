@@ -23,4 +23,13 @@ urlpatterns = [
     path("appropriations/<uuid:public_id>/", views.authorization_detail, name="authorization_detail"),
     path("appropriations/<uuid:public_id>/export/", views.authorization_export, name="authorization_export"),
     path("appropriations/<uuid:public_id>/<slug:action>/", views.authorization_action, name="authorization_action"),
+    path("allotments/", views.allotment_workspace, name="allotment_workspace"),
+    path("allotments/new/", views.allotment_create, name="allotment_create"),
+    path("allotments/<uuid:public_id>/", views.allotment_detail, name="allotment_detail"),
+    path("allotments/<uuid:public_id>/edit/", views.allotment_edit, name="allotment_edit"),
+    path("allotments/<uuid:public_id>/lines/new/", views.allotment_line_create, name="allotment_line_create"),
+    path("allotments/<uuid:public_id>/lines/<int:line_id>/edit/", views.allotment_line_edit, name="allotment_line_edit"),
+    path("allotments/<uuid:public_id>/lines/<int:line_id>/delete/", views.allotment_line_delete, name="allotment_line_delete"),
+    path("allotments/<uuid:public_id>/export/", views.allotment_export, name="allotment_export"),
+    path("allotments/<uuid:public_id>/<slug:action>/", views.allotment_action, name="allotment_action"),
 ]

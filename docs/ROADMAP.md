@@ -104,4 +104,4 @@ The essential delivery order is:
 
 Existing Finance Setup, Accounting, Voucher Workbench, Reporting, Records, and TracePoint features are foundations to extend, not separate replacement systems. Historical eGAPS migration remains optional and cannot block standalone GRAND operation.
 
-The earliest complete-cycle gap is before voucher creation: GRAND does not yet own authoritative annual appropriations, allotment releases, or obligation balances. Printing remains the earliest confirmed mismatch only within the implemented voucher subcycle.
+The first unimplemented complete-cycle link is now authoritative requesting-office obligation initiation/certification and the RAAO/equivalent balance registry (F4.2). F3.1–F4.1 provide synthetic annual-budget, appropriation, and allotment controls, but local signed-schedule/form reconciliation and acceptance remain mandatory before official use. Printing remains the earliest confirmed mismatch only within the implemented voucher subcycle.

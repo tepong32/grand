@@ -11,13 +11,17 @@ from src.export_archive import archive_export
 
 from .access import budget_access_required, budget_permission_required, department_for_user, has_budget_permission
 from .forms import (
-    AppropriationAuthorizationForm, BudgetCallForm, BudgetCeilingForm, BudgetConsolidationForm, BudgetProposalLineForm,
+    AllotmentOrderLineForm, AllotmentReleaseOrderForm, AppropriationAuthorizationForm,
+    BudgetCallForm, BudgetCeilingForm, BudgetConsolidationForm, BudgetProposalLineForm,
     BudgetResourceEstimateForm, BudgetReviewCommentForm, BudgetVersionForm,
 )
-from .models import AppropriationAuthorization, BudgetAuditEvent, BudgetCall, BudgetVersion
+from .models import (
+    AllotmentReleaseOrder, AppropriationAuthorization, BudgetAuditEvent, BudgetCall, BudgetVersion,
+)
 from .services import (
-    actor_label, ceiling_differences, compare_versions, consolidate_versions,
-    record_event, transition_authorization, transition_call, transition_version,
+    actor_label, allotment_line_balance, authorization_allotment_totals,
+    ceiling_differences, compare_versions, consolidate_versions, record_event,
+    transition_allotment_order, transition_authorization, transition_call, transition_version,
 )
 
 
@@ -34,6 +38,7 @@ def workspace(request):
         "department": department, "calls": calls, "versions": versions,
         "can_prepare_calls": has_budget_permission(request.user, "prepare_budget_calls"),
         "can_prepare_proposals": has_budget_permission(request.user, "prepare_budget_proposals"),
+        "can_view_allotments": has_budget_permission(request.user, "view_allotment_control"),
     })
 
 
@@ -316,4 +321,224 @@ def authorization_export(request, public_id):
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     response["X-GRAND-Export-Archived"], response["X-GRAND-Export-SHA256"] = "true", archived["sha256"]
     record_event(item.version, "appropriation_exported", request.user, snapshot={"relative_path": archived["relative_path"], "sha256": archived["sha256"]})
+    return response
+
+
+@budget_permission_required("view_allotment_control")
+def allotment_workspace(request):
+    department = department_for_user(request.user)
+    authorizations = list(AppropriationAuthorization.objects.filter(
+        department_id=department.pk, status=AppropriationAuthorization.AUTHORIZED,
+    ).select_related("version", "version__fiscal_year").prefetch_related("schedule_lines"))
+    authority_rows = [
+        {"authorization": item, "totals": authorization_allotment_totals(item)} for item in authorizations
+    ]
+    orders = AllotmentReleaseOrder.objects.filter(department_id=department.pk).select_related(
+        "fiscal_year", "authorization", "corrects"
+    )[:60]
+    return render(request, "budget/allotment_workspace.html", {
+        "department": department, "authority_rows": authority_rows, "orders": orders,
+        "can_prepare": has_budget_permission(request.user, "prepare_allotment_releases"),
+    })
+
+
+@budget_permission_required("prepare_allotment_releases")
+def allotment_create(request):
+    department = department_for_user(request.user)
+    form = AllotmentReleaseOrderForm(request.POST or None, department_id=department.pk)
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.department_id, item.department_label = department.pk, department.name
+        item.fiscal_year = item.authorization.version.fiscal_year
+        item.created_by_id, item.created_by_label = request.user.pk, actor_label(request.user)
+        try:
+            item.full_clean(); item.save()
+            record_event(item, "allotment_created", request.user, snapshot={"order_number": item.order_number, "kind": item.kind})
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Draft allotment release order created. Add the exact authorized schedule lines before submission.")
+            return redirect("budget:allotment_detail", public_id=item.public_id)
+    return render(request, "budget/form.html", {
+        "form": form, "title": "Create allotment release order",
+        "guidance": "Choose only posted operational appropriation authority. A draft is editable; posting creates immutable movements, and later corrections require a linked order.",
+    })
+
+
+@budget_permission_required("prepare_allotment_releases")
+def allotment_edit(request, public_id):
+    department = department_for_user(request.user)
+    item = get_object_or_404(
+        AllotmentReleaseOrder, public_id=public_id, department_id=department.pk,
+        status__in=(AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED),
+    )
+    form = AllotmentReleaseOrderForm(request.POST or None, instance=item, department_id=department.pk)
+    if request.method == "POST" and form.is_valid():
+        updated = form.save(False)
+        updated.fiscal_year = updated.authorization.version.fiscal_year
+        updated.state_version += 1
+        try:
+            updated.full_clean(); updated.save()
+            record_event(updated, "allotment_draft_edited", request.user, snapshot={"order_number": updated.order_number, "state_version": updated.state_version})
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Draft allotment order updated; the edit remains visible in audit history.")
+            return redirect("budget:allotment_detail", public_id=updated.public_id)
+    return render(request, "budget/form.html", {
+        "form": form, "title": f"Edit allotment order {item.order_number}",
+        "guidance": "Edit only while draft or returned. Once posted, use a linked correction, return, or cancellation order.",
+    })
+
+
+@budget_permission_required("view_allotment_control")
+def allotment_detail(request, public_id):
+    department = department_for_user(request.user)
+    item = get_object_or_404(AllotmentReleaseOrder.objects.select_related(
+        "authorization", "authorization__version", "fiscal_year", "corrects"
+    ).prefetch_related("lines__appropriation_line", "movements__appropriation_line"), public_id=public_id, department_id=department.pk)
+    line_rows = [
+        {"line": line, "balance": allotment_line_balance(line.appropriation_line)} for line in item.lines.all()
+    ]
+    return render(request, "budget/allotment_detail.html", {
+        "order": item, "line_rows": line_rows,
+        "can_prepare": has_budget_permission(request.user, "prepare_allotment_releases"),
+        "can_post": has_budget_permission(request.user, "approve_allotment_releases"),
+    })
+
+
+@budget_permission_required("prepare_allotment_releases")
+def allotment_line_create(request, public_id):
+    department = department_for_user(request.user)
+    item = get_object_or_404(
+        AllotmentReleaseOrder.objects.select_related("authorization"), public_id=public_id,
+        department_id=department.pk, status__in=(AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED),
+    )
+    form = AllotmentOrderLineForm(request.POST or None, order=item)
+    if request.method == "POST" and form.is_valid():
+        line = form.save(False)
+        line.order = item
+        line.department_id, line.department_label = department.pk, department.name
+        try:
+            line.full_clean(); line.save()
+            item.state_version += 1; item.save(update_fields=("state_version", "updated_at"))
+            record_event(item, "allotment_line_added", request.user, snapshot={
+                "appropriation_line_id": line.appropriation_line_id,
+                "movement_type": line.movement_type, "amount": str(line.amount),
+            })
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Authorized appropriation line added to the draft order.")
+            return redirect("budget:allotment_detail", public_id=item.public_id)
+    return render(request, "budget/form.html", {
+        "form": form, "title": f"Add schedule line to {item.order_number}",
+        "guidance": "The movement type is constrained by the order type. Posting will recheck the cumulative line balance under a database lock.",
+    })
+
+
+@budget_permission_required("prepare_allotment_releases")
+def allotment_line_edit(request, public_id, line_id):
+    department = department_for_user(request.user)
+    item = get_object_or_404(
+        AllotmentReleaseOrder.objects.select_related("authorization"), public_id=public_id,
+        department_id=department.pk, status__in=(AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED),
+    )
+    line = get_object_or_404(item.lines, pk=line_id, department_id=department.pk)
+    before = {"appropriation_line_id": line.appropriation_line_id, "movement_type": line.movement_type, "amount": str(line.amount), "remarks": line.remarks}
+    form = AllotmentOrderLineForm(request.POST or None, instance=line, order=item)
+    if request.method == "POST" and form.is_valid():
+        updated = form.save(False)
+        try:
+            updated.full_clean(); updated.save()
+            item.state_version += 1; item.save(update_fields=("state_version", "updated_at"))
+            record_event(item, "allotment_line_edited", request.user, snapshot={
+                "before": before,
+                "after": {"appropriation_line_id": updated.appropriation_line_id, "movement_type": updated.movement_type, "amount": str(updated.amount), "remarks": updated.remarks},
+            })
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Draft schedule line corrected with before/after audit evidence.")
+            return redirect("budget:allotment_detail", public_id=item.public_id)
+    return render(request, "budget/form.html", {
+        "form": form, "title": f"Correct schedule line in {item.order_number}",
+        "guidance": "Before submission/posting, correct the selected authority line, movement, amount, or remarks. After posting, use a linked successor order instead.",
+    })
+
+
+@require_POST
+@budget_permission_required("prepare_allotment_releases")
+def allotment_line_delete(request, public_id, line_id):
+    department = department_for_user(request.user)
+    item = get_object_or_404(
+        AllotmentReleaseOrder, public_id=public_id, department_id=department.pk,
+        status__in=(AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED),
+    )
+    line = get_object_or_404(item.lines, pk=line_id, department_id=department.pk)
+    snapshot = {"appropriation_line_id": line.appropriation_line_id, "movement_type": line.movement_type, "amount": str(line.amount), "remarks": line.remarks}
+    line.delete()
+    item.state_version += 1; item.save(update_fields=("state_version", "updated_at"))
+    record_event(item, "allotment_line_removed", request.user, reason=request.POST.get("reason", ""), snapshot=snapshot)
+    messages.success(request, "Draft schedule line removed; its prior values remain in audit history.")
+    return redirect("budget:allotment_detail", public_id=item.public_id)
+
+
+@require_POST
+@budget_permission_required("view_allotment_control")
+def allotment_action(request, public_id, action):
+    department = department_for_user(request.user)
+    item = get_object_or_404(AllotmentReleaseOrder, public_id=public_id, department_id=department.pk)
+    permission = "approve_allotment_releases" if action in ("post", "return") else "prepare_allotment_releases"
+    if not has_budget_permission(request.user, permission):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    try:
+        transition_allotment_order(item, action, request.user, request.POST.get("reason", ""))
+    except ValidationError as exc:
+        _message_error(request, exc)
+    else:
+        messages.success(request, f"Allotment order {action} recorded.")
+    return redirect("budget:allotment_detail", public_id=item.public_id)
+
+
+@require_GET
+@budget_permission_required("view_allotment_control")
+def allotment_export(request, public_id):
+    department = department_for_user(request.user)
+    item = get_object_or_404(AllotmentReleaseOrder.objects.select_related(
+        "authorization", "authorization__version", "fiscal_year"
+    ).prefetch_related("movements__appropriation_line"), public_id=public_id, department_id=department.pk, status=AllotmentReleaseOrder.POSTED)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    writer = csv.writer(response)
+    writer.writerow((
+        "export_kind", "budget_office", "fiscal_year", "order_number", "order_type", "effective_date",
+        "authority_reference", "appropriation_checksum", "allotment_checksum", "fund", "responsibility_center",
+        "ppa", "funding_source", "account", "expense_class", "movement_type", "movement_amount",
+        "release_effect", "hold_effect", "authorized_amount", "released_to_date", "reserved_to_date", "deferred_to_date", "held_to_date",
+        "unreleased_balance", "executable_balance", "remarks",
+    ))
+    for movement in item.movements.all():
+        line, balance = movement.appropriation_line, allotment_line_balance(movement.appropriation_line)
+        writer.writerow((
+            "posted_allotment_movement", item.department_label, item.fiscal_year.year, item.order_number,
+            item.kind, item.effective_date, item.authority_reference, item.authorization.snapshot_checksum,
+            item.snapshot_checksum, line.fund_code, line.responsibility_center_code, line.program_code,
+            line.funding_source_code, line.account_code, line.expense_class, movement.movement_type,
+            movement.amount, movement.release_effect, movement.hold_effect, balance["authorized"],
+            balance["released"], balance["reserved"], balance["deferred"], balance["held"], balance["unreleased"], balance["executable"], movement.remarks,
+        ))
+    filename = f"allotment-{slugify(item.order_number)}.csv"
+    archived = archive_export(
+        content=response.content, department=department, user=request.user,
+        category="finance-allotment-releases", filename=filename,
+        metadata={
+            "kind": "posted_allotment_schedule", "allotment_public_id": str(item.public_id),
+            "appropriation_public_id": str(item.authorization.public_id), "snapshot_checksum": item.snapshot_checksum,
+            "official_status": "controlled schedule export; exact local/DBM/COA form acceptance remains required",
+        },
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"], response["X-GRAND-Export-SHA256"] = "true", archived["sha256"]
+    record_event(item, "allotment_exported", request.user, snapshot={"relative_path": archived["relative_path"], "sha256": archived["sha256"]})
     return response

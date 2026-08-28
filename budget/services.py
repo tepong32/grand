@@ -10,6 +10,7 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from .models import (
+    AllotmentMovement, AllotmentOrderLine, AllotmentReleaseOrder,
     AppropriationAuthorization, AuthorizedAppropriationLine, BudgetAuditEvent, BudgetCall,
     BudgetProposalLine, BudgetResourceEstimate, BudgetVersion, BudgetVersionSource,
 )
@@ -241,3 +242,154 @@ def transition_authorization(authorization, action, user, reason=""):
         "spendable": authorization.status == AppropriationAuthorization.AUTHORIZED,
     })
     return authorization
+
+
+def allotment_effect(movement_type, amount):
+    amount = Decimal(amount)
+    if movement_type == AllotmentOrderLine.RELEASE:
+        return amount, Decimal("0")
+    if movement_type in (AllotmentOrderLine.RELEASE_REDUCTION, AllotmentOrderLine.RETURN, AllotmentOrderLine.CANCELLATION):
+        return -amount, Decimal("0")
+    if movement_type in (AllotmentOrderLine.RESERVE, AllotmentOrderLine.DEFERRAL):
+        return Decimal("0"), amount
+    if movement_type in (AllotmentOrderLine.RESERVE_RELEASE, AllotmentOrderLine.DEFERRAL_RELEASE):
+        return Decimal("0"), -amount
+    raise ValidationError("Unknown allotment movement type.")
+
+
+def allotment_line_balance(appropriation_line, *, as_of=None):
+    movements = appropriation_line.allotment_movements.all()
+    if as_of:
+        movements = movements.filter(effective_date__lte=as_of)
+    totals = movements.aggregate(released=models.Sum("release_effect"))
+    released = totals["released"] or Decimal("0")
+    reserved = Decimal("0")
+    deferred = Decimal("0")
+    for movement_type, hold_effect in movements.values_list("movement_type", "hold_effect"):
+        if movement_type in (AllotmentOrderLine.RESERVE, AllotmentOrderLine.RESERVE_RELEASE):
+            reserved += hold_effect
+        elif movement_type in (AllotmentOrderLine.DEFERRAL, AllotmentOrderLine.DEFERRAL_RELEASE):
+            deferred += hold_effect
+    held = reserved + deferred
+    return {
+        "authorized": appropriation_line.amount,
+        "released": released,
+        "reserved": reserved,
+        "deferred": deferred,
+        "held": held,
+        "unreleased": appropriation_line.amount - released,
+        "executable": released - held,
+    }
+
+
+def authorization_allotment_totals(authorization):
+    totals = {key: Decimal("0") for key in ("authorized", "released", "reserved", "deferred", "held", "unreleased", "executable")}
+    for line in authorization.schedule_lines.all():
+        balance = allotment_line_balance(line)
+        for key in totals:
+            totals[key] += balance[key]
+    return totals
+
+
+def validate_allotment_order(order, *, lock_lines=False):
+    order.full_clean()
+    if order.control_difference != Decimal("0"):
+        raise ValidationError("The signed allotment control total must equal the exact schedule total.")
+    lines = list(order.lines.select_related("appropriation_line"))
+    if not lines:
+        raise ValidationError("Add at least one authorized appropriation line to the allotment schedule.")
+    appropriation_ids = sorted({line.appropriation_line_id for line in lines})
+    locked = AuthorizedAppropriationLine.objects.filter(pk__in=appropriation_ids)
+    if lock_lines:
+        locked = locked.select_for_update()
+    appropriation_lines = {line.pk: line for line in locked}
+    projected = {pk: allotment_line_balance(line) for pk, line in appropriation_lines.items()}
+    for line in lines:
+        line.full_clean()
+        balance = projected[line.appropriation_line_id]
+        release_effect, hold_effect = allotment_effect(line.movement_type, line.amount)
+        balance["released"] += release_effect
+        if line.movement_type in (AllotmentOrderLine.RESERVE, AllotmentOrderLine.RESERVE_RELEASE):
+            balance["reserved"] += hold_effect
+        elif line.movement_type in (AllotmentOrderLine.DEFERRAL, AllotmentOrderLine.DEFERRAL_RELEASE):
+            balance["deferred"] += hold_effect
+        balance["held"] = balance["reserved"] + balance["deferred"]
+        balance["unreleased"] = balance["authorized"] - balance["released"]
+        balance["executable"] = balance["released"] - balance["held"]
+        if balance["released"] < 0:
+            raise ValidationError(f"{line.appropriation_line}: the order would reduce released allotment below zero.")
+        if balance["released"] > balance["authorized"]:
+            raise ValidationError(f"{line.appropriation_line}: cumulative releases would exceed the authorized appropriation.")
+        if balance["reserved"] < 0:
+            raise ValidationError(f"{line.appropriation_line}: the order would release more reserve than remains held.")
+        if balance["deferred"] < 0:
+            raise ValidationError(f"{line.appropriation_line}: the order would lift more deferral than remains held.")
+        if balance["executable"] < 0:
+            raise ValidationError(f"{line.appropriation_line}: reserve or deferral would exceed released allotment.")
+    return lines, projected
+
+
+@transaction.atomic
+def transition_allotment_order(order, action, user, reason=""):
+    order = AllotmentReleaseOrder.objects.select_for_update().select_related(
+        "authorization", "authorization__version", "fiscal_year"
+    ).get(pk=order.pk)
+    now, label = timezone.now(), actor_label(user)
+    if action == "submit" and order.status in (AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED):
+        validate_allotment_order(order, lock_lines=True)
+        order.status = AllotmentReleaseOrder.FOR_REVIEW
+        order.submitted_by_id, order.submitted_by_label, order.submitted_at = user.pk, label, now
+    elif action == "post" and order.status == AllotmentReleaseOrder.FOR_REVIEW:
+        if order.submitted_by_id == user.pk:
+            raise ValidationError("The allotment preparer cannot post the same release order.")
+        if not reason.strip():
+            raise ValidationError("Record the independent posting and control-total review basis.")
+        if order.movements.exists():
+            raise ValidationError("This allotment order already has posted movements.")
+        lines, projected = validate_allotment_order(order, lock_lines=True)
+        payload, movements = [], []
+        for line in lines:
+            release_effect, hold_effect = allotment_effect(line.movement_type, line.amount)
+            item = {
+                "source_line_id": line.pk,
+                "appropriation_line_id": line.appropriation_line_id,
+                "movement_type": line.movement_type,
+                "amount": str(line.amount),
+                "release_effect": str(release_effect),
+                "hold_effect": str(hold_effect),
+                "effective_date": order.effective_date.isoformat(),
+                "order_number": order.order_number,
+                "authority_reference": order.authority_reference,
+                "remarks": line.remarks,
+            }
+            payload.append(item)
+            movements.append(AllotmentMovement(
+                department_id=order.department_id, department_label=order.department_label,
+                order=order, source_line_id=line.pk, appropriation_line_id=line.appropriation_line_id,
+                movement_type=line.movement_type, amount=line.amount,
+                release_effect=release_effect, hold_effect=hold_effect,
+                effective_date=order.effective_date, order_number_snapshot=order.order_number,
+                authority_reference_snapshot=order.authority_reference, remarks=line.remarks,
+            ))
+        AllotmentMovement.objects.bulk_create(movements)
+        order.snapshot_checksum = hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        order.status = AllotmentReleaseOrder.POSTED
+        order.posted_by_id, order.posted_by_label, order.posted_at = user.pk, label, now
+        order.decision_reason = reason.strip()
+    elif action == "return" and order.status == AllotmentReleaseOrder.FOR_REVIEW:
+        if not reason.strip():
+            raise ValidationError("Record a specific correction reason.")
+        order.status, order.decision_reason = AllotmentReleaseOrder.RETURNED, reason.strip()
+    else:
+        raise ValidationError("That allotment-order transition is unavailable from the current state.")
+    order.state_version += 1
+    order.full_clean()
+    order.save()
+    record_event(order, f"allotment_{action}", user, reason, {
+        "status": order.status, "order_number": order.order_number,
+        "control_total": str(order.signed_control_total), "snapshot_checksum": order.snapshot_checksum,
+        "movement_count": order.movements.count(),
+    })
+    return order

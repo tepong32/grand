@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title_ext %} - Allotment {{ order.order_number }}{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a href="{% url 'budget:allotment_workspace' %}" class="small">&larr; Allotment control</a>
+  <div class="d-flex flex-column flex-lg-row justify-content-between mt-2 mb-3">
+    <div><p class="text-uppercase text-muted small mb-1">{{ order.get_kind_display }}</p><h1>{{ order.order_number }}</h1><p class="text-muted">FY {{ order.fiscal_year.year }} · effective {{ order.effective_date }}</p></div>
+    <div>{% if order.status == 'posted' %}<a class="btn btn-outline-primary" href="{% url 'budget:allotment_export' order.public_id %}">Export posted schedule</a>{% endif %}{% if can_prepare and order.status == 'draft' or can_prepare and order.status == 'returned' %}<a class="btn btn-outline-secondary" href="{% url 'budget:allotment_edit' order.public_id %}">Edit draft</a><a class="btn btn-primary" href="{% url 'budget:allotment_line_create' order.public_id %}">Add schedule line</a>{% endif %}</div>
+  </div>
+  <div class="alert {% if order.status == 'posted' %}alert-success{% else %}alert-warning{% endif %}"><strong>{{ order.get_status_display }}.</strong> Signed/computed/difference: {{ order.signed_control_total|floatformat:2 }} / {{ order.computed_total|floatformat:2 }} / {{ order.control_difference|floatformat:2 }}. {% if order.status == 'posted' %}Posted movements are immutable.{% else %}This order does not affect balances yet.{% endif %}</div>
+  <div class="row">
+    <div class="col-xl-8">
+      <div class="card mb-3"><div class="card-body"><dl class="row mb-0">
+        <dt class="col-sm-4">Appropriation authority</dt><dd class="col-sm-8"><a href="{% url 'budget:authorization_detail' order.authorization.public_id %}">{{ order.authorization.ordinance_number }}</a></dd>
+        <dt class="col-sm-4">Release / effective date</dt><dd class="col-sm-8">{{ order.release_date }} / {{ order.effective_date }}</dd>
+        <dt class="col-sm-4">Authority reference</dt><dd class="col-sm-8">{{ order.authority_reference }}</dd>
+        <dt class="col-sm-4">Purpose</dt><dd class="col-sm-8">{{ order.purpose|linebreaksbr }}</dd>
+        <dt class="col-sm-4">Evidence reference</dt><dd class="col-sm-8">{{ order.evidence_reference|linebreaksbr }}</dd>
+        <dt class="col-sm-4">Correction lineage</dt><dd class="col-sm-8">{% if order.corrects %}<a href="{% url 'budget:allotment_detail' order.corrects.public_id %}">Corrects {{ order.corrects.order_number }}</a>{% else %}Original order{% endif %}</dd>
+        <dt class="col-sm-4">Snapshot checksum</dt><dd class="col-sm-8"><code>{{ order.snapshot_checksum|default:"Created only at posting" }}</code></dd>
+      </dl></div></div>
+    </div>
+    <div class="col-xl-4"><div class="card mb-3"><div class="card-header"><h2 class="card-title font-weight-bold">Controlled action</h2></div><div class="card-body">
+      {% if can_prepare and order.status == 'draft' or can_prepare and order.status == 'returned' %}<form method="post" action="{% url 'budget:allotment_action' order.public_id 'submit' %}">{% csrf_token %}<button class="btn btn-primary btn-block">Submit for independent posting</button></form>{% endif %}
+      {% if can_post and order.status == 'for_review' %}<form method="post" action="{% url 'budget:allotment_action' order.public_id 'post' %}">{% csrf_token %}<textarea name="reason" required class="form-control mb-2" placeholder="Independent control-total and evidence review basis"></textarea><button class="btn btn-success btn-block">Post allotment movements</button></form><hr><form method="post" action="{% url 'budget:allotment_action' order.public_id 'return' %}">{% csrf_token %}<textarea name="reason" required class="form-control mb-2" placeholder="Specific correction reason"></textarea><button class="btn btn-outline-danger btn-block">Return for correction</button></form>{% endif %}
+      {% if order.status == 'posted' %}<p class="small text-muted mb-0">To change this result, create a linked adjustment, return, or cancellation order. Do not alter this posted schedule.</p>{% endif %}
+    </div></div></div>
+  </div>
+  <div class="card card-outline card-primary"><div class="card-header"><h2 class="card-title font-weight-bold">Controlled schedule</h2></div><div class="table-responsive"><table class="table table-sm table-hover mb-0">
+    <thead><tr><th>Authorized line</th><th>Movement</th><th class="text-right">Amount</th><th class="text-right">Authorized</th><th class="text-right">Released</th><th class="text-right">Held</th><th class="text-right">Unreleased</th><th class="text-right">Executable</th>{% if can_prepare and order.status == 'draft' or can_prepare and order.status == 'returned' %}<th>Draft actions</th>{% endif %}</tr></thead>
+    <tbody>{% for row in line_rows %}<tr><td>{{ row.line.appropriation_line }}<div class="small text-muted">{{ row.line.remarks|default:"No line remarks" }}</div></td><td>{{ row.line.get_movement_type_display }}</td><td class="text-right">{{ row.line.amount|floatformat:2 }}</td><td class="text-right">{{ row.balance.authorized|floatformat:2 }}</td><td class="text-right">{{ row.balance.released|floatformat:2 }}</td><td class="text-right">{{ row.balance.held|floatformat:2 }}</td><td class="text-right">{{ row.balance.unreleased|floatformat:2 }}</td><td class="text-right">{{ row.balance.executable|floatformat:2 }}</td>{% if can_prepare and order.status == 'draft' or can_prepare and order.status == 'returned' %}<td><a class="btn btn-sm btn-outline-secondary" href="{% url 'budget:allotment_line_edit' order.public_id row.line.pk %}">Correct</a><form method="post" action="{% url 'budget:allotment_line_delete' order.public_id row.line.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Remove</button></form></td>{% endif %}</tr>{% empty %}<tr><td colspan="9" class="text-center text-muted py-4">No schedule line yet.</td></tr>{% endfor %}</tbody>
+  </table></div></div>
+</div>
+{% endblock %}

@@ -3,7 +3,10 @@ from django import forms
 from accounting.models import FiscalYear
 from departments.models import Department
 
-from .models import AppropriationAuthorization, BudgetCall, BudgetCeiling, BudgetProposalLine, BudgetResourceEstimate, BudgetReviewComment, BudgetVersion
+from .models import (
+    AllotmentOrderLine, AllotmentReleaseOrder, AppropriationAuthorization,
+    BudgetCall, BudgetCeiling, BudgetProposalLine, BudgetResourceEstimate, BudgetReviewComment, BudgetVersion,
+)
 
 
 class DateInput(forms.DateInput):
@@ -134,3 +137,62 @@ class AppropriationAuthorizationForm(forms.ModelForm):
             department_id=department_id, kind__in=(BudgetVersion.FINAL, BudgetVersion.SUPPLEMENTAL, BudgetVersion.REENACTED),
             status=BudgetVersion.APPROVED, appropriation_authorization__isnull=True,
         )
+
+
+class AllotmentReleaseOrderForm(forms.ModelForm):
+    class Meta:
+        model = AllotmentReleaseOrder
+        fields = (
+            "authorization", "order_number", "kind", "release_date", "effective_date",
+            "authority_reference", "evidence_reference", "purpose", "signed_control_total", "corrects",
+        )
+        widgets = {
+            "release_date": DateInput(), "effective_date": DateInput(),
+            "evidence_reference": forms.Textarea(attrs={"rows": 4}), "purpose": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, department_id=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.department_id = department_id
+        current_authorization_id = self.instance.authorization_id if self.instance and self.instance.pk else None
+        authorizations = AppropriationAuthorization.objects.filter(
+            department_id=department_id, status=AppropriationAuthorization.AUTHORIZED,
+        ).select_related("version", "version__fiscal_year")
+        if current_authorization_id:
+            authorizations = authorizations.filter(pk=current_authorization_id)
+            self.fields["authorization"].disabled = True
+        self.fields["authorization"].queryset = authorizations
+        corrections = AllotmentReleaseOrder.objects.filter(
+            department_id=department_id, status=AllotmentReleaseOrder.POSTED,
+        )
+        if self.instance and self.instance.pk:
+            corrections = corrections.exclude(pk=self.instance.pk)
+        self.fields["corrects"].queryset = corrections
+
+    def _post_clean(self):
+        authorization = self.cleaned_data.get("authorization")
+        if authorization:
+            self.instance.authorization = authorization
+            self.instance.fiscal_year = authorization.version.fiscal_year
+            self.instance.department_id = self.department_id
+            self.instance.department_label = authorization.department_label
+        super()._post_clean()
+
+
+class AllotmentOrderLineForm(forms.ModelForm):
+    class Meta:
+        model = AllotmentOrderLine
+        fields = ("appropriation_line", "movement_type", "amount", "remarks")
+        widgets = {"remarks": forms.Textarea(attrs={"rows": 2})}
+
+    def __init__(self, *args, order=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.order = order
+        self.instance.order = order
+        self.instance.department_id = order.department_id
+        self.instance.department_label = order.department_label
+        self.fields["appropriation_line"].queryset = order.authorization.schedule_lines.all()
+        allowed = set(AllotmentOrderLine.ALLOWED_BY_ORDER.get(order.kind, ()))
+        self.fields["movement_type"].choices = [
+            choice for choice in AllotmentOrderLine.MOVEMENT_CHOICES if choice[0] in allowed
+        ]

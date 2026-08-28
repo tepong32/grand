@@ -104,6 +104,22 @@ ACCOUNTING_GUIDES = (
 
 BUDGET_GUIDES = (
     {
+        "slug": "finance-allotment-release-control",
+        "title": "Prepare and post allotment releases",
+        "summary": "Release or adjust allotment only against immutable authorized appropriation lines, with exact totals and correction lineage.",
+        "permission": "budget.view_allotment_control",
+        "patterns": ["budget:allotment_*"],
+        "order": 3,
+        "steps": (
+            ("Choose operational authority", "Open Allotment control and choose the exact authorized annual, supplemental, or reenacted appropriation. Review authorized, released, held, unreleased, and executable totals.", "The order is tied to one immutable appropriation schedule and fiscal year.", "An approved proposal is not enough; only operationally authorized appropriation is eligible.", "Open Allotment Control", "budget:allotment_workspace"),
+            ("Prepare the order header", "Record the ARO/equivalent number and type, release and effectivity dates, accepted authority/evidence references, purpose, and signed control total.", "A draft order identifies its source authority and signed schedule.", "GRAND labels its export as controlled interchange until the exact locally accepted DBM/COA template is confirmed.", "New Release Order", "budget:allotment_create"),
+            ("Add authorized schedule lines", "Select only lines from the linked appropriation and use the movement allowed for the order: release, reserve/deferral, adjustment, return, or cancellation.", "Every amount retains fund, office, PPA, account, expense-class, and appropriation lineage.", "Do not retype classification codes or use negative amounts; the movement type supplies direction.", "", ""),
+            ("Reconcile and submit", "Make the computed line total equal the signed control total exactly, then submit. GRAND rechecks cumulative released and held balances under a lock.", "No line exceeds appropriation, falls below zero, or holds more than released allotment.", "A draft or returned order may be edited; a submitted order is read-only.", "", ""),
+            ("Post independently", "A different authorized officer reviews the signed schedule, evidence, effectivity, and zero control difference before posting.", "Immutable allotment movements and a checksum update the authority balances once.", "The preparer cannot post the same order.", "", ""),
+            ("Correct without overwriting", "For a posted error or later action, create a linked adjustment, return, or cancellation order and explain the authority. Export the posted schedule when needed.", "The original and every successor remain reconstructible in the ledger and TraceSync-ready export archive.", "Never edit or delete a posted order or movement.", "", ""),
+        ),
+    },
+    {
         "slug": "finance-appropriation-authorization",
         "title": "Authorize operational appropriations",
         "summary": "Turn only the exact approved final, supplemental, or reenacted version into operational authority after ordinance, review, effectivity, and control totals agree.",

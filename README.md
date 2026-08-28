@@ -20,6 +20,7 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 - Finance Setup Center with effective-dated releases, versioned master data and rules, separate preparation/approval, signatory and numbering governance, safe macro-free Excel intake, synthetic previews, and structured readiness blockers.
 - Standalone Accounting with its own finance database, guided fiscal setup, controlled opening-balance staging/reconciliation/export, balanced journal preparation, independent posting, immutable audit history, general ledger, and trial balance—without an eGAPS runtime dependency.
 - Annual Budget preparation with reviewed calls and ceilings, classified department proposals and targets, resource estimates, traceable consolidation, version comparison, and portable exports; approved proposals remain non-spendable until authorization.
+- Allotment release control against immutable operational appropriations, with initial/later releases, reserves, deferrals, adjustments, returns/cancellations, exact signed totals, independent posting, live balances, correction lineage, and TraceSync-ready exports.
 - Voucher and Disbursement Workbench shadow vertical slice with one shared Budget–Accounting–Treasury case, governed supplier/payee selectors, pilot OBR and DV numbering, wet-signature rounds, JEV references, multi-check controls, bank advice, release, correction history, and checksum-backed outputs. Authoritative annual appropriations, AROs, RAAO/equivalent balances, and complete fiscal-year operation remain roadmap work.
 - Public and internal announcements, employee/citizen profiles, department records, and organization views.
 
@@ -39,6 +40,7 @@ GRAND keeps operational modules separate: an employee's dashboard summarizes wor
 | Physical custody | `tracepoint` | QR-tagged paper packets, daily employee codes, confirmed handoffs, exceptions, and completion |
 | Finance setup | `finance` | Approved master data, rules, signatories, numbering policies, voucher workbook versions, and readiness |
 | Accounting | `accounting` | Separate-database fiscal/opening controls, chart, journals, posting, ledger, and trial balance |
+| Budget and allotment | `budget` | Annual calls/proposals, operational appropriation authorization, and posted allotment movement control |
 | Voucher operations | `vouchers` | Cross-office OBR, DV, signature, Accounting, check, advice, and release workflow |
 | Workforce | `leave_mgt`, `salaries` | Leave workflows and salary-related records |
 
@@ -111,6 +113,6 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 
 GRAND remains the platform identity. GRAND Finance will become one role-shaped, complete-cycle sub-application: requesting offices initiate funded work, Budget governs appropriations/allotments/obligations, Accounting governs payables/books/reports, and Treasury governs cash/payment/reconciliation. TracePoint owns physical-document custody, Records owns retained authoritative files, and Finance Setup owns governed configuration; those domains link to the shared finance lineage without duplicating authority.
 
-The current Voucher Workbench remains in shadow comparison mode. It starts later than the complete LGU cycle because authoritative annual appropriations, allotment releases, and obligation balances are not yet implemented. The delivery order, acceptance gates, and current-position matrix are documented in the [GRAND Finance complete-cycle roadmap](docs/FINANCE_ROADMAP.md).
+The current Voucher Workbench remains in shadow comparison mode. Annual-budget, operational-appropriation, and allotment controls now precede it, but the workbench still lacks authoritative F4.2 obligation/RAAO linkage and locally accepted end-to-end evidence. The delivery order, acceptance gates, and current-position matrix are documented in the [GRAND Finance complete-cycle roadmap](docs/FINANCE_ROADMAP.md).
 
 All showcase records and screenshots are synthetic. Production citizen data, credentials, uploaded records, and generated official reports must never be added to the repository.
