@@ -11,6 +11,10 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 - Added guided accounting setup, department-scoped journal CRUD, balanced-entry validation, explicit submit/return/post actions, maker-checker posting, and immutable posted history.
 - Added a task-first Accounting workspace, journal register/detail, general ledger, and trial balance with permission-aware navigation.
 - Added multi-database, authorization, department-isolation, posting-integrity, immutability, HTTP-method, and reporting regression tests using synthetic values only.
+- Connected validated Voucher Workbench cases to checksum-backed GRAND posting requests and idempotent draft JEV materialization in the standalone finance database, with controlled account mappings and recoverable handoff reconciliation.
+- Added a dedicated Accounting posting queue and source-status guidance that advances Treasury only after independent JEV posting, while preventing posted vouchers from being silently rewritten.
+- Added reason-required reversing JEVs that swap the original lines, retain direct correction lineage, preserve the posted source, and pass through the normal maker-checker workflow.
+- Extended the synthetic end-to-end suite through Budget, voucher validation, GRAND ledger posting, Treasury advice, and final check release without any eGAPS connection or data.
 
 ### Voucher and Disbursement Workbench
 

@@ -16,7 +16,7 @@ from .models import (
     AccountingAuditEvent, AccountingPeriod, Fund, JournalEntry, JournalLine,
     LedgerAccount, ResponsibilityCenter,
 )
-from .services import post_entry, submit_entry
+from .services import create_reversal, discard_draft, post_entry, submit_entry
 
 
 class StandaloneAccountingTests(TestCase):
@@ -138,6 +138,75 @@ class StandaloneAccountingTests(TestCase):
         line = entry.lines.first()
         line.memo = "Attempted overwrite"
         with self.assertRaisesMessage(ValidationError, "only while the entry is a draft"):
+            line.save()
+
+    def test_posted_entry_correction_creates_separately_approved_reversal(self):
+        entry = self._entry(reference="SYN-JEV-REV-ORIGINAL")
+        submit_entry(entry, self.preparer)
+        post_entry(entry, self.poster)
+        entry.refresh_from_db()
+
+        reversal = create_reversal(
+            entry,
+            self.preparer,
+            reference="SYN-JEV-REV-0001",
+            entry_date=date(2027, 1, 20),
+            period=self.period,
+            reason="Synthetic correction with traceable lineage",
+        )
+
+        self.assertEqual(reversal.status, JournalEntry.DRAFT)
+        self.assertEqual(reversal.reversal_of, entry)
+        self.assertEqual(reversal.source_type, "reversal")
+        original_lines = list(entry.lines.order_by("sequence"))
+        reversal_lines = list(reversal.lines.order_by("sequence"))
+        self.assertEqual(len(reversal_lines), len(original_lines))
+        for original, reversed_line in zip(original_lines, reversal_lines):
+            self.assertEqual(reversed_line.debit, original.credit)
+            self.assertEqual(reversed_line.credit, original.debit)
+            self.assertEqual(reversed_line.account_id, original.account_id)
+        entry.refresh_from_db()
+        self.assertEqual(entry.status, JournalEntry.POSTED)
+        self.assertTrue(entry.audit_events.filter(action="reversal_prepared").exists())
+        self.assertTrue(reversal.audit_events.filter(action="prepared_from_reversal").exists())
+
+        with self.assertRaisesMessage(ValidationError, "already been prepared"):
+            create_reversal(
+                entry,
+                self.preparer,
+                reference="SYN-JEV-REV-0002",
+                entry_date=date(2027, 1, 21),
+                period=self.period,
+                reason="Duplicate correction attempt",
+            )
+
+        discard_draft(reversal, self.preparer, "Wrong reversal reference")
+        replacement = create_reversal(
+            entry,
+            self.preparer,
+            reference="SYN-JEV-REV-0002",
+            entry_date=date(2027, 1, 21),
+            period=self.period,
+            reason="Replacement correction attempt",
+        )
+        submit_entry(replacement, self.preparer)
+        post_entry(replacement, self.poster)
+        replacement.refresh_from_db()
+        self.assertEqual(replacement.status, JournalEntry.POSTED)
+
+    def test_generated_journal_header_and_existing_lines_cannot_be_rewritten(self):
+        entry = self._entry(reference="SYN-JEV-GENERATED")
+        entry.source_type = "voucher"
+        entry.source_reference = "synthetic-source-request"
+        entry.source_snapshot = {"checksum": "synthetic"}
+        entry.save()
+
+        entry.description = "Attempted source rewrite"
+        with self.assertRaisesMessage(ValidationError, "Source-generated journal headers are immutable"):
+            entry.save()
+        line = entry.lines.first()
+        line.memo = "Attempted generated-line rewrite"
+        with self.assertRaisesMessage(ValidationError, "Generated journal lines cannot be edited"):
             line.save()
 
     def test_workspace_and_entry_are_department_scoped(self):

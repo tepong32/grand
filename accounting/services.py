@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from .models import AccountingAuditEvent, AccountingPeriod, JournalEntry
+from .models import AccountingAuditEvent, AccountingPeriod, JournalEntry, JournalLine
 
 
 FINANCE_DB = "finance"
@@ -100,6 +100,69 @@ def discard_draft(entry, actor, reason=""):
     locked.save(update_fields=("status", "updated_at"))
     record_event(locked, "draft_discarded", actor, reason=reason.strip())
     return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def create_reversal(entry, actor, *, reference, entry_date, period, reason):
+    """Prepare, but do not post, an exact reversing journal with immutable lineage."""
+    locked = JournalEntry.objects.select_for_update().select_related("fund").get(pk=entry.pk)
+    if locked.status != JournalEntry.POSTED:
+        raise ValidationError("Only a posted journal can be reversed.")
+    active_reversals = JournalEntry.objects.filter(reversal_of=locked).exclude(status=JournalEntry.VOIDED)
+    if active_reversals.exists():
+        raise ValidationError("A reversing journal has already been prepared for this entry.")
+    reason = reason.strip()
+    if not reason:
+        raise ValidationError("Explain why this reversal is required.")
+    if period.department_id != locked.department_id or period.status != AccountingPeriod.OPEN:
+        raise ValidationError("Choose an open accounting period for the same department ledger.")
+    if not (period.starts_on <= entry_date <= period.ends_on):
+        raise ValidationError("The reversal date must fall inside the selected accounting period.")
+
+    attempt_number = JournalEntry.objects.filter(reversal_of=locked).count() + 1
+    reversal = JournalEntry(
+        department_id=locked.department_id,
+        department_label=locked.department_label,
+        reference=reference.strip(),
+        entry_date=entry_date,
+        period=period,
+        fund=locked.fund,
+        source_type="reversal",
+        source_reference=f"{locked.public_id}:{attempt_number}",
+        source_snapshot={
+            "original_entry": str(locked.public_id),
+            "original_reference": locked.reference,
+            "original_posted_at": locked.posted_at.isoformat() if locked.posted_at else None,
+        },
+        reversal_of=locked,
+        reversal_reason=reason,
+        description=f"Reversal of {locked.reference}: {reason}",
+        created_by_id=actor.pk,
+        created_by_label=actor_label(actor),
+    )
+    reversal.full_clean()
+    reversal.save()
+    for line in locked.lines.select_related("account", "responsibility_center").order_by("sequence", "pk"):
+        reversed_line = JournalLine(
+            entry=reversal,
+            sequence=line.sequence,
+            account=line.account,
+            responsibility_center=line.responsibility_center,
+            debit=line.credit,
+            credit=line.debit,
+            memo=f"Reversal: {line.memo}"[:255],
+        )
+        reversed_line.full_clean()
+        reversed_line.save()
+    record_event(
+        locked, "reversal_prepared", actor, reason=reason,
+        snapshot={"reversal_entry": str(reversal.public_id), "reversal_reference": reversal.reference},
+    )
+    record_event(
+        reversal, "prepared_from_reversal", actor, reason=reason,
+        snapshot={"original_entry": str(locked.public_id), "original_reference": locked.reference},
+    )
+    return reversal
 
 
 @transaction.atomic(using=FINANCE_DB)

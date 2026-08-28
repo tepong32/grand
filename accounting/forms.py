@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import AccountingPeriod, Fund, JournalEntry, JournalLine, LedgerAccount, ResponsibilityCenter
+from .models import AccountingPeriod, Fund, JournalEntry, JournalLine, LedgerAccount, PostingMapping, ResponsibilityCenter
 
 
 class StyledModelForm(forms.ModelForm):
@@ -47,6 +47,18 @@ class LedgerAccountForm(StyledModelForm):
         self.fields["parent"].queryset = parents
 
 
+class PostingMappingForm(StyledModelForm):
+    class Meta:
+        model = PostingMapping
+        fields = ("category", "source_code", "label", "account", "is_active")
+
+    def __init__(self, *args, department, **kwargs):
+        super().__init__(*args, department=department, **kwargs)
+        self.fields["account"].queryset = LedgerAccount.objects.filter(
+            department_id=department.pk, is_active=True, allow_posting=True,
+        )
+
+
 class JournalEntryForm(StyledModelForm):
     class Meta:
         model = JournalEntry
@@ -78,3 +90,21 @@ class JournalLineForm(StyledModelForm):
         self.fields["responsibility_center"].queryset = ResponsibilityCenter.objects.filter(
             department_id=department.pk, is_active=True,
         )
+
+
+class ReversalForm(forms.Form):
+    reference = forms.CharField(max_length=60, help_text="Use a unique reversing JEV number.")
+    entry_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    period = forms.ModelChoiceField(queryset=AccountingPeriod.objects.none())
+    reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="This explanation is retained in the permanent audit trail.",
+    )
+
+    def __init__(self, *args, department, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["period"].queryset = AccountingPeriod.objects.filter(
+            department_id=department.pk, status=AccountingPeriod.OPEN,
+        )
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")

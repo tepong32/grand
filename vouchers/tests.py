@@ -13,6 +13,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from departments.models import Department
+from accounting.models import AccountingPeriod, Fund, JournalEntry, LedgerAccount, PostingMapping, ResponsibilityCenter
+from accounting.services import post_entry, submit_entry
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
     FinanceParty, FinancePartyClaimant, FinanceSignatory, FinanceTemplateVersion,
@@ -24,7 +26,8 @@ from records.services import RecordWorkflowError, source_department
 from tracepoint.models import PacketItem, TrackedPacket
 
 from .access import can_view_workbench
-from .models import PaymentInstrument, VoucherCase, VoucherEvent, VoucherNumberIssue
+from .models import PaymentInstrument, VoucherCase, VoucherEvent, VoucherNumberIssue, VoucherPostingRequest
+from .posting import materialize_voucher_journal, reconcile_posted_voucher_entry
 from .services import (
     approve_override, cancel_check, certify_budget, create_budget_case,
     finalize_bank_advice, generate_shadow_dv, issue_check, link_tracepoint_item, prepare_voucher, record_signature_return,
@@ -34,6 +37,7 @@ from .services import (
 
 
 class VoucherWorkflowTests(TestCase):
+    databases = {"default", "finance"}
     @classmethod
     def setUpClass(cls):
         cls._media_directory = tempfile.TemporaryDirectory()
@@ -62,6 +66,39 @@ class VoucherWorkflowTests(TestCase):
         cls.superuser = cls.employee("platform.superuser", cls.accounting, is_superuser=True)
         cls.preparer.user_permissions.add(Permission.objects.get(content_type__app_label="finance", codename="manage_finance_templates"))
         cls.preparer.user_permissions.add(Permission.objects.get(content_type__app_label="tracepoint", codename="view_tracepoint_workspace"))
+        cls.preparer.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="accounting",
+            codename__in=("view_accounting_workspace", "prepare_journal_entries", "manage_accounting_setup"),
+        ))
+        cls.validator.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="accounting",
+            codename__in=("view_accounting_workspace", "post_journal_entries", "view_general_ledger"),
+        ))
+
+        owner = {"department_id": cls.accounting.pk, "department_label": cls.accounting.name}
+        cls.accounting_period = AccountingPeriod.objects.create(
+            **owner, fiscal_year=2026, period_number=8, label="August",
+            starts_on=date(2026, 8, 1), ends_on=date(2026, 8, 31),
+        )
+        cls.accounting_fund = Fund.objects.create(**owner, code="general-fund", name="Synthetic General Fund")
+        cls.accounting_center = ResponsibilityCenter.objects.create(**owner, code="gso", name="Synthetic GSO")
+        cls.expense_account = LedgerAccount.objects.create(
+            **owner, code="5-02-03", title="Synthetic office supplies expense", account_type="expense", normal_balance="debit",
+        )
+        cls.payable_account = LedgerAccount.objects.create(
+            **owner, code="2-01-01", title="Synthetic accounts payable", account_type="liability", normal_balance="credit",
+        )
+        cls.withholding_account = LedgerAccount.objects.create(
+            **owner, code="2-02-EWT", title="Synthetic withholding payable", account_type="liability", normal_balance="credit",
+        )
+        PostingMapping.objects.create(
+            **owner, category=PostingMapping.PAYABLE, source_code="ordinary-supplier-claim",
+            label="Ordinary supplier net payable", account=cls.payable_account,
+        )
+        PostingMapping.objects.create(
+            **owner, category=PostingMapping.DEDUCTION, source_code="ewt",
+            label="Expanded withholding tax", account=cls.withholding_account,
+        )
 
         cls.release = FinanceConfigurationRelease.objects.create(
             department=cls.accounting, code="synthetic-pilot", version=1, title="Synthetic voucher pilot setup",
@@ -183,10 +220,32 @@ class VoucherWorkflowTests(TestCase):
             expected_version=case.state_version, idempotency_key="validate-accounting",
         )
         case.refresh_from_db()
+        request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
+        entry, _created = materialize_voucher_journal(request, self.preparer)
+        same_entry, duplicate_created = materialize_voucher_journal(request, self.preparer)
+        self.assertFalse(duplicate_created)
+        self.assertEqual(same_entry.pk, entry.pk)
+        self.assertEqual(
+            JournalEntry.objects.filter(source_type="voucher", source_reference=str(request.public_id)).count(),
+            1,
+        )
+        submit_entry(entry, self.preparer)
+        entry.refresh_from_db()
+        post_entry(entry, self.validator)
+        entry.refresh_from_db()
+        reconcile_posted_voucher_entry(entry, self.validator)
+        case.refresh_from_db()
         return case
 
     def test_complete_supplier_disbursement_route_uses_one_shared_case(self):
         case = self.ready_for_treasury()
+        posting_request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
+        linked_entry = JournalEntry.objects.get(public_id=posting_request.accounting_entry_public_id)
+        self.assertEqual(posting_request.status, VoucherPostingRequest.POSTED)
+        self.assertEqual(linked_entry.status, JournalEntry.POSTED)
+        self.assertEqual(linked_entry.source_snapshot["voucher_case"], str(case.public_id))
+        self.assertEqual(linked_entry.totals, (Decimal("1000.00"), Decimal("1000.00")))
+        self.assertEqual(case.events.filter(action="grand_jev_posted").count(), 1)
         first = issue_check(
             case=case, actor=self.treasury_user, bank_account_code="gf-lbp", check_number="000101", amount=Decimal("400.00"),
             expected_version=case.state_version, idempotency_key="issue-check-1",
@@ -217,6 +276,58 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(case.events.filter(action="disbursement_completed").count(), 1)
         self.assertTrue(all(event.actor_department_id for event in case.events.all()))
 
+    def test_posted_jev_requires_reversal_instead_of_voucher_rewrite(self):
+        case = self.ready_for_treasury()
+        with self.assertRaisesMessage(ValidationError, "already has a posted JEV"):
+            return_case(
+                case=case,
+                actor=self.validator,
+                target_stage=VoucherCase.ACCOUNTING_VALIDATION,
+                reason="Attempted rewrite after ledger posting",
+                expected_version=case.state_version,
+                idempotency_key="posted-jev-return-denied",
+            )
+
+    def test_discarded_generated_jev_leaves_repair_route_back_to_validation(self):
+        case = self.create_case("discard-source-create")
+        self.budget_certify(case, "discard-source-budget")
+        self.accounting_prepare(case, "discard-source-prepare")
+        self.return_signatures(case)
+        validate_accounting(
+            case=case,
+            actor=self.validator,
+            jev_number="JEV-DISCARD-01",
+            jev_date=date(2026, 8, 25),
+            note="Synthetic draft requiring correction",
+            expected_version=case.state_version,
+            idempotency_key="discard-source-validate",
+        )
+        case.refresh_from_db()
+        posting_request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
+        entry, _created = materialize_voucher_journal(posting_request, self.preparer)
+
+        self.client.force_login(self.preparer)
+        response = self.client.post(
+            reverse("accounting:entry_discard", args=(entry.public_id,)),
+            {"reason": "Correct the source voucher and regenerate"},
+        )
+        self.assertEqual(response.status_code, 302)
+        entry.refresh_from_db()
+        posting_request.refresh_from_db()
+        self.assertEqual(entry.status, JournalEntry.VOIDED)
+        self.assertEqual(posting_request.status, VoucherPostingRequest.CANCELLED)
+
+        return_case(
+            case=case,
+            actor=self.validator,
+            target_stage=VoucherCase.ACCOUNTING_VALIDATION,
+            reason="Correct the source voucher before a new posting request",
+            expected_version=case.state_version,
+            idempotency_key="discard-source-return",
+        )
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_VALIDATION)
+
     def test_segregation_of_duties_requires_separately_approved_override(self):
         case = self.create_case("sod-create")
         self.budget_certify(case, "sod-budget")
@@ -235,7 +346,8 @@ class VoucherWorkflowTests(TestCase):
         )
         override.refresh_from_db(); case.refresh_from_db()
         self.assertEqual(override.status, "used")
-        self.assertEqual(case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_POSTING)
+        self.assertEqual(case.posting_requests.get().status, VoucherPostingRequest.PENDING)
 
     def test_explicit_permissions_do_not_follow_superuser_status(self):
         self.assertFalse(can_view_workbench(self.superuser))

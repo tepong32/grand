@@ -3,12 +3,13 @@ from __future__ import annotations
 from decimal import Decimal
 import hashlib
 import io
+import json
 import uuid
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import Max, Q, Sum
 from django.core.files.base import ContentFile
 from django.utils import timezone
 
@@ -21,7 +22,7 @@ from .models import (
     AccountingValidation, BankAdviceBatch, BankAdviceItem, BudgetAllocationLine,
     BudgetObligation, ControlOverride, DisbursementVoucher, PaymentInstrument,
     VoucherCase, VoucherDeduction, VoucherDocumentCheck, VoucherEvent,
-    VoucherLineItem, VoucherNumberIssue, VoucherOutput, VoucherTask, WetSignatureTask,
+    VoucherLineItem, VoucherNumberIssue, VoucherOutput, VoucherPostingRequest, VoucherTask, WetSignatureTask,
 )
 
 
@@ -34,6 +35,7 @@ STAGE_PERMISSION = {
     VoucherCase.ACCOUNTING_PREPARATION: "vouchers.prepare_disbursement_voucher",
     VoucherCase.AWAITING_SIGNATURES: "vouchers.track_wet_signatures",
     VoucherCase.ACCOUNTING_VALIDATION: "vouchers.validate_accounting_voucher",
+    VoucherCase.ACCOUNTING_POSTING: "accounting.prepare_journal_entries",
     VoucherCase.TREASURY_CHECK_PREPARATION: "vouchers.issue_payment_instruments",
     VoucherCase.ACCOUNTING_BANK_ADVICE: "vouchers.finalize_bank_advice",
     VoucherCase.TREASURY_RELEASE: "vouchers.release_payment_instruments",
@@ -279,7 +281,54 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         case=case, decision=AccountingValidation.ACCEPTED, jev_number=jev_number.strip(), jev_date=jev_date,
         note=note.strip(), validated_by=actor, validated_at=timezone.now(),
     )
-    return _advance(case, actor, VoucherCase.TREASURY_CHECK_PREPARATION, "accounting_validated", idempotency_key, note, {"jev_number": jev_number})
+    voucher = case.disbursement_voucher
+    payload = {
+        "schema_version": 1,
+        "voucher_case_public_id": str(case.public_id),
+        "voucher_reference": case.reference_code,
+        "dv_number": voucher.dv_number,
+        "jev_number": jev_number.strip(),
+        "jev_date": jev_date.isoformat(),
+        "transaction_type": case.transaction_type,
+        "payee_name": case.payee_name,
+        "particulars": case.particulars,
+        "gross_amount": str(voucher.gross_amount),
+        "total_deductions": str(voucher.total_deductions),
+        "net_amount": str(voucher.net_amount),
+        "allocations": [
+            {
+                "fund_code": line.fund_code,
+                "responsibility_center_code": line.responsibility_center_code,
+                "account_code": line.account_code,
+                "amount": str(line.amount),
+            }
+            for line in case.obligation.allocation_lines.order_by("pk")
+        ],
+        "deductions": [
+            {"code": item.code, "description": item.description, "amount": str(item.amount)}
+            for item in voucher.deductions.order_by("pk")
+        ],
+    }
+    checksum = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    version = (case.posting_requests.aggregate(value=Max("version"))["value"] or 0) + 1
+    department = department_for_user(actor)
+    request = VoucherPostingRequest(
+        case=case,
+        version=version,
+        jev_number=jev_number.strip(),
+        jev_date=jev_date,
+        finance_department_id=department.pk,
+        finance_department_label=department.name,
+        payload=payload,
+        payload_checksum=checksum,
+        requested_by=actor,
+    )
+    request.full_clean()
+    request.save()
+    return _advance(
+        case, actor, VoucherCase.ACCOUNTING_POSTING, "accounting_validated", idempotency_key, note,
+        {"jev_number": jev_number, "posting_request": str(request.public_id), "payload_checksum": checksum},
+    )
 
 
 @transaction.atomic
@@ -398,12 +447,20 @@ def return_case(*, case, actor, target_stage, reason, expected_version, idempote
     allowed = {
         VoucherCase.AWAITING_SIGNATURES: {VoucherCase.ACCOUNTING_PREPARATION},
         VoucherCase.ACCOUNTING_VALIDATION: {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.AWAITING_SIGNATURES},
+        VoucherCase.ACCOUNTING_POSTING: {VoucherCase.ACCOUNTING_VALIDATION},
         VoucherCase.TREASURY_CHECK_PREPARATION: {VoucherCase.ACCOUNTING_VALIDATION},
         VoucherCase.ACCOUNTING_BANK_ADVICE: {VoucherCase.TREASURY_CHECK_PREPARATION},
         VoucherCase.TREASURY_RELEASE: {VoucherCase.TREASURY_CHECK_PREPARATION, VoucherCase.ACCOUNTING_BANK_ADVICE},
     }
     if target_stage not in allowed.get(case.current_stage, set()) or not reason.strip():
         raise VoucherWorkflowError("Choose an allowed earlier stage and record the correction reason.")
+    if target_stage in {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.ACCOUNTING_VALIDATION}:
+        if case.posting_requests.filter(status=VoucherPostingRequest.POSTED).exists():
+            raise VoucherWorkflowError("This voucher already has a posted JEV. Use an adjusting/reversal entry and a replacement case instead of rewriting it.")
+        materialized = case.posting_requests.filter(status=VoucherPostingRequest.MATERIALIZED).exists()
+        if materialized:
+            raise VoucherWorkflowError("Discard the draft GRAND JEV before returning this voucher for correction.")
+        case.posting_requests.filter(status=VoucherPostingRequest.PENDING).update(status=VoucherPostingRequest.CANCELLED)
     if target_stage == VoucherCase.ACCOUNTING_PREPARATION:
         case.signature_tasks.filter(status=WetSignatureTask.PENDING).update(status=WetSignatureTask.DECLINED, note="Superseded by a correction round.")
     elif target_stage == VoucherCase.AWAITING_SIGNATURES:

@@ -27,6 +27,7 @@ class VoucherCase(models.Model):
     ACCOUNTING_PREPARATION = "accounting_preparation"
     AWAITING_SIGNATURES = "awaiting_signatures"
     ACCOUNTING_VALIDATION = "accounting_validation"
+    ACCOUNTING_POSTING = "accounting_posting"
     TREASURY_CHECK_PREPARATION = "treasury_check_preparation"
     ACCOUNTING_BANK_ADVICE = "accounting_bank_advice"
     TREASURY_RELEASE = "treasury_release"
@@ -37,6 +38,7 @@ class VoucherCase(models.Model):
         (ACCOUNTING_PREPARATION, "Accounting DV preparation"),
         (AWAITING_SIGNATURES, "Awaiting wet signatures"),
         (ACCOUNTING_VALIDATION, "Accounting validation"),
+        (ACCOUNTING_POSTING, "Accounting JEV posting"),
         (TREASURY_CHECK_PREPARATION, "Treasury check preparation"),
         (ACCOUNTING_BANK_ADVICE, "Accounting bank advice"),
         (TREASURY_RELEASE, "Treasury check release"),
@@ -198,6 +200,62 @@ class AccountingValidation(models.Model):
     note = models.TextField(blank=True)
     validated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="accounting_validations")
     validated_at = models.DateTimeField()
+
+
+class VoucherPostingRequest(models.Model):
+    RECOGNITION = "recognition"
+    KIND_CHOICES = ((RECOGNITION, "Voucher recognition JEV"),)
+    PENDING = "pending"
+    MATERIALIZED = "materialized"
+    POSTED = "posted"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    STATUS_CHOICES = (
+        (PENDING, "Waiting for JEV creation"),
+        (MATERIALIZED, "Draft JEV created"),
+        (POSTED, "JEV posted"),
+        (FAILED, "Needs intervention"),
+        (CANCELLED, "Cancelled"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    case = models.ForeignKey(VoucherCase, on_delete=models.PROTECT, related_name="posting_requests")
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES, default=RECOGNITION)
+    version = models.PositiveSmallIntegerField(default=1)
+    jev_number = models.CharField(max_length=60)
+    jev_date = models.DateField()
+    finance_department_id = models.PositiveBigIntegerField()
+    finance_department_label = models.CharField(max_length=160)
+    payload = models.JSONField(default=dict)
+    payload_checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
+    accounting_entry_public_id = models.UUIDField(null=True, blank=True)
+    failure_reason = models.TextField(blank=True)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="voucher_posting_requests")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    materialized_at = models.DateTimeField(null=True, blank=True)
+    posted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-requested_at", "-pk")
+        constraints = (
+            models.UniqueConstraint(fields=("case", "kind", "version"), name="unique_voucher_posting_version"),
+            models.UniqueConstraint(fields=("finance_department_id", "jev_number"), name="unique_voucher_jev_number"),
+        )
+
+    def __str__(self):
+        return f"{self.jev_number} · {self.get_status_display()}"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            immutable = (
+                "case_id", "kind", "version", "jev_number", "jev_date", "finance_department_id",
+                "finance_department_label", "payload", "payload_checksum", "requested_by_id", "requested_at",
+            )
+            if any(getattr(prior, field) != getattr(self, field) for field in immutable):
+                raise ValidationError("Posting request evidence is immutable. Create a new version instead.")
+        return super().save(*args, **kwargs)
 
 
 class PaymentInstrument(models.Model):

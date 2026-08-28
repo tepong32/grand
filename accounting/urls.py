@@ -22,6 +22,9 @@ urlpatterns = [
     path("journals/<uuid:public_id>/post/", views.entry_post, name="entry_post"),
     path("journals/<uuid:public_id>/return/", views.entry_return, name="entry_return"),
     path("journals/<uuid:public_id>/discard/", views.entry_discard, name="entry_discard"),
+    path("journals/<uuid:public_id>/reverse/", views.entry_reverse, name="entry_reverse"),
+    path("sources/vouchers/<uuid:public_id>/materialize/", views.voucher_source_materialize, name="voucher_source_materialize"),
+    path("sources/vouchers/<uuid:public_id>/reconcile/", views.voucher_source_reconcile, name="voucher_source_reconcile"),
     path("ledger/", views.ledger, name="ledger"),
     path("trial-balance/", views.trial_balance, name="trial_balance"),
 ]

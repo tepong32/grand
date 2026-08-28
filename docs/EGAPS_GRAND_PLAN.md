@@ -268,6 +268,8 @@ Deliverables:
 
 Exit: every posted synthetic transaction balances, traces to its source case, and reverses without rewriting history.
 
+Implementation progress on `codex/grand-finance-complete-cycle`: the recognition-side Voucher Workbench handoff, source snapshot/checksum, controlled account mapping, balanced JEV materialization, maker-checker review/posting, recoverable cross-database reconciliation, immutable reversal lineage, and automated supplier-cycle coverage are implemented. Payment-side posting routes, batches, subsidiary schedules, and formal acceptance remain open before Phase 7 is considered complete.
+
 ### Phase 8 — Treasury, advice, and release
 
 Deliverables:

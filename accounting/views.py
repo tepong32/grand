@@ -13,10 +13,10 @@ from .access import (
 )
 from .forms import (
     AccountingPeriodForm, FundForm, JournalEntryForm, JournalLineForm,
-    LedgerAccountForm, ResponsibilityCenterForm,
+    LedgerAccountForm, PostingMappingForm, ResponsibilityCenterForm, ReversalForm,
 )
-from .models import AccountingPeriod, Fund, JournalEntry, JournalLine, LedgerAccount, ResponsibilityCenter
-from .services import close_period, discard_draft, post_entry, return_entry, submit_entry
+from .models import AccountingPeriod, Fund, JournalEntry, JournalLine, LedgerAccount, PostingMapping, ResponsibilityCenter
+from .services import close_period, create_reversal, discard_draft, post_entry, return_entry, submit_entry
 
 
 SETUP_TYPES = {
@@ -24,6 +24,7 @@ SETUP_TYPES = {
     "funds": (Fund, FundForm, "Fund"),
     "centers": (ResponsibilityCenter, ResponsibilityCenterForm, "Responsibility center"),
     "accounts": (LedgerAccount, LedgerAccountForm, "Ledger account"),
+    "mappings": (PostingMapping, PostingMappingForm, "Posting mapping"),
 }
 
 
@@ -62,11 +63,17 @@ def workspace(request):
         Fund.objects.filter(department_id=department.pk, is_active=True).exists(),
         LedgerAccount.objects.filter(department_id=department.pk, is_active=True, allow_posting=True).exists(),
     ))
+    from vouchers.models import VoucherPostingRequest
+    source_requests = VoucherPostingRequest.objects.filter(
+        finance_department_id=department.pk,
+        status__in=(VoucherPostingRequest.PENDING, VoucherPostingRequest.FAILED, VoucherPostingRequest.MATERIALIZED),
+    ).select_related("case")[:50]
     return render(request, "accounting/workspace.html", {
         "entries": entries[:100], "metrics": metrics, "setup_ready": setup_ready,
         "status_choices": JournalEntry.STATUS_CHOICES, "selected_status": selected_status, "query": query,
         "can_manage_setup": can_manage_setup(request.user), "can_prepare": can_prepare_journals(request.user),
         "can_post": can_post_journals(request.user), "can_view_ledger": can_view_ledger(request.user),
+        "source_requests": source_requests,
     })
 
 
@@ -79,6 +86,7 @@ def setup_workspace(request):
         "funds": Fund.objects.filter(department_id=department.pk),
         "centers": ResponsibilityCenter.objects.filter(department_id=department.pk),
         "accounts": LedgerAccount.objects.filter(department_id=department.pk).select_related("parent"),
+        "mappings": PostingMapping.objects.filter(department_id=department.pk).select_related("account"),
     })
 
 
@@ -119,15 +127,17 @@ def setup_item_edit(request, kind, pk):
 @accounting_permission_required(can_manage_setup)
 def setup_item_toggle(request, kind, pk):
     department = department_for_user(request.user)
-    if kind not in ("funds", "centers", "accounts"):
+    if kind not in ("funds", "centers", "accounts", "mappings"):
         raise Http404
     model, _form_class, label = SETUP_TYPES[kind]
     item = get_object_or_404(model, pk=pk, department_id=department.pk)
     if item.is_active:
         if kind == "funds":
             in_progress = item.journal_entries.exclude(status__in=(JournalEntry.POSTED, JournalEntry.VOIDED)).exists()
-        else:
+        elif kind in ("centers", "accounts"):
             in_progress = item.journal_lines.exclude(entry__status__in=(JournalEntry.POSTED, JournalEntry.VOIDED)).exists()
+        else:
+            in_progress = False
         if in_progress:
             messages.error(request, f"{label} is used by unfinished journals and cannot be archived yet.")
             return redirect("accounting:setup")
@@ -172,7 +182,7 @@ def entry_create(request):
 def _entry_for_department(request, public_id):
     department = department_for_user(request.user)
     return get_object_or_404(
-        JournalEntry.objects.select_related("period", "fund"), public_id=public_id, department_id=department.pk,
+        JournalEntry.objects.select_related("period", "fund", "reversal_of"), public_id=public_id, department_id=department.pk,
     )
 
 
@@ -181,10 +191,14 @@ def _entry_for_department(request, public_id):
 def entry_detail(request, public_id):
     entry = _entry_for_department(request, public_id)
     debit, credit = entry.totals
+    reversal_entries = JournalEntry.objects.filter(reversal_of=entry).order_by("-pk")
+    reversal_entry = reversal_entries.first()
+    active_reversal_entry = reversal_entries.exclude(status=JournalEntry.VOIDED).first()
     return render(request, "accounting/entry_detail.html", {
         "entry": entry, "lines": entry.lines.select_related("account", "responsibility_center"),
         "debit_total": debit, "credit_total": credit, "balanced": debit > 0 and debit == credit,
         "can_prepare": can_prepare_journals(request.user), "can_post": can_post_journals(request.user),
+        "reversal_entry": reversal_entry, "active_reversal_entry": active_reversal_entry,
     })
 
 
@@ -194,6 +208,8 @@ def entry_edit(request, public_id):
     entry = _entry_for_department(request, public_id)
     if entry.status != JournalEntry.DRAFT:
         raise PermissionDenied("Only draft journals can be edited.")
+    if entry.source_reference:
+        raise PermissionDenied("Generated journal headers cannot be edited. Discard and recreate the source draft instead.")
     department = department_for_user(request.user)
     form = JournalEntryForm(request.POST or None, instance=entry, department=department)
     if request.method == "POST" and form.is_valid():
@@ -209,6 +225,8 @@ def line_create(request, public_id):
     entry = _entry_for_department(request, public_id)
     if entry.status != JournalEntry.DRAFT:
         raise PermissionDenied("Lines can be added only to draft journals.")
+    if entry.source_reference:
+        raise PermissionDenied("Generated journal lines cannot be edited. Discard and recreate the source draft instead.")
     department = department_for_user(request.user)
     next_sequence = (entry.lines.aggregate(value=Max("sequence"))["value"] or 0) + 1
     form = JournalLineForm(request.POST or None, department=department, entry=entry, initial={"sequence": next_sequence})
@@ -228,6 +246,8 @@ def line_edit(request, public_id, pk):
     entry = _entry_for_department(request, public_id)
     if entry.status != JournalEntry.DRAFT:
         raise PermissionDenied("Lines can be edited only on draft journals.")
+    if entry.source_reference:
+        raise PermissionDenied("Generated journal lines cannot be edited. Discard and recreate the source draft instead.")
     line = get_object_or_404(JournalLine, pk=pk, entry=entry)
     form = JournalLineForm(request.POST or None, instance=line, department=department_for_user(request.user), entry=entry)
     if request.method == "POST" and form.is_valid():
@@ -243,6 +263,8 @@ def line_delete(request, public_id, pk):
     entry = _entry_for_department(request, public_id)
     if entry.status != JournalEntry.DRAFT:
         raise PermissionDenied("Lines can be removed only from draft journals.")
+    if entry.source_reference:
+        raise PermissionDenied("Generated journal lines cannot be edited. Discard and recreate the source draft instead.")
     line = get_object_or_404(JournalLine, pk=pk, entry=entry)
     line.delete()
     messages.success(request, "Journal line removed.")
@@ -269,7 +291,25 @@ def entry_submit(request, public_id):
 @require_POST
 @accounting_permission_required(can_post_journals)
 def entry_post(request, public_id):
-    return _transition(request, public_id, post_entry, "Journal posted to the general ledger.", reason=None)
+    entry = _entry_for_department(request, public_id)
+    try:
+        posted = post_entry(entry, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, "Journal posted to the general ledger.")
+        if posted.source_type == "voucher":
+            try:
+                from vouchers.posting import reconcile_posted_voucher_entry
+                reconcile_posted_voucher_entry(posted, request.user)
+            except ValidationError as exc:
+                messages.warning(
+                    request,
+                    "The JEV is safely posted, but its Voucher Workbench handoff needs retry: " + " ".join(exc.messages),
+                )
+            else:
+                messages.success(request, "Voucher handoff completed; Treasury can now prepare the payment instrument.")
+    return redirect("accounting:entry_detail", public_id=entry.public_id)
 
 
 @require_POST
@@ -281,7 +321,90 @@ def entry_return(request, public_id):
 @require_POST
 @accounting_permission_required(can_prepare_journals)
 def entry_discard(request, public_id):
-    return _transition(request, public_id, discard_draft, "Draft journal discarded and retained in the audit trail.", request.POST.get("reason", ""))
+    entry = _entry_for_department(request, public_id)
+    reason = request.POST.get("reason", "")
+    try:
+        discarded = discard_draft(entry, request.user, reason)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, "Draft journal discarded and retained in the audit trail.")
+        if discarded.source_type == "voucher" and discarded.source_reference:
+            from vouchers.models import VoucherPostingRequest
+            updated = VoucherPostingRequest.objects.filter(
+                public_id=discarded.source_reference,
+                accounting_entry_public_id=discarded.public_id,
+            ).exclude(status=VoucherPostingRequest.POSTED).update(
+                status=VoucherPostingRequest.CANCELLED,
+                failure_reason="Draft GRAND JEV was discarded; return the voucher for correction before revalidating.",
+            )
+            if updated:
+                messages.info(request, "The voucher posting request was cancelled and can now be returned for correction.")
+            else:
+                messages.warning(request, "The draft was discarded, but its voucher handoff needs administrative reconciliation.")
+    return redirect("accounting:entry_detail", public_id=entry.public_id)
+
+
+@require_http_methods(["GET", "POST"])
+@accounting_permission_required(can_prepare_journals)
+def entry_reverse(request, public_id):
+    entry = _entry_for_department(request, public_id)
+    if entry.status != JournalEntry.POSTED:
+        raise PermissionDenied("Only posted journals can be reversed.")
+    department = department_for_user(request.user)
+    form = ReversalForm(
+        request.POST or None,
+        department=department,
+        initial={"reference": f"REV-{entry.reference}"[:60], "entry_date": entry.entry_date},
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            reversal = create_reversal(entry, request.user, **form.cleaned_data)
+        except ValidationError as exc:
+            form.add_error(None, " ".join(exc.messages))
+        else:
+            messages.success(request, "Reversing journal prepared. It must pass the normal independent submit-and-post workflow.")
+            return redirect("accounting:entry_detail", public_id=reversal.public_id)
+    return render(request, "accounting/form.html", {
+        "form": form,
+        "title": f"Prepare reversal for {entry.reference}",
+        "cancel_object": entry,
+    })
+
+
+@require_POST
+@accounting_permission_required(can_prepare_journals)
+def voucher_source_materialize(request, public_id):
+    from vouchers.models import VoucherPostingRequest
+    from vouchers.posting import materialize_voucher_journal
+    source = get_object_or_404(VoucherPostingRequest, public_id=public_id)
+    try:
+        entry, created = materialize_voucher_journal(source, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+        return redirect("accounting:workspace")
+    messages.success(request, "Draft GRAND JEV created from the immutable voucher snapshot." if created else "Existing GRAND JEV reopened; no duplicate was created.")
+    return redirect("accounting:entry_detail", public_id=entry.public_id)
+
+
+@require_POST
+@accounting_permission_required(can_post_journals)
+def voucher_source_reconcile(request, public_id):
+    from vouchers.models import VoucherPostingRequest
+    from vouchers.posting import reconcile_posted_voucher_entry
+    department = department_for_user(request.user)
+    source = get_object_or_404(VoucherPostingRequest, public_id=public_id, finance_department_id=department.pk)
+    if not source.accounting_entry_public_id:
+        messages.error(request, "Create the GRAND JEV before retrying the handoff.")
+        return redirect("accounting:workspace")
+    entry = get_object_or_404(JournalEntry, public_id=source.accounting_entry_public_id, department_id=department.pk)
+    try:
+        reconcile_posted_voucher_entry(entry, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, "Voucher handoff reconciled; Treasury can continue.")
+    return redirect("accounting:entry_detail", public_id=entry.public_id)
 
 
 @require_GET

@@ -39,14 +39,16 @@ Assign permissions through an approved role/group procedure. The preparer and po
 
 ## Operator workflow
 
-1. In **Accounting → Setup**, add an open period, fund, optional responsibility centers, and at least two posting accounts.
+1. In **Accounting → Setup**, add an open period, fund, optional responsibility centers, posting accounts, and controlled voucher posting mappings.
 2. Create a journal from **Accounting → New journal entry**.
 3. Add debit and credit lines. GRAND explains missing or invalid values next to the affected field.
 4. Confirm the live balance card shows equal non-zero debits and credits.
 5. Submit the draft. The entry becomes read-only for the preparer.
 6. A different authorized poster reviews it, then either returns it with a correction reason or posts it.
-7. Posted lines appear in the general ledger and trial balance and cannot be edited. Corrections will use a future adjusting/reversal entry workflow.
+7. Posted lines appear in the general ledger and trial balance and cannot be edited. An authorized preparer can prepare an exact reversing JEV with a mandatory reason and original-entry link; that reversal must pass the same independent submit-and-post workflow.
 8. Close a period only after its drafts and submitted entries are cleared. Closed periods reject new postings.
+
+For Voucher Workbench cases, Accounting validation creates an immutable, checksum-backed posting request in GRAND's core database. The Accounting workspace materializes that request into the separate GRAND finance database. The operation is idempotent: retrying opens the same JEV rather than creating a duplicate. After independent posting, a recoverable reconciliation step advances the same voucher case to Treasury. A posted source JEV blocks silent voucher rewrites.
 
 Master records used by journals are archived instead of deleted. Codes and names already used in history cannot be silently redefined.
 
@@ -56,4 +58,4 @@ GRAND's existing Finance Setup Center already accepts macro-free `.xlsx` version
 
 ## Current implementation boundary
 
-This first native slice covers setup, manual journal CRUD, submit/return/post controls, audit evidence, general ledger, and trial balance. Voucher-to-ledger posting, reversals, subsidiary ledgers, closing entries, financial statements, and the visual Template Studio remain subsequent phases. Historical eGAPS migration is optional and will be designed only if separately authorized.
+The current native slice covers setup, manual and voucher-generated journals, controlled posting mappings, cross-database handoff/retry, submit/return/post controls, correction reversals, audit evidence, general ledger, and trial balance. Subsidiary ledgers, automated payment-side postings, closing entries, financial statements, and the visual Template Studio remain subsequent phases. Historical eGAPS migration is optional and will be designed only if separately authorized.

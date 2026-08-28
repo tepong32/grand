@@ -128,6 +128,38 @@ class LedgerAccount(DepartmentOwnedModel):
                 raise ValidationError("An account already used by journals cannot be redefined. Archive it and create its successor.")
 
 
+class PostingMapping(DepartmentOwnedModel):
+    PAYABLE = "payable"
+    DEDUCTION = "deduction"
+    BANK = "bank"
+    CATEGORY_CHOICES = (
+        (PAYABLE, "Voucher net payable"),
+        (DEDUCTION, "Deduction / withholding"),
+        (BANK, "Bank account"),
+    )
+
+    category = models.CharField(max_length=16, choices=CATEGORY_CHOICES)
+    source_code = models.CharField(max_length=80, help_text="The controlled code used by Finance Setup or the Voucher Workbench.")
+    label = models.CharField(max_length=160)
+    account = models.ForeignKey(LedgerAccount, on_delete=models.PROTECT, related_name="posting_mappings")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("category", "source_code")
+        constraints = (
+            models.UniqueConstraint(fields=("department_id", "category", "source_code"), name="unique_accounting_posting_mapping"),
+        )
+
+    def __str__(self):
+        return f"{self.get_category_display()}: {self.source_code} → {self.account.code}"
+
+    def clean(self):
+        if self.account_id and self.account.department_id != self.department_id:
+            raise ValidationError({"account": "The posting account must belong to this department ledger."})
+        if self.account_id and (not self.account.is_active or not self.account.allow_posting):
+            raise ValidationError({"account": "Choose an active posting account."})
+
+
 class JournalEntry(DepartmentOwnedModel):
     DRAFT = "draft"
     SUBMITTED = "submitted"
@@ -136,7 +168,8 @@ class JournalEntry(DepartmentOwnedModel):
     STATUS_CHOICES = ((DRAFT, "Draft"), (SUBMITTED, "For posting"), (POSTED, "Posted"), (VOIDED, "Voided"))
     SOURCE_CHOICES = (
         ("manual", "Manual journal"), ("voucher", "Voucher"),
-        ("adjustment", "Adjusting entry"), ("opening", "Opening balance"),
+        ("adjustment", "Adjusting entry"), ("reversal", "Reversing entry"),
+        ("opening", "Opening balance"),
     )
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -146,6 +179,13 @@ class JournalEntry(DepartmentOwnedModel):
     fund = models.ForeignKey(Fund, on_delete=models.PROTECT, related_name="journal_entries")
     source_type = models.CharField(max_length=16, choices=SOURCE_CHOICES, default="manual")
     description = models.TextField()
+    source_reference = models.CharField(max_length=80, null=True, blank=True)
+    source_snapshot = models.JSONField(default=dict, blank=True)
+    reversal_of = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reversal_entries",
+    )
+    reversal_reason = models.TextField(blank=True)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
     created_by_id = models.PositiveBigIntegerField()
     created_by_label = models.CharField(max_length=160)
@@ -160,7 +200,10 @@ class JournalEntry(DepartmentOwnedModel):
 
     class Meta:
         ordering = ("-entry_date", "-pk")
-        constraints = (models.UniqueConstraint(fields=("department_id", "reference"), name="unique_journal_reference"),)
+        constraints = (
+            models.UniqueConstraint(fields=("department_id", "reference"), name="unique_journal_reference"),
+            models.UniqueConstraint(fields=("department_id", "source_type", "source_reference"), name="unique_accounting_source_reference"),
+        )
         permissions = (
             ("view_accounting_workspace", "Can view the accounting workspace"),
             ("manage_accounting_setup", "Can manage accounting setup"),
@@ -179,13 +222,29 @@ class JournalEntry(DepartmentOwnedModel):
             raise ValidationError({"fund": "The fund must belong to this department ledger."})
         if self.period_id and not (self.period.starts_on <= self.entry_date <= self.period.ends_on):
             raise ValidationError({"entry_date": "The entry date must fall inside the selected accounting period."})
+        if self.reversal_of_id:
+            if self.reversal_of.department_id != self.department_id:
+                raise ValidationError({"reversal_of": "The original journal must belong to the same department ledger."})
+            if self.reversal_of.status != self.POSTED:
+                raise ValidationError({"reversal_of": "Only a posted journal can be reversed."})
+            if not self.reversal_reason.strip():
+                raise ValidationError({"reversal_reason": "Explain why this reversal is required."})
 
     def save(self, *args, **kwargs):
         if self.pk:
             prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.source_reference:
+                source_governed = (
+                    "reference", "entry_date", "period_id", "fund_id", "source_type", "description",
+                    "source_reference", "source_snapshot", "reversal_of_id", "reversal_reason",
+                    "department_id", "department_label", "created_by_id", "created_by_label",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in source_governed):
+                    raise ValidationError("Source-generated journal headers are immutable. Discard and recreate the draft from its source instead.")
             if prior and prior.status in (self.POSTED, self.VOIDED):
                 governed = (
-                    "reference", "entry_date", "period_id", "fund_id", "source_type", "description",
+                    "reference", "entry_date", "period_id", "fund_id", "source_type", "description", "source_reference", "source_snapshot",
+                    "reversal_of_id", "reversal_reason",
                     "status", "department_id", "department_label", "created_by_id", "created_by_label",
                 )
                 if any(getattr(prior, field) != getattr(self, field) for field in governed):
@@ -234,12 +293,16 @@ class JournalLine(models.Model):
         current_status = JournalEntry.objects.filter(pk=self.entry_id).values_list("status", flat=True).first() if self.entry_id else None
         if current_status and current_status != JournalEntry.DRAFT:
             raise ValidationError("Journal lines can be changed only while the entry is a draft.")
+        if self.pk and JournalEntry.objects.filter(pk=self.entry_id, source_reference__isnull=False).exists():
+            raise ValidationError("Generated journal lines cannot be edited. Discard and recreate the source draft instead.")
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         current_status = JournalEntry.objects.filter(pk=self.entry_id).values_list("status", flat=True).first()
         if current_status != JournalEntry.DRAFT:
             raise ValidationError("Journal lines can be removed only while the entry is a draft.")
+        if JournalEntry.objects.filter(pk=self.entry_id, source_reference__isnull=False).exists():
+            raise ValidationError("Generated journal lines cannot be removed. Discard and recreate the source draft instead.")
         return super().delete(*args, **kwargs)
 
 

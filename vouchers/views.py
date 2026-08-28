@@ -80,6 +80,7 @@ def _case(public_id):
             "obligation__allocation_lines", "signature_tasks", "accounting_validations__validated_by",
             "payment_instruments__advice_item__batch", "events__actor", "events__actor_department",
             "tasks", "payee__authorized_claimants", "outputs__template",
+            "posting_requests",
         ), public_id=public_id,
     )
 
