@@ -86,7 +86,7 @@ Django Admin exposes only read-only voucher support evidence, read-only finance 
 1. Budget selects the requesting office, approved supplier/payee, transaction type, and particulars, then certifies an OBR against existing approved budget-source references. Budget formulation is outside this release.
 2. Accounting prepares the DV from the same case. The gross amount must equal the certified OBR amount in the pilot rule; deductions produce the net payable.
 3. GRAND snapshots ordered, currently effective signatories. Staff record return of the actual wet-signed paper; GRAND does not claim that the clerk's entry is a digital signature.
-4. A different Accounting validator records the controlled JEV number/date and forwards the case to Treasury.
+4. A different Accounting validator accepts the voucher and creates a checksum-backed posting request. Accounting then materializes balanced GRAND journal lines, submits the entry, and an independently authorized poster posts it before the case moves to Treasury.
 5. Treasury registers one or more physical checks. Active checks must exactly reconcile to the DV net before advice.
 6. Accounting finalizes an immutable advice batch for one bank account. Treasury may release only advised checks to an active authorized claimant.
 7. Cancellation preserves the spoiled number and sends the same case back for replacement. Correction returns retain the DV number and earlier signature rounds.
@@ -105,7 +105,7 @@ Only an output explicitly promoted through a future formal official-use decision
 
 - no budget formulation, opening-balance import, or authoritative remaining-balance calculation;
 - one OBR per voucher, with the service/model supporting multiple allocation lines;
-- JEV reference and validation only, not general-ledger debit/credit posting;
+- standalone GRAND journal materialization and maker-checker posting are implemented, while opening balances, authoritative legacy-ledger import, and full production reconciliation remain outside this release;
 - check registration, cancellation, replacement, advice, and release controls, but no direct check printing;
 - no legacy production-data import and no signature images;
 - no official-use switch before documented local validation and shadow reconciliation.

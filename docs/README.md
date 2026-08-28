@@ -11,6 +11,8 @@ Use this page as the entry point for project and operator documentation.
 - [TracePoint physical custody](TRACEPOINT.md) defines packet identity, daily employee credentials, confirmed handoffs, delivery/completion semantics, security boundaries, and the `0.6.x` delivery train.
 - [Finance Setup Center](FINANCE_SETUP.md) defines finance roles, effective-dated configuration, readiness, safe Excel intake, approval, activation, and domain boundaries.
 - [eGAPS-to-GRAND finance modernization plan](EGAPS_GRAND_PLAN.md) records the read-only findings, separate-database architecture, workflow and CRUD contract, no-code Excel Template Studio, and phased prototype-to-cutover plan.
+- [Finance process discovery protocol](FINANCE_PROCESS_DISCOVERY.md) defines the redacted voucher replay, office interview, evidence, comparison, and acceptance procedure used before claiming process fidelity.
+- [Finance process fidelity baseline](FINANCE_PROCESS_FIDELITY_BASELINE.md) maps every implemented GRAND voucher stage to the LGU evidence still required and records the earliest confirmed divergence.
 - [Product roadmap](ROADMAP.md) records completed phases and the planned TracePoint custody layer.
 - [Security maintenance](../SECURITY.md) covers dependency auditing, CI checks, Dependabot, and bundled browser assets.
 - [Change history](../CHANGELOG.md) summarizes material delivered work.
