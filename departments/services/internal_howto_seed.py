@@ -119,6 +119,21 @@ REQUESTING_GUIDES = (
             ("Correct certified history safely", "If a certified obligation must change before any DV/check issuance, create a linked adjustment, return, or cancellation. After issuance, follow the coordinated voucher/payment reversal route.", "Original and successor movements remain reconstructible.", "Never overwrite a certified obligation or bypass a later issued artifact.", "", ""),
         ),
     },
+    {
+        "slug": "finance-requesting-office-payable-intake",
+        "title": "Open a payable from a certified obligation",
+        "summary": "Carry one certified obligation into Accounting without recreating its Budget authority or hiding document gaps.",
+        "permission": "vouchers.initiate_payable_case",
+        "patterns": ["vouchers:*"],
+        "order": 2,
+        "steps": (
+            ("Select your certified obligation", "Open the Finance Queue and select an unlinked certified obligation belonging to your current department.", "The payable inherits the controlled obligation number, checksum, current corrected amount, and schedule lineage.", "Do not create a second Budget allocation or select another department's obligation.", "Open Finance Queue", "vouchers:workspace"),
+            ("Reference payable evidence", "Choose the governed payee and transaction type, then record the claim, invoice, procurement, delivery, inspection/acceptance, and evidence references that apply.", "Accounting can trace the source evidence without GRAND duplicating an authoritative procurement or records system.", "Use locally accepted requirements; blank optional references are not proof that a document is unnecessary.", "New Payable", "vouchers:case_create"),
+            ("Match the final claim", "Confirm the payable amount equals the current obligation lineage. If the final claim changed, complete a governed obligation adjustment before intake.", "The payment-ready claim is fully budget-supported with zero unexplained difference.", "Do not force the claim to fit or overwrite a certified obligation.", "Open Obligation Control", "budget:obligation_workspace"),
+            ("Review duplicate warnings", "Investigate similar payee/invoice or claim references and record a human review note when needed.", "The warning is resolved by an authorized person rather than treated as an automatic accusation.", "A warning is not proof of duplicate payment.", "", ""),
+            ("Recover a partial handoff", "If the case says its authoritative link needs reconciliation, use Reconcile obligation link before Accounting prepares the DV.", "Both databases agree on the same case and obligation UUID.", "Do not advance a pending or failed handoff.", "", ""),
+        ),
+    },
 )
 
 

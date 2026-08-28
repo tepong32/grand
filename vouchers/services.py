@@ -25,6 +25,7 @@ from .access import department_for_user, has_explicit_permission
 from .models import (
     AccountingValidation, BankAdviceBatch, BankAdviceItem, BudgetAllocationLine,
     BudgetObligation, ControlOverride, DisbursementVoucher, PaymentInstrument,
+    PayableIntake,
     VoucherCase, VoucherDeduction, VoucherDocumentCheck, VoucherEvent,
     VoucherLineItem, VoucherNonFinancialAmendment, VoucherNumberIssue, VoucherOutput,
     VoucherPostingRequest, VoucherTask, WetSignatureTask,
@@ -183,6 +184,178 @@ def create_budget_case(*, actor, requesting_department, payee, particulars, tran
     return case
 
 
+def _authoritative_obligation_snapshot(obligation):
+    from budget.models import ObligationMovement, ObligationRequest
+    from budget.services import obligation_lineage_request_ids
+
+    obligation = ObligationRequest.objects.select_related("authorization").get(pk=obligation.pk)
+    lineage_ids = obligation_lineage_request_ids(obligation)
+    lineage = list(
+        ObligationRequest.objects.filter(pk__in=lineage_ids, status=ObligationRequest.CERTIFIED)
+        .order_by("obligation_date", "pk")
+        .values("pk", "public_id", "obligation_number", "snapshot_checksum")
+    )
+    lines = list(
+        ObligationMovement.objects.filter(request_id__in=lineage_ids)
+        .values(
+            "appropriation_line_id", "appropriation_line__fund_code",
+            "appropriation_line__responsibility_center_code", "appropriation_line__account_code",
+        )
+        .annotate(amount=Sum("obligation_effect"))
+        .filter(amount__gt=0)
+        .order_by("appropriation_line_id")
+    )
+    amount = sum((item["amount"] for item in lines), Decimal("0.00"))
+    checksum = hashlib.sha256(
+        json.dumps(
+            {"lineage": lineage, "lines": [{**item, "amount": str(item["amount"])} for item in lines]},
+            sort_keys=True, separators=(",", ":"), default=str,
+        ).encode("utf-8")
+    ).hexdigest()
+    return obligation, {"lineage": lineage, "lines": lines, "amount": amount, "checksum": checksum}
+
+
+def _bind_authoritative_obligation(case, obligation_public_id):
+    from budget.models import ObligationRequest
+
+    with transaction.atomic(using="finance"):
+        obligation = ObligationRequest.objects.select_for_update().get(public_id=obligation_public_id)
+        if obligation.status != ObligationRequest.CERTIFIED or obligation.kind != ObligationRequest.ORIGINAL:
+            raise VoucherWorkflowError("The selected authoritative obligation is no longer an eligible certified original.")
+        if obligation.linked_voucher_case_public_id not in (None, case.public_id):
+            raise VoucherWorkflowError("That certified obligation is already linked to another voucher case.")
+        if obligation.linked_voucher_case_public_id is None:
+            ObligationRequest.objects.filter(pk=obligation.pk).update(linked_voucher_case_public_id=case.public_id)
+
+
+@transaction.atomic
+def reconcile_authoritative_obligation(*, case, actor, expected_version, idempotency_key):
+    _require(actor, "vouchers.initiate_payable_case")
+    case, existing = _locked(case, expected_version, idempotency_key)
+    if existing:
+        return case
+    if department_for_user(actor).pk != case.requesting_department_id:
+        raise PermissionDenied
+    if not case.authoritative_obligation_public_id:
+        raise VoucherWorkflowError("This legacy case has no authoritative obligation handoff to reconcile.")
+    try:
+        _bind_authoritative_obligation(case, case.authoritative_obligation_public_id)
+    except Exception as exc:
+        # Retain a visible recovery state; never let a cross-database partial handoff advance silently.
+        case.obligation_binding_status = VoucherCase.BINDING_FAILED
+        case.obligation_binding_error = str(exc)
+        case.state_version += 1
+        case.save(update_fields=("obligation_binding_status", "obligation_binding_error", "state_version", "updated_at"))
+        _event(case, actor, "obligation_link_reconciliation_failed", case.current_stage, str(exc), {}, idempotency_key)
+        return case
+    case.obligation_binding_status = VoucherCase.BINDING_LINKED
+    case.obligation_binding_error = ""
+    case.state_version += 1
+    case.save(update_fields=("obligation_binding_status", "obligation_binding_error", "state_version", "updated_at"))
+    _event(case, actor, "obligation_link_reconciled", case.current_stage, "", {
+        "authoritative_obligation_public_id": str(case.authoritative_obligation_public_id),
+    }, idempotency_key)
+    return case
+
+
+def create_payable_case_from_obligation(
+    *, actor, authoritative_obligation, payee, transaction_type, claim_reference,
+    invoice_number, invoice_date, claim_amount, procurement_reference, delivery_reference,
+    inspection_acceptance_reference, evidence_reference, duplicate_review_note, idempotency_key,
+):
+    _require(actor, "vouchers.initiate_payable_case")
+    actor_department = department_for_user(actor)
+    if not actor_department:
+        raise VoucherWorkflowError("Assign the user to the requesting department before payable intake.")
+    existing = VoucherEvent.objects.filter(idempotency_key=idempotency_key, actor=actor).select_related("case").first()
+    if existing:
+        return existing.case
+    obligation, snapshot = _authoritative_obligation_snapshot(authoritative_obligation)
+    if obligation.status != obligation.CERTIFIED or obligation.kind != obligation.ORIGINAL:
+        raise VoucherWorkflowError("Select a certified original obligation.")
+    if obligation.requesting_department_id != actor_department.pk:
+        raise PermissionDenied
+    if obligation.linked_voucher_case_public_id:
+        raise VoucherWorkflowError("That certified obligation is already linked to a voucher case.")
+    amount = Decimal(claim_amount)
+    if snapshot["amount"] <= 0 or amount != snapshot["amount"]:
+        raise VoucherWorkflowError(
+            "The payable must equal the current certified obligation lineage. "
+            "Record a governed adjustment before intake when the final claim differs."
+        )
+    release = _active_release()
+    if payee.release_id != release.pk or payee.status != "active":
+        raise VoucherWorkflowError("Select an active supplier/payee from the current Finance Setup release.")
+    if not FinanceConfigurationItem.objects.filter(
+        release=release, status="active", category="transaction_type", code=transaction_type,
+    ).exists():
+        raise VoucherWorkflowError("Select an approved transaction type from Finance Setup.")
+    duplicate_qs = PayableIntake.objects.filter(case__payee=payee)
+    warnings = []
+    if invoice_number and duplicate_qs.filter(invoice_number__iexact=invoice_number.strip()).exists():
+        warnings.append(f"A payable for this payee already uses invoice {invoice_number.strip()}.")
+    if duplicate_qs.filter(claim_reference__iexact=claim_reference.strip()).exists():
+        warnings.append(f"A payable for this payee already uses claim reference {claim_reference.strip()}.")
+    accounting_department = _department_for_permission("vouchers.prepare_disbursement_voucher", actor_department)
+    certifier = get_user_model().objects.filter(pk=obligation.certified_by_id).first() or actor
+    with transaction.atomic():
+        case = VoucherCase.objects.create(
+            reference_code=f"CASE-{timezone.localdate():%Y}-{uuid.uuid4().hex[:10].upper()}",
+            transaction_type=transaction_type, requesting_department=actor_department,
+            current_department=accounting_department, configuration_release=release, payee=payee,
+            payee_name=payee.display_name, particulars=obligation.particulars, created_by=actor,
+            authoritative_obligation_public_id=obligation.public_id,
+            authoritative_obligation_number=obligation.obligation_number,
+            authoritative_obligation_checksum=snapshot["checksum"],
+            authoritative_obligation_amount=snapshot["amount"],
+            obligation_binding_status=VoucherCase.BINDING_PENDING,
+            current_stage=VoucherCase.ACCOUNTING_PREPARATION,
+        )
+        projection = BudgetObligation.objects.create(
+            case=case, obr_number=obligation.obligation_number, obligation_date=obligation.obligation_date,
+            budget_source_reference=f"Authoritative F4.2 obligation {obligation.public_id}",
+            certified_amount=snapshot["amount"], certified_by=certifier,
+            certified_at=obligation.certified_at or timezone.now(), source_kind="authoritative_f4_projection",
+        )
+        for item in snapshot["lines"]:
+            BudgetAllocationLine.objects.create(
+                obligation=projection,
+                fund_code=item["appropriation_line__fund_code"],
+                responsibility_center_code=item["appropriation_line__responsibility_center_code"],
+                account_code=item["appropriation_line__account_code"], amount=item["amount"],
+            )
+        intake = PayableIntake(
+            case=case, claim_reference=claim_reference.strip(), invoice_number=invoice_number.strip(),
+            invoice_date=invoice_date, claim_amount=amount,
+            procurement_reference=procurement_reference.strip(), delivery_reference=delivery_reference.strip(),
+            inspection_acceptance_reference=inspection_acceptance_reference.strip(),
+            evidence_reference=evidence_reference.strip(), duplicate_warning=" ".join(warnings),
+            duplicate_review_note=duplicate_review_note.strip(), prepared_by=actor,
+        )
+        intake.full_clean(); intake.save()
+        VoucherTask.objects.create(case=case, stage=case.current_stage, department=accounting_department)
+        _event(case, actor, "payable_intake_created", "", "", {
+            "authoritative_obligation_public_id": str(obligation.public_id),
+            "authoritative_obligation_checksum": snapshot["checksum"],
+            "amount": str(amount), "duplicate_warning": intake.duplicate_warning,
+        }, idempotency_key)
+    try:
+        _bind_authoritative_obligation(case, obligation.public_id)
+    except Exception as exc:
+        with transaction.atomic():
+            locked = VoucherCase.objects.select_for_update().get(pk=case.pk)
+            locked.obligation_binding_status = VoucherCase.BINDING_FAILED
+            locked.obligation_binding_error = str(exc)
+            locked.save(update_fields=("obligation_binding_status", "obligation_binding_error", "updated_at"))
+        return locked
+    with transaction.atomic():
+        locked = VoucherCase.objects.select_for_update().get(pk=case.pk)
+        locked.obligation_binding_status = VoucherCase.BINDING_LINKED
+        locked.obligation_binding_error = ""
+        locked.save(update_fields=("obligation_binding_status", "obligation_binding_error", "updated_at"))
+    return locked
+
+
 @transaction.atomic
 def certify_budget(*, case, actor, obligation_date, budget_source_reference, allocations, expected_version, idempotency_key):
     _require(actor, "vouchers.certify_budget_obligation")
@@ -218,6 +391,22 @@ def prepare_voucher(*, case, actor, voucher_date, gross_amount, deductions, line
         return case
     if case.current_stage != VoucherCase.ACCOUNTING_PREPARATION:
         raise VoucherWorkflowError("This case is not awaiting Accounting DV preparation.")
+    if case.authoritative_obligation_public_id:
+        if case.obligation_binding_status != VoucherCase.BINDING_LINKED:
+            raise VoucherWorkflowError(
+                "The authoritative obligation handoff needs reconciliation before DV preparation."
+            )
+        from budget.models import ObligationRequest
+        source = ObligationRequest.objects.get(public_id=case.authoritative_obligation_public_id)
+        _source, current = _authoritative_obligation_snapshot(source)
+        if (
+            current["checksum"] != case.authoritative_obligation_checksum
+            or current["amount"] != case.authoritative_obligation_amount
+        ):
+            raise VoucherWorkflowError(
+                "The obligation changed through a governed pre-DV correction after payable intake. "
+                "Reconcile the payable evidence to the current obligation before preparing the DV."
+            )
     workflow_exemption = None
     if actor.pk == case.obligation.certified_by_id:
         exemption = workflow_exemption_for(

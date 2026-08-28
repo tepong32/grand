@@ -4,6 +4,12 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance payable intake and obligation handoff
+
+- Added F5.1 requesting-office payable intake from an unlinked certified F4.2 obligation, with pinned UUID, controlled number, corrected lineage amount, checksum, and classified compatibility projection instead of a second Budget certification.
+- Added procurement, delivery, inspection/acceptance, invoice, claim, and evidence references; human-reviewed duplicate warnings; and a zero-difference obligation-to-final-claim gate for the ordinary-supplier pilot.
+- Added a recoverable cross-database binding state and reconciliation action, DV-time lineage freshness checks, department-scoped permissions, and a floating Internal How-To covering the pre-DV modification allowance.
+
 ### Finance obligation control and RAAO registry
 
 - Added F4.2 requesting-office ALOBS/ORS/OBR initiation with exact appropriation-line scheduling, Budget return/certification, controlled numbering, concurrency-safe unobligated-allotment validation, and immutable checksum-backed movements.

@@ -25,6 +25,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "budget.certify_obligations",
         "vouchers.view_voucher_workbench",
         "vouchers.initiate_budget_case",
+        "vouchers.initiate_payable_case",
         "vouchers.certify_budget_obligation",
         "vouchers.return_voucher_case",
         "vouchers.view_voucher_audit",
@@ -49,6 +50,9 @@ FINANCE_ROLE_PERMISSIONS = {
     "Requesting Office Obligation Preparer": (
         "budget.view_budget_workspace",
         "budget.initiate_obligation_requests",
+        "vouchers.view_voucher_workbench",
+        "vouchers.initiate_payable_case",
+        "vouchers.view_voucher_audit",
     ),
     "Accounting DV Preparer": (
         "finance.view_finance_setup",
@@ -107,7 +111,7 @@ ROLE_PROFILES = {
     "budget": {
         "eyebrow": "Budget Office",
         "title": "Budget voucher workspace",
-        "description": "Operate the shadow voucher route while F5 connects each case to an authoritative certified obligation.",
+        "description": "Review authoritative obligation lineage carried into shared payable and voucher cases.",
         "queue_title": "Budget cases ready for review",
         "empty_message": "No Budget voucher case is waiting for action.",
         "stages": ("budget_draft",),

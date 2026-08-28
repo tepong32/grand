@@ -13,6 +13,9 @@ from django.urls import reverse
 from accounting.models import FiscalYear, Fund, LedgerAccount, ProgramActivityProject, ResponsibilityCenter
 from departments.models import Department
 from departments.services.internal_howto_seed import seed_finance_internal_howtos
+from finance.models import FinanceConfigurationItem, FinanceConfigurationRelease, FinanceParty
+from vouchers.models import PayableIntake, VoucherCase
+from vouchers.services import create_payable_case_from_obligation, prepare_voucher
 
 from .models import (
     AllotmentMovement, AllotmentOrderLine, AllotmentReleaseOrder, AppropriationAuthorization,
@@ -487,6 +490,70 @@ class AnnualBudgetPreparationTests(TestCase):
         ))
         with self.assertRaisesMessage(ValidationError, "unavailable"):
             transition_obligation_request(item, "certify", self.certifier, "Duplicate", "OBR-2027-0001")
+
+    def test_certified_obligation_opens_one_recoverable_payable_case_without_second_budget_certification(self):
+        authorization = self.make_executable_authority()
+        item = self.make_obligation_request(authorization)
+        self.add_obligation_line(item, "10000")
+        transition_obligation_request(item, "submit", self.requester)
+        item = transition_obligation_request(
+            item, "certify", self.certifier, "Independent certification.", "OBR-2027-PAYABLE",
+        )
+        self.requester.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="initiate_payable_case",
+        ))
+        accountant = self.employee(self.accounting_office, "payable.accountant")
+        accountant.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="prepare_disbursement_voucher",
+        ))
+        release = FinanceConfigurationRelease.objects.create(
+            department=self.accounting_office, code="f5-payable-test", version=1,
+            title="Synthetic F5 payable setup", fiscal_year=2026, status="active",
+            effective_from=date(2026, 1, 1), created_by=accountant,
+            activated_by=accountant,
+        )
+        FinanceConfigurationItem.objects.create(
+            department=self.accounting_office, release=release, category="transaction_type",
+            code="ordinary-supplier-claim", version=1, label="Ordinary supplier claim",
+            status="active", effective_from=date(2026, 1, 1), created_by=accountant,
+        )
+        party = FinanceParty.objects.create(
+            department=self.accounting_office, release=release, code="f5-supplier", version=1,
+            display_name="Synthetic Office Supplier", party_type=FinanceParty.SUPPLIER,
+            effective_from=date(2026, 1, 1), status="active", created_by=accountant,
+        )
+        case = create_payable_case_from_obligation(
+            actor=self.requester, authoritative_obligation=item, payee=party,
+            transaction_type="ordinary-supplier-claim", claim_reference="CLAIM-2027-001",
+            invoice_number="INV-001", invoice_date=date(2027, 1, 16), claim_amount=Decimal("10000"),
+            procurement_reference="PO-001", delivery_reference="DR-001",
+            inspection_acceptance_reference="IAR-001", evidence_reference="Synthetic packet references.",
+            duplicate_review_note="", idempotency_key="f5-payable-create",
+        )
+        item.refresh_from_db(); case.refresh_from_db()
+        self.assertEqual(item.linked_voucher_case_public_id, case.public_id)
+        self.assertEqual(case.obligation_binding_status, VoucherCase.BINDING_LINKED)
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_PREPARATION)
+        self.assertEqual(case.obligation.source_kind, "authoritative_f4_projection")
+        self.assertEqual(case.obligation.certified_amount, Decimal("10000"))
+        self.assertEqual(PayableIntake.objects.get(case=case).claim_reference, "CLAIM-2027-001")
+        self.assertEqual(item.movements.count(), 1)
+        correction = self.make_obligation_request(
+            authorization, reference="GSO-PAYABLE-ADJ", total="-1000",
+            kind=ObligationRequest.ADJUSTMENT, corrects=item,
+        )
+        self.add_obligation_line(correction, "1000", ObligationRequestLine.REDUCE)
+        transition_obligation_request(correction, "submit", self.requester)
+        transition_obligation_request(
+            correction, "certify", self.certifier, "Reviewed pre-DV final-claim adjustment.", "OBR-2027-PAY-ADJ",
+        )
+        with self.assertRaisesMessage(ValidationError, "changed through a governed pre-DV correction"):
+            prepare_voucher(
+                case=case, actor=accountant, voucher_date=date(2027, 1, 20),
+                gross_amount=Decimal("10000"), deductions=[], line_description="Synthetic claim",
+                line_account_code="5-02-03", document_codes=[], expected_version=case.state_version,
+                idempotency_key="stale-payable-dv",
+            )
 
     def test_obligation_rejects_control_difference_excess_and_duplicate_request(self):
         authorization = self.make_executable_authority(release="12000.00")

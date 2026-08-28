@@ -4,10 +4,11 @@ import uuid
 from decimal import Decimal
 
 from django import forms
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.utils import timezone
 
 from departments.models import Department
+from budget.models import ObligationRequest
 from finance.models import FinanceConfigurationItem, FinanceParty, FinancePartyClaimant, FinanceSignatory
 
 from .models import PaymentInstrument, VoucherCase, WetSignatureTask
@@ -56,6 +57,76 @@ class BudgetCaseForm(forms.Form):
                 release=release, status="active", effective_from__lte=today,
             ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today)).order_by("display_name")
             self.fields["transaction_type"].choices = _items(release, "transaction_type")
+
+
+class CertifiedObligationChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obligation):
+        return (
+            f"{obligation.obligation_number} — {obligation.claimant_payee} — "
+            f"{obligation.signed_control_total:,.2f}"
+        )
+
+
+class PayableIntakeForm(forms.Form):
+    authoritative_obligation = CertifiedObligationChoiceField(
+        queryset=ObligationRequest.objects.none(), label="Certified obligation",
+        help_text="Only unlinked original obligations belonging to your current department are available.",
+    )
+    payee = forms.ModelChoiceField(queryset=FinanceParty.objects.none(), label="Governed supplier / payee")
+    transaction_type = forms.ChoiceField()
+    claim_reference = forms.CharField(max_length=120, help_text="Requesting-office claim, billing, or packet reference")
+    invoice_number = forms.CharField(max_length=120, required=False)
+    invoice_date = forms.DateField(widget=DateInput, required=False)
+    claim_amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.01"))
+    procurement_reference = forms.CharField(max_length=180, required=False)
+    delivery_reference = forms.CharField(max_length=180, required=False)
+    inspection_acceptance_reference = forms.CharField(max_length=180, required=False)
+    evidence_reference = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Reference the applicable request, procurement, delivery, inspection/acceptance, invoice, and claim evidence.",
+    )
+    duplicate_review_note = forms.CharField(
+        required=False, widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Optional human review note for a similar payee/invoice/claim warning.",
+    )
+    idempotency_key = forms.CharField(widget=forms.HiddenInput)
+
+    def __init__(self, *args, release=None, department=None, **kwargs):
+        initial = kwargs.setdefault("initial", {})
+        initial.setdefault("idempotency_key", uuid.uuid4().hex)
+        super().__init__(*args, **kwargs)
+        if department:
+            queryset = ObligationRequest.objects.filter(
+                status=ObligationRequest.CERTIFIED,
+                kind=ObligationRequest.ORIGINAL,
+                requesting_department_id=department.pk,
+                linked_voucher_case_public_id__isnull=True,
+            ).order_by("-obligation_date", "-pk")
+            self.fields["authoritative_obligation"].queryset = queryset
+        if release:
+            today = timezone.localdate()
+            self.fields["payee"].queryset = FinanceParty.objects.filter(
+                release=release, status="active", effective_from__lte=today,
+            ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today)).order_by("display_name")
+            self.fields["transaction_type"].choices = _items(release, "transaction_type")
+
+    def clean(self):
+        cleaned = super().clean()
+        obligation = cleaned.get("authoritative_obligation")
+        amount = cleaned.get("claim_amount")
+        if obligation and amount is not None:
+            from budget.services import obligation_lineage_request_ids
+            from budget.models import ObligationMovement
+            total = ObligationMovement.objects.filter(
+                request_id__in=obligation_lineage_request_ids(obligation),
+            ).aggregate(total=Sum("obligation_effect"))["total"] or Decimal("0")
+            if amount != total:
+                self.add_error(
+                    "claim_amount",
+                    "The payable must equal the current certified obligation lineage. "
+                    "Use a governed obligation adjustment before intake when the final claim differs.",
+                )
+        return cleaned
 
 
 class BudgetCertificationForm(WorkflowForm):

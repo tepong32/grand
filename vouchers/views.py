@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from .access import can_view_workbench, has_explicit_permission, voucher_access_required
 from .forms import (
-    AccountingValidationForm, BankAdviceForm, BudgetCaseForm, BudgetCertificationForm,
+    AccountingValidationForm, BankAdviceForm, BudgetCertificationForm, PayableIntakeForm,
     CancelCheckForm, CheckIssueForm, CheckReleaseForm, ReturnCaseForm,
     NonFinancialAmendmentForm, SignatureReturnForm, SubmitChecksForm, VoucherPreparationForm,
     TracePointLinkForm,
@@ -14,15 +14,19 @@ from .forms import (
 from .models import PaymentInstrument, VoucherCase, VoucherOutput
 from .roles import STAGE_NEXT_ACTION, finance_workspace_profile
 from .services import (
-    VoucherWorkflowError, _active_release, amend_nonfinancial_voucher, cancel_check, certify_budget, create_budget_case,
+    VoucherWorkflowError, _active_release, amend_nonfinancial_voucher, cancel_check, certify_budget,
+    create_payable_case_from_obligation,
     finalize_bank_advice, generate_shadow_dv, issue_check, link_tracepoint_item, prepare_voucher, record_signature_return,
-    release_check, return_case, submit_checks_for_advice, validate_accounting,
+    reconcile_authoritative_obligation, release_check, return_case, submit_checks_for_advice, validate_accounting,
 )
 
 
 def _permissions(user):
     return {
-        "initiate": has_explicit_permission(user, "vouchers.initiate_budget_case"),
+        "initiate": (
+            has_explicit_permission(user, "vouchers.initiate_payable_case")
+            or has_explicit_permission(user, "vouchers.initiate_budget_case")
+        ),
         "certify": has_explicit_permission(user, "vouchers.certify_budget_obligation"),
         "prepare": has_explicit_permission(user, "vouchers.prepare_disbursement_voucher"),
         "signatures": has_explicit_permission(user, "vouchers.track_wet_signatures"),
@@ -97,7 +101,10 @@ def workspace(request):
 
 @voucher_access_required
 def case_create(request):
-    if not has_explicit_permission(request.user, "vouchers.initiate_budget_case"):
+    if not (
+        has_explicit_permission(request.user, "vouchers.initiate_payable_case")
+        or has_explicit_permission(request.user, "vouchers.initiate_budget_case")
+    ):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     try:
@@ -105,23 +112,31 @@ def case_create(request):
     except VoucherWorkflowError as exc:
         messages.error(request, "; ".join(exc.messages))
         return redirect("vouchers:workspace")
-    form = BudgetCaseForm(request.POST or None, release=release)
+    from .access import department_for_user
+    department = department_for_user(request.user)
+    form = PayableIntakeForm(request.POST or None, release=release, department=department)
     if request.method == "POST" and form.is_valid():
         try:
-            case = create_budget_case(actor=request.user, **form.cleaned_data)
+            case = create_payable_case_from_obligation(actor=request.user, **form.cleaned_data)
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
-            messages.success(request, "Controlled UAT Budget case created from governed master data.")
+            if case.obligation_binding_status == VoucherCase.BINDING_LINKED:
+                messages.success(request, "Payable case linked to the certified obligation and routed to Accounting.")
+            else:
+                messages.warning(request, "Payable case retained, but its obligation link needs reconciliation before Accounting can proceed.")
             return redirect(case)
-    return render(request, "vouchers/form.html", {"form": form, "title": "Open Budget obligation case", "guidance": "This creates one shared GRAND case. In the UAT environment, use synthetic records only; no official appropriation or payment authority is created."})
+    return render(request, "vouchers/form.html", {
+        "form": form, "title": "Open payable from certified obligation",
+        "guidance": "Select the requesting office's certified F4.2 obligation and reference, rather than duplicate, procurement, delivery, inspection/acceptance, invoice, and claim evidence. Use synthetic UAT evidence until local forms and procedures are accepted.",
+    })
 
 
 def _case(public_id):
     return get_object_or_404(
         VoucherCase.objects.select_related(
             "requesting_department", "current_department", "configuration_release", "voucher_template", "payee",
-            "obligation", "obligation__certified_by", "disbursement_voucher", "disbursement_voucher__prepared_by",
+            "obligation", "obligation__certified_by", "payable_intake", "disbursement_voucher", "disbursement_voucher__prepared_by",
         ).prefetch_related(
             "obligation__allocation_lines", "signature_tasks", "accounting_validations__validated_by",
             "payment_instruments__advice_item__batch", "events__actor", "events__actor_department",
@@ -193,6 +208,7 @@ def case_action(request, public_id, action):
         "generate-dv": SubmitChecksForm,
         "link-tracepoint": TracePointLinkForm,
         "amend-nonfinancial": NonFinancialAmendmentForm,
+        "reconcile-obligation": SubmitChecksForm,
     }
     form_class = forms.get(action)
     if not form_class:
@@ -209,6 +225,8 @@ def case_action(request, public_id, action):
                 **common, obligation_date=data["obligation_date"], budget_source_reference=data["budget_source_reference"],
                 allocations=[{"fund_code": data["fund_code"], "responsibility_center_code": data["responsibility_center_code"], "account_code": data["account_code"], "amount": data["amount"]}],
             )
+        elif action == "reconcile-obligation":
+            reconcile_authoritative_obligation(**common)
         elif action == "prepare-dv":
             deductions = []
             if data.get("deduction_code"):

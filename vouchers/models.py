@@ -23,6 +23,16 @@ def voucher_output_path(instance, filename):
 
 
 class VoucherCase(models.Model):
+    BINDING_NOT_APPLICABLE = "not_applicable"
+    BINDING_PENDING = "pending"
+    BINDING_LINKED = "linked"
+    BINDING_FAILED = "failed"
+    BINDING_CHOICES = (
+        (BINDING_NOT_APPLICABLE, "Legacy / not linked"),
+        (BINDING_PENDING, "Authoritative obligation link pending"),
+        (BINDING_LINKED, "Authoritative obligation linked"),
+        (BINDING_FAILED, "Authoritative obligation link needs reconciliation"),
+    )
     BUDGET_DRAFT = "budget_draft"
     ACCOUNTING_PREPARATION = "accounting_preparation"
     AWAITING_SIGNATURES = "awaiting_signatures"
@@ -57,6 +67,12 @@ class VoucherCase(models.Model):
     payee = models.ForeignKey(FinanceParty, on_delete=models.PROTECT, null=True, blank=True, related_name="voucher_cases")
     payee_name = models.CharField(max_length=220)
     particulars = models.TextField()
+    authoritative_obligation_public_id = models.UUIDField(null=True, blank=True, unique=True)
+    authoritative_obligation_number = models.CharField(max_length=100, blank=True)
+    authoritative_obligation_checksum = models.CharField(max_length=64, blank=True)
+    authoritative_obligation_amount = models.DecimalField(**MONEY)
+    obligation_binding_status = models.CharField(max_length=20, choices=BINDING_CHOICES, default=BINDING_NOT_APPLICABLE)
+    obligation_binding_error = models.TextField(blank=True)
     current_stage = models.CharField(max_length=40, choices=STAGE_CHOICES, default=BUDGET_DRAFT, db_index=True)
     state_version = models.PositiveIntegerField(default=0)
     shadow_mode = models.BooleanField(default=True)
@@ -72,6 +88,7 @@ class VoucherCase(models.Model):
         permissions = (
             ("view_voucher_workbench", "Can access the voucher workbench"),
             ("initiate_budget_case", "Can initiate budget voucher cases"),
+            ("initiate_payable_case", "Can initiate payable cases from certified obligations"),
             ("certify_budget_obligation", "Can certify budget obligations"),
             ("prepare_disbursement_voucher", "Can prepare disbursement vouchers"),
             ("track_wet_signatures", "Can track wet signature circulation"),
@@ -97,7 +114,11 @@ class VoucherCase(models.Model):
         if self.pk:
             previous = type(self).objects.filter(pk=self.pk).first()
             if previous:
-                immutable = ("public_id", "reference_code", "created_by_id", "created_at", "transaction_type")
+                immutable = (
+                    "public_id", "reference_code", "created_by_id", "created_at", "transaction_type",
+                    "authoritative_obligation_public_id", "authoritative_obligation_number",
+                    "authoritative_obligation_checksum", "authoritative_obligation_amount",
+                )
                 if any(getattr(previous, field) != getattr(self, field) for field in immutable):
                     raise ValidationError("Voucher identity and transaction type are immutable.")
 
@@ -110,6 +131,7 @@ class BudgetObligation(models.Model):
     certified_amount = models.DecimalField(**MONEY, validators=[MinValueValidator(Decimal("0.01"))])
     certified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="certified_budget_obligations")
     certified_at = models.DateTimeField()
+    source_kind = models.CharField(max_length=24, default="legacy_shadow")
 
     def __str__(self):
         return self.obr_number
@@ -124,6 +146,39 @@ class BudgetAllocationLine(models.Model):
 
     class Meta:
         ordering = ("pk",)
+
+
+class PayableIntake(models.Model):
+    """Pinned requesting-office readiness evidence; authoritative source files remain in their owning systems."""
+
+    case = models.OneToOneField(VoucherCase, on_delete=models.PROTECT, related_name="payable_intake")
+    claim_reference = models.CharField(max_length=120)
+    invoice_number = models.CharField(max_length=120, blank=True)
+    invoice_date = models.DateField(null=True, blank=True)
+    claim_amount = models.DecimalField(**MONEY, validators=[MinValueValidator(Decimal("0.01"))])
+    procurement_reference = models.CharField(max_length=180, blank=True)
+    delivery_reference = models.CharField(max_length=180, blank=True)
+    inspection_acceptance_reference = models.CharField(max_length=180, blank=True)
+    evidence_reference = models.TextField()
+    duplicate_warning = models.TextField(blank=True)
+    duplicate_review_note = models.TextField(blank=True)
+    prepared_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="prepared_payable_intakes")
+    prepared_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-prepared_at", "-pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("case", "claim_reference"), name="unique_case_payable_claim_reference",
+            ),
+        )
+
+    def clean(self):
+        if self.case_id and self.claim_amount != self.case.authoritative_obligation_amount:
+            raise ValidationError(
+                "The payable amount must equal the currently linked obligation amount. "
+                "Record a governed obligation adjustment before intake when the final claim changes."
+            )
 
 
 class DisbursementVoucher(models.Model):
