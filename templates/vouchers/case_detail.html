@@ -2,7 +2,7 @@
 {% block title_ext %} · {{ case.reference_code }}{% endblock %}
 {% block content %}
 <div class="container-fluid pb-4">
-  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3"><div><a class="small" href="{% url 'vouchers:workspace' %}">← Voucher Workbench</a><h1 class="h3 mb-1">{{ case.reference_code }} <span class="badge badge-info">{{ case.get_current_stage_display }}</span></h1><p class="text-muted mb-0">{{ case.payee_name }} · {{ case.requesting_department.name }} · state v{{ case.state_version }}</p></div><span class="badge badge-info mt-2">Controlled UAT</span></div>
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3"><div><a class="small" href="{% url 'vouchers:workspace' %}">← {{ workspace_profile.title }}</a><p class="text-uppercase text-primary small font-weight-bold mb-1 mt-2">{{ workspace_profile.eyebrow }}</p><h1 class="h3 mb-1">{{ case.reference_code }} <span class="badge badge-info">{{ case.get_current_stage_display }}</span></h1><p class="text-muted mb-0">{{ case.payee_name }} · {{ case.requesting_department.name }} · state v{{ case.state_version }}</p></div><span class="badge badge-info mt-2">Controlled UAT</span></div>
   <div class="row"><div class="col-lg-8">
     <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Shared disbursement case</h2></div><div class="card-body"><dl class="row mb-0"><dt class="col-sm-4">Transaction type</dt><dd class="col-sm-8">{{ case.transaction_type }}</dd><dt class="col-sm-4">Particulars</dt><dd class="col-sm-8">{{ case.particulars }}</dd><dt class="col-sm-4">Pinned setup</dt><dd class="col-sm-8">{{ case.configuration_release }}{% if case.voucher_template %} · {{ case.voucher_template }}{% endif %}</dd><dt class="col-sm-4">Physical custody</dt><dd class="col-sm-8">{% if case.tracepoint_item %}{{ case.tracepoint_item.reference_number }}{% else %}<span class="text-muted">No TracePoint item linked</span>{% endif %}</dd></dl></div></div>
 
@@ -19,6 +19,13 @@
 
     {% if permissions.audit %}<div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Append-only audit history</h2></div><div class="card-body">{% for event in case.events.all %}<div class="border-left pl-3 mb-3"><strong>{{ event.action|title }}</strong> <span class="small text-muted">v{{ event.state_version }}</span><div class="small text-muted">{{ event.actor.get_full_name|default:event.actor.username }} · {{ event.actor_department.name }} · {{ event.created_at|date:'M j, Y g:i A' }}</div>{% if event.reason %}<div>{{ event.reason }}</div>{% endif %}</div>{% endfor %}</div></div>{% endif %}
   </div><div class="col-lg-4">
+    {% if workspace_profile.is_uat_viewer %}
+      <div class="card card-outline card-info"><div class="card-header"><h2 class="card-title font-weight-bold">Read-only UAT review</h2></div><div class="card-body"><p class="mb-1"><strong>Current next step:</strong> {{ next_action_label }}</p><p class="small text-muted mb-0">Use the evidence and audit history to assess the experience. This role cannot submit workflow actions.</p></div></div>
+    {% elif case_ready_for_user %}
+      <div class="alert alert-primary"><strong>Your next task:</strong> {{ next_action_label }}</div>
+    {% else %}
+      <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Current routing</h2></div><div class="card-body"><p class="mb-1">{{ next_action_label }}</p><p class="small text-muted mb-0">This case currently belongs to {{ case.current_department.name }}. You can follow its shared history, but no action is assigned to your role at this stage.</p></div></div>
+    {% endif %}
     {% if case.current_stage == 'budget_draft' and permissions.certify %}{% include 'vouchers/workflow_form.html' with title='Certify Budget allocation / OBR' form=budget_form action='certify-budget' button='Certify and send to Accounting' %}{% endif %}
     {% if case.current_stage == 'accounting_preparation' and permissions.prepare %}{% include 'vouchers/workflow_form.html' with title='Prepare Disbursement Voucher' form=voucher_form action='prepare-dv' button='Create controlled DV' %}{% endif %}
     {% if case.current_stage == 'awaiting_signatures' and permissions.signatures %}{% include 'vouchers/workflow_form.html' with title='Record wet-signature return' form=signature_form action='record-signature' button='Record returned signature' %}{% endif %}

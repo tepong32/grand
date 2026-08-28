@@ -248,19 +248,33 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
     from vouchers.access import can_view_workbench
     if can_view_workbench(user):
         from vouchers.models import VoucherCase
+        from vouchers.roles import finance_workspace_profile
 
         open_cases = VoucherCase.objects.exclude(current_stage__in=(VoucherCase.COMPLETED, VoucherCase.CANCELLED))
-        result.append({
-            "icon": "fa-file-invoice-dollar",
-            "title": "Voucher and Disbursement Workbench",
-            "description": "Work one shared Budget–Accounting–Treasury case from OBR allocation through advised check release.",
+        finance_profile = finance_workspace_profile(user)
+        role_cases = open_cases.filter(current_stage__in=finance_profile["stages"])
+        voucher_section = next((
+            item for item in result
+            if item["title"].strip().lower() in {
+                "disbursement queue", "voucher and disbursement workbench",
+                "budget voucher workspace", "accounting disbursement workspace",
+                "treasury disbursement workspace", "voucher and disbursement overview",
+            }
+        ), None)
+        if voucher_section is None:
+            voucher_section = {}
+            result.append(voucher_section)
+        voucher_section.update({
+            "icon": finance_profile["icon"],
+            "title": finance_profile["title"].title(),
+            "description": finance_profile["description"],
             "status": "Available",
             "url_name": "vouchers:workspace",
-            "action_label": "Open Voucher Workbench",
+            "action_label": "Open Your Finance Queue",
             "summary_items": (
-                {"label": "Open", "value": open_cases.count()},
-                {"label": "At Accounting", "value": open_cases.filter(current_stage__in=(VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.AWAITING_SIGNATURES, VoucherCase.ACCOUNTING_VALIDATION, VoucherCase.ACCOUNTING_BANK_ADVICE)).count()},
-                {"label": "At Treasury", "value": open_cases.filter(current_stage__in=(VoucherCase.TREASURY_CHECK_PREPARATION, VoucherCase.TREASURY_RELEASE)).count()},
+                {"label": "For this office", "value": role_cases.count()},
+                {"label": "Open shared", "value": open_cases.count()},
+                {"label": "Completed", "value": VoucherCase.objects.filter(current_stage=VoucherCase.COMPLETED).count()},
             ),
         })
     if slug == "mswd":

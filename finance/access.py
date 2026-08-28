@@ -25,6 +25,10 @@ def _in_department(user, department=None):
 
 
 def can_view_finance_setup(user, department=None):
+    from vouchers.roles import is_finance_uat_viewer
+
+    if is_finance_uat_viewer(user):
+        return _in_department(user, department)
     if not _in_department(user, department):
         return False
     return any(_explicit_permission(user, permission) for permission in (

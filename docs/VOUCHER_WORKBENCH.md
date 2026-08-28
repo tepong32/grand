@@ -55,6 +55,32 @@ Financial authority is explicit. Department assignment or platform superuser sta
 
 The DV preparer cannot validate the same voucher. A staffing emergency requires a reasoned override approved by a different explicitly authorized employee. The override is single-use and remains in the audit data.
 
+### Department workspaces and role provisioning
+
+The Voucher Workbench keeps one case and one URL while shaping the queue for the employee's assigned office:
+
+- Budget sees cases awaiting OBR certification and can follow cases already forwarded;
+- Accounting sees DV preparation, wet-signature, validation, JEV-posting, and bank-advice work;
+- Treasury sees check preparation, replacement, and release work;
+- read-only UAT viewers can preview each office queue without receiving action permissions.
+
+Provision the curated permission groups after migrations:
+
+```powershell
+python manage.py configure_finance_roles
+python manage.py configure_finance_roles --uat-viewer teppy
+```
+
+The second command requires the named employee to have an assigned department. It grants read-only access to Finance Setup, Voucher Workbench and its audit history, Accounting, and ledger reports. It does not grant any workflow action.
+
+Department membership determines presentation, not authority. The named permission groups remain the action boundary, preserving maker-checker separation even when employees share an office.
+
+### Admin and guided setup boundary
+
+Budget, Accounting, and Treasury users do not configure the normalized workflow models shown in the database. Voucher cases, OBR lines, DVs, deductions, document checks, signature tasks, validations, posting requests, checks, advice items, number issues, outputs, and audit events are created by workflow services.
+
+Django Admin exposes only read-only voucher support evidence, read-only finance release/audit evidence, and the tightly governed workflow-exemption editor. Routine configuration belongs in Finance Setup Center and Accounting Setup, where validation and approval rules cannot be bypassed through generic model CRUD.
+
 ## Operating workflow
 
 1. Budget selects the requesting office, approved supplier/payee, transaction type, and particulars, then certifies an OBR against existing approved budget-source references. Budget formulation is outside this release.

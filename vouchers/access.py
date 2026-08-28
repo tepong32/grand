@@ -3,6 +3,8 @@ from functools import wraps
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 
+from .roles import is_finance_uat_viewer
+
 
 ACTION_PERMISSIONS = (
     "vouchers.initiate_budget_case",
@@ -39,7 +41,8 @@ def has_explicit_permission(user, permission):
 
 
 def can_view_workbench(user):
-    return has_explicit_permission(user, "vouchers.view_voucher_workbench") or any(
+    viewer = is_finance_uat_viewer(user) and department_for_user(user) is not None
+    return viewer or has_explicit_permission(user, "vouchers.view_voucher_workbench") or any(
         has_explicit_permission(user, permission) for permission in ACTION_PERMISSIONS
     )
 

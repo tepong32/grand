@@ -1,21 +1,76 @@
 {% extends 'base.html' %}
-{% block title_ext %} · Voucher Workbench{% endblock %}
+{% block title_ext %} · {{ workspace_profile.title }}{% endblock %}
 {% block content %}
 <div class="container-fluid pb-4">
   <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
-    <div><p class="text-uppercase text-primary small font-weight-bold mb-1">Finance operations</p><h1 class="h3 mb-1">Voucher and Disbursement Workbench</h1><p class="text-muted mb-0">One shared case from Budget obligation through Treasury release.</p></div>
-    <div class="mt-2">{% if permissions.initiate %}<a class="btn btn-primary" href="{% url 'vouchers:case_create' %}"><i class="fas fa-plus mr-1"></i> Open Budget case</a>{% endif %}<a class="btn btn-outline-secondary" href="{% url 'finance:workspace' %}">Finance Setup</a></div>
+    <div>
+      <p class="text-uppercase text-primary small font-weight-bold mb-1">{{ workspace_profile.eyebrow }}</p>
+      <h1 class="h3 mb-1">{{ workspace_profile.title }}</h1>
+      <p class="text-muted mb-0">{{ workspace_profile.description }}</p>
+    </div>
+    <div class="mt-2">
+      {% if permissions.initiate %}
+        <a class="btn btn-primary" href="{% url 'vouchers:case_create' %}">
+          <i class="fas fa-plus mr-1"></i>Open Budget case
+        </a>
+      {% endif %}
+      {% if can_access_accounting %}
+        <a class="btn btn-outline-primary" href="{% url 'accounting:workspace' %}">Accounting</a>
+      {% endif %}
+      {% if can_access_finance_setup %}
+        <a class="btn btn-outline-secondary" href="{% url 'finance:workspace' %}">Finance Setup</a>
+      {% endif %}
+    </div>
   </div>
-  <div class="alert alert-info"><strong>Controlled UAT environment.</strong> GRAND runs this Budget–Accounting–Treasury workflow independently in its separate finance database. Synthetic UAT cases and outputs are not official disbursements.</div>
+
+  {% if workspace_profile.is_uat_viewer %}
+    <div class="alert alert-info">
+      <strong>Read-only Finance UAT viewer.</strong>
+      You can inspect the office-specific queues and case evidence, but this role cannot certify, prepare, validate,
+      post, issue, advise, release, or alter a voucher.
+    </div>
+    <div class="card card-outline card-info">
+      <div class="card-body py-2">
+        <span class="small text-muted mr-2">Preview office experience:</span>
+        <a class="btn btn-sm {% if workspace_profile.role == 'budget' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?office=budget">Budget</a>
+        <a class="btn btn-sm {% if workspace_profile.role == 'accounting' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?office=accounting">Accounting</a>
+        <a class="btn btn-sm {% if workspace_profile.role == 'treasury' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?office=treasury">Treasury</a>
+        <a class="btn btn-sm {% if workspace_profile.role == 'oversight' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?office=oversight">Oversight</a>
+      </div>
+    </div>
+  {% else %}
+    <div class="alert alert-info">
+      <strong>One shared case, a workspace shaped for your office.</strong>
+      GRAND shows the work assigned to your role while preserving the same Budget–Accounting–Treasury history.
+    </div>
+  {% endif %}
+
   <div class="row">
-    <div class="col-md-4"><div class="small-box bg-info"><div class="inner"><h3>{{ open_count }}</h3><p>Open shared cases</p></div><div class="icon"><i class="fas fa-route"></i></div></div></div>
-    <div class="col-md-4"><div class="small-box bg-warning"><div class="inner"><h3>{{ stage_counts.accounting_validation|default:0 }}</h3><p>Awaiting Accounting validation</p></div><div class="icon"><i class="fas fa-clipboard-check"></i></div></div></div>
-    <div class="col-md-4"><div class="small-box bg-success"><div class="inner"><h3>{{ completed_count }}</h3><p>Released and completed</p></div><div class="icon"><i class="fas fa-check-circle"></i></div></div></div>
+    <div class="col-md-4">
+      <div class="small-box bg-info"><div class="inner"><h3>{{ queue_count }}</h3><p>{% if workspace_profile.is_uat_viewer %}Cases in this office preview{% else %}Ready for your role{% endif %}</p></div><div class="icon"><i class="fas {{ workspace_profile.icon }}"></i></div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="small-box bg-warning"><div class="inner"><h3>{{ open_count }}</h3><p>Open shared cases</p></div><div class="icon"><i class="fas fa-route"></i></div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="small-box bg-success"><div class="inner"><h3>{{ completed_count }}</h3><p>Released and completed</p></div><div class="icon"><i class="fas fa-check-circle"></i></div></div>
+    </div>
   </div>
-  <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Department action queue</h2></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0">
-    <thead><tr><th>Case</th><th>Payee / purpose</th><th>Stage</th><th>Current office</th><th>Checks</th><th>Updated</th></tr></thead><tbody>
-    {% for case in cases %}<tr><td><a href="{{ case.get_absolute_url }}"><strong>{{ case.reference_code }}</strong></a><div class="small text-muted">{{ case.requesting_department.name }}</div></td><td>{{ case.payee_name }}<div class="small text-muted text-truncate" style="max-width:28rem">{{ case.particulars }}</div></td><td><span class="badge badge-{% if case.current_stage == 'completed' %}success{% elif case.current_stage == 'cancelled' %}danger{% else %}info{% endif %}">{{ case.get_current_stage_display }}</span></td><td>{{ case.current_department.name }}</td><td>{{ case.check_count }}</td><td>{{ case.updated_at|date:'M j, Y g:i A' }}</td></tr>
-    {% empty %}<tr><td colspan="6" class="text-center text-muted py-5">No voucher cases yet. Budget can open the first governed UAT case.</td></tr>{% endfor %}
-    </tbody></table></div></div></div>
+
+  <div class="card card-outline card-primary">
+    <div class="card-header">
+      <h2 class="card-title font-weight-bold">{{ workspace_profile.queue_title }}</h2>
+      {% if workspace_profile.is_preview %}<span class="badge badge-info float-right">UAT preview</span>{% endif %}
+    </div>
+    {% include 'vouchers/_case_table.html' with case_rows=queue_cases empty_message=workspace_profile.empty_message %}
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title font-weight-bold">Shared case history</h2>
+      <span class="small text-muted float-right">Forwarded, completed, or currently owned by another office</span>
+    </div>
+    {% include 'vouchers/_case_table.html' with case_rows=cases empty_message='No additional voucher cases to show.' %}
+  </div>
 </div>
 {% endblock %}

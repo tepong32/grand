@@ -3,10 +3,12 @@ from decimal import Decimal
 import io
 import tempfile
 
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.test import TestCase
 from django.test import override_settings
 from django.urls import reverse
@@ -616,6 +618,68 @@ class VoucherWorkflowTests(TestCase):
         self.assertContains(response, "Ordinary supplier claim")
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.get(reverse("vouchers:workspace")).status_code, 403)
+
+    def test_workspace_presentation_follows_the_assigned_finance_department(self):
+        for user, title in (
+            (self.budget_user, "Budget voucher workspace"),
+            (self.preparer, "Accounting disbursement workspace"),
+            (self.treasury_user, "Treasury disbursement workspace"),
+        ):
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                response = self.client.get(reverse("vouchers:workspace"))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, title)
+                self.assertContains(response, "Shared case history")
+
+    def test_department_home_surfaces_the_matching_finance_queue(self):
+        for user, card_title in (
+            (self.budget_user, "Budget Voucher Workspace"),
+            (self.preparer, "Accounting Disbursement Workspace"),
+            (self.treasury_user, "Treasury Disbursement Workspace"),
+        ):
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                response = self.client.get(reverse("department_dashboard"))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, card_title)
+                self.assertContains(response, "Open Your Finance Queue")
+
+    def test_read_only_uat_viewer_can_preview_offices_without_action_authority(self):
+        call_command("configure_finance_roles", uat_viewer=[self.outsider.username])
+        self.outsider.refresh_from_db()
+        self.assertTrue(self.outsider.groups.filter(name="Finance UAT Viewer").exists())
+        self.assertFalse(self.outsider.has_perm("vouchers.initiate_budget_case"))
+
+        self.client.force_login(self.outsider)
+        response = self.client.get(reverse("vouchers:workspace") + "?office=treasury")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Treasury disbursement workspace")
+        self.assertContains(response, "Read-only Finance UAT viewer")
+        self.assertContains(response, "Preview office experience")
+        self.assertEqual(self.client.get(reverse("vouchers:case_create")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("finance:workspace")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("accounting:workspace")).status_code, 200)
+
+    def test_admin_exposes_curated_read_only_finance_evidence_only(self):
+        voucher_models = {
+            model._meta.model_name
+            for model in admin.site._registry
+            if model._meta.app_label == "vouchers"
+        }
+        finance_models = {
+            model._meta.model_name
+            for model in admin.site._registry
+            if model._meta.app_label == "finance"
+        }
+        self.assertEqual(
+            voucher_models,
+            {"vouchercase", "voucherevent", "vouchernonfinancialamendment"},
+        )
+        self.assertEqual(
+            finance_models,
+            {"financeconfigurationrelease", "financeworkflowexemption", "financeauditevent"},
+        )
 
     def test_shadow_dv_output_pins_template_snapshot_and_checksum(self):
         case = self.create_case("output-create")
