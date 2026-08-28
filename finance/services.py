@@ -40,18 +40,22 @@ def uuid_types():
     return (uuid.UUID,)
 
 
-def record_event(instance, actor, action, reason=""):
+def record_event(instance, actor, action, reason="", evidence=None):
     release = instance if isinstance(instance, FinanceConfigurationRelease) else getattr(instance, "release", None)
+    snapshot = _snapshot(instance)
+    if evidence:
+        snapshot["workflow_exemption"] = evidence
     return FinanceAuditEvent.objects.create(
         department=instance.department, release=release, target_type=instance._meta.model_name,
         target_id=str(instance.pk), action=action, actor=actor, reason=reason,
-        snapshot=_snapshot(instance),
+        snapshot=snapshot,
     )
 
 
 @transaction.atomic
 def transition_release(release, action, actor, reason=""):
     release = FinanceConfigurationRelease.objects.select_for_update().get(pk=release.pk)
+    workflow_exemption = None
     if action == "submit":
         if not can_manage_finance_configuration(actor, release.department):
             raise PermissionDenied
@@ -70,7 +74,20 @@ def transition_release(release, action, actor, reason=""):
         if release.status != "submitted":
             raise ValidationError("Only submitted releases can be approved.")
         if actor.pk in {release.created_by_id, release.submitted_by_id}:
-            raise ValidationError("The approver must be different from the release preparer and submitter.")
+            from .exemptions import workflow_exemption_for, workflow_exemption_snapshot
+            from .models import FinanceWorkflowExemption
+
+            exemption = workflow_exemption_for(
+                actor=actor,
+                control_code=FinanceWorkflowExemption.RELEASE_SELF_APPROVAL,
+                department_id=release.department_id,
+            )
+            if exemption is None:
+                raise ValidationError(
+                    "The approver must be different from the release preparer and submitter unless an active "
+                    "administrator-authorized workflow exemption applies."
+                )
+            workflow_exemption = workflow_exemption_snapshot(exemption)
         if not reason.strip():
             raise ValidationError("Record the local Accounting approval basis before approval.")
         failed_templates = release.templates.exclude(preflighted_at__isnull=False, preflight_result__passed=True)
@@ -177,7 +194,7 @@ def transition_release(release, action, actor, reason=""):
     else:
         raise ValidationError("Unsupported finance release action.")
     release.save(update_fields=fields)
-    record_event(release, actor, action, reason)
+    record_event(release, actor, action, reason, evidence=workflow_exemption)
     return release
 
 

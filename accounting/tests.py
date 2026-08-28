@@ -10,6 +10,7 @@ from django.urls import reverse
 
 from departments.models import Department
 from profiles.models import EmployeeProfile
+from finance.models import FinanceWorkflowExemption
 
 from .access import can_post_journals, can_prepare_journals, can_view_accounting
 from .models import (
@@ -127,6 +128,23 @@ class StandaloneAccountingTests(TestCase):
         submit_entry(entry, self.preparer)
         with self.assertRaisesMessage(ValidationError, "preparer cannot post"):
             post_entry(entry, self.preparer)
+
+    def test_admin_exemption_allows_self_posting_and_is_snapshotted_in_ledger_audit(self):
+        entry = self._entry(reference="SYN-JEV-EXEMPT")
+        submit_entry(entry, self.preparer)
+        policy = FinanceWorkflowExemption.objects.create(
+            department=self.accounting_department,
+            control_code=FinanceWorkflowExemption.JOURNAL_PREPARER_SELF_POSTING,
+            subject_user=self.preparer,
+            rationale="Synthetic staffing exception approved for UAT.",
+            effective_from=date(2026, 1, 1),
+            created_by=self.superuser,
+        )
+        post_entry(entry, self.preparer)
+        entry.refresh_from_db()
+        event = entry.audit_events.get(action="posted")
+        self.assertEqual(entry.status, JournalEntry.POSTED)
+        self.assertEqual(event.snapshot["workflow_exemption"]["policy_id"], policy.pk)
 
     def test_posted_entry_and_lines_are_immutable(self):
         entry = self._entry(reference="SYN-JEV-0004")

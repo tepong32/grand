@@ -4,7 +4,7 @@ import zipfile
 from datetime import date
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -17,9 +17,10 @@ from departments.models import Department
 from profiles.models import EmployeeProfile
 
 from .access import can_approve_finance_configuration, can_manage_finance_configuration
+from .exemptions import workflow_exemption_for
 from .models import (
     FinanceAuditEvent, FinanceConfigurationItem, FinanceConfigurationRelease,
-    FinanceNumberingSequence, FinanceSignatory, FinanceTemplateVersion,
+    FinanceNumberingSequence, FinanceSignatory, FinanceTemplateVersion, FinanceWorkflowExemption,
 )
 from .services import (
     FinanceTemplateError, evaluate_readiness, inspect_finance_workbook,
@@ -129,6 +130,35 @@ class FinanceSetupCenterTests(TestCase):
             transition_release(self.release, "approve", self.manager, "Self approval")
         with self.assertRaisesMessage(ValidationError, "approval basis"):
             transition_release(self.release, "approve", self.approver, "")
+
+    def test_admin_policy_can_exempt_a_named_user_or_role_and_records_each_use(self):
+        self._grant(self.manager, "approve_finance_configuration")
+        role = Group.objects.create(name="Synthetic small-office finance role")
+        self.manager.groups.add(role)
+        policy = FinanceWorkflowExemption.objects.create(
+            department=self.accounting,
+            control_code=FinanceWorkflowExemption.RELEASE_SELF_APPROVAL,
+            subject_group=role,
+            rationale="Synthetic small-office staffing exception with management review.",
+            effective_from=date(2026, 1, 1),
+            created_by=self.superuser,
+        )
+        transition_release(self.release, "submit", self.manager)
+        transition_release(self.release, "approve", self.manager, "Synthetic approval under configured exemption.")
+        event = self.release.events.get(action="approve")
+        self.assertEqual(event.snapshot["workflow_exemption"]["policy_id"], policy.pk)
+        self.assertEqual(event.snapshot["workflow_exemption"]["subject_type"], "group")
+
+        policy.effective_to = date(2026, 1, 31)
+        policy.save(update_fields=("effective_to",))
+        self.assertIsNone(
+            workflow_exemption_for(
+                actor=self.manager,
+                control_code=FinanceWorkflowExemption.RELEASE_SELF_APPROVAL,
+                department_id=self.accounting.pk,
+                as_of=date(2026, 2, 1),
+            )
+        )
 
     def test_release_transitions_append_audit_events_and_lock_governed_fields(self):
         self._complete_release()

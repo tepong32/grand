@@ -63,15 +63,32 @@ def post_entry(entry, actor):
     locked = JournalEntry.objects.select_for_update().get(pk=entry.pk)
     if locked.status != JournalEntry.SUBMITTED:
         raise ValidationError("Only a submitted journal can be posted.")
+    workflow_exemption = None
     if locked.created_by_id == actor.pk:
-        raise ValidationError("Maker-checker control: the preparer cannot post the same journal entry.")
+        from finance.exemptions import workflow_exemption_for, workflow_exemption_snapshot
+        from finance.models import FinanceWorkflowExemption
+
+        exemption = workflow_exemption_for(
+            actor=actor,
+            control_code=FinanceWorkflowExemption.JOURNAL_PREPARER_SELF_POSTING,
+            department_id=locked.department_id,
+        )
+        if exemption is None:
+            raise ValidationError(
+                "Maker-checker control: the preparer cannot post the same journal entry unless an active "
+                "administrator-authorized workflow exemption applies."
+            )
+        workflow_exemption = workflow_exemption_snapshot(exemption)
     debit, credit = validate_entry_for_submission(locked)
     locked.status = JournalEntry.POSTED
     locked.posted_by_id = actor.pk
     locked.posted_by_label = actor_label(actor)
     locked.posted_at = timezone.now()
     locked.save(update_fields=("status", "posted_by_id", "posted_by_label", "posted_at", "updated_at"))
-    record_event(locked, "posted", actor, snapshot={"debit": str(debit), "credit": str(credit)})
+    snapshot = {"debit": str(debit), "credit": str(credit)}
+    if workflow_exemption:
+        snapshot["workflow_exemption"] = workflow_exemption
+    record_event(locked, "posted", actor, snapshot=snapshot)
     return locked
 
 

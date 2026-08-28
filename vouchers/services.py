@@ -13,7 +13,11 @@ from django.db.models import Max, Q, Sum
 from django.core.files.base import ContentFile
 from django.utils import timezone
 
-from finance.models import FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence, FinanceSignatory
+from finance.exemptions import workflow_exemption_for, workflow_exemption_snapshot
+from finance.models import (
+    FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
+    FinanceSignatory, FinanceWorkflowExemption,
+)
 from finance.services import FinanceTemplateError, _destination, inspect_finance_workbook, verify_template_evidence
 from profiles.models import EmployeeProfile
 
@@ -214,8 +218,19 @@ def prepare_voucher(*, case, actor, voucher_date, gross_amount, deductions, line
         return case
     if case.current_stage != VoucherCase.ACCOUNTING_PREPARATION:
         raise VoucherWorkflowError("This case is not awaiting Accounting DV preparation.")
+    workflow_exemption = None
     if actor.pk == case.obligation.certified_by_id:
-        raise VoucherWorkflowError("The Budget certifier cannot prepare the DV without an approved control override.")
+        exemption = workflow_exemption_for(
+            actor=actor,
+            control_code=FinanceWorkflowExemption.BUDGET_CERTIFIER_DV_PREPARATION,
+            department_id=department_for_user(actor).pk,
+        )
+        if exemption is None:
+            raise VoucherWorkflowError(
+                "The Budget certifier cannot prepare the same DV unless an active administrator-authorized "
+                "workflow exemption applies."
+            )
+        workflow_exemption = workflow_exemption_snapshot(exemption)
     gross = Decimal(gross_amount)
     deduction_total = sum((Decimal(item["amount"]) for item in deductions), Decimal("0.00"))
     net = gross - deduction_total
@@ -251,7 +266,19 @@ def prepare_voucher(*, case, actor, voucher_date, gross_amount, deductions, line
         VoucherDocumentCheck.objects.create(voucher=voucher, requirement_code=code, label=code.replace("-", " ").title(), present=True, verified_by=actor, verified_at=timezone.now())
     round_number, has_signatories = _create_signature_round(case, voucher_date)
     next_stage = VoucherCase.AWAITING_SIGNATURES if has_signatories else VoucherCase.ACCOUNTING_VALIDATION
-    return _advance(case, actor, next_stage, "dv_corrected" if prior_snapshot else "dv_prepared", idempotency_key, metadata={"dv_number": dv_number, "gross": str(gross), "net": str(net), "signature_round": round_number, "prior_amounts": prior_snapshot})
+    metadata = {
+        "dv_number": dv_number,
+        "gross": str(gross),
+        "net": str(net),
+        "signature_round": round_number,
+        "prior_amounts": prior_snapshot,
+    }
+    if workflow_exemption:
+        metadata["workflow_exemption"] = workflow_exemption
+    return _advance(
+        case, actor, next_stage, "dv_corrected" if prior_snapshot else "dv_prepared",
+        idempotency_key, metadata=metadata,
+    )
 
 
 @transaction.atomic
@@ -425,12 +452,31 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         return case
     if case.current_stage != VoucherCase.ACCOUNTING_VALIDATION:
         raise VoucherWorkflowError("This voucher is not awaiting Accounting validation.")
+    workflow_exemption = None
+    case_override = None
     if actor.pk == case.disbursement_voucher.prepared_by_id:
         override = _approved_override(case, "accounting-self-validation", actor)
-        if not override:
-            raise VoucherWorkflowError("The DV preparer cannot validate the same voucher without a separately approved override.")
-        override.status = ControlOverride.USED
-        override.save(update_fields=("status",))
+        if override:
+            override.status = ControlOverride.USED
+            override.save(update_fields=("status",))
+            case_override = {
+                "override_id": override.pk,
+                "action_code": override.action_code,
+                "reason": override.reason,
+                "approved_by_id": override.approved_by_id,
+            }
+        else:
+            exemption = workflow_exemption_for(
+                actor=actor,
+                control_code=FinanceWorkflowExemption.DV_PREPARER_SELF_VALIDATION,
+                department_id=department_for_user(actor).pk,
+            )
+            if exemption is None:
+                raise VoucherWorkflowError(
+                    "The DV preparer cannot validate the same voucher without a separately approved case override "
+                    "or an active administrator-authorized workflow exemption."
+                )
+            workflow_exemption = workflow_exemption_snapshot(exemption)
     AccountingValidation.objects.create(
         case=case, decision=AccountingValidation.ACCEPTED, jev_number=jev_number.strip(), jev_date=jev_date,
         note=note.strip(), validated_by=actor, validated_at=timezone.now(),
@@ -479,9 +525,18 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
     )
     request.full_clean()
     request.save()
+    event_metadata = {
+        "jev_number": jev_number,
+        "posting_request": str(request.public_id),
+        "payload_checksum": checksum,
+    }
+    if case_override:
+        event_metadata["case_override"] = case_override
+    if workflow_exemption:
+        event_metadata["workflow_exemption"] = workflow_exemption
     return _advance(
         case, actor, VoucherCase.ACCOUNTING_POSTING, "accounting_validated", idempotency_key, note,
-        {"jev_number": jev_number, "posting_request": str(request.public_id), "payload_checksum": checksum},
+        event_metadata,
     )
 
 

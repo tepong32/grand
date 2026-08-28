@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.utils import timezone
 
 from departments.models import Department
 
@@ -339,6 +340,74 @@ class FinanceTemplateVersion(models.Model):
                 changed = any(getattr(prior, field) != getattr(self, field) for field in fields) or prior.workbook.name != self.workbook.name
                 if changed:
                     raise ValidationError("Approved finance template versions are immutable. Upload a new version.")
+
+
+class FinanceWorkflowExemption(models.Model):
+    RELEASE_SELF_APPROVAL = "finance-release-self-approval"
+    BUDGET_CERTIFIER_DV_PREPARATION = "budget-certifier-dv-preparation"
+    DV_PREPARER_SELF_VALIDATION = "dv-preparer-self-validation"
+    JOURNAL_PREPARER_SELF_POSTING = "journal-preparer-self-posting"
+    CONTROL_CHOICES = (
+        (RELEASE_SELF_APPROVAL, "Finance release preparer may approve the same release"),
+        (BUDGET_CERTIFIER_DV_PREPARATION, "Budget certifier may prepare the same DV"),
+        (DV_PREPARER_SELF_VALIDATION, "DV preparer may validate the same voucher"),
+        (JOURNAL_PREPARER_SELF_POSTING, "Journal preparer may post the same JEV"),
+    )
+
+    department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, related_name="finance_workflow_exemptions",
+        help_text="The exemption applies only while the actor is assigned to this department.",
+    )
+    control_code = models.SlugField(max_length=80, choices=CONTROL_CHOICES)
+    subject_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="finance_workflow_exemptions",
+        help_text="Choose either one named user or one role/group, never both.",
+    )
+    subject_group = models.ForeignKey(
+        "auth.Group", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="finance_workflow_exemptions",
+        help_text="A group-based exemption follows the assigned role without naming each employee.",
+    )
+    rationale = models.TextField(help_text="Document the approved operational basis and compensating review control.")
+    effective_from = models.DateField(default=timezone.localdate)
+    effective_to = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_finance_workflow_exemptions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("department", "control_code", "-effective_from", "-pk")
+        permissions = (("manage_workflow_exemptions", "Can manage governed finance workflow exemptions"),)
+        constraints = (
+            models.CheckConstraint(
+                condition=(
+                    models.Q(subject_user__isnull=False, subject_group__isnull=True)
+                    | models.Q(subject_user__isnull=True, subject_group__isnull=False)
+                ),
+                name="finance_exemption_exactly_one_subject",
+            ),
+        )
+
+    def __str__(self):
+        subject = self.subject_user or self.subject_group
+        return f"{self.get_control_code_display()} — {subject}"
+
+    def clean(self):
+        if bool(self.subject_user_id) == bool(self.subject_group_id):
+            raise ValidationError("Choose exactly one exempt user or role/group.")
+        if self.effective_to and self.effective_to < self.effective_from:
+            raise ValidationError({"effective_to": "The exemption end date cannot precede its start date."})
+        if self.subject_user_id:
+            assigned_department_id = getattr(
+                getattr(self.subject_user, "employeeprofile", None), "assigned_department_id", None,
+            )
+            if assigned_department_id != self.department_id:
+                raise ValidationError({"subject_user": "The exempt user must currently belong to the selected department."})
 
 
 class FinanceAuditEvent(models.Model):

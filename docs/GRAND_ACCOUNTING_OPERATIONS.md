@@ -37,6 +37,12 @@ All access is explicit; platform-superuser status alone does not grant finance a
 
 Assign permissions through an approved role/group procedure. The preparer and poster should be different people.
 
+### Governed workflow exemptions
+
+Strict maker-checker separation remains the default. When an approved staffing model genuinely requires combined duties, an authorized administrator may add a **Finance workflow exemption** in Django Admin for one named employee or one permission group/role. Each policy is limited to one department and one control, has effective dates and an active flag, requires a documented operational rationale, and cannot be deleted through Admin; deactivate or end-date it instead.
+
+Available controls cover Finance Setup self-approval, Budget-certifier/DV preparation, DV-preparer validation, and JEV self-posting. An exemption never grants the underlying action permission and never crosses department boundaries. Every actual exempt action snapshots the policy ID, scope, rationale, validity, and authorizing administrator into the corresponding immutable Finance, Voucher, or Accounting audit event. One-case voucher overrides remain available for exceptional incidents where a reusable policy would be too broad.
+
 ## Operator workflow
 
 1. In **Accounting → Setup**, add an open period, fund, optional responsibility centers, posting accounts, and controlled voucher posting mappings.

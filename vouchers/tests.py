@@ -18,6 +18,7 @@ from accounting.services import post_entry, submit_entry
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
     FinanceParty, FinancePartyClaimant, FinanceSignatory, FinanceTemplateVersion,
+    FinanceWorkflowExemption,
 )
 from finance.services import preflight_finance_template
 from openpyxl import Workbook
@@ -351,6 +352,61 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(override.status, "used")
         self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_POSTING)
         self.assertEqual(case.posting_requests.get().status, VoucherPostingRequest.PENDING)
+
+    def test_admin_exemption_allows_dv_preparer_self_validation_with_audit_evidence(self):
+        case = self.create_case("policy-validation-create")
+        self.budget_certify(case, "policy-validation-budget")
+        self.accounting_prepare(case, "policy-validation-prepare")
+        self.return_signatures(case)
+        policy = FinanceWorkflowExemption.objects.create(
+            department=self.accounting,
+            control_code=FinanceWorkflowExemption.DV_PREPARER_SELF_VALIDATION,
+            subject_user=self.preparer,
+            rationale="Synthetic small-office validation exemption.",
+            effective_from=date(2026, 1, 1),
+            created_by=self.validator,
+        )
+        validate_accounting(
+            case=case,
+            actor=self.preparer,
+            jev_number="JEV-POLICY-01",
+            jev_date=date(2026, 8, 25),
+            note="Validated under configured UAT exemption",
+            expected_version=case.state_version,
+            idempotency_key="policy-self-validation",
+        )
+        event = case.events.get(action="accounting_validated")
+        self.assertEqual(event.metadata["workflow_exemption"]["policy_id"], policy.pk)
+
+    def test_admin_exemption_allows_budget_certifier_to_prepare_same_dv(self):
+        self.budget_user.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="prepare_disbursement_voucher",
+        ))
+        case = self.create_case("policy-budget-create")
+        self.budget_certify(case, "policy-budget-certify")
+        policy = FinanceWorkflowExemption.objects.create(
+            department=self.budget,
+            control_code=FinanceWorkflowExemption.BUDGET_CERTIFIER_DV_PREPARATION,
+            subject_user=self.budget_user,
+            rationale="Synthetic combined Budget/DV role for UAT.",
+            effective_from=date(2026, 1, 1),
+            created_by=self.validator,
+        )
+        case.refresh_from_db()
+        prepare_voucher(
+            case=case,
+            actor=self.budget_user,
+            voucher_date=date(2026, 8, 25),
+            gross_amount=Decimal("1000.00"),
+            deductions=[],
+            line_description="Synthetic office supplies",
+            line_account_code="5-02-03",
+            document_codes=["invoice"],
+            expected_version=case.state_version,
+            idempotency_key="policy-budget-prepare",
+        )
+        event = case.events.get(action="dv_prepared")
+        self.assertEqual(event.metadata["workflow_exemption"]["policy_id"], policy.pk)
 
     def test_explicit_permissions_do_not_follow_superuser_status(self):
         self.assertFalse(can_view_workbench(self.superuser))
