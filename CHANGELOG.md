@@ -4,6 +4,10 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance evidence and interview foundation
+
+- Added the F0.1 Finance evidence register and interview kit, including repository-safe authority, transaction, role/signature, actual-step, decision, redaction, and synthetic-replay templates.
+
 ### GRAND Finance complete-cycle roadmap
 
 - Added a canonical F0–F11 delivery and acceptance roadmap from annual budget preparation through appropriation, allotment, obligation, payable/DV, wet-signature custody, posting, payment, reporting, reconciliation, training, and cutover.
