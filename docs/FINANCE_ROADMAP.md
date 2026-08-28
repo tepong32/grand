@@ -47,6 +47,7 @@ The eGAPS baseline is limited to the authorized read-only inspection recorded in
 - Official reports and forms use approved, versioned templates and retain input, mapping, configuration, generator, and output checksums.
 - Operational registers, reports, and transaction sets provide permission- and department-scoped exports where a defined business use requires them; every export carries its filters/as-of context and stable lineage, is atomically retained with a checksum manifest in the single TraceSync-ready export root, and is never mislabeled as an approved official form.
 - Accessibility, responsive layouts, keyboard operation, plain language, explainable errors, saved work views, and visible next actions are release criteria, not polish deferred until the end.
+- Contextual Internal How-Tos follow the employee's current department, permission, and page without being assigned to a named incumbent; private progress never transfers to a successor, and published instructions are versioned with the workflow they explain.
 - Production cutover requires evidence-backed reconciliation and explicit approval. Completing a software workflow is not implicit authority to replace eGAPS.
 
 ## Complete-cycle domain model

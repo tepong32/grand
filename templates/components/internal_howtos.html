@@ -1,0 +1,80 @@
+{% if internal_howtos %}
+<div id="grand-internal-howtos" data-storage-key="grand-howto:{{ internal_howto_department.pk }}:{{ request.user.pk }}">
+  <button type="button" id="grand-howto-toggle" class="grand-howto-toggle" aria-controls="grand-howto-panel" aria-expanded="false" title="Open internal how-to guides">
+    <span aria-hidden="true">?</span><span class="sr-only">Open internal how-to guides</span>
+  </button>
+  <aside id="grand-howto-panel" class="grand-howto-panel" aria-label="Internal how-to guides" hidden>
+    <header class="grand-howto-header">
+      <div><small>{{ internal_howto_department.name }}</small><strong>Internal How-To</strong></div>
+      <button type="button" id="grand-howto-close" class="grand-howto-close" aria-label="Close internal how-to guides">&times;</button>
+    </header>
+    <div class="grand-howto-layout">
+      <nav class="grand-howto-nav" aria-label="Available guides">
+        {% for guide in internal_howtos %}
+          <button type="button" class="grand-howto-guide-choice{% if forloop.first %} is-active{% endif %}" data-guide-id="{{ guide.pk }}">
+            <span>{{ guide.title }}</span>
+            <small>{% if guide.matches_current_page %}On this page · {% endif %}{{ guide.completed_count }}/{{ guide.step_count }}</small>
+          </button>
+        {% endfor %}
+      </nav>
+      <div class="grand-howto-content">
+        {% for guide in internal_howtos %}
+          <article class="grand-howto-guide{% if forloop.first %} is-active{% endif %}" data-guide-id="{{ guide.pk }}" {% if not forloop.first %}hidden{% endif %}>
+            <div class="grand-howto-guide-heading">
+              {% if guide.matches_current_page %}<span class="grand-howto-page-badge">Relevant here</span>{% endif %}
+              <h2>{{ guide.title }}</h2>
+              <p>{{ guide.summary }}</p>
+              <div class="grand-howto-progress-label"><span>Personal progress</span><strong data-progress-count>{{ guide.completed_count }}/{{ guide.step_count }}</strong></div>
+              <div class="grand-howto-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ guide.progress_percent }}"><span data-progress-bar style="width: {{ guide.progress_percent }}%"></span></div>
+            </div>
+            <ol class="grand-howto-steps">
+              {% for step in guide.visible_steps %}
+                <li data-step-id="{{ step.pk }}" data-completed="{% if step.pk in guide.completed_step_ids %}true{% else %}false{% endif %}">
+                  <div class="grand-howto-step-title"><span>{{ step.position }}</span><strong>{{ step.title }}</strong></div>
+                  <p>{{ step.instruction|linebreaksbr }}</p>
+                  {% if step.expected_result %}<div class="grand-howto-expected"><strong>Expected:</strong> {{ step.expected_result }}</div>{% endif %}
+                  {% if step.caution %}<div class="grand-howto-caution"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> {{ step.caution }}</div>{% endif %}
+                  <div class="grand-howto-step-actions">
+                    <form method="post" action="{% url 'departments:internal_howto_step_completion' step.pk %}" class="grand-howto-completion-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="completed" value="{% if step.pk in guide.completed_step_ids %}false{% else %}true{% endif %}">
+                      <button type="submit" class="grand-howto-complete" aria-pressed="{% if step.pk in guide.completed_step_ids %}true{% else %}false{% endif %}">
+                        <i class="fas {% if step.pk in guide.completed_step_ids %}fa-check-circle{% else %}fa-circle{% endif %}" aria-hidden="true"></i>
+                        <span>{% if step.pk in guide.completed_step_ids %}Completed{% else %}Mark complete{% endif %}</span>
+                      </button>
+                    </form>
+                    {% if step.action_route_name %}{% url step.action_route_name as step_action_url %}{% if step_action_url %}<a href="{{ step_action_url }}" class="grand-howto-action-link">{{ step.action_label|default:"Open this workspace" }} <i class="fas fa-arrow-right" aria-hidden="true"></i></a>{% endif %}{% endif %}
+                  </div>
+                </li>
+              {% empty %}
+                <li class="text-muted">This guide has no published steps yet.</li>
+              {% endfor %}
+            </ol>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+  </aside>
+</div>
+
+<style>
+  .grand-howto-toggle{position:fixed;right:24px;bottom:24px;z-index:1045;width:54px;height:54px;border:0;border-radius:50%;background:var(--gov-primary,#1f4e78);color:#fff;font:700 1.55rem/1 Poppins,sans-serif;box-shadow:0 8px 24px rgba(15,23,42,.28);transition:transform .18s ease,box-shadow .18s ease}.grand-howto-toggle:hover,.grand-howto-toggle:focus{transform:translateY(-2px);box-shadow:0 11px 28px rgba(15,23,42,.34);outline:3px solid rgba(31,78,120,.22);outline-offset:3px}.grand-howto-panel{position:fixed;right:24px;bottom:88px;z-index:1044;width:min(720px,calc(100vw - 32px));height:min(650px,calc(100vh - 118px));background:#fff;border:1px solid #d7dee7;border-radius:16px;box-shadow:0 22px 55px rgba(15,23,42,.3);overflow:hidden;color:#1f2937}.grand-howto-header{height:68px;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,var(--gov-primary,#1f4e78),#173957);color:#fff}.grand-howto-header div{display:flex;flex-direction:column}.grand-howto-header small{opacity:.78;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em}.grand-howto-header strong{font-size:1.05rem}.grand-howto-close{border:0;background:transparent;color:#fff;font-size:1.8rem;line-height:1;padding:.2rem .45rem;border-radius:6px}.grand-howto-close:focus{outline:2px solid #fff}.grand-howto-layout{display:grid;grid-template-columns:220px 1fr;height:calc(100% - 68px)}.grand-howto-nav{padding:10px;background:#f4f7fa;border-right:1px solid #dfe5ec;overflow-y:auto}.grand-howto-guide-choice{display:block;width:100%;border:0;border-radius:9px;background:transparent;text-align:left;padding:10px 11px;margin-bottom:5px;color:#334155}.grand-howto-guide-choice span,.grand-howto-guide-choice small{display:block}.grand-howto-guide-choice span{font-weight:600;font-size:.86rem}.grand-howto-guide-choice small{color:#64748b;margin-top:2px}.grand-howto-guide-choice:hover,.grand-howto-guide-choice:focus{background:#e7edf4;outline:0}.grand-howto-guide-choice.is-active{background:#fff;color:var(--gov-primary,#1f4e78);box-shadow:0 1px 4px rgba(15,23,42,.13)}.grand-howto-content{overflow-y:auto}.grand-howto-guide-heading{position:sticky;top:0;z-index:1;background:#fff;padding:18px 20px 13px;border-bottom:1px solid #e5e9ef}.grand-howto-guide-heading h2{font-size:1.12rem;margin:5px 0}.grand-howto-guide-heading p{font-size:.84rem;color:#64748b;margin:0 0 10px}.grand-howto-page-badge{display:inline-block;padding:2px 7px;border-radius:999px;background:#dff5e7;color:#176437;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}.grand-howto-progress-label{display:flex;justify-content:space-between;font-size:.7rem;color:#64748b}.grand-howto-progress{height:6px;margin-top:4px;background:#e5e7eb;border-radius:999px;overflow:hidden}.grand-howto-progress span{display:block;height:100%;background:#2f855a;transition:width .2s ease}.grand-howto-steps{list-style:none;margin:0;padding:14px 20px 25px}.grand-howto-steps>li{padding:14px 0;border-bottom:1px solid #edf0f3}.grand-howto-steps>li:last-child{border-bottom:0}.grand-howto-step-title{display:flex;align-items:center;gap:8px;margin-bottom:7px}.grand-howto-step-title>span{display:grid;place-items:center;flex:0 0 25px;height:25px;border-radius:50%;background:#e5edf5;color:var(--gov-primary,#1f4e78);font-size:.72rem;font-weight:700}.grand-howto-step-title strong{font-size:.9rem}.grand-howto-steps p{font-size:.82rem;line-height:1.55;color:#475569;margin:0 0 8px}.grand-howto-expected,.grand-howto-caution{font-size:.76rem;padding:7px 9px;border-radius:7px;margin-top:7px}.grand-howto-expected{background:#eef7ff;color:#28516f}.grand-howto-caution{background:#fff7df;color:#775b05}.grand-howto-step-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:9px}.grand-howto-completion-form{margin:0}.grand-howto-complete{border:0;background:transparent;color:#476075;font-size:.76rem;padding:4px}.grand-howto-complete[aria-pressed=true]{color:#247348}.grand-howto-action-link{font-size:.75rem;font-weight:600;color:var(--gov-primary,#1f4e78)}
+  @media(max-width:640px){.grand-howto-toggle{right:16px;bottom:16px}.grand-howto-panel{right:8px;bottom:78px;width:calc(100vw - 16px);height:calc(100vh - 94px);border-radius:13px}.grand-howto-layout{grid-template-columns:1fr;grid-template-rows:auto 1fr}.grand-howto-nav{display:flex;gap:6px;border-right:0;border-bottom:1px solid #dfe5ec;overflow-x:auto;padding:8px}.grand-howto-guide-choice{flex:0 0 185px;margin:0}.grand-howto-content{min-height:0}}
+  @media(prefers-reduced-motion:reduce){.grand-howto-toggle,.grand-howto-progress span{transition:none}}
+</style>
+
+<script>
+(function(){
+  const root=document.getElementById('grand-internal-howtos'); if(!root) return;
+  const toggle=document.getElementById('grand-howto-toggle'),panel=document.getElementById('grand-howto-panel'),close=document.getElementById('grand-howto-close');
+  const key=root.dataset.storageKey;
+  function setOpen(open,remember=true){panel.hidden=!open;toggle.setAttribute('aria-expanded',String(open));if(remember){try{localStorage.setItem(key+':open',open?'1':'0')}catch(e){}}if(open) close.focus()}
+  function selectGuide(id){root.querySelectorAll('.grand-howto-guide-choice').forEach(el=>el.classList.toggle('is-active',el.dataset.guideId===id));root.querySelectorAll('.grand-howto-guide').forEach(el=>{const active=el.dataset.guideId===id;el.classList.toggle('is-active',active);el.hidden=!active});try{localStorage.setItem(key+':guide',id)}catch(e){}}
+  toggle.addEventListener('click',()=>setOpen(panel.hidden));close.addEventListener('click',()=>{setOpen(false);toggle.focus()});
+  root.querySelectorAll('.grand-howto-guide-choice').forEach(el=>el.addEventListener('click',()=>selectGuide(el.dataset.guideId)));
+  root.querySelectorAll('.grand-howto-completion-form').forEach(form=>form.addEventListener('submit',async event=>{event.preventDefault();const button=form.querySelector('button'),input=form.querySelector('input[name=completed]');button.disabled=true;try{const response=await fetch(form.action,{method:'POST',body:new FormData(form),headers:{'X-Requested-With':'XMLHttpRequest'}});if(!response.ok) throw new Error('Unable to save tutorial progress.');const data=await response.json(),item=form.closest('[data-step-id]');item.dataset.completed=String(data.completed);input.value=data.completed?'false':'true';button.setAttribute('aria-pressed',String(data.completed));button.querySelector('i').className='fas '+(data.completed?'fa-check-circle':'fa-circle');button.querySelector('span').textContent=data.completed?'Completed':'Mark complete';const guide=form.closest('.grand-howto-guide'),steps=[...guide.querySelectorAll('[data-step-id]')],done=steps.filter(step=>step.dataset.completed==='true').length;guide.querySelector('[data-progress-count]').textContent=done+'/'+steps.length;const percent=steps.length?Math.round(100*done/steps.length):0,bar=guide.querySelector('[role=progressbar]');bar.setAttribute('aria-valuenow',String(percent));guide.querySelector('[data-progress-bar]').style.width=percent+'%';const nav=root.querySelector('.grand-howto-guide-choice[data-guide-id="'+guide.dataset.guideId+'"] small');if(nav){const prefix=nav.textContent.includes('On this page')?'On this page · ':'';nav.textContent=prefix+done+'/'+steps.length}}catch(error){window.alert(error.message)}finally{button.disabled=false}}));
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!panel.hidden){setOpen(false);toggle.focus()}});
+  try{const selected=localStorage.getItem(key+':guide');if(selected&&root.querySelector('.grand-howto-guide[data-guide-id="'+selected+'"]'))selectGuide(selected);if(localStorage.getItem(key+':open')==='1')setOpen(true,false)}catch(e){}
+})();
+</script>
+{% endif %}

@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from vouchers.roles import FINANCE_ROLE_PERMISSIONS, FINANCE_UAT_VIEWER_GROUP
+from departments.services.internal_howto_seed import seed_finance_internal_howtos
 
 
 class Command(BaseCommand):
@@ -68,4 +69,10 @@ class Command(BaseCommand):
                     f"{profile.assigned_department.name}"
                 )
             )
+
+        guide_counts = seed_finance_internal_howtos()
+        self.stdout.write(
+            f"Internal How-Tos: {guide_counts['guides_created']} created; "
+            f"{guide_counts['guides_preserved']} published guide(s) preserved."
+        )
 
