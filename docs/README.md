@@ -6,6 +6,7 @@ Use this page as the entry point for project and operator documentation.
 
 - [Project overview and local setup](../README.md) describes the product, application boundaries, development commands, and verification gates.
 - [Reporting operations](REPORTING.md) explains approved datasets, familiar-template onboarding, generation, scheduling, permissions, and audit behavior.
+- [Portable GRAND export archive](EXPORT_ARCHIVE.md) defines the one-root department/user/category layout, atomic artifacts, checksum manifests, and TraceSync operating boundary.
 - [Department report-template intake](REPORT_TEMPLATE_INTAKE.md) provides the artifact checklist, compatibility decision, pilot comparison, and print/download rules used before official validation.
 - [Department records operations](RECORDS.md) explains source-in-place filing, permissions, approval, retention, legal holds, controlled downloads, and disposition.
 - [TracePoint physical custody](TRACEPOINT.md) defines packet identity, daily employee credentials, confirmed handoffs, delivery/completion semantics, security boundaries, and the `0.6.x` delivery train.
@@ -17,6 +18,7 @@ Use this page as the entry point for project and operator documentation.
 - [Initial COA/DBM official-source register](finance-discovery/OFFICIAL_SOURCE_REGISTER.md) maps public budget, accounting, documentary, form, and internal-control references to roadmap slices while keeping applicability questions explicit.
 - [Complete-cycle Finance information architecture](finance-ia/README.md) defines the F1.1 role, workspace, case/timeline/search, status, responsive, and clickable synthetic-prototype contract.
 - [Finance fiscal-year and classification foundation](FINANCE_FISCAL_FOUNDATION.md) documents the F2.1 typed year, calendar, effective-dated classifications, readiness layers, setup-release adoption, and synthetic acceptance procedure.
+- [Finance opening balances and control-total intake](FINANCE_OPENING_BALANCES.md) documents the F2.2 staged import, reasoned correction, independent approval, opening-JEV posting, reconciliation, and controlled export workflow.
 - [Finance process fidelity baseline](FINANCE_PROCESS_FIDELITY_BASELINE.md) maps the full annual-budget-to-close cycle to current GRAND coverage, evidence still required, and the complete-cycle and voucher-subcycle divergences.
 - [Product roadmap](ROADMAP.md) records completed platform phases and points to the canonical long-term Finance delivery train.
 - [Security maintenance](../SECURITY.md) covers dependency auditing, CI checks, Dependabot, and bundled browser assets.

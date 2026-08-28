@@ -4,6 +4,19 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance opening balances and control totals
+
+- Added F2.2 checksum-backed opening CSV staging with governed fund/account/center mapping, row and declared controls, exact batch and per-fund balancing, and explicit zero-balance declarations.
+- Added reason-required row/control corrections, independent approval and pre-posting return, immutable per-fund opening JEV lineage, and a separate zero-difference reconciliation gate for fiscal readiness.
+- Added department-scoped opening workspaces, guided actions, controlled CSV exports, dedicated Finance roles, synthetic regression coverage, and an operating/acceptance guide.
+- Defined reusable Finance exports as scoped evidence/data interchange carrying stable lineage and context, without representing them as automatically approved official forms.
+
+### Portable export archive
+
+- Added one configurable `GRAND_EXPORT_ROOT` with normalized department/user/category/year/month folders suitable for whole-tree synchronization by TraceSync or another ordinary folder-copy tool.
+- Added atomic, collision-resistant artifact retention and adjacent JSON manifests carrying SHA-256, size, export time, exporting identity, department, and source lineage.
+- Connected controlled Finance opening CSV exports and generated report downloads to the archive while preserving their browser download and existing authorization boundaries.
+
 ### Finance fiscal-year and classification foundation
 
 - Added the F2.1 typed fiscal year and business-date lifecycle in the isolated Finance store, with maker-checker approval, state versions, and append-only evidence.

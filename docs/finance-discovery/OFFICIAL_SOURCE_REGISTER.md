@@ -29,6 +29,8 @@ For every required form or report, create one controlled template record with:
 
 No PDF or spreadsheet from an official site becomes executable merely because it was downloaded. GRAND uses a reviewed native mapping or a macro-free, preflighted template version. Generated output remains non-official until its process-owner acceptance and the parent roadmap gate pass.
 
+The F2.2 generic CSV and its controlled export are staging/data-interchange formats, not prescribed COA schedules. They require a reviewed mapping to the LGU's accepted chart, subsidiary detail, fund treatment, and opening/conversion evidence before production use.
+
 ## Immediate extraction queue
 
 1. Extract the applicable 2023 BOM local budget forms and instructions into F3/F4 field, signatory, and control-total mappings.

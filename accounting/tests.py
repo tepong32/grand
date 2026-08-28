@@ -1,13 +1,18 @@
 from datetime import date
 from decimal import Decimal
+import json
+from pathlib import Path
+import tempfile
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.db import connections
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 
 from departments.models import Department
 from profiles.models import EmployeeProfile
@@ -18,12 +23,14 @@ from .access import can_post_journals, can_prepare_journals, can_view_accounting
 from .models import (
     AccountingAuditEvent, AccountingPeriod, FiscalYear, FiscalYearReadinessApproval,
     Fund, FundingSource, JournalEntry, JournalLine, LedgerAccount,
-    ProgramActivityProject, ResponsibilityCenter,
+    OpeningBalanceBatch, OpeningBalanceRow, ProgramActivityProject, ResponsibilityCenter,
 )
 from .services import (
     adopt_configuration_release, begin_foundation_amendment, create_reversal, decide_readiness_layer,
-    discard_draft, ensure_readiness_layers,
-    evaluate_fiscal_year_readiness, post_entry, submit_entry, transition_fiscal_year,
+    correct_opening_batch, correct_opening_row, decide_opening_batch, discard_draft, ensure_readiness_layers,
+    evaluate_fiscal_year_readiness, post_entry, post_opening_batch, reconcile_opening_batch,
+    stage_opening_csv, submit_entry, submit_opening_batch, transition_fiscal_year,
+    validate_opening_batch,
 )
 
 
@@ -40,9 +47,18 @@ class StandaloneAccountingTests(TestCase):
         cls.viewer = cls._employee("ledger.viewer", cls.accounting_department)
         cls.outsider = cls._employee("other.viewer", cls.other_department)
         cls.superuser = cls._employee("platform.admin", cls.accounting_department, is_superuser=True, is_staff=True)
-        cls._grant(cls.preparer, "view_accounting_workspace", "prepare_journal_entries", "manage_accounting_setup")
-        cls._grant(cls.poster, "view_accounting_workspace", "post_journal_entries", "view_general_ledger")
-        cls._grant(cls.setup_approver, "view_accounting_workspace", "approve_fiscal_readiness")
+        cls._grant(
+            cls.preparer, "view_accounting_workspace", "prepare_journal_entries",
+            "manage_accounting_setup", "prepare_opening_balances",
+        )
+        cls._grant(
+            cls.poster, "view_accounting_workspace", "post_journal_entries",
+            "post_opening_balances", "view_general_ledger",
+        )
+        cls._grant(
+            cls.setup_approver, "view_accounting_workspace", "approve_fiscal_readiness",
+            "approve_opening_balances",
+        )
         cls._grant(cls.viewer, "view_accounting_workspace")
         cls._grant(cls.outsider, "view_accounting_workspace")
 
@@ -139,6 +155,48 @@ class StandaloneAccountingTests(TestCase):
         )
         return fiscal_year
 
+    def _zero_opening(self, fiscal_year, *, source_reference="SYN-ZERO-OPENING", status=OpeningBalanceBatch.RECONCILED):
+        return OpeningBalanceBatch.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            fiscal_year=fiscal_year,
+            period=self.period,
+            title="Synthetic explicit zero opening",
+            source_reference=source_reference,
+            expected_row_count=0,
+            expected_debit=Decimal("0.00"),
+            expected_credit=Decimal("0.00"),
+            is_zero_balance_declaration=True,
+            status=status,
+            validation_summary={"valid": True, "row_count": 0, "debit": "0.00", "credit": "0.00"},
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+
+    def _opening_file(self, *, invalid_account=False):
+        account_code = "BAD-ACCOUNT" if invalid_account else self.revenue.code
+        content = (
+            "fund_code,account_code,responsibility_center_code,debit,credit,subsidiary_reference,memo\n"
+            f"{self.fund.code},{self.cash.code},{self.center.code},100.00,,SYN-CASH,Opening cash\n"
+            f"{self.fund.code},{account_code},{self.center.code},,100.00,SYN-EQUITY,Opening offset\n"
+        )
+        return SimpleUploadedFile("synthetic-opening.csv", content.encode("utf-8"), content_type="text/csv")
+
+    def _opening_batch(self, fiscal_year, *, source_reference="SYN-OPEN-001"):
+        return OpeningBalanceBatch.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            fiscal_year=fiscal_year,
+            period=self.period,
+            title="Synthetic controlled opening schedule",
+            source_reference=source_reference,
+            expected_row_count=2,
+            expected_debit=Decimal("100.00"),
+            expected_credit=Decimal("100.00"),
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+
     def test_typed_fiscal_year_requires_independent_layered_readiness_before_activation(self):
         fiscal_year = self._fiscal_foundation()
         self._grant(self.preparer, "approve_fiscal_readiness")
@@ -146,6 +204,7 @@ class StandaloneAccountingTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "different"):
             transition_fiscal_year(fiscal_year, "approve", self.preparer)
         transition_fiscal_year(fiscal_year, "approve", self.setup_approver)
+        self._zero_opening(fiscal_year)
         fiscal_year.refresh_from_db()
         with self.assertRaisesMessage(ValidationError, "five readiness layers"):
             transition_fiscal_year(fiscal_year, "activate", self.setup_approver)
@@ -448,6 +507,183 @@ class StandaloneAccountingTests(TestCase):
         program = fiscal_year.program_classifications.get(code="SYN-MFO-01")
         with self.assertRaisesMessage(ValidationError, "modification window is closed"):
             begin_foundation_amendment(program, self.preparer, "Attempted change after check issue")
+
+    def test_opening_csv_rejects_bad_rows_and_guided_correction_revalidates_with_zero_difference(self):
+        fiscal_year = self._fiscal_foundation()
+        batch = self._opening_batch(fiscal_year)
+        staged = stage_opening_csv(batch, self.preparer, self._opening_file(invalid_account=True))
+        self.assertEqual(staged.status, OpeningBalanceBatch.DRAFT)
+        self.assertEqual(staged.validation_summary["error_row_count"], 1)
+        rejected = staged.rows.get(validation_status=OpeningBalanceRow.ERROR)
+        self.assertIn("BAD-ACCOUNT", rejected.validation_errors[0])
+
+        correct_opening_row(
+            rejected,
+            self.preparer,
+            values={
+                "raw_fund_code": self.fund.code,
+                "raw_account_code": self.revenue.code,
+                "raw_responsibility_center_code": self.center.code,
+                "raw_debit": "",
+                "raw_credit": "100.00",
+                "subsidiary_reference": "SYN-EQUITY",
+                "memo": "Corrected opening offset",
+            },
+            reason="Correct the synthetic account code against the reviewed opening schedule.",
+        )
+        validated = validate_opening_batch(batch, self.preparer)
+        self.assertEqual(validated.status, OpeningBalanceBatch.VALIDATED)
+        self.assertEqual(validated.validation_summary["debit"], "100.00")
+        self.assertEqual(validated.validation_summary["credit"], "100.00")
+        self.assertEqual(validated.rows.filter(validation_status=OpeningBalanceRow.VALID).count(), 2)
+        self.assertTrue(validated.events.filter(action="row_corrected").exists())
+
+    def test_opening_batch_requires_independent_approval_then_posts_and_reconciles_generated_jevs(self):
+        fiscal_year = self._fiscal_foundation()
+        fiscal_year.status = FiscalYear.APPROVED
+        fiscal_year.save(update_fields=("status",))
+        batch = self._opening_batch(fiscal_year, source_reference="SYN-OPEN-POST")
+        stage_opening_csv(batch, self.preparer, self._opening_file())
+        submitted = submit_opening_batch(batch, self.preparer)
+        self._grant(self.preparer, "approve_opening_balances")
+        with self.assertRaisesMessage(ValidationError, "different"):
+            decide_opening_batch(
+                submitted,
+                self.preparer,
+                decision=OpeningBalanceBatch.APPROVED,
+                evidence_note="Synthetic self-approval attempt.",
+            )
+        approved = decide_opening_batch(
+            submitted,
+            self.setup_approver,
+            decision=OpeningBalanceBatch.APPROVED,
+            evidence_note="Reviewed synthetic schedule and matching control totals.",
+        )
+        posted = post_opening_batch(approved, self.poster)
+        self.assertEqual(posted.status, OpeningBalanceBatch.POSTED)
+        self.assertEqual(posted.postings.count(), 1)
+        entry = posted.postings.get().entry
+        self.assertEqual(entry.status, JournalEntry.POSTED)
+        self.assertEqual(entry.source_type, "opening")
+        self.assertEqual(entry.totals, (Decimal("100.00"), Decimal("100.00")))
+
+        reconciled, summary = reconcile_opening_batch(posted, self.poster)
+        self.assertTrue(summary["reconciled"])
+        self.assertEqual(reconciled.status, OpeningBalanceBatch.RECONCILED)
+        ensure_readiness_layers(fiscal_year)
+        accounting_check = next(
+            result for result in evaluate_fiscal_year_readiness(fiscal_year)["layers"]
+            if result["record"].layer == FiscalYearReadinessApproval.ACCOUNTING
+        )
+        self.assertTrue(accounting_check["checks_passed"])
+        self.assertTrue(reconciled.events.filter(action="reconciled").exists())
+
+    def test_declared_opening_controls_can_be_corrected_with_reason_before_submission(self):
+        fiscal_year = self._fiscal_foundation()
+        batch = self._opening_batch(fiscal_year, source_reference="SYN-OPEN-CONTROL-FIX")
+        corrected = correct_opening_batch(
+            batch,
+            self.preparer,
+            values={
+                "fiscal_year": fiscal_year,
+                "period": self.period,
+                "title": "Synthetic corrected opening schedule",
+                "source_reference": "SYN-OPEN-CONTROL-FIX-V2",
+                "expected_row_count": 2,
+                "expected_debit": Decimal("100.00"),
+                "expected_credit": Decimal("100.00"),
+                "is_zero_balance_declaration": False,
+            },
+            reason="Correct the declared source reference and totals before independent review.",
+        )
+        self.assertEqual(corrected.source_reference, "SYN-OPEN-CONTROL-FIX-V2")
+        self.assertEqual(corrected.state_version, 2)
+        event = corrected.events.get(action="controls_corrected")
+        self.assertEqual(event.snapshot["before"]["source_reference"], "SYN-OPEN-CONTROL-FIX")
+        self.assertEqual(event.snapshot["after"]["source_reference"], "SYN-OPEN-CONTROL-FIX-V2")
+
+    def test_approved_opening_batch_can_be_returned_for_correction_before_posting(self):
+        fiscal_year = self._fiscal_foundation()
+        batch = self._opening_batch(fiscal_year, source_reference="SYN-OPEN-RETURN")
+        stage_opening_csv(batch, self.preparer, self._opening_file())
+        submitted = submit_opening_batch(batch, self.preparer)
+        approved = decide_opening_batch(
+            submitted,
+            self.setup_approver,
+            decision=OpeningBalanceBatch.APPROVED,
+            evidence_note="Synthetic pre-posting approval.",
+        )
+        returned = decide_opening_batch(
+            approved,
+            self.setup_approver,
+            decision=OpeningBalanceBatch.RETURNED,
+            evidence_note="Return the approved schedule after detecting a source-reference correction before posting.",
+        )
+        self.assertEqual(returned.status, OpeningBalanceBatch.RETURNED)
+        self.assertIsNone(returned.approved_by_id)
+        self.assertTrue(returned.events.filter(action="returned").exists())
+        with self.assertRaisesMessage(ValidationError, "independently approved"):
+            post_opening_batch(returned, self.poster)
+
+    def test_explicit_zero_opening_follows_approval_posting_and_reconciliation_without_fake_rows(self):
+        fiscal_year = self._fiscal_foundation()
+        fiscal_year.status = FiscalYear.APPROVED
+        fiscal_year.save(update_fields=("status",))
+        batch = self._zero_opening(
+            fiscal_year,
+            source_reference="SYN-ZERO-WORKFLOW",
+            status=OpeningBalanceBatch.DRAFT,
+        )
+        validated = validate_opening_batch(batch, self.preparer)
+        submitted = submit_opening_batch(validated, self.preparer)
+        approved = decide_opening_batch(
+            submitted,
+            self.setup_approver,
+            decision=OpeningBalanceBatch.APPROVED,
+            evidence_note="Confirmed the synthetic year has no brought-forward balances.",
+        )
+        posted = post_opening_batch(approved, self.poster)
+        self.assertFalse(posted.postings.exists())
+        reconciled, summary = reconcile_opening_batch(posted, self.poster)
+        self.assertEqual(reconciled.status, OpeningBalanceBatch.RECONCILED)
+        self.assertEqual(summary["posted_row_count"], 0)
+        self.assertEqual(summary["debit_difference"], "0.00")
+
+    def test_opening_workspace_is_guided_and_department_scoped(self):
+        fiscal_year = self._fiscal_foundation()
+        batch = self._opening_batch(fiscal_year, source_reference="SYN-OPEN-UI")
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("accounting:opening_workspace"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Opening balances and control totals")
+        self.assertContains(response, "SYN-OPEN-UI")
+        response = self.client.get(reverse("accounting:opening_detail", args=(batch.public_id,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Declared and staged controls")
+        self.assertContains(response, "Export controlled CSV")
+        stage_opening_csv(batch, self.preparer, self._opening_file())
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            response = self.client.get(reverse("accounting:opening_export", args=(batch.public_id,)))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+            self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+            exported = response.content.decode("utf-8")
+            self.assertIn("opening_balance_row", exported)
+            self.assertIn("SYN-OPEN-UI", exported)
+            self.assertIn(self.cash.code, exported)
+            artifacts = list(Path(export_root).rglob("*.csv"))
+            self.assertEqual(len(artifacts), 1)
+            self.assertIn(self.accounting_department.slug, artifacts[0].parts)
+            self.assertIn(slugify(self.preparer.username), artifacts[0].parts)
+            manifest = json.loads(Path(str(artifacts[0]) + ".manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["sha256"], response["X-GRAND-Export-SHA256"])
+            self.assertEqual(manifest["metadata"]["batch_public_id"], str(batch.public_id))
+            self.assertTrue(batch.events.filter(action="exported", actor_id=self.preparer.pk).exists())
+        self.client.force_login(self.outsider)
+        response = self.client.get(reverse("accounting:opening_workspace"))
+        self.assertNotContains(response, "SYN-OPEN-UI")
+        response = self.client.get(reverse("accounting:opening_export", args=(batch.public_id,)))
+        self.assertEqual(response.status_code, 404)
 
     def test_accounting_models_are_routed_only_to_finance_database(self):
         self.assertEqual(JournalEntry.objects.db, "finance")

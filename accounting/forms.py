@@ -2,7 +2,8 @@ from django import forms
 
 from .models import (
     AccountingPeriod, FiscalYear, Fund, FundingSource, JournalEntry, JournalLine,
-    LedgerAccount, PostingMapping, ProgramActivityProject, ResponsibilityCenter,
+    LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow, PostingMapping,
+    ProgramActivityProject, ResponsibilityCenter,
 )
 
 
@@ -132,6 +133,83 @@ class PostingMappingForm(StyledModelForm):
         self.fields["account"].queryset = LedgerAccount.objects.filter(
             department_id=department.pk, is_active=True, allow_posting=True,
         )
+
+
+class OpeningBalanceBatchForm(StyledModelForm):
+    class Meta:
+        model = OpeningBalanceBatch
+        fields = (
+            "fiscal_year", "period", "title", "source_reference", "expected_row_count",
+            "expected_debit", "expected_credit", "is_zero_balance_declaration",
+        )
+        widgets = {
+            "expected_debit": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
+            "expected_credit": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
+        }
+
+    def __init__(self, *args, department, **kwargs):
+        super().__init__(*args, department=department, **kwargs)
+        self.fields["fiscal_year"].queryset = FiscalYear.objects.filter(
+            department_id=department.pk,
+            status__in=(FiscalYear.DRAFT, FiscalYear.FOR_REVIEW, FiscalYear.APPROVED, FiscalYear.ACTIVE),
+        )
+        self.fields["period"].queryset = AccountingPeriod.objects.filter(
+            department_id=department.pk, status=AccountingPeriod.OPEN, fiscal_year_record__isnull=False,
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        fiscal_year = cleaned.get("fiscal_year")
+        period = cleaned.get("period")
+        if fiscal_year and period and period.fiscal_year_record_id != fiscal_year.pk:
+            self.add_error("period", "Choose an open period from the selected fiscal year.")
+        return cleaned
+
+
+class OpeningBalanceBatchCorrectionForm(OpeningBalanceBatchForm):
+    change_reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Cite the corrected source schedule, review instruction, or authority for changing the declared controls.",
+    )
+
+
+class OpeningBalanceImportForm(forms.Form):
+    source_file = forms.FileField(
+        help_text=(
+            "UTF-8 CSV columns: fund_code, account_code, responsibility_center_code, debit, credit, "
+            "subsidiary_reference, memo. The last three descriptive columns are optional."
+        ),
+        widget=forms.ClearableFileInput(attrs={"accept": ".csv,text/csv", "class": "form-control-file"}),
+    )
+
+
+class OpeningBalanceRowCorrectionForm(forms.Form):
+    raw_fund_code = forms.CharField(max_length=80, label="Fund code")
+    raw_account_code = forms.CharField(max_length=80, label="Account code")
+    raw_responsibility_center_code = forms.CharField(max_length=80, required=False, label="Responsibility-center code")
+    raw_debit = forms.CharField(max_length=80, required=False, label="Debit")
+    raw_credit = forms.CharField(max_length=80, required=False, label="Credit")
+    subsidiary_reference = forms.CharField(max_length=160, required=False)
+    memo = forms.CharField(max_length=255, required=False)
+    change_reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Cite the corrected source schedule, authorized adjustment, or review instruction.",
+    )
+
+    def __init__(self, *args, row: OpeningBalanceRow | None = None, **kwargs):
+        if row is not None and "initial" not in kwargs:
+            kwargs["initial"] = {
+                "raw_fund_code": row.raw_fund_code,
+                "raw_account_code": row.raw_account_code,
+                "raw_responsibility_center_code": row.raw_responsibility_center_code,
+                "raw_debit": row.raw_debit,
+                "raw_credit": row.raw_credit,
+                "subsidiary_reference": row.subsidiary_reference,
+                "memo": row.memo,
+            }
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
 
 
 class JournalEntryForm(StyledModelForm):

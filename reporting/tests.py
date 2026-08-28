@@ -1,5 +1,6 @@
 import hashlib
 import io
+import json
 import tempfile
 from datetime import timedelta
 from pathlib import Path
@@ -323,7 +324,18 @@ class ReportingPlatformTests(TestCase):
     def test_download_requires_separate_permission(self):
         run = self._generate("csv")
         self.client.force_login(self.operator)
-        self.assertEqual(self.client.get(reverse("reporting:run_download", args=(run.public_id,))).status_code, 200)
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            response = self.client.get(reverse("reporting:run_download", args=(run.public_id,)))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+            artifacts = list(Path(export_root).rglob("*.csv"))
+            self.assertEqual(len(artifacts), 1)
+            self.assertIn(self.mswd.slug, artifacts[0].parts)
+            self.assertIn(self.operator.username, artifacts[0].parts)
+            manifest = json.loads(Path(str(artifacts[0]) + ".manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["metadata"]["run_public_id"], str(run.public_id))
+            self.assertEqual(manifest["sha256"], response["X-GRAND-Export-SHA256"])
+            self.assertTrue(run.events.filter(action="exported", actor=self.operator).exists())
         self.operator.user_permissions.remove(Permission.objects.get(codename="download_reports"))
         self.operator = get_user_model().objects.get(pk=self.operator.pk)
         self.client.force_login(self.operator)

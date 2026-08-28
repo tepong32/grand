@@ -1,29 +1,40 @@
+import csv
 from decimal import Decimal
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Count, Max, Q, Sum
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.text import slugify
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
+from src.export_archive import archive_export
+
 from .access import (
-    accounting_access_required, accounting_permission_required, can_approve_fiscal_readiness, can_govern_setup, can_manage_setup,
-    can_post_journals, can_prepare_journals, can_view_ledger, department_for_user,
+    accounting_access_required, accounting_permission_required, can_approve_fiscal_readiness,
+    can_approve_opening_balances, can_govern_setup, can_manage_setup, can_post_journals,
+    can_post_opening_balances, can_prepare_journals, can_prepare_opening_balances,
+    can_view_ledger, department_for_user,
 )
 from .forms import (
     AccountingPeriodForm, FiscalYearForm, FundForm, FundingSourceForm, JournalEntryForm, JournalLineForm,
-    LedgerAccountForm, PostingMappingForm, ProgramActivityProjectForm, ResponsibilityCenterForm, ReversalForm,
+    LedgerAccountForm, OpeningBalanceBatchCorrectionForm, OpeningBalanceBatchForm, OpeningBalanceImportForm,
+    OpeningBalanceRowCorrectionForm, PostingMappingForm, ProgramActivityProjectForm,
+    ResponsibilityCenterForm, ReversalForm,
 )
 from .models import (
     AccountingPeriod, FiscalYear, FiscalYearReadinessApproval, Fund, FundingSource, JournalEntry,
-    JournalLine, LedgerAccount, PostingMapping, ProgramActivityProject, ResponsibilityCenter,
+    JournalLine, LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow, PostingMapping,
+    ProgramActivityProject, ResponsibilityCenter,
 )
 from .services import (
     adopt_configuration_release, begin_foundation_amendment, close_period, create_reversal,
-    decide_readiness_layer, discard_draft, ensure_readiness_layers, evaluate_fiscal_year_readiness,
-    finalize_foundation_amendment, post_entry, return_entry, submit_entry, transition_fiscal_year,
+    correct_opening_batch, correct_opening_row, decide_opening_batch, decide_readiness_layer, discard_draft,
+    ensure_readiness_layers, evaluate_fiscal_year_readiness, finalize_foundation_amendment,
+    post_entry, post_opening_batch, reconcile_opening_batch, record_opening_event, return_entry, stage_opening_csv,
+    submit_entry, submit_opening_batch, transition_fiscal_year, validate_opening_batch,
 )
 
 
@@ -89,6 +100,9 @@ def workspace(request):
         "status_choices": JournalEntry.STATUS_CHOICES, "selected_status": selected_status, "query": query,
         "can_manage_setup": can_manage_setup(request.user), "can_prepare": can_prepare_journals(request.user),
         "can_post": can_post_journals(request.user), "can_view_ledger": can_view_ledger(request.user),
+        "can_prepare_opening": can_prepare_opening_balances(request.user),
+        "can_approve_opening": can_approve_opening_balances(request.user),
+        "can_post_opening": can_post_opening_balances(request.user),
         "source_requests": source_requests,
     })
 
@@ -279,6 +293,316 @@ def period_close(request, pk):
     else:
         messages.success(request, "Accounting period closed. New postings to it are blocked.")
     return redirect("accounting:setup")
+
+
+@require_GET
+@accounting_access_required
+def opening_workspace(request):
+    department = department_for_user(request.user)
+    batches = OpeningBalanceBatch.objects.filter(department_id=department.pk).select_related(
+        "fiscal_year", "period",
+    )
+    metrics = batches.aggregate(
+        staging=Count("pk", filter=Q(status__in=(OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED))),
+        review=Count("pk", filter=Q(status__in=(OpeningBalanceBatch.VALIDATED, OpeningBalanceBatch.FOR_REVIEW))),
+        approved=Count("pk", filter=Q(status__in=(OpeningBalanceBatch.APPROVED, OpeningBalanceBatch.POSTED))),
+        reconciled=Count("pk", filter=Q(status=OpeningBalanceBatch.RECONCILED)),
+    )
+    return render(request, "accounting/opening_workspace.html", {
+        "batches": batches,
+        "metrics": metrics,
+        "can_prepare_opening": can_prepare_opening_balances(request.user),
+        "can_approve_opening": can_approve_opening_balances(request.user),
+        "can_post_opening": can_post_opening_balances(request.user),
+    })
+
+
+@require_http_methods(["GET", "POST"])
+@accounting_permission_required(can_prepare_opening_balances)
+def opening_create(request):
+    department = department_for_user(request.user)
+    form = OpeningBalanceBatchForm(request.POST or None, department=department)
+    if request.method == "POST" and form.is_valid():
+        batch = form.save(commit=False)
+        batch.department_id = department.pk
+        batch.department_label = department.name
+        batch.created_by_id = request.user.pk
+        batch.created_by_label = request.user.get_full_name() or request.user.username
+        try:
+            batch.full_clean()
+            batch.save()
+        except ValidationError as exc:
+            form.add_error(None, " ".join(exc.messages))
+        else:
+            messages.success(request, "Opening-balance staging batch created. Stage the CSV or validate the zero-balance declaration.")
+            return redirect("accounting:opening_detail", public_id=batch.public_id)
+    return render(request, "accounting/form.html", {
+        "form": form,
+        "title": "Create opening-balance staging batch",
+        "cancel_url": "accounting:opening_workspace",
+    })
+
+
+@require_http_methods(["GET", "POST"])
+@accounting_permission_required(can_prepare_opening_balances)
+def opening_edit(request, public_id):
+    department = department_for_user(request.user)
+    batch = get_object_or_404(OpeningBalanceBatch, public_id=public_id, department_id=department.pk)
+    if batch.status not in (OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED):
+        messages.error(request, "Only a draft or returned opening batch can be corrected.")
+        return redirect("accounting:opening_detail", public_id=public_id)
+    form = OpeningBalanceBatchCorrectionForm(request.POST or None, instance=batch, department=department)
+    if request.method == "POST" and form.is_valid():
+        try:
+            correct_opening_batch(
+                batch,
+                request.user,
+                values=form.cleaned_data,
+                reason=form.cleaned_data["change_reason"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, " ".join(exc.messages))
+        else:
+            messages.success(request, "Declared opening controls corrected with before/after evidence. Validate again.")
+            return redirect("accounting:opening_detail", public_id=public_id)
+    return render(request, "accounting/form.html", {
+        "form": form,
+        "title": "Correct declared opening controls",
+        "cancel_url": "accounting:opening_detail",
+        "cancel_public_id": batch.public_id,
+    })
+
+
+@require_GET
+@accounting_access_required
+def opening_detail(request, public_id):
+    department = department_for_user(request.user)
+    batch = get_object_or_404(
+        OpeningBalanceBatch.objects.select_related("fiscal_year", "period"),
+        public_id=public_id,
+        department_id=department.pk,
+    )
+    return render(request, "accounting/opening_detail.html", {
+        "batch": batch,
+        "rows": batch.rows.select_related("fund", "account", "responsibility_center")[:500],
+        "row_count": batch.rows.count(),
+        "postings": batch.postings.select_related("fund", "entry"),
+        "events": batch.events.all()[:50],
+        "import_form": OpeningBalanceImportForm(),
+        "can_prepare_opening": can_prepare_opening_balances(request.user),
+        "can_approve_opening": can_approve_opening_balances(request.user),
+        "can_post_opening": can_post_opening_balances(request.user),
+    })
+
+
+def _csv_text(value):
+    value = str(value or "")
+    if value.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return "'" + value
+    return value
+
+
+@require_GET
+@accounting_access_required
+def opening_export(request, public_id):
+    department = department_for_user(request.user)
+    batch = get_object_or_404(
+        OpeningBalanceBatch.objects.select_related("fiscal_year", "period"),
+        public_id=public_id,
+        department_id=department.pk,
+    )
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    filename_reference = slugify(batch.source_reference)[:80] or str(batch.public_id)
+    response["Content-Disposition"] = f'attachment; filename="opening-{filename_reference}.csv"'
+    response["X-Content-Type-Options"] = "nosniff"
+    writer = csv.writer(response)
+    writer.writerow((
+        "export_kind", "department", "fiscal_year", "period", "batch_reference", "batch_status",
+        "source_checksum", "declared_row_count", "declared_debit", "declared_credit", "row_number",
+        "fund_code", "account_code", "responsibility_center_code", "debit", "credit",
+        "subsidiary_reference", "memo", "validation_status", "validation_errors",
+    ))
+    rows = batch.rows.order_by("row_number", "pk")
+    if batch.is_zero_balance_declaration and not rows.exists():
+        writer.writerow((
+            "opening_zero_declaration", _csv_text(batch.department_label), batch.fiscal_year.year,
+            _csv_text(batch.period.label), _csv_text(batch.source_reference), batch.status,
+            batch.source_checksum, batch.expected_row_count,
+            batch.expected_debit, batch.expected_credit, "", "", "", "", "0.00", "0.00", "", "",
+            "valid" if batch.validation_summary.get("valid") else "pending", "",
+        ))
+    else:
+        for row in rows:
+            writer.writerow((
+                "opening_balance_row", _csv_text(batch.department_label), batch.fiscal_year.year,
+                _csv_text(batch.period.label), _csv_text(batch.source_reference), batch.status,
+                batch.source_checksum, batch.expected_row_count, batch.expected_debit, batch.expected_credit,
+                row.row_number, _csv_text(row.raw_fund_code), _csv_text(row.raw_account_code),
+                _csv_text(row.raw_responsibility_center_code), row.debit, row.credit,
+                _csv_text(row.subsidiary_reference), _csv_text(row.memo), row.validation_status,
+                _csv_text(" | ".join(row.validation_errors)),
+            ))
+    archived = archive_export(
+        content=response.content,
+        department=department,
+        user=request.user,
+        category="finance-opening-balances",
+        filename=f"opening-{filename_reference}.csv",
+        metadata={
+            "kind": "opening_balance_control_export",
+            "batch_public_id": str(batch.public_id),
+            "source_reference": batch.source_reference,
+            "source_checksum": batch.source_checksum,
+            "fiscal_year": batch.fiscal_year.year,
+            "period": batch.period.label,
+            "status": batch.status,
+            "state_version": batch.state_version,
+            "official_status": "controlled data interchange; not automatically an official form",
+        },
+    )
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    record_opening_event(
+        batch,
+        "exported",
+        request.user,
+        snapshot={"relative_path": archived["relative_path"], "sha256": archived["sha256"]},
+    )
+    return response
+
+
+@require_POST
+@accounting_permission_required(can_prepare_opening_balances)
+def opening_stage(request, public_id):
+    department = department_for_user(request.user)
+    batch = get_object_or_404(OpeningBalanceBatch, public_id=public_id, department_id=department.pk)
+    form = OpeningBalanceImportForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, "Choose a UTF-8 CSV source file.")
+    else:
+        try:
+            staged = stage_opening_csv(batch, request.user, form.cleaned_data["source_file"])
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        else:
+            if staged.status == OpeningBalanceBatch.VALIDATED:
+                messages.success(request, "The source rows and declared control totals validate with zero difference.")
+            else:
+                messages.warning(request, "The CSV was staged, but row or control-total differences require correction.")
+    return redirect("accounting:opening_detail", public_id=batch.public_id)
+
+
+@require_POST
+@accounting_permission_required(can_prepare_opening_balances)
+def opening_validate(request, public_id):
+    department = department_for_user(request.user)
+    batch = get_object_or_404(OpeningBalanceBatch, public_id=public_id, department_id=department.pk)
+    try:
+        validated = validate_opening_batch(batch, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        if validated.status == OpeningBalanceBatch.VALIDATED:
+            messages.success(request, "All staged rows, fund balances, and declared control totals validate.")
+        else:
+            messages.warning(request, "Validation completed with differences. Correct the flagged rows or source controls.")
+    return redirect("accounting:opening_detail", public_id=batch.public_id)
+
+
+@require_http_methods(["GET", "POST"])
+@accounting_permission_required(can_prepare_opening_balances)
+def opening_row_edit(request, public_id, pk):
+    department = department_for_user(request.user)
+    row = get_object_or_404(
+        OpeningBalanceRow.objects.select_related("batch"),
+        pk=pk,
+        batch__public_id=public_id,
+        batch__department_id=department.pk,
+    )
+    form = OpeningBalanceRowCorrectionForm(request.POST or None, row=row)
+    if request.method == "POST" and form.is_valid():
+        try:
+            correct_opening_row(
+                row,
+                request.user,
+                values=form.cleaned_data,
+                reason=form.cleaned_data["change_reason"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, " ".join(exc.messages))
+        else:
+            messages.success(request, f"Staged row {row.row_number} corrected. Validate the batch again.")
+            return redirect("accounting:opening_detail", public_id=public_id)
+    return render(request, "accounting/form.html", {
+        "form": form,
+        "title": f"Correct staged opening row {row.row_number}",
+        "cancel_url": "accounting:opening_detail",
+        "cancel_public_id": row.batch.public_id,
+    })
+
+
+@require_POST
+@accounting_permission_required(can_prepare_opening_balances)
+def opening_submit(request, public_id):
+    department = department_for_user(request.user)
+    batch = get_object_or_404(OpeningBalanceBatch, public_id=public_id, department_id=department.pk)
+    try:
+        submit_opening_batch(batch, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, "Opening controls submitted for independent review.")
+    return redirect("accounting:opening_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_approve_opening_balances)
+def opening_decide(request, public_id, decision):
+    department = department_for_user(request.user)
+    batch = get_object_or_404(OpeningBalanceBatch, public_id=public_id, department_id=department.pk)
+    try:
+        decide_opening_batch(
+            batch,
+            request.user,
+            decision=decision,
+            evidence_note=request.POST.get("evidence_note", ""),
+        )
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, f"Opening batch {decision} with retained decision evidence.")
+    return redirect("accounting:opening_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_post_opening_balances)
+def opening_post(request, public_id):
+    department = department_for_user(request.user)
+    batch = get_object_or_404(OpeningBalanceBatch, public_id=public_id, department_id=department.pk)
+    try:
+        post_opening_batch(batch, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, "Opening JEVs posted. Run the separate reconciliation check to close the control gate.")
+    return redirect("accounting:opening_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_post_opening_balances)
+def opening_reconcile(request, public_id):
+    department = department_for_user(request.user)
+    batch = get_object_or_404(OpeningBalanceBatch, public_id=public_id, department_id=department.pk)
+    try:
+        _batch, summary = reconcile_opening_batch(batch, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        if summary["reconciled"]:
+            messages.success(request, "Opening balances reconcile to posted JEVs with zero unexplained difference.")
+        else:
+            messages.error(request, "Posted totals do not reconcile. The immutable failure evidence was retained for investigation.")
+    return redirect("accounting:opening_detail", public_id=public_id)
 
 
 @require_http_methods(["GET", "POST"])

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title_ext %} - Opening balances{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start mb-3">
+    <div><a href="{% url 'accounting:workspace' %}" class="small"><i class="fas fa-arrow-left mr-1"></i>Back to Accounting</a><p class="text-uppercase text-muted small font-weight-bold mb-1 mt-2">F2.2 governed opening</p><h1 class="mb-1">Opening balances and control totals</h1><p class="text-muted mb-0">Stage source schedules, correct rejected rows, obtain independent approval, post opening JEVs, and prove zero-difference reconciliation.</p></div>
+    {% if can_prepare_opening %}<a href="{% url 'accounting:opening_create' %}" class="btn btn-primary mt-3 mt-lg-0"><i class="fas fa-plus mr-1"></i>New opening batch</a>{% endif %}
+  </div>
+  <div class="alert alert-info"><strong>Controlled intake:</strong> CSV data remains staging evidence until every governed code, per-fund balance, declared row count, and debit/credit control total validates. This generic intake does not claim to replace an LGU- or COA-approved source schedule.</div>
+  <div class="row">
+    <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-secondary"><i class="fas fa-file-import"></i></span><div><span>Staging</span><strong>{{ metrics.staging }}</strong></div></div></div>
+    <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-warning"><i class="fas fa-user-check"></i></span><div><span>Review</span><strong>{{ metrics.review }}</strong></div></div></div>
+    <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-info"><i class="fas fa-book"></i></span><div><span>Approved/posted</span><strong>{{ metrics.approved }}</strong></div></div></div>
+    <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-success"><i class="fas fa-check-double"></i></span><div><span>Reconciled</span><strong>{{ metrics.reconciled }}</strong></div></div></div>
+  </div>
+  <div class="card card-outline card-primary"><div class="card-header"><h2 class="card-title font-weight-bold">Opening register</h2></div><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Fiscal year / source</th><th>Declared controls</th><th>Status</th><th>Prepared / updated</th></tr></thead><tbody>{% for batch in batches %}<tr><td><a class="font-weight-bold" href="{% url 'accounting:opening_detail' batch.public_id %}">{{ batch.source_reference }}</a><div class="small text-muted">{{ batch.fiscal_year }} · {{ batch.title }}</div></td><td>{{ batch.expected_row_count }} rows · {{ batch.expected_debit }} debit / {{ batch.expected_credit }} credit{% if batch.is_zero_balance_declaration %}<div class="badge badge-light">Explicit zero-balance declaration</div>{% endif %}</td><td><span class="badge {% if batch.status == 'reconciled' %}badge-success{% elif batch.status == 'returned' %}badge-danger{% elif batch.status == 'approved' or batch.status == 'posted' %}badge-info{% elif batch.status == 'for_review' or batch.status == 'validated' %}badge-warning{% else %}badge-secondary{% endif %}">{{ batch.get_status_display }}</span></td><td>{{ batch.created_by_label }}<div class="small text-muted">{{ batch.updated_at|date:"M j, Y g:i A" }}</div></td></tr>{% empty %}<tr><td colspan="4" class="text-center text-muted py-5">No opening-balance batch has been created for this department.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}

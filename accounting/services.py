@@ -1,17 +1,23 @@
 import hashlib
 import json
+import csv
+import io
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.forms.models import model_to_dict
 from django.utils import timezone
 
-from .access import can_approve_fiscal_readiness, can_manage_setup
+from .access import (
+    can_approve_fiscal_readiness, can_approve_opening_balances, can_manage_setup,
+    can_post_opening_balances, can_prepare_opening_balances,
+)
 from .models import (
     AccountingAuditEvent, AccountingPeriod, FiscalYear, FiscalYearReadinessApproval,
     Fund, FundingSource, JournalEntry, JournalLine, LedgerAccount,
+    OpeningBalanceBatch, OpeningBalanceEvent, OpeningBalancePosting, OpeningBalanceRow,
     ProgramActivityProject, ResponsibilityCenter,
 )
 
@@ -53,8 +59,9 @@ def evaluate_fiscal_year_readiness(fiscal_year):
             Fund.objects.filter(department_id=fiscal_year.department_id, is_active=True).exists()
             and LedgerAccount.objects.filter(
                 department_id=fiscal_year.department_id, is_active=True, allow_posting=True,
-            ).exists(),
-            "An active fund and posting account exist for Accounting.",
+            ).exists()
+            and fiscal_year.opening_balance_batches.filter(status=OpeningBalanceBatch.RECONCILED).exists(),
+            "An active fund/posting account and an approved, posted, zero-difference opening batch exist for Accounting.",
         ),
         FiscalYearReadinessApproval.TREASURY: (
             True,
@@ -488,6 +495,510 @@ def adopt_configuration_release(release, actor, *, change_reason=""):
     if amendment_context is not None:
         finalize_foundation_amendment(fiscal_year, actor, amendment_context)
     return fiscal_year, counts
+
+
+OPENING_COLUMNS = (
+    "fund_code", "account_code", "responsibility_center_code", "debit", "credit",
+    "subsidiary_reference", "memo",
+)
+OPENING_REQUIRED_COLUMNS = {"fund_code", "account_code", "debit", "credit"}
+OPENING_MAX_BYTES = 5 * 1024 * 1024
+
+
+def record_opening_event(batch, action, actor, *, reason="", snapshot=None):
+    return OpeningBalanceEvent.objects.create(
+        department_id=batch.department_id,
+        department_label=batch.department_label,
+        batch=batch,
+        action=action,
+        actor_id=actor.pk,
+        actor_label=actor_label(actor),
+        reason=reason.strip(),
+        snapshot=snapshot or {},
+    )
+
+
+def _opening_money(raw_value):
+    raw_value = str(raw_value or "").replace(",", "").strip()
+    if not raw_value:
+        return Decimal("0.00")
+    try:
+        value = Decimal(raw_value)
+    except InvalidOperation as exc:
+        raise ValidationError(f"'{raw_value}' is not a valid amount.") from exc
+    if not value.is_finite() or value < 0 or value.as_tuple().exponent < -2:
+        raise ValidationError(f"'{raw_value}' must be a non-negative amount with at most two decimal places.")
+    return value.quantize(Decimal("0.01"))
+
+
+@transaction.atomic(using=FINANCE_DB)
+def stage_opening_csv(batch, actor, uploaded_file):
+    if not can_prepare_opening_balances(actor):
+        raise ValidationError("You are not authorized to stage opening balances.")
+    locked = OpeningBalanceBatch.objects.select_for_update().get(pk=batch.pk)
+    if locked.status not in (OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED):
+        raise ValidationError("Return the opening batch to staging before replacing its source rows.")
+    if locked.is_zero_balance_declaration:
+        raise ValidationError("A zero-balance declaration does not accept a source row file.")
+    content = uploaded_file.read(OPENING_MAX_BYTES + 1)
+    if len(content) > OPENING_MAX_BYTES:
+        raise ValidationError("The opening CSV exceeds the 5 MB staging limit.")
+    try:
+        decoded = content.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValidationError("Use a UTF-8 CSV file.") from exc
+    reader = csv.DictReader(io.StringIO(decoded, newline=""))
+    fieldnames = {str(name or "").strip() for name in (reader.fieldnames or [])}
+    missing = sorted(OPENING_REQUIRED_COLUMNS - fieldnames)
+    if missing:
+        raise ValidationError(f"Missing required CSV column(s): {', '.join(missing)}.")
+    staged = []
+    for source_row_number, source in enumerate(reader, start=2):
+        normalized = {key: str(source.get(key, "") or "").strip() for key in OPENING_COLUMNS}
+        if not any(normalized.values()):
+            continue
+        staged.append(OpeningBalanceRow(
+            batch=locked,
+            row_number=source_row_number,
+            raw_fund_code=normalized["fund_code"],
+            raw_account_code=normalized["account_code"],
+            raw_responsibility_center_code=normalized["responsibility_center_code"],
+            raw_debit=normalized["debit"],
+            raw_credit=normalized["credit"],
+            subsidiary_reference=normalized["subsidiary_reference"],
+            memo=normalized["memo"],
+        ))
+    prior = {"row_count": locked.rows.count(), "source_checksum": locked.source_checksum}
+    locked.rows.all().delete()
+    OpeningBalanceRow.objects.bulk_create(staged)
+    locked.source_filename = str(getattr(uploaded_file, "name", "opening-balances.csv"))[:255]
+    locked.source_checksum = hashlib.sha256(content).hexdigest()
+    locked.status = OpeningBalanceBatch.DRAFT
+    locked.validation_summary = {"imported_row_count": len(staged)}
+    locked.submitted_by_id = None
+    locked.submitted_by_label = ""
+    locked.submitted_at = None
+    locked.approved_by_id = None
+    locked.approved_by_label = ""
+    locked.approved_at = None
+    locked.state_version += 1
+    locked.full_clean()
+    locked.save()
+    record_opening_event(
+        locked,
+        "source_staged",
+        actor,
+        snapshot={
+            "before": prior,
+            "source_filename": locked.source_filename,
+            "source_checksum": locked.source_checksum,
+            "imported_row_count": len(staged),
+            "schema_version": locked.import_schema_version,
+        },
+    )
+    return validate_opening_batch(locked, actor)
+
+
+@transaction.atomic(using=FINANCE_DB)
+def validate_opening_batch(batch, actor):
+    if not can_prepare_opening_balances(actor):
+        raise ValidationError("You are not authorized to validate opening balances.")
+    locked = OpeningBalanceBatch.objects.select_for_update().get(pk=batch.pk)
+    if locked.status not in (
+        OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED, OpeningBalanceBatch.VALIDATED,
+    ):
+        raise ValidationError("Only staged or returned opening balances can be validated.")
+    rows = list(locked.rows.order_by("row_number", "pk"))
+    funds = {item.code: item for item in Fund.objects.filter(department_id=locked.department_id, is_active=True)}
+    accounts = {
+        item.code: item for item in LedgerAccount.objects.filter(
+            department_id=locked.department_id, is_active=True, allow_posting=True,
+        )
+    }
+    centers = {
+        item.code: item for item in ResponsibilityCenter.objects.filter(
+            department_id=locked.department_id, is_active=True,
+        )
+    }
+    valid_count = 0
+    debit_total = Decimal("0.00")
+    credit_total = Decimal("0.00")
+    fund_totals = {}
+    for row in rows:
+        errors = []
+        fund = funds.get(row.raw_fund_code)
+        account = accounts.get(row.raw_account_code)
+        center = centers.get(row.raw_responsibility_center_code) if row.raw_responsibility_center_code else None
+        if fund is None:
+            errors.append(f"Unknown or inactive fund code: {row.raw_fund_code or '(blank)' }.")
+        if account is None:
+            errors.append(f"Unknown, inactive, or non-posting account code: {row.raw_account_code or '(blank)'}.")
+        if row.raw_responsibility_center_code and center is None:
+            errors.append(f"Unknown or inactive responsibility-center code: {row.raw_responsibility_center_code}.")
+        try:
+            debit = _opening_money(row.raw_debit)
+        except ValidationError as exc:
+            debit = Decimal("0.00")
+            errors.extend(exc.messages)
+        try:
+            credit = _opening_money(row.raw_credit)
+        except ValidationError as exc:
+            credit = Decimal("0.00")
+            errors.extend(exc.messages)
+        if (debit > 0) == (credit > 0):
+            errors.append("Enter a positive debit or credit, not both.")
+        row.fund = fund
+        row.account = account
+        row.responsibility_center = center
+        row.debit = debit
+        row.credit = credit
+        row.validation_errors = errors
+        row.validation_status = OpeningBalanceRow.ERROR if errors else OpeningBalanceRow.VALID
+        row._validation_update = True
+        row.full_clean()
+        row.save()
+        if not errors:
+            valid_count += 1
+            debit_total += debit
+            credit_total += credit
+            totals = fund_totals.setdefault(fund.code, {"debit": Decimal("0.00"), "credit": Decimal("0.00"), "rows": 0})
+            totals["debit"] += debit
+            totals["credit"] += credit
+            totals["rows"] += 1
+    errors = []
+    if locked.is_zero_balance_declaration:
+        if rows:
+            errors.append("A zero-balance declaration cannot contain staged rows.")
+    else:
+        if not locked.source_checksum:
+            errors.append("Stage the source CSV before validation.")
+        if len(rows) != locked.expected_row_count:
+            errors.append(f"Row-count difference: staged {len(rows)}, declared {locked.expected_row_count}.")
+        if debit_total != locked.expected_debit:
+            errors.append(f"Debit control difference: staged {debit_total:.2f}, declared {locked.expected_debit:.2f}.")
+        if credit_total != locked.expected_credit:
+            errors.append(f"Credit control difference: staged {credit_total:.2f}, declared {locked.expected_credit:.2f}.")
+        if debit_total != credit_total:
+            errors.append(f"Staged debits {debit_total:.2f} do not equal credits {credit_total:.2f}.")
+        for fund_code, totals in sorted(fund_totals.items()):
+            if totals["debit"] != totals["credit"]:
+                errors.append(
+                    f"Fund {fund_code} is not balanced: debit {totals['debit']:.2f}, credit {totals['credit']:.2f}."
+                )
+    error_count = len(rows) - valid_count
+    serialized_funds = {
+        code: {"debit": str(values["debit"]), "credit": str(values["credit"]), "rows": values["rows"]}
+        for code, values in fund_totals.items()
+    }
+    locked.status = OpeningBalanceBatch.VALIDATED if not errors and not error_count else OpeningBalanceBatch.DRAFT
+    locked.validation_summary = {
+        "valid": locked.status == OpeningBalanceBatch.VALIDATED,
+        "row_count": len(rows),
+        "valid_row_count": valid_count,
+        "error_row_count": error_count,
+        "debit": str(debit_total),
+        "credit": str(credit_total),
+        "batch_errors": errors,
+        "fund_totals": serialized_funds,
+        "source_checksum": locked.source_checksum,
+    }
+    locked.state_version += 1
+    locked.full_clean()
+    locked.save(update_fields=("status", "validation_summary", "state_version", "updated_at"))
+    record_opening_event(
+        locked,
+        "validated" if locked.status == OpeningBalanceBatch.VALIDATED else "validation_failed",
+        actor,
+        snapshot=locked.validation_summary,
+    )
+    return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def correct_opening_row(row, actor, *, values, reason):
+    if not can_prepare_opening_balances(actor):
+        raise ValidationError("You are not authorized to correct staged opening rows.")
+    reason = reason.strip()
+    if not reason:
+        raise ValidationError("Explain the staged-row correction and cite its source evidence.")
+    locked = OpeningBalanceRow.objects.select_for_update().select_related("batch").get(pk=row.pk)
+    if locked.batch.status not in (OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED):
+        raise ValidationError("Only draft or returned rows can be corrected.")
+    before = _audit_snapshot(locked)
+    for field in (
+        "raw_fund_code", "raw_account_code", "raw_responsibility_center_code", "raw_debit", "raw_credit",
+        "subsidiary_reference", "memo",
+    ):
+        setattr(locked, field, str(values.get(field, "") or "").strip())
+    locked.validation_status = OpeningBalanceRow.PENDING
+    locked.validation_errors = []
+    locked.fund = None
+    locked.account = None
+    locked.responsibility_center = None
+    locked.debit = Decimal("0.00")
+    locked.credit = Decimal("0.00")
+    locked.correction_version += 1
+    locked.save()
+    batch = locked.batch
+    batch.status = OpeningBalanceBatch.DRAFT
+    batch.validation_summary = {}
+    batch.submitted_by_id = None
+    batch.submitted_by_label = ""
+    batch.submitted_at = None
+    batch.approved_by_id = None
+    batch.approved_by_label = ""
+    batch.approved_at = None
+    batch.state_version += 1
+    batch.save()
+    record_opening_event(
+        batch,
+        "row_corrected",
+        actor,
+        reason=reason,
+        snapshot={"row_number": locked.row_number, "before": before, "after": _audit_snapshot(locked)},
+    )
+    return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def correct_opening_batch(batch, actor, *, values, reason):
+    if not can_prepare_opening_balances(actor):
+        raise ValidationError("You are not authorized to correct opening controls.")
+    reason = reason.strip()
+    if not reason:
+        raise ValidationError("Explain the control-total or source-reference correction.")
+    locked = OpeningBalanceBatch.objects.select_for_update().get(pk=batch.pk)
+    if locked.status not in (OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED):
+        raise ValidationError("Only a draft or returned opening batch can be corrected.")
+    if values.get("is_zero_balance_declaration") and locked.rows.exists():
+        raise ValidationError("A staged row schedule cannot be converted in place to a zero-balance declaration. Create a new declaration batch.")
+    before = _audit_snapshot(locked)
+    for field in (
+        "fiscal_year", "period", "title", "source_reference", "expected_row_count",
+        "expected_debit", "expected_credit", "is_zero_balance_declaration",
+    ):
+        setattr(locked, field, values[field])
+    locked.status = OpeningBalanceBatch.DRAFT
+    locked.validation_summary = {}
+    locked.submitted_by_id = None
+    locked.submitted_by_label = ""
+    locked.submitted_at = None
+    locked.approved_by_id = None
+    locked.approved_by_label = ""
+    locked.approved_at = None
+    locked.state_version += 1
+    locked.full_clean()
+    locked.save()
+    record_opening_event(
+        locked,
+        "controls_corrected",
+        actor,
+        reason=reason,
+        snapshot={"before": before, "after": _audit_snapshot(locked)},
+    )
+    return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def submit_opening_batch(batch, actor):
+    if not can_prepare_opening_balances(actor):
+        raise ValidationError("You are not authorized to submit opening balances.")
+    locked = OpeningBalanceBatch.objects.select_for_update().get(pk=batch.pk)
+    if locked.status != OpeningBalanceBatch.VALIDATED or not locked.validation_summary.get("valid"):
+        raise ValidationError("Resolve every row and control-total difference, then validate again before submission.")
+    locked.status = OpeningBalanceBatch.FOR_REVIEW
+    locked.submitted_by_id = actor.pk
+    locked.submitted_by_label = actor_label(actor)
+    locked.submitted_at = timezone.now()
+    locked.state_version += 1
+    locked.save()
+    record_opening_event(locked, "submitted", actor, snapshot=locked.validation_summary)
+    return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def decide_opening_batch(batch, actor, *, decision, evidence_note):
+    if not can_approve_opening_balances(actor):
+        raise ValidationError("You are not authorized to approve opening balances.")
+    note = evidence_note.strip()
+    if not note:
+        raise ValidationError("Record the approval or return basis and supporting evidence.")
+    locked = OpeningBalanceBatch.objects.select_for_update().get(pk=batch.pk)
+    if decision == OpeningBalanceBatch.APPROVED and locked.status != OpeningBalanceBatch.FOR_REVIEW:
+        raise ValidationError("Only an opening batch under review can be approved.")
+    if decision == OpeningBalanceBatch.RETURNED and locked.status not in (
+        OpeningBalanceBatch.FOR_REVIEW, OpeningBalanceBatch.APPROVED,
+    ):
+        raise ValidationError("Only an opening batch under review or approved-but-unposted can be returned.")
+    if actor.pk in {locked.created_by_id, locked.submitted_by_id}:
+        raise ValidationError("The opening-balance approver must be different from its preparer and submitter.")
+    if decision == OpeningBalanceBatch.APPROVED:
+        locked.status = OpeningBalanceBatch.APPROVED
+        locked.approved_by_id = actor.pk
+        locked.approved_by_label = actor_label(actor)
+        locked.approved_at = timezone.now()
+    elif decision == OpeningBalanceBatch.RETURNED:
+        locked.status = OpeningBalanceBatch.RETURNED
+        locked.approved_by_id = None
+        locked.approved_by_label = ""
+        locked.approved_at = None
+    else:
+        raise ValidationError("Unsupported opening-balance decision.")
+    locked.state_version += 1
+    locked.save()
+    record_opening_event(locked, decision, actor, reason=note, snapshot=locked.validation_summary)
+    return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def post_opening_batch(batch, actor):
+    if not can_post_opening_balances(actor):
+        raise ValidationError("You are not authorized to post opening balances.")
+    locked = OpeningBalanceBatch.objects.select_for_update().select_related("fiscal_year", "period").get(pk=batch.pk)
+    if locked.status != OpeningBalanceBatch.APPROVED:
+        raise ValidationError("Only an independently approved opening batch can be posted.")
+    if actor.pk in {locked.created_by_id, locked.submitted_by_id}:
+        raise ValidationError("The opening-balance preparer cannot post the same batch.")
+    if locked.period.status != AccountingPeriod.OPEN:
+        raise ValidationError("The selected opening accounting period is closed.")
+    if locked.fiscal_year.status not in (FiscalYear.APPROVED, FiscalYear.ACTIVE):
+        raise ValidationError("Approve the fiscal-year definition before posting opening balances.")
+    grouped = {}
+    for row in locked.rows.select_related("fund", "account", "responsibility_center").order_by("row_number"):
+        if row.validation_status != OpeningBalanceRow.VALID or not row.fund_id or not row.account_id:
+            raise ValidationError("The approved batch contains a row that is no longer valid.")
+        grouped.setdefault(row.fund, []).append(row)
+    postings = []
+    for fund, rows in grouped.items():
+        reference = f"OPEN-{locked.fiscal_year.year}-{locked.pk}-{fund.code}"[:60]
+        entry = JournalEntry.objects.create(
+            department_id=locked.department_id,
+            department_label=locked.department_label,
+            reference=reference,
+            entry_date=locked.period.starts_on,
+            period=locked.period,
+            fund=fund,
+            source_type="opening",
+            source_reference=f"opening:{locked.public_id}:{fund.public_id.hex[:12]}",
+            source_snapshot={
+                "opening_batch": str(locked.public_id),
+                "source_reference": locked.source_reference,
+                "source_checksum": locked.source_checksum,
+                "expected_debit": str(locked.expected_debit),
+                "expected_credit": str(locked.expected_credit),
+                "fund_code": fund.code,
+            },
+            description=f"Opening balances: {locked.title} ({fund.code})",
+            created_by_id=locked.submitted_by_id or locked.created_by_id,
+            created_by_label=locked.submitted_by_label or locked.created_by_label,
+        )
+        for sequence, row in enumerate(rows, start=1):
+            memo = row.memo
+            if row.subsidiary_reference:
+                memo = f"{memo} · Subsidiary: {row.subsidiary_reference}" if memo else f"Subsidiary: {row.subsidiary_reference}"
+            line = JournalLine(
+                entry=entry,
+                sequence=sequence,
+                account=row.account,
+                responsibility_center=row.responsibility_center,
+                debit=row.debit,
+                credit=row.credit,
+                memo=memo[:255],
+            )
+            line.full_clean()
+            line.save()
+        debit, credit = validate_entry_for_submission(entry)
+        entry.status = JournalEntry.SUBMITTED
+        entry.submitted_by_id = locked.submitted_by_id
+        entry.submitted_by_label = locked.submitted_by_label
+        entry.submitted_at = locked.submitted_at
+        entry.save(update_fields=("status", "submitted_by_id", "submitted_by_label", "submitted_at", "updated_at"))
+        AccountingAuditEvent.objects.create(
+            department_id=entry.department_id,
+            department_label=entry.department_label,
+            entry=entry,
+            action="opening_submitted",
+            actor_id=locked.submitted_by_id,
+            actor_label=locked.submitted_by_label,
+            snapshot={"opening_batch": str(locked.public_id), "debit": str(debit), "credit": str(credit)},
+        )
+        post_entry(entry, actor)
+        posting = OpeningBalancePosting.objects.create(
+            batch=locked, fund=fund, entry=entry, debit=debit, credit=credit, row_count=len(rows),
+        )
+        postings.append(posting)
+    locked.status = OpeningBalanceBatch.POSTED
+    locked.posted_by_id = actor.pk
+    locked.posted_by_label = actor_label(actor)
+    locked.posted_at = timezone.now()
+    locked.state_version += 1
+    locked.save()
+    record_opening_event(
+        locked,
+        "posted",
+        actor,
+        snapshot={
+            "journal_entries": [str(item.entry.public_id) for item in postings],
+            "posting_count": len(postings),
+            "zero_balance_declaration": locked.is_zero_balance_declaration,
+        },
+    )
+    return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def reconcile_opening_batch(batch, actor):
+    if not can_post_opening_balances(actor):
+        raise ValidationError("You are not authorized to reconcile opening balances.")
+    locked = OpeningBalanceBatch.objects.select_for_update().get(pk=batch.pk)
+    if locked.status != OpeningBalanceBatch.POSTED:
+        raise ValidationError("Only a posted opening batch can be reconciled.")
+    postings = list(locked.postings.select_related("entry"))
+    posted_debit = Decimal("0.00")
+    posted_credit = Decimal("0.00")
+    posted_rows = 0
+    details = []
+    for posting in postings:
+        debit, credit = posting.entry.totals
+        posted_debit += debit
+        posted_credit += credit
+        posted_rows += posting.row_count
+        details.append({
+            "entry": str(posting.entry.public_id), "reference": posting.entry.reference,
+            "debit": str(debit), "credit": str(credit), "row_count": posting.row_count,
+        })
+    summary = {
+        "expected_debit": str(locked.expected_debit),
+        "expected_credit": str(locked.expected_credit),
+        "expected_row_count": locked.expected_row_count,
+        "posted_debit": str(posted_debit),
+        "posted_credit": str(posted_credit),
+        "posted_row_count": posted_rows,
+        "debit_difference": str(posted_debit - locked.expected_debit),
+        "credit_difference": str(posted_credit - locked.expected_credit),
+        "row_difference": posted_rows - locked.expected_row_count,
+        "postings": details,
+    }
+    reconciled = (
+        posted_debit == locked.expected_debit
+        and posted_credit == locked.expected_credit
+        and posted_rows == locked.expected_row_count
+    )
+    if reconciled:
+        locked.status = OpeningBalanceBatch.RECONCILED
+        locked.reconciled_by_id = actor.pk
+        locked.reconciled_by_label = actor_label(actor)
+        locked.reconciled_at = timezone.now()
+        locked.state_version += 1
+        locked.save()
+    record_opening_event(
+        locked,
+        "reconciled" if reconciled else "reconciliation_failed",
+        actor,
+        snapshot=summary,
+    )
+    summary["reconciled"] = reconciled
+    return locked, summary
 
 
 def record_event(entry, action, actor, reason="", snapshot=None):

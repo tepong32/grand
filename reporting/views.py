@@ -5,6 +5,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
 
+from src.export_archive import archive_export
+
 from .access import (
     can_approve_reports, can_download_reports, can_generate_reports, can_manage_definitions,
     can_manage_templates, can_review_reports, can_schedule_reports, department_for_user,
@@ -12,7 +14,7 @@ from .access import (
 )
 from .forms import ManualReportForm, ReportDefinitionForm, ReportScheduleForm, ReportTemplateMappingFieldForm, ReportTemplateVersionForm
 from .mappers import TemplateMappingError, preflight_template
-from .models import ReportDefinition, ReportRun, ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion
+from .models import ReportDefinition, ReportRun, ReportRunEvent, ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion
 from .services import create_manual_run, transition_run
 
 
@@ -260,7 +262,38 @@ def run_download(request, public_id):
     if not run.output_file:
         from django.http import Http404
         raise Http404
-    return FileResponse(run.output_file.open("rb"), as_attachment=True, filename=run.output_file.name.rsplit("/", 1)[-1])
+    filename = run.output_file.name.rsplit("/", 1)[-1]
+    with run.output_file.open("rb") as source:
+        archived = archive_export(
+            content=source.read(),
+            department=run.definition.department,
+            user=request.user,
+            category="reports",
+            filename=filename,
+            metadata={
+                "kind": "report_run_export",
+                "run_public_id": str(run.public_id),
+                "definition": run.definition.slug,
+                "period_start": run.period_start,
+                "period_end": run.period_end,
+                "parameters": run.parameters,
+                "status": run.status,
+                "output_checksum": run.checksum,
+                "official_output": run.is_official_output,
+            },
+        )
+    response = FileResponse(run.output_file.open("rb"), as_attachment=True, filename=filename)
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    ReportRunEvent.objects.create(
+        run=run,
+        actor=request.user,
+        action="exported",
+        from_status=run.status,
+        to_status=run.status,
+        note=f"Archived {archived['relative_path']} with SHA-256 {archived['sha256']}.",
+    )
+    return response
 
 
 @reporting_access_required

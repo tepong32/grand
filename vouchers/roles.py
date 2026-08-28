@@ -32,6 +32,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "vouchers.view_voucher_audit",
         "accounting.view_accounting_workspace",
         "accounting.prepare_journal_entries",
+        "accounting.prepare_opening_balances",
     ),
     "Accounting Reviewer": (
         "finance.view_finance_setup",
@@ -43,6 +44,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "vouchers.view_voucher_audit",
         "accounting.view_accounting_workspace",
         "accounting.post_journal_entries",
+        "accounting.post_opening_balances",
         "accounting.view_general_ledger",
     ),
     "Treasury Disbursement Officer": (
@@ -60,12 +62,14 @@ FINANCE_ROLE_PERMISSIONS = {
         "finance.manage_finance_providers",
         "accounting.view_accounting_workspace",
         "accounting.manage_accounting_setup",
+        "accounting.prepare_opening_balances",
     ),
     "Finance Configuration Approver": (
         "finance.view_finance_setup",
         "finance.approve_finance_configuration",
         "accounting.view_accounting_workspace",
         "accounting.approve_fiscal_readiness",
+        "accounting.approve_opening_balances",
     ),
 }
 

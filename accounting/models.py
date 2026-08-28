@@ -401,6 +401,208 @@ class FiscalYearReadinessApproval(DepartmentOwnedModel):
                 raise ValidationError("Readiness evidence for an active fiscal year is immutable.")
 
 
+class OpeningBalanceBatch(DepartmentOwnedModel):
+    DRAFT = "draft"
+    VALIDATED = "validated"
+    FOR_REVIEW = "for_review"
+    APPROVED = "approved"
+    POSTED = "posted"
+    RECONCILED = "reconciled"
+    RETURNED = "returned"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft staging"),
+        (VALIDATED, "Validated"),
+        (FOR_REVIEW, "For review"),
+        (APPROVED, "Approved for posting"),
+        (POSTED, "Posted; reconciliation pending"),
+        (RECONCILED, "Reconciled"),
+        (RETURNED, "Returned for correction"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT, related_name="opening_balance_batches")
+    period = models.ForeignKey(AccountingPeriod, on_delete=models.PROTECT, related_name="opening_balance_batches")
+    title = models.CharField(max_length=180)
+    source_reference = models.CharField(max_length=120)
+    source_filename = models.CharField(max_length=255, blank=True)
+    source_checksum = models.CharField(max_length=64, blank=True)
+    import_schema_version = models.PositiveSmallIntegerField(default=1)
+    expected_row_count = models.PositiveIntegerField(default=0)
+    expected_debit = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal("0.00"))
+    expected_credit = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal("0.00"))
+    is_zero_balance_declaration = models.BooleanField(default=False)
+    validation_summary = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=DRAFT)
+    created_by_id = models.PositiveBigIntegerField()
+    created_by_label = models.CharField(max_length=160)
+    submitted_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    submitted_by_label = models.CharField(max_length=160, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    approved_by_label = models.CharField(max_length=160, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    posted_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    posted_by_label = models.CharField(max_length=160, blank=True)
+    posted_at = models.DateTimeField(null=True, blank=True)
+    reconciled_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reconciled_by_label = models.CharField(max_length=160, blank=True)
+    reconciled_at = models.DateTimeField(null=True, blank=True)
+    state_version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-fiscal_year__year", "-created_at", "-pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("department_id", "fiscal_year", "source_reference"),
+                name="unique_opening_source_reference",
+            ),
+        )
+        permissions = (
+            ("prepare_opening_balances", "Can stage and correct opening balances"),
+            ("approve_opening_balances", "Can independently approve opening balances"),
+            ("post_opening_balances", "Can post and reconcile opening balances"),
+        )
+
+    def __str__(self):
+        return f"{self.fiscal_year} · {self.source_reference}"
+
+    def clean(self):
+        if self.fiscal_year_id and self.fiscal_year.department_id != self.department_id:
+            raise ValidationError({"fiscal_year": "The fiscal year must belong to this department ledger."})
+        if self.period_id:
+            if self.period.department_id != self.department_id:
+                raise ValidationError({"period": "The opening period must belong to this department ledger."})
+            if self.fiscal_year_id and self.period.fiscal_year_record_id != self.fiscal_year_id:
+                raise ValidationError({"period": "The opening period must be linked to the selected fiscal year."})
+        if self.expected_debit < 0 or self.expected_credit < 0:
+            raise ValidationError("Declared control totals cannot be negative.")
+        if self.is_zero_balance_declaration:
+            if self.expected_row_count or self.expected_debit or self.expected_credit:
+                raise ValidationError("A zero-balance declaration must have zero rows and zero debit/credit totals.")
+        elif not self.expected_row_count:
+            raise ValidationError({"expected_row_count": "Declare the source schedule row count."})
+        elif self.expected_debit <= 0 or self.expected_debit != self.expected_credit:
+            raise ValidationError("Declared opening debit and credit control totals must be equal and positive.")
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            governed = (
+                "department_id", "fiscal_year_id", "period_id", "title", "source_reference",
+                "source_filename", "source_checksum", "import_schema_version", "expected_row_count",
+                "expected_debit", "expected_credit", "is_zero_balance_declaration", "created_by_id",
+            )
+            if prior and prior.status in (self.APPROVED, self.POSTED, self.RECONCILED):
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError("Approved opening evidence is immutable. Return it before posting or use an adjusting entry after posting.")
+
+
+class OpeningBalanceRow(models.Model):
+    PENDING = "pending"
+    VALID = "valid"
+    ERROR = "error"
+    VALIDATION_CHOICES = ((PENDING, "Pending validation"), (VALID, "Valid"), (ERROR, "Needs correction"))
+
+    batch = models.ForeignKey(OpeningBalanceBatch, on_delete=models.CASCADE, related_name="rows")
+    row_number = models.PositiveIntegerField()
+    raw_fund_code = models.CharField(max_length=80)
+    raw_account_code = models.CharField(max_length=80)
+    raw_responsibility_center_code = models.CharField(max_length=80, blank=True)
+    raw_debit = models.CharField(max_length=80, blank=True)
+    raw_credit = models.CharField(max_length=80, blank=True)
+    subsidiary_reference = models.CharField(max_length=160, blank=True)
+    memo = models.CharField(max_length=255, blank=True)
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT, null=True, blank=True, related_name="opening_balance_rows")
+    account = models.ForeignKey(
+        LedgerAccount, on_delete=models.PROTECT, null=True, blank=True, related_name="opening_balance_rows",
+    )
+    responsibility_center = models.ForeignKey(
+        ResponsibilityCenter, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="opening_balance_rows",
+    )
+    debit = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal("0.00"))
+    credit = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal("0.00"))
+    validation_status = models.CharField(max_length=12, choices=VALIDATION_CHOICES, default=PENDING)
+    validation_errors = models.JSONField(default=list, blank=True)
+    correction_version = models.PositiveIntegerField(default=1)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("row_number", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("batch", "row_number"), name="unique_opening_batch_row"),
+            models.CheckConstraint(condition=models.Q(debit__gte=0, credit__gte=0), name="nonnegative_opening_amounts"),
+        )
+
+    def __str__(self):
+        return f"{self.batch.source_reference} row {self.row_number}"
+
+    def clean(self):
+        debit = self.debit or Decimal("0.00")
+        credit = self.credit or Decimal("0.00")
+        if self.validation_status == self.VALID and (debit > 0) == (credit > 0):
+            raise ValidationError("A valid opening row must carry a positive debit or credit, not both.")
+        if self.fund_id and self.fund.department_id != self.batch.department_id:
+            raise ValidationError({"fund": "The fund must belong to this department ledger."})
+        if self.account_id and self.account.department_id != self.batch.department_id:
+            raise ValidationError({"account": "The account must belong to this department ledger."})
+        if self.responsibility_center_id and self.responsibility_center.department_id != self.batch.department_id:
+            raise ValidationError({"responsibility_center": "The responsibility center must belong to this department ledger."})
+
+    def save(self, *args, **kwargs):
+        if self.batch_id:
+            current_status = OpeningBalanceBatch.objects.filter(pk=self.batch_id).values_list("status", flat=True).first()
+            if current_status not in (OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED) and not getattr(
+                self, "_validation_update", False,
+            ):
+                raise ValidationError("Opening rows can be changed only in draft or returned staging.")
+        return super().save(*args, **kwargs)
+
+
+class OpeningBalancePosting(models.Model):
+    batch = models.ForeignKey(OpeningBalanceBatch, on_delete=models.PROTECT, related_name="postings")
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT, related_name="opening_balance_postings")
+    entry = models.OneToOneField("JournalEntry", on_delete=models.PROTECT, related_name="opening_balance_posting")
+    debit = models.DecimalField(max_digits=20, decimal_places=2)
+    credit = models.DecimalField(max_digits=20, decimal_places=2)
+    row_count = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ("fund__code", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("batch", "fund"), name="unique_opening_posting_per_fund"),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Opening posting lineage is immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Opening posting lineage cannot be deleted.")
+
+
+class OpeningBalanceEvent(DepartmentOwnedModel):
+    batch = models.ForeignKey(OpeningBalanceBatch, on_delete=models.PROTECT, related_name="events")
+    action = models.CharField(max_length=40)
+    actor_id = models.PositiveBigIntegerField()
+    actor_label = models.CharField(max_length=160)
+    reason = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Opening-balance evidence is append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Opening-balance evidence cannot be deleted.")
+
+
 class PostingMapping(DepartmentOwnedModel):
     PAYABLE = "payable"
     DEDUCTION = "deduction"
