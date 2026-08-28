@@ -8,6 +8,9 @@ ACCOUNTING_PERMISSIONS = (
     "accounting.view_accounting_workspace",
     "accounting.manage_accounting_setup",
     "accounting.approve_fiscal_readiness",
+    "accounting.prepare_opening_balances",
+    "accounting.approve_opening_balances",
+    "accounting.post_opening_balances",
     "accounting.prepare_journal_entries",
     "accounting.post_journal_entries",
     "accounting.view_general_ledger",
@@ -50,6 +53,18 @@ def can_approve_fiscal_readiness(user):
 
 def can_govern_setup(user):
     return can_manage_setup(user) or can_approve_fiscal_readiness(user)
+
+
+def can_prepare_opening_balances(user):
+    return has_explicit_permission(user, "accounting.prepare_opening_balances")
+
+
+def can_approve_opening_balances(user):
+    return has_explicit_permission(user, "accounting.approve_opening_balances")
+
+
+def can_post_opening_balances(user):
+    return has_explicit_permission(user, "accounting.post_opening_balances")
 
 
 def can_prepare_journals(user):

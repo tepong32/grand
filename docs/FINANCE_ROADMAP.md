@@ -45,6 +45,7 @@ The eGAPS baseline is limited to the authorized read-only inspection recorded in
 - Wet signatures remain first-class. A clerk recording a signed paper is not represented as a digital signature.
 - TracePoint records physical custody; Records governs retained authoritative files; neither substitutes for a financial approval.
 - Official reports and forms use approved, versioned templates and retain input, mapping, configuration, generator, and output checksums.
+- Operational registers, reports, and transaction sets provide permission- and department-scoped exports where a defined business use requires them; every export carries its filters/as-of context and stable lineage, is atomically retained with a checksum manifest in the single TraceSync-ready export root, and is never mislabeled as an approved official form.
 - Accessibility, responsive layouts, keyboard operation, plain language, explainable errors, saved work views, and visible next actions are release criteria, not polish deferred until the end.
 - Production cutover requires evidence-backed reconciliation and explicit approval. Completing a software workflow is not implicit authority to replace eGAPS.
 
@@ -237,7 +238,7 @@ Exit gate: Budget, Accounting, Treasury, requesting offices, IT, management, and
 | Capability | Current position | Roadmap consequence |
 |---|---|---|
 | Finance Setup Center | Foundation implemented | Extend through F2; existing activation does not open an authoritative fiscal year. |
-| Standalone Accounting | Period/fund/account setup, balanced journals, posting, GL, and trial balance implemented | Continue under F7; add opening control, transaction-specific postings, subsidiary ledgers, closing, and statements. |
+| Standalone Accounting | Fiscal/fund/account setup, controlled opening intake/posting/reconciliation/export, balanced journals, posting, GL, and trial balance implemented | Continue under F7; add transaction-specific postings, subsidiary ledgers, closing, and statements. |
 | Voucher Workbench | Shadow vertical slice from Budget case/OBR through release implemented | Treat as an F5–F8 prototype; refactor its entry point after F3–F4 provide real budget authority. |
 | Wet-signature handling | Manual signed-return rounds implemented | Add the explicit print/version/custody gates in F6. |
 | TracePoint | General packet custody implemented; voucher link optional | Integrate governed finance packet creation/linkage and checkpoint gates in F6/F8. |
@@ -254,6 +255,7 @@ Unless field evidence changes the dependency order, begin with these reviewable 
 1. **F0.1 — Finance evidence register and interview kit**: repository-safe evidence/decision templates, authority labels, transaction catalog, role/signature matrix, actual-step worksheet, unresolved-decision log, and redacted replay checklist.
 2. **F1.1 — Complete-cycle information architecture**: role and permission matrix, one finance landing page/My Work design, cross-cycle case/timeline/search contract, status vocabulary, and clickable synthetic UX prototype before adding dense models.
 3. **F2.1 — Fiscal-year and classification foundation**: typed fiscal year, finance calendar, PPAs/MFOs, projects/activities, funding sources, expanded account/office dimensions, readiness layers, and setup migration path.
+4. **F2.2 — Opening balances and control totals**: checksum-backed CSV staging, governed-code validation, reasoned pre-posting correction, independent approval, per-fund opening JEVs, zero-difference reconciliation, and scoped export.
 4. **F2.2 — Opening and control-total intake**: staged import, validation, maker-checker approval, rejected-row correction, opening posting/reconciliation, and immutable evidence.
 5. **F3.1 — Budget preparation workspace**: budget call, ceilings, department proposals, targets, revenue/resource estimates, consolidation, review comments, and version comparison.
 6. **F3.2 — Authorization and operational appropriations**: executive/Sanggunian/final versions, ordinance and review evidence, effective appropriations, supplemental/reenacted handling, and signed control totals.
@@ -262,7 +264,7 @@ Unless field evidence changes the dependency order, begin with these reviewable 
 9. **F5.1 — Voucher budget-lineage integration**: refactor the current case entry point to consume authoritative requesting-office/payable and obligation records while preserving existing audit, numbers, and corrections.
 10. **F6.1 — Controlled print and finance custody**: print/version/reprint states, packet manifest, TracePoint creation/linkage, wet-signature checkpoints, returned-packet gate, and redacted output comparison.
 
-Delivery status: the repository-safe templates for **F0.1** are available in the [Finance evidence register and interview kit](finance-discovery/README.md). The **F1.1** design contract and clickable synthetic UX are available in the [complete-cycle Finance information architecture](finance-ia/README.md). The **F2.1** software foundation is documented in [Finance fiscal-year and classification foundation](FINANCE_FISCAL_FOUNDATION.md). These deliver reviewable instruments and implemented controls, not the parent F0–F2 exit gates; field evidence, named-office acceptance, and reconciled opening balances remain required.
+Delivery status: the repository-safe templates for **F0.1** are available in the [Finance evidence register and interview kit](finance-discovery/README.md). The **F1.1** design contract and clickable synthetic UX are available in the [complete-cycle Finance information architecture](finance-ia/README.md). The **F2.1** software foundation is documented in [Finance fiscal-year and classification foundation](FINANCE_FISCAL_FOUNDATION.md), and the **F2.2** controls are documented in [Finance opening balances and control-total intake](FINANCE_OPENING_BALANCES.md). These deliver reviewable instruments and implemented synthetic controls, not the parent F0–F2 exit gates; field evidence, accepted local schedules, and named-office reconciliation/acceptance remain required.
 
 Do not start historical migration, direct check printing, or official-use switching merely because those tasks are visible in later phases. The immediate train establishes the authority chain on which all of them depend.
 

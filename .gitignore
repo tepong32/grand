@@ -57,6 +57,7 @@ cover/
 
 # Django stuff:
 *.log
+*.log.*
 local_settings.py
 # db.sqlite3
 # db.sqlite3-journal
@@ -196,6 +197,8 @@ output/playwright/grand-portfolio/server*.log
 grand_finance.sqlite3
 media/finance/
 media/vouchers/
+# Portable, TraceSync-ready runtime exports and per-file checksum manifests
+exports/
 tmp/uat-backups/
 tmp/uat-build-*/
 tmp/tmp*/
