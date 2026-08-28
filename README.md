@@ -91,6 +91,7 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 - [GRAND Finance complete-cycle roadmap](docs/FINANCE_ROADMAP.md)
 - [Finance process discovery protocol](docs/FINANCE_PROCESS_DISCOVERY.md)
 - [Finance evidence register and interview kit](docs/finance-discovery/README.md)
+- [Complete-cycle Finance information architecture and prototype](docs/finance-ia/README.md)
 - [Finance process-fidelity baseline](docs/FINANCE_PROCESS_FIDELITY_BASELINE.md)
 - [Product roadmap](docs/ROADMAP.md)
 - [Security maintenance](SECURITY.md)
