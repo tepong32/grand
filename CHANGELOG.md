@@ -4,6 +4,11 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance annual budget preparation
+
+- Added the F3.1 Annual Budget workspace for independently reviewed calls and department ceilings, classified proposal/target/resource versions, traceable executive consolidation, comparison, audit evidence, and TraceSync-ready CSV exports.
+- Enforced the appropriation authority boundary: even an approved proposal remains non-spendable until the separate F3.2 ordinance, review, effectivity, and control-total authorization workflow succeeds.
+
 ### Department Internal How-Tos
 
 - Added reusable department-scoped, permission-filtered, page-aware internal guides with ordered instructions, expected results, cautions, workspace links, draft/published/retired lifecycle, and immutable published versions.

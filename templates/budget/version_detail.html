@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title_ext %} - {{ version.title }}{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a href="{% url 'budget:workspace' %}" class="small">&larr; Annual budget</a>
+  <div class="d-flex flex-column flex-lg-row justify-content-between mt-2">
+    <div><p class="text-uppercase text-muted small mb-1">{{ version.get_kind_display }} · v{{ version.version }}</p><h1>{{ version.title }}</h1><p class="text-muted">FY {{ version.fiscal_year.year }} · {{ version.requesting_department_label|default:"Consolidated" }}</p></div>
+    <div><a class="btn btn-outline-secondary" href="{% url 'budget:version_compare' version.public_id %}">Compare</a> <a class="btn btn-outline-primary" href="{% url 'budget:version_export' version.public_id %}">Export CSV</a></div>
+  </div>
+  <div class="alert {% if version.is_spendable_authority %}alert-success{% else %}alert-warning{% endif %}"><strong>{% if version.is_spendable_authority %}Operational appropriation authority{% else %}Not spendable authority{% endif %}.</strong> Status: {{ version.get_status_display }}. GRAND will not let this proposal be treated as an allotment or obligation source.</div>
+  {% if version.source_links.exists %}<div class="alert alert-info"><strong>Consolidated from:</strong> {% for link in version.source_links.all %}<a href="{% url 'budget:version_detail' link.source_version.public_id %}">{{ link.source_version.title }} v{{ link.source_version.version }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex align-items-center"><h2 class="card-title font-weight-bold">Classified proposal lines</h2>{% if can_prepare and version.status == 'draft' or can_prepare and version.status == 'returned' %}<div class="ml-auto"><a class="btn btn-sm btn-outline-primary" href="{% url 'budget:resource_create' version.public_id %}">Add resource estimate</a> <a class="btn btn-sm btn-primary" href="{% url 'budget:line_create' version.public_id %}">Add line</a></div>{% endif %}</div>
+        <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Fund / office</th><th>PPA / account</th><th>Particulars</th><th>Target</th><th class="text-right">Amount</th></tr></thead><tbody>
+          {% for row in version.lines.all %}<tr><td>{{ row.fund.code }}<div class="small text-muted">{{ row.responsibility_center.code }} · {{ row.expense_class }}</div></td><td>{{ row.program.code|default:"—" }}<div class="small text-muted">{{ row.account.code }} · {{ row.get_appropriation_type_display }}</div></td><td>{{ row.particulars }}</td><td>{{ row.performance_target|default:"—" }}</td><td class="text-right">{{ row.amount|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="5" class="text-center text-muted py-4">No lines yet.</td></tr>{% endfor %}
+        </tbody><tfoot><tr><th colspan="4">Proposal total</th><th class="text-right">{{ version.total_amount|floatformat:2 }}</th></tr></tfoot></table></div>
+      </div>
+      <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Revenue/resource estimates</h2></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Source</th><th>Description / basis</th><th class="text-right">Estimate</th></tr></thead><tbody>{% for row in version.resource_estimates.all %}<tr><td>{{ row.funding_source.code }}</td><td>{{ row.description }}<div class="small text-muted">{{ row.basis }}</div></td><td class="text-right">{{ row.amount|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="3" class="text-muted text-center">No resource estimates recorded for this version.</td></tr>{% endfor %}</tbody></table></div></div>
+      <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Ceiling check</h2></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Expense class</th><th class="text-right">Proposed</th><th class="text-right">Ceiling</th><th class="text-right">Remaining</th></tr></thead><tbody>{% for row in ceiling_rows %}<tr class="{% if row.difference < 0 %}table-danger{% endif %}"><td>{{ row.expense_class }}</td><td class="text-right">{{ row.proposed }}</td><td class="text-right">{{ row.ceiling }}</td><td class="text-right">{{ row.difference }}</td></tr>{% empty %}<tr><td colspan="4" class="text-muted text-center">No proposal lines to check.</td></tr>{% endfor %}</tbody></table></div></div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Next controlled action</h2></div><div class="card-body">
+        {% if can_prepare and version.status == 'draft' or can_prepare and version.status == 'returned' %}<form method="post" action="{% url 'budget:version_action' version.public_id 'submit' %}">{% csrf_token %}<button class="btn btn-primary btn-block">Submit for review</button></form>{% endif %}
+        {% if can_review and version.status == 'for_review' %}<form method="post" action="{% url 'budget:version_action' version.public_id 'approve' %}">{% csrf_token %}<textarea class="form-control mb-2" name="reason" required placeholder="Review basis"></textarea><button class="btn btn-success btn-block">Approve proposal</button></form><hr><form method="post" action="{% url 'budget:version_action' version.public_id 'return' %}">{% csrf_token %}<textarea class="form-control mb-2" name="reason" required placeholder="Specific correction reason"></textarea><button class="btn btn-outline-danger btn-block">Return for correction</button></form>{% endif %}
+      </div></div>
+      <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Review discussion</h2></div><div class="card-body">{% for comment in version.review_comments.all %}<div class="border-bottom pb-2 mb-2"><strong>{{ comment.author_label }}</strong><div class="small text-muted">{{ comment.created_at }}</div>{{ comment.comment|linebreaksbr }}</div>{% empty %}<p class="text-muted">No review comments.</p>{% endfor %}{% if can_review %}<form method="post" action="{% url 'budget:comment_create' version.public_id %}">{% csrf_token %}{{ comment_form.comment }}<button class="btn btn-sm btn-outline-primary mt-2">Add comment</button></form>{% endif %}</div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

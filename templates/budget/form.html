@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% load crispy_forms_tags %}
+{% block title_ext %} - {{ title }}{% endblock %}
+{% block content %}<div class="container py-4" style="max-width:900px"><a href="javascript:history.back()" class="small">&larr; Back</a><h1 class="mt-2">{{ title }}</h1><div class="alert alert-info"><i class="fas fa-info-circle mr-2"></i>{{ guidance }}</div><div class="card"><div class="card-body"><form method="post">{% csrf_token %}{{ form|crispy }}<button class="btn btn-primary">Save controlled draft</button></form></div></div></div>{% endblock %}

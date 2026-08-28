@@ -13,13 +13,23 @@ FINANCE_ROLE_PERMISSIONS = {
         "vouchers.view_voucher_audit",
         "accounting.view_accounting_workspace",
         "accounting.view_general_ledger",
+        "budget.view_budget_workspace",
     ),
     "Budget Voucher Officer": (
+        "budget.view_budget_workspace",
+        "budget.prepare_budget_calls",
+        "budget.prepare_budget_proposals",
         "vouchers.view_voucher_workbench",
         "vouchers.initiate_budget_case",
         "vouchers.certify_budget_obligation",
         "vouchers.return_voucher_case",
         "vouchers.view_voucher_audit",
+    ),
+    "Budget Review and Consolidation Officer": (
+        "budget.view_budget_workspace",
+        "budget.approve_budget_calls",
+        "budget.review_budget_proposals",
+        "budget.view_budget_audit",
     ),
     "Accounting DV Preparer": (
         "finance.view_finance_setup",
