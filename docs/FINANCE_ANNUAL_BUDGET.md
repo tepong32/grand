@@ -1,0 +1,42 @@
+# GRAND Finance annual budget preparation (F3.1)
+
+This slice introduces GRAND's first Budget-domain workspace while deliberately stopping before operational appropriation authorization. It implements annual calls, department ceilings, classified proposal and consolidation versions, performance targets, resource estimates, review evidence, comparison, and portable export.
+
+## Authority boundary
+
+- A ceiling limits proposal preparation; it is not an appropriation, allotment, obligation, accounting entry, or cash balance.
+- Draft, submitted, returned, and approved proposal versions are not spendable authority.
+- Only the F3.2 authorization workflow may mark a final, supplemental, or reenacted version as operational appropriation authority after ordinance, review, conditions, effectivity, and signed control totals are accepted.
+- This structure is informed by the Finance evidence register and DBM/COA reference baseline. It does not claim that a synthetic schedule or CSV is an official local form.
+
+## Controlled workflow
+
+1. A Budget preparer creates an annual call against an approved or active typed fiscal year and records the applicable local authority, instructions, dates, and office/fund/expense-class ceilings.
+2. A different Budget reviewer publishes the call or returns it with a specific correction reason. Published call content and ceilings are immutable.
+3. Proposal preparers create explicit versions and classify every amount by fiscal year, fund, responsibility center, PPA/project/activity, funding source where applicable, posting account, expense class, and appropriation type. Targets and change explanations stay with the line.
+4. Submission checks that the call is published, at least one line exists, and no classified proposal total exceeds its published ceiling.
+5. A different reviewer approves the proposal or returns it. Approval remains visibly non-spendable.
+6. Reviewers can consolidate approved department proposals into a new executive draft. GRAND copies lines and resource estimates, retains source-version lineage, and leaves every source unchanged.
+7. Comparison groups changes by governed classification instead of comparing presentation rows only.
+
+## Corrections and modification allowance
+
+Draft and returned calls and proposals can be edited through guided forms. After call publication or proposal approval, governed content is immutable: the operator creates a successor version with a change explanation. This is stricter than the later voucher modification allowance because budget-version authority must remain reconstructible.
+
+## Export and TraceSync
+
+Every proposal CSV downloaded through GRAND is also archived under `GRAND_EXPORT_ROOT`:
+
+`department / user / finance-budget-proposals / year / month / timestamp_checksum_filename`
+
+The sibling manifest records SHA-256, actor, department, proposal version/status, and the fact that the export is controlled data interchange—not automatically a DBM/COA form. Copy or synchronize the entire root so artifacts and manifests remain together.
+
+## Roles and acceptance
+
+- `Budget Voucher Officer` includes call and proposal preparation alongside the shadow voucher permissions.
+- `Budget Review and Consolidation Officer` independently publishes calls, reviews proposals, consolidates versions, and sees Budget audit evidence.
+- `Finance UAT Viewer` receives view-only access.
+
+Run `python manage.py configure_finance_roles` after applying migrations. The command also seeds the role-aware Annual Budget Internal How-To for matching Budget departments.
+
+Before production use, Budget process owners must accept the current call, ceiling, proposal, target, resource-estimate, comparison, and export schedules against applicable current issuances and local ordinance/review practice. F3.2 remains required before any proposal can support F4 allotment or obligation controls.

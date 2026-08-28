@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'finance.apps.FinanceConfig',
     'vouchers.apps.VouchersConfig',
     'accounting.apps.AccountingConfig',
+    'budget.apps.BudgetConfig',
 
     ### defaults
     'django.contrib.sites',  # allauth needs this
