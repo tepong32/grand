@@ -4,6 +4,8 @@ Use this protocol before treating GRAND Finance as an accurate replacement for t
 
 The canonical delivery scope and acceptance gates are in the [GRAND Finance complete-cycle roadmap](FINANCE_ROADMAP.md). Discovery supplies the LGU-confirmed evidence needed to move those gates from assumption to accepted behavior.
 
+Use the repository-safe [Finance evidence register and interview kit](finance-discovery/README.md) to run this protocol. It supplies the evidence register, interview cover sheet and prompts, transaction catalog, role/signature matrix, actual-step and replay worksheets, unresolved-decision log, and redaction checklist. The templates structure fieldwork; completed entries become requirements only when their evidence and named-office acceptance support that status.
+
 ## Evidence rules
 
 Label every finding as **Observed in eGAPS**, **Official reference**, **LGU-confirmed**, **GRAND-implemented**, or **Unresolved**. A menu name proves only that a function was exposed; it does not prove its hidden validation, operator sequence, form, posting rule, or local authority.

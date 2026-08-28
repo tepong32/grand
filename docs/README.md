@@ -13,6 +13,7 @@ Use this page as the entry point for project and operator documentation.
 - [GRAND Finance complete-cycle roadmap](FINANCE_ROADMAP.md) is the canonical delivery plan from annual budget preparation through appropriation, allotment, obligation, DV, wet-signature custody, accounting, payment, reporting, reconciliation, and cutover.
 - [eGAPS-to-GRAND finance modernization plan](EGAPS_GRAND_PLAN.md) records the read-only findings, separate-database architecture, workflow and CRUD contract, no-code Excel Template Studio, and phased prototype-to-cutover plan.
 - [Finance process discovery protocol](FINANCE_PROCESS_DISCOVERY.md) defines the redacted voucher replay, office interview, evidence, comparison, and acceptance procedure used before claiming process fidelity.
+- [Finance evidence register and interview kit](finance-discovery/README.md) provides repository-safe F0.1 templates for evidence, transaction variants, roles/signatures, actual steps, decisions, and redacted synthetic replay.
 - [Finance process fidelity baseline](FINANCE_PROCESS_FIDELITY_BASELINE.md) maps the full annual-budget-to-close cycle to current GRAND coverage, evidence still required, and the complete-cycle and voucher-subcycle divergences.
 - [Product roadmap](ROADMAP.md) records completed platform phases and points to the canonical long-term Finance delivery train.
 - [Security maintenance](../SECURITY.md) covers dependency auditing, CI checks, Dependabot, and bundled browser assets.
