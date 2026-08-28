@@ -1,0 +1,126 @@
+from decimal import Decimal
+
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.utils import timezone
+
+from .models import AccountingAuditEvent, AccountingPeriod, JournalEntry
+
+
+FINANCE_DB = "finance"
+
+
+def actor_label(actor):
+    return actor.get_full_name() or actor.username
+
+
+def record_event(entry, action, actor, reason="", snapshot=None):
+    return AccountingAuditEvent.objects.create(
+        department_id=entry.department_id,
+        department_label=entry.department_label,
+        entry=entry,
+        action=action,
+        actor_id=actor.pk,
+        actor_label=actor_label(actor),
+        reason=reason,
+        snapshot=snapshot or {},
+    )
+
+
+def validate_entry_for_submission(entry):
+    entry.full_clean()
+    lines = list(entry.lines.select_related("account", "responsibility_center"))
+    if len(lines) < 2:
+        raise ValidationError("Add at least two journal lines before submitting.")
+    for line in lines:
+        line.full_clean()
+    debit = sum((line.debit for line in lines), Decimal("0.00"))
+    credit = sum((line.credit for line in lines), Decimal("0.00"))
+    if debit <= 0 or debit != credit:
+        raise ValidationError(f"The entry must balance before submission. Debits: {debit:,.2f}; credits: {credit:,.2f}.")
+    if entry.period.status != AccountingPeriod.OPEN:
+        raise ValidationError("The selected accounting period is closed.")
+    return debit, credit
+
+
+@transaction.atomic(using=FINANCE_DB)
+def submit_entry(entry, actor):
+    locked = JournalEntry.objects.select_for_update().get(pk=entry.pk)
+    if locked.status != JournalEntry.DRAFT:
+        raise ValidationError("Only a draft journal can be submitted.")
+    debit, credit = validate_entry_for_submission(locked)
+    locked.status = JournalEntry.SUBMITTED
+    locked.submitted_by_id = actor.pk
+    locked.submitted_by_label = actor_label(actor)
+    locked.submitted_at = timezone.now()
+    locked.save(update_fields=("status", "submitted_by_id", "submitted_by_label", "submitted_at", "updated_at"))
+    record_event(locked, "submitted", actor, snapshot={"debit": str(debit), "credit": str(credit)})
+    return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def post_entry(entry, actor):
+    locked = JournalEntry.objects.select_for_update().get(pk=entry.pk)
+    if locked.status != JournalEntry.SUBMITTED:
+        raise ValidationError("Only a submitted journal can be posted.")
+    if locked.created_by_id == actor.pk:
+        raise ValidationError("Maker-checker control: the preparer cannot post the same journal entry.")
+    debit, credit = validate_entry_for_submission(locked)
+    locked.status = JournalEntry.POSTED
+    locked.posted_by_id = actor.pk
+    locked.posted_by_label = actor_label(actor)
+    locked.posted_at = timezone.now()
+    locked.save(update_fields=("status", "posted_by_id", "posted_by_label", "posted_at", "updated_at"))
+    record_event(locked, "posted", actor, snapshot={"debit": str(debit), "credit": str(credit)})
+    return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def return_entry(entry, actor, reason):
+    locked = JournalEntry.objects.select_for_update().get(pk=entry.pk)
+    if locked.status != JournalEntry.SUBMITTED:
+        raise ValidationError("Only a submitted journal can be returned.")
+    if not reason.strip():
+        raise ValidationError("Explain what the preparer needs to correct.")
+    locked.status = JournalEntry.DRAFT
+    locked.submitted_by_id = None
+    locked.submitted_by_label = ""
+    locked.submitted_at = None
+    locked.save(update_fields=("status", "submitted_by_id", "submitted_by_label", "submitted_at", "updated_at"))
+    record_event(locked, "returned", actor, reason=reason.strip())
+    return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def discard_draft(entry, actor, reason=""):
+    locked = JournalEntry.objects.select_for_update().get(pk=entry.pk)
+    if locked.status != JournalEntry.DRAFT:
+        raise ValidationError("Only a draft journal can be discarded.")
+    locked.status = JournalEntry.VOIDED
+    locked.save(update_fields=("status", "updated_at"))
+    record_event(locked, "draft_discarded", actor, reason=reason.strip())
+    return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def close_period(period, actor):
+    locked = AccountingPeriod.objects.select_for_update().get(pk=period.pk)
+    if locked.status != AccountingPeriod.OPEN:
+        raise ValidationError("This accounting period is already closed.")
+    unposted = locked.journal_entries.exclude(status__in=(JournalEntry.POSTED, JournalEntry.VOIDED)).count()
+    if unposted:
+        raise ValidationError(f"Close or discard {unposted} unposted journal entry/entries before closing this period.")
+    locked.status = AccountingPeriod.CLOSED
+    locked.closed_by_id = actor.pk
+    locked.closed_by_label = actor_label(actor)
+    locked.closed_at = timezone.now()
+    locked.save(update_fields=("status", "closed_by_id", "closed_by_label", "closed_at"))
+    AccountingAuditEvent.objects.create(
+        department_id=locked.department_id,
+        department_label=locked.department_label,
+        action="period_closed",
+        actor_id=actor.pk,
+        actor_label=actor_label(actor),
+        snapshot={"fiscal_year": locked.fiscal_year, "period_number": locked.period_number},
+    )
+    return locked

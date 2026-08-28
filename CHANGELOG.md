@@ -4,6 +4,14 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Standalone GRAND Accounting foundation
+
+- Added a separately routed GRAND finance database with no eGAPS endpoint, credentials, database attachment, or runtime dependency.
+- Added native accounting periods, funds, responsibility centers, chart of accounts, journal headers/lines, and append-only workflow events using cross-database-safe identity snapshots.
+- Added guided accounting setup, department-scoped journal CRUD, balanced-entry validation, explicit submit/return/post actions, maker-checker posting, and immutable posted history.
+- Added a task-first Accounting workspace, journal register/detail, general ledger, and trial balance with permission-aware navigation.
+- Added multi-database, authorization, department-isolation, posting-integrity, immutability, HTTP-method, and reporting regression tests using synthetic values only.
+
 ### Voucher and Disbursement Workbench
 
 - Added one shared Budget–Accounting–Treasury voucher case with explicit, state-versioned stages from OBR allocation through advised check release.

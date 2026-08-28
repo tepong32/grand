@@ -15,7 +15,11 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.environ.get('DJANGO_SQLITE_PATH', BASE_DIR / 'db.sqlite3'),
-    }
+    },
+    'finance': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.environ.get('GRAND_FINANCE_SQLITE_PATH', BASE_DIR / 'grand_finance.sqlite3'),
+    },
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

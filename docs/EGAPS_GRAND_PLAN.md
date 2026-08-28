@@ -1,6 +1,6 @@
 # eGAPS-to-GRAND finance modernization plan
 
-Status: planning and prototype blueprint only. The current eGAPS installation remains untouched and authoritative until a separately approved cutover.
+Status: standalone GRAND implementation started on `codex/egaps-integration-prototype`. eGAPS remains untouched and is a functional reference only, never a runtime dependency.
 
 ## Purpose
 
@@ -17,6 +17,7 @@ This plan is based on read-only inspection of the installed client, its launch/c
 - Prefer vendor/DBA-approved read-only exports or a read-only OpenEdge SQL service. If neither is approved, use redacted manual exports for the prototype.
 - Every imported source row must retain its source system, source key, extraction time, source checksum, and reconciliation status.
 - GRAND must use a separate finance database. It must never share or attach to eGAPS database files.
+- GRAND's normal finance operation must continue when eGAPS is unavailable or permanently retired. No screen, service, login, or database connection to eGAPS may be required for daily work.
 
 ## What was observed
 
@@ -47,25 +48,25 @@ The legacy UI is organized around maintenance “files,” modal windows, and ge
 
 ### Databases
 
-Use three bounded stores in development and production:
+Use two required bounded stores, plus one optional migration store only if historical migration is later approved:
 
 1. `grand_core` — existing GRAND identity, departments, public services, records metadata, and non-finance modules.
 2. `grand_finance` — finance configuration, budgets, obligations, vouchers, JEVs, posting batches, ledger entries, bank advice, payment instruments, template bindings, output metadata, and finance audit events.
-3. `grand_finance_stage` — immutable eGAPS extracts, source schemas, import runs, row hashes, validation results, mapping decisions, and reconciliation issues.
+3. Optional `grand_finance_stage` — temporary immutable migration extracts and reconciliation evidence. This is not part of GRAND's runtime transaction path and is not required for implementation or operation.
 
 The prototype may use separate SQLite files with wholly synthetic data. Production should use separately backed-up MySQL/PostgreSQL databases and least-privilege service accounts.
 
 Do not create cross-database foreign keys. Finance records should carry stable GRAND UUIDs/IDs plus immutable display snapshots for the actor, department, payee, office, signatory, and other historically significant references. Cross-database work uses an outbox/inbox pattern and idempotency keys, not one transaction spanning databases.
 
-### Integration boundary
+### Optional historical-migration boundary
 
-Implement an `egaps_bridge` adapter boundary with interchangeable readers:
+Only if owners later approve migration of historical data, implement a removable adapter boundary with interchangeable readers:
 
 - `RedactedFileAdapter` for CSV/XLSX exports during prototype and UAT;
 - `OpenEdgeReadOnlyAdapter` only after vendor/DBA approval, using a dedicated read-only account and allowlisted views;
 - optional `ScheduledExportAdapter` when eGAPS can produce controlled server-side extracts without granting query access.
 
-All adapters write only to `grand_finance_stage`. A separate promotion service validates, maps, and copies approved records into `grand_finance`. No adapter may write to eGAPS. UI automation is excluded from this boundary.
+All optional adapters write only to `grand_finance_stage`. A separate promotion service validates, maps, and copies approved records into `grand_finance`. No adapter may write to eGAPS. UI automation is excluded from this boundary. Removing the adapter and staging database must have no effect on GRAND finance workflows.
 
 ### Source-of-truth progression
 
@@ -201,17 +202,17 @@ Deliverables:
 
 Exit: every planned field and state has an owner, definition, source, sensitivity, and acceptance example.
 
-### Phase 2 — Separate finance database and bridge skeleton
+### Phase 2 — Separate finance database and standalone accounting skeleton
 
 Deliverables:
 
 - Django multi-database configuration and finance database router;
-- finance-domain repository/service boundary with no cross-database foreign keys;
-- `egaps_bridge` staging models, import-run ledger, row hashes, validation errors, and reconciliation issues;
-- synthetic `RedactedFileAdapter` and repeatable fixtures;
+- finance-domain repository/service boundary with no cross-database foreign keys and no eGAPS dependency;
+- native accounting periods, funds, responsibility centers, chart of accounts, JEV headers/lines, audit events, and posting controls;
+- guided setup, journal preparation, independent posting, general ledger, and trial-balance screens;
 - database backup/restore rehearsal and permission tests.
 
-Exit: synthetic imports are idempotent, isolated, auditable, and cannot reach eGAPS.
+Exit: GRAND can configure and post a balanced synthetic journal entirely inside its own finance database while eGAPS is disconnected.
 
 ### Phase 3 — Master data and setup modernization
 
@@ -287,7 +288,7 @@ Deliverables:
 
 Exit: approved synthetic opening balances plus transactions reproduce signed test statements and ledger schedules.
 
-### Phase 10 — Read-only eGAPS shadow integration
+### Phase 10 — Optional historical migration and comparison
 
 Deliverables:
 
@@ -296,7 +297,7 @@ Deliverables:
 - field-, record-, batch-, and control-total reconciliation dashboards;
 - mismatch assignment, explanation, resolution evidence, and sign-off.
 
-Exit: several consecutive periods reconcile within documented tolerances with zero unexplained control-total differences.
+Exit: if migration is approved, several consecutive historical periods reconcile within documented tolerances with zero unexplained control-total differences. Skipping this phase does not block GRAND operation.
 
 ### Phase 11 — Parallel pilot and controlled cutover
 
@@ -323,12 +324,12 @@ Exit: Budget, Accounting, Treasury, IT, management, and the COA Audit Team sign 
 
 ## First prototype increments on this branch
 
-1. Add architecture decision records for the separate finance and staging databases.
-2. Add empty multi-database settings contracts driven by environment variables; no production endpoints.
-3. Add an `egaps_bridge` app with synthetic import-run, source-record, and reconciliation models.
-4. Add a redacted CSV/XLSX adapter interface and synthetic fixtures.
-5. Add a read-only reconciliation workspace with no promotion action initially.
-6. Add the visual Template Studio prototype over existing Finance/Reporting preflight services.
-7. Add role-based finance navigation and task queues before expanding transaction CRUD.
+1. Add the separate finance database/router with environment-driven configuration and no eGAPS endpoint.
+2. Add native periods, funds, responsibility centers, chart of accounts, JEVs, lines, and append-only workflow evidence.
+3. Add guided setup, draft CRUD, balanced submission, independent posting, ledger, and trial-balance views.
+4. Connect vouchers and other source modules to the posting service through stable IDs and snapshots.
+5. Add the visual Template Studio prototype over existing Finance/Reporting preflight services.
+6. Expand accounting into period close, reversal, subsidiary ledgers, and controlled statements.
+7. Consider a removable historical-import tool only after explicit data-owner approval.
 
 Implementation must remain synthetic until Phase 0 and Phase 1 approvals are complete.
