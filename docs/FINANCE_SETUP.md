@@ -1,8 +1,8 @@
 # Finance Setup Center operations
 
-Release status: delivered in GRAND `0.7.0`; official voucher transactions remain a future, separately validated phase.
+Release status: foundation delivered in GRAND `0.7.0`; it covers part of F2 in the [complete-cycle roadmap](FINANCE_ROADMAP.md). Official fiscal-year opening and voucher transactions remain future, separately validated phases.
 
-The Finance Setup Center is GRAND's governed configuration boundary for future voucher work. It does not create, number, approve, post, or pay vouchers. Its operating rule is: **editable configuration for the future; immutable history for the past**.
+The Finance Setup Center is GRAND's governed configuration boundary for Finance. It does not create annual budget authority, release allotments, certify obligations, number/approve/post/pay vouchers, or open a fiscal year merely because a configuration release is active. Its operating rule is: **editable configuration for the future; immutable history for the past**.
 
 ## Responsibilities and permissions
 
@@ -36,9 +36,11 @@ The versioned item register supports voucher/transaction types, payee classifica
 
 Values are stored as controlled JSON objects so locally approved details can evolve without fabricating a national or LGU default. Do not enter credentials, bank authentication secrets, production personal data, or signature images. Demonstration records must be conspicuously synthetic. Local Accounting approval is required for activation.
 
+The complete-cycle extension will add governed, effective-dated definitions for PPAs/MFOs, projects/activities, funding sources, subsidiary-ledger references, finance calendars, JEV/journal types, form catalogs, and transaction-variant routes. It will also add a separate fiscal-year opening checklist and reconciled opening-balance intake. Those future objects must use typed schemas and dedicated guided screens rather than expanding the existing JSON register into an unreviewable catch-all.
+
 ## Readiness contract
 
-The readiness service returns stable reason codes, plain-language messages, and help anchors. Official activation is blocked if any check fails:
+The readiness service returns stable reason codes, plain-language messages, and help anchors. Configuration activation is blocked if any current check fails:
 
 - `approved_voucher_template` — an approved, preflighted workbook is missing;
 - `transaction_type_checklist` — transaction-type and document-requirement configuration is incomplete;
@@ -48,7 +50,9 @@ The readiness service returns stable reason codes, plain-language messages, and 
 - `numbering_sequence` — no sequence exists for the fiscal year;
 - `activation_date_conflict` — the release overlaps another scheduled or active release.
 
-These structures are intentionally reusable by a future permission-aware GRAND Guide. Sandbox workbook previews remain available while official readiness is incomplete. The future Voucher Workbench must call the readiness service and pin the active release before enabling official creation.
+These structures are intentionally reusable by a future permission-aware GRAND Guide. Sandbox workbook previews remain available while official readiness is incomplete. The Voucher Workbench already pins an active release in shadow mode; any future official-creation gate must call the expanded readiness service.
+
+Passing this configuration checklist does not mean an LGU fiscal year is open. F2 readiness will separately require approved appropriations, applicable review status, allotment policy, reconciled opening/control totals, open periods, Budget/Accounting/Treasury sign-off, forms, roles, printing, custody, backup/recovery, and enabled transaction types. The UI must state which readiness layer passed.
 
 ## Macro-free Excel workflow
 
@@ -62,7 +66,7 @@ Finance templates are purpose-built voucher forms, not generic reports. The work
 6. Download a synthetic-only preview. GRAND verifies the workbook checksum again and inserts only conspicuously synthetic values.
 7. Submit the containing release for a separate Accounting review and activate only when readiness passes.
 
-Preflight records the exact workbook SHA-256, deterministic mapping SHA-256, controlled range map, worksheet count, print-area worksheets, line-row capacity, validator, and timestamp. Any future official output must additionally pin the configuration release, input snapshot, generator, generation timestamp, and output checksum/status. That output ledger belongs to the future Voucher Workbench/Records phases.
+Preflight records the exact workbook SHA-256, deterministic mapping SHA-256, controlled range map, worksheet count, print-area worksheets, line-row capacity, validator, and timestamp. Any future official output must additionally pin the configuration release, input snapshot, generator, generation timestamp, and output checksum/status. The Voucher Workbench currently provides this evidence for shadow outputs; formal promotion and retention belong to the F6/F9 Voucher Workbench and Records acceptance work.
 
 Wet-signature output is the starting assumption. Signature images are not collected by this phase. Digital signatures require a separate formal LGU decision, threat assessment, and implementation.
 
@@ -70,6 +74,7 @@ Wet-signature output is the starting assumption. Signature images are not collec
 
 - **Voucher Workbench** will own the financial transaction and voucher lifecycle.
 - **Finance Setup Center** owns approved master data, rules, signatories, numbering, and form versions.
+- **Budget execution** will own approved appropriation versions, AROs, obligation movements, and RAAO/equivalent balances; setup must not impersonate those transactions.
 - **Reporting** owns derived registers, summaries, transmittals, and recurring reports.
 - **Records** owns retained official outputs, attachments, review, retention, and supersession.
 - **TracePoint** owns physical paper custody and may link a voucher to a packet item; it does not store financial voucher fields.

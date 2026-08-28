@@ -1,103 +1,158 @@
 # Finance process discovery protocol
 
-Use this protocol before treating GRAND's voucher workflow as an accurate copy of the LGU's operating process. The objective is not to validate GRAND against a policy manual alone. It is to reconstruct one real, completed voucher from documentary evidence and the employees who handled it, then replay the same case in GRAND.
+Use this protocol before treating GRAND Finance as an accurate replacement for the LGU's eGAPS-supported process. The target is the complete budget-to-accountability cycle, not a voucher screen that merely resembles an old form.
 
-## Scope of the first walkthrough
+The canonical delivery scope and acceptance gates are in the [GRAND Finance complete-cycle roadmap](FINANCE_ROADMAP.md). Discovery supplies the LGU-confirmed evidence needed to move those gates from assumption to accepted behavior.
 
-Choose one completed, ordinary supplier payment with no emergency procurement, cash advance, payroll, infrastructure billing, or unusual tax treatment. Later walkthroughs should cover those variants separately.
+## Evidence rules
 
-The source packet should be copied or photographed only after these values are redacted:
+Label every finding as **Observed in eGAPS**, **Official reference**, **LGU-confirmed**, **GRAND-implemented**, or **Unresolved**. A menu name proves only that a function was exposed; it does not prove its hidden validation, operator sequence, form, posting rule, or local authority.
+
+Use read-only eGAPS access. Do not save, post, print, export, alter, or automate production transactions. Use blank forms, redacted copies, approved read-only extracts, and synthetic replay data.
+
+Before copying or photographing a packet, redact:
 
 - signatures and signature specimens;
-- bank account, check, TIN, personal address, telephone, and email values;
-- personal identifiers and information about private citizens;
-- credentials, QR bearer tokens, and internal network details.
+- bank accounts, check numbers, TINs, personal addresses, telephone numbers, and email addresses;
+- citizen, employee, supplier, claimant, and representative identifiers not essential to the process;
+- credentials, QR bearer tokens, internal addresses, and infrastructure details.
 
-Keep document titles, form geometry, office stamps, routing annotations, dates relative to one another, status labels, attachment types, and numbering relationships visible when policy permits. Assign each artifact an evidence ID such as `EV-01`; do not place production identifiers in this repository.
+Keep form geometry, document titles, office stamps, relative dates, status labels, attachment types, routing annotations, numbering relationships, and calculation/control totals visible when policy permits. Assign repository-safe evidence IDs such as `EV-001`; never commit production identifiers.
 
-## Evidence inventory
+## Discovery sequence
 
-Record whether the completed packet contains each item and which office produced it:
+Discovery proceeds in layers. Do not generalize one ordinary-supplier voucher into the entire finance system.
+
+### Walkthrough A — Annual budget authority
+
+Select one completed, closed fiscal year and one current or safely redacted budget cycle. Collect and reconcile:
+
+- budget call, departmental ceilings, PPA proposals, targets, and revenue/resource estimates;
+- department proposal, executive proposal, Sanggunian changes, appropriation ordinance, and review result;
+- annual, supplemental, reenacted, continuing, reserve, and adjustment treatment where applicable;
+- fiscal-year/fund/office/PPA/object/account/funding-source classifications;
+- opening balances and control totals loaded into the operational system;
+- exact actors, versions, signatories, dates, and conditions that turn a proposal into spendable authority.
+
+Output: approved-budget lineage and a control-total matrix proving how the source budget becomes system appropriations.
+
+### Walkthrough B — Allotment and obligation
+
+Choose one appropriation line used by the voucher packet selected later. Trace:
+
+- authorized appropriation;
+- Allotment Release Orders, reserves, deferrals, and adjustments;
+- prior and current releases and unreleased appropriation;
+- the local ALOBS/ORS/OBR form, preparer, certifier, number timing, and supporting references;
+- the Registry of Appropriations, Allotments and Obligations or local equivalent;
+- unobligated-allotment calculation, concurrent use, rejection, cancellation, release, and adjustment behavior;
+- the exact movement by which the selected transaction consumed budget authority.
+
+Output: a signed-off balance equation from appropriation through the selected obligation with zero unexplained difference.
+
+### Walkthrough C — Ordinary supplier payment
+
+Choose one completed, ordinary supplier payment with no emergency procurement, cash advance, payroll, infrastructure billing, or unusual tax treatment. Inventory:
 
 - initiating request and claim attachments;
-- purchase request, purchase order, inspection or acceptance evidence, and invoice;
-- obligation request or OBR;
-- disbursement voucher and deduction worksheet;
-- routing slip, receiving log, office stamps, and return notes;
-- wet-signature pages and the configured signing order;
-- journal entry voucher or equivalent accounting posting evidence;
-- check preparation or printing evidence;
-- bank advice;
-- claimant authorization and release receipt;
-- cancellation, replacement, or correction evidence, if applicable.
+- purchase request, procurement/award references, purchase order or contract;
+- delivery, inspection/acceptance, invoice, and payable evidence;
+- ALOBS/ORS/OBR and any obligation adjustment;
+- DV, deduction worksheet, and document checklist;
+- controlled print or reprint evidence, routing slip, receiving log, office stamps, and return notes;
+- wet-signature pages and the actual signing order;
+- JEVs and posting evidence, including whether recognition and payment use separate entries;
+- check preparation/printing, spoiled/cancelled register, advice, bank acknowledgement, release receipt, remittance, and bank reconciliation evidence;
+- corrections, reversals, replacements, and outstanding/unclaimed handling when present.
 
-Absence is a finding. Do not invent an artifact because GRAND currently models it.
+Output: an action-and-custody map from request through reporting and reconciliation.
 
-## Walkthrough order
+### Walkthrough D — Transaction variants
 
-Interview the requesting office, Budget, Accounting, and Treasury in the same order the packet actually travelled. If the route includes the Mayor, Vice Mayor, resident attorney, procurement, inspection, cashier, or another office, add that participant where the evidence places them.
+Repeat the evidence process separately for each enabled category, including payroll, reimbursement, utilities, financial assistance, cash advance/liquidation, infrastructure/progress billing, emergency procurement, remittances, and other locally approved cases. Record where authority, documents, timing, posting, signatures, and payment behavior differ.
 
-For every handoff, ask:
+## Interview order
 
-1. What exact paper or system record arrived, and from whom?
-2. What did the employee verify before accepting it?
-3. What did the employee enter into eGAPS, Excel, a paper log, or another system?
-4. What number, form, checklist, stamp, or printed paper was produced?
-5. Whose wet signature or approval was required, and in what order?
-6. Who physically held the packet after the action?
-7. How was receipt acknowledged?
+Interview participants in the order the authority, record, or physical packet actually travelled:
+
+1. Planning/LFC participants and the LCE/Sanggunian representatives needed to explain budget preparation and authorization;
+2. Budget Office and departments responsible for appropriation, allotment, and obligation;
+3. requesting office, procurement, inspection/acceptance, and other pre-payable actors;
+4. Accounting preparer, reviewer, poster, and records/custody participants;
+5. Treasury preparer, signatories, cashier/release staff, and reconciliation staff;
+6. IT, management, and audit stakeholders for system, continuity, access, reporting, and cutover controls.
+
+If the route includes the Mayor, Vice Mayor, resident attorney, bank, or another office, add that participant where documentary evidence places them. Do not infer that one signatory applies to every transaction type.
+
+For every business action and physical handoff, ask:
+
+1. What authority, balance, paper, or system state arrived, and from whom?
+2. What did the employee verify before accepting or acting?
+3. What was entered into eGAPS, Excel, another system, or a paper register?
+4. Which amount changed: proposed budget, appropriation, allotment, obligation, payable, ledger, or cash?
+5. What number, form, checklist, stamp, printout, entry, or report was produced?
+6. Whose approval or wet signature was required, under what authority, and in what order?
+7. Who physically held the packet before and after, and how was receipt confirmed?
 8. What condition authorized the next office to act?
-9. What causes rejection or return, and to which exact step does it return?
-10. Which identifiers survive correction, cancellation, reprinting, and replacement?
+9. What causes return, rejection, adjustment, reprint, reversal, cancellation, or replacement?
+10. Which identifiers and versions survive each correction?
+11. What period-end register, ledger, reconciliation, or report proves the result?
 
-Prefer demonstration using the selected completed packet over answers based only on memory. Record disagreements as unresolved; do not choose one account without documentary or policy support.
+Prefer demonstration with the selected evidence over recollection. Record disagreements as Unresolved; do not silently choose one participant's account.
 
 ## Actual-step record
 
-Create one row for every business action and a separate row for every physical handoff.
+Create a row for every authority decision, balance movement, business action, system event, print, signature, and physical handoff.
 
 | Field | What to record |
 |---|---|
 | Sequence | Observed order, including returns and repeated visits |
+| Evidence label | Observed in eGAPS, Official reference, LGU-confirmed, GRAND-implemented, or Unresolved |
 | Actor | Position and office, not a private employee identity |
-| Input | Paper, system state, attachments, and prior authorization received |
-| Action | Verification, entry, calculation, approval, printing, signing, or release |
-| System | eGAPS module, spreadsheet, logbook, bank portal, or none |
-| Output | Record, number, printout, stamp, signature, or packet produced |
-| Custody | Holder before and after the action and how receipt was confirmed |
-| Gate | Evidence that legally or operationally permits the next action |
-| Return path | Destination, reason, preserved numbers, and work that must be repeated |
-| Evidence | Redacted artifact ID, policy citation, and confirming office |
+| Authority/input | Legal authority, balance, paper, system state, attachments, and prior approval received |
+| Action | Verification, classification, calculation, entry, approval, printing, signing, posting, payment, or reconciliation |
+| Balance effect | Appropriation, allotment, obligation, payable, ledger, deduction, or cash movement |
+| System | eGAPS module, GRAND, spreadsheet, logbook, bank portal, or none |
+| Output | Record, number, printout, stamp, signature, posting, payment, register, or report |
+| Custody | Holder before/after and acknowledgement method |
+| Gate | Evidence that permits the next action |
+| Exception path | Destination, reason, preserved IDs, required reversal/reprint, and repeated work |
+| Evidence | Redacted artifact ID, authority citation, control total, and confirming office |
 
 ## GRAND replay
 
-Replay the same facts with separate Budget, Accounting-preparer, Accounting-reviewer, and Treasury test accounts. Use the Finance UAT Viewer only to observe all office presentations; it must not submit actions.
+Replay the same facts with separate requesting-office, Budget, Accounting maker/reviewer/poster, Treasury maker/releaser, setup approver, and read-only UAT accounts. The UAT viewer observes but cannot submit actions.
 
-For every actual-step row, identify the GRAND screen, permission, service action, event, output, and next stage. Classify the comparison:
+For every actual-step row, identify the GRAND screen, permission, service action, state/event, balance movement, output, custody record, and next gate. Classify the result:
 
-- **Exact** — actor, order, authority, artifact, and correction behavior match.
-- **Partial** — the purpose matches but a material paper, authority, custody, or routing detail differs.
+- **Exact** — actor, authority, order, balance, artifact, custody, and correction behavior match.
+- **Equivalent improvement** — the legal/control outcome matches while GRAND removes duplicate entry or clarifies the work without weakening evidence.
+- **Partial** — the purpose matches but a material authority, balance, paper, custody, posting, or route differs.
 - **Missing** — the LGU performs a required step that GRAND cannot represent.
-- **Extra** — GRAND requires or records a step the LGU does not perform.
+- **Extra** — GRAND requires or records a step the LGU does not perform and no approved control basis exists.
 - **Unknown** — evidence is incomplete or participants disagree.
 
 Assign severity separately:
 
-- **Critical** — legal validity, financial authority, audit evidence, segregation of duties, or physical custody.
-- **High** — wrong office, stage order, identifier, form, or correction route.
-- **Medium** — reporting, search, workload, or avoidable duplicate entry.
+- **Critical** — legal authority, budget/cash control, accounting correctness, audit evidence, segregation of duties, official output, or physical custody.
+- **High** — wrong office, stage order, identifier, balance, form, signature, posting, or correction route.
+- **Medium** — reporting, search, workload, reconciliation support, or avoidable duplicate entry.
 - **Low** — terminology, help text, or presentation.
 
 ## Exit criteria
 
-The ordinary-supplier flow is understood only when:
+A complete-cycle scope is understood only when:
 
+- annual approved budget totals reconcile to operational appropriations and opening balances;
+- allotment releases, obligations, adjustments, and remaining balances reconcile to the authoritative registry;
 - every paper and system event has an accountable actor and evidence source;
 - every physical handoff has a holder, receiver, and acknowledgement method;
-- wet-signature order and the rule authorizing post-signature processing are confirmed;
-- numbering, reprinting, correction, cancellation, and replacement behavior are confirmed;
-- every actual step has an Exact, Partial, Missing, Extra, or Unknown comparison;
-- Budget, Accounting, and Treasury agree that the actual-state map describes the selected completed packet;
-- critical and high gaps have an accepted operational decision before implementation.
+- wet-signature order and post-signature authorization are confirmed by transaction type;
+- recognition, payment, remittance, reversal, and period rules are confirmed;
+- numbering, printing/reprinting, correction, cancellation, replacement, and close behavior are confirmed;
+- source cases reconcile to JEVs, ledgers, payment registers, bank evidence, and reports;
+- every actual step has an Exact, Equivalent improvement, Partial, Missing, Extra, or Unknown comparison;
+- critical/high gaps have an accepted implementation or operational decision;
+- named Budget, Accounting, Treasury, requesting-office, IT, management, and audit stakeholders accept the map for the enabled scope.
 
-Do not generalize the result to payroll, cash advances, infrastructure, emergency procurement, or other transaction types until each variant receives its own walkthrough.
+Do not claim full eGAPS equivalence until all enabled transaction types and period-end outputs satisfy the relevant roadmap exit gates.

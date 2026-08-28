@@ -17,7 +17,7 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 - TracePoint physical-paper custody with stable packet labels, revocable daily employee QR codes, individual voucher manifests, split/rebundle lineage, repeatable office checkpoints, explicit terminal receipt, immutable handoff history, and separate delivery/completion states.
 - Finance Setup Center with effective-dated releases, versioned master data and rules, separate preparation/approval, signatory and numbering governance, safe macro-free Excel intake, synthetic previews, and structured readiness blockers.
 - Standalone Accounting with its own finance database, guided periods/funds/centers/chart setup, balanced journal preparation, independent posting, immutable audit history, general ledger, and trial balance—without an eGAPS runtime dependency.
-- Voucher and Disbursement Workbench with one shared Budget–Accounting–Treasury case, governed supplier/payee selectors, OBR and DV numbering, wet-signature rounds, JEV references, multi-check controls, bank advice, release, correction history, and checksum-backed shadow outputs.
+- Voucher and Disbursement Workbench shadow vertical slice with one shared Budget–Accounting–Treasury case, governed supplier/payee selectors, pilot OBR and DV numbering, wet-signature rounds, JEV references, multi-check controls, bank advice, release, correction history, and checksum-backed outputs. Authoritative annual appropriations, AROs, RAAO/equivalent balances, and complete fiscal-year operation remain roadmap work.
 - Public and internal announcements, employee/citizen profiles, department records, and organization views.
 
 GRAND keeps operational modules separate: an employee's dashboard summarizes work and links to specialized workspaces instead of embedding full processing screens in the landing page.
@@ -88,6 +88,9 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 - [TracePoint physical-custody contract](docs/TRACEPOINT.md)
 - [Finance Setup Center operations](docs/FINANCE_SETUP.md)
 - [Voucher and Disbursement Workbench](docs/VOUCHER_WORKBENCH.md)
+- [GRAND Finance complete-cycle roadmap](docs/FINANCE_ROADMAP.md)
+- [Finance process discovery protocol](docs/FINANCE_PROCESS_DISCOVERY.md)
+- [Finance process-fidelity baseline](docs/FINANCE_PROCESS_FIDELITY_BASELINE.md)
 - [Product roadmap](docs/ROADMAP.md)
 - [Security maintenance](SECURITY.md)
 - [Synthetic portfolio screenshots](output/playwright/grand-portfolio/README.md)
@@ -95,6 +98,8 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 
 ## Product direction
 
-GRAND remains the platform identity. TracePoint owns physical-document custody, Finance Setup owns governed financial master data and forms, and Voucher Workbench owns the cross-office transaction. Voucher operations remain in shadow comparison mode until local Finance and COA validation. The setup contract is documented in [Finance Setup Center operations](docs/FINANCE_SETUP.md), and the operational route in [Voucher and Disbursement Workbench](docs/VOUCHER_WORKBENCH.md).
+GRAND remains the platform identity. GRAND Finance will become one role-shaped, complete-cycle sub-application: requesting offices initiate funded work, Budget governs appropriations/allotments/obligations, Accounting governs payables/books/reports, and Treasury governs cash/payment/reconciliation. TracePoint owns physical-document custody, Records owns retained authoritative files, and Finance Setup owns governed configuration; those domains link to the shared finance lineage without duplicating authority.
+
+The current Voucher Workbench remains in shadow comparison mode. It starts later than the complete LGU cycle because authoritative annual appropriations, allotment releases, and obligation balances are not yet implemented. The delivery order, acceptance gates, and current-position matrix are documented in the [GRAND Finance complete-cycle roadmap](docs/FINANCE_ROADMAP.md).
 
 All showcase records and screenshots are synthetic. Production citizen data, credentials, uploaded records, and generated official reports must never be added to the repository.

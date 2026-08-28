@@ -1,6 +1,6 @@
 # GRAND standalone accounting operations
 
-GRAND Accounting is an independent finance subsystem. It does not connect to eGAPS and does not need eGAPS to be online, installed, licensed, or retained.
+GRAND Accounting is an independent finance subsystem and the implemented foundation for F7 in the [complete-cycle roadmap](FINANCE_ROADMAP.md). It does not connect to eGAPS and does not need eGAPS to be online, installed, licensed, or retained.
 
 ## Database deployment
 
@@ -56,6 +56,8 @@ Available controls cover Finance Setup self-approval, Budget-certifier/DV prepar
 
 For Voucher Workbench cases, Accounting validation creates an immutable, checksum-backed posting request in GRAND's core database. The Accounting workspace materializes that request into the separate GRAND finance database. The operation is idempotent: retrying opens the same JEV rather than creating a duplicate. After independent posting, a recoverable reconciliation step advances the same voucher case to Treasury. A posted source JEV blocks silent voucher rewrites.
 
+This current voucher-generated route is a prototype posting boundary, not yet the final local accounting policy. F7 must establish transaction-specific rules for recognition, adjustment, liquidation, payment, remittance, cancellation, reversal, and replacement. Where a payable is recognized at delivery/acceptance and settled later, GRAND must not collapse those events into one unexplained payment entry.
+
 ### Date and signatory corrections before check issuance
 
 The separate `amend_nonfinancial_voucher` permission allows an authorized Accounting user to correct the DV document date and choose one currently approved, date-valid person for every required signatory role. This remains available after JEV posting as long as no check— including a later-cancelled check—has ever been issued for the case.
@@ -73,3 +75,5 @@ GRAND's existing Finance Setup Center already accepts macro-free `.xlsx` version
 ## Current implementation boundary
 
 The current native slice covers setup, manual and voucher-generated journals, controlled posting mappings, cross-database handoff/retry, submit/return/post controls, pre-check non-financial DV amendments, correction reversals, audit evidence, general ledger, and trial balance. Subsidiary ledgers, automated payment-side postings, closing entries, financial statements, and the visual Template Studio remain subsequent phases. Historical eGAPS migration is optional and will be designed only if separately authorized.
+
+Before official use, Accounting also needs reconciled opening balances; locally accepted journals and posting batches; control-account and subsidiary reconciliation; payable/withholding/remittance schedules; cash, check, cancellation and bank-reconciliation entries; close/reopen procedures; financial statements; and cross-cycle corrections coordinated with Budget, DV, Treasury, Records, and TracePoint evidence. Passing a balanced synthetic JEV test does not satisfy those complete-cycle gates.
