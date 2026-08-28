@@ -30,7 +30,15 @@ DATABASES = {
         'PASSWORD': os.getenv("TEST_DB_PW"),
         'HOST': 'localhost',
         'PORT': '3306',
-    }
+    },
+    'finance': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('FINANCE_DB_NAME'),
+        'USER': os.getenv('FINANCE_DB_UN'),
+        'PASSWORD': os.getenv('FINANCE_DB_PW'),
+        'HOST': os.getenv('FINANCE_DB_HOST', 'localhost'),
+        'PORT': os.getenv('FINANCE_DB_PORT', '3306'),
+    },
 }
 
 # Email

@@ -1,0 +1,422 @@
+{
+  "run": {
+    "worktree": "C:\\Users\\Administrator\\Desktop\\GH\\grand-finance-complete-cycle",
+    "started_at": "2026-08-28T03:41:32.181359+00:00",
+    "uat_date": "2026-08-28",
+    "data_classification": "SYNTHETIC UAT ONLY \u2014 DO NOT PAY",
+    "egaps_involved": false,
+    "completed_at": "2026-08-28T03:41:36.988205+00:00",
+    "overall_status": "PASS"
+  },
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Baseline and isolated data guard",
+      "status": "PASS",
+      "details": {
+        "database_target": "branch-local SQLite stores",
+        "workbook_sha256": "b1dfa777f822cd859e72e66f91a586b8b382d769af1abc9c4ca308bc4efef8ab"
+      }
+    },
+    {
+      "phase": 2,
+      "name": "Users, departments, and role groups",
+      "status": "PASS",
+      "details": {
+        "accounts": [
+          {
+            "display_name": "Budget Officer",
+            "username": "budget.officer",
+            "department": "Budget",
+            "active": true
+          },
+          {
+            "display_name": "Accounting Preparer",
+            "username": "accounting.preparer",
+            "department": "Accounting",
+            "active": true
+          },
+          {
+            "display_name": "Accounting Reviewer",
+            "username": "accounting.reviewer",
+            "department": "Accounting",
+            "active": true
+          },
+          {
+            "display_name": "Treasury Officer",
+            "username": "treasury.officer",
+            "department": "Treasury",
+            "active": true
+          }
+        ],
+        "password_hash_verified": true
+      }
+    },
+    {
+      "phase": 3,
+      "name": "Office-compatible controlled Excel workbook",
+      "status": "PASS",
+      "details": {
+        "path": "C:\\Users\\Administrator\\Desktop\\GH\\grand-finance-complete-cycle\\output\\uat\\grand-finance-uat-20260828-113001\\workbooks\\GRAND_UAT_DV_v1.xlsx",
+        "sha256": "b1dfa777f822cd859e72e66f91a586b8b382d769af1abc9c4ca308bc4efef8ab",
+        "required_names": [
+          "GRAND_APPROVED_BY",
+          "GRAND_CERTIFIED_BY",
+          "GRAND_DV_DATE",
+          "GRAND_DV_NUMBER",
+          "GRAND_GROSS_AMOUNT",
+          "GRAND_LINE_ITEMS",
+          "GRAND_NET_AMOUNT",
+          "GRAND_PARTICULARS",
+          "GRAND_PAYEE",
+          "GRAND_PREPARED_BY",
+          "GRAND_TOTAL_DEDUCTIONS"
+        ],
+        "print_area": "'Voucher'!$A$1:$H$30",
+        "macros_present": false,
+        "external_links": 0
+      }
+    },
+    {
+      "phase": 4,
+      "name": "Finance release, upload, preflight, approval, and activation",
+      "status": "active",
+      "details": {
+        "code": "uat-supplier-cycle-2026",
+        "title": "UAT Supplier Disbursement Cycle 2026",
+        "template_status": "active",
+        "template_preflight": {
+          "passed": true,
+          "worksheets": 2,
+          "required_names": 11,
+          "line_item_row_capacity": 8,
+          "print_area_sheets": [
+            "Voucher"
+          ],
+          "message": "Macro-free workbook, controlled names, formulas, print areas, and row capacity passed preflight."
+        },
+        "workbook_checksum": "b1dfa777f822cd859e72e66f91a586b8b382d769af1abc9c4ca308bc4efef8ab",
+        "mapping_checksum": "6718577d44feb9f4d765b9a65f01f4061996cfb4b2c26abb85cd0ca30c812463",
+        "signatories": [
+          {
+            "name": "Maria L. Santos (UAT)",
+            "position": "Department Head",
+            "role": "department-head",
+            "acting": false,
+            "valid_from": "2026-08-01"
+          },
+          {
+            "name": "Elena R. Cruz (UAT)",
+            "position": "Municipal Accountant",
+            "role": "municipal-accountant",
+            "acting": false,
+            "valid_from": "2026-08-01"
+          },
+          {
+            "name": "Ramon P. Flores (UAT)",
+            "position": "Acting Department Head",
+            "role": "department-head",
+            "acting": true,
+            "valid_from": "2026-08-29"
+          }
+        ]
+      }
+    },
+    {
+      "phase": 5,
+      "name": "Accounting period, fund, center, accounts, and mappings",
+      "status": "PASS",
+      "details": {
+        "period": "FY 2026 \u00b7 August 2026 UAT",
+        "fund": "general-fund",
+        "accounts": [
+          "5-02-03",
+          "2-01-01",
+          "2-02-EWT"
+        ]
+      }
+    },
+    {
+      "phase": 6,
+      "name": "Budget case and OBR certification",
+      "status": "PASS",
+      "details": {
+        "case_reference": "CASE-2026-BE57E5B35F",
+        "obr_number": "UAT-OBR-00001",
+        "certified_amount": "1000.00"
+      }
+    },
+    {
+      "phase": 7,
+      "name": "DV generation and initial wet-signature round",
+      "status": "PASS",
+      "details": {
+        "dv_number": "UAT-DV-00001",
+        "gross": "1000.00",
+        "deductions": "100.00",
+        "net": "900.00",
+        "output_checksum": "1f1f8d38c576c0669fb2961f0edc5f25768c0e33eadfef42ebb4da343abf916b",
+        "signatories": [
+          {
+            "sequence": 1,
+            "role": "department-head",
+            "name": "Maria L. Santos (UAT)",
+            "position": "Department Head"
+          },
+          {
+            "sequence": 2,
+            "role": "municipal-accountant",
+            "name": "Elena R. Cruz (UAT)",
+            "position": "Municipal Accountant"
+          }
+        ]
+      }
+    },
+    {
+      "phase": 8,
+      "name": "Independent validation, JEV materialization, and posting",
+      "status": "posted",
+      "details": {
+        "jev": "UAT-JEV-2026-0001",
+        "debit": "1000",
+        "credit": "1000",
+        "materialized_new": true
+      }
+    },
+    {
+      "phase": 9,
+      "name": "Pre-check date and signatory amendment",
+      "status": "PASS",
+      "details": {
+        "old_date": "2026-08-28",
+        "new_date": "2026-08-29",
+        "old_approved_by": "Maria L. Santos (UAT)",
+        "new_approved_by": "Ramon P. Flores (UAT)",
+        "dv_number_preserved": "UAT-DV-00001",
+        "amounts_preserved": true,
+        "posted_jev_preserved": true,
+        "original_output_status": "superseded",
+        "revised_output_checksum": "23f3ecd37e098a7669a424a962aeb05e56051942ffb7214140b375bd65728e92",
+        "replacement_signatures": [
+          {
+            "sequence": 1,
+            "role": "department-head",
+            "name": "Ramon P. Flores (UAT)",
+            "position": "Acting Department Head"
+          },
+          {
+            "sequence": 2,
+            "role": "municipal-accountant",
+            "name": "Elena R. Cruz (UAT)",
+            "position": "Municipal Accountant"
+          }
+        ]
+      }
+    },
+    {
+      "phase": 10,
+      "name": "Treasury issuance, cancellation, replacement, advice, and release",
+      "status": "PASS",
+      "details": {
+        "issued_check": "UAT-000201",
+        "cancelled_status": "cancelled",
+        "replacement_check": "UAT-000202",
+        "replacement_status": "released",
+        "advice": "UAT-ADV-0001",
+        "receipt": "UAT-RECEIPT-0001",
+        "post_check_amendment_blocked": "['A check has already been issued for this voucher. Its date and signatory evidence can no longer be amended here.']",
+        "cancelled_number_reuse_blocked": "['That physical check number has already been registered for this bank account and cannot be reused.']",
+        "final_stage": "completed"
+      }
+    },
+    {
+      "phase": 11,
+      "name": "Strict maker-checker block and scoped exemption",
+      "status": "PASS",
+      "details": {
+        "case_reference": "CASE-2026-06FF068F33",
+        "blocked_message": "['The DV preparer cannot validate the same voucher without a separately approved case override or an active administrator-authorized workflow exemption.']",
+        "allowed_with_policy": true,
+        "policy_snapshot": {
+          "policy_id": 1,
+          "control_code": "dv-preparer-self-validation",
+          "department_id": 2,
+          "subject_type": "group",
+          "subject_id": 5,
+          "subject_label": "UAT Combined Accounting Exception",
+          "rationale": "UAT demonstration only: temporary combined-duty role with compensating Accounting Reviewer oversight.",
+          "effective_from": "2026-08-01",
+          "effective_to": null,
+          "authorized_by_id": "[REDACTED]",
+          "authorized_by_label": "[REDACTED ADMINISTRATOR]"
+        },
+        "policy_active_after_demo": false,
+        "temporary_group_removed": true,
+        "final_stage": "accounting_posting"
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "display_name": "Budget Officer",
+      "username": "budget.officer",
+      "department": "Budget",
+      "active": true
+    },
+    {
+      "display_name": "Accounting Preparer",
+      "username": "accounting.preparer",
+      "department": "Accounting",
+      "active": true
+    },
+    {
+      "display_name": "Accounting Reviewer",
+      "username": "accounting.reviewer",
+      "department": "Accounting",
+      "active": true
+    },
+    {
+      "display_name": "Treasury Officer",
+      "username": "treasury.officer",
+      "department": "Treasury",
+      "active": true
+    }
+  ],
+  "workbook": {
+    "path": "C:\\Users\\Administrator\\Desktop\\GH\\grand-finance-complete-cycle\\output\\uat\\grand-finance-uat-20260828-113001\\workbooks\\GRAND_UAT_DV_v1.xlsx",
+    "sha256": "b1dfa777f822cd859e72e66f91a586b8b382d769af1abc9c4ca308bc4efef8ab",
+    "required_names": [
+      "GRAND_APPROVED_BY",
+      "GRAND_CERTIFIED_BY",
+      "GRAND_DV_DATE",
+      "GRAND_DV_NUMBER",
+      "GRAND_GROSS_AMOUNT",
+      "GRAND_LINE_ITEMS",
+      "GRAND_NET_AMOUNT",
+      "GRAND_PARTICULARS",
+      "GRAND_PAYEE",
+      "GRAND_PREPARED_BY",
+      "GRAND_TOTAL_DEDUCTIONS"
+    ],
+    "print_area": "'Voucher'!$A$1:$H$30",
+    "macros_present": false,
+    "external_links": 0
+  },
+  "finance_release": {
+    "code": "uat-supplier-cycle-2026",
+    "title": "UAT Supplier Disbursement Cycle 2026",
+    "status": "active",
+    "template_status": "active",
+    "template_preflight": {
+      "passed": true,
+      "worksheets": 2,
+      "required_names": 11,
+      "line_item_row_capacity": 8,
+      "print_area_sheets": [
+        "Voucher"
+      ],
+      "message": "Macro-free workbook, controlled names, formulas, print areas, and row capacity passed preflight."
+    },
+    "workbook_checksum": "b1dfa777f822cd859e72e66f91a586b8b382d769af1abc9c4ca308bc4efef8ab",
+    "mapping_checksum": "6718577d44feb9f4d765b9a65f01f4061996cfb4b2c26abb85cd0ca30c812463",
+    "signatories": [
+      {
+        "name": "Maria L. Santos (UAT)",
+        "position": "Department Head",
+        "role": "department-head",
+        "acting": false,
+        "valid_from": "2026-08-01"
+      },
+      {
+        "name": "Elena R. Cruz (UAT)",
+        "position": "Municipal Accountant",
+        "role": "municipal-accountant",
+        "acting": false,
+        "valid_from": "2026-08-01"
+      },
+      {
+        "name": "Ramon P. Flores (UAT)",
+        "position": "Acting Department Head",
+        "role": "department-head",
+        "acting": true,
+        "valid_from": "2026-08-29"
+      }
+    ]
+  },
+  "primary_case": {
+    "reference": "CASE-2026-BE57E5B35F",
+    "public_id": "c114c4eb-b57f-4463-982a-25083a5c6ca0",
+    "stage": "completed",
+    "obr_number": "UAT-OBR-00001",
+    "dv_number": "UAT-DV-00001",
+    "gross": "1000.00",
+    "deductions": "100.00",
+    "net": "900.00",
+    "jev": "UAT-JEV-2026-0001",
+    "jev_status": "posted",
+    "jev_debit": "1000",
+    "jev_credit": "1000",
+    "checks": [
+      {
+        "number": "UAT-000201",
+        "amount": "900.00",
+        "status": "cancelled",
+        "replaces": null
+      },
+      {
+        "number": "UAT-000202",
+        "amount": "900.00",
+        "status": "released",
+        "replaces": "UAT-000201"
+      }
+    ],
+    "advice": "UAT-ADV-0001",
+    "receipt": "UAT-RECEIPT-0001",
+    "event_actions": [
+      "case_created",
+      "budget_certified",
+      "dv_prepared",
+      "shadow_dv_generated",
+      "wet_signature_returned",
+      "wet_signatures_completed",
+      "accounting_validated",
+      "grand_jev_posted",
+      "voucher_nonfinancial_amended",
+      "shadow_dv_generated",
+      "wet_signature_returned",
+      "nonfinancial_amendment_signatures_completed",
+      "check_issued",
+      "check_cancelled",
+      "check_issued",
+      "checks_submitted_for_advice",
+      "bank_advice_finalized",
+      "disbursement_completed"
+    ]
+  },
+  "exception_case": {
+    "reference": "CASE-2026-06FF068F33",
+    "stage": "accounting_posting",
+    "blocked_message": "['The DV preparer cannot validate the same voucher without a separately approved case override or an active administrator-authorized workflow exemption.']",
+    "policy_snapshot": {
+      "policy_id": 1,
+      "control_code": "dv-preparer-self-validation",
+      "department_id": 2,
+      "subject_type": "group",
+      "subject_id": 5,
+      "subject_label": "UAT Combined Accounting Exception",
+      "rationale": "UAT demonstration only: temporary combined-duty role with compensating Accounting Reviewer oversight.",
+      "effective_from": "2026-08-01",
+      "effective_to": null,
+      "authorized_by_id": "[REDACTED]",
+      "authorized_by_label": "[REDACTED ADMINISTRATOR]"
+    },
+    "policy_active_after_demo": false
+  },
+  "database_counts": {
+    "uat_users": 4,
+    "active_release": 1,
+    "voucher_cases": 2,
+    "posted_jevs": 1,
+    "workflow_exemptions": 1
+  }
+}

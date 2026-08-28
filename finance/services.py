@@ -15,7 +15,7 @@ from openpyxl import load_workbook
 from .access import can_approve_finance_configuration, can_manage_finance_configuration, can_manage_finance_templates
 from .models import (
     FinanceAuditEvent, FinanceConfigurationItem, FinanceConfigurationRelease,
-    FinanceNumberingSequence, FinanceSignatory, FinanceTemplateVersion,
+    FinanceNumberingSequence, FinanceParty, FinanceSignatory, FinanceTemplateVersion,
 )
 
 
@@ -40,18 +40,22 @@ def uuid_types():
     return (uuid.UUID,)
 
 
-def record_event(instance, actor, action, reason=""):
+def record_event(instance, actor, action, reason="", evidence=None):
     release = instance if isinstance(instance, FinanceConfigurationRelease) else getattr(instance, "release", None)
+    snapshot = _snapshot(instance)
+    if evidence:
+        snapshot["workflow_exemption"] = evidence
     return FinanceAuditEvent.objects.create(
         department=instance.department, release=release, target_type=instance._meta.model_name,
         target_id=str(instance.pk), action=action, actor=actor, reason=reason,
-        snapshot=_snapshot(instance),
+        snapshot=snapshot,
     )
 
 
 @transaction.atomic
 def transition_release(release, action, actor, reason=""):
     release = FinanceConfigurationRelease.objects.select_for_update().get(pk=release.pk)
+    workflow_exemption = None
     if action == "submit":
         if not can_manage_finance_configuration(actor, release.department):
             raise PermissionDenied
@@ -61,6 +65,7 @@ def transition_release(release, action, actor, reason=""):
         release.items.filter(status="draft").update(status="submitted")
         release.templates.filter(status="draft").update(status="submitted")
         release.signatories.filter(status="draft").update(status="submitted")
+        release.parties.filter(status="draft").update(status="submitted")
         release.numbering_sequences.filter(status="draft").update(status="submitted")
         fields = ("status", "submitted_by", "submitted_at", "updated_at")
     elif action == "approve":
@@ -69,7 +74,20 @@ def transition_release(release, action, actor, reason=""):
         if release.status != "submitted":
             raise ValidationError("Only submitted releases can be approved.")
         if actor.pk in {release.created_by_id, release.submitted_by_id}:
-            raise ValidationError("The approver must be different from the release preparer and submitter.")
+            from .exemptions import workflow_exemption_for, workflow_exemption_snapshot
+            from .models import FinanceWorkflowExemption
+
+            exemption = workflow_exemption_for(
+                actor=actor,
+                control_code=FinanceWorkflowExemption.RELEASE_SELF_APPROVAL,
+                department_id=release.department_id,
+            )
+            if exemption is None:
+                raise ValidationError(
+                    "The approver must be different from the release preparer and submitter unless an active "
+                    "administrator-authorized workflow exemption applies."
+                )
+            workflow_exemption = workflow_exemption_snapshot(exemption)
         if not reason.strip():
             raise ValidationError("Record the local Accounting approval basis before approval.")
         failed_templates = release.templates.exclude(preflighted_at__isnull=False, preflight_result__passed=True)
@@ -84,6 +102,9 @@ def transition_release(release, action, actor, reason=""):
         release.items.filter(status="submitted").update(status="approved")
         release.templates.filter(status="submitted").update(status="approved")
         release.signatories.filter(status="submitted").update(status="approved")
+        release.parties.filter(status="submitted").update(status="approved")
+        for party in release.parties.all():
+            party.authorized_claimants.filter(status="draft").update(status="approved")
         release.numbering_sequences.filter(status="submitted").update(status="approved")
         release.accounting_approval_note = reason.strip()
         fields = ("status", "approved_by", "approved_at", "accounting_approval_note", "updated_at")
@@ -113,12 +134,18 @@ def transition_release(release, action, actor, reason=""):
             prior.items.filter(status="active").update(status="superseded")
             prior.templates.filter(status="active").update(status="superseded")
             prior.signatories.filter(status="active").update(status="superseded")
+            prior.parties.filter(status="active").update(status="superseded")
+            for party in prior.parties.all():
+                party.authorized_claimants.filter(status="active").update(status="superseded")
             prior.numbering_sequences.filter(status="active").update(status="superseded")
             record_event(prior, actor, "superseded", f"Superseded by {release}.")
         release.status, release.activated_by, release.activated_at = "active", actor, timezone.now()
         release.items.filter(status__in=("approved", "scheduled")).update(status="active")
         release.templates.filter(status__in=("approved", "scheduled")).update(status="active")
         release.signatories.filter(status__in=("approved", "scheduled")).update(status="active")
+        release.parties.filter(status__in=("approved", "scheduled")).update(status="active")
+        for party in release.parties.all():
+            party.authorized_claimants.filter(status__in=("approved", "scheduled")).update(status="active")
         release.numbering_sequences.filter(status__in=("approved", "scheduled")).update(status="active")
         fields = ("status", "activated_by", "activated_at", "updated_at")
     elif action == "schedule":
@@ -130,6 +157,7 @@ def transition_release(release, action, actor, reason=""):
         release.items.filter(status="approved").update(status="scheduled")
         release.templates.filter(status="approved").update(status="scheduled")
         release.signatories.filter(status="approved").update(status="scheduled")
+        release.parties.filter(status="approved").update(status="scheduled")
         release.numbering_sequences.filter(status="approved").update(status="scheduled")
         fields = ("status", "updated_at")
     elif action == "rollback":
@@ -151,6 +179,9 @@ def transition_release(release, action, actor, reason=""):
         release.items.filter(status="superseded").update(status="active")
         release.templates.filter(status="superseded").update(status="active")
         release.signatories.filter(status="superseded").update(status="active")
+        release.parties.filter(status="superseded").update(status="active")
+        for party in release.parties.all():
+            party.authorized_claimants.filter(status="superseded").update(status="active")
         release.numbering_sequences.filter(status="superseded").update(status="active")
         fields = ("status", "activated_by", "activated_at", "updated_at")
     elif action == "retire":
@@ -163,7 +194,7 @@ def transition_release(release, action, actor, reason=""):
     else:
         raise ValidationError("Unsupported finance release action.")
     release.save(update_fields=fields)
-    record_event(release, actor, action, reason)
+    record_event(release, actor, action, reason, evidence=workflow_exemption)
     return release
 
 
@@ -217,7 +248,7 @@ def _destination(workbook, name):
     return workbook[sheet_name], coordinate
 
 
-def inspect_finance_workbook(payload):
+def inspect_finance_workbook(payload, document_type="disbursement-voucher"):
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:
             members = archive.infolist()
@@ -242,25 +273,31 @@ def inspect_finance_workbook(payload):
                     normalized = cell.value.upper().replace(" ", "")
                     if "[" in cell.value or any(token in normalized for token in suspicious):
                         raise FinanceTemplateError(f"Suspicious or externally linked formula found in {sheet.title}!{cell.coordinate}.")
+    schema = FinanceTemplateVersion.schema_for(document_type)
+    if not schema:
+        raise FinanceTemplateError("That finance document type does not have an approved controlled-range schema.")
     mapping = {}
-    for name in FinanceTemplateVersion.REQUIRED_NAMES:
+    table_name = schema["table"]
+    for name in schema["required"]:
         sheet, coordinate = _destination(workbook, name)
-        if name != "GRAND_LINE_ITEMS":
+        if name != table_name:
             area = sheet[coordinate]
             if isinstance(area, tuple):
                 flattened = [cell for row in area for cell in (row if isinstance(row, tuple) else (row,))]
                 if len(flattened) != 1:
                     raise FinanceTemplateError(f"{name} must point to exactly one cell.")
         mapping[name] = {"worksheet": sheet.title, "range": coordinate}
-    line_sheet, line_coordinate = _destination(workbook, "GRAND_LINE_ITEMS")
-    area = line_sheet[line_coordinate]
-    if not isinstance(area, tuple):
-        area = ((area,),)
-    elif area and not isinstance(area[0], tuple):
-        area = (area,)
-    row_capacity = len(area)
-    if row_capacity < 1:
-        raise FinanceTemplateError("GRAND_LINE_ITEMS must reserve at least one row.")
+    row_capacity = 0
+    if table_name:
+        line_sheet, line_coordinate = _destination(workbook, table_name)
+        area = line_sheet[line_coordinate]
+        if not isinstance(area, tuple):
+            area = ((area,),)
+        elif area and not isinstance(area[0], tuple):
+            area = (area,)
+        row_capacity = len(area)
+        if row_capacity < 1:
+            raise FinanceTemplateError(f"{table_name} must reserve at least one row.")
     print_sheets = [sheet.title for sheet in workbook.worksheets if sheet.print_area]
     if not print_sheets:
         raise FinanceTemplateError("Set a print area before submitting the voucher workbook.")
@@ -281,7 +318,7 @@ def preflight_finance_template(template, actor):
     if template.status != "draft":
         raise ValidationError("Only draft template versions can be preflighted.")
     payload = _workbook_bytes(template)
-    _workbook, mapping, result = inspect_finance_workbook(payload)
+    _workbook, mapping, result = inspect_finance_workbook(payload, template.document_type)
     template.workbook_checksum = hashlib.sha256(payload).hexdigest()
     template.mapping = mapping
     template.mapping_checksum = hashlib.sha256(json.dumps(mapping, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -298,7 +335,7 @@ def verify_template_evidence(template):
     payload = _workbook_bytes(template)
     if hashlib.sha256(payload).hexdigest() != template.workbook_checksum:
         raise FinanceTemplateError(f"{template} no longer matches its preflighted workbook checksum.")
-    _workbook, mapping, _result = inspect_finance_workbook(payload)
+    _workbook, mapping, _result = inspect_finance_workbook(payload, template.document_type)
     mapping_checksum = hashlib.sha256(json.dumps(mapping, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     if mapping_checksum != template.mapping_checksum:
         raise FinanceTemplateError(f"{template} no longer matches its preflighted named-range mapping.")
@@ -312,13 +349,23 @@ def synthetic_preview(template, actor):
     checksum = hashlib.sha256(payload).hexdigest()
     if not template.preflight_passed or checksum != template.workbook_checksum:
         raise FinanceTemplateError("Preview requires the exact workbook version that passed preflight.")
-    workbook, _mapping, _result = inspect_finance_workbook(payload)
-    values = {
+    workbook, _mapping, _result = inspect_finance_workbook(payload, template.document_type)
+    special_values = {
         "GRAND_DV_NUMBER": "SYNTHETIC-DV-000001", "GRAND_DV_DATE": timezone.localdate(),
+        "GRAND_OBR_NUMBER": "SYNTHETIC-OBR-000001", "GRAND_OBR_DATE": timezone.localdate(),
+        "GRAND_ADVICE_NUMBER": "SYNTHETIC-ADV-000001", "GRAND_ADVICE_DATE": timezone.localdate(),
+        "GRAND_REGISTER_DATE": timezone.localdate(), "GRAND_RELEASE_DATE": timezone.localdate(),
         "GRAND_PAYEE": "Synthetic Demonstration Payee", "GRAND_PARTICULARS": "Synthetic preview only — not an official voucher",
-        "GRAND_GROSS_AMOUNT": 1000, "GRAND_TOTAL_DEDUCTIONS": 100, "GRAND_NET_AMOUNT": 900,
+        "GRAND_GROSS_AMOUNT": 1000, "GRAND_OBLIGATED_AMOUNT": 1000, "GRAND_TOTAL_DEDUCTIONS": 100, "GRAND_NET_AMOUNT": 900,
+        "GRAND_BANK_ACCOUNT": "SYNTHETIC BANK ACCOUNT", "GRAND_CHECK_NUMBER": "SYNTHETIC-CHECK-000001",
+        "GRAND_CLAIMANT": "Synthetic Authorized Claimant", "GRAND_FUND": "Synthetic Fund",
+        "GRAND_RESPONSIBILITY_CENTER": "Synthetic Office", "GRAND_ACCOUNT_CODE": "SYNTHETIC-ACCOUNT",
         "GRAND_PREPARED_BY": "Sample Preparer", "GRAND_CERTIFIED_BY": "Sample Certifier", "GRAND_APPROVED_BY": "Sample Approver",
+        "GRAND_RELEASED_BY": "Sample Releasing Officer", "GRAND_ACKNOWLEDGED_BY": "Sample Claimant",
     }
+    schema = FinanceTemplateVersion.schema_for(template.document_type)
+    table_name = schema["table"]
+    values = {name: special_values.get(name, "SYNTHETIC PREVIEW") for name in schema["required"] if name != table_name}
     for name, value in values.items():
         sheet, coordinate = _destination(workbook, name)
         cells = sheet[coordinate]
@@ -327,13 +374,14 @@ def synthetic_preview(template, actor):
         else:
             cell = cells
         cell.value = value
-    sheet, coordinate = _destination(workbook, "GRAND_LINE_ITEMS")
-    cells = sheet[coordinate]
-    if cells and not isinstance(cells[0], tuple):
-        cells = (cells,)
-    sample = ("Synthetic line item", 1000, 100, 900)
-    for index, cell in enumerate(cells[0]):
-        cell.value = sample[index] if index < len(sample) else None
+    if table_name:
+        sheet, coordinate = _destination(workbook, table_name)
+        cells = sheet[coordinate]
+        if cells and not isinstance(cells[0], tuple):
+            cells = (cells,)
+        sample = ("Synthetic line / check", "SYNTHETIC-CODE", 1000, 900)
+        for index, cell in enumerate(cells[0]):
+            cell.value = sample[index] if index < len(sample) else None
     workbook.properties.title = "GRAND synthetic finance template preview"
     output = io.BytesIO()
     workbook.save(output)

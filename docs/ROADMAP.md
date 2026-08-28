@@ -76,4 +76,12 @@ The `0.6.0` through `0.6.6` train now includes the operating workspace, print la
 - Accept macro-free `.xlsx` voucher templates with reviewed workbook names, checksums, print-area/row-capacity validation, external-link and suspicious-formula rejection, and synthetic-only preview.
 - Explain incomplete official readiness through stable reason codes and block activation until every applicable requirement passes.
 
-The next recommended phase is `codex/voucher-workbench-foundation`. It must pin the active configuration release and template version, remain in sandbox/shadow mode until local Accounting and COA Audit Team validation, and keep financial fields out of TracePoint.
+## Completed - Voucher Workbench vertical slice
+
+- Use one shared, state-versioned disbursement case across Budget OBR allocation, Accounting DV preparation, wet-signature return, Accounting validation/JEV reference, Treasury checks, Accounting advice, and Treasury release.
+- Select transaction types, codes, signatories, suppliers, payees, bank accounts, and authorized claimants from pinned, approved Finance Setup data while preserving historical snapshots.
+- Enforce explicit financial permissions, segregation of duties, separately approved emergency overrides, atomic numbering, check-number non-reuse, monetary reconciliation, correction rounds, and append-only events.
+- Generate checksum-backed shadow DV workbooks and preserve strict boundaries with TracePoint custody, Records, MPDO, and other departmental apps.
+- Keep official use, exact remaining-budget authority, full JEV posting, and direct check printing blocked until their local evidence and validation requirements are met.
+
+The next phase is a supervised ordinary-supplier shadow pilot using blank/redacted local OBR, DV, advice, check-register, and release-receipt samples. Differences must be resolved and signed off before an official-use switch is designed.

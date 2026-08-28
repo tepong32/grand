@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     'records.apps.RecordsConfig',
     'tracepoint.apps.TracepointConfig',
     'finance.apps.FinanceConfig',
+    'vouchers.apps.VouchersConfig',
+    'accounting.apps.AccountingConfig',
 
     ### defaults
     'django.contrib.sites',  # allauth needs this
@@ -140,6 +142,7 @@ MEDIA_URL = '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.User'
+DATABASE_ROUTERS = ['src.database_routers.FinanceDatabaseRouter']
 
 ### DJANGO ALLAUTH
 SITE_ID = 1

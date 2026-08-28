@@ -4,7 +4,28 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
-No material changes are pending release.
+### Standalone GRAND Accounting foundation
+
+- Added a separately routed GRAND finance database with no eGAPS endpoint, credentials, database attachment, or runtime dependency.
+- Added native accounting periods, funds, responsibility centers, chart of accounts, journal headers/lines, and append-only workflow events using cross-database-safe identity snapshots.
+- Added guided accounting setup, department-scoped journal CRUD, balanced-entry validation, explicit submit/return/post actions, maker-checker posting, and immutable posted history.
+- Added a task-first Accounting workspace, journal register/detail, general ledger, and trial balance with permission-aware navigation.
+- Added multi-database, authorization, department-isolation, posting-integrity, immutability, HTTP-method, and reporting regression tests using synthetic values only.
+- Connected validated Voucher Workbench cases to checksum-backed GRAND posting requests and idempotent draft JEV materialization in the standalone finance database, with controlled account mappings and recoverable handoff reconciliation.
+- Added a dedicated Accounting posting queue and source-status guidance that advances Treasury only after independent JEV posting, while preventing posted vouchers from being silently rewritten.
+- Added reason-required reversing JEVs that swap the original lines, retain direct correction lineage, preserve the posted source, and pass through the normal maker-checker workflow.
+- Extended the synthetic end-to-end suite through Budget, voucher validation, GRAND ledger posting, Treasury advice, and final check release without any eGAPS connection or data.
+- Added audited, permission-bound DV date and signatory amendments before check issuance, retaining the same case, DV number, amounts, and posted JEV while creating replacement signature and workbook versions.
+- Blocked non-financial amendments after any check issuance and kept JEV dates, accounting periods, allocations, deductions, and amounts outside this convenience workflow.
+
+### Voucher and Disbursement Workbench
+
+- Added one shared Budget–Accounting–Treasury voucher case with explicit, state-versioned stages from OBR allocation through advised check release.
+- Added governed supplier/payee and authorized-claimant setup alongside selectable transaction, account, fund, responsibility, tax, document, bank, and signatory data.
+- Added atomic OBR/DV numbering, monetary reconciliation, ordered wet-signature rounds, JEV references, multiple checks, cancellation/non-reuse, bank advice, release, returns, and correction history.
+- Added explicit financial permissions, segregation-of-duties enforcement, separately approved emergency overrides, idempotent actions, append-only events, and department work queues.
+- Added checksum-backed shadow DV XLSX outputs plus Records and TracePoint boundaries that prevent shadow filing and financial-data leakage into physical custody.
+- Added end-to-end and regression coverage for authorization, stale submissions, numbering, corrections, payment exceptions, output evidence, and cross-app isolation.
 
 ## 0.7.0 - 2026-08-21
 

@@ -11,6 +11,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from assistance.models import AssistanceRequest, CitizenProfile, RequestDocument
 from reporting.models import ReportRun
 from social_welfare.models import ProgramActivity, SocialWelfareProgram
+from vouchers.models import VoucherOutput
 
 from .access import (
     can_approve_records, can_download_records, can_manage_records, can_manage_retention,
@@ -31,6 +32,7 @@ SOURCE_MODELS = {
     "citizen": CitizenProfile,
     "program": SocialWelfareProgram,
     "activity": ProgramActivity,
+    "voucher_output": VoucherOutput,
 }
 
 
