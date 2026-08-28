@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from collections import defaultdict
 from decimal import Decimal
+import hashlib
+import json
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils import timezone
 
 from .models import (
-    BudgetAuditEvent, BudgetCall, BudgetProposalLine, BudgetResourceEstimate,
-    BudgetVersion, BudgetVersionSource,
+    AppropriationAuthorization, AuthorizedAppropriationLine, BudgetAuditEvent, BudgetCall,
+    BudgetProposalLine, BudgetResourceEstimate, BudgetVersion, BudgetVersionSource,
 )
 
 
@@ -177,3 +179,65 @@ def consolidate_versions(*, sources, user, title, change_explanation):
         "total": str(target.total_amount), "spendable": False,
     })
     return target
+
+
+@transaction.atomic
+def transition_authorization(authorization, action, user, reason=""):
+    authorization = AppropriationAuthorization.objects.select_for_update().select_related("version").get(pk=authorization.pk)
+    now, label = timezone.now(), actor_label(user)
+    if action == "submit" and authorization.status in (AppropriationAuthorization.DRAFT, AppropriationAuthorization.RETURNED):
+        if authorization.review_status not in (AppropriationAuthorization.FAVORABLE, AppropriationAuthorization.CONDITIONAL):
+            raise ValidationError("Record the dated favorable review result before submission.")
+        if authorization.control_difference != Decimal("0"):
+            raise ValidationError("The signed control total must equal the approved version total.")
+        authorization.status = AppropriationAuthorization.FOR_REVIEW
+        authorization.submitted_by_id, authorization.submitted_by_label, authorization.submitted_at = user.pk, label, now
+    elif action == "authorize" and authorization.status == AppropriationAuthorization.FOR_REVIEW:
+        if authorization.submitted_by_id == user.pk:
+            raise ValidationError("The evidence preparer cannot authorize the same appropriation version.")
+        if not reason.strip():
+            raise ValidationError("Record the independent authorization basis.")
+        if authorization.schedule_lines.exists():
+            raise ValidationError("An authorization snapshot already exists; do not duplicate it.")
+        payload, snapshots = [], []
+        for line in authorization.version.lines.select_related("fund", "responsibility_center", "program", "funding_source", "account"):
+            item = {
+                "source_line_id": line.pk, "fund_code": line.fund.code,
+                "responsibility_center_code": line.responsibility_center.code,
+                "program_code": line.program.code if line.program else "",
+                "funding_source_code": line.funding_source.code if line.funding_source else "",
+                "account_code": line.account.code, "expense_class": line.expense_class,
+                "appropriation_type": line.appropriation_type, "particulars": line.particulars,
+                "performance_target": line.performance_target, "amount": str(line.amount),
+            }
+            payload.append(item)
+            snapshots.append(AuthorizedAppropriationLine(
+                department_id=authorization.department_id, department_label=authorization.department_label,
+                authorization=authorization, amount=line.amount, **{key: value for key, value in item.items() if key != "amount"},
+            ))
+        if not snapshots:
+            raise ValidationError("The approved budget version has no appropriation lines to authorize.")
+        AuthorizedAppropriationLine.objects.bulk_create(snapshots)
+        authorization.snapshot_checksum = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+        authorization.status = AppropriationAuthorization.AUTHORIZED
+        authorization.authorized_by_id, authorization.authorized_by_label, authorization.authorized_at = user.pk, label, now
+        authorization.decision_reason = reason.strip()
+        authorization.version.status = BudgetVersion.AUTHORIZED
+        authorization.version.state_version += 1
+        authorization.version.save(update_fields=("status", "state_version", "updated_at"))
+    elif action == "return" and authorization.status == AppropriationAuthorization.FOR_REVIEW:
+        if not reason.strip():
+            raise ValidationError("Record a specific correction reason.")
+        authorization.status, authorization.decision_reason = AppropriationAuthorization.RETURNED, reason.strip()
+    else:
+        raise ValidationError("That appropriation-authorization transition is unavailable from the current state.")
+    authorization.state_version += 1
+    authorization.full_clean()
+    authorization.save()
+    record_event(authorization.version, f"appropriation_{action}", user, reason, {
+        "authorization_id": str(authorization.public_id), "status": authorization.status,
+        "control_total": str(authorization.signed_control_total),
+        "snapshot_checksum": authorization.snapshot_checksum,
+        "spendable": authorization.status == AppropriationAuthorization.AUTHORIZED,
+    })
+    return authorization

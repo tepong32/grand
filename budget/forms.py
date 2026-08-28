@@ -3,7 +3,7 @@ from django import forms
 from accounting.models import FiscalYear
 from departments.models import Department
 
-from .models import BudgetCall, BudgetCeiling, BudgetProposalLine, BudgetResourceEstimate, BudgetReviewComment, BudgetVersion
+from .models import AppropriationAuthorization, BudgetCall, BudgetCeiling, BudgetProposalLine, BudgetResourceEstimate, BudgetReviewComment, BudgetVersion
 
 
 class DateInput(forms.DateInput):
@@ -117,3 +117,20 @@ class BudgetConsolidationForm(forms.Form):
         self.fields["sources"].queryset = BudgetVersion.objects.filter(
             department_id=department_id, kind=BudgetVersion.DEPARTMENT, status=BudgetVersion.APPROVED,
         ).order_by("fiscal_year__year", "requesting_department_label", "-version")
+
+
+class AppropriationAuthorizationForm(forms.ModelForm):
+    class Meta:
+        model = AppropriationAuthorization
+        fields = ("version", "authority_type", "ordinance_number", "ordinance_date", "effectivity_date", "review_status", "review_reference", "review_date", "conditions", "evidence_reference", "signed_control_total")
+        widgets = {
+            "ordinance_date": DateInput(), "effectivity_date": DateInput(), "review_date": DateInput(),
+            "conditions": forms.Textarea(attrs={"rows": 3}), "evidence_reference": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def __init__(self, *args, department_id=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["version"].queryset = BudgetVersion.objects.filter(
+            department_id=department_id, kind__in=(BudgetVersion.FINAL, BudgetVersion.SUPPLEMENTAL, BudgetVersion.REENACTED),
+            status=BudgetVersion.APPROVED, appropriation_authorization__isnull=True,
+        )

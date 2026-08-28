@@ -125,7 +125,8 @@ class BudgetVersion(BudgetOwnedModel):
 
     @property
     def is_spendable_authority(self):
-        return self.status == self.AUTHORIZED
+        authorization = getattr(self, "appropriation_authorization", None)
+        return bool(self.status == self.AUTHORIZED and authorization and authorization.status == AppropriationAuthorization.AUTHORIZED)
 
     @property
     def total_amount(self):
@@ -208,6 +209,103 @@ class BudgetVersionSource(BudgetOwnedModel):
             raise ValidationError("Consolidation lineage is fixed after the target leaves draft.")
         if self.source_version.status != BudgetVersion.APPROVED:
             raise ValidationError("Only independently approved proposal versions may be consolidated.")
+
+
+class AppropriationAuthorization(BudgetOwnedModel):
+    ORDINANCE, SUPPLEMENTAL, REENACTED = "ordinance", "supplemental", "reenacted"
+    AUTHORITY_CHOICES = ((ORDINANCE, "Annual appropriation ordinance"), (SUPPLEMENTAL, "Supplemental appropriation"), (REENACTED, "Reenacted budget authority"))
+    PENDING, FAVORABLE, CONDITIONAL, ADVERSE = "pending", "favorable", "conditional", "adverse"
+    REVIEW_CHOICES = ((PENDING, "Pending review"), (FAVORABLE, "Favorable review"), (CONDITIONAL, "Favorable with conditions"), (ADVERSE, "Adverse / not executable"))
+    DRAFT, FOR_REVIEW, RETURNED, AUTHORIZED = "draft", "for_review", "returned", "authorized"
+    STATUS_CHOICES = ((DRAFT, "Draft evidence"), (FOR_REVIEW, "For independent authorization"), (RETURNED, "Returned"), (AUTHORIZED, "Operational appropriation authority"))
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    version = models.OneToOneField(BudgetVersion, on_delete=models.PROTECT, related_name="appropriation_authorization")
+    authority_type = models.CharField(max_length=16, choices=AUTHORITY_CHOICES)
+    ordinance_number = models.CharField(max_length=100)
+    ordinance_date = models.DateField()
+    effectivity_date = models.DateField()
+    review_status = models.CharField(max_length=16, choices=REVIEW_CHOICES, default=PENDING)
+    review_reference = models.CharField(max_length=180)
+    review_date = models.DateField(null=True, blank=True)
+    conditions = models.TextField(blank=True)
+    evidence_reference = models.TextField(help_text="Reference the accepted ordinance, review, and signed schedule evidence; do not upload unredacted production evidence during synthetic UAT.")
+    signed_control_total = models.DecimalField(max_digits=18, decimal_places=2)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    snapshot_checksum = models.CharField(max_length=64, blank=True)
+    created_by_id = models.PositiveBigIntegerField()
+    created_by_label = models.CharField(max_length=160)
+    submitted_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    submitted_by_label = models.CharField(max_length=160, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    authorized_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    authorized_by_label = models.CharField(max_length=160, blank=True)
+    authorized_at = models.DateTimeField(null=True, blank=True)
+    decision_reason = models.TextField(blank=True)
+    state_version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-version__fiscal_year__year", "-created_at")
+
+    @property
+    def computed_total(self):
+        return self.version.total_amount
+
+    @property
+    def control_difference(self):
+        return self.signed_control_total - self.computed_total
+
+    def clean(self):
+        if self.department_id != self.version.department_id:
+            raise ValidationError("Authorization evidence and budget version must belong to the same Budget office.")
+        if self.version.kind not in (BudgetVersion.FINAL, BudgetVersion.SUPPLEMENTAL, BudgetVersion.REENACTED):
+            raise ValidationError({"version": "Authorize only a final, supplemental, or reenacted budget version."})
+        if self.version.status not in (BudgetVersion.APPROVED, BudgetVersion.AUTHORIZED):
+            raise ValidationError({"version": "The exact budget version must be independently approved first."})
+        if self.effectivity_date < self.ordinance_date:
+            raise ValidationError({"effectivity_date": "Effectivity cannot precede the ordinance/authority date."})
+        if self.review_status == self.CONDITIONAL and not self.conditions.strip():
+            raise ValidationError({"conditions": "Record every condition attached to the favorable review."})
+        if self.status == self.AUTHORIZED:
+            if self.review_status not in (self.FAVORABLE, self.CONDITIONAL) or not self.review_date:
+                raise ValidationError("Operational authority requires a dated favorable review result.")
+            if self.control_difference != Decimal("0"):
+                raise ValidationError("The signed appropriation control total must equal the exact approved version total.")
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.status == self.AUTHORIZED:
+                governed = ("version_id", "authority_type", "ordinance_number", "ordinance_date", "effectivity_date", "review_status", "review_reference", "review_date", "conditions", "evidence_reference", "signed_control_total", "snapshot_checksum")
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError("Authorized appropriation evidence is immutable. Create the applicable successor budget version.")
+
+
+class AuthorizedAppropriationLine(BudgetOwnedModel):
+    authorization = models.ForeignKey(AppropriationAuthorization, on_delete=models.PROTECT, related_name="schedule_lines")
+    source_line_id = models.PositiveBigIntegerField()
+    fund_code = models.CharField(max_length=40)
+    responsibility_center_code = models.CharField(max_length=40)
+    program_code = models.CharField(max_length=60, blank=True)
+    funding_source_code = models.CharField(max_length=40, blank=True)
+    account_code = models.CharField(max_length=40)
+    expense_class = models.CharField(max_length=40)
+    appropriation_type = models.CharField(max_length=16)
+    particulars = models.CharField(max_length=240)
+    performance_target = models.TextField(blank=True)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+
+    class Meta:
+        ordering = ("fund_code", "responsibility_center_code", "program_code", "account_code", "pk")
+        constraints = (models.UniqueConstraint(fields=("authorization", "source_line_id"), name="unique_authorized_appropriation_source_line"),)
+
+    def save(self, *args, **kwargs):
+        if self.authorization.status == AppropriationAuthorization.AUTHORIZED:
+            raise ValidationError("Authorized appropriation schedule snapshots are immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Authorized appropriation schedule history cannot be deleted.")
 
 
 class BudgetReviewComment(BudgetOwnedModel):

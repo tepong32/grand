@@ -39,4 +39,16 @@ The sibling manifest records SHA-256, actor, department, proposal version/status
 
 Run `python manage.py configure_finance_roles` after applying migrations. The command also seeds the role-aware Annual Budget Internal How-To for matching Budget departments.
 
-Before production use, Budget process owners must accept the current call, ceiling, proposal, target, resource-estimate, comparison, and export schedules against applicable current issuances and local ordinance/review practice. F3.2 remains required before any proposal can support F4 allotment or obligation controls.
+## F3.2 operational appropriation authorization
+
+An approved final, supplemental, or reenacted version becomes operational authority only after a separate maker-checker evidence record supplies:
+
+- authority type, ordinance/reference number and date, and effectivity;
+- dated review result/reference and complete conditions when conditional;
+- accepted ordinance, review, and signed schedule evidence references;
+- a signed control total equal to the exact approved version total; and
+- an independent authorizer who is not the evidence submitter.
+
+Authorization creates immutable classification snapshots and a canonical SHA-256 checksum. Only then does `is_spendable_authority` become true. Authorized schedules export into the `finance-authorized-appropriations` category of the same portable archive tree. Corrections require the applicable approved successor version; the authorized source and snapshot are never rewritten.
+
+Before production use, Budget process owners must accept the call, ceiling, proposal, target, resource-estimate, comparison, ordinance/review evidence, authorized schedule, and exports against applicable current issuances and local practice. F4 remains required before authority can be released as allotment or consumed as an obligation.

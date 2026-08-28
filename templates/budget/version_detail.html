@@ -8,6 +8,7 @@
     <div><a class="btn btn-outline-secondary" href="{% url 'budget:version_compare' version.public_id %}">Compare</a> <a class="btn btn-outline-primary" href="{% url 'budget:version_export' version.public_id %}">Export CSV</a></div>
   </div>
   <div class="alert {% if version.is_spendable_authority %}alert-success{% else %}alert-warning{% endif %}"><strong>{% if version.is_spendable_authority %}Operational appropriation authority{% else %}Not spendable authority{% endif %}.</strong> Status: {{ version.get_status_display }}. GRAND will not let this proposal be treated as an allotment or obligation source.</div>
+  {% if version.appropriation_authorization %}<p><a class="btn btn-outline-primary" href="{% url 'budget:authorization_detail' version.appropriation_authorization.public_id %}">Open appropriation authority evidence</a></p>{% elif version.status == 'approved' and perms.budget.prepare_budget_proposals and version.kind != 'department' and version.kind != 'executive' and version.kind != 'sanggunian' %}<p><a class="btn btn-primary" href="{% url 'budget:authorization_create' %}">Record ordinance and review evidence</a></p>{% endif %}
   {% if version.source_links.exists %}<div class="alert alert-info"><strong>Consolidated from:</strong> {% for link in version.source_links.all %}<a href="{% url 'budget:version_detail' link.source_version.public_id %}">{{ link.source_version.title }} v{{ link.source_version.version }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
   <div class="row">
     <div class="col-lg-8">

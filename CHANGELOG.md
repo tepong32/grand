@@ -8,6 +8,7 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 - Added the F3.1 Annual Budget workspace for independently reviewed calls and department ceilings, classified proposal/target/resource versions, traceable executive consolidation, comparison, audit evidence, and TraceSync-ready CSV exports.
 - Enforced the appropriation authority boundary: even an approved proposal remains non-spendable until the separate F3.2 ordinance, review, effectivity, and control-total authorization workflow succeeds.
+- Added F3.2 maker-checker appropriation authorization with ordinance/effectivity/review conditions, zero-difference signed controls, immutable classified schedule snapshots and checksums, successor-only correction, and portable authorized-schedule exports.
 
 ### Department Internal How-Tos
 
