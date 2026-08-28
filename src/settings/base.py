@@ -92,6 +92,7 @@ TEMPLATES = [
                 # Custom global context for dashboard
                 'leave_mgt.context_processors.dashboard_context',
                 'home.context_processors.site_ui',
+                'departments.context_processors.internal_howtos',
             ],
         },
     },

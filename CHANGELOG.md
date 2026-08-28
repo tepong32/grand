@@ -4,6 +4,13 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Department Internal How-Tos
+
+- Added reusable department-scoped, permission-filtered, page-aware internal guides with ordered instructions, expected results, cautions, workspace links, draft/published/retired lifecycle, and immutable published versions.
+- Added a persistent floating `?` button and responsive non-modal help window so employees can read a tutorial while continuing work on the current page.
+- Added private per-user step progress while computing guide visibility live from the current employee department/role, preventing reassigned employees and successors from inheriting another user's tutorial state.
+- Added department-bounded guide administration, protected asynchronous completion actions, repeatable Finance starter-guide seeding, and role-specific opening, journal, DV, Budget, Treasury, and setup tutorials.
+
 ### Finance opening balances and control totals
 
 - Added F2.2 checksum-backed opening CSV staging with governed fund/account/center mapping, row and declared controls, exact batch and per-fund balancing, and explicit zero-balance declarations.

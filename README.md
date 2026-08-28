@@ -8,6 +8,7 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 
 - Configurable public identity, service cards, icons, media, colors, and plain-language navigation.
 - Dynamic employee dashboards with department-specific modules, leadership, team, plantilla, leave, contacts, and announcements.
+- Floating, non-modal Internal How-Tos that follow the employee's current department and role, prioritize the current page, retain private progress, and never transfer a predecessor's completion to a successor.
 - Assistance submission, secure editing and tracking, document review, status history, notifications, and separate MSWD processing views.
 - Internal social-welfare programs and activities for seminars, feeding programs, outreach, distributions, schedules, venues, attendance totals, and outcomes.
 - Permission-restricted citizen review with assistance usage history, duplicate-candidate indicators, review ownership, notes, and audit events.
@@ -52,6 +53,7 @@ python -m pip install -r requirements.txt
 python manage.py migrate
 python manage.py migrate --database=finance
 python manage.py seed_reporting_presets
+python manage.py seed_internal_howtos
 python manage.py runserver
 ```
 
@@ -87,6 +89,7 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 - [Documentation map](docs/README.md)
 - [Reporting operations and governance](docs/REPORTING.md)
 - [Portable GRAND export archive](docs/EXPORT_ARCHIVE.md)
+- [Department Internal How-Tos](docs/INTERNAL_HOWTOS.md)
 - [Department report-template intake](docs/REPORT_TEMPLATE_INTAKE.md)
 - [Department records operations](docs/RECORDS.md)
 - [TracePoint physical-custody contract](docs/TRACEPOINT.md)
