@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>GRAND Finance · F1.1 synthetic prototype</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to Finance content</a>
+  <div class="prototype-banner" role="status">
+    <strong>Synthetic F1.1 prototype</strong>
+    <span>No official authority, transaction, or production data</span>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Finance navigation">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">G</span>
+        <span><strong>GRAND</strong><small>Finance</small></span>
+        <button class="sidebar-close" id="sidebar-close" type="button" aria-label="Close Finance navigation">×</button>
+      </div>
+
+      <nav class="primary-nav" aria-label="Primary">
+        <button class="nav-item is-active" type="button" data-view="overview" aria-current="page">
+          <span class="nav-icon" aria-hidden="true">⌂</span><span>Overview</span>
+        </button>
+        <button class="nav-item" type="button" data-view="work">
+          <span class="nav-icon" aria-hidden="true">✓</span><span>My Work</span><span class="nav-count" id="nav-work-count">3</span>
+        </button>
+        <button class="nav-item" type="button" data-view="search">
+          <span class="nav-icon" aria-hidden="true">⌕</span><span>Cases</span>
+        </button>
+        <button class="nav-item" type="button" data-view="case">
+          <span class="nav-icon" aria-hidden="true">◇</span><span>Recent case</span>
+        </button>
+      </nav>
+
+      <div class="nav-section">
+        <p>Finance areas</p>
+        <button class="nav-item nav-secondary" type="button" data-demo-message="Reports are outside this F1.1 prototype."><span class="nav-icon" aria-hidden="true">▤</span><span>Reports</span></button>
+        <button class="nav-item nav-secondary" type="button" data-demo-message="Setup links appear only for roles with setup scope."><span class="nav-icon" aria-hidden="true">⚙</span><span>Setup &amp; controls</span></button>
+      </div>
+
+      <div class="sidebar-context">
+        <span class="eyebrow">Operation mode</span>
+        <strong>Shadow comparison</strong>
+        <span>Fiscal year 2026</span>
+        <span>Business date · 28 Aug 2026</span>
+      </div>
+    </aside>
+
+    <main id="main-content" tabindex="-1">
+      <header class="topbar">
+        <button class="menu-button" id="menu-button" type="button" aria-controls="sidebar" aria-expanded="false"><span aria-hidden="true">☰</span><span class="sr-only">Toggle Finance navigation</span></button>
+        <div class="topbar-title">
+          <span class="eyebrow">Municipality of San Isidro · Finance</span>
+          <strong id="office-context">Budget Office</strong>
+        </div>
+        <label class="role-switcher" for="role-select">
+          <span>Preview role</span>
+          <select id="role-select">
+            <option value="requesting">Requesting-office maker</option>
+            <option value="budget_maker">Budget maker</option>
+            <option value="budget_approver" selected>Budget approver</option>
+            <option value="accounting_maker">Accounting maker</option>
+            <option value="accounting_reviewer">Accounting reviewer / poster</option>
+            <option value="treasury_maker">Treasury maker</option>
+            <option value="treasury_releaser">Treasury releaser</option>
+            <option value="setup_approver">Setup approver</option>
+            <option value="auditor">Auditor / UAT viewer</option>
+          </select>
+        </label>
+        <button class="notification-button" type="button" data-demo-message="2 synthetic notifications: one returned task and one period readiness notice." aria-label="Notifications, 2 unread"><span aria-hidden="true">●</span><span class="notification-count">2</span></button>
+      </header>
+
+      <div class="content-wrap">
+        <div class="mode-callout" id="mode-callout">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span><strong>Shadow comparison.</strong> Outputs and actions in this prototype are not official.</span>
+          <button type="button" data-demo-message="Mode authority must come from a recorded cutover decision; it cannot be changed here.">Why?</button>
+        </div>
+
+        <section class="view is-active" id="view-overview" data-view-panel="overview">
+          <div class="page-heading">
+            <div>
+              <span class="eyebrow" id="overview-eyebrow">Budget authority workspace</span>
+              <h1 id="overview-title">Good morning, Budget approver</h1>
+              <p id="overview-intro">Review authority movements and certify obligations without losing the complete case history.</p>
+            </div>
+            <button class="button button-primary" type="button" id="overview-primary-action">Review ready work</button>
+          </div>
+
+          <div class="context-strip" aria-label="Current Finance context">
+            <div><span>Fiscal year</span><strong>2026</strong></div>
+            <div><span>Accounting period</span><strong>August · Open</strong></div>
+            <div><span>Primary fund</span><strong>General Fund</strong></div>
+            <div><span>Updated</span><strong>28 Aug · 10:42</strong></div>
+          </div>
+
+          <div class="metrics" id="metrics" aria-label="Role-scoped Finance metrics"></div>
+
+          <div class="dashboard-grid">
+            <section class="panel panel-large" aria-labelledby="priority-heading">
+              <div class="panel-heading">
+                <div><span class="eyebrow">Ready for your role</span><h2 id="priority-heading">Priority work</h2></div>
+                <button class="text-button" type="button" data-view="work">View My Work <span aria-hidden="true">→</span></button>
+              </div>
+              <div id="priority-list" class="priority-list"></div>
+            </section>
+
+            <aside class="panel control-panel" aria-labelledby="control-heading">
+              <div class="panel-heading"><div><span class="eyebrow">Known gates</span><h2 id="control-heading">Control watch</h2></div></div>
+              <div class="control-item blocking"><span class="control-icon" aria-hidden="true">!</span><div><strong>2 blocking decisions</strong><p>Local advice ownership and acting-signatory evidence remain unresolved.</p></div></div>
+              <div class="control-item"><span class="control-icon" aria-hidden="true">↺</span><div><strong>Reconciliation current</strong><p>Synthetic August opening controls have no unexplained difference.</p></div></div>
+              <button class="button button-secondary button-full" type="button" data-demo-message="Control register navigation is represented here but not implemented in the static prototype.">Open control register</button>
+            </aside>
+          </div>
+
+          <section class="panel" aria-labelledby="recent-heading">
+            <div class="panel-heading"><div><span class="eyebrow">Authorized scope</span><h2 id="recent-heading">Recent case movement</h2></div><span class="freshness">Updated 10:42</span></div>
+            <div class="activity-table-wrap"><table class="activity-table">
+              <caption class="sr-only">Recent Finance case movement</caption>
+              <thead><tr><th scope="col">Case</th><th scope="col">Movement</th><th scope="col">Responsible office</th><th scope="col">When</th></tr></thead>
+              <tbody>
+                <tr><td><button type="button" data-view="case"><strong>GF-2026-00418</strong><small>Ordinary supplier · General Fund</small></button></td><td>Obligation returned for classification</td><td>Budget Office</td><td>18 min</td></tr>
+                <tr><td><button type="button" data-view="case"><strong>GF-2026-00397</strong><small>Utility bill · General Fund</small></button></td><td>Signed packet returned</td><td>Accounting Office</td><td>1 hr</td></tr>
+                <tr><td><button type="button" data-view="case"><strong>GF-2026-00351</strong><small>Ordinary supplier · Trust Fund</small></button></td><td>Payment released; reconciliation pending</td><td>Treasury Office</td><td>Yesterday</td></tr>
+              </tbody>
+            </table></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-work" data-view-panel="work" hidden>
+          <div class="page-heading compact">
+            <div><span class="eyebrow">Permission-derived queue</span><h1>My Work</h1><p id="work-intro">Tasks are shown because this preview role can act or is accountable for the next gate.</p></div>
+          </div>
+          <div class="filter-bar" role="group" aria-label="Task state">
+            <button class="filter-chip is-active" type="button" data-task-filter="ready" aria-pressed="true">Ready <span id="ready-count">0</span></button>
+            <button class="filter-chip" type="button" data-task-filter="waiting" aria-pressed="false">Waiting <span id="waiting-count">0</span></button>
+            <button class="filter-chip" type="button" data-task-filter="returned" aria-pressed="false">Returned <span id="returned-count">0</span></button>
+            <button class="filter-chip" type="button" data-task-filter="all" aria-pressed="false">All visible</button>
+          </div>
+          <div class="work-layout">
+            <div class="panel task-panel">
+              <div class="task-list-heading"><span id="task-result-count">0 tasks</span><button type="button" class="text-button" data-demo-message="Saved views are part of the IA contract; this prototype does not persist them.">Save this view</button></div>
+              <div id="task-list" class="task-list"></div>
+            </div>
+            <aside class="panel queue-help"><span class="eyebrow">Queue contract</span><h2>Why a task appears</h2><p id="queue-reason">Your role, department scope, enabled fund/year, case state, and explicit permission all match.</p><hr><strong>Task state is not approval.</strong><p id="task-state-note">Completing one task moves the shared case only through an authorized, version-checked service action.</p></aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-case" data-view-panel="case" hidden>
+          <nav class="breadcrumbs" aria-label="Breadcrumb"><button type="button" data-view="search">Cases</button><span aria-hidden="true">/</span><span>GF-2026-00418</span></nav>
+          <div class="case-header">
+            <div>
+              <div class="case-tags"><span class="chip chip-phase">Case phase · Obligation control</span><span class="chip chip-shadow">Shadow/UAT</span><span class="chip chip-blocking">Blocking exception</span></div>
+              <h1>GF-2026-00418</h1>
+              <p>Office supplies · General Services Office · General Fund · FY 2026</p>
+            </div>
+            <div class="case-action" id="case-action"></div>
+          </div>
+
+          <div class="case-context">
+            <div><span>Responsible office</span><strong>Budget Office</strong></div>
+            <div><span>Current task</span><strong>Correct obligation classification</strong></div>
+            <div><span>State version</span><strong>v12 · updated 10:24</strong></div>
+            <div><span>Target</span><strong>Today · 16:00</strong></div>
+          </div>
+
+          <div class="case-layout">
+            <div>
+              <section class="panel authority-panel" aria-labelledby="authority-heading">
+                <div class="panel-heading"><div><span class="eyebrow">Separate control concepts</span><h2 id="authority-heading">Authority chain</h2></div><button class="text-button" type="button" data-demo-message="The authority drilldown would show accepted movements, evidence, calculations, and correction lineage.">View calculations</button></div>
+                <ol class="authority-chain">
+                  <li class="is-complete"><span>1</span><div><small>Approved appropriation</small><strong>₱ 1,250,000.00</strong><em>APP-2026-GF-01-6130</em></div></li>
+                  <li class="is-complete"><span>2</span><div><small>Released allotment</small><strong>₱ 800,000.00</strong><em>ARO-2026-0082</em></div></li>
+                  <li class="is-current"><span>3</span><div><small>Proposed obligation</small><strong>₱ 48,750.00</strong><em>Classification correction required</em></div></li>
+                  <li><span>4</span><div><small>Payable / DV</small><strong>Not established</strong><em>Waiting for valid obligation</em></div></li>
+                  <li><span>5</span><div><small>Accounting / payment</small><strong>Not started</strong><em>No cash movement</em></div></li>
+                </ol>
+              </section>
+
+              <section class="panel" aria-labelledby="timeline-heading">
+                <div class="panel-heading timeline-heading"><div><span class="eyebrow">Append-only case history</span><h2 id="timeline-heading">Timeline</h2></div><div class="timeline-filters" role="group" aria-label="Timeline events"><button type="button" class="is-active" data-event-filter="all" aria-pressed="true">All</button><button type="button" data-event-filter="authority" aria-pressed="false">Authority</button><button type="button" data-event-filter="custody" aria-pressed="false">Custody</button><button type="button" data-event-filter="technical" aria-pressed="false">Technical</button></div></div>
+                <div class="timeline" id="timeline"></div>
+              </section>
+            </div>
+
+            <aside>
+              <section class="panel next-gate"><span class="eyebrow">Next gate</span><h2>Valid budget classification</h2><p>The Budget maker must correct the expense object. An approver can act only after the draft is resubmitted against the current balance and state version.</p><dl><div><dt>Decision</dt><dd>DEC-004 authority applies</dd></div><div><dt>Evidence</dt><dd>EV-UAT-014 · synthetic</dd></div><div><dt>Balance hold</dt><dd>None · proposal returned</dd></div></dl></section>
+              <section class="panel compact-panel"><span class="eyebrow">Linked domains</span><h2>Documents &amp; custody</h2><ul class="link-list"><li><button type="button" data-demo-message="3 safe document references; no production file is present.">3 document references</button><span>Records</span></li><li><button type="button" data-demo-message="No physical packet exists before the controlled-print/custody point.">No physical packet yet</button><span>TracePoint</span></li><li><button type="button" data-demo-message="The case timeline retains the configuration version used at each action.">Configuration release v4</button><span>Finance Setup</span></li></ul></section>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-search" data-view-panel="search" hidden>
+          <div class="page-heading compact"><div><span class="eyebrow">Permission-filtered discovery</span><h1>Finance cases</h1><p>Search stable references and safe descriptions within this role's authorized scope.</p></div></div>
+          <form class="search-panel panel" id="search-form">
+            <label for="case-search">Case, controlled number, evidence ID, or safe description</label>
+            <div class="search-row"><input id="case-search" type="search" value="GF-2026" placeholder="Try GF-2026-00418"><button class="button button-primary" type="submit">Search</button></div>
+            <div class="search-filters">
+              <label>Phase<select id="phase-filter"><option value="all">All phases</option><option value="Obligation control">Obligation control</option><option value="Voucher and signatures">Voucher and signatures</option><option value="Payment">Payment</option></select></label>
+              <label>Fund<select id="fund-filter"><option value="all">All permitted funds</option><option value="General Fund">General Fund</option><option value="Trust Fund">Trust Fund</option></select></label>
+              <label>Fiscal year<select><option>2026</option></select></label>
+              <button class="text-button reset-search" id="reset-search" type="button">Reset filters</button>
+            </div>
+          </form>
+          <section class="panel search-results-panel" aria-labelledby="results-heading">
+            <div class="panel-heading"><div><span class="eyebrow">Authorized results only</span><h2 id="results-heading"><span id="search-count">0</span> results</h2></div><button class="text-button" type="button" data-demo-message="Export requires a separate permission, purpose, bounded result set, and audit receipt.">Export rules</button></div>
+            <div id="search-results" class="search-results"></div>
+          </section>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

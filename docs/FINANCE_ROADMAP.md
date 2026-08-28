@@ -261,7 +261,7 @@ Unless field evidence changes the dependency order, begin with these reviewable 
 9. **F5.1 — Voucher budget-lineage integration**: refactor the current case entry point to consume authoritative requesting-office/payable and obligation records while preserving existing audit, numbers, and corrections.
 10. **F6.1 — Controlled print and finance custody**: print/version/reprint states, packet manifest, TracePoint creation/linkage, wet-signature checkpoints, returned-packet gate, and redacted output comparison.
 
-Delivery status: the repository-safe templates for **F0.1** are available in the [Finance evidence register and interview kit](finance-discovery/README.md). This delivers the discovery instruments, not the F0 exit gate; field evidence, decisions, reconciliations, and named-office acceptance remain required.
+Delivery status: the repository-safe templates for **F0.1** are available in the [Finance evidence register and interview kit](finance-discovery/README.md). The **F1.1** design contract and clickable synthetic UX are available in the [complete-cycle Finance information architecture](finance-ia/README.md). These deliver discovery/design instruments, not the F0 or F1 exit gates; field evidence, named-office acceptance, and tested platform controls remain required.
 
 Do not start historical migration, direct check printing, or official-use switching merely because those tasks are visible in later phases. The immediate train establishes the authority chain on which all of them depend.
 
