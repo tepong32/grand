@@ -55,6 +55,9 @@ class BudgetCall(BudgetOwnedModel):
             ("view_allotment_control", "Can view appropriation and allotment control"),
             ("prepare_allotment_releases", "Can prepare allotment release orders"),
             ("approve_allotment_releases", "Can independently post allotment release orders"),
+            ("view_obligation_registry", "Can view the obligation registry and accountability balances"),
+            ("initiate_obligation_requests", "Can initiate requesting-office obligation requests"),
+            ("certify_obligations", "Can independently certify obligations"),
         )
 
     def __str__(self):
@@ -476,6 +479,180 @@ class AllotmentMovement(BudgetOwnedModel):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Posted allotment movements cannot be deleted.")
+
+
+class ObligationRequest(BudgetOwnedModel):
+    ORIGINAL, ADJUSTMENT, RETURN, CANCELLATION = "original", "adjustment", "return", "cancellation"
+    KIND_CHOICES = (
+        (ORIGINAL, "Original obligation"), (ADJUSTMENT, "Obligation adjustment"),
+        (RETURN, "Obligation return"), (CANCELLATION, "Obligation cancellation"),
+    )
+    ALOBS, ORS, OBR = "alobs", "ors", "obr"
+    FORM_CHOICES = ((ALOBS, "ALOBS"), (ORS, "ORS"), (OBR, "OBR"))
+    DRAFT, FOR_CERTIFICATION, RETURNED, CERTIFIED = "draft", "for_certification", "returned", "certified"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft request"), (FOR_CERTIFICATION, "For Budget certification"),
+        (RETURNED, "Returned for correction"), (CERTIFIED, "Certified and posted"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    authorization = models.ForeignKey(AppropriationAuthorization, on_delete=models.PROTECT, related_name="obligation_requests")
+    fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT, related_name="obligation_requests")
+    requesting_department_id = models.PositiveBigIntegerField(db_index=True)
+    requesting_department_label = models.CharField(max_length=160)
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES, default=ORIGINAL)
+    form_type = models.CharField(max_length=12, choices=FORM_CHOICES, default=OBR)
+    request_reference = models.CharField(max_length=100)
+    obligation_number = models.CharField(max_length=100, blank=True)
+    obligation_date = models.DateField()
+    claimant_payee = models.CharField(max_length=220)
+    particulars = models.TextField()
+    evidence_reference = models.TextField(help_text="Reference the locally accepted request and support; keep synthetic UAT evidence non-sensitive.")
+    signed_control_total = models.DecimalField(max_digits=18, decimal_places=2)
+    corrects = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="correction_requests")
+    linked_voucher_case_public_id = models.UUIDField(null=True, blank=True)
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=DRAFT)
+    snapshot_checksum = models.CharField(max_length=64, blank=True)
+    created_by_id = models.PositiveBigIntegerField()
+    created_by_label = models.CharField(max_length=160)
+    submitted_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    submitted_by_label = models.CharField(max_length=160, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    certified_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    certified_by_label = models.CharField(max_length=160, blank=True)
+    certified_at = models.DateTimeField(null=True, blank=True)
+    decision_reason = models.TextField(blank=True)
+    state_version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-fiscal_year__year", "-obligation_date", "-created_at")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("department_id", "fiscal_year", "obligation_number"),
+                condition=~models.Q(obligation_number=""), name="unique_certified_obligation_number",
+            ),
+            models.UniqueConstraint(
+                fields=("requesting_department_id", "fiscal_year", "request_reference"),
+                condition=models.Q(kind="original"), name="unique_original_obligation_request_reference",
+            ),
+        )
+
+    def __str__(self):
+        return self.obligation_number or self.request_reference
+
+    @property
+    def computed_effect_total(self):
+        total = Decimal("0")
+        for line in self.lines.all():
+            total += line.effect
+        return total
+
+    @property
+    def control_difference(self):
+        return self.signed_control_total - self.computed_effect_total
+
+    def clean(self):
+        if self.department_id != self.authorization.department_id:
+            raise ValidationError("The obligation must belong to the appropriation's Budget office.")
+        if self.authorization.status != AppropriationAuthorization.AUTHORIZED:
+            raise ValidationError({"authorization": "Choose an operationally authorized appropriation."})
+        if self.fiscal_year_id != self.authorization.version.fiscal_year_id:
+            raise ValidationError({"fiscal_year": "The obligation must use the authorized appropriation fiscal year."})
+        if not (self.fiscal_year.starts_on <= self.obligation_date <= self.fiscal_year.ends_on):
+            raise ValidationError({"obligation_date": "The obligation date must fall inside the selected fiscal year."})
+        if self.fiscal_year.status == FiscalYear.CLOSED:
+            raise ValidationError("The fiscal year is closed to new obligation activity.")
+        if self.kind == self.ORIGINAL and self.corrects_id:
+            raise ValidationError({"corrects": "An original obligation cannot correct another obligation."})
+        if self.kind != self.ORIGINAL:
+            if not self.corrects_id or self.corrects.status != self.CERTIFIED:
+                raise ValidationError({"corrects": "An adjustment, return, or cancellation must reference a certified obligation."})
+            if self.corrects.department_id != self.department_id or self.corrects.fiscal_year_id != self.fiscal_year_id:
+                raise ValidationError({"corrects": "A correction must stay in the same Budget office and fiscal year."})
+            if self.corrects.requesting_department_id != self.requesting_department_id:
+                raise ValidationError({"corrects": "A correction must stay with the original requesting office."})
+        if self.status == self.CERTIFIED and not self.obligation_number.strip():
+            raise ValidationError({"obligation_number": "Budget certification must assign the controlled obligation number."})
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.status == self.CERTIFIED:
+                governed = (
+                    "authorization_id", "fiscal_year_id", "requesting_department_id", "kind", "form_type",
+                    "request_reference", "obligation_number", "obligation_date", "claimant_payee", "particulars",
+                    "evidence_reference", "signed_control_total", "corrects_id", "linked_voucher_case_public_id",
+                    "snapshot_checksum",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError("Certified obligations are immutable. Use a linked governed correction.")
+
+
+class ObligationRequestLine(BudgetOwnedModel):
+    OBLIGATE, REDUCE = "obligate", "reduce"
+    MOVEMENT_CHOICES = ((OBLIGATE, "Obligate allotment"), (REDUCE, "Reduce / return obligation"))
+    request = models.ForeignKey(ObligationRequest, on_delete=models.PROTECT, related_name="lines")
+    appropriation_line = models.ForeignKey(AuthorizedAppropriationLine, on_delete=models.PROTECT, related_name="obligation_request_lines")
+    movement_type = models.CharField(max_length=12, choices=MOVEMENT_CHOICES, default=OBLIGATE)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    remarks = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("appropriation_line__fund_code", "appropriation_line__responsibility_center_code", "appropriation_line__account_code", "pk")
+
+    @property
+    def effect(self):
+        return self.amount if self.movement_type == self.OBLIGATE else -self.amount
+
+    def clean(self):
+        if self.amount <= Decimal("0"):
+            raise ValidationError({"amount": "An obligation line amount must be greater than zero."})
+        if self.appropriation_line.authorization_id != self.request.authorization_id:
+            raise ValidationError({"appropriation_line": "Choose a line from the request's exact authorized appropriation."})
+        if self.department_id != self.request.department_id:
+            raise ValidationError("The obligation line and request must belong to the same Budget office.")
+        if self.request.kind == ObligationRequest.ORIGINAL and self.movement_type != self.OBLIGATE:
+            raise ValidationError({"movement_type": "An original request may only create an obligation."})
+        if self.request.kind in (ObligationRequest.RETURN, ObligationRequest.CANCELLATION) and self.movement_type != self.REDUCE:
+            raise ValidationError({"movement_type": "A return or cancellation may only reduce an obligation."})
+
+    def save(self, *args, **kwargs):
+        if self.request.status not in (ObligationRequest.DRAFT, ObligationRequest.RETURNED):
+            raise ValidationError("Obligation lines are editable only while the request is draft or returned.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.request.status not in (ObligationRequest.DRAFT, ObligationRequest.RETURNED):
+            raise ValidationError("Submitted or certified obligation lines cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class ObligationMovement(BudgetOwnedModel):
+    request = models.ForeignKey(ObligationRequest, on_delete=models.PROTECT, related_name="movements")
+    source_line_id = models.PositiveBigIntegerField()
+    appropriation_line = models.ForeignKey(AuthorizedAppropriationLine, on_delete=models.PROTECT, related_name="obligation_movements")
+    movement_type = models.CharField(max_length=12, choices=ObligationRequestLine.MOVEMENT_CHOICES)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    obligation_effect = models.DecimalField(max_digits=18, decimal_places=2)
+    effective_date = models.DateField()
+    obligation_number_snapshot = models.CharField(max_length=100)
+    requesting_department_snapshot = models.CharField(max_length=160)
+    claimant_payee_snapshot = models.CharField(max_length=220)
+    particulars_snapshot = models.TextField()
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("effective_date", "pk")
+        constraints = (models.UniqueConstraint(fields=("request", "source_line_id"), name="unique_obligation_movement_source"),)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Certified obligation movements are append-only and immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Certified obligation movements cannot be deleted.")
 
 
 class BudgetReviewComment(BudgetOwnedModel):

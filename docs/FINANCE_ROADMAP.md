@@ -143,6 +143,8 @@ Deliver:
 
 Exit gate: GRAND prevents duplicate or excess obligations under concurrent use and reproduces signed synthetic appropriation/allotment/obligation control totals with zero unexplained difference.
 
+Implementation position: F4.1–F4.2 synthetic controls are implemented, including immutable allotment and obligation movements, requesting-office submission, Budget certification, concurrency protection, linked corrections, RAAO-equivalent balances, and portable exports. Exact locally accepted ARO/ALOBS/ORS/OBR/RAAO forms, numbering, signatures, and signed schedule reconciliation remain acceptance gates; see [Finance allotment control](FINANCE_ALLOTMENT_CONTROL.md) and [Finance obligation control](FINANCE_OBLIGATION_CONTROL.md).
+
 ### F5 — Request, procurement, delivery, payable, and voucher intake
 
 Deliver:
@@ -240,14 +242,14 @@ Exit gate: Budget, Accounting, Treasury, requesting offices, IT, management, and
 |---|---|---|
 | Finance Setup Center | Foundation implemented | Extend through F2; existing activation does not open an authoritative fiscal year. |
 | Standalone Accounting | Fiscal/fund/account setup, controlled opening intake/posting/reconciliation/export, balanced journals, posting, GL, and trial balance implemented | Continue under F7; add transaction-specific postings, subsidiary ledgers, closing, and statements. |
-| Voucher Workbench | Shadow vertical slice from Budget case/OBR through release implemented | Treat as an F5–F8 prototype; refactor its entry point after F3–F4 provide real budget authority. |
+| Voucher Workbench | Shadow vertical slice from Budget case/OBR through release implemented | Treat as an F5–F8 prototype; refactor its entry point in F5 to consume the authoritative F4.2 obligation UUID rather than maintain a second budget balance. |
 | Wet-signature handling | Manual signed-return rounds implemented | Add the explicit print/version/custody gates in F6. |
 | TracePoint | General packet custody implemented; voucher link optional | Integrate governed finance packet creation/linkage and checkpoint gates in F6/F8. |
 | Treasury | Check registration, cancellation/replacement, advice, and release controls implemented | Complete printing, cash control, payment postings, remittance, registers, and bank reconciliation in F8. |
 | Reporting/templates | Governed reporting and macro-free workbook preflight exist | Extend to finance form catalog and statutory control totals in F9–F10. |
-| Annual budget, appropriation, and allotment | F3.1–F3.2 and F4.1 implemented with synthetic controls | Add authoritative obligations/RAAO in F4.2; official use still requires accepted local schedules, forms, reconciliation, and process-owner sign-off. |
+| Annual budget, appropriation, allotment, and obligation registry | F3.1–F4.2 implemented with synthetic controls | Integrate authoritative obligation UUIDs with F5 payable/voucher intake; official use still requires accepted local schedules, forms, reconciliation, and process-owner sign-off. |
 
-The earlier statement that printing was the first confirmed voucher mismatch remains true only inside the implemented voucher subcycle. From a complete-cycle perspective, GRAND currently diverges before the first voucher because it lacks authoritative annual appropriations, allotment releases, and obligation-balance control.
+The earlier statement that printing was the first confirmed voucher mismatch remains true only inside the implemented voucher subcycle. From a complete-cycle perspective, GRAND now diverges at F5 because transaction-specific request/procurement/delivery/payable intake and authoritative obligation-to-voucher integration remain unimplemented.
 
 ## Immediate next delivery train
 
@@ -265,7 +267,7 @@ Unless field evidence changes the dependency order, begin with these reviewable 
 9. **F5.1 — Voucher budget-lineage integration**: refactor the current case entry point to consume authoritative requesting-office/payable and obligation records while preserving existing audit, numbers, and corrections.
 10. **F6.1 — Controlled print and finance custody**: print/version/reprint states, packet manifest, TracePoint creation/linkage, wet-signature checkpoints, returned-packet gate, and redacted output comparison.
 
-Delivery status: the repository-safe templates for **F0.1** are available in the [Finance evidence register and interview kit](finance-discovery/README.md). The **F1.1** design contract and clickable synthetic UX are available in the [complete-cycle Finance information architecture](finance-ia/README.md). The **F2.1** software foundation is documented in [Finance fiscal-year and classification foundation](FINANCE_FISCAL_FOUNDATION.md), the **F2.2** controls are documented in [Finance opening balances and control-total intake](FINANCE_OPENING_BALANCES.md), the implemented **F3.1–F3.2** preparation and operational-authorization controls are documented in [Finance annual budget preparation](FINANCE_ANNUAL_BUDGET.md), and **F4.1** is documented in [Finance allotment release control](FINANCE_ALLOTMENT_CONTROL.md). These deliver reviewable instruments and implemented synthetic controls, not the parent phase acceptance gates; field evidence, accepted local schedules/forms, and named-office reconciliation/acceptance remain required.
+Delivery status: the repository-safe templates for **F0.1** are available in the [Finance evidence register and interview kit](finance-discovery/README.md). The **F1.1** design contract and clickable synthetic UX are available in the [complete-cycle Finance information architecture](finance-ia/README.md). The **F2.1** software foundation is documented in [Finance fiscal-year and classification foundation](FINANCE_FISCAL_FOUNDATION.md), the **F2.2** controls are documented in [Finance opening balances and control-total intake](FINANCE_OPENING_BALANCES.md), the implemented **F3.1–F3.2** preparation and operational-authorization controls are documented in [Finance annual budget preparation](FINANCE_ANNUAL_BUDGET.md), **F4.1** in [Finance allotment release control](FINANCE_ALLOTMENT_CONTROL.md), and **F4.2** in [Finance obligation control](FINANCE_OBLIGATION_CONTROL.md). These deliver reviewable instruments and implemented synthetic controls, not the parent phase acceptance gates; field evidence, accepted local schedules/forms, and named-office reconciliation/acceptance remain required.
 
 Do not start historical migration, direct check printing, or official-use switching merely because those tasks are visible in later phases. The immediate train establishes the authority chain on which all of them depend.
 

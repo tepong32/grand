@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title_ext %} - Obligation control{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start mb-3">
+    <div>
+      <p class="text-uppercase text-muted small font-weight-bold mb-1">GRAND Finance · Requesting offices and Budget</p>
+      <h1 class="mb-1">Obligation control and RAAO</h1>
+      <p class="text-muted">Initiate ALOBS/ORS/OBR requests once, certify them against executable allotment, and preserve the immutable obligation registry.</p>
+    </div>
+    <div>
+      <a class="btn btn-outline-secondary" href="{% url 'budget:allotment_workspace' %}">Allotment control</a>
+      {% if can_registry %}<a class="btn btn-outline-primary" href="{% url 'budget:obligation_registry_export' %}">Export registry</a>{% endif %}
+      {% if can_initiate %}<a class="btn btn-primary" href="{% url 'budget:obligation_create' %}">New obligation request</a>{% endif %}
+    </div>
+  </div>
+  <div class="alert alert-info"><strong>Modification allowance:</strong> draft and returned requests may be corrected with before/after audit evidence. Certification posts immutable movements. Certified corrections require a linked adjustment, return, or cancellation; once a linked DV/check is issued, use its later reversal or cancellation workflow.</div>
+  {% if can_registry %}<div class="card card-outline card-success mb-3">
+    <div class="card-header"><h2 class="card-title font-weight-bold">RAAO-equivalent control totals</h2></div>
+    <div class="table-responsive"><table class="table table-hover mb-0">
+      <thead><tr><th>Authority</th><th class="text-right">Appropriation</th><th class="text-right">Released</th><th class="text-right">Held</th><th class="text-right">Executable</th><th class="text-right">Obligated</th><th class="text-right">Unobligated</th></tr></thead>
+      <tbody>{% for row in authority_rows %}<tr>
+        <td><a href="{% url 'budget:authorization_detail' row.authorization.public_id %}">{{ row.authorization.ordinance_number }}</a><div class="small text-muted">FY {{ row.authorization.version.fiscal_year.year }}</div></td>
+        <td class="text-right">{{ row.totals.authorized|floatformat:2 }}</td><td class="text-right">{{ row.totals.released|floatformat:2 }}</td><td class="text-right">{{ row.totals.held|floatformat:2 }}</td><td class="text-right">{{ row.totals.executable|floatformat:2 }}</td><td class="text-right">{{ row.totals.obligated|floatformat:2 }}</td><td class="text-right">{{ row.totals.unobligated|floatformat:2 }}</td>
+      </tr>{% empty %}<tr><td colspan="7" class="text-center text-muted py-4">No operational appropriation/allotment authority is available.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div>{% endif %}
+  <div class="card card-outline card-primary">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Obligation requests and certified registry entries</h2></div>
+    <div class="table-responsive"><table class="table table-hover mb-0">
+      <thead><tr><th>Request / obligation</th><th>Requesting office</th><th>Form</th><th>Date</th><th>Claimant/payee</th><th>Status</th><th class="text-right">Signed effect</th></tr></thead>
+      <tbody>{% for item in requests %}<tr>
+        <td><a href="{% url 'budget:obligation_detail' item.public_id %}">{{ item.obligation_number|default:item.request_reference }}</a><div class="small text-muted">{{ item.get_kind_display }} · request {{ item.request_reference }}</div></td>
+        <td>{{ item.requesting_department_label }}</td><td>{{ item.get_form_type_display }}</td><td>{{ item.obligation_date }}</td><td>{{ item.claimant_payee }}</td><td><span class="badge {% if item.status == 'certified' %}badge-success{% elif item.status == 'for_certification' %}badge-warning{% else %}badge-secondary{% endif %}">{{ item.get_status_display }}</span></td><td class="text-right">{{ item.signed_control_total|floatformat:2 }}</td>
+      </tr>{% empty %}<tr><td colspan="7" class="text-center text-muted py-4">No obligation request is visible in your department scope.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+</div>
+{% endblock %}

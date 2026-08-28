@@ -102,7 +102,43 @@ ACCOUNTING_GUIDES = (
     },
 )
 
+REQUESTING_GUIDES = (
+    {
+        "slug": "finance-requesting-office-obligation",
+        "title": "Prepare and submit an obligation request",
+        "summary": "Initiate the locally applicable ALOBS/ORS/OBR without retyping authority, and correct it only inside the governed modification window.",
+        "permission": "budget.initiate_obligation_requests",
+        "patterns": ["budget:obligation_*"],
+        "order": 1,
+        "steps": (
+            ("Open your obligation queue", "Open Obligation control and confirm you are working under your current assigned department, not a previous employee's tutorial or transaction history.", "Only this department's requests and your private guide checkmarks are shown.", "Tutorial progress is only your private step checklist; it is not approval, work status, performance evidence, or inherited history.", "Open Obligation Control", "budget:obligation_workspace"),
+            ("Start the request once", "Choose the exact operational appropriation, locally applicable ALOBS/ORS/OBR type, unique office request reference, date, claimant/payee, particulars, evidence reference, and signed effect total.", "One traceable draft identifies the intended authority and claim.", "Do not duplicate a prior request reference or treat an approved proposal as spendable authority.", "New Obligation Request", "budget:obligation_create"),
+            ("Add the exact schedule", "Select authorized lines instead of retyping fund, office, PPA, funding source, account, and expense class. Enter positive amounts; the movement supplies the sign.", "The schedule retains appropriation and allotment lineage.", "The signed control total is positive for new obligations and negative for returns/reductions.", "", ""),
+            ("Use guided draft corrections", "Before submission, or after a Budget return, use Correct/Remove and the header edit. Review the zero control difference and the specific return reason.", "Every permitted change carries retained audit evidence.", "Submitted or certified rows cannot be silently edited or deleted.", "", ""),
+            ("Submit to Budget", "Submit only when the exact schedule and signed effect agree. Budget will recheck unobligated allotment under a database lock and either certify or return a specific correction.", "The request enters Budget's certification queue without consuming balance early.", "Do not create a replacement draft merely because Budget returned the same request.", "", ""),
+            ("Correct certified history safely", "If a certified obligation must change before any DV/check issuance, create a linked adjustment, return, or cancellation. After issuance, follow the coordinated voucher/payment reversal route.", "Original and successor movements remain reconstructible.", "Never overwrite a certified obligation or bypass a later issued artifact.", "", ""),
+        ),
+    },
+)
+
+
 BUDGET_GUIDES = (
+    {
+        "slug": "finance-obligation-certification",
+        "title": "Certify obligations and reconcile RAAO balances",
+        "summary": "Independently certify requesting-office ALOBS/ORS/OBR schedules only inside executable allotment and preserve their registry lineage.",
+        "permission": "budget.certify_obligations",
+        "patterns": ["budget:obligation_*"],
+        "order": 2,
+        "steps": (
+            ("Review the Budget queue", "Open Obligation control and select a request awaiting certification. Confirm the requesting office, form type, request reference, claimant/payee, particulars, date, and evidence reference.", "The reviewer is looking at the same submitted request, not a copied voucher record.", "The requesting-office submitter cannot certify the same request.", "Open Obligation Control", "budget:obligation_workspace"),
+            ("Trace authority and allotment", "Follow each schedule row to its immutable appropriation and posted allotment. Review released, held, executable, already obligated, and unobligated amounts.", "Every proposed effect has sufficient executable allotment.", "Draft or unposted allotment does not support certification.", "", ""),
+            ("Reconcile signed effects", "Confirm positive obligation and negative reduction effects sum exactly to the signed control total, with zero difference and the applicable period open.", "The request reproduces the reviewed schedule total exactly.", "Do not use a balancing row to conceal an unexplained difference.", "", ""),
+            ("Certify or return", "Assign the controlled ALOBS/ORS/OBR number, record the independent review basis, and certify; otherwise return a specific guided correction reason.", "Certification creates one checksum-backed immutable movement per line exactly once.", "Concurrent certification rechecks the line balances under database locks.", "", ""),
+            ("Use successor corrections", "For a certified error before DV/check issuance, require a linked adjustment, return, or cancellation with its own signed effect. After issuance, route the correction across the later voucher/payment controls.", "The registry never rewrites prior certified facts.", "Do not certify an obligation-only correction after its downstream issuance boundary.", "", ""),
+            ("Export and reconcile", "Review PPA/account/office drilldowns and export the certified RAAO-equivalent registry when authorized. Preserve the entire TraceSync-ready export tree and sibling manifests.", "The same bytes and SHA-256 evidence are available for download and portable safekeeping.", "The exact official template remains acceptance-gated until locally confirmed.", "Export Registry", "budget:obligation_registry_export"),
+        ),
+    },
     {
         "slug": "finance-allotment-release-control",
         "title": "Prepare and post allotment releases",
@@ -158,8 +194,8 @@ BUDGET_GUIDES = (
         "order": 20,
         "steps": (
             ("Open the Budget queue", "Create or select the requesting office's case and identify the claimant/payee, particulars, transaction type, and governed classification.", "One stable case begins the cross-office route.", "Do not recreate an existing case for the same claim.", "Open Finance Queue", "vouchers:workspace"),
-            ("Check authority and evidence", "Confirm the locally required documents and the Budget authority represented by the current pilot allocation controls.", "The case is complete enough for Budget certification.", "The current workbench is not yet the full F3/F4 appropriation/allotment/obligation ledger.", "", ""),
-            ("Certify or return", "Certify the supported allocation once, or return the case with a correction reason that the requesting office can act on.", "The shared case advances to Accounting or reopens visibly for correction.", "", "", ""),
+            ("Check authoritative obligation", "Confirm the locally required documents and review the separate F4.2 certified obligation and authority lineage that this pilot case must reference during F5 integration.", "The case is supported by a traceable certified obligation.", "The current Voucher Workbench OBR remains a shadow compatibility record until the obligation UUID link is implemented and accepted.", "Open Obligation Control", "budget:obligation_workspace"),
+            ("Complete or return the shadow step", "For current UAT only, complete the supported pilot allocation once, or return the case with a correction reason that the requesting office can act on.", "The shared shadow case advances to Accounting or reopens visibly for correction.", "Do not treat the pilot allocation as a second authoritative budget balance ledger.", "", ""),
         ),
     },
 )
@@ -199,10 +235,9 @@ def seed_finance_internal_howtos():
     definitions = {"accounting": ACCOUNTING_GUIDES, "budget": BUDGET_GUIDES, "treasury": TREASURY_GUIDES}
     for department in Department.objects.all().order_by("pk"):
         kind = _department_kind(department)
-        if not kind:
-            continue
         counts["departments"] += 1
-        for definition in definitions[kind]:
+        department_guides = REQUESTING_GUIDES + definitions.get(kind, ())
+        for definition in department_guides:
             published = InternalHowTo.objects.filter(
                 department=department,
                 slug=definition["slug"],

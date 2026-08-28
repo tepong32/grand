@@ -32,4 +32,13 @@ urlpatterns = [
     path("allotments/<uuid:public_id>/lines/<int:line_id>/delete/", views.allotment_line_delete, name="allotment_line_delete"),
     path("allotments/<uuid:public_id>/export/", views.allotment_export, name="allotment_export"),
     path("allotments/<uuid:public_id>/<slug:action>/", views.allotment_action, name="allotment_action"),
+    path("obligations/", views.obligation_workspace, name="obligation_workspace"),
+    path("obligations/new/", views.obligation_create, name="obligation_create"),
+    path("obligations/export/", views.obligation_registry_export, name="obligation_registry_export"),
+    path("obligations/<uuid:public_id>/", views.obligation_detail, name="obligation_detail"),
+    path("obligations/<uuid:public_id>/edit/", views.obligation_edit, name="obligation_edit"),
+    path("obligations/<uuid:public_id>/lines/new/", views.obligation_line_create, name="obligation_line_create"),
+    path("obligations/<uuid:public_id>/lines/<int:line_id>/edit/", views.obligation_line_edit, name="obligation_line_edit"),
+    path("obligations/<uuid:public_id>/lines/<int:line_id>/delete/", views.obligation_line_delete, name="obligation_line_delete"),
+    path("obligations/<uuid:public_id>/<slug:action>/", views.obligation_action, name="obligation_action"),
 ]

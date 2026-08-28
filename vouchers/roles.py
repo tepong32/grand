@@ -15,11 +15,14 @@ FINANCE_ROLE_PERMISSIONS = {
         "accounting.view_general_ledger",
         "budget.view_budget_workspace",
         "budget.view_allotment_control",
+        "budget.view_obligation_registry",
     ),
     "Budget Voucher Officer": (
         "budget.view_budget_workspace",
         "budget.prepare_budget_calls",
         "budget.prepare_budget_proposals",
+        "budget.view_obligation_registry",
+        "budget.certify_obligations",
         "vouchers.view_voucher_workbench",
         "vouchers.initiate_budget_case",
         "vouchers.certify_budget_obligation",
@@ -33,6 +36,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "budget.view_budget_audit",
         "budget.view_allotment_control",
         "budget.prepare_allotment_releases",
+        "budget.view_obligation_registry",
     ),
     "Budget Appropriation Authorizer": (
         "budget.view_budget_workspace",
@@ -40,6 +44,11 @@ FINANCE_ROLE_PERMISSIONS = {
         "budget.view_budget_audit",
         "budget.view_allotment_control",
         "budget.approve_allotment_releases",
+        "budget.view_obligation_registry",
+    ),
+    "Requesting Office Obligation Preparer": (
+        "budget.view_budget_workspace",
+        "budget.initiate_obligation_requests",
     ),
     "Accounting DV Preparer": (
         "finance.view_finance_setup",
@@ -98,7 +107,7 @@ ROLE_PROFILES = {
     "budget": {
         "eyebrow": "Budget Office",
         "title": "Budget voucher workspace",
-        "description": "Open governed cases, certify OBR allocations, and follow vouchers already forwarded to Accounting.",
+        "description": "Operate the shadow voucher route while F5 connects each case to an authoritative certified obligation.",
         "queue_title": "Budget cases ready for review",
         "empty_message": "No Budget voucher case is waiting for action.",
         "stages": ("budget_draft",),
@@ -141,7 +150,7 @@ ROLE_PROFILES = {
 
 
 STAGE_NEXT_ACTION = {
-    "budget_draft": "Certify OBR allocation",
+    "budget_draft": "Complete shadow OBR compatibility step",
     "accounting_preparation": "Prepare the disbursement voucher",
     "awaiting_signatures": "Record returned wet signatures",
     "accounting_validation": "Validate the voucher and request a JEV",
