@@ -67,9 +67,9 @@ def case_create(request):
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
-            messages.success(request, "Shadow-mode Budget case created from governed master data.")
+            messages.success(request, "Controlled UAT Budget case created from governed master data.")
             return redirect(case)
-    return render(request, "vouchers/form.html", {"form": form, "title": "Open Budget obligation case", "guidance": "This creates one shared case. It does not create a new appropriation or claim official authority while shadow mode is active."})
+    return render(request, "vouchers/form.html", {"form": form, "title": "Open Budget obligation case", "guidance": "This creates one shared GRAND case. In the UAT environment, use synthetic records only; no official appropriation or payment authority is created."})
 
 
 def _case(public_id):
