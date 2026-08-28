@@ -1,0 +1,40 @@
+{
+  "result": "PASS",
+  "excel_version": "16.0",
+  "powerpoint_version": "16.0",
+  "excel_target": "Microsoft Office 2016 onwards and Microsoft 365",
+  "workbooks": [
+    {
+      "file": "GRAND_UAT_DV_v1.xlsx",
+      "opened_read_only": true,
+      "file_format": 51,
+      "worksheets": 2,
+      "has_vba_project": false,
+      "external_links": 0
+    },
+    {
+      "file": "GRAND_UAT_DV_generated_v1.xlsx",
+      "opened_read_only": true,
+      "file_format": 51,
+      "worksheets": 2,
+      "has_vba_project": false,
+      "external_links": 0
+    },
+    {
+      "file": "GRAND_UAT_DV_generated_v2_amended.xlsx",
+      "opened_read_only": true,
+      "file_format": 51,
+      "worksheets": 2,
+      "has_vba_project": false,
+      "external_links": 0
+    }
+  ],
+  "presentation": {
+    "file": "GRAND_Finance_UAT_Stakeholder_Walkthrough.pptx",
+    "opened_read_only": true,
+    "slides": 18,
+    "shapes": 360,
+    "out_of_bounds_objects": 0,
+    "saved_during_verification": false
+  }
+}
