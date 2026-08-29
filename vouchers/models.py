@@ -74,7 +74,7 @@ class VoucherCase(models.Model):
     payee = models.ForeignKey(FinanceParty, on_delete=models.PROTECT, null=True, blank=True, related_name="voucher_cases")
     payee_name = models.CharField(max_length=220)
     particulars = models.TextField()
-    authoritative_obligation_public_id = models.UUIDField(null=True, blank=True, unique=True)
+    authoritative_obligation_public_id = models.UUIDField(null=True, blank=True, db_index=True)
     authoritative_obligation_number = models.CharField(max_length=100, blank=True)
     authoritative_obligation_checksum = models.CharField(max_length=64, blank=True)
     authoritative_obligation_amount = models.DecimalField(**MONEY)
@@ -124,8 +124,6 @@ class VoucherCase(models.Model):
             if previous:
                 immutable = (
                     "public_id", "reference_code", "created_by_id", "created_at", "transaction_type",
-                    "authoritative_obligation_public_id", "authoritative_obligation_number",
-                    "authoritative_obligation_checksum", "authoritative_obligation_amount",
                 )
                 if any(getattr(previous, field) != getattr(self, field) for field in immutable):
                     raise ValidationError("Voucher identity and transaction type are immutable.")
@@ -133,7 +131,7 @@ class VoucherCase(models.Model):
 
 class BudgetObligation(models.Model):
     case = models.OneToOneField(VoucherCase, on_delete=models.PROTECT, related_name="obligation")
-    obr_number = models.CharField(max_length=60, unique=True)
+    obr_number = models.CharField(max_length=60, db_index=True)
     obligation_date = models.DateField()
     budget_source_reference = models.CharField(max_length=160)
     certified_amount = models.DecimalField(**MONEY, validators=[MinValueValidator(Decimal("0.01"))])
@@ -167,12 +165,47 @@ class PayableIntake(models.Model):
         (DRAFT, "Draft evidence intake"), (FOR_REVIEW, "For Accounting review"),
         (RETURNED, "Returned for correction"), (READY, "Payment-ready for DV preparation"),
     )
+    FULL = "full"
+    PARTIAL = "partial"
+    PROGRESS = "progress"
+    FINAL = "final"
+    RELATIONSHIP_CHOICES = (
+        (FULL, "One-time / full claim"),
+        (PARTIAL, "Partial claim; balance remains"),
+        (PROGRESS, "Progress billing; balance remains"),
+        (FINAL, "Final claim; consume remaining balance"),
+    )
+    RECOGNIZE_WITH_DV = "recognize_with_dv"
+    ACCRUE_BEFORE_SETTLEMENT = "accrue_before_settlement"
+    SETTLE_EXISTING_PAYABLE = "settle_existing_payable"
+    LIQUIDATION_DECISION = "liquidation_decision"
+    RECOGNITION_CHOICES = (
+        (RECOGNIZE_WITH_DV, "Recognize through the governed DV/JEV route"),
+        (ACCRUE_BEFORE_SETTLEMENT, "Accrue payable before settlement"),
+        (SETTLE_EXISTING_PAYABLE, "Settle a previously recognized payable"),
+        (LIQUIDATION_DECISION, "Liquidation / non-payment recognition decision"),
+    )
+    NO_ADJUSTMENT = "no_adjustment"
+    ADJUSTMENT_REFLECTED = "adjustment_reflected"
+    BALANCE_RETAINED = "balance_retained"
+    ADJUSTMENT_CHOICES = (
+        (NO_ADJUSTMENT, "No obligation adjustment required"),
+        (ADJUSTMENT_REFLECTED, "Governed pre-DV obligation adjustment reflected"),
+        (BALANCE_RETAINED, "Partial/progress balance intentionally retained"),
+    )
 
     case = models.OneToOneField(VoucherCase, on_delete=models.PROTECT, related_name="payable_intake")
     claim_reference = models.CharField(max_length=120)
     invoice_number = models.CharField(max_length=120, blank=True)
     invoice_date = models.DateField(null=True, blank=True)
     claim_amount = models.DecimalField(**MONEY, validators=[MinValueValidator(Decimal("0.01"))])
+    initial_allocation_amount = models.DecimalField(
+        **MONEY, validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    initial_relationship_type = models.CharField(
+        max_length=16, choices=RELATIONSHIP_CHOICES, default=FULL,
+    )
+    relationship_policy_snapshot = models.JSONField(default=dict, blank=True)
     procurement_reference = models.CharField(max_length=180, blank=True)
     delivery_reference = models.CharField(max_length=180, blank=True)
     inspection_acceptance_reference = models.CharField(max_length=180, blank=True)
@@ -181,6 +214,10 @@ class PayableIntake(models.Model):
     duplicate_review_note = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=DRAFT)
     decision_reason = models.TextField(blank=True)
+    recognition_decision = models.CharField(max_length=32, choices=RECOGNITION_CHOICES, blank=True)
+    recognition_basis = models.TextField(blank=True)
+    obligation_adjustment_decision = models.CharField(max_length=32, choices=ADJUSTMENT_CHOICES, blank=True)
+    obligation_adjustment_basis = models.TextField(blank=True)
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
         related_name="submitted_payable_intakes",
@@ -203,11 +240,22 @@ class PayableIntake(models.Model):
         )
 
     def clean(self):
-        if self.case_id and self.claim_amount != self.case.authoritative_obligation_amount:
-            raise ValidationError(
-                "The payable amount must equal the currently linked obligation amount. "
-                "Record a governed obligation adjustment before intake when the final claim changes."
-            )
+        if self.initial_allocation_amount > self.claim_amount:
+            raise ValidationError({
+                "initial_allocation_amount": "The initial obligation allocation cannot exceed the payable claim control total."
+            })
+        if self.status == self.READY:
+            missing = []
+            if not self.recognition_decision:
+                missing.append("recognition decision")
+            if not self.recognition_basis.strip():
+                missing.append("recognition basis")
+            if not self.obligation_adjustment_decision:
+                missing.append("obligation adjustment decision")
+            if not self.obligation_adjustment_basis.strip():
+                missing.append("obligation adjustment basis")
+            if missing:
+                raise ValidationError("Payment-ready intake is missing its " + ", ".join(missing) + ".")
 
 
 class PayableDocumentEvidence(models.Model):

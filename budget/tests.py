@@ -1,5 +1,7 @@
 from datetime import date
 from decimal import Decimal
+import json
+from pathlib import Path
 import tempfile
 from unittest.mock import patch
 
@@ -14,19 +16,22 @@ from accounting.models import FiscalYear, Fund, LedgerAccount, ProgramActivityPr
 from departments.models import Department
 from departments.services.internal_howto_seed import seed_finance_internal_howtos
 from finance.models import (
-    FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule, FinanceParty,
+    FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule, FinanceNumberingSequence, FinanceParty,
     FinanceTransactionVariant,
 )
 from vouchers.models import PayableDocumentEvidence, PayableIntake, VoucherCase
 from vouchers.services import (
+    add_payable_obligation_allocation,
     create_payable_case_from_obligation, prepare_voucher, record_payable_document_evidence,
+    payable_relationship_summary, revise_payable_claim_control,
+    reconcile_authoritative_obligation, revise_payable_obligation_allocation,
     review_payable_intake, submit_payable_intake,
 )
 
 from .models import (
     AllotmentMovement, AllotmentOrderLine, AllotmentReleaseOrder, AppropriationAuthorization,
     BudgetAuditEvent, BudgetCall, BudgetCeiling, BudgetProposalLine, BudgetVersion,
-    ObligationMovement, ObligationRequest, ObligationRequestLine,
+    ObligationMovement, ObligationRequest, ObligationRequestLine, PayableObligationAllocation,
 )
 from .services import (
     allotment_line_balance, authorization_allotment_totals, compare_versions, consolidate_versions,
@@ -641,6 +646,259 @@ class AnnualBudgetPreparationTests(TestCase):
                 line_account_code="5-02-03", document_codes=[], expected_version=case.state_version,
                 idempotency_key="stale-payable-dv",
             )
+
+    def test_payable_relationships_recognition_modification_window_and_portable_export(self):
+        authorization = self.make_executable_authority()
+        first = self.make_obligation_request(
+            authorization, reference="GSO-REL-001", total="10000",
+        )
+        self.add_obligation_line(first, "10000")
+        transition_obligation_request(first, "submit", self.requester)
+        first = transition_obligation_request(
+            first, "certify", self.certifier, "Independent first relationship certification.", "OBR-2027-REL-001",
+        )
+        second = self.make_obligation_request(
+            authorization, reference="GSO-REL-002", total="5000",
+        )
+        self.add_obligation_line(second, "5000")
+        transition_obligation_request(second, "submit", self.requester)
+        second = transition_obligation_request(
+            second, "certify", self.certifier, "Independent second relationship certification.", "OBR-2027-REL-002",
+        )
+
+        self.requester.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers",
+            codename__in=("view_voucher_workbench", "initiate_payable_case", "view_voucher_audit"),
+        ))
+        accountant = self.employee(self.accounting_office, "relationship.accountant")
+        accountant.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers",
+            codename__in=("view_voucher_workbench", "review_payable_intake", "prepare_disbursement_voucher"),
+        ))
+        release = FinanceConfigurationRelease.objects.create(
+            department=self.accounting_office, code="f53-relationship-test", version=1,
+            title="Synthetic F5.3 relationship setup", fiscal_year=2026, status="active",
+            effective_from=date(2026, 1, 1), created_by=accountant, activated_by=accountant,
+        )
+        FinanceConfigurationItem.objects.create(
+            department=self.accounting_office, release=release, category="transaction_type",
+            code="ordinary-supplier-claim", version=1, label="Ordinary supplier claim",
+            status="active", effective_from=date(2026, 1, 1), created_by=accountant,
+        )
+        variant = FinanceTransactionVariant.objects.create(
+            department=self.accounting_office, release=release, code="ordinary-supplier-claim",
+            label="Ordinary supplier claim", kind=FinanceTransactionVariant.ORDINARY_SUPPLIER,
+            description="Synthetic governed multi-obligation and progress/final relationship route.",
+            authority_reference="Synthetic reviewed COA/DBM/local relationship decision.",
+            effective_from=date(2026, 1, 1), status="active", created_by=accountant,
+        )
+        rule = FinanceDocumentRule.objects.create(
+            variant=variant, code="billing", label="Reviewed billing packet",
+            evidence_kind=FinanceDocumentRule.INVOICE, required=True, waiver_allowed=False,
+            authority_reference="Synthetic locally reviewed billing rule.", created_by=accountant,
+        )
+        party = FinanceParty.objects.create(
+            department=self.accounting_office, release=release, code="f53-supplier", version=1,
+            display_name="Synthetic Relationship Supplier", party_type=FinanceParty.SUPPLIER,
+            effective_from=date(2026, 1, 1), status="active", created_by=accountant,
+        )
+        FinanceNumberingSequence.objects.create(
+            department=self.accounting_office, release=release, fiscal_year=2026,
+            document_type="disbursement-voucher", prefix="DV-F53-", padding=4,
+            next_number=1, status="active", created_by=accountant,
+        )
+
+        invalid_final = create_payable_case_from_obligation(
+            actor=self.requester, authoritative_obligation=second, payee=party,
+            transaction_type="ordinary-supplier-claim", claim_reference="CLAIM-F53-INVALID-FINAL",
+            invoice_number="", invoice_date=None, claim_amount=Decimal("4000"),
+            initial_allocation_amount=Decimal("4000"), initial_relationship_type=PayableIntake.FINAL,
+            procurement_reference="", delivery_reference="", inspection_acceptance_reference="",
+            evidence_reference="Synthetic attempted final claim.", duplicate_review_note="",
+            idempotency_key="f53-invalid-final",
+        )
+        invalid_final.refresh_from_db()
+        self.assertEqual(invalid_final.obligation_binding_status, VoucherCase.BINDING_FAILED)
+        self.assertIn("exact remaining", invalid_final.obligation_binding_error)
+        self.assertFalse(PayableObligationAllocation.objects.filter(
+            voucher_case_public_id=invalid_final.public_id, status=PayableObligationAllocation.ACTIVE,
+        ).exists())
+
+        partial_case = create_payable_case_from_obligation(
+            actor=self.requester, authoritative_obligation=first, payee=party,
+            transaction_type="ordinary-supplier-claim", claim_reference="CLAIM-F53-PARTIAL",
+            invoice_number="INV-F53-A", invoice_date=date(2027, 1, 16), claim_amount=Decimal("4000"),
+            initial_allocation_amount=Decimal("4000"), initial_relationship_type=PayableIntake.PARTIAL,
+            procurement_reference="PO-F53", delivery_reference="DR-F53-A",
+            inspection_acceptance_reference="", evidence_reference="Synthetic first partial packet.",
+            duplicate_review_note="", idempotency_key="f53-partial-case",
+        )
+        consolidated = create_payable_case_from_obligation(
+            actor=self.requester, authoritative_obligation=first, payee=party,
+            transaction_type="ordinary-supplier-claim", claim_reference="CLAIM-F53-CONSOLIDATED",
+            invoice_number="INV-F53-B", invoice_date=date(2027, 1, 17), claim_amount=Decimal("11000"),
+            initial_allocation_amount=Decimal("6000"), initial_relationship_type=PayableIntake.FINAL,
+            procurement_reference="PO-F53", delivery_reference="DR-F53-B",
+            inspection_acceptance_reference="IAR-F53", evidence_reference="Synthetic consolidated packet.",
+            duplicate_review_note="Different billing and delivery packet reviewed.",
+            idempotency_key="f53-consolidated-case",
+        )
+        add_payable_obligation_allocation(
+            case=consolidated, obligation=second, allocation_amount=Decimal("5000"),
+            relationship_type=PayableIntake.FULL,
+            reason="The second certified obligation supports the same consolidated billing packet.",
+            actor=self.requester, expected_version=consolidated.state_version,
+            idempotency_key="f53-add-second-obligation",
+        )
+        consolidated.refresh_from_db()
+        summary = payable_relationship_summary(consolidated)
+        self.assertEqual((summary["allocated_total"], summary["difference"]), (Decimal("11000"), Decimal("0")))
+        self.assertTrue(summary["many_to_one"])
+        self.assertTrue(summary["one_to_many"])
+        self.assertEqual(consolidated.obligation.certified_amount, Decimal("11000"))
+        self.assertEqual(consolidated.obligation.source_kind, "authoritative_f4_relationship_projection")
+        self.assertEqual(
+            PayableObligationAllocation.objects.filter(
+                obligation=first, status=PayableObligationAllocation.ACTIVE,
+            ).count(),
+            2,
+        )
+        first.refresh_from_db()
+        self.assertEqual(first.linked_voucher_case_public_id, partial_case.public_id)
+
+        second_allocation = PayableObligationAllocation.objects.get(
+            obligation=second, voucher_case_public_id=consolidated.public_id,
+            status=PayableObligationAllocation.ACTIVE,
+        )
+        with self.assertRaises(IntegrityError), transaction.atomic(using="finance"):
+            PayableObligationAllocation.objects.create(
+                department_id=second.department_id, department_label=second.department_label,
+                obligation=second, voucher_case_public_id=consolidated.public_id,
+                voucher_reference_snapshot=consolidated.reference_code,
+                relationship_type=PayableObligationAllocation.PARTIAL,
+                allocated_amount=Decimal("1"), obligation_amount_snapshot=Decimal("5000"),
+                obligation_checksum_snapshot=second_allocation.obligation_checksum_snapshot,
+                version=99, status=PayableObligationAllocation.ACTIVE,
+                change_reason="Synthetic race duplicate.", recorded_by_id=self.requester.pk,
+                recorded_by_label=self.requester.username,
+            )
+        revise_payable_obligation_allocation(
+            case=consolidated, allocation_public_id=second_allocation.public_id,
+            revised_amount=Decimal("4000"), relationship_type=PayableIntake.PARTIAL,
+            reason="Reviewed billing excludes one thousand while leaving capacity for a later claim.",
+            actor=self.requester, expected_version=consolidated.state_version,
+            idempotency_key="f53-revise-second-allocation",
+        )
+        consolidated.refresh_from_db()
+        revise_payable_claim_control(
+            case=consolidated, claim_amount=Decimal("10000"),
+            reason="Claim control reconciled to the reviewed bill after allocation revision.",
+            actor=self.requester, expected_version=consolidated.state_version,
+            idempotency_key="f53-revise-claim",
+        )
+        consolidated.refresh_from_db()
+        revised = PayableObligationAllocation.objects.get(
+            obligation=second, voucher_case_public_id=consolidated.public_id,
+            status=PayableObligationAllocation.ACTIVE,
+        )
+        second_allocation.refresh_from_db()
+        self.assertEqual((second_allocation.status, revised.version, revised.allocated_amount), (
+            PayableObligationAllocation.SUPERSEDED, 2, Decimal("4000"),
+        ))
+        self.assertEqual(payable_relationship_summary(consolidated)["difference"], Decimal("0"))
+        revised.allocated_amount = Decimal("1")
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            revised.full_clean()
+        with self.assertRaisesMessage(ValidationError, "cannot be deleted"):
+            revised.delete()
+
+        pre_dv_adjustment = self.make_obligation_request(
+            authorization, reference="GSO-REL-PRE-DV", total="1000",
+            kind=ObligationRequest.ADJUSTMENT, corrects=second,
+        )
+        self.add_obligation_line(pre_dv_adjustment, "1000", ObligationRequestLine.OBLIGATE)
+        transition_obligation_request(pre_dv_adjustment, "submit", self.requester)
+        transition_obligation_request(
+            pre_dv_adjustment, "certify", self.certifier,
+            "Reviewed pre-DV increase while later claim capacity remains.", "OBR-2027-REL-PRE-DV",
+        )
+        with self.assertRaisesMessage(ValidationError, "changed through a governed pre-DV correction"):
+            submit_payable_intake(
+                case=consolidated, actor=self.requester, expected_version=consolidated.state_version,
+                idempotency_key="f53-stale-before-reconcile",
+            )
+        reconcile_authoritative_obligation(
+            case=consolidated, actor=self.requester, expected_version=consolidated.state_version,
+            idempotency_key="f53-reconcile-adjustment",
+        )
+        consolidated.refresh_from_db()
+        reconciled = PayableObligationAllocation.objects.get(
+            obligation=second, voucher_case_public_id=consolidated.public_id,
+            status=PayableObligationAllocation.ACTIVE,
+        )
+        self.assertEqual((reconciled.version, reconciled.obligation_amount_snapshot), (3, Decimal("6000")))
+        self.assertEqual(payable_relationship_summary(consolidated)["difference"], Decimal("0"))
+
+        evidence = consolidated.payable_document_evidence.get(source_rule=rule)
+        record_payable_document_evidence(
+            case=consolidated, evidence=evidence, actor=self.requester,
+            status=PayableDocumentEvidence.PRESENT, evidence_reference="Synthetic reviewed bill INV-F53-B",
+            decision_note="", expected_version=consolidated.state_version,
+            idempotency_key="f53-evidence",
+        )
+        consolidated.refresh_from_db()
+        submit_payable_intake(
+            case=consolidated, actor=self.requester, expected_version=consolidated.state_version,
+            idempotency_key="f53-submit",
+        )
+        consolidated.refresh_from_db()
+        review_payable_intake(
+            case=consolidated, actor=accountant, decision=PayableIntake.READY,
+            reason="Independent review found a zero-difference relationship and complete evidence.",
+            recognition_decision=PayableIntake.ACCRUE_BEFORE_SETTLEMENT,
+            recognition_basis="Synthetic accepted accrual timing for this UAT variant.",
+            obligation_adjustment_decision=PayableIntake.BALANCE_RETAINED,
+            obligation_adjustment_basis="The second obligation retains one thousand for a later supported claim.",
+            expected_version=consolidated.state_version, idempotency_key="f53-ready",
+        )
+        consolidated.refresh_from_db()
+        self.assertEqual(consolidated.payable_intake.recognition_decision, PayableIntake.ACCRUE_BEFORE_SETTLEMENT)
+        self.assertEqual(consolidated.payable_intake.obligation_adjustment_decision, PayableIntake.BALANCE_RETAINED)
+
+        self.client.force_login(self.requester)
+        with tempfile.TemporaryDirectory() as directory, override_settings(GRAND_EXPORT_ROOT=directory):
+            response = self.client.get(reverse("vouchers:transaction_export", args=(consolidated.public_id,)))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+            self.assertIn(b"obligation_allocation", response.content)
+            self.assertIn(b"accrue_before_settlement", response.content)
+            manifests = list(Path(directory).rglob("*.manifest.json"))
+            self.assertEqual(len(manifests), 1)
+            manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
+            self.assertEqual(manifest["sha256"], response["X-GRAND-Export-SHA256"])
+            self.assertEqual(manifest["metadata"]["case_public_id"], str(consolidated.public_id))
+            self.assertIn("finance-payable-transactions", manifest["relative_path"])
+
+        prepare_voucher(
+            case=consolidated, actor=accountant, voucher_date=date(2027, 1, 20),
+            gross_amount=Decimal("10000"), deductions=[], line_description="Synthetic consolidated claim",
+            line_account_code="5-02-03", document_codes=[], expected_version=consolidated.state_version,
+            idempotency_key="f53-prepare-dv",
+        )
+        consolidated.refresh_from_db()
+        with self.assertRaisesMessage(ValidationError, "DV or check has already been issued"):
+            revise_payable_claim_control(
+                case=consolidated, claim_amount=Decimal("9999"), reason="Too late.",
+                actor=self.requester, expected_version=consolidated.state_version,
+                idempotency_key="f53-too-late",
+            )
+        post_dv_correction = self.make_obligation_request(
+            authorization, reference="GSO-REL-POST-DV", total="-1",
+            kind=ObligationRequest.ADJUSTMENT, corrects=first,
+        )
+        self.add_obligation_line(post_dv_correction, "1", ObligationRequestLine.REDUCE)
+        with self.assertRaisesMessage(ValidationError, "issued disbursement voucher"):
+            transition_obligation_request(post_dv_correction, "submit", self.requester)
 
     def test_obligation_rejects_control_difference_excess_and_duplicate_request(self):
         authorization = self.make_executable_authority(release="12000.00")

@@ -588,6 +588,110 @@ class ObligationRequest(BudgetOwnedModel):
                     raise ValidationError("Certified obligations are immutable. Use a linked governed correction.")
 
 
+class PayableObligationAllocation(BudgetOwnedModel):
+    """Versioned claim-capacity reservations against one authoritative obligation lineage."""
+
+    FULL = "full"
+    PARTIAL = "partial"
+    PROGRESS = "progress"
+    FINAL = "final"
+    RELATIONSHIP_CHOICES = (
+        (FULL, "One-time / full claim"),
+        (PARTIAL, "Partial claim; balance remains"),
+        (PROGRESS, "Progress billing; balance remains"),
+        (FINAL, "Final claim; consume remaining balance"),
+    )
+    ACTIVE = "active"
+    SUPERSEDED = "superseded"
+    CANCELLED = "cancelled"
+    STATUS_CHOICES = (
+        (ACTIVE, "Active allocation"),
+        (SUPERSEDED, "Superseded by guided revision"),
+        (CANCELLED, "Removed before DV issuance"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    obligation = models.ForeignKey(
+        ObligationRequest, on_delete=models.PROTECT, related_name="payable_allocations",
+        help_text="The certified original at the root of the corrected obligation lineage.",
+    )
+    voucher_case_public_id = models.UUIDField(db_index=True)
+    voucher_reference_snapshot = models.CharField(max_length=40)
+    relationship_type = models.CharField(max_length=16, choices=RELATIONSHIP_CHOICES)
+    allocated_amount = models.DecimalField(max_digits=18, decimal_places=2)
+    obligation_amount_snapshot = models.DecimalField(max_digits=18, decimal_places=2)
+    obligation_checksum_snapshot = models.CharField(max_length=64)
+    version = models.PositiveIntegerField(default=1)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=ACTIVE)
+    supersedes = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor_allocations",
+    )
+    change_reason = models.TextField()
+    recorded_by_id = models.PositiveBigIntegerField()
+    recorded_by_label = models.CharField(max_length=160)
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("voucher_reference_snapshot", "obligation__obligation_number", "version")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("obligation", "voucher_case_public_id", "version"),
+                name="unique_payable_allocation_version",
+            ),
+            models.UniqueConstraint(
+                fields=("obligation", "voucher_case_public_id"),
+                condition=models.Q(status="active"),
+                name="unique_active_payable_allocation",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(allocated_amount__gte=Decimal("0.00")),
+                name="payable_allocation_nonnegative",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.obligation} → {self.voucher_reference_snapshot} v{self.version}"
+
+    def clean(self):
+        if self.obligation_id and self.obligation.kind != ObligationRequest.ORIGINAL:
+            raise ValidationError({"obligation": "Allocate against the certified original at the lineage root."})
+        if self.obligation_id and self.obligation.status != ObligationRequest.CERTIFIED:
+            raise ValidationError({"obligation": "Allocate only against a certified obligation."})
+        if self.status == self.ACTIVE and self.allocated_amount <= Decimal("0.00"):
+            raise ValidationError({"allocated_amount": "An active allocation must be greater than zero."})
+        if self.status == self.CANCELLED and self.allocated_amount != Decimal("0.00"):
+            raise ValidationError({"allocated_amount": "A cancelled allocation must have a zero current amount."})
+        if not self.change_reason.strip():
+            raise ValidationError({"change_reason": "Record the reviewed reason for this allocation version."})
+        if self.supersedes_id:
+            if (
+                self.supersedes.obligation_id != self.obligation_id
+                or self.supersedes.voucher_case_public_id != self.voucher_case_public_id
+                or self.version != self.supersedes.version + 1
+            ):
+                raise ValidationError({"supersedes": "A successor must continue the same obligation/case lineage in sequence."})
+        elif self.version != 1:
+            raise ValidationError({"version": "An initial allocation starts at version 1."})
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior:
+                governed = (
+                    "public_id", "department_id", "department_label", "obligation_id",
+                    "voucher_case_public_id", "voucher_reference_snapshot", "relationship_type",
+                    "allocated_amount", "obligation_amount_snapshot", "obligation_checksum_snapshot",
+                    "version", "supersedes_id", "change_reason", "recorded_by_id", "recorded_by_label",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError("Payable allocation evidence is immutable; create a successor version.")
+                if prior.status != self.status and not (
+                    prior.status == self.ACTIVE and self.status == self.SUPERSEDED
+                ):
+                    raise ValidationError("Only an active allocation may transition to superseded.")
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Payable allocation history cannot be deleted; create a cancelled successor.")
+
+
 class ObligationRequestLine(BudgetOwnedModel):
     OBLIGATE, REDUCE = "obligate", "reduce"
     MOVEMENT_CHOICES = ((OBLIGATE, "Obligate allotment"), (REDUCE, "Reduce / return obligation"))

@@ -4,7 +4,7 @@ F5.1 replaces the Voucher Workbench's normal entry point with a requesting-offic
 
 ## Implemented slice
 
-- The user's current department can select only its own unlinked, certified original obligation.
+- The user's current department can select only its own certified original obligation with available claim capacity.
 - GRAND pins the obligation UUID, controlled number, corrected lineage amount, checksum, and classified allocation projection into the shared case; it does not post a second Budget balance or consume a second OBR number.
 - The intake references the governed payee/transaction type plus claim, invoice, procurement, delivery, inspection/acceptance, and source evidence.
 - The ordinary-supplier one-to-one pilot requires the payable claim to equal the current certified obligation lineage. A changed final claim must use the governed pre-DV obligation adjustment route first.
@@ -17,12 +17,11 @@ F5.1 replaces the Voucher Workbench's normal entry point with a requesting-offic
 
 Before a DV or check is issued, correct obligation amount through a linked F4.2 adjustment, return, or cancellation, then reconcile payable evidence. After a DV/check exists, use the applicable voucher, accounting, or payment reversal/cancellation route; do not overwrite the certified obligation or pinned payable history.
 
-## Still to do in F5
+## F5 continuation
 
-- F5.2 now implements configurable completeness and conditional-document rules, authority-backed waivers, and requesting-office/Accounting return routes; local rule acceptance and payable recognition policy remain open;
-- one-to-many, many-to-one, partial, progress, and final-payment relationships where accepted;
+- F5.2 implements configurable completeness and conditional-document rules, authority-backed waivers, and requesting-office/Accounting return routes.
+- F5.3 implements one-to-many, many-to-one, partial, progress, final, and full relationships; recognition/adjustment routing decisions; exact control reconciliation; guided pre-DV revisions; and TraceSync-ready exports—see [Finance payable relationships](FINANCE_PAYABLE_RELATIONSHIPS.md).
 - F5.2 can govern payroll, reimbursement, utility, financial assistance, cash advance/liquidation, infrastructure/progress billing, and other variants, but each enabled variant still needs accepted rules and a redacted replay;
 - accepted COA/DBM/local templates and replay of redacted completed cases through the parent F5 exit gate;
-- controlled payable/transaction exports in the shared TraceSync-ready archive where required.
 
 The F5 parent phase remains incomplete until every enabled variant reproduces an accepted redacted case from request through a payment-ready, budget-supported payable.

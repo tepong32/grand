@@ -13,7 +13,7 @@ from .models import (
     AllotmentMovement, AllotmentOrderLine, AllotmentReleaseOrder,
     AppropriationAuthorization, AuthorizedAppropriationLine, BudgetAuditEvent, BudgetCall,
     BudgetProposalLine, BudgetResourceEstimate, BudgetVersion, BudgetVersionSource,
-    ObligationMovement, ObligationRequest, ObligationRequestLine,
+    ObligationMovement, ObligationRequest, ObligationRequestLine, PayableObligationAllocation,
 )
 
 
@@ -429,11 +429,16 @@ def authorization_obligation_totals(authorization):
     return totals
 
 
-def obligation_lineage_request_ids(request):
+def obligation_lineage_root(request):
     root, seen = request, set()
     while root.corrects_id and root.pk not in seen:
         seen.add(root.pk)
         root = root.corrects
+    return root
+
+
+def obligation_lineage_request_ids(request):
+    root = obligation_lineage_root(request)
     lineage, frontier = set(), [root.pk]
     while frontier:
         batch = [pk for pk in frontier if pk not in lineage]
@@ -449,9 +454,13 @@ def obligation_lineage_request_ids(request):
 def downstream_issuance_boundary(request):
     """Return the first issued downstream artifact without making it a runtime dependency."""
     from vouchers.models import DisbursementVoucher, PaymentInstrument
-    case_ids = list(ObligationRequest.objects.filter(
+    root = obligation_lineage_root(request)
+    case_ids = set(ObligationRequest.objects.filter(
         pk__in=obligation_lineage_request_ids(request), linked_voucher_case_public_id__isnull=False,
     ).values_list("linked_voucher_case_public_id", flat=True))
+    case_ids.update(PayableObligationAllocation.objects.filter(
+        obligation=root, status=PayableObligationAllocation.ACTIVE,
+    ).values_list("voucher_case_public_id", flat=True))
     if PaymentInstrument.objects.filter(case__public_id__in=case_ids).exclude(status=PaymentInstrument.DRAFT).exists():
         return "check"
     if DisbursementVoucher.objects.filter(case__public_id__in=case_ids).exists():

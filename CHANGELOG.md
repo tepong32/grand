@@ -4,6 +4,12 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance payable relationships, recognition, and exports
+
+- Added F5.3 versioned obligation-to-payable allocations for one-to-one, one-to-many, many-to-one, partial, progress, final, and full claims without creating a second Budget authority ledger.
+- Added exact claim/allocation reconciliation, capacity locks, duplicate-active database protection, pre-DV claim/allocation revisions with retained reasons, stale-snapshot recovery after governed Budget corrections, and modification closure after DV/check issuance.
+- Added independent Accounting recognition/obligation-adjustment routing decisions, relationship-aware compatibility projections, permission-controlled TraceSync-ready transaction CSV archives/manifests, and successor Internal How-Tos for requesting offices and Accounting.
+
 ### Finance transaction variants and payable readiness
 
 - Added F5.2 typed ordinary-supplier, payroll, reimbursement, utility, financial-assistance, cash-advance/liquidation, infrastructure/progress-billing, and locally approved transaction variants with effective-dated authority/applicability evidence.

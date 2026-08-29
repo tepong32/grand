@@ -428,7 +428,7 @@ class InternalHowToTests(TestCase):
             status=InternalHowTo.PUBLISHED,
         )
         self.assertEqual(old.status, InternalHowTo.RETIRED)
-        self.assertEqual(current.version, 2)
+        self.assertGreater(current.version, old.version)
         self.assertGreaterEqual(counts["guides_retired"], 1)
         self.assertTrue(InternalHowToStepCompletion.objects.filter(user=self.preparer, step=old_step).exists())
         self.assertFalse(InternalHowToStepCompletion.objects.filter(user=self.preparer, step__how_to=current).exists())

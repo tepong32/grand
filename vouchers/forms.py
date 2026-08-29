@@ -8,7 +8,8 @@ from django.db.models import Q, Sum
 from django.utils import timezone
 
 from departments.models import Department
-from budget.models import ObligationRequest
+from budget.models import ObligationMovement, ObligationRequest, PayableObligationAllocation
+from budget.services import obligation_lineage_request_ids
 from finance.models import (
     FinanceConfigurationItem, FinanceParty, FinancePartyClaimant, FinanceSignatory,
     FinanceTransactionVariant,
@@ -70,10 +71,47 @@ class CertifiedObligationChoiceField(forms.ModelChoiceField):
         )
 
 
+def _obligation_capacity(obligation, *, exclude_case_public_id=None):
+    current = ObligationMovement.objects.filter(
+        request_id__in=obligation_lineage_request_ids(obligation),
+    ).aggregate(total=Sum("obligation_effect"))["total"] or Decimal("0")
+    allocations = PayableObligationAllocation.objects.filter(
+        obligation=obligation, status=PayableObligationAllocation.ACTIVE,
+    )
+    if exclude_case_public_id:
+        allocations = allocations.exclude(voucher_case_public_id=exclude_case_public_id)
+    allocated = allocations.aggregate(total=Sum("allocated_amount"))["total"] or Decimal("0")
+    return current, current - allocated
+
+
+def _eligible_obligations(department, *, exclude_case_public_id=None, exclude_existing_case=False):
+    if not department:
+        return ObligationRequest.objects.none()
+    candidates = list(ObligationRequest.objects.filter(
+        status=ObligationRequest.CERTIFIED,
+        kind=ObligationRequest.ORIGINAL,
+        requesting_department_id=department.pk,
+    ).order_by("-obligation_date", "-pk"))
+    eligible = []
+    for obligation in candidates:
+        if exclude_existing_case and exclude_case_public_id and PayableObligationAllocation.objects.filter(
+            obligation=obligation,
+            voucher_case_public_id=exclude_case_public_id,
+            status=PayableObligationAllocation.ACTIVE,
+        ).exists():
+            continue
+        _current, remaining = _obligation_capacity(
+            obligation, exclude_case_public_id=exclude_case_public_id,
+        )
+        if remaining > Decimal("0"):
+            eligible.append(obligation.pk)
+    return ObligationRequest.objects.filter(pk__in=eligible).order_by("-obligation_date", "-pk")
+
+
 class PayableIntakeForm(forms.Form):
     authoritative_obligation = CertifiedObligationChoiceField(
         queryset=ObligationRequest.objects.none(), label="Certified obligation",
-        help_text="Only unlinked original obligations belonging to your current department are available.",
+        help_text="Certified original obligations with unallocated claim capacity in your current department are available.",
     )
     payee = forms.ModelChoiceField(queryset=FinanceParty.objects.none(), label="Governed supplier / payee")
     transaction_type = forms.ChoiceField()
@@ -81,6 +119,14 @@ class PayableIntakeForm(forms.Form):
     invoice_number = forms.CharField(max_length=120, required=False)
     invoice_date = forms.DateField(widget=DateInput, required=False)
     claim_amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.01"))
+    initial_allocation_amount = forms.DecimalField(
+        max_digits=18, decimal_places=2, min_value=Decimal("0.01"),
+        help_text="Allocate this much of the selected obligation now. The claim control may be larger when more obligations will be added.",
+    )
+    initial_relationship_type = forms.ChoiceField(
+        choices=PayableIntake.RELATIONSHIP_CHOICES,
+        label="Relationship to selected obligation",
+    )
     procurement_reference = forms.CharField(max_length=180, required=False)
     delivery_reference = forms.CharField(max_length=180, required=False)
     inspection_acceptance_reference = forms.CharField(max_length=180, required=False)
@@ -99,13 +145,7 @@ class PayableIntakeForm(forms.Form):
         initial.setdefault("idempotency_key", uuid.uuid4().hex)
         super().__init__(*args, **kwargs)
         if department:
-            queryset = ObligationRequest.objects.filter(
-                status=ObligationRequest.CERTIFIED,
-                kind=ObligationRequest.ORIGINAL,
-                requesting_department_id=department.pk,
-                linked_voucher_case_public_id__isnull=True,
-            ).order_by("-obligation_date", "-pk")
-            self.fields["authoritative_obligation"].queryset = queryset
+            self.fields["authoritative_obligation"].queryset = _eligible_obligations(department)
         if release:
             today = timezone.localdate()
             self.fields["payee"].queryset = FinanceParty.objects.filter(
@@ -122,20 +162,94 @@ class PayableIntakeForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         obligation = cleaned.get("authoritative_obligation")
-        amount = cleaned.get("claim_amount")
-        if obligation and amount is not None:
-            from budget.services import obligation_lineage_request_ids
-            from budget.models import ObligationMovement
-            total = ObligationMovement.objects.filter(
-                request_id__in=obligation_lineage_request_ids(obligation),
-            ).aggregate(total=Sum("obligation_effect"))["total"] or Decimal("0")
-            if amount != total:
-                self.add_error(
-                    "claim_amount",
-                    "The payable must equal the current certified obligation lineage. "
-                    "Use a governed obligation adjustment before intake when the final claim differs.",
-                )
+        claim_amount = cleaned.get("claim_amount")
+        allocation_amount = cleaned.get("initial_allocation_amount")
+        relationship = cleaned.get("initial_relationship_type")
+        if claim_amount is not None and allocation_amount is not None and allocation_amount > claim_amount:
+            self.add_error("initial_allocation_amount", "The initial allocation cannot exceed the payable claim control total.")
+        if obligation and allocation_amount is not None:
+            _current, remaining = _obligation_capacity(obligation)
+            if allocation_amount > remaining:
+                self.add_error("initial_allocation_amount", "The allocation exceeds the obligation's unallocated claim capacity.")
+            if relationship in (PayableIntake.FULL, PayableIntake.FINAL) and allocation_amount != remaining:
+                self.add_error("initial_allocation_amount", "A one-time/full or final allocation must consume the exact remaining obligation capacity.")
+            if relationship in (PayableIntake.PARTIAL, PayableIntake.PROGRESS) and allocation_amount >= remaining:
+                self.add_error("initial_allocation_amount", "A partial or progress allocation must leave a positive obligation balance.")
         return cleaned
+
+
+class PayableAllocationAddForm(WorkflowForm):
+    authoritative_obligation = CertifiedObligationChoiceField(
+        queryset=ObligationRequest.objects.none(), label="Additional certified obligation",
+    )
+    allocation_amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.01"))
+    relationship_type = forms.ChoiceField(choices=PayableIntake.RELATIONSHIP_CHOICES)
+    reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Explain why this obligation supports the same payable claim.",
+    )
+
+    def __init__(self, *args, case=None, **kwargs):
+        super().__init__(*args, case=case, **kwargs)
+        if case:
+            self.fields["authoritative_obligation"].queryset = _eligible_obligations(
+                case.requesting_department,
+                exclude_case_public_id=case.public_id,
+                exclude_existing_case=True,
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        obligation = cleaned.get("authoritative_obligation")
+        amount = cleaned.get("allocation_amount")
+        relationship = cleaned.get("relationship_type")
+        if obligation and amount is not None:
+            _current, remaining = _obligation_capacity(obligation)
+            if amount > remaining:
+                self.add_error("allocation_amount", "The allocation exceeds the obligation's unallocated claim capacity.")
+            if relationship in (PayableIntake.FULL, PayableIntake.FINAL) and amount != remaining:
+                self.add_error("allocation_amount", "A one-time/full or final allocation must consume the exact remaining obligation capacity.")
+            if relationship in (PayableIntake.PARTIAL, PayableIntake.PROGRESS) and amount >= remaining:
+                self.add_error("allocation_amount", "A partial or progress allocation must leave a positive obligation balance.")
+        return cleaned
+
+
+class PayableAllocationRevisionForm(WorkflowForm):
+    allocation = forms.ChoiceField(label="Current obligation allocation")
+    revised_amount = forms.DecimalField(
+        max_digits=18, decimal_places=2, min_value=Decimal("0.00"),
+        help_text="Enter zero to remove this relationship before DV issuance.",
+    )
+    relationship_type = forms.ChoiceField(choices=PayableIntake.RELATIONSHIP_CHOICES)
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}))
+
+    def __init__(self, *args, case=None, **kwargs):
+        super().__init__(*args, case=case, **kwargs)
+        if case:
+            active = PayableObligationAllocation.objects.filter(
+                voucher_case_public_id=case.public_id,
+                status=PayableObligationAllocation.ACTIVE,
+            ).select_related("obligation").order_by("obligation__obligation_number")
+            self.fields["allocation"].choices = [
+                (
+                    str(item.public_id),
+                    f"{item.obligation.obligation_number} — {item.allocated_amount:,.2f} — {item.get_relationship_type_display()}",
+                )
+                for item in active
+            ]
+
+
+class PayableClaimControlForm(WorkflowForm):
+    claim_amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.01"))
+    reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Explain the reviewed claim-control change. Allocation totals must reconcile before submission.",
+    )
+
+    def __init__(self, *args, case=None, **kwargs):
+        super().__init__(*args, case=case, **kwargs)
+        if case and hasattr(case, "payable_intake"):
+            self.fields["claim_amount"].initial = case.payable_intake.claim_amount
 
 
 class PayableEvidenceForm(WorkflowForm):
@@ -165,6 +279,21 @@ class PayableSubmitForm(WorkflowForm):
 class PayableReviewForm(WorkflowForm):
     decision = forms.ChoiceField(choices=((PayableIntake.READY, "Accept as payment-ready"), (PayableIntake.RETURNED, "Return for correction")))
     reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    recognition_decision = forms.ChoiceField(choices=PayableIntake.RECOGNITION_CHOICES, required=False)
+    recognition_basis = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
+    obligation_adjustment_decision = forms.ChoiceField(choices=PayableIntake.ADJUSTMENT_CHOICES, required=False)
+    obligation_adjustment_basis = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("decision") == PayableIntake.READY:
+            for field in (
+                "recognition_decision", "recognition_basis",
+                "obligation_adjustment_decision", "obligation_adjustment_basis",
+            ):
+                if not cleaned.get(field):
+                    self.add_error(field, "Required when accepting a payable as ready.")
+        return cleaned
 
 
 class BudgetCertificationForm(WorkflowForm):
@@ -339,6 +468,7 @@ class SubmitChecksForm(WorkflowForm):
 
 class ReturnCaseForm(WorkflowForm):
     target_stage = forms.ChoiceField(choices=(
+        (VoucherCase.PAYABLE_PREPARATION, "Requesting-office payable preparation"),
         (VoucherCase.ACCOUNTING_PREPARATION, "Accounting DV preparation"),
         (VoucherCase.AWAITING_SIGNATURES, "Wet signatures"),
         (VoucherCase.ACCOUNTING_VALIDATION, "Accounting validation"),

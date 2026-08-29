@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import hashlib
 import io
 import json
@@ -9,7 +9,7 @@ import uuid
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Max, Q, Sum
+from django.db.models import Count, Max, Q, Sum
 from django.core.files.base import ContentFile
 from django.utils import timezone
 
@@ -217,17 +217,235 @@ def _authoritative_obligation_snapshot(obligation):
     return obligation, {"lineage": lineage, "lines": lines, "amount": amount, "checksum": checksum}
 
 
-def _bind_authoritative_obligation(case, obligation_public_id):
-    from budget.models import ObligationRequest
+def _actor_label(actor):
+    return actor.get_full_name().strip() or actor.get_username()
 
+
+def _active_payable_allocations(case):
+    from budget.models import PayableObligationAllocation
+
+    return PayableObligationAllocation.objects.filter(
+        voucher_case_public_id=case.public_id,
+        status=PayableObligationAllocation.ACTIVE,
+    ).select_related("obligation").order_by("obligation__obligation_number", "pk")
+
+
+def payable_relationship_summary(case):
+    rows = list(_active_payable_allocations(case))
+    total = sum((row.allocated_amount for row in rows), Decimal("0.00"))
+    obligation_case_counts = {}
+    if rows:
+        from budget.models import PayableObligationAllocation
+
+        for item in PayableObligationAllocation.objects.filter(
+            obligation_id__in={row.obligation_id for row in rows},
+            status=PayableObligationAllocation.ACTIVE,
+        ).values("obligation_id").annotate(case_count=Count("voucher_case_public_id", distinct=True)):
+            obligation_case_counts[item["obligation_id"]] = item["case_count"]
+    for row in rows:
+        row.supports_multiple_cases = obligation_case_counts.get(row.obligation_id, 0) > 1
+    return {
+        "allocations": rows,
+        "allocated_total": total,
+        "claim_total": getattr(getattr(case, "payable_intake", None), "claim_amount", Decimal("0.00")),
+        "difference": getattr(getattr(case, "payable_intake", None), "claim_amount", Decimal("0.00")) - total,
+        "many_to_one": len(rows) > 1,
+        "one_to_many": any(row.supports_multiple_cases for row in rows),
+    }
+
+
+def _validate_relationship_amount(*, relationship_type, amount, available):
+    from budget.models import PayableObligationAllocation
+
+    if amount <= Decimal("0.00"):
+        raise VoucherWorkflowError("An active obligation allocation must be greater than zero.")
+    if amount > available:
+        raise VoucherWorkflowError("The allocation exceeds the obligation's unallocated claim capacity.")
+    if relationship_type in (PayableObligationAllocation.FULL, PayableObligationAllocation.FINAL):
+        if amount != available:
+            raise VoucherWorkflowError(
+                "A one-time/full or final allocation must consume the exact remaining obligation capacity. "
+                "Post a governed pre-DV obligation adjustment first when a final claim is lower."
+            )
+    elif relationship_type in (PayableObligationAllocation.PARTIAL, PayableObligationAllocation.PROGRESS):
+        if amount >= available:
+            raise VoucherWorkflowError("A partial or progress allocation must leave a positive obligation balance.")
+    else:
+        raise VoucherWorkflowError("Choose a governed payable relationship type.")
+
+
+def _write_payable_allocation(
+    *, case, obligation_public_id, amount, relationship_type, actor, reason, replaces_public_id=None,
+):
+    """Write one allocation version under the authoritative Finance DB obligation lock."""
+    from budget.models import ObligationRequest, PayableObligationAllocation
+
+    if not reason.strip():
+        raise VoucherWorkflowError("Record the reviewed reason for this payable allocation.")
+    amount = Decimal(amount)
     with transaction.atomic(using="finance"):
         obligation = ObligationRequest.objects.select_for_update().get(public_id=obligation_public_id)
         if obligation.status != ObligationRequest.CERTIFIED or obligation.kind != ObligationRequest.ORIGINAL:
-            raise VoucherWorkflowError("The selected authoritative obligation is no longer an eligible certified original.")
-        if obligation.linked_voucher_case_public_id not in (None, case.public_id):
-            raise VoucherWorkflowError("That certified obligation is already linked to another voucher case.")
+            raise VoucherWorkflowError("Select a certified original obligation.")
+        if obligation.requesting_department_id != case.requesting_department_id:
+            raise PermissionDenied
+        obligation, snapshot = _authoritative_obligation_snapshot(obligation)
+        prior = None
+        if replaces_public_id:
+            prior = PayableObligationAllocation.objects.select_for_update().filter(
+                public_id=replaces_public_id,
+                obligation=obligation,
+                voucher_case_public_id=case.public_id,
+                status=PayableObligationAllocation.ACTIVE,
+            ).first()
+            if not prior:
+                raise VoucherWorkflowError("That payable allocation is no longer the active version. Reload the case.")
+        elif PayableObligationAllocation.objects.filter(
+            obligation=obligation,
+            voucher_case_public_id=case.public_id,
+            status=PayableObligationAllocation.ACTIVE,
+        ).exists():
+            raise VoucherWorkflowError("This obligation already has an active allocation in the case; revise it instead.")
+        other_allocated = PayableObligationAllocation.objects.filter(
+            obligation=obligation,
+            status=PayableObligationAllocation.ACTIVE,
+        )
+        if prior:
+            other_allocated = other_allocated.exclude(pk=prior.pk)
+        other_total = other_allocated.aggregate(total=Sum("allocated_amount"))["total"] or Decimal("0.00")
+        available = snapshot["amount"] - other_total
+        status = PayableObligationAllocation.ACTIVE
+        if amount == Decimal("0.00"):
+            if not prior:
+                raise VoucherWorkflowError("A new allocation cannot start at zero.")
+            status = PayableObligationAllocation.CANCELLED
+            relationship_type = prior.relationship_type
+        else:
+            _validate_relationship_amount(
+                relationship_type=relationship_type, amount=amount, available=available,
+            )
+        if prior:
+            prior.status = PayableObligationAllocation.SUPERSEDED
+            prior.full_clean()
+            prior.save(update_fields=("status",))
+        allocation = PayableObligationAllocation(
+            department_id=obligation.department_id,
+            department_label=obligation.department_label,
+            obligation=obligation,
+            voucher_case_public_id=case.public_id,
+            voucher_reference_snapshot=case.reference_code,
+            relationship_type=relationship_type,
+            allocated_amount=amount,
+            obligation_amount_snapshot=snapshot["amount"],
+            obligation_checksum_snapshot=snapshot["checksum"],
+            version=(prior.version + 1) if prior else 1,
+            status=status,
+            supersedes=prior,
+            change_reason=reason.strip(),
+            recorded_by_id=actor.pk,
+            recorded_by_label=_actor_label(actor),
+        )
+        allocation.full_clean()
+        allocation.save()
         if obligation.linked_voucher_case_public_id is None:
-            ObligationRequest.objects.filter(pk=obligation.pk).update(linked_voucher_case_public_id=case.public_id)
+            ObligationRequest.objects.filter(pk=obligation.pk).update(
+                linked_voucher_case_public_id=case.public_id,
+            )
+    return allocation, snapshot
+
+
+def _distributed_allocation_lines(snapshot, allocated_amount):
+    """Scale authoritative schedule lines into a non-authoritative compatibility projection exactly."""
+    source_lines = list(snapshot["lines"])
+    if not source_lines:
+        return []
+    source_total = snapshot["amount"]
+    remaining = allocated_amount
+    result = []
+    for index, item in enumerate(source_lines):
+        if index == len(source_lines) - 1:
+            share = remaining
+        else:
+            share = (allocated_amount * item["amount"] / source_total).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP,
+            )
+            share = min(share, remaining)
+        remaining -= share
+        if share > 0:
+            result.append((item, share))
+    return result
+
+
+def _rebuild_payable_projection(case):
+    """Refresh the default-DB compatibility projection from active authoritative relationships."""
+    allocations = list(_active_payable_allocations(case))
+    if not allocations:
+        if hasattr(case, "obligation"):
+            case.obligation.allocation_lines.all().delete()
+            case.obligation.delete()
+        case.authoritative_obligation_public_id = None
+        case.authoritative_obligation_number = ""
+        case.authoritative_obligation_checksum = ""
+        case.authoritative_obligation_amount = Decimal("0.00")
+        case.obligation_binding_status = VoucherCase.BINDING_PENDING
+        case.obligation_binding_error = "Add at least one obligation allocation before submission."
+        case.save(update_fields=(
+            "authoritative_obligation_public_id", "authoritative_obligation_number",
+            "authoritative_obligation_checksum", "authoritative_obligation_amount",
+            "obligation_binding_status", "obligation_binding_error", "updated_at",
+        ))
+        return
+    snapshots = []
+    for allocation in allocations:
+        obligation, snapshot = _authoritative_obligation_snapshot(allocation.obligation)
+        snapshots.append((allocation, obligation, snapshot))
+    primary, primary_obligation, primary_snapshot = snapshots[0]
+    case.authoritative_obligation_public_id = primary_obligation.public_id
+    case.authoritative_obligation_number = primary_obligation.obligation_number
+    case.authoritative_obligation_checksum = primary_snapshot["checksum"]
+    case.authoritative_obligation_amount = primary_snapshot["amount"]
+    case.obligation_binding_status = VoucherCase.BINDING_LINKED
+    case.obligation_binding_error = ""
+    case.save(update_fields=(
+        "authoritative_obligation_public_id", "authoritative_obligation_number",
+        "authoritative_obligation_checksum", "authoritative_obligation_amount",
+        "obligation_binding_status", "obligation_binding_error", "updated_at",
+    ))
+    total = sum((allocation.allocated_amount for allocation, _obligation, _snapshot in snapshots), Decimal("0.00"))
+    certifier = get_user_model().objects.filter(pk=primary_obligation.certified_by_id).first() or case.created_by
+    projection, _created = BudgetObligation.objects.update_or_create(
+        case=case,
+        defaults={
+            "obr_number": primary_obligation.obligation_number if len(snapshots) == 1 else f"MULTI/{case.reference_code}",
+            "obligation_date": min(item[1].obligation_date for item in snapshots),
+            "budget_source_reference": "F4.2 relationship projection: " + ", ".join(str(item[1].public_id) for item in snapshots),
+            "certified_amount": total,
+            "certified_by": certifier,
+            "certified_at": primary_obligation.certified_at or timezone.now(),
+            "source_kind": (
+                "authoritative_f4_projection" if len(snapshots) == 1
+                else "authoritative_f4_relationship_projection"
+            ),
+        },
+    )
+    projection.allocation_lines.all().delete()
+    aggregated = {}
+    for allocation, _obligation, snapshot in snapshots:
+        for item, share in _distributed_allocation_lines(snapshot, allocation.allocated_amount):
+            key = (
+                item["appropriation_line__fund_code"],
+                item["appropriation_line__responsibility_center_code"],
+                item["appropriation_line__account_code"],
+            )
+            aggregated[key] = aggregated.get(key, Decimal("0.00")) + share
+    for (fund_code, center_code, account_code), amount in aggregated.items():
+        BudgetAllocationLine.objects.create(
+            obligation=projection,
+            fund_code=fund_code,
+            responsibility_center_code=center_code,
+            account_code=account_code,
+            amount=amount,
+        )
 
 
 @transaction.atomic
@@ -238,10 +456,40 @@ def reconcile_authoritative_obligation(*, case, actor, expected_version, idempot
         return case
     if department_for_user(actor).pk != case.requesting_department_id:
         raise PermissionDenied
-    if not case.authoritative_obligation_public_id:
-        raise VoucherWorkflowError("This legacy case has no authoritative obligation handoff to reconcile.")
+    if case.current_stage != VoucherCase.PAYABLE_PREPARATION or hasattr(case, "disbursement_voucher"):
+        raise VoucherWorkflowError(
+            "Return the case to requesting-office payable preparation before reconciling obligation relationships."
+        )
+    rows = list(_active_payable_allocations(case))
+    if not rows and not case.authoritative_obligation_public_id:
+        raise VoucherWorkflowError("This case has no authoritative obligation handoff to reconcile.")
     try:
-        _bind_authoritative_obligation(case, case.authoritative_obligation_public_id)
+        if not rows:
+            _write_payable_allocation(
+                case=case,
+                obligation_public_id=case.authoritative_obligation_public_id,
+                amount=case.payable_intake.initial_allocation_amount,
+                relationship_type=case.payable_intake.initial_relationship_type,
+                actor=actor,
+                reason="Recover the initial payable allocation after a partial cross-database handoff.",
+            )
+        else:
+            for row in rows:
+                _source, current = _authoritative_obligation_snapshot(row.obligation)
+                if (
+                    current["checksum"] != row.obligation_checksum_snapshot
+                    or current["amount"] != row.obligation_amount_snapshot
+                ):
+                    _write_payable_allocation(
+                        case=case,
+                        obligation_public_id=row.obligation.public_id,
+                        amount=row.allocated_amount,
+                        relationship_type=row.relationship_type,
+                        actor=actor,
+                        reason="Reconcile the allocation snapshot after a governed pre-DV obligation correction.",
+                        replaces_public_id=row.public_id,
+                    )
+        _rebuild_payable_projection(case)
     except Exception as exc:
         # Retain a visible recovery state; never let a cross-database partial handoff advance silently.
         case.obligation_binding_status = VoucherCase.BINDING_FAILED
@@ -250,12 +498,14 @@ def reconcile_authoritative_obligation(*, case, actor, expected_version, idempot
         case.save(update_fields=("obligation_binding_status", "obligation_binding_error", "state_version", "updated_at"))
         _event(case, actor, "obligation_link_reconciliation_failed", case.current_stage, str(exc), {}, idempotency_key)
         return case
+    case.refresh_from_db()
     case.obligation_binding_status = VoucherCase.BINDING_LINKED
     case.obligation_binding_error = ""
     case.state_version += 1
     case.save(update_fields=("obligation_binding_status", "obligation_binding_error", "state_version", "updated_at"))
     _event(case, actor, "obligation_link_reconciled", case.current_stage, "", {
-        "authoritative_obligation_public_id": str(case.authoritative_obligation_public_id),
+        "allocation_count": _active_payable_allocations(case).count(),
+        "allocated_total": str(payable_relationship_summary(case)["allocated_total"]),
     }, idempotency_key)
     return case
 
@@ -264,6 +514,7 @@ def create_payable_case_from_obligation(
     *, actor, authoritative_obligation, payee, transaction_type, claim_reference,
     invoice_number, invoice_date, claim_amount, procurement_reference, delivery_reference,
     inspection_acceptance_reference, evidence_reference, duplicate_review_note, idempotency_key,
+    initial_allocation_amount=None, initial_relationship_type=PayableIntake.FULL,
 ):
     _require(actor, "vouchers.initiate_payable_case")
     actor_department = department_for_user(actor)
@@ -277,14 +528,10 @@ def create_payable_case_from_obligation(
         raise VoucherWorkflowError("Select a certified original obligation.")
     if obligation.requesting_department_id != actor_department.pk:
         raise PermissionDenied
-    if obligation.linked_voucher_case_public_id:
-        raise VoucherWorkflowError("That certified obligation is already linked to a voucher case.")
     amount = Decimal(claim_amount)
-    if snapshot["amount"] <= 0 or amount != snapshot["amount"]:
-        raise VoucherWorkflowError(
-            "The payable must equal the current certified obligation lineage. "
-            "Record a governed adjustment before intake when the final claim differs."
-        )
+    allocation_amount = Decimal(initial_allocation_amount if initial_allocation_amount is not None else claim_amount)
+    if snapshot["amount"] <= 0 or allocation_amount > amount:
+        raise VoucherWorkflowError("The initial obligation allocation must be positive and cannot exceed the claim control total.")
     release = _active_release()
     if payee.release_id != release.pk or payee.status != "active":
         raise VoucherWorkflowError("Select an active supplier/payee from the current Finance Setup release.")
@@ -307,7 +554,8 @@ def create_payable_case_from_obligation(
     initial_department = actor_department if variant else _department_for_permission(
         "vouchers.prepare_disbursement_voucher", actor_department,
     )
-    certifier = get_user_model().objects.filter(pk=obligation.certified_by_id).first() or actor
+    if not variant and allocation_amount != amount:
+        raise VoucherWorkflowError("A legacy transaction route cannot start with an unreconciled multi-obligation claim.")
     with transaction.atomic():
         case = VoucherCase.objects.create(
             reference_code=f"CASE-{timezone.localdate():%Y}-{uuid.uuid4().hex[:10].upper()}",
@@ -321,22 +569,19 @@ def create_payable_case_from_obligation(
             obligation_binding_status=VoucherCase.BINDING_PENDING,
             current_stage=initial_stage,
         )
-        projection = BudgetObligation.objects.create(
-            case=case, obr_number=obligation.obligation_number, obligation_date=obligation.obligation_date,
-            budget_source_reference=f"Authoritative F4.2 obligation {obligation.public_id}",
-            certified_amount=snapshot["amount"], certified_by=certifier,
-            certified_at=obligation.certified_at or timezone.now(), source_kind="authoritative_f4_projection",
-        )
-        for item in snapshot["lines"]:
-            BudgetAllocationLine.objects.create(
-                obligation=projection,
-                fund_code=item["appropriation_line__fund_code"],
-                responsibility_center_code=item["appropriation_line__responsibility_center_code"],
-                account_code=item["appropriation_line__account_code"], amount=item["amount"],
-            )
         intake = PayableIntake(
             case=case, claim_reference=claim_reference.strip(), invoice_number=invoice_number.strip(),
             invoice_date=invoice_date, claim_amount=amount,
+            initial_allocation_amount=allocation_amount,
+            initial_relationship_type=initial_relationship_type,
+            relationship_policy_snapshot={
+                "variant_public_id": str(variant.public_id) if variant else "",
+                "variant_code": variant.code if variant else transaction_type,
+                "variant_kind": variant.kind if variant else "legacy",
+                "authority_reference": variant.authority_reference if variant else "legacy configured route",
+                "supported_relationships": [choice[0] for choice in PayableIntake.RELATIONSHIP_CHOICES],
+                "recognition_decision_status": "routing decision only; F7 governs posting",
+            },
             procurement_reference=procurement_reference.strip(), delivery_reference=delivery_reference.strip(),
             inspection_acceptance_reference=inspection_acceptance_reference.strip(),
             evidence_reference=evidence_reference.strip(), duplicate_warning=" ".join(warnings),
@@ -359,10 +604,20 @@ def create_payable_case_from_obligation(
         _event(case, actor, "payable_intake_created", "", "", {
             "authoritative_obligation_public_id": str(obligation.public_id),
             "authoritative_obligation_checksum": snapshot["checksum"],
-            "amount": str(amount), "duplicate_warning": intake.duplicate_warning,
+            "claim_amount": str(amount), "initial_allocation_amount": str(allocation_amount),
+            "relationship_type": initial_relationship_type,
+            "duplicate_warning": intake.duplicate_warning,
         }, idempotency_key)
     try:
-        _bind_authoritative_obligation(case, obligation.public_id)
+        _write_payable_allocation(
+            case=case,
+            obligation_public_id=obligation.public_id,
+            amount=allocation_amount,
+            relationship_type=initial_relationship_type,
+            actor=actor,
+            reason="Initial allocation recorded with the requesting-office payable intake.",
+        )
+        _rebuild_payable_projection(case)
     except Exception as exc:
         with transaction.atomic():
             locked = VoucherCase.objects.select_for_update().get(pk=case.pk)
@@ -381,18 +636,165 @@ def create_payable_case_from_obligation(
 def _validate_payable_freshness(case):
     if case.obligation_binding_status != VoucherCase.BINDING_LINKED:
         raise VoucherWorkflowError("Reconcile the authoritative obligation handoff before payable review.")
-    from budget.models import ObligationRequest
-    source = ObligationRequest.objects.get(public_id=case.authoritative_obligation_public_id)
-    _source, current = _authoritative_obligation_snapshot(source)
-    if (
-        current["checksum"] != case.authoritative_obligation_checksum
-        or current["amount"] != case.authoritative_obligation_amount
-    ):
+    rows = list(_active_payable_allocations(case))
+    if not rows:
+        raise VoucherWorkflowError("Add and reconcile at least one authoritative obligation allocation.")
+    for row in rows:
+        _source, current = _authoritative_obligation_snapshot(row.obligation)
+        if (
+            current["checksum"] != row.obligation_checksum_snapshot
+            or current["amount"] != row.obligation_amount_snapshot
+        ):
+            raise VoucherWorkflowError(
+                "An obligation changed through a governed pre-DV correction. "
+                "Return to payable preparation and reconcile every allocation snapshot before continuing."
+            )
+    summary = payable_relationship_summary(case)
+    if summary["difference"] != Decimal("0.00"):
         raise VoucherWorkflowError(
-            "The obligation changed through a governed pre-DV correction. "
-            "Reconcile the payable amount and evidence to the current obligation before continuing."
+            "The payable claim control must equal its active obligation allocations exactly before submission. "
+            f"Current difference: {summary['difference']}."
         )
-    return current
+    return summary
+
+
+def _require_payable_modification_window(case, actor):
+    if hasattr(case, "disbursement_voucher") or case.payment_instruments.exists():
+        raise VoucherWorkflowError(
+            "A DV or check has already been issued. Use the coordinated voucher/payment reversal or cancellation route."
+        )
+    if case.current_stage != VoucherCase.PAYABLE_PREPARATION:
+        raise VoucherWorkflowError(
+            "Return the case to requesting-office payable preparation before changing claim or obligation relationships."
+        )
+    if department_for_user(actor).pk != case.requesting_department_id:
+        raise PermissionDenied
+
+
+@transaction.atomic
+def add_payable_obligation_allocation(
+    *, case, obligation, allocation_amount, relationship_type, reason, actor,
+    expected_version, idempotency_key,
+):
+    _require(actor, "vouchers.initiate_payable_case")
+    case, existing = _locked(case, expected_version, idempotency_key)
+    if existing:
+        return case
+    _require_payable_modification_window(case, actor)
+    current = payable_relationship_summary(case)
+    amount = Decimal(allocation_amount)
+    if current["allocated_total"] + amount > case.payable_intake.claim_amount:
+        raise VoucherWorkflowError(
+            "This allocation would exceed the payable claim control total. Revise the claim control first when supported by evidence."
+        )
+    allocation, snapshot = _write_payable_allocation(
+        case=case,
+        obligation_public_id=obligation.public_id,
+        amount=amount,
+        relationship_type=relationship_type,
+        actor=actor,
+        reason=reason,
+    )
+    _rebuild_payable_projection(case)
+    case.refresh_from_db()
+    case.state_version += 1
+    case.save(update_fields=("state_version", "updated_at"))
+    _event(case, actor, "payable_obligation_allocation_added", case.current_stage, reason, {
+        "allocation_public_id": str(allocation.public_id),
+        "obligation_public_id": str(obligation.public_id),
+        "allocated_amount": str(amount),
+        "relationship_type": relationship_type,
+        "obligation_checksum": snapshot["checksum"],
+    }, idempotency_key)
+    return case
+
+
+@transaction.atomic
+def revise_payable_obligation_allocation(
+    *, case, allocation_public_id, revised_amount, relationship_type, reason, actor,
+    expected_version, idempotency_key,
+):
+    _require(actor, "vouchers.initiate_payable_case")
+    case, existing = _locked(case, expected_version, idempotency_key)
+    if existing:
+        return case
+    _require_payable_modification_window(case, actor)
+    from budget.models import PayableObligationAllocation
+
+    prior = PayableObligationAllocation.objects.filter(
+        public_id=allocation_public_id,
+        voucher_case_public_id=case.public_id,
+        status=PayableObligationAllocation.ACTIVE,
+    ).select_related("obligation").first()
+    if not prior:
+        raise VoucherWorkflowError("That obligation allocation is no longer active. Reload the case.")
+    amount = Decimal(revised_amount)
+    current = payable_relationship_summary(case)
+    revised_total = current["allocated_total"] - prior.allocated_amount + amount
+    if revised_total > case.payable_intake.claim_amount:
+        raise VoucherWorkflowError("The revised allocations would exceed the payable claim control total.")
+    successor, snapshot = _write_payable_allocation(
+        case=case,
+        obligation_public_id=prior.obligation.public_id,
+        amount=amount,
+        relationship_type=relationship_type,
+        actor=actor,
+        reason=reason,
+        replaces_public_id=prior.public_id,
+    )
+    _rebuild_payable_projection(case)
+    case.refresh_from_db()
+    case.state_version += 1
+    case.save(update_fields=("state_version", "updated_at"))
+    _event(case, actor, "payable_obligation_allocation_revised", case.current_stage, reason, {
+        "prior_allocation_public_id": str(prior.public_id),
+        "successor_allocation_public_id": str(successor.public_id),
+        "obligation_public_id": str(prior.obligation.public_id),
+        "prior_amount": str(prior.allocated_amount),
+        "revised_amount": str(amount),
+        "relationship_type": successor.relationship_type,
+        "status": successor.status,
+        "obligation_checksum": snapshot["checksum"],
+    }, idempotency_key)
+    return case
+
+
+@transaction.atomic
+def revise_payable_claim_control(
+    *, case, claim_amount, reason, actor, expected_version, idempotency_key,
+):
+    _require(actor, "vouchers.initiate_payable_case")
+    case, existing = _locked(case, expected_version, idempotency_key)
+    if existing:
+        return case
+    _require_payable_modification_window(case, actor)
+    if not reason.strip():
+        raise VoucherWorkflowError("Record the reviewed basis for the claim-control revision.")
+    amount = Decimal(claim_amount)
+    summary = payable_relationship_summary(case)
+    if amount < summary["allocated_total"]:
+        raise VoucherWorkflowError(
+            "Reduce or remove obligation allocations before lowering the claim control below their current total."
+        )
+    intake = case.payable_intake
+    prior = intake.claim_amount
+    intake.claim_amount = amount
+    intake.recognition_decision = ""
+    intake.recognition_basis = ""
+    intake.obligation_adjustment_decision = ""
+    intake.obligation_adjustment_basis = ""
+    intake.full_clean()
+    intake.save(update_fields=(
+        "claim_amount", "recognition_decision", "recognition_basis",
+        "obligation_adjustment_decision", "obligation_adjustment_basis",
+    ))
+    case.state_version += 1
+    case.save(update_fields=("state_version", "updated_at"))
+    _event(case, actor, "payable_claim_control_revised", case.current_stage, reason, {
+        "prior_claim_amount": str(prior), "revised_claim_amount": str(amount),
+        "allocated_total": str(summary["allocated_total"]),
+    }, idempotency_key)
+    return case
 
 
 @transaction.atomic
@@ -466,18 +868,34 @@ def submit_payable_intake(*, case, actor, expected_version, idempotency_key):
     intake.reviewed_by = None
     intake.reviewed_at = None
     intake.decision_reason = ""
+    intake.recognition_decision = ""
+    intake.recognition_basis = ""
+    intake.obligation_adjustment_decision = ""
+    intake.obligation_adjustment_basis = ""
     intake.save(update_fields=(
         "status", "submitted_by", "submitted_at", "reviewed_by", "reviewed_at", "decision_reason",
+        "recognition_decision", "recognition_basis",
+        "obligation_adjustment_decision", "obligation_adjustment_basis",
     ))
+    summary = payable_relationship_summary(case)
     return _advance(
         case, actor, VoucherCase.PAYABLE_REVIEW, "payable_submitted", idempotency_key,
-        metadata={"claim_amount": str(intake.claim_amount), "document_rule_count": len(evidence)},
+        metadata={
+            "claim_amount": str(intake.claim_amount), "allocated_total": str(summary["allocated_total"]),
+            "allocation_count": len(summary["allocations"]), "document_rule_count": len(evidence),
+        },
         destination_department=accounting_department,
     )
 
 
 @transaction.atomic
-def review_payable_intake(*, case, actor, decision, reason, expected_version, idempotency_key):
+def review_payable_intake(
+    *, case, actor, decision, reason, expected_version, idempotency_key,
+    recognition_decision=PayableIntake.RECOGNIZE_WITH_DV,
+    recognition_basis="Legacy compatible recognition through the current governed DV/JEV route.",
+    obligation_adjustment_decision=PayableIntake.NO_ADJUSTMENT,
+    obligation_adjustment_basis="No separate obligation adjustment identified in this review.",
+):
     _require(actor, "vouchers.review_payable_intake")
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
@@ -495,7 +913,15 @@ def review_payable_intake(*, case, actor, decision, reason, expected_version, id
     intake.reviewed_by, intake.reviewed_at, intake.decision_reason = actor, timezone.now(), reason
     if decision == PayableIntake.RETURNED:
         intake.status = PayableIntake.RETURNED
-        intake.save(update_fields=("status", "reviewed_by", "reviewed_at", "decision_reason"))
+        intake.recognition_decision = ""
+        intake.recognition_basis = ""
+        intake.obligation_adjustment_decision = ""
+        intake.obligation_adjustment_basis = ""
+        intake.save(update_fields=(
+            "status", "reviewed_by", "reviewed_at", "decision_reason",
+            "recognition_decision", "recognition_basis",
+            "obligation_adjustment_decision", "obligation_adjustment_basis",
+        ))
         return _advance(
             case, actor, VoucherCase.PAYABLE_PREPARATION, "payable_returned", idempotency_key,
             reason=reason, destination_department=case.requesting_department,
@@ -505,10 +931,25 @@ def review_payable_intake(*, case, actor, decision, reason, expected_version, id
     _validate_payable_freshness(case)
     evidence = _validate_payable_checklist(case)
     intake.status = PayableIntake.READY
-    intake.save(update_fields=("status", "reviewed_by", "reviewed_at", "decision_reason"))
+    intake.recognition_decision = recognition_decision
+    intake.recognition_basis = recognition_basis.strip()
+    intake.obligation_adjustment_decision = obligation_adjustment_decision
+    intake.obligation_adjustment_basis = obligation_adjustment_basis.strip()
+    intake.full_clean()
+    intake.save(update_fields=(
+        "status", "reviewed_by", "reviewed_at", "decision_reason",
+        "recognition_decision", "recognition_basis",
+        "obligation_adjustment_decision", "obligation_adjustment_basis",
+    ))
+    summary = payable_relationship_summary(case)
     return _advance(
         case, actor, VoucherCase.ACCOUNTING_PREPARATION, "payable_accepted", idempotency_key,
-        reason=reason, metadata={"claim_amount": str(intake.claim_amount), "document_rule_count": len(evidence)},
+        reason=reason, metadata={
+            "claim_amount": str(intake.claim_amount), "allocated_total": str(summary["allocated_total"]),
+            "allocation_count": len(summary["allocations"]), "document_rule_count": len(evidence),
+            "recognition_decision": intake.recognition_decision,
+            "obligation_adjustment_decision": intake.obligation_adjustment_decision,
+        },
     )
 
 
@@ -987,6 +1428,7 @@ def return_case(*, case, actor, target_stage, reason, expected_version, idempote
     if existing:
         return case
     allowed = {
+        VoucherCase.ACCOUNTING_PREPARATION: {VoucherCase.PAYABLE_PREPARATION},
         VoucherCase.AWAITING_SIGNATURES: {VoucherCase.ACCOUNTING_PREPARATION},
         VoucherCase.ACCOUNTING_VALIDATION: {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.AWAITING_SIGNATURES},
         VoucherCase.ACCOUNTING_POSTING: {VoucherCase.ACCOUNTING_VALIDATION},
@@ -996,6 +1438,25 @@ def return_case(*, case, actor, target_stage, reason, expected_version, idempote
     }
     if target_stage not in allowed.get(case.current_stage, set()) or not reason.strip():
         raise VoucherWorkflowError("Choose an allowed earlier stage and record the correction reason.")
+    if target_stage == VoucherCase.PAYABLE_PREPARATION:
+        if hasattr(case, "disbursement_voucher") or case.payment_instruments.exists():
+            raise VoucherWorkflowError(
+                "A DV or check already exists; use the later voucher/payment correction route instead of reopening payable allocations."
+            )
+        intake = case.payable_intake
+        intake.status = PayableIntake.RETURNED
+        intake.reviewed_by = actor
+        intake.reviewed_at = timezone.now()
+        intake.decision_reason = reason.strip()
+        intake.recognition_decision = ""
+        intake.recognition_basis = ""
+        intake.obligation_adjustment_decision = ""
+        intake.obligation_adjustment_basis = ""
+        intake.save(update_fields=(
+            "status", "reviewed_by", "reviewed_at", "decision_reason",
+            "recognition_decision", "recognition_basis",
+            "obligation_adjustment_decision", "obligation_adjustment_basis",
+        ))
     if target_stage in {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.ACCOUNTING_VALIDATION}:
         if case.posting_requests.filter(status=VoucherPostingRequest.POSTED).exists():
             raise VoucherWorkflowError("This voucher already has a posted JEV. Use an adjusting/reversal entry and a replacement case instead of rewriting it.")
@@ -1008,7 +1469,10 @@ def return_case(*, case, actor, target_stage, reason, expected_version, idempote
     elif target_stage == VoucherCase.AWAITING_SIGNATURES:
         case.signature_tasks.filter(status=WetSignatureTask.PENDING).update(status=WetSignatureTask.DECLINED, note="Superseded by a correction round.")
         _create_signature_round(case, case.disbursement_voucher.voucher_date)
-    return _advance(case, actor, target_stage, "returned_for_correction", idempotency_key, reason)
+    return _advance(
+        case, actor, target_stage, "returned_for_correction", idempotency_key, reason,
+        destination_department=case.requesting_department if target_stage == VoucherCase.PAYABLE_PREPARATION else None,
+    )
 
 
 @transaction.atomic

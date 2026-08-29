@@ -1,8 +1,13 @@
+import csv
+
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Count, Sum
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.text import slugify
+
+from src.export_archive import archive_export
 
 from .access import can_view_workbench, has_explicit_permission, voucher_access_required
 from .forms import (
@@ -10,6 +15,7 @@ from .forms import (
     CancelCheckForm, CheckIssueForm, CheckReleaseForm, ReturnCaseForm,
     NonFinancialAmendmentForm, SignatureReturnForm, SubmitChecksForm, VoucherPreparationForm,
     TracePointLinkForm, PayableEvidenceForm, PayableReviewForm, PayableSubmitForm,
+    PayableAllocationAddForm, PayableAllocationRevisionForm, PayableClaimControlForm,
 )
 from .models import PaymentInstrument, VoucherCase, VoucherOutput
 from .roles import STAGE_NEXT_ACTION, finance_workspace_profile
@@ -19,6 +25,8 @@ from .services import (
     finalize_bank_advice, generate_shadow_dv, issue_check, link_tracepoint_item, prepare_voucher, record_signature_return,
     reconcile_authoritative_obligation, release_check, return_case, submit_checks_for_advice, validate_accounting,
     record_payable_document_evidence, review_payable_intake, submit_payable_intake,
+    add_payable_obligation_allocation, payable_relationship_summary,
+    revise_payable_claim_control, revise_payable_obligation_allocation,
 )
 
 
@@ -166,6 +174,7 @@ def case_detail(request, public_id):
         VoucherCase.ACCOUNTING_POSTING,
         VoucherCase.TREASURY_CHECK_PREPARATION,
     }
+    relationship_summary = payable_relationship_summary(case) if hasattr(case, "payable_intake") else None
     return render(request, "vouchers/case_detail.html", {
         "case": case, "permissions": permissions, "workspace_profile": profile,
         "next_action_label": STAGE_NEXT_ACTION.get(case.current_stage, case.get_current_stage_display()),
@@ -185,6 +194,10 @@ def case_detail(request, public_id):
         "payable_evidence_form": PayableEvidenceForm(case=case),
         "payable_submit_form": PayableSubmitForm(case=case),
         "payable_review_form": PayableReviewForm(case=case),
+        "payable_allocation_add_form": PayableAllocationAddForm(case=case),
+        "payable_allocation_revision_form": PayableAllocationRevisionForm(case=case),
+        "payable_claim_control_form": PayableClaimControlForm(case=case),
+        "payable_relationships": relationship_summary,
         "can_amend_nonfinancial": bool(
             permissions["amend_nonfinancial"]
             and hasattr(case, "disbursement_voucher")
@@ -217,6 +230,9 @@ def case_action(request, public_id, action):
         "record-payable-evidence": PayableEvidenceForm,
         "submit-payable": PayableSubmitForm,
         "review-payable": PayableReviewForm,
+        "add-payable-allocation": PayableAllocationAddForm,
+        "revise-payable-allocation": PayableAllocationRevisionForm,
+        "revise-payable-claim": PayableClaimControlForm,
     }
     form_class = forms.get(action)
     if not form_class:
@@ -243,7 +259,29 @@ def case_action(request, public_id, action):
         elif action == "submit-payable":
             submit_payable_intake(**common)
         elif action == "review-payable":
-            review_payable_intake(**common, decision=data["decision"], reason=data["reason"])
+            review_payable_intake(
+                **common, decision=data["decision"], reason=data["reason"],
+                recognition_decision=data["recognition_decision"],
+                recognition_basis=data["recognition_basis"],
+                obligation_adjustment_decision=data["obligation_adjustment_decision"],
+                obligation_adjustment_basis=data["obligation_adjustment_basis"],
+            )
+        elif action == "add-payable-allocation":
+            add_payable_obligation_allocation(
+                **common, obligation=data["authoritative_obligation"],
+                allocation_amount=data["allocation_amount"],
+                relationship_type=data["relationship_type"], reason=data["reason"],
+            )
+        elif action == "revise-payable-allocation":
+            revise_payable_obligation_allocation(
+                **common, allocation_public_id=data["allocation"],
+                revised_amount=data["revised_amount"],
+                relationship_type=data["relationship_type"], reason=data["reason"],
+            )
+        elif action == "revise-payable-claim":
+            revise_payable_claim_control(
+                **common, claim_amount=data["claim_amount"], reason=data["reason"],
+            )
         elif action == "prepare-dv":
             deductions = []
             if data.get("deduction_code"):
@@ -296,4 +334,77 @@ def output_download(request, public_id, output_pk):
     response = FileResponse(output.file, as_attachment=True, filename=output.file.name.rsplit("/", 1)[-1])
     response["X-GRAND-Output-Mode"] = output.status
     response["X-GRAND-SHA256"] = output.checksum
+    return response
+
+
+@voucher_access_required
+def transaction_export(request, public_id):
+    case = _case(public_id)
+    if not has_explicit_permission(request.user, "vouchers.view_voucher_audit"):
+        raise PermissionDenied
+    summary = payable_relationship_summary(case) if hasattr(case, "payable_intake") else {
+        "allocations": [], "allocated_total": "0.00", "difference": "0.00",
+    }
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    writer = csv.writer(response)
+    writer.writerow((
+        "section", "case_reference", "case_public_id", "stage", "requesting_office",
+        "transaction_type", "payee", "claim_reference", "claim_amount", "allocated_total",
+        "control_difference", "obligation_number", "obligation_public_id", "relationship_type",
+        "allocation_amount", "obligation_amount_snapshot", "obligation_checksum_snapshot",
+        "allocation_version", "recognition_decision", "recognition_basis",
+        "obligation_adjustment_decision", "obligation_adjustment_basis", "evidence_code",
+        "evidence_status", "evidence_reference", "authority_reference",
+    ))
+    intake = getattr(case, "payable_intake", None)
+    base = (
+        case.reference_code, case.public_id, case.current_stage, case.requesting_department.name,
+        case.transaction_type, case.payee_name,
+        intake.claim_reference if intake else "", intake.claim_amount if intake else "",
+        summary["allocated_total"], summary["difference"],
+    )
+    for allocation in summary["allocations"]:
+        writer.writerow((
+            "obligation_allocation", *base,
+            allocation.obligation.obligation_number, allocation.obligation.public_id,
+            allocation.relationship_type, allocation.allocated_amount,
+            allocation.obligation_amount_snapshot, allocation.obligation_checksum_snapshot,
+            allocation.version,
+            intake.recognition_decision if intake else "", intake.recognition_basis if intake else "",
+            intake.obligation_adjustment_decision if intake else "",
+            intake.obligation_adjustment_basis if intake else "", "", "", "", "",
+        ))
+    if intake:
+        for evidence in case.payable_document_evidence.all():
+            writer.writerow((
+                "documentary_evidence", *base,
+                "", "", "", "", "", "", "",
+                intake.recognition_decision, intake.recognition_basis,
+                intake.obligation_adjustment_decision, intake.obligation_adjustment_basis,
+                evidence.requirement_code, evidence.status, evidence.evidence_reference,
+                evidence.authority_reference,
+            ))
+    filename = f"{slugify(case.reference_code)}-payable-transaction.csv"
+    archived = archive_export(
+        content=response.content,
+        department=case.requesting_department,
+        user=request.user,
+        category="finance-payable-transactions",
+        filename=filename,
+        metadata={
+            "kind": "payable_transaction_relationship_export",
+            "case_public_id": str(case.public_id),
+            "case_reference": case.reference_code,
+            "stage": case.current_stage,
+            "state_version": case.state_version,
+            "claim_amount": str(intake.claim_amount) if intake else "",
+            "allocated_total": str(summary["allocated_total"]),
+            "control_difference": str(summary["difference"]),
+            "official_status": "controlled transaction export; not automatically an official COA/DBM/local form",
+        },
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    response["X-GRAND-Export-Relative-Path"] = archived["relative_path"]
     return response

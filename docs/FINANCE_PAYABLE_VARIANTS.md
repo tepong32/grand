@@ -54,9 +54,7 @@ The included transaction kinds are configuration capabilities, not declarations 
 
 ## Remaining F5 work
 
-- payable recognition and obligation-to-final-claim adjustment decisions beyond the current one-to-one equal-amount route;
-- one-to-many, many-to-one, partial, progress, and final-payment relationships;
-- controlled payable/transaction exports in the shared TraceSync-ready archive;
+- F5.3 now implements versioned one-to-many, many-to-one, partial, progress, final, and full relationships; recognition/adjustment routing decisions; exact claim controls; guided pre-DV corrections; and controlled transaction exports—see [Finance payable relationships](FINANCE_PAYABLE_RELATIONSHIPS.md);
 - accepted forms/templates and redacted replay for ordinary-supplier and every other enabled variant.
 
 The F5 parent exit gate remains open until every enabled variant reproduces an accepted completed case through a payment-ready, budget-supported payable.
