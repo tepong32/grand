@@ -17,7 +17,7 @@ from finance.models import (
 )
 
 from .models import (
-    PayableDocumentEvidence, PayableIntake, PaymentInstrument, VoucherCase,
+    BankAdviceBatch, PayableDocumentEvidence, PayableIntake, PaymentInstrument, ReturnedInstrumentReview, VoucherCase,
     PaymentInstrumentException, TreasuryCashPolicy, TreasuryCashPosition,
     TreasuryRemittanceLine, VoucherPrintJob, WetSignatureTask,
 )
@@ -572,12 +572,24 @@ class CheckIssueForm(WorkflowForm):
         if case and hasattr(case, "disbursement_voucher"):
             existing = sum((item.amount for item in case.payment_instruments.exclude(status=PaymentInstrument.CANCELLED)), Decimal("0.00"))
             self.fields["amount"].initial = case.disbursement_voucher.net_amount - existing
-            self.fields["replaces"].queryset = case.payment_instruments.filter(status=PaymentInstrument.CANCELLED, replacement__isnull=True)
+            self.fields["replaces"].queryset = case.payment_instruments.filter(
+                status__in=(PaymentInstrument.CANCELLED, PaymentInstrument.BANK_RETURNED),
+                replacement__isnull=True,
+            )
 
 
 class BankAdviceForm(WorkflowForm):
     advice_number = forms.CharField(max_length=60)
     advice_date = forms.DateField(widget=DateInput)
+    preparation_note = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}))
+    authority_reference = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Record the reviewed COA/bank/local authority or accepted procedure; do not treat the starter as approval.",
+    )
+    local_applicability_note = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Name who confirmed this advice route locally and where the accepted evidence is retained.",
+    )
 
     def __init__(self, *args, case=None, **kwargs):
         super().__init__(*args, case=case, **kwargs)
@@ -592,7 +604,10 @@ class CheckReleaseForm(WorkflowForm):
     def __init__(self, *args, case=None, **kwargs):
         super().__init__(*args, case=case, **kwargs)
         if case:
-            self.fields["instrument"].queryset = case.payment_instruments.filter(status=PaymentInstrument.ADVISED)
+            self.fields["instrument"].queryset = case.payment_instruments.filter(
+                status=PaymentInstrument.ADVISED,
+                current_advice_batch__status=BankAdviceBatch.ACKNOWLEDGED,
+            )
             self.fields["claimant"].queryset = FinancePartyClaimant.objects.filter(
                 party=case.payee, status="active", valid_from__lte=timezone.localdate(),
             ).filter(Q(valid_to__isnull=True) | Q(valid_to__gte=timezone.localdate()))
@@ -715,6 +730,117 @@ class InstrumentExceptionResolutionForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 3}),
         help_text="Record the claimant contact, cancellation/replacement, bank acknowledgement, or Accounting correction reference.",
     )
+
+
+class BankAdviceBatchForm(forms.Form):
+    advice_number = forms.CharField(max_length=60, label="Advice / control number")
+    advice_date = forms.DateField(widget=DateInput)
+    instruments = forms.ModelMultipleChoiceField(
+        queryset=PaymentInstrument.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Select issued instruments for one bank account and one pinned Finance Setup release.",
+    )
+    preparation_note = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    authority_reference = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    local_applicability_note = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    correction_reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 2}), required=False,
+        help_text="Required when preparing a successor for a returned advice version.",
+    )
+
+    def __init__(self, *args, actor=None, supersedes=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .advice import eligible_advice_instruments
+        query = eligible_advice_instruments(actor) if actor is not None else PaymentInstrument.objects.none()
+        if supersedes is not None:
+            prior_ids = supersedes.items.values_list("instrument_id", flat=True)
+            query = PaymentInstrument.objects.filter(pk__in=prior_ids).select_related("case").order_by("check_number")
+            self.fields["advice_number"].initial = supersedes.advice_number
+            self.fields["advice_date"].initial = timezone.localdate()
+            self.fields["instruments"].initial = list(prior_ids)
+            self.fields["preparation_note"].initial = supersedes.preparation_note
+            self.fields["authority_reference"].initial = supersedes.authority_reference
+            self.fields["local_applicability_note"].initial = supersedes.local_applicability_note
+            self.fields["correction_reason"].required = True
+        else:
+            self.fields["advice_date"].initial = timezone.localdate()
+        self.fields["instruments"].queryset = query
+
+    def clean_instruments(self):
+        instruments = list(self.cleaned_data["instruments"])
+        if not instruments:
+            raise forms.ValidationError("Select at least one issued instrument.")
+        if len({item.bank_account_code for item in instruments}) != 1:
+            raise forms.ValidationError("One advice version cannot mix bank accounts.")
+        return instruments
+
+
+class AdviceStateForm(forms.Form):
+    state_version = forms.IntegerField(widget=forms.HiddenInput)
+
+    def __init__(self, *args, batch=None, **kwargs):
+        initial = kwargs.setdefault("initial", {})
+        if batch is not None:
+            initial.setdefault("state_version", batch.state_version)
+        super().__init__(*args, **kwargs)
+
+
+class BankAdviceReviewForm(AdviceStateForm):
+    decision = forms.ChoiceField(choices=(("approve", "Approve for bank submission"), ("return", "Return for correction")))
+    note = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), label="Review basis / correction instruction")
+
+
+class BankAdviceSubmissionForm(AdviceStateForm):
+    submission_reference = forms.CharField(max_length=160)
+    evidence_reference = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Point to the signed transmittal, secure bank receipt, upload location, or other retained evidence.",
+    )
+
+
+class BankAdviceResponseForm(AdviceStateForm):
+    response = forms.ChoiceField(choices=(("acknowledged", "Bank acknowledged"), ("returned", "Bank returned for correction")))
+    response_reference = forms.CharField(max_length=160)
+    evidence_reference = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False)
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("response") == "returned" and not str(cleaned.get("reason") or "").strip():
+            self.add_error("reason", "Explain the bank's returned-advice instruction.")
+        return cleaned
+
+
+class ReturnedInstrumentDecisionForm(forms.Form):
+    state_version = forms.IntegerField(widget=forms.HiddenInput)
+    decision = forms.ChoiceField(choices=(("approve", "Complete Accounting decision"), ("return", "Return to Treasury for clarification")))
+    outcome = forms.ChoiceField(choices=ReturnedInstrumentReview.OUTCOME_CHOICES, required=False)
+    decision_reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    evidence_reference = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+
+    def __init__(self, *args, review=None, **kwargs):
+        initial = kwargs.setdefault("initial", {})
+        if review is not None:
+            initial.setdefault("state_version", review.state_version)
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("decision") == "approve" and not cleaned.get("outcome"):
+            self.add_error("outcome", "Choose the controlled Treasury outcome after Accounting completes its treatment.")
+        return cleaned
+
+
+class ReturnedInstrumentClarificationForm(forms.Form):
+    state_version = forms.IntegerField(widget=forms.HiddenInput)
+    note = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), label="Clarification")
+    evidence_reference = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+
+    def __init__(self, *args, review=None, **kwargs):
+        initial = kwargs.setdefault("initial", {})
+        if review is not None:
+            initial.setdefault("state_version", review.state_version)
+        super().__init__(*args, **kwargs)
 
 
 class TracePointLinkForm(WorkflowForm):

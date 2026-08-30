@@ -13,6 +13,9 @@
         <a class="btn btn-outline-primary" href="{% url 'vouchers:cash_workspace' %}"><i class="fas fa-wallet mr-1"></i>Cash position</a>
         <a class="btn btn-outline-primary" href="{% url 'vouchers:remittance_workspace' %}"><i class="fas fa-receipt mr-1"></i>Remittances</a>
       {% endif %}
+      {% if permissions.advice_view %}
+        <a class="btn btn-outline-primary" href="{% url 'vouchers:advice_workspace' %}"><i class="fas fa-university mr-1"></i>Bank advice</a>
+      {% endif %}
       {% if permissions.initiate_payable %}
         <a class="btn btn-primary" href="{% url 'vouchers:case_create' %}">
           <i class="fas fa-plus mr-1"></i>Open payable

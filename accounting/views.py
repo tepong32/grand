@@ -1193,7 +1193,7 @@ def entry_discard(request, public_id):
                 public_id=discarded.source_reference,
                 accounting_entry_public_id=discarded.public_id,
             ).exclude(status=VoucherPostingRequest.POSTED).first()
-            if source and source.kind in {"payment", "remittance", "cancellation", "replacement"} and source.resume_stage:
+            if source and source.kind in {"payment", "remittance", "cancellation", "replacement", "reversal"} and source.resume_stage:
                 try:
                     from vouchers.services import supersede_discarded_event_posting_request
                     successor = supersede_discarded_event_posting_request(

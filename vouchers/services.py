@@ -49,8 +49,9 @@ STAGE_PERMISSION = {
     VoucherCase.ACCOUNTING_VALIDATION: "vouchers.validate_accounting_voucher",
     VoucherCase.ACCOUNTING_POSTING: "accounting.prepare_journal_entries",
     VoucherCase.ACCOUNTING_EVENT_POSTING: "accounting.prepare_journal_entries",
+    VoucherCase.ACCOUNTING_RETURNED_ITEM: "vouchers.review_returned_instruments",
     VoucherCase.TREASURY_CHECK_PREPARATION: "vouchers.issue_payment_instruments",
-    VoucherCase.ACCOUNTING_BANK_ADVICE: "vouchers.finalize_bank_advice",
+    VoucherCase.ACCOUNTING_BANK_ADVICE: "vouchers.prepare_bank_advice",
     VoucherCase.TREASURY_RELEASE: "vouchers.release_payment_instruments",
 }
 
@@ -113,6 +114,8 @@ def _advance(case, actor, stage, action, idempotency_key, reason="", metadata=No
     case.state_version += 1
     if stage == VoucherCase.COMPLETED:
         case.completed_at = now
+    elif previous == VoucherCase.COMPLETED:
+        case.completed_at = None
     case.save(update_fields=("current_stage", "current_department", "state_version", "completed_at", "updated_at"))
     _event(case, actor, action, previous, reason, metadata, idempotency_key)
     return case
@@ -287,6 +290,7 @@ def supersede_discarded_event_posting_request(*, posting_request, actor, reason)
         VoucherPostingRequest.REMITTANCE,
         VoucherPostingRequest.CANCELLATION,
         VoucherPostingRequest.REPLACEMENT,
+        VoucherPostingRequest.REVERSAL,
     } or not request.resume_stage:
         raise VoucherWorkflowError("Only payment-event handoffs use the automatic successor-draft route.")
     if case.current_stage != VoucherCase.ACCOUNTING_EVENT_POSTING:
@@ -333,6 +337,11 @@ def supersede_discarded_event_posting_request(*, posting_request, actor, reason)
     )
     successor.full_clean()
     successor.save()
+    if hasattr(request, "returned_instrument_review"):
+        review = request.returned_instrument_review
+        review.posting_request = successor
+        review.state_version += 1
+        review.save(update_fields=("posting_request", "state_version"))
     case.state_version += 1
     case.save(update_fields=("state_version", "updated_at"))
     _event(
@@ -1640,9 +1649,20 @@ def issue_check(*, case, actor, bank_account_code, check_number, amount, expecte
     )
     if PaymentInstrument.objects.filter(bank_account_code=bank_account_code, check_number=check_number).exists():
         raise VoucherWorkflowError("That physical check number has already been registered for this bank account and cannot be reused.")
-    if replaces and (replaces.case_id != case.pk or replaces.status != PaymentInstrument.CANCELLED or hasattr(replaces, "replacement")):
-        raise VoucherWorkflowError("A replacement may reference only one unreplaced cancelled check from this voucher.")
-    active_total = case.payment_instruments.exclude(status=PaymentInstrument.CANCELLED).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    replacement_statuses = {PaymentInstrument.CANCELLED, PaymentInstrument.BANK_RETURNED}
+    if replaces and (
+        replaces.case_id != case.pk or replaces.status not in replacement_statuses or hasattr(replaces, "replacement")
+    ):
+        raise VoucherWorkflowError("A replacement may reference only one unreplaced cancelled or bank-returned check from this voucher.")
+    if replaces and replaces.status == PaymentInstrument.BANK_RETURNED:
+        returned_review = replaces.returned_accounting_reviews.filter(
+            status="ready_for_treasury", outcome="reissue",
+        ).order_by("-version").first()
+        if returned_review is None:
+            raise VoucherWorkflowError("Accounting must complete the returned-item decision before Treasury issues a replacement.")
+    active_total = case.payment_instruments.exclude(
+        status__in=(PaymentInstrument.CANCELLED, PaymentInstrument.BANK_RETURNED),
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
     if active_total + amount > case.disbursement_voucher.net_amount:
         raise VoucherWorkflowError("Active checks cannot exceed the voucher net amount.")
     instrument = PaymentInstrument.objects.create(
@@ -1653,6 +1673,11 @@ def issue_check(*, case, actor, bank_account_code, check_number, amount, expecte
     reserve_instrument_cash(
         instrument=instrument, actor=actor, policy=cash_policy, availability=cash_availability,
     )
+    if replaces and replaces.status == PaymentInstrument.BANK_RETURNED:
+        from .advice import complete_returned_review_on_replacement
+        complete_returned_review_on_replacement(
+            original_instrument=replaces, replacement=instrument, actor=actor,
+        )
     event_kind = FinancePostingRule.REPLACEMENT if replaces else FinancePostingRule.PAYMENT
     recognition_point = (
         FinancePostingRule.PAYMENT_REPLACEMENT if replaces else FinancePostingRule.PAYMENT_ISSUANCE
@@ -1707,8 +1732,11 @@ def submit_checks_for_advice(*, case, actor, expected_version, idempotency_key):
 
 
 @transaction.atomic
-def finalize_bank_advice(*, case, actor, advice_number, advice_date, expected_version, idempotency_key):
-    _require(actor, "vouchers.finalize_bank_advice")
+def finalize_bank_advice(
+    *, case, actor, advice_number, advice_date, expected_version, idempotency_key,
+    preparation_note="", authority_reference="", local_applicability_note="",
+):
+    _require(actor, "vouchers.prepare_bank_advice")
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return BankAdviceBatch.objects.get(public_id=existing.metadata["batch_id"])
@@ -1717,18 +1745,19 @@ def finalize_bank_advice(*, case, actor, advice_number, advice_date, expected_ve
     instruments = list(case.payment_instruments.filter(status=PaymentInstrument.ISSUED))
     if not instruments:
         raise VoucherWorkflowError("There are no issued checks eligible for bank advice.")
-    bank_code = instruments[0].bank_account_code
-    if any(item.bank_account_code != bank_code for item in instruments):
-        raise VoucherWorkflowError("One advice batch cannot mix bank accounts.")
-    batch = BankAdviceBatch.objects.create(
-        advice_number=advice_number, advice_date=advice_date, bank_account_code=bank_code,
-        status=BankAdviceBatch.FINALIZED, created_by=actor, finalized_by=actor, finalized_at=timezone.now(),
+    from .advice import create_advice_batch, submit_advice_for_review
+    batch = create_advice_batch(
+        actor=actor, advice_number=advice_number, advice_date=advice_date,
+        instruments=instruments,
+        preparation_note=preparation_note or "Prepared from the shared voucher case after issued-instrument control totals reconciled.",
+        authority_reference=authority_reference or "Pending locally reviewed bank-advice authority; complete in the bank-advice workspace before approval.",
+        local_applicability_note=local_applicability_note or "Controlled UAT preparation only; named Accounting, Treasury, bank, and audit owners must confirm the accepted procedure.",
     )
-    for instrument in instruments:
-        BankAdviceItem.objects.create(batch=batch, instrument=instrument)
-        instrument.status = PaymentInstrument.ADVISED
-        instrument.save(update_fields=("status",))
-    _advance(case, actor, VoucherCase.TREASURY_RELEASE, "bank_advice_finalized", idempotency_key, metadata={"batch_id": str(batch.public_id), "advice_number": advice_number})
+    submit_advice_for_review(batch=batch, actor=actor, expected_version=batch.state_version)
+    _advance(
+        case, actor, VoucherCase.ACCOUNTING_BANK_ADVICE, "bank_advice_prepared_for_review",
+        idempotency_key, metadata={"batch_id": str(batch.public_id), "advice_number": advice_number},
+    )
     return batch
 
 
@@ -1740,6 +1769,8 @@ def release_check(*, case, instrument, actor, claimant, receipt_reference, expec
         return case
     if case.current_stage != VoucherCase.TREASURY_RELEASE or instrument.case_id != case.pk or instrument.status != PaymentInstrument.ADVISED:
         raise VoucherWorkflowError("Only an advised check in Treasury's release queue may be released.")
+    if not instrument.current_advice_batch_id or instrument.current_advice_batch.status != BankAdviceBatch.ACKNOWLEDGED:
+        raise VoucherWorkflowError("Record the bank's acknowledgement of the current advice version before releasing this check.")
     if instrument.operational_status in (PaymentInstrument.STALE, PaymentInstrument.RETURNED):
         raise VoucherWorkflowError("This instrument has an open stale/returned exception and cannot be released.")
     if claimant.party_id != case.payee_id or claimant.status != "active":

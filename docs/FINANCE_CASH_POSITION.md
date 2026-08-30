@@ -56,9 +56,9 @@ Thresholds are local policy values rather than source-code constants:
 
 - **Unclaimed** applies only to an advised, unreleased instrument after the accepted follow-up threshold. A later valid claimant release resolves it.
 - **Stale** applies only to an advised, unreleased instrument after the accepted validity threshold. GRAND blocks release; cancellation/stop-payment and replacement or Accounting treatment must follow reviewed local practice.
-- **Returned** applies to a released instrument after the bank returns it. The exception records the bank evidence but does not invent an automatic reversal.
+- **Returned** applies to a released instrument after the bank returns it. The exception records the bank evidence and starts F8.4's Accounting review; the pinned local payment-return rule—not the ageing label—governs the reversal or explicit no-entry decision.
 
-Escalating an unclaimed item to stale resolves the earlier classification through retained evidence. Cancellation resolves open pre-release classifications and releases the issue reservation; actual claimant release consumes it. Returned-item Accounting orchestration remains a later F8 control.
+Escalating an unclaimed item to stale resolves the earlier classification through retained evidence. Cancellation resolves open pre-release classifications and releases the issue reservation; actual claimant release consumes it. For a returned released check, replacement remains blocked until Accounting completes the governed decision and selects Reissue; the linked replacement then closes the review and exception without rewriting the original instrument.
 
 ## Public guidance and acceptance boundary
 

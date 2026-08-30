@@ -367,6 +367,17 @@ def create_payment_event_posting_starters(variant, actor):
             (),
         ),
         (
+            FinancePostingRule.REVERSAL,
+            FinancePostingRule.PAYMENT_RETURN,
+            FinancePostingRule.JOURNAL_ENTRY,
+            "Restore a bank-returned payment",
+            "After bank-return evidence and independent Accounting review, debit the configured bank/cash account and credit the transaction payable to reverse the earlier release entry.",
+            (
+                (10, "Debit the bank/cash account restored by the return", FinancePostingRuleLine.DEBIT, FinancePostingRuleLine.BANK_MAPPING),
+                (20, "Credit the payable restored by the return", FinancePostingRuleLine.CREDIT, FinancePostingRuleLine.PAYABLE_MAPPING),
+            ),
+        ),
+        (
             FinancePostingRule.REPLACEMENT,
             FinancePostingRule.PAYMENT_REPLACEMENT,
             FinancePostingRule.NO_ENTRY,
@@ -400,7 +411,7 @@ def create_payment_event_posting_starters(variant, actor):
             description=description,
             authority_reference=(
                 "EDIT BEFORE SUBMISSION — compare this starter with the locally accepted payment, cancellation, "
-                "replacement, or remittance treatment and the current COA/local accounting basis."
+                "replacement, returned-item, or remittance treatment and the current COA/local accounting basis."
             ),
             created_by=actor,
         )
@@ -448,6 +459,7 @@ def transition_release(release, action, actor, reason=""):
                 FinancePostingRule.REMITTANCE,
                 FinancePostingRule.CANCELLATION,
                 FinancePostingRule.REPLACEMENT,
+                FinancePostingRule.REVERSAL,
             }
             if not event_kinds.intersection({FinancePostingRule.RECOGNITION, FinancePostingRule.LIQUIDATION}):
                 raise ValidationError(f"{variant.label} needs a reviewed recognition or liquidation rule.")
@@ -629,6 +641,7 @@ def evaluate_readiness(release, as_of=None):
         FinancePostingRule.REMITTANCE,
         FinancePostingRule.CANCELLATION,
         FinancePostingRule.REPLACEMENT,
+        FinancePostingRule.REVERSAL,
     }
     if typed_posting_ready:
         try:

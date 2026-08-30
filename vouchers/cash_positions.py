@@ -433,7 +433,13 @@ def close_reservation(*, instrument, actor, status, reason):
 @transaction.atomic
 def open_instrument_exception(*, instrument, actor, kind, observed_on, reason, evidence_reference):
     _require(actor, "vouchers.manage_payment_exceptions")
-    if instrument.case.current_department_id != department_for_user(actor).pk:
+    instrument = PaymentInstrument.objects.select_for_update().select_related(
+        "case", "current_advice_batch",
+    ).get(pk=instrument.pk)
+    actor_department = department_for_user(actor)
+    if actor_department is None:
+        raise PermissionDenied("Assign the user to a Treasury department before classifying instruments.")
+    if kind != PaymentInstrumentException.RETURNED and instrument.case.current_department_id != actor_department.pk:
         raise PermissionDenied("Instrument exceptions are limited to Treasury's currently assigned cases.")
     reason = str(reason or "").strip()
     evidence_reference = str(evidence_reference or "").strip()
@@ -449,6 +455,8 @@ def open_instrument_exception(*, instrument, actor, kind, observed_on, reason, e
     )
     if policy is None:
         raise ValidationError("Activate a locally reviewed cash policy before classifying instrument ageing.")
+    if kind == PaymentInstrumentException.RETURNED and policy.treasury_department_id != actor_department.pk:
+        raise PermissionDenied("Bank-return classification is limited to the cash policy's owning Treasury office.")
     age = (observed_on - timezone.localdate(instrument.issued_at)).days
     if kind == PaymentInstrumentException.UNCLAIMED:
         if instrument.status != PaymentInstrument.ADVISED or age < policy.unclaimed_after_days:
@@ -478,6 +486,9 @@ def open_instrument_exception(*, instrument, actor, kind, observed_on, reason, e
     instrument.save(update_fields=("operational_status",))
     _event(actor=actor, action=f"instrument_{kind}_classified", policy=policy, instrument=instrument,
            reason=reason, snapshot={"exception_public_id": str(exception.public_id), "evidence_reference": evidence_reference, "age_days": age})
+    if kind == PaymentInstrumentException.RETURNED:
+        from .advice import begin_returned_instrument_review
+        begin_returned_instrument_review(exception=exception, actor=actor)
     return exception
 
 
@@ -491,6 +502,10 @@ def resolve_instrument_exception(*, exception, actor, resolution, permission_req
     note = str(resolution or "").strip()
     if locked.status != locked.OPEN or not note:
         raise ValidationError("Resolve an open exception with the reviewed action and evidence.")
+    if permission_required and locked.kind == PaymentInstrumentException.RETURNED and locked.accounting_reviews.exclude(
+        status__in=("closed", "superseded"),
+    ).exists():
+        raise ValidationError("Complete the linked Accounting returned-item route instead of manually closing this exception.")
     locked.status = locked.RESOLVED
     locked.resolved_by = actor
     locked.resolved_at = timezone.now()

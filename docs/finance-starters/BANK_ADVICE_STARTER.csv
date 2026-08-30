@@ -1,0 +1,2 @@
+advice_number,advice_date,bank_account_code,instrument_number,fund_code,amount,preparation_note,authority_reference,local_applicability_note,submission_reference,bank_response_reference
+EDIT-ME,YYYY-MM-DD,EDIT-ME,EDIT-ME,EDIT-ME,0.00,Describe the familiar Accounting and Treasury preparation check.,Replace with the reviewed COA bank or local authority before submission.,Name local approvers bank practice copies deadlines and retained evidence.,,

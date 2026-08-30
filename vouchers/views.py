@@ -49,7 +49,9 @@ def _permissions(user):
         "tracepoint_link": has_explicit_permission(user, "vouchers.link_tracepoint_custody"),
         "validate": has_explicit_permission(user, "vouchers.validate_accounting_voucher"),
         "issue": has_explicit_permission(user, "vouchers.issue_payment_instruments"),
-        "advice": has_explicit_permission(user, "vouchers.finalize_bank_advice"),
+        "advice": has_explicit_permission(user, "vouchers.prepare_bank_advice"),
+        "advice_view": has_explicit_permission(user, "vouchers.view_bank_advice"),
+        "returned_review": has_explicit_permission(user, "vouchers.review_returned_instruments"),
         "release": has_explicit_permission(user, "vouchers.release_payment_instruments"),
         "exceptions": has_explicit_permission(user, "vouchers.manage_payment_exceptions"),
         "cash_view": has_explicit_permission(user, "vouchers.view_cash_position"),
@@ -72,6 +74,7 @@ def _actionable_stages(permissions, can_access_accounting=False):
         (permissions["validate"], VoucherCase.ACCOUNTING_VALIDATION),
         (can_access_accounting, VoucherCase.ACCOUNTING_POSTING),
         (can_access_accounting, VoucherCase.ACCOUNTING_EVENT_POSTING),
+        (permissions["returned_review"], VoucherCase.ACCOUNTING_RETURNED_ITEM),
         (permissions["issue"], VoucherCase.TREASURY_CHECK_PREPARATION),
         (permissions["advice"], VoucherCase.ACCOUNTING_BANK_ADVICE),
         (permissions["release"], VoucherCase.TREASURY_RELEASE),
@@ -161,7 +164,7 @@ def _case(public_id):
             "obligation", "obligation__certified_by", "payable_intake", "disbursement_voucher", "disbursement_voucher__prepared_by",
         ).prefetch_related(
             "obligation__allocation_lines", "signature_tasks", "accounting_validations__validated_by",
-            "payment_instruments__advice_item__batch", "events__actor", "events__actor_department",
+            "payment_instruments__current_advice_batch", "events__actor", "events__actor_department",
             "tasks", "payee__authorized_claimants", "outputs__template",
             "posting_requests",
             "nonfinancial_amendments__amended_by",
@@ -323,7 +326,11 @@ def case_action(request, public_id, action):
         elif action == "submit-checks":
             submit_checks_for_advice(**common)
         elif action == "finalize-advice":
-            finalize_bank_advice(**common, advice_number=data["advice_number"], advice_date=data["advice_date"])
+            finalize_bank_advice(
+                **common, advice_number=data["advice_number"], advice_date=data["advice_date"],
+                preparation_note=data["preparation_note"], authority_reference=data["authority_reference"],
+                local_applicability_note=data["local_applicability_note"],
+            )
         elif action == "release-check":
             release_check(**common, instrument=data["instrument"], claimant=data["claimant"], receipt_reference=data["receipt_reference"])
         elif action == "return":
@@ -483,7 +490,7 @@ def payment_register_export(request, public_id):
         "replacement_accounting_effect", "replacement_jev_number", "replacement_posting_status",
     ))
     for instrument in case.payment_instruments.select_related(
-        "issued_by", "released_by", "cancelled_by", "replaces", "advice_item__batch",
+        "issued_by", "released_by", "cancelled_by", "replaces", "current_advice_batch",
     ).order_by("issued_at", "pk"):
         requests = {
             kind: request_by_trigger.get((kind, str(instrument.public_id)))
@@ -504,7 +511,7 @@ def payment_register_export(request, public_id):
                 return posting.jev_number or ""
             return posting.get_status_display()
 
-        advice = getattr(getattr(instrument, "advice_item", None), "batch", None)
+        advice = instrument.current_advice_batch
         writer.writerow((
             "payment_instrument_register", _csv_safe(case.reference_code), case.public_id,
             _csv_safe(case.disbursement_voucher.dv_number), _csv_safe(case.requesting_department.name),

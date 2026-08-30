@@ -7,6 +7,38 @@ from ..models import Department, InternalHowTo, InternalHowToStep
 
 ACCOUNTING_GUIDES = (
     {
+        "slug": "finance-bank-advice-review",
+        "version": 1,
+        "title": "Review bank advice and record the bank response",
+        "summary": "Independently review a retained multi-voucher advice version, then record the bank's actual acknowledgement or return before Treasury may release a check.",
+        "permission": "vouchers.approve_bank_advice",
+        "patterns": ["vouchers:advice_*", "vouchers:case_*"],
+        "order": 53,
+        "steps": (
+            ("Open the retained advice version", "Compare the advice number, bank account, Finance Setup release, check list, case links, total, and snapshot checksum with the reviewed preparation schedule.", "One advice version contains only issued checks for one bank account and one pinned configuration release.", "The GRAND starter is editable working material; it is not automatically the locally accepted bank or COA form.", "Open Bank Advice", "vouchers:advice_workspace"),
+            ("Check maker and reviewer separation", "Confirm that you did not prepare or submit the version. Review the cited authority, preparation note, and local-applicability note.", "A different authorized Accounting reviewer records the decision basis.", "Return vague, pending, or unverified authority notes instead of treating them as acceptance.", "", ""),
+            ("Approve or return for correction", "Approve the retained snapshot or give a specific correction instruction. A returned version is never overwritten; the preparer creates a reasoned successor from its instruments.", "The decision, actor, time, reason, and prior version remain reconstructible.", "Corrections may remove an item but cannot import an unrelated check into that successor.", "", ""),
+            ("Wait for actual bank submission", "Treasury records the submission and retained transmission reference only after sending the approved version to the bank.", "The record distinguishes internal approval from external submission.", "Do not acknowledge a merely approved version or infer delivery from a printed schedule.", "", ""),
+            ("Record the bank response", "Use the bank's response and retained evidence to acknowledge the submitted version or return it with a reason.", "Only an acknowledged current advice can advance all ready cases to Treasury release.", "A bank return restores the affected checks to the advice queue and requires a reasoned successor; it does not erase the original version.", "", ""),
+        ),
+    },
+    {
+        "slug": "finance-returned-instrument-review",
+        "version": 1,
+        "title": "Review a returned released instrument",
+        "summary": "Trace Treasury's bank-return evidence to the original advice and payment entry, decide the accounting treatment, and authorize replacement only after the governed posting decision is complete.",
+        "permission": "vouchers.review_returned_instruments",
+        "patterns": ["vouchers:advice_*", "accounting:entry_*", "accounting:workspace"],
+        "order": 54,
+        "steps": (
+            ("Trace the original payment", "Open the returned-item review and compare the released check, acknowledged advice, claimant release, original payment posting request, bank-return evidence, and open Treasury exception.", "The same instrument and payment event are traceable from issue through bank return.", "Do not classify an unissued or unreleased check through this route.", "Open Bank Advice", "vouchers:advice_workspace"),
+            ("Ask Treasury to clarify when needed", "Return the review with a specific evidence gap. Treasury must answer through a successor clarification version.", "Both the first submission and clarification remain retained.", "Do not replace Treasury's source evidence inside Accounting.", "", ""),
+            ("Choose the governed outcome", "Select Reissue only when the evidence supports replacement; otherwise select Close without reissue. Record the reviewed authority and decision basis.", "The outcome is explicit and independently attributable.", "Classification alone does not authorize another check.", "", ""),
+            ("Complete the accounting decision", "Post the generated returned-payment reversal when the active posting rule requires it, or retain the governed no-entry decision. The reversal restores bank/cash and the payable against the original release entry.", "The returned payment is reflected once in the ledger or explicitly documented as requiring no entry.", "Never edit or delete the original posted payment JEV.", "Open Accounting", "accounting:workspace"),
+            ("Return control to Treasury", "After the posting request is posted or marked not required, GRAND returns the case to the exact Treasury stage. Replacement is enabled only for an approved Reissue outcome.", "A linked replacement closes the review and exception while preserving the original instrument.", "Do not manually bypass the open review or reuse the old check number.", "", ""),
+        ),
+    },
+    {
         "slug": "finance-cash-position-review",
         "version": 1,
         "title": "Review Treasury cash policies and positions",
@@ -346,6 +378,23 @@ BUDGET_GUIDES = (
 )
 
 TREASURY_GUIDES = (
+    {
+        "slug": "finance-bank-advice-submit-release",
+        "version": 1,
+        "title": "Submit bank advice and release acknowledged checks",
+        "summary": "Send only an independently approved advice version, retain the bank transmission and response, and keep release blocked until acknowledgement.",
+        "permission": "vouchers.submit_bank_advice",
+        "patterns": ["vouchers:advice_*", "vouchers:case_*"],
+        "order": 6,
+        "steps": (
+            ("Open the approved version", "Compare the advice number, bank account, check list, total, checksum, approval basis, and retained authority with the schedule you will transmit.", "Treasury submits the exact independently reviewed version.", "Do not submit a draft, returned version, or an edited copy outside its retained snapshot.", "Open Bank Advice", "vouchers:advice_workspace"),
+            ("Record actual bank submission", "After transmitting the advice, enter the bank submission reference and where the transmission evidence is retained.", "GRAND distinguishes approval from the actual external handoff.", "A printed or downloaded schedule alone is not proof that the bank received it.", "", ""),
+            ("Wait for acknowledgement", "Accounting records the bank's acknowledgement or documented return against the submitted version.", "Affected cases remain in the bank-advice queue until every active check has an acknowledged current version.", "Do not release a check because its advice was only approved or submitted.", "", ""),
+            ("Correct a bank-returned version", "If the bank returns the advice, ask Accounting to prepare a reasoned successor from the same retained instruments and corrected evidence.", "The prior version remains visible and the checks return to Issued for re-advice.", "The successor may omit an affected item but cannot silently add an unrelated check.", "", ""),
+            ("Release the acknowledged check", "At Treasury release, verify the exact instrument, claimant, receipt reference, and the acknowledged current advice before recording handover.", "The original issue, advice, acknowledgement, claimant receipt, and payment posting form one traceable chain.", "Never alter check particulars after issue; use cancellation/replacement or the returned-instrument route.", "Open Finance Queue", "vouchers:workspace"),
+            ("Escalate a returned released check", "When the bank returns an already released check, record the policy-based exception and bank evidence. Wait for Accounting's reversal or no-entry decision before replacement.", "The replacement allowance opens only after Accounting completes the governed decision and selects Reissue.", "Do not resolve the exception manually while the Accounting review is open.", "Open Cash Position", "vouchers:cash_workspace"),
+        ),
+    },
     {
         "slug": "finance-treasury-cash-position",
         "version": 1,

@@ -1,5 +1,13 @@
 # Changelog
 
+## F8.4 Bank advice acknowledgement and returned instruments
+
+- Replaced the legacy single-case finalized advice flag with checksum-backed, multi-case versions separated into preparation, independent Accounting review, actual bank submission, and bank acknowledgement/return.
+- Blocked Treasury release until every active check has a current acknowledged advice and added immutable, reason-required successors for review- or bank-returned versions.
+- Added governed returned-released-instrument review with Treasury clarification successors, Accounting reissue/close decisions, payment-return reversal or explicit no-entry treatment, exact-stage resume, and replacement blocking until completion.
+- Added conservative Accounting/Treasury workspaces, a plain human-editable starter, department- and permission-specific floating Internal How-Tos, and TraceSync-ready advice exports with checksum manifests.
+- Preserved legacy finalized batches as acknowledged migration evidence with explicit legacy-reference gaps instead of inventing historical bank proof.
+
 ## F8.3 Treasury cash position and instrument ageing
 
 - Added locally versioned Observe/Enforce cash-control policies by Finance setup, bank account, and fund, with reserves, position-age limits, instrument thresholds, authority references, local-applicability notes, effective dates, and independent review.

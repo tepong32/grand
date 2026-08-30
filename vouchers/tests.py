@@ -34,12 +34,16 @@ from tracepoint.models import PacketItem, TrackedPacket
 
 from .access import can_view_workbench
 from .models import (
-    PayableIntake, PaymentInstrument, PaymentInstrumentException, TreasuryCashPolicy,
+    BankAdviceBatch, PayableIntake, PaymentInstrument, PaymentInstrumentException, ReturnedInstrumentReview, TreasuryCashPolicy,
     TreasuryCashPosition, TreasuryCashReservation, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
     RemittancePostingRequest, TreasuryRemittanceBatch, TreasuryRemittanceLine,
     VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
 )
 from .posting import materialize_voucher_journal, reconcile_posted_voucher_entry
+from .advice import (
+    clarify_returned_instrument_review, create_advice_batch, decide_returned_instrument, export_bank_advice_csv,
+    record_advice_submission, record_bank_response, review_advice, submit_advice_for_review,
+)
 from .cash_positions import (
     create_policy, create_position, decide_policy, decide_position, export_cash_position_csv,
     open_instrument_exception, policy_availability, preflight_instrument_cash, submit_policy,
@@ -86,9 +90,9 @@ class VoucherWorkflowTests(TestCase):
         cls.requesting = Department.objects.create(name="General Services Office", slug="voucher-gso")
 
         cls.budget_user = cls.employee("budget.clerk", cls.budget, "view_voucher_workbench", "initiate_budget_case", "certify_budget_obligation", "return_voucher_case", "view_voucher_audit")
-        cls.preparer = cls.employee("accounting.preparer", cls.accounting, "view_voucher_workbench", "prepare_disbursement_voucher", "control_dv_printing", "amend_nonfinancial_voucher", "track_wet_signatures", "link_tracepoint_custody", "validate_accounting_voucher", "finalize_bank_advice", "return_voucher_case", "view_voucher_audit")
-        cls.validator = cls.employee("accounting.validator", cls.accounting, "view_voucher_workbench", "validate_accounting_voucher", "finalize_bank_advice", "approve_control_overrides", "return_voucher_case", "view_voucher_audit")
-        cls.treasury_user = cls.employee("treasury.cashier", cls.treasury, "view_voucher_workbench", "issue_payment_instruments", "release_payment_instruments", "manage_payment_exceptions", "return_voucher_case", "view_voucher_audit")
+        cls.preparer = cls.employee("accounting.preparer", cls.accounting, "view_voucher_workbench", "prepare_disbursement_voucher", "control_dv_printing", "amend_nonfinancial_voucher", "track_wet_signatures", "link_tracepoint_custody", "validate_accounting_voucher", "finalize_bank_advice", "view_bank_advice", "prepare_bank_advice", "submit_bank_advice", "export_bank_advice", "return_voucher_case", "view_voucher_audit")
+        cls.validator = cls.employee("accounting.validator", cls.accounting, "view_voucher_workbench", "validate_accounting_voucher", "finalize_bank_advice", "view_bank_advice", "approve_bank_advice", "acknowledge_bank_advice", "review_returned_instruments", "export_bank_advice", "approve_control_overrides", "return_voucher_case", "view_voucher_audit")
+        cls.treasury_user = cls.employee("treasury.cashier", cls.treasury, "view_voucher_workbench", "issue_payment_instruments", "release_payment_instruments", "manage_payment_exceptions", "view_bank_advice", "submit_bank_advice", "export_bank_advice", "return_voucher_case", "view_voucher_audit")
         cls.requesting_user = cls.employee(
             "gso.requester", cls.requesting, "view_voucher_workbench", "initiate_payable_case", "view_voucher_audit",
         )
@@ -277,14 +281,14 @@ class VoucherWorkflowTests(TestCase):
         case.refresh_from_db()
         return case
 
-    def ready_for_treasury(self):
-        case = self.create_case()
-        self.budget_certify(case)
-        self.accounting_prepare(case)
+    def ready_for_treasury(self, suffix=""):
+        case = self.create_case(f"create-case{suffix}")
+        self.budget_certify(case, f"budget-certify{suffix}")
+        self.accounting_prepare(case, f"prepare-dv{suffix}")
         self.return_signatures(case)
         validate_accounting(
-            case=case, actor=self.validator, jev_number="JEV-00001", jev_date=date(2026, 8, 25), note="Validated",
-            expected_version=case.state_version, idempotency_key="validate-accounting",
+            case=case, actor=self.validator, jev_number=f"JEV-00001{suffix}", jev_date=date(2026, 8, 25), note="Validated",
+            expected_version=case.state_version, idempotency_key=f"validate-accounting{suffix}",
         )
         case.refresh_from_db()
         request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
@@ -303,6 +307,28 @@ class VoucherWorkflowTests(TestCase):
         reconcile_posted_voucher_entry(entry, self.validator)
         case.refresh_from_db()
         return case
+
+    def acknowledge_advice(self, batch, *, reference="BANK-ACK-SYNTHETIC"):
+        batch.refresh_from_db()
+        review_advice(
+            batch=batch, actor=self.validator, approve=True,
+            note="Independently matched the retained instrument snapshot to the reviewed voucher and check evidence.",
+            expected_version=batch.state_version,
+        )
+        batch.refresh_from_db()
+        record_advice_submission(
+            batch=batch, actor=self.preparer, submission_reference=f"SUB-{batch.advice_number}",
+            evidence_reference="Synthetic signed transmittal retained for UAT.",
+            expected_version=batch.state_version,
+        )
+        batch.refresh_from_db()
+        record_bank_response(
+            batch=batch, actor=self.validator, acknowledged=True, response_reference=reference,
+            evidence_reference="Synthetic bank acknowledgement retained for UAT.",
+            expected_version=batch.state_version,
+        )
+        batch.refresh_from_db()
+        return batch
 
     def enable_payment_event_rules(self):
         owner = {"department_id": self.accounting.pk, "department_label": self.accounting.name}
@@ -374,6 +400,30 @@ class VoucherWorkflowTests(TestCase):
                 authority_reference=f"Synthetic locally reviewed {kind} policy.",
                 created_by=self.preparer,
             )
+        reversal = FinancePostingRule.objects.create(
+            variant=self.transaction_variant,
+            code="ordinary-supplier-returned-payment",
+            title="Restore a bank-returned payment",
+            event_kind=FinancePostingRule.REVERSAL,
+            recognition_point=FinancePostingRule.PAYMENT_RETURN,
+            description="Debit the releasing bank and credit the restored payable after Accounting review.",
+            authority_reference="Synthetic locally reviewed returned-payment policy.",
+            created_by=self.preparer,
+        )
+        FinancePostingRuleLine.objects.bulk_create((
+            FinancePostingRuleLine(
+                rule=reversal, sequence=10, label="Debit restored bank balance",
+                side=FinancePostingRuleLine.DEBIT,
+                account_source=FinancePostingRuleLine.BANK_MAPPING,
+                amount_source=FinancePostingRuleLine.EVENT_AMOUNT,
+            ),
+            FinancePostingRuleLine(
+                rule=reversal, sequence=20, label="Credit restored payable",
+                side=FinancePostingRuleLine.CREDIT,
+                account_source=FinancePostingRuleLine.PAYABLE_MAPPING,
+                amount_source=FinancePostingRuleLine.EVENT_AMOUNT,
+            ),
+        ))
         return payment
 
     def enable_remittance_route(self):
@@ -548,10 +598,14 @@ class VoucherWorkflowTests(TestCase):
         submit_checks_for_advice(case=case, actor=self.treasury_user, expected_version=case.state_version, idempotency_key="submit-checks")
         case.refresh_from_db()
         batch = finalize_bank_advice(
-            case=case, actor=self.validator, advice_number="ADV-00001", advice_date=date(2026, 8, 25),
+            case=case, actor=self.preparer, advice_number="ADV-00001", advice_date=date(2026, 8, 25),
             expected_version=case.state_version, idempotency_key="finalize-advice",
+            preparation_note="Synthetic batch prepared from the reconciled check register.",
+            authority_reference="Synthetic locally reviewed bank-advice procedure.",
+            local_applicability_note="Accounting, Treasury, and test bank owners accepted this UAT route.",
         )
         self.assertEqual(batch.items.count(), 2)
+        self.acknowledge_advice(batch)
         case.refresh_from_db(); first.refresh_from_db(); second.refresh_from_db()
         release_check(case=case, instrument=first, actor=self.treasury_user, claimant=self.claimant, receipt_reference="RECEIPT-1", expected_version=case.state_version, idempotency_key="release-1")
         case.refresh_from_db()
@@ -585,14 +639,18 @@ class VoucherWorkflowTests(TestCase):
             idempotency_key="payment-event-submit",
         )
         case.refresh_from_db()
-        finalize_bank_advice(
+        batch = finalize_bank_advice(
             case=case,
-            actor=self.validator,
+            actor=self.preparer,
             advice_number="ADV-PAYMENT-EVENT",
             advice_date=date(2026, 8, 25),
             expected_version=case.state_version,
             idempotency_key="payment-event-advice",
+            preparation_note="Synthetic payment-event advice.",
+            authority_reference="Synthetic locally reviewed bank-advice procedure.",
+            local_applicability_note="Accepted for controlled UAT by the synthetic process owners.",
         )
+        self.acknowledge_advice(batch)
         case.refresh_from_db(); instrument.refresh_from_db()
         release_check(
             case=case,
@@ -702,14 +760,18 @@ class VoucherWorkflowTests(TestCase):
             idempotency_key="event-discard-submit",
         )
         case.refresh_from_db()
-        finalize_bank_advice(
+        batch = finalize_bank_advice(
             case=case,
-            actor=self.validator,
+            actor=self.preparer,
             advice_number="ADV-EVENT-DISCARD",
             advice_date=date(2026, 8, 25),
             expected_version=case.state_version,
             idempotency_key="event-discard-advice",
+            preparation_note="Synthetic discarded-event advice.",
+            authority_reference="Synthetic locally reviewed bank-advice procedure.",
+            local_applicability_note="Accepted for controlled UAT by the synthetic process owners.",
         )
+        self.acknowledge_advice(batch)
         case.refresh_from_db(); instrument.refresh_from_db()
         release_check(
             case=case,
@@ -1344,6 +1406,261 @@ class VoucherWorkflowTests(TestCase):
         self.assertFalse(any(field.name in {"gross_amount", "net_amount", "certified_amount"} for field in PacketItem._meta.fields))
         self.assertTrue(case.events.filter(action="tracepoint_item_linked", metadata__reference_number="TP-ITEM-001").exists())
 
+    def test_f84_multi_case_advice_requires_review_bank_response_and_reasoned_successor(self):
+        first_case = self.ready_for_treasury("-advice-a")
+        second_case = self.ready_for_treasury("-advice-b")
+        first = issue_check(
+            case=first_case, actor=self.treasury_user, bank_account_code="gf-lbp",
+            fund_code="general-fund", check_number="F84-0001", amount=Decimal("900.00"),
+            expected_version=first_case.state_version, idempotency_key="f84-issue-a",
+        )
+        second = issue_check(
+            case=second_case, actor=self.treasury_user, bank_account_code="gf-lbp",
+            fund_code="general-fund", check_number="F84-0002", amount=Decimal("900.00"),
+            expected_version=second_case.state_version, idempotency_key="f84-issue-b",
+        )
+        first_case.refresh_from_db(); second_case.refresh_from_db()
+        submit_checks_for_advice(
+            case=first_case, actor=self.treasury_user,
+            expected_version=first_case.state_version, idempotency_key="f84-submit-a",
+        )
+        submit_checks_for_advice(
+            case=second_case, actor=self.treasury_user,
+            expected_version=second_case.state_version, idempotency_key="f84-submit-b",
+        )
+        batch = create_advice_batch(
+            actor=self.preparer, advice_number="F84-ADV-01", advice_date=date(2026, 8, 31),
+            instruments=[first, second],
+            preparation_note="Matched two issued checks to their DVs and the familiar advice control total.",
+            authority_reference="Synthetic locally reviewed advice and bank-transmittal procedure.",
+            local_applicability_note="Accounting, Treasury, and the test bank accepted the UAT evidence route.",
+        )
+        self.assertEqual(batch.item_count, 2)
+        self.assertEqual(batch.total_amount, Decimal("1800.00"))
+        self.assertEqual(len(batch.snapshot_checksum), 64)
+        submit_advice_for_review(batch=batch, actor=self.preparer, expected_version=batch.state_version)
+        batch.refresh_from_db()
+        with self.assertRaises(PermissionDenied):
+            review_advice(
+                batch=batch, actor=self.preparer, approve=True, note="Self approval",
+                expected_version=batch.state_version,
+            )
+        review_advice(
+            batch=batch, actor=self.validator, approve=True,
+            note="Independently matched the advice, checks, DVs, bank account, and control total.",
+            expected_version=batch.state_version,
+        )
+        first_case.refresh_from_db(); first.refresh_from_db(); batch.refresh_from_db()
+        with self.assertRaises(ValidationError):
+            release_check(
+                case=first_case, instrument=first, actor=self.treasury_user,
+                claimant=self.claimant, receipt_reference="EARLY-RELEASE",
+                expected_version=first_case.state_version, idempotency_key="f84-early-release",
+            )
+        record_advice_submission(
+            batch=batch, actor=self.preparer, submission_reference="BANK-SUB-01",
+            evidence_reference="Signed transmittal retained in the synthetic advice packet.",
+            expected_version=batch.state_version,
+        )
+        batch.refresh_from_db()
+        self.client.force_login(self.treasury_user)
+        self.assertEqual(
+            self.client.get(reverse("vouchers:advice_detail", args=(batch.public_id,))).status_code,
+            200,
+        )
+        record_bank_response(
+            batch=batch, actor=self.validator, acknowledged=False,
+            response_reference="BANK-RETURN-01",
+            evidence_reference="Bank return note retained in the synthetic advice packet.",
+            reason="The bank requested a corrected advice date.",
+            expected_version=batch.state_version,
+        )
+        batch.refresh_from_db(); first.refresh_from_db(); second.refresh_from_db()
+        self.assertEqual(batch.status, BankAdviceBatch.RETURNED)
+        self.assertEqual(first.status, PaymentInstrument.ISSUED)
+        self.assertEqual(second.status, PaymentInstrument.ISSUED)
+        with self.assertRaisesMessage(ValidationError, "Explain what is being corrected"):
+            create_advice_batch(
+                actor=self.preparer, advice_number="F84-ADV-01", advice_date=date(2026, 9, 1),
+                instruments=[first, second], preparation_note=batch.preparation_note,
+                authority_reference=batch.authority_reference,
+                local_applicability_note=batch.local_applicability_note,
+                supersedes=batch,
+            )
+        PaymentInstrument.objects.filter(pk=second.pk).update(current_advice_batch=None)
+        second.refresh_from_db()
+        with self.assertRaisesMessage(ValidationError, "must still point"):
+            create_advice_batch(
+                actor=self.preparer, advice_number="F84-ADV-01", advice_date=date(2026, 9, 1),
+                instruments=[first, second], preparation_note=batch.preparation_note,
+                authority_reference=batch.authority_reference,
+                local_applicability_note=batch.local_applicability_note,
+                supersedes=batch, correction_reason="Synthetic attempt to import a detached instrument.",
+            )
+        PaymentInstrument.objects.filter(pk=second.pk).update(current_advice_batch=batch)
+        second.refresh_from_db()
+        successor = create_advice_batch(
+            actor=self.preparer, advice_number="F84-ADV-01", advice_date=date(2026, 9, 1),
+            instruments=[first, second], preparation_note=batch.preparation_note,
+            authority_reference=batch.authority_reference,
+            local_applicability_note=batch.local_applicability_note,
+            supersedes=batch, correction_reason="Corrected only the advice date per retained bank return note.",
+        )
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, BankAdviceBatch.SUPERSEDED)
+        self.assertEqual(successor.version, 2)
+        with self.assertRaises(ValidationError):
+            batch.advice_date = date(2026, 9, 2)
+            batch.save()
+        submit_advice_for_review(batch=successor, actor=self.preparer, expected_version=successor.state_version)
+        successor.refresh_from_db()
+        self.acknowledge_advice(successor, reference="BANK-ACK-02")
+        first_case.refresh_from_db(); second_case.refresh_from_db()
+        self.assertEqual(first_case.current_stage, VoucherCase.TREASURY_RELEASE)
+        self.assertEqual(second_case.current_stage, VoucherCase.TREASURY_RELEASE)
+        content, archived = export_bank_advice_csv(actor=self.validator, batch=successor)
+        self.assertIn(b"F84-0001", content)
+        self.assertIn(b"BANK-ACK-02", content)
+        self.assertIn("finance-bank-advice", archived["relative_path"])
+
+    def test_f84_returned_released_instrument_requires_accounting_reversal_before_replacement(self):
+        self.enable_payment_event_rules()
+        policy = TreasuryCashPolicy.objects.create(
+            configuration_release=self.release, treasury_department=self.treasury,
+            bank_account_code="gf-lbp", fund_code="general-fund",
+            mode=TreasuryCashPolicy.OBSERVE, minimum_reserve=Decimal("0.00"),
+            position_max_age_days=35, unclaimed_after_days=30, stale_after_days=180,
+            effective_from=date(2026, 1, 1), authority_reference="Synthetic returned-item policy.",
+            local_applicability_note="Accepted by synthetic Treasury and Accounting reviewers.",
+            status=TreasuryCashPolicy.ACTIVE, created_by=self.treasury_user,
+            submitted_by=self.treasury_user, submitted_at=timezone.now(),
+            approved_by=self.validator, approved_at=timezone.now(),
+        )
+        case = self.ready_for_treasury("-returned")
+        instrument = issue_check(
+            case=case, actor=self.treasury_user, bank_account_code="gf-lbp", fund_code="general-fund",
+            check_number="F84-RETURNED-1", amount=Decimal("900.00"),
+            expected_version=case.state_version, idempotency_key="f84-returned-issue",
+        )
+        case.refresh_from_db()
+        submit_checks_for_advice(
+            case=case, actor=self.treasury_user,
+            expected_version=case.state_version, idempotency_key="f84-returned-submit",
+        )
+        case.refresh_from_db()
+        batch = finalize_bank_advice(
+            case=case, actor=self.preparer, advice_number="F84-RETURNED-ADV",
+            advice_date=date(2026, 8, 31), expected_version=case.state_version,
+            idempotency_key="f84-returned-advice",
+            preparation_note="Synthetic returned-item advice preparation.",
+            authority_reference="Synthetic locally reviewed advice procedure.",
+            local_applicability_note="Accepted by the synthetic Accounting, Treasury, and bank owners.",
+        )
+        self.acknowledge_advice(batch)
+        case.refresh_from_db(); instrument.refresh_from_db()
+        release_check(
+            case=case, instrument=instrument, actor=self.treasury_user,
+            claimant=self.claimant, receipt_reference="F84-RELEASE-RECEIPT",
+            expected_version=case.state_version, idempotency_key="f84-returned-release",
+        )
+        case.refresh_from_db()
+        payment_request = case.posting_requests.get(
+            kind=VoucherPostingRequest.PAYMENT,
+            trigger_key=f"payment-instrument:{instrument.public_id}:released",
+        )
+        payment_entry, _created = materialize_voucher_journal(payment_request, self.preparer)
+        submit_entry(payment_entry, self.preparer)
+        payment_entry.refresh_from_db(); post_entry(payment_entry, self.validator)
+        payment_entry.refresh_from_db(); reconcile_posted_voucher_entry(payment_entry, self.validator)
+        case.refresh_from_db(); instrument.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.COMPLETED)
+        exception = open_instrument_exception(
+            instrument=instrument, actor=self.treasury_user, kind=PaymentInstrumentException.RETURNED,
+            observed_on=date(2026, 8, 31), reason="Bank returned the released check unpaid.",
+            evidence_reference="Bank debit/return memorandum F84-RM-01.",
+        )
+        review = exception.accounting_reviews.get()
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_RETURNED_ITEM)
+        decide_returned_instrument(
+            review=review, actor=self.validator, approve=False,
+            decision_reason="Clarify the exact bank return memorandum reference.",
+            evidence_reference="Accounting review sheet F84-AR-01.",
+            expected_version=review.state_version,
+        )
+        review.refresh_from_db()
+        clarified = clarify_returned_instrument_review(
+            review=review, actor=self.treasury_user,
+            note="Confirmed unpaid return; corrected memorandum reference and attached bank copy.",
+            evidence_reference="Bank return memorandum F84-RM-01-CORRECTED.",
+            expected_version=review.state_version,
+        )
+        decide_returned_instrument(
+            review=clarified, actor=self.validator, approve=True,
+            outcome=ReturnedInstrumentReview.REISSUE,
+            decision_reason="Reverse the released-payment entry and restore the payable before replacement.",
+            evidence_reference="Accounting returned-item decision F84-AD-01.",
+            expected_version=clarified.state_version,
+        )
+        clarified.refresh_from_db(); instrument.refresh_from_db(); case.refresh_from_db()
+        self.assertEqual(clarified.status, ReturnedInstrumentReview.AWAITING_POSTING)
+        self.assertEqual(instrument.status, PaymentInstrument.BANK_RETURNED)
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_EVENT_POSTING)
+        reversal_request = clarified.posting_request
+        self.assertEqual(reversal_request.kind, VoucherPostingRequest.REVERSAL)
+        reversal_entry, _created = materialize_voucher_journal(reversal_request, self.preparer)
+        self.assertEqual(reversal_entry.lines.get(account__code="1-01-02").debit, Decimal("900.00"))
+        self.assertEqual(reversal_entry.lines.get(account__code="2-01-01").credit, Decimal("900.00"))
+        submit_entry(reversal_entry, self.preparer)
+        reversal_entry.refresh_from_db(); post_entry(reversal_entry, self.validator)
+        reversal_entry.refresh_from_db(); reconcile_posted_voucher_entry(reversal_entry, self.validator)
+        clarified.refresh_from_db(); case.refresh_from_db()
+        self.assertEqual(clarified.status, ReturnedInstrumentReview.READY_FOR_TREASURY)
+        self.assertEqual(case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
+        replacement = issue_check(
+            case=case, actor=self.treasury_user, bank_account_code="gf-lbp", fund_code="general-fund",
+            check_number="F84-RETURNED-2", amount=Decimal("900.00"), replaces=instrument,
+            expected_version=case.state_version, idempotency_key="f84-returned-replacement",
+        )
+        clarified.refresh_from_db(); exception.refresh_from_db(); instrument.refresh_from_db()
+        self.assertEqual(replacement.replaces, instrument)
+        self.assertEqual(clarified.status, ReturnedInstrumentReview.CLOSED)
+        self.assertEqual(exception.status, PaymentInstrumentException.RESOLVED)
+        self.assertEqual(instrument.operational_status, PaymentInstrument.NORMAL)
+
+    def test_f84_advice_workspace_starter_detail_and_trace_export_endpoints(self):
+        case = self.ready_for_treasury("-advice-ui")
+        instrument = issue_check(
+            case=case, actor=self.treasury_user, bank_account_code="gf-lbp",
+            fund_code="general-fund", check_number="F84-UI-1", amount=Decimal("900.00"),
+            expected_version=case.state_version, idempotency_key="f84-ui-issue",
+        )
+        case.refresh_from_db()
+        submit_checks_for_advice(
+            case=case, actor=self.treasury_user,
+            expected_version=case.state_version, idempotency_key="f84-ui-submit",
+        )
+        batch = create_advice_batch(
+            actor=self.preparer, advice_number="F84-UI-ADV", advice_date=date(2026, 8, 31),
+            instruments=[instrument], preparation_note="Synthetic UI advice preparation.",
+            authority_reference="Synthetic locally reviewed UI advice basis.",
+            local_applicability_note="Synthetic Accounting, Treasury, and bank owners accepted this UAT route.",
+        )
+        self.client.force_login(self.preparer)
+        self.assertContains(self.client.get(reverse("vouchers:advice_workspace")), "Bank advice and returned items")
+        self.assertContains(
+            self.client.get(reverse("vouchers:advice_detail", args=(batch.public_id,))),
+            "Retained instrument snapshot",
+        )
+        starter = self.client.get(reverse("vouchers:advice_starter"))
+        self.assertEqual(starter.status_code, 200)
+        self.assertIn(b"authority_reference", starter.content)
+        exported = self.client.get(reverse("vouchers:advice_batch_export", args=(batch.public_id,)))
+        self.assertEqual(exported.status_code, 200)
+        self.assertIn("X-GRAND-Export-Relative-Path", exported)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(reverse("vouchers:advice_workspace")).status_code, 403)
+
     def test_f83_cash_enforcement_reservation_ageing_and_portable_export(self):
         self.treasury_user.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="vouchers",
@@ -1488,10 +1805,14 @@ class VoucherWorkflowTests(TestCase):
             idempotency_key="f83-submit-advice",
         )
         case.refresh_from_db()
-        finalize_bank_advice(
-            case=case, actor=self.validator, advice_number="F83-ADV-1", advice_date=date(2026, 8, 31),
+        batch = finalize_bank_advice(
+            case=case, actor=self.preparer, advice_number="F83-ADV-1", advice_date=date(2026, 8, 31),
             expected_version=case.state_version, idempotency_key="f83-finalize-advice",
+            preparation_note="Synthetic F8.3 instrument-ageing advice.",
+            authority_reference="Synthetic locally reviewed bank-advice procedure.",
+            local_applicability_note="Accepted for controlled UAT by the synthetic process owners.",
         )
+        self.acknowledge_advice(batch)
         old_issue = timezone.now() - timedelta(days=181)
         PaymentInstrument.objects.filter(pk=instrument.pk).update(issued_at=old_issue)
         instrument.refresh_from_db()

@@ -1,11 +1,24 @@
 from django.urls import path
 
-from . import cash_views, remittance_views, views
+from . import advice_views, cash_views, remittance_views, views
 
 app_name = "vouchers"
 
 urlpatterns = [
     path("", views.workspace, name="workspace"),
+    path("bank-advice/", advice_views.workspace, name="advice_workspace"),
+    path("bank-advice/new/", advice_views.create, name="advice_create"),
+    path("bank-advice/starter.csv", advice_views.starter, name="advice_starter"),
+    path("bank-advice/export/", advice_views.export, name="advice_export"),
+    path("bank-advice/returned/<uuid:public_id>/decide/", advice_views.returned_decide, name="returned_instrument_decide"),
+    path("bank-advice/returned/<uuid:public_id>/clarify/", advice_views.returned_clarify, name="returned_instrument_clarify"),
+    path("bank-advice/<uuid:public_id>/", advice_views.detail, name="advice_detail"),
+    path("bank-advice/<uuid:public_id>/successor/", advice_views.successor, name="advice_successor"),
+    path("bank-advice/<uuid:public_id>/submit-review/", advice_views.submit_review, name="advice_submit_review"),
+    path("bank-advice/<uuid:public_id>/review/", advice_views.review, name="advice_review"),
+    path("bank-advice/<uuid:public_id>/submit-bank/", advice_views.submit_bank, name="advice_submit_bank"),
+    path("bank-advice/<uuid:public_id>/bank-response/", advice_views.bank_response, name="advice_bank_response"),
+    path("bank-advice/<uuid:public_id>/export/", advice_views.export, name="advice_batch_export"),
     path("cash-position/", cash_views.workspace, name="cash_workspace"),
     path("cash-position/starter.csv", cash_views.starter, name="cash_starter"),
     path("cash-position/new-policy/", cash_views.policy_create, name="cash_policy_create"),

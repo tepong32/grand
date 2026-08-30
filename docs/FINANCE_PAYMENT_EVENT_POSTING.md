@@ -10,6 +10,7 @@ Each transaction variant must now contain reviewed decisions for initial recogni
 - cancellation before release: explicit no-entry starter;
 - replacement before release: explicit no-entry starter; and
 - deduction/withholding remittance: debit the remitted deduction payable lines and credit the mapped bank/cash account.
+- returned released payment: debit the mapped bank/cash account and credit the payable to reverse the original release entry.
 
 Every starter begins with `EDIT BEFORE SUBMISSION`. Accounting must compare it with the locally accepted COA/local treatment, update its authority basis, and retain maker-checker release approval. GRAND blocks submission when an unresolved starter remains or a typed variant lacks complete lifecycle decisions.
 
@@ -28,7 +29,7 @@ The release action must not be repeated while Accounting is posting. Idempotent 
 
 Voucher convenience edits remain available only before payment-instrument issuance. Once a check exists, the user does not overwrite it or reuse its number. Treasury cancels or spoils it with a reason and creates a linked replacement.
 
-The pinned local event rule determines the Accounting effect. An explicit no-entry decision is retained as evidence and continues the Treasury route immediately; it is not displayed as missing work. If local policy requires a JEV instead, the case uses the same recoverable Accounting event-posting stage.
+The pinned local event rule determines the Accounting effect. An explicit no-entry decision is retained as evidence and continues the Treasury route immediately; it is not displayed as missing work. If local policy requires a JEV instead, the case uses the same recoverable Accounting event-posting stage. F8.4 uses that route after Treasury records bank-return evidence for a released check: Accounting may request clarification, decides Reissue or Close without reissue, and completes the reversal/no-entry decision before GRAND permits replacement.
 
 If a generated payment-event draft is discarded before posting, GRAND retains the voided draft and reason, reserves a new controlled JEV number, and creates a successor request. The physical check release is not repeated. After posting, corrections use linked reversal/adjustment entries rather than rewriting the posted JEV or voucher history.
 
@@ -44,4 +45,4 @@ The floating `?` window now explains the payment-event queue to Accounting prepa
 
 ## Remaining parent-phase acceptance
 
-This is an implemented synthetic control. Official use still requires locally accepted per-variant entries/no-entry decisions, redacted complete-case replay, account mapping and segregation review, named Accounting/Treasury acceptance, and comparison of the payment register with the exact approved local form. F8.1 now covers runtime remittance batches, F8.2 covers synthetic bank-statement reconciliation, and F8.3 covers synthetic cash position/reservation plus unclaimed/stale/returned classification. Broader payment methods/printing/custody, accepted thresholds/forms, advice acknowledgement, returned-item Accounting treatment, and named-office replay remain F8 acceptance work.
+This is an implemented synthetic control. Official use still requires locally accepted per-variant entries/no-entry decisions, redacted complete-case replay, account mapping and segregation review, named Accounting/Treasury acceptance, and comparison of the payment register with the exact approved local form. F8.1 covers runtime remittance batches, F8.2 covers synthetic bank-statement reconciliation, F8.3 covers cash position/reservation and instrument classification, and F8.4 covers advice acknowledgement plus returned-item Accounting/reissue orchestration. Broader payment methods/printing/custody, accepted thresholds/forms, prior-item carry-forward, and named-office replay remain F8 acceptance work.

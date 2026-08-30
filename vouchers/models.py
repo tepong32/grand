@@ -46,6 +46,7 @@ class VoucherCase(models.Model):
     ACCOUNTING_VALIDATION = "accounting_validation"
     ACCOUNTING_POSTING = "accounting_posting"
     ACCOUNTING_EVENT_POSTING = "accounting_event_posting"
+    ACCOUNTING_RETURNED_ITEM = "accounting_returned_item"
     TREASURY_CHECK_PREPARATION = "treasury_check_preparation"
     ACCOUNTING_BANK_ADVICE = "accounting_bank_advice"
     TREASURY_RELEASE = "treasury_release"
@@ -60,6 +61,7 @@ class VoucherCase(models.Model):
         (ACCOUNTING_VALIDATION, "Accounting validation"),
         (ACCOUNTING_POSTING, "Accounting JEV posting"),
         (ACCOUNTING_EVENT_POSTING, "Accounting payment-event JEV posting"),
+        (ACCOUNTING_RETURNED_ITEM, "Accounting returned-instrument review"),
         (TREASURY_CHECK_PREPARATION, "Treasury check preparation"),
         (ACCOUNTING_BANK_ADVICE, "Accounting bank advice"),
         (TREASURY_RELEASE, "Treasury check release"),
@@ -109,6 +111,13 @@ class VoucherCase(models.Model):
             ("validate_accounting_voucher", "Can validate accounting vouchers and JEV references"),
             ("issue_payment_instruments", "Can issue checks and payment instruments"),
             ("finalize_bank_advice", "Can finalize accountant bank advice"),
+            ("view_bank_advice", "Can view bank-advice and returned-instrument evidence"),
+            ("prepare_bank_advice", "Can prepare versioned bank-advice batches"),
+            ("approve_bank_advice", "Can independently review bank-advice batches"),
+            ("submit_bank_advice", "Can record bank-advice submission evidence"),
+            ("acknowledge_bank_advice", "Can record bank acknowledgement or return evidence"),
+            ("review_returned_instruments", "Can decide the Accounting treatment of returned instruments"),
+            ("export_bank_advice", "Can export bank-advice and returned-item evidence"),
             ("release_payment_instruments", "Can release checks and payment instruments"),
             ("manage_payment_exceptions", "Can cancel and replace payment instruments"),
             ("view_cash_position", "Can view Treasury cash positions and instrument ageing"),
@@ -560,8 +569,15 @@ class PaymentInstrument(models.Model):
     ISSUED = "issued"
     ADVISED = "advised"
     RELEASED = "released"
+    BANK_RETURNED = "bank_returned"
     CANCELLED = "cancelled"
-    STATUS_CHOICES = ((DRAFT, "Draft"), (ISSUED, "Issued"), (ADVISED, "Included in finalized advice"), (RELEASED, "Released"), (CANCELLED, "Cancelled / spoiled"))
+    STATUS_CHOICES = (
+        (DRAFT, "Draft"), (ISSUED, "Issued"),
+        (ADVISED, "Included in an approved advice"),
+        (RELEASED, "Released"),
+        (BANK_RETURNED, "Returned by bank after release"),
+        (CANCELLED, "Cancelled / spoiled"),
+    )
 
     NORMAL = "normal"
     UNCLAIMED = "unclaimed"
@@ -593,6 +609,11 @@ class PaymentInstrument(models.Model):
     released_to = models.CharField(max_length=220, blank=True)
     released_to_claimant = models.ForeignKey(FinancePartyClaimant, on_delete=models.PROTECT, null=True, blank=True, related_name="released_payment_instruments")
     receipt_reference = models.CharField(max_length=120, blank=True)
+    current_advice_batch = models.ForeignKey(
+        "BankAdviceBatch", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="current_instruments",
+        help_text="Latest governed advice version carrying this instrument.",
+    )
 
     class Meta:
         ordering = ("check_number", "pk")
@@ -604,27 +625,164 @@ class PaymentInstrument(models.Model):
 
 class BankAdviceBatch(models.Model):
     DRAFT = "draft"
-    FINALIZED = "finalized"
-    STATUS_CHOICES = ((DRAFT, "Draft"), (FINALIZED, "Finalized"))
+    FOR_REVIEW = "for_review"
+    REVIEW_RETURNED = "review_returned"
+    APPROVED = "approved"
+    SUBMITTED = "submitted"
+    ACKNOWLEDGED = "acknowledged"
+    RETURNED = "returned"
+    SUPERSEDED = "superseded"
+    FINALIZED = "finalized"  # Compatibility with pre-F8.4 rows during migration.
+    STATUS_CHOICES = (
+        (DRAFT, "Prepared draft"),
+        (FOR_REVIEW, "For independent Accounting review"),
+        (REVIEW_RETURNED, "Returned by Accounting reviewer"),
+        (APPROVED, "Approved for bank submission"),
+        (SUBMITTED, "Submitted to bank"),
+        (ACKNOWLEDGED, "Acknowledged by bank"),
+        (RETURNED, "Returned by bank for correction"),
+        (SUPERSEDED, "Superseded by corrected version"),
+    )
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    advice_number = models.CharField(max_length=60, unique=True)
+    advice_number = models.CharField(max_length=60)
     advice_date = models.DateField()
     bank_account_code = models.CharField(max_length=80)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
     version = models.PositiveIntegerField(default=1)
+    supersedes = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor",
+    )
+    configuration_release = models.ForeignKey(
+        FinanceConfigurationRelease, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="bank_advice_batches",
+    )
+    accounting_department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="bank_advice_batches",
+    )
+    preparation_note = models.TextField(blank=True)
+    authority_reference = models.TextField(blank=True)
+    local_applicability_note = models.TextField(blank=True)
+    item_count = models.PositiveIntegerField(default=0)
+    total_amount = models.DecimalField(**MONEY)
+    snapshot_checksum = models.CharField(max_length=64, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_bank_advice_batches")
     created_at = models.DateTimeField(auto_now_add=True)
+    review_submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="review_submitted_bank_advice_batches",
+    )
+    review_submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="approved_bank_advice_batches",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    bank_submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="bank_submitted_advice_batches",
+    )
+    bank_submitted_at = models.DateTimeField(null=True, blank=True)
+    submission_reference = models.CharField(max_length=160, blank=True)
+    submission_evidence_reference = models.TextField(blank=True)
+    acknowledged_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="acknowledged_bank_advice_batches",
+    )
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    acknowledgement_reference = models.CharField(max_length=160, blank=True)
+    acknowledgement_evidence_reference = models.TextField(blank=True)
+    returned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="returned_bank_advice_batches",
+    )
+    returned_at = models.DateTimeField(null=True, blank=True)
+    return_reason = models.TextField(blank=True)
+    return_evidence_reference = models.TextField(blank=True)
+    state_version = models.PositiveIntegerField(default=1)
+    # Retained for reproducibility of batches finalized before F8.4.
     finalized_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="finalized_bank_advice_batches")
     finalized_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("-advice_date", "-pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("advice_number", "version"), name="unique_bank_advice_number_version",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.advice_number} · v{self.version} · {self.bank_account_code}"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "advice_number", "advice_date", "bank_account_code", "version", "supersedes_id",
+                "configuration_release_id", "accounting_department_id", "preparation_note",
+                "authority_reference", "local_applicability_note", "item_count", "total_amount",
+                "snapshot_checksum", "created_by_id", "created_at",
+            )
+            if prior.status != self.DRAFT and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("A submitted bank-advice version is immutable. Prepare a reasoned successor.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Bank-advice history cannot be deleted. Prepare a successor version instead.")
 
 
 class BankAdviceItem(models.Model):
     batch = models.ForeignKey(BankAdviceBatch, on_delete=models.PROTECT, related_name="items")
-    instrument = models.OneToOneField(PaymentInstrument, on_delete=models.PROTECT, related_name="advice_item")
+    instrument = models.ForeignKey(PaymentInstrument, on_delete=models.PROTECT, related_name="advice_items")
+    instrument_public_id_snapshot = models.UUIDField(null=True, blank=True)
+    check_number_snapshot = models.CharField(max_length=60, blank=True)
+    fund_code_snapshot = models.CharField(max_length=80, blank=True)
+    amount_snapshot = models.DecimalField(**MONEY)
+    issued_at_snapshot = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("check_number_snapshot", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("batch", "instrument"), name="unique_instrument_per_advice_version"),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Bank-advice item snapshots are immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Bank-advice item history cannot be deleted.")
+
+
+class BankAdviceEvent(models.Model):
+    batch = models.ForeignKey(BankAdviceBatch, on_delete=models.PROTECT, related_name="events")
+    instrument = models.ForeignKey(
+        PaymentInstrument, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="bank_advice_events",
+    )
+    action = models.CharField(max_length=80)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="bank_advice_events")
+    actor_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="bank_advice_events")
+    reason = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Bank-advice history is append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Bank-advice history cannot be deleted.")
 
 
 class TreasuryCashPolicy(models.Model):
@@ -939,6 +1097,97 @@ class PaymentInstrumentException(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Instrument exception history cannot be deleted.")
+
+
+class ReturnedInstrumentReview(models.Model):
+    AWAITING_REVIEW = "awaiting_review"
+    RETURNED_FOR_CLARIFICATION = "returned"
+    AWAITING_POSTING = "awaiting_posting"
+    READY_FOR_TREASURY = "ready_for_treasury"
+    CLOSED = "closed"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (AWAITING_REVIEW, "Awaiting independent Accounting review"),
+        (RETURNED_FOR_CLARIFICATION, "Returned to Treasury for clarification"),
+        (AWAITING_POSTING, "Awaiting returned-item JEV posting"),
+        (READY_FOR_TREASURY, "Accounting complete; replacement authorized"),
+        (CLOSED, "Accounting complete; no replacement"),
+        (SUPERSEDED, "Superseded by clarified version"),
+    )
+    REISSUE = "reissue"
+    CLOSE_WITHOUT_REISSUE = "close"
+    OUTCOME_CHOICES = (
+        (REISSUE, "Authorize a controlled replacement instrument"),
+        (CLOSE_WITHOUT_REISSUE, "Close without a replacement instrument"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    exception = models.ForeignKey(
+        PaymentInstrumentException, on_delete=models.PROTECT, related_name="accounting_reviews",
+    )
+    case = models.ForeignKey(VoucherCase, on_delete=models.PROTECT, related_name="returned_instrument_reviews")
+    instrument = models.ForeignKey(
+        PaymentInstrument, on_delete=models.PROTECT, related_name="returned_accounting_reviews",
+    )
+    original_payment_request = models.ForeignKey(
+        VoucherPostingRequest, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="returned_instrument_source_reviews",
+    )
+    posting_request = models.OneToOneField(
+        VoucherPostingRequest, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="returned_instrument_review",
+    )
+    status = models.CharField(max_length=28, choices=STATUS_CHOICES, default=AWAITING_REVIEW)
+    outcome = models.CharField(max_length=16, choices=OUTCOME_CHOICES, blank=True)
+    treasury_evidence_reference = models.TextField()
+    treasury_note = models.TextField()
+    accounting_decision_reason = models.TextField(blank=True)
+    accounting_evidence_reference = models.TextField(blank=True)
+    version = models.PositiveIntegerField(default=1)
+    supersedes = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor",
+    )
+    prepared_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="prepared_returned_instrument_reviews",
+    )
+    prepared_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_returned_instrument_reviews",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="closed_returned_instrument_reviews",
+    )
+    closed_at = models.DateTimeField(null=True, blank=True)
+    state_version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ("-prepared_at", "-version", "-pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("exception", "version"), name="unique_returned_instrument_review_version",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.instrument.check_number} · returned review v{self.version}"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            immutable = (
+                "exception_id", "case_id", "instrument_id", "original_payment_request_id",
+                "treasury_evidence_reference", "treasury_note", "version", "supersedes_id",
+                "prepared_by_id", "prepared_at",
+            )
+            if any(getattr(prior, field) != getattr(self, field) for field in immutable):
+                raise ValidationError("Returned-instrument source evidence is immutable. Prepare a clarified successor.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Returned-instrument Accounting history cannot be deleted.")
 
 
 class TreasuryCashEvent(models.Model):

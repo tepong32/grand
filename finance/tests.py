@@ -365,6 +365,7 @@ class FinanceSetupCenterTests(TestCase):
                 FinancePostingRule.REMITTANCE,
                 FinancePostingRule.CANCELLATION,
                 FinancePostingRule.REPLACEMENT,
+                FinancePostingRule.REVERSAL,
             },
         )
         cancellation = variant.posting_rules.get(event_kind=FinancePostingRule.CANCELLATION)

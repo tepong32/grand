@@ -298,6 +298,7 @@ class FinancePostingRule(models.Model):
     DV_VALIDATION = "dv_validation"
     PAYMENT_ISSUANCE = "payment_issuance"
     PAYMENT_RELEASE = "payment_release"
+    PAYMENT_RETURN = "payment_return"
     PAYMENT_CANCELLATION = "payment_cancellation"
     PAYMENT_REPLACEMENT = "payment_replacement"
     DEDUCTION_REMITTANCE = "deduction_remittance"
@@ -310,6 +311,7 @@ class FinancePostingRule(models.Model):
         (DV_VALIDATION, "DV Accounting validation"),
         (PAYMENT_ISSUANCE, "Check / payment-instrument issuance"),
         (PAYMENT_RELEASE, "Actual payment release"),
+        (PAYMENT_RETURN, "Bank-returned payment instrument"),
         (PAYMENT_CANCELLATION, "Payment-instrument cancellation"),
         (PAYMENT_REPLACEMENT, "Replacement payment-instrument issuance"),
         (DEDUCTION_REMITTANCE, "Deduction / withholding remittance"),

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div>
+      <p class="text-uppercase text-primary small font-weight-bold mb-1">Accounting · Treasury · bank evidence</p>
+      <h1 class="h3 mb-1">Bank advice and returned items</h1>
+      <p class="text-muted mb-0">Prepare familiar advice lists, retain independent review and bank responses, and route returned payments back through Accounting.</p>
+    </div>
+    <div class="mt-2">
+      {% if can_prepare %}<a class="btn btn-primary" href="{% url 'vouchers:advice_create' %}">Prepare advice</a>{% endif %}
+      <a class="btn btn-outline-secondary" href="{% url 'vouchers:advice_starter' %}">Download editable starter</a>
+      {% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'vouchers:advice_export' %}">Export evidence</a>{% endif %}
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Release gate:</strong> approving or submitting an advice does not release a check. Treasury receives the case only after the bank acknowledgement reference and retained evidence are recorded.
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Advice versions</h2></div>
+    <div class="card-body p-0">
+      <div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>Advice</th><th>Bank</th><th>Items / total</th><th>Status</th><th>Latest evidence</th></tr></thead>
+        <tbody>
+          {% for batch in batches %}
+          <tr>
+            <td><a href="{% url 'vouchers:advice_detail' batch.public_id %}"><strong>{{ batch.advice_number }}</strong></a><div class="small text-muted">{{ batch.advice_date|date:'M j, Y' }} · version {{ batch.version }}</div></td>
+            <td>{{ batch.bank_account_code }}</td>
+            <td>{{ batch.item_count }} · {{ batch.total_amount }}</td>
+            <td><span class="badge {% if batch.status == 'acknowledged' %}badge-success{% elif batch.status == 'returned' or batch.status == 'review_returned' %}badge-danger{% elif batch.status == 'submitted' or batch.status == 'for_review' %}badge-warning{% else %}badge-info{% endif %}">{{ batch.get_status_display }}</span></td>
+            <td class="small">{% if batch.acknowledgement_reference %}{{ batch.acknowledgement_reference }}{% elif batch.submission_reference %}{{ batch.submission_reference }}{% elif batch.review_note %}{{ batch.review_note|truncatechars:90 }}{% else %}<span class="text-muted">Prepared snapshot only</span>{% endif %}</td>
+          </tr>
+          {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">No bank-advice version is visible in this office queue.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="card card-outline card-warning">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Returned released instruments</h2></div>
+    <div class="card-body">
+      {% for review in returned_reviews %}
+        <div class="border rounded p-3 mb-3">
+          <div class="d-flex flex-wrap justify-content-between">
+            <div><strong>{{ review.instrument.check_number }}</strong> · {{ review.instrument.amount }}<div class="small text-muted"><a href="{{ review.case.get_absolute_url }}">{{ review.case.reference_code }}</a> · review v{{ review.version }}</div></div>
+            <span class="badge badge-{% if review.status == 'closed' %}success{% elif review.status == 'returned' %}danger{% elif review.status == 'ready_for_treasury' %}info{% else %}warning{% endif %}">{{ review.get_status_display }}</span>
+          </div>
+          <dl class="row small mt-3 mb-2"><dt class="col-sm-3">Treasury evidence</dt><dd class="col-sm-9">{{ review.treasury_evidence_reference }}<br>{{ review.treasury_note }}</dd>{% if review.accounting_decision_reason %}<dt class="col-sm-3">Accounting decision</dt><dd class="col-sm-9">{{ review.accounting_decision_reason }}<br>{{ review.accounting_evidence_reference }}</dd>{% endif %}</dl>
+          {% if can_review_returns and review.status == 'awaiting_review' %}
+            <form method="post" action="{% url 'vouchers:returned_instrument_decide' review.public_id %}" class="border-top pt-3">
+              {% csrf_token %}
+              {% with form=review.decision_form %}{% endwith %}
+              <input type="hidden" name="state_version" value="{{ review.state_version }}">
+              <div class="form-row"><div class="form-group col-md-4"><label>Decision</label><select class="form-control" name="decision"><option value="approve">Complete Accounting decision</option><option value="return">Return for clarification</option></select></div><div class="form-group col-md-4"><label>Treasury outcome</label><select class="form-control" name="outcome"><option value="">Choose when approving</option><option value="reissue">Authorize controlled replacement</option><option value="close">Close without replacement</option></select></div><div class="form-group col-md-4"><label>Evidence reference</label><input class="form-control" name="evidence_reference" required></div></div>
+              <div class="form-group"><label>Accounting decision basis / clarification instruction</label><textarea class="form-control" name="decision_reason" rows="2" required></textarea></div>
+              <button class="btn btn-warning" type="submit">Record Accounting decision</button>
+            </form>
+          {% elif review.status == 'returned' %}
+            <form method="post" action="{% url 'vouchers:returned_instrument_clarify' review.public_id %}" class="border-top pt-3">
+              {% csrf_token %}<input type="hidden" name="state_version" value="{{ review.state_version }}">
+              <div class="form-group"><label>Treasury clarification</label><textarea class="form-control" name="note" rows="2" required></textarea></div>
+              <div class="form-group"><label>Clarification evidence reference</label><textarea class="form-control" name="evidence_reference" rows="2" required></textarea></div>
+              <button class="btn btn-outline-warning" type="submit">Create clarified successor</button>
+            </form>
+          {% endif %}
+        </div>
+      {% empty %}<p class="text-muted mb-0">No returned released instrument is waiting in this office queue.</p>{% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

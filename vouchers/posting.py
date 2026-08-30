@@ -349,6 +349,9 @@ def reconcile_posted_voucher_entry(entry, actor):
     request.posted_at = entry.posted_at or timezone.now()
     request.save(update_fields=("status", "accounting_entry_public_id", "failure_reason", "posted_at"))
 
+    from .advice import complete_returned_review_after_posting
+    complete_returned_review_after_posting(posting_request=request, actor=actor)
+
     case = VoucherCase.objects.select_for_update().get(pk=request.case_id)
     from .services import _advance
     if case.current_stage == VoucherCase.ACCOUNTING_POSTING:

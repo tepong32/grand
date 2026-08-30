@@ -48,7 +48,13 @@ Financial authority is explicit. Department assignment or platform superuser sta
 | Link TracePoint item | `vouchers.link_tracepoint_custody` |
 | Validate DV/JEV reference | `vouchers.validate_accounting_voucher` |
 | Issue and submit checks | `vouchers.issue_payment_instruments` |
-| Finalize bank advice | `vouchers.finalize_bank_advice` |
+| View bank advice | `vouchers.view_bank_advice` |
+| Prepare bank advice | `vouchers.prepare_bank_advice` |
+| Review bank advice independently | `vouchers.approve_bank_advice` |
+| Submit approved advice to bank | `vouchers.submit_bank_advice` |
+| Record bank acknowledgement/return | `vouchers.acknowledge_bank_advice` |
+| Review returned released instruments | `vouchers.review_returned_instruments` |
+| Export retained advice evidence | `vouchers.export_bank_advice` |
 | Release advised checks | `vouchers.release_payment_instruments` |
 | Cancel/replace checks | `vouchers.manage_payment_exceptions` |
 | Return same case | `vouchers.return_voucher_case` |
@@ -90,8 +96,8 @@ Django Admin exposes only read-only voucher support evidence, read-only finance 
 3. GRAND snapshots ordered, currently effective signatories. Staff record return of the actual wet-signed paper; GRAND does not claim that the clerk's entry is a digital signature. The current route does not yet make official printing, packet assembly, or TracePoint activation mandatory states.
 4. A different Accounting validator accepts the voucher and creates a checksum-backed posting request. Accounting then materializes balanced GRAND journal lines, submits the entry, and an independently authorized poster posts it before the case moves to Treasury.
 5. Treasury registers one or more physical checks. Active checks must exactly reconcile to the DV net before advice.
-6. Accounting finalizes an immutable advice batch for one bank account. Treasury may release only advised checks to an active authorized claimant.
-7. Cancellation preserves the spoiled number and sends the same case back for replacement. Correction returns retain the DV number and earlier signature rounds.
+6. Accounting prepares a checksum-backed, multi-case advice version for one bank account and Finance Setup release; a different Accounting reviewer approves or returns it. Treasury records actual bank submission, and Accounting records the bank's acknowledgement or return. Treasury may release only checks whose current advice is acknowledged.
+7. A review- or bank-returned advice is corrected through a reason-required successor; the retained version is never overwritten. Cancellation preserves a spoiled pre-release number. A returned released check reopens the same case for Accounting reversal/no-entry and reissue/close decision before replacement.
 
 Every consequential service uses a database transaction, row lock, expected state version, and idempotency key. Duplicate submissions return the recorded result; stale pages must reload.
 
