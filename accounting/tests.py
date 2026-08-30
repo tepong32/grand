@@ -877,3 +877,24 @@ class StandaloneAccountingTests(TestCase):
         response = self.client.get(reverse("accounting:ledger"))
         self.assertContains(response, posted.reference)
         self.assertNotContains(response, draft.reference)
+
+    def test_ledger_and_trial_balance_exports_are_trace_sync_ready(self):
+        posted = self._entry(reference="SYN-JEV-EXPORT")
+        submit_entry(posted, self.preparer)
+        post_entry(posted, self.poster)
+        self.client.force_login(self.poster)
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            ledger = self.client.get(reverse("accounting:ledger_export"), {"account": self.cash.pk})
+            trial = self.client.get(reverse("accounting:trial_balance_export"))
+            self.assertEqual(ledger.status_code, 200)
+            self.assertEqual(trial.status_code, 200)
+            self.assertEqual(ledger["X-GRAND-Export-Archived"], "true")
+            self.assertEqual(trial["X-GRAND-Export-Archived"], "true")
+            self.assertIn("SYN-JEV-EXPORT", ledger.content.decode("utf-8"))
+            self.assertIn("SYN-101", trial.content.decode("utf-8"))
+            for response in (ledger, trial):
+                artifact = Path(export_root) / response["X-GRAND-Export-Relative-Path"]
+                self.assertTrue(artifact.exists())
+                self.assertTrue(Path(str(artifact) + ".manifest.json").exists())
+            self.assertTrue((Path(export_root) / "GRAND_EXPORT_ROOT.json").exists())
+        self.assertEqual(AccountingAuditEvent.objects.filter(action="report_exported").count(), 2)

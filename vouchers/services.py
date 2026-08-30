@@ -16,9 +16,12 @@ from django.utils import timezone
 from finance.exemptions import workflow_exemption_for, workflow_exemption_snapshot
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
-    FinanceSignatory, FinanceTransactionVariant, FinanceWorkflowExemption,
+    FinancePostingRule, FinanceSignatory, FinanceTransactionVariant, FinanceWorkflowExemption,
 )
-from finance.services import FinanceTemplateError, _destination, inspect_finance_workbook, verify_template_evidence
+from finance.services import (
+    FinanceTemplateError, _destination, inspect_finance_workbook, posting_rule_snapshot,
+    verify_template_evidence,
+)
 from profiles.models import EmployeeProfile
 from src.export_archive import archive_export
 
@@ -1276,19 +1279,72 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
                     "or an active administrator-authorized workflow exemption."
                 )
             workflow_exemption = workflow_exemption_snapshot(exemption)
+    try:
+        intake = case.payable_intake
+    except PayableIntake.DoesNotExist:
+        intake = None
+    if intake is not None and intake.status != PayableIntake.READY:
+        raise VoucherWorkflowError("Accounting cannot post until the payable intake is payment-ready.")
+    decision_event = {
+        PayableIntake.RECOGNIZE_WITH_DV: FinancePostingRule.RECOGNITION,
+        PayableIntake.LIQUIDATION_DECISION: FinancePostingRule.LIQUIDATION,
+    }
+    recognition_decision = intake.recognition_decision if intake is not None else "legacy_pre_f5_recognize_with_dv"
+    recognition_basis = (
+        intake.recognition_basis if intake is not None
+        else "Legacy voucher route created without a payable-intake record; apply the pinned DV-validation rule."
+    )
+    if recognition_decision == PayableIntake.ACCRUE_BEFORE_SETTLEMENT:
+        raise VoucherWorkflowError(
+            "This case requires an earlier accrual JEV. Link that posted payable before settlement; do not record it again as DV recognition."
+        )
+    if recognition_decision == PayableIntake.SETTLE_EXISTING_PAYABLE:
+        raise VoucherWorkflowError(
+            "This case settles an existing payable. Link the prior posted payable before creating the settlement JEV."
+        )
+    event_kind = (
+        FinancePostingRule.RECOGNITION
+        if recognition_decision == "legacy_pre_f5_recognize_with_dv"
+        else decision_event.get(recognition_decision)
+    )
+    if not event_kind:
+        raise VoucherWorkflowError("The payable intake does not contain a supported governed recognition decision.")
+    if not case.configuration_release_id:
+        raise VoucherWorkflowError("This voucher has no pinned Finance Setup release for its posting policy.")
+    variant = case.configuration_release.transaction_variants.filter(
+        code=case.transaction_type, status__in=("approved", "scheduled", "active", "superseded"),
+    ).first()
+    if variant is None:
+        raise VoucherWorkflowError(
+            f"The pinned Finance Setup release has no governed transaction variant for '{case.transaction_type}'."
+        )
+    posting_rule = variant.posting_rules.filter(event_kind=event_kind).first()
+    if posting_rule is None:
+        raise VoucherWorkflowError(
+            f"{variant.label} has no governed {event_kind} posting rule in the pinned Finance Setup release."
+        )
+    if event_kind == FinancePostingRule.RECOGNITION and posting_rule.recognition_point != FinancePostingRule.DV_VALIDATION:
+        raise VoucherWorkflowError(
+            "This recognition rule belongs to an earlier or later accounting point and cannot be silently executed at DV validation."
+        )
+    rule_snapshot, rule_checksum = posting_rule_snapshot(posting_rule)
     AccountingValidation.objects.create(
         case=case, decision=AccountingValidation.ACCEPTED, jev_number=jev_number.strip(), jev_date=jev_date,
         note=note.strip(), validated_by=actor, validated_at=timezone.now(),
     )
     voucher = case.disbursement_voucher
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "voucher_case_public_id": str(case.public_id),
         "voucher_reference": case.reference_code,
         "dv_number": voucher.dv_number,
         "jev_number": jev_number.strip(),
         "jev_date": jev_date.isoformat(),
         "transaction_type": case.transaction_type,
+        "recognition_decision": recognition_decision,
+        "recognition_basis": recognition_basis,
+        "posting_rule_public_id": str(posting_rule.public_id),
+        "posting_rule_checksum": rule_checksum,
         "payee_name": case.payee_name,
         "particulars": case.particulars,
         "gross_amount": str(voucher.gross_amount),
@@ -1313,11 +1369,16 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
     department = department_for_user(actor)
     request = VoucherPostingRequest(
         case=case,
+        kind=event_kind,
         version=version,
         jev_number=jev_number.strip(),
         jev_date=jev_date,
         finance_department_id=department.pk,
         finance_department_label=department.name,
+        posting_rule=posting_rule,
+        posting_rule_public_id_snapshot=str(posting_rule.public_id),
+        posting_rule_snapshot=rule_snapshot,
+        posting_rule_checksum=rule_checksum,
         payload=payload,
         payload_checksum=checksum,
         requested_by=actor,
@@ -1328,6 +1389,8 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         "jev_number": jev_number,
         "posting_request": str(request.public_id),
         "payload_checksum": checksum,
+        "posting_rule": str(posting_rule.public_id),
+        "posting_rule_checksum": rule_checksum,
     }
     if case_override:
         event_metadata["case_override"] = case_override

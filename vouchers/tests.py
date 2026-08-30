@@ -20,8 +20,8 @@ from accounting.models import AccountingPeriod, Fund, JournalEntry, LedgerAccoun
 from accounting.services import post_entry, submit_entry
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
-    FinanceParty, FinancePartyClaimant, FinanceSignatory, FinanceTemplateVersion,
-    FinanceWorkflowExemption,
+    FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
+    FinanceSignatory, FinanceTemplateVersion, FinanceTransactionVariant, FinanceWorkflowExemption,
 )
 from finance.services import preflight_finance_template
 from openpyxl import Workbook
@@ -31,7 +31,7 @@ from tracepoint.models import PacketItem, TrackedPacket
 
 from .access import can_view_workbench
 from .models import (
-    PaymentInstrument, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
+    PayableIntake, PaymentInstrument, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
     VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
 )
 from .posting import materialize_voucher_journal, reconcile_posted_voucher_entry
@@ -136,6 +136,40 @@ class VoucherWorkflowTests(TestCase):
                 department=cls.accounting, release=cls.release, category=category, code=code,
                 version=1, label=label, status="active", effective_from=date(2026, 1, 1), created_by=cls.preparer,
             )
+        cls.transaction_variant = FinanceTransactionVariant.objects.create(
+            department=cls.accounting, release=cls.release, code="ordinary-supplier-claim",
+            label="Ordinary supplier claim", kind=FinanceTransactionVariant.ORDINARY_SUPPLIER,
+            description="Synthetic supplier payable route.",
+            authority_reference="Synthetic locally reviewed accounting basis.",
+            effective_from=date(2026, 1, 1), status="active", created_by=cls.preparer,
+        )
+        cls.recognition_rule = FinancePostingRule.objects.create(
+            variant=cls.transaction_variant, code="ordinary-supplier-recognition",
+            title="Recognize ordinary supplier claim", event_kind=FinancePostingRule.RECOGNITION,
+            recognition_point=FinancePostingRule.DV_VALIDATION,
+            description="Debit reviewed allocations and credit deductions plus the net payable.",
+            authority_reference="Synthetic locally reviewed recognition policy.", created_by=cls.preparer,
+        )
+        FinancePostingRuleLine.objects.bulk_create((
+            FinancePostingRuleLine(
+                rule=cls.recognition_rule, sequence=10, label="Reviewed allocations",
+                side=FinancePostingRuleLine.DEBIT,
+                account_source=FinancePostingRuleLine.ALLOCATION_ACCOUNTS,
+                amount_source=FinancePostingRuleLine.EACH_ALLOCATION,
+            ),
+            FinancePostingRuleLine(
+                rule=cls.recognition_rule, sequence=20, label="Deductions payable",
+                side=FinancePostingRuleLine.CREDIT,
+                account_source=FinancePostingRuleLine.DEDUCTION_MAPPINGS,
+                amount_source=FinancePostingRuleLine.EACH_DEDUCTION,
+            ),
+            FinancePostingRuleLine(
+                rule=cls.recognition_rule, sequence=30, label="Net transaction payable",
+                side=FinancePostingRuleLine.CREDIT,
+                account_source=FinancePostingRuleLine.PAYABLE_MAPPING,
+                amount_source=FinancePostingRuleLine.NET,
+            ),
+        ))
         for document_type, prefix in (("obr", "OBR-"), ("disbursement-voucher", "DV-")):
             FinanceNumberingSequence.objects.create(
                 department=cls.accounting, release=cls.release, fiscal_year=timezone.localdate().year,
@@ -260,6 +294,11 @@ class VoucherWorkflowTests(TestCase):
         posting_request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
         linked_entry = JournalEntry.objects.get(public_id=posting_request.accounting_entry_public_id)
         self.assertEqual(posting_request.status, VoucherPostingRequest.POSTED)
+        self.assertEqual(posting_request.posting_rule, self.recognition_rule)
+        self.assertEqual(posting_request.posting_rule_snapshot["event_kind"], FinancePostingRule.RECOGNITION)
+        self.assertEqual(posting_request.payload["posting_rule_checksum"], posting_request.posting_rule_checksum)
+        self.assertEqual(linked_entry.source_snapshot["posting_rule_checksum"], posting_request.posting_rule_checksum)
+        self.assertEqual(linked_entry.source_snapshot["posting_policy_mode"], "governed_snapshot")
         self.assertEqual(linked_entry.status, JournalEntry.POSTED)
         self.assertEqual(linked_entry.source_snapshot["voucher_case"], str(case.public_id))
         self.assertEqual(linked_entry.totals, (Decimal("1000.00"), Decimal("1000.00")))
@@ -293,6 +332,53 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(case.disbursement_voucher.net_amount, Decimal("900.00"))
         self.assertEqual(case.events.filter(action="disbursement_completed").count(), 1)
         self.assertTrue(all(event.actor_department_id for event in case.events.all()))
+
+    def test_dv_validation_does_not_collapse_prior_accrual_into_recognition(self):
+        case = self.create_case("accrual-route-create")
+        self.budget_certify(case, "accrual-route-budget")
+        self.accounting_prepare(case, "accrual-route-prepare")
+        self.return_signatures(case)
+        PayableIntake.objects.create(
+            case=case, claim_reference="SYN-ACCRUAL-CLAIM", claim_amount=Decimal("1000.00"),
+            initial_allocation_amount=Decimal("1000.00"), initial_relationship_type=PayableIntake.FULL,
+            evidence_reference="Synthetic reviewed accrual evidence.", status=PayableIntake.READY,
+            recognition_decision=PayableIntake.ACCRUE_BEFORE_SETTLEMENT,
+            recognition_basis="Synthetic policy requires recognition before settlement.",
+            obligation_adjustment_decision=PayableIntake.NO_ADJUSTMENT,
+            obligation_adjustment_basis="No obligation adjustment is required.",
+            prepared_by=self.requesting_user,
+        )
+        with self.assertRaisesMessage(ValidationError, "requires an earlier accrual JEV"):
+            validate_accounting(
+                case=case, actor=self.validator, jev_number="JEV-ACCRUAL-WRONG",
+                jev_date=date(2026, 8, 25), note="Must not collapse the accounting event.",
+                expected_version=case.state_version, idempotency_key="accrual-route-validation",
+            )
+        self.assertFalse(case.posting_requests.exists())
+
+    def test_posting_rule_snapshot_rejects_tampering(self):
+        case = self.create_case("posting-snapshot-create")
+        self.budget_certify(case, "posting-snapshot-budget")
+        self.accounting_prepare(case, "posting-snapshot-prepare")
+        self.return_signatures(case)
+        validate_accounting(
+            case=case, actor=self.validator, jev_number="JEV-SNAPSHOT-01",
+            jev_date=date(2026, 8, 25), note="Pin governed posting evidence.",
+            expected_version=case.state_version, idempotency_key="posting-snapshot-validation",
+        )
+        request = case.posting_requests.get()
+        request.posting_rule_snapshot["title"] = "Silently changed rule"
+        with self.assertRaisesMessage(ValidationError, "checksum does not match"):
+            request.full_clean()
+        VoucherPostingRequest.objects.filter(pk=request.pk).update(
+            posting_rule_snapshot=request.posting_rule_snapshot,
+        )
+        request.refresh_from_db()
+        with self.assertRaisesMessage(ValidationError, "posting-rule checksum"):
+            materialize_voucher_journal(request, self.preparer)
+        request.refresh_from_db()
+        self.assertEqual(request.status, VoucherPostingRequest.FAILED)
+        self.assertFalse(JournalEntry.objects.filter(source_reference=str(request.public_id)).exists())
 
     def test_posted_jev_requires_reversal_instead_of_voucher_rewrite(self):
         case = self.ready_for_treasury()

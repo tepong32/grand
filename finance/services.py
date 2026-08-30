@@ -18,8 +18,8 @@ from openpyxl.worksheet.page import PageMargins
 from .access import can_approve_finance_configuration, can_manage_finance_configuration, can_manage_finance_templates
 from .models import (
     FinanceAuditEvent, FinanceConfigurationItem, FinanceConfigurationRelease,
-    FinanceNumberingSequence, FinanceParty, FinanceSignatory, FinanceTemplateVersion,
-    FinanceTransactionVariant,
+    FinanceNumberingSequence, FinanceParty, FinancePostingRule, FinancePostingRuleLine,
+    FinanceSignatory, FinanceTemplateVersion, FinanceTransactionVariant,
 )
 
 
@@ -213,6 +213,102 @@ def record_event(instance, actor, action, reason="", evidence=None):
     )
 
 
+def posting_rule_snapshot(rule):
+    """Return a stable, plain-data posting recipe suitable for an immutable transaction snapshot."""
+    lines = list(rule.lines.order_by("sequence", "pk"))
+    if not lines:
+        raise ValidationError("The selected posting rule has no debit or credit instructions.")
+    if not {line.side for line in lines}.issuperset({FinancePostingRuleLine.DEBIT, FinancePostingRuleLine.CREDIT}):
+        raise ValidationError("The selected posting rule must contain at least one debit and one credit instruction.")
+    snapshot = {
+        "schema_version": 1,
+        "rule_public_id": str(rule.public_id),
+        "rule_code": rule.code,
+        "variant_public_id": str(rule.variant.public_id),
+        "variant_code": rule.variant.code,
+        "event_kind": rule.event_kind,
+        "event_label": rule.get_event_kind_display(),
+        "recognition_point": rule.recognition_point,
+        "recognition_point_label": rule.get_recognition_point_display(),
+        "title": rule.title,
+        "description": rule.description,
+        "authority_reference": rule.authority_reference,
+        "release_id": rule.variant.release_id,
+        "release_code": rule.variant.release.code,
+        "release_version": rule.variant.release.version,
+        "lines": [
+            {
+                "sequence": line.sequence,
+                "label": line.label,
+                "side": line.side,
+                "account_source": line.account_source,
+                "amount_source": line.amount_source,
+                "mapping_code": line.mapping_code,
+                "ledger_account_code": line.ledger_account_code,
+                "memo": line.memo,
+            }
+            for line in lines
+        ],
+    }
+    encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return snapshot, hashlib.sha256(encoded).hexdigest()
+
+
+@transaction.atomic
+def create_recognition_posting_starter(variant, actor):
+    """Create an editable three-part payable-recognition recipe inside one draft release."""
+    if not can_manage_finance_configuration(actor, variant.department):
+        raise PermissionDenied
+    variant = FinanceTransactionVariant.objects.select_for_update().select_related("release", "department").get(pk=variant.pk)
+    if variant.release.status != "draft" or variant.status != "draft":
+        raise ValidationError("A posting starter can be added only to a draft transaction variant.")
+    if variant.posting_rules.filter(event_kind=FinancePostingRule.RECOGNITION).exists():
+        raise ValidationError("This transaction variant already has a recognition posting rule.")
+    rule = FinancePostingRule(
+        variant=variant,
+        code=f"{variant.code}-recognition",
+        title=f"Recognize {variant.label}",
+        event_kind=FinancePostingRule.RECOGNITION,
+        recognition_point=FinancePostingRule.DV_VALIDATION,
+        description=(
+            "At Accounting validation, debit each reviewed voucher allocation, credit each configured deduction, "
+            "and credit the remaining net amount to the transaction's configured payable account."
+        ),
+        authority_reference=(
+            "EDIT BEFORE SUBMISSION — compare with the locally accepted accounting entry, current COA guidance, "
+            "and the Accounting office's reviewed recognition decision."
+        ),
+        created_by=actor,
+    )
+    rule.full_clean()
+    rule.save()
+    FinancePostingRuleLine.objects.bulk_create((
+        FinancePostingRuleLine(
+            rule=rule, sequence=10, label="Debit each reviewed allocation account",
+            side=FinancePostingRuleLine.DEBIT,
+            account_source=FinancePostingRuleLine.ALLOCATION_ACCOUNTS,
+            amount_source=FinancePostingRuleLine.EACH_ALLOCATION,
+            memo="Reviewed voucher allocation",
+        ),
+        FinancePostingRuleLine(
+            rule=rule, sequence=20, label="Credit each deduction payable",
+            side=FinancePostingRuleLine.CREDIT,
+            account_source=FinancePostingRuleLine.DEDUCTION_MAPPINGS,
+            amount_source=FinancePostingRuleLine.EACH_DEDUCTION,
+            memo="Voucher deduction / withholding",
+        ),
+        FinancePostingRuleLine(
+            rule=rule, sequence=30, label="Credit the net transaction payable",
+            side=FinancePostingRuleLine.CREDIT,
+            account_source=FinancePostingRuleLine.PAYABLE_MAPPING,
+            amount_source=FinancePostingRuleLine.NET,
+            memo="Net payable",
+        ),
+    ))
+    record_event(rule, actor, "posting_rule_starter_created")
+    return rule
+
+
 @transaction.atomic
 def transition_release(release, action, actor, reason=""):
     release = FinanceConfigurationRelease.objects.select_for_update().get(pk=release.pk)
@@ -222,6 +318,15 @@ def transition_release(release, action, actor, reason=""):
             raise PermissionDenied
         if release.status != "draft":
             raise ValidationError("Only draft releases can be submitted.")
+        for variant in release.transaction_variants.all():
+            if not variant.posting_rules.exists():
+                raise ValidationError(f"{variant.label} needs at least one locally reviewed posting rule.")
+            for posting_rule in variant.posting_rules.all():
+                if posting_rule.authority_reference.startswith("EDIT BEFORE SUBMISSION"):
+                    raise ValidationError(
+                        f"{posting_rule.title} is still an editable starter. Replace its authority note with the reviewed local basis."
+                    )
+                posting_rule_snapshot(posting_rule)
         release.status, release.submitted_by, release.submitted_at = "submitted", actor, timezone.now()
         release.items.filter(status="draft").update(status="submitted")
         release.templates.filter(status="draft").update(status="submitted")
@@ -376,6 +481,18 @@ def evaluate_readiness(release, as_of=None):
         status__in=governed_statuses, effective_from__lte=as_of,
     ).filter(models_q_open_ended("effective_to", as_of))
     typed_variant_ready = typed_variants.exists() and not typed_variants.filter(document_rules__isnull=True).exists()
+    typed_posting_ready = typed_variants.exists()
+    if typed_posting_ready:
+        try:
+            for variant in typed_variants.prefetch_related("posting_rules__lines"):
+                rules = list(variant.posting_rules.all())
+                if not rules:
+                    typed_posting_ready = False
+                    break
+                for rule in rules:
+                    posting_rule_snapshot(rule)
+        except ValidationError:
+            typed_posting_ready = False
     checks = [
         ("approved_voucher_template", release.templates.filter(status__in=governed_statuses, preflighted_at__isnull=False, effective_from__lte=as_of).filter(models_q_open_ended("effective_to", as_of)).exists(), "An approved, checksum-verified voucher template applies.", "No approved, preflighted voucher template applies."),
         (
@@ -383,6 +500,12 @@ def evaluate_readiness(release, as_of=None):
             typed_variant_ready or ("transaction_type" in categories and "document_requirement" in categories),
             "An approved transaction variant and supporting-document checklist apply.",
             "At least one typed transaction variant with document rules, or a legacy transaction/document checklist, is required.",
+        ),
+        (
+            "transaction_posting_rules",
+            typed_posting_ready or not typed_variants.exists(),
+            "Each approved typed transaction variant has a governed posting rule with debit and credit instructions.",
+            "Every typed transaction variant needs a locally reviewed posting rule with debit and credit instructions.",
         ),
         ("active_signatory", release.signatories.filter(status__in=governed_statuses, valid_from__lte=as_of).filter(models_q_open_ended("valid_to", as_of)).exists(), "An approved signatory assignment covers the applicable date.", "No approved signatory is valid for the applicable date."),
         ("fund_and_payment_account", "fund" in categories and bool(categories & {"bank_account", "payment_method"}), "An approved fund and payment account or method apply.", "An approved fund and payment account or method are required."),

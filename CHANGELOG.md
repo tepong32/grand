@@ -4,6 +4,13 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance transaction posting rules and governed JEV handoff
+
+- Added F7.1 plain-language, transaction-specific recognition, adjustment, liquidation, payment, remittance, cancellation, reversal, and replacement rule models with explicit recognition points and ordered debit/credit account-and-amount sources.
+- Added an editable ordinary-recognition starter whose unresolved authority warning blocks release submission, plus Finance Setup forms, readiness checks, audit events, and versioned department-specific Internal How-Tos.
+- Replaced new voucher JEVs' hard-coded recipe with immutable, checksum-pinned rule interpretation; preserved explicit legacy compatibility, blocked earlier-accrual/existing-payable decisions from duplicate recognition, and retained independent posting/reversal controls.
+- Added TraceSync-ready posted general-ledger and trial-balance CSV exports with adjacent manifests, Accounting export audit events, and posting-rule lineage where applicable.
+
 ### Finance controlled DV printing and custody
 
 - Added F6.1 immutable `Ready to print -> Printed -> Awaiting wet signatures -> Signed packet returned` jobs with output/version/checksum identity, actual copies/printer evidence, mandatory returned-packet gates, and explicit permission/role ownership.

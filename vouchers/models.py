@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
 import os
 from decimal import Decimal
@@ -13,7 +15,7 @@ from django.urls import reverse
 from departments.models import Department
 from finance.models import (
     FinanceConfigurationRelease, FinanceDocumentRule, FinanceParty, FinancePartyClaimant,
-    FinanceTemplateVersion,
+    FinancePostingRule, FinanceTemplateVersion,
 )
 
 
@@ -439,7 +441,14 @@ class VoucherNonFinancialAmendment(models.Model):
 
 class VoucherPostingRequest(models.Model):
     RECOGNITION = "recognition"
-    KIND_CHOICES = ((RECOGNITION, "Voucher recognition JEV"),)
+    ADJUSTMENT = "adjustment"
+    LIQUIDATION = "liquidation"
+    PAYMENT = "payment"
+    REMITTANCE = "remittance"
+    CANCELLATION = "cancellation"
+    REVERSAL = "reversal"
+    REPLACEMENT = "replacement"
+    KIND_CHOICES = FinancePostingRule.EVENT_KIND_CHOICES
     PENDING = "pending"
     MATERIALIZED = "materialized"
     POSTED = "posted"
@@ -461,6 +470,14 @@ class VoucherPostingRequest(models.Model):
     jev_date = models.DateField()
     finance_department_id = models.PositiveBigIntegerField()
     finance_department_label = models.CharField(max_length=160)
+    posting_rule = models.ForeignKey(
+        FinancePostingRule, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="voucher_posting_requests",
+        help_text="Nullable only for posting requests created before governed F7 posting rules.",
+    )
+    posting_rule_public_id_snapshot = models.CharField(max_length=36, blank=True)
+    posting_rule_snapshot = models.JSONField(default=dict, blank=True)
+    posting_rule_checksum = models.CharField(max_length=64, blank=True)
     payload = models.JSONField(default=dict)
     payload_checksum = models.CharField(max_length=64)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
@@ -481,12 +498,29 @@ class VoucherPostingRequest(models.Model):
     def __str__(self):
         return f"{self.jev_number} · {self.get_status_display()}"
 
+    def clean(self):
+        governed = bool(self.posting_rule_id or self.posting_rule_snapshot or self.posting_rule_checksum)
+        if governed:
+            if not self.posting_rule_id or not self.posting_rule_snapshot or not self.posting_rule_checksum:
+                raise ValidationError("A governed posting request must pin the rule, its snapshot, and its checksum together.")
+            if self.posting_rule_public_id_snapshot != str(self.posting_rule.public_id):
+                raise ValidationError("The pinned posting-rule identity does not match the selected governed rule.")
+            encoded = json.dumps(
+                self.posting_rule_snapshot, sort_keys=True, separators=(",", ":"),
+            ).encode("utf-8")
+            if hashlib.sha256(encoded).hexdigest() != self.posting_rule_checksum:
+                raise ValidationError("The pinned posting-rule snapshot checksum does not match its content.")
+            if self.kind != self.posting_rule_snapshot.get("event_kind"):
+                raise ValidationError("The posting request event does not match the pinned posting rule.")
+
     def save(self, *args, **kwargs):
         if self.pk:
             prior = type(self).objects.get(pk=self.pk)
             immutable = (
                 "case_id", "kind", "version", "jev_number", "jev_date", "finance_department_id",
-                "finance_department_label", "payload", "payload_checksum", "requested_by_id", "requested_at",
+                "finance_department_label", "posting_rule_id", "posting_rule_public_id_snapshot",
+                "posting_rule_snapshot", "posting_rule_checksum", "payload", "payload_checksum",
+                "requested_by_id", "requested_at",
             )
             if any(getattr(prior, field) != getattr(self, field) for field in immutable):
                 raise ValidationError("Posting request evidence is immutable. Create a new version instead.")

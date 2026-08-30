@@ -4,8 +4,8 @@ from django import forms
 
 from .models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule, FinanceNumberingSequence,
-    FinanceParty, FinancePartyClaimant, FinanceSignatory, FinanceTemplateVersion,
-    FinanceTransactionVariant,
+    FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
+    FinanceSignatory, FinanceTemplateVersion, FinanceTransactionVariant,
 )
 
 
@@ -98,6 +98,44 @@ class FinanceDocumentRuleForm(forms.ModelForm):
             self.fields["variant"].queryset = FinanceTransactionVariant.objects.filter(
                 department=department, release__status="draft",
             ).select_related("release").order_by("release", "label")
+
+
+class FinancePostingRuleForm(forms.ModelForm):
+    class Meta:
+        model = FinancePostingRule
+        fields = (
+            "variant", "code", "title", "event_kind", "recognition_point",
+            "description", "authority_reference",
+        )
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "authority_reference": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def __init__(self, *args, department=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if department:
+            self.fields["variant"].queryset = FinanceTransactionVariant.objects.filter(
+                department=department, release__status="draft", status="draft",
+            ).select_related("release").order_by("release", "label")
+
+
+class FinancePostingRuleLineForm(forms.ModelForm):
+    class Meta:
+        model = FinancePostingRuleLine
+        fields = (
+            "rule", "sequence", "label", "side", "account_source", "amount_source",
+            "mapping_code", "ledger_account_code", "memo",
+        )
+
+    def __init__(self, *args, department=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if department:
+            self.fields["rule"].queryset = FinancePostingRule.objects.filter(
+                variant__department=department,
+                variant__release__status="draft",
+                variant__status="draft",
+            ).select_related("variant", "variant__release").order_by("variant__label", "event_kind")
 
 
 class FinanceTemplateForm(forms.ModelForm):

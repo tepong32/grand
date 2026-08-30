@@ -20,12 +20,13 @@ from .access import can_approve_finance_configuration, can_manage_finance_config
 from .exemptions import workflow_exemption_for
 from .models import (
     FinanceAuditEvent, FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule,
-    FinanceNumberingSequence, FinanceSignatory, FinanceTemplateVersion, FinanceWorkflowExemption,
-    FinanceTransactionVariant,
+    FinanceNumberingSequence, FinancePostingRule, FinancePostingRuleLine, FinanceSignatory,
+    FinanceTemplateVersion, FinanceWorkflowExemption, FinanceTransactionVariant,
 )
 from .services import (
-    FinanceTemplateError, build_finance_starter_workbook, evaluate_readiness, inspect_finance_workbook,
-    preflight_finance_template, record_event, synthetic_preview, transition_release,
+    FinanceTemplateError, build_finance_starter_workbook, create_recognition_posting_starter,
+    evaluate_readiness, inspect_finance_workbook, posting_rule_snapshot, preflight_finance_template,
+    record_event, synthetic_preview, transition_release,
 )
 
 
@@ -346,6 +347,20 @@ class FinanceSetupCenterTests(TestCase):
         self.assertTrue(FinanceAuditEvent.objects.filter(
             target_type="financedocumentrule", action="document_rule_created",
         ).exists())
+        posting = create_recognition_posting_starter(variant, self.manager)
+        snapshot, checksum = posting_rule_snapshot(posting)
+        self.assertEqual(snapshot["event_kind"], FinancePostingRule.RECOGNITION)
+        self.assertEqual(len(snapshot["lines"]), 3)
+        self.assertEqual(len(checksum), 64)
+        self.assertEqual(
+            list(posting.lines.values_list("side", flat=True)),
+            [FinancePostingRuleLine.DEBIT, FinancePostingRuleLine.CREDIT, FinancePostingRuleLine.CREDIT],
+        )
+        with self.assertRaisesMessage(ValidationError, "still an editable starter"):
+            transition_release(self.release, "submit", self.manager)
+        posting.authority_reference = "Synthetic locally reviewed supplier recognition policy."
+        posting.full_clean()
+        posting.save(update_fields=("authority_reference",))
         transition_release(self.release, "submit", self.manager)
         variant.refresh_from_db()
         self.assertEqual(variant.status, "submitted")

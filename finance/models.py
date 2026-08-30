@@ -274,6 +274,171 @@ class FinanceDocumentRule(models.Model):
                 raise ValidationError("Approved document rules are immutable. Use a successor release.")
 
 
+class FinancePostingRule(models.Model):
+    RECOGNITION = "recognition"
+    ADJUSTMENT = "adjustment"
+    LIQUIDATION = "liquidation"
+    PAYMENT = "payment"
+    REMITTANCE = "remittance"
+    CANCELLATION = "cancellation"
+    REVERSAL = "reversal"
+    REPLACEMENT = "replacement"
+    EVENT_KIND_CHOICES = (
+        (RECOGNITION, "Recognize expense, asset, or payable"),
+        (ADJUSTMENT, "Adjust an earlier recognition"),
+        (LIQUIDATION, "Record liquidation"),
+        (PAYMENT, "Settle payable / record payment"),
+        (REMITTANCE, "Remit deductions or withholdings"),
+        (CANCELLATION, "Record cancellation effect"),
+        (REVERSAL, "Reverse an earlier entry"),
+        (REPLACEMENT, "Record replacement effect"),
+    )
+    DELIVERY_ACCEPTANCE = "delivery_acceptance"
+    BILLING_VALIDATION = "billing_validation"
+    DV_VALIDATION = "dv_validation"
+    PAYMENT_ISSUANCE = "payment_issuance"
+    PAYMENT_RELEASE = "payment_release"
+    LIQUIDATION_ACCEPTANCE = "liquidation_acceptance"
+    PERIOD_END = "period_end"
+    OTHER = "other"
+    RECOGNITION_POINT_CHOICES = (
+        (DELIVERY_ACCEPTANCE, "Delivery / inspection acceptance"),
+        (BILLING_VALIDATION, "Billing or claim validation"),
+        (DV_VALIDATION, "DV Accounting validation"),
+        (PAYMENT_ISSUANCE, "Check / payment-instrument issuance"),
+        (PAYMENT_RELEASE, "Actual payment release"),
+        (LIQUIDATION_ACCEPTANCE, "Liquidation acceptance"),
+        (PERIOD_END, "Period-end review"),
+        (OTHER, "Other locally confirmed point"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    variant = models.ForeignKey(
+        FinanceTransactionVariant, on_delete=models.PROTECT, related_name="posting_rules",
+    )
+    code = models.SlugField(max_length=80)
+    title = models.CharField(max_length=180)
+    event_kind = models.CharField(max_length=24, choices=EVENT_KIND_CHOICES)
+    recognition_point = models.CharField(max_length=32, choices=RECOGNITION_POINT_CHOICES)
+    description = models.TextField(help_text="Explain in ordinary Accounting language when this entry is used.")
+    authority_reference = models.TextField(
+        help_text="Reviewed COA/local accounting basis and local applicability or acceptance reference."
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_finance_posting_rules",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("variant__label", "event_kind", "code")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("variant", "event_kind"), name="unique_finance_posting_event_per_variant",
+            ),
+        )
+
+    @property
+    def department(self):
+        return self.variant.department
+
+    @property
+    def release(self):
+        return self.variant.release
+
+    def __str__(self):
+        return f"{self.variant.code} · {self.get_event_kind_display()}"
+
+    def clean(self):
+        if self.variant_id and self.variant.release.status != "draft":
+            raise ValidationError("Posting rules can be changed only inside a draft configuration release.")
+        if not self.description.strip():
+            raise ValidationError({"description": "Explain when Accounting uses this entry."})
+        if not self.authority_reference.strip():
+            raise ValidationError({"authority_reference": "Record the reviewed accounting and local applicability basis."})
+        if self.pk:
+            prior = type(self).objects.select_related("variant__release").get(pk=self.pk)
+            if prior.variant.release.status in LOCKED_STATES:
+                raise ValidationError("Approved posting rules are immutable. Use a successor release.")
+
+
+class FinancePostingRuleLine(models.Model):
+    ALLOCATION_ACCOUNTS = "allocation_accounts"
+    DEDUCTION_MAPPINGS = "deduction_mappings"
+    PAYABLE_MAPPING = "payable_mapping"
+    BANK_MAPPING = "bank_mapping"
+    FIXED_ACCOUNT = "fixed_account"
+    ACCOUNT_SOURCE_CHOICES = (
+        (ALLOCATION_ACCOUNTS, "Each voucher allocation account"),
+        (DEDUCTION_MAPPINGS, "Each deduction's configured payable account"),
+        (PAYABLE_MAPPING, "Transaction's configured payable account"),
+        (BANK_MAPPING, "Payment account's configured bank/cash account"),
+        (FIXED_ACCOUNT, "One locally confirmed ledger account code"),
+    )
+    DEBIT = "debit"
+    CREDIT = "credit"
+    SIDE_CHOICES = ((DEBIT, "Debit"), (CREDIT, "Credit"))
+    EACH_ALLOCATION = "each_allocation"
+    EACH_DEDUCTION = "each_deduction"
+    GROSS = "gross"
+    NET = "net"
+    TOTAL_DEDUCTIONS = "total_deductions"
+    AMOUNT_SOURCE_CHOICES = (
+        (EACH_ALLOCATION, "Each allocation amount"),
+        (EACH_DEDUCTION, "Each deduction amount"),
+        (GROSS, "Voucher gross amount"),
+        (NET, "Voucher net amount"),
+        (TOTAL_DEDUCTIONS, "Total deductions"),
+    )
+
+    rule = models.ForeignKey(FinancePostingRule, on_delete=models.PROTECT, related_name="lines")
+    sequence = models.PositiveSmallIntegerField()
+    label = models.CharField(max_length=180, help_text="Plain-language purpose shown to Accounting reviewers.")
+    side = models.CharField(max_length=8, choices=SIDE_CHOICES)
+    account_source = models.CharField(max_length=28, choices=ACCOUNT_SOURCE_CHOICES)
+    amount_source = models.CharField(max_length=24, choices=AMOUNT_SOURCE_CHOICES)
+    mapping_code = models.CharField(
+        max_length=80, blank=True,
+        help_text="Optional mapping override. Leave blank to use the transaction or payment-account code.",
+    )
+    ledger_account_code = models.CharField(
+        max_length=80, blank=True,
+        help_text="Required only for one locally confirmed fixed ledger account.",
+    )
+    memo = models.CharField(max_length=180, blank=True)
+
+    class Meta:
+        ordering = ("sequence", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("rule", "sequence"), name="unique_finance_posting_rule_line_sequence"),
+        )
+
+    def __str__(self):
+        return f"{self.rule.code} line {self.sequence} · {self.label}"
+
+    def clean(self):
+        if self.rule_id and self.rule.variant.release.status != "draft":
+            raise ValidationError("Posting-rule lines can be changed only inside a draft configuration release.")
+        if self.account_source == self.ALLOCATION_ACCOUNTS and self.amount_source != self.EACH_ALLOCATION:
+            raise ValidationError({"amount_source": "Allocation accounts must use each allocation amount."})
+        if self.account_source == self.DEDUCTION_MAPPINGS and self.amount_source != self.EACH_DEDUCTION:
+            raise ValidationError({"amount_source": "Deduction mappings must use each deduction amount."})
+        if self.account_source not in {self.ALLOCATION_ACCOUNTS, self.DEDUCTION_MAPPINGS} and self.amount_source in {
+            self.EACH_ALLOCATION, self.EACH_DEDUCTION,
+        }:
+            raise ValidationError({"amount_source": "Choose gross, net, or total deductions for this account source."})
+        if self.account_source == self.FIXED_ACCOUNT:
+            if not self.ledger_account_code.strip():
+                raise ValidationError({"ledger_account_code": "Enter the locally confirmed posting account code."})
+        elif self.ledger_account_code.strip():
+            raise ValidationError({"ledger_account_code": "Use this only with one fixed ledger account."})
+        if self.account_source in {self.ALLOCATION_ACCOUNTS, self.DEDUCTION_MAPPINGS} and self.mapping_code.strip():
+            raise ValidationError({"mapping_code": "This repeated source determines its own mapping code."})
+        if self.pk:
+            prior = type(self).objects.select_related("rule__variant__release").get(pk=self.pk)
+            if prior.rule.variant.release.status in LOCKED_STATES:
+                raise ValidationError("Approved posting-rule lines are immutable. Use a successor release.")
+
+
 class FinanceSignatory(models.Model):
     department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="finance_signatories")
     release = models.ForeignKey(FinanceConfigurationRelease, on_delete=models.PROTECT, related_name="signatories")

@@ -25,8 +25,8 @@ from .forms import (
     ResponsibilityCenterForm, ReversalForm,
 )
 from .models import (
-    AccountingPeriod, FiscalYear, FiscalYearReadinessApproval, Fund, FundingSource, JournalEntry,
-    JournalLine, LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow, PostingMapping,
+    AccountingAuditEvent, AccountingPeriod, FiscalYear, FiscalYearReadinessApproval, Fund,
+    FundingSource, JournalEntry, JournalLine, LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow, PostingMapping,
     ProgramActivityProject, ResponsibilityCenter,
 )
 from .services import (
@@ -891,3 +891,131 @@ def trial_balance(request):
         totals["debit"] += row.debit_total
         totals["credit"] += row.credit_total
     return render(request, "accounting/trial_balance.html", {"rows": rows, "totals": totals})
+
+
+def _archived_csv_response(*, response, request, department, category, filename, metadata):
+    archived = archive_export(
+        content=response.content,
+        department=department,
+        user=request.user,
+        category=category,
+        filename=filename,
+        metadata=metadata,
+    )
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    response["X-GRAND-Export-Relative-Path"] = archived["relative_path"]
+    AccountingAuditEvent.objects.create(
+        department_id=department.pk,
+        department_label=department.name,
+        action="report_exported",
+        actor_id=request.user.pk,
+        actor_label=request.user.get_full_name() or request.user.username,
+        snapshot={
+            "category": category,
+            "relative_path": archived["relative_path"],
+            "sha256": archived["sha256"],
+            **metadata,
+        },
+    )
+    return response
+
+
+@require_GET
+@accounting_permission_required(can_view_ledger)
+def ledger_export(request):
+    department = department_for_user(request.user)
+    account_id = request.GET.get("account", "").strip()
+    account = LedgerAccount.objects.filter(department_id=department.pk, pk=account_id).first() if account_id.isdigit() else None
+    lines = JournalLine.objects.filter(
+        entry__department_id=department.pk, entry__status=JournalEntry.POSTED,
+    ).select_related("entry", "entry__fund", "account", "responsibility_center").order_by(
+        "entry__entry_date", "entry_id", "sequence",
+    )
+    if account:
+        lines = lines.filter(account=account)
+    filename = f"general-ledger-{slugify(account.code) if account else 'all-accounts'}.csv"
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    writer = csv.writer(response)
+    writer.writerow((
+        "export_kind", "department", "entry_date", "jev_reference", "entry_public_id", "source_type",
+        "source_reference", "fund_code", "account_code", "account_title", "responsibility_center_code",
+        "memo", "debit", "credit", "running_normal_balance", "posting_event", "posting_rule_checksum",
+    ))
+    balances = {}
+    row_count = 0
+    for line in lines.iterator():
+        delta = line.debit - line.credit
+        if line.account.normal_balance == "credit":
+            delta = -delta
+        balances[line.account_id] = balances.get(line.account_id, Decimal("0.00")) + delta
+        writer.writerow((
+            "posted_general_ledger_line", _csv_text(department.name), line.entry.entry_date,
+            _csv_text(line.entry.reference), line.entry.public_id, line.entry.source_type,
+            _csv_text(line.entry.source_reference), _csv_text(line.entry.fund.code),
+            _csv_text(line.account.code), _csv_text(line.account.title),
+            _csv_text(line.responsibility_center.code if line.responsibility_center else ""),
+            _csv_text(line.memo), line.debit, line.credit, balances[line.account_id],
+            _csv_text(line.entry.source_snapshot.get("posting_event", "")),
+            _csv_text(line.entry.source_snapshot.get("posting_rule_checksum", "")),
+        ))
+        row_count += 1
+    return _archived_csv_response(
+        response=response, request=request, department=department,
+        category="finance-general-ledger", filename=filename,
+        metadata={
+            "kind": "posted_general_ledger_export",
+            "account_code": account.code if account else "all",
+            "row_count": row_count,
+            "official_status": "controlled data interchange; not automatically an official COA/local form",
+        },
+    )
+
+
+@require_GET
+@accounting_permission_required(can_view_ledger)
+def trial_balance_export(request):
+    department = department_for_user(request.user)
+    rows = LedgerAccount.objects.filter(department_id=department.pk).annotate(
+        debit_total=Sum("journal_lines__debit", filter=Q(journal_lines__entry__status=JournalEntry.POSTED)),
+        credit_total=Sum("journal_lines__credit", filter=Q(journal_lines__entry__status=JournalEntry.POSTED)),
+    ).order_by("code")
+    filename = "trial-balance-posted.csv"
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    writer = csv.writer(response)
+    writer.writerow((
+        "export_kind", "department", "account_code", "account_title", "account_type",
+        "debit", "credit", "net_debit", "net_credit",
+    ))
+    totals = {"debit": Decimal("0.00"), "credit": Decimal("0.00")}
+    row_count = 0
+    for account in rows:
+        debit = account.debit_total or Decimal("0.00")
+        credit = account.credit_total or Decimal("0.00")
+        net = debit - credit
+        writer.writerow((
+            "posted_trial_balance_account", _csv_text(department.name), _csv_text(account.code),
+            _csv_text(account.title), account.account_type, debit, credit,
+            net if net > 0 else Decimal("0.00"), -net if net < 0 else Decimal("0.00"),
+        ))
+        totals["debit"] += debit
+        totals["credit"] += credit
+        row_count += 1
+    writer.writerow((
+        "posted_trial_balance_total", _csv_text(department.name), "", "TOTAL", "",
+        totals["debit"], totals["credit"], "", "",
+    ))
+    return _archived_csv_response(
+        response=response, request=request, department=department,
+        category="finance-trial-balance", filename=filename,
+        metadata={
+            "kind": "posted_trial_balance_export", "row_count": row_count,
+            "total_debit": str(totals["debit"]), "total_credit": str(totals["credit"]),
+            "balanced": totals["debit"] == totals["credit"],
+            "official_status": "controlled data interchange; not automatically an official COA/local form",
+        },
+    )

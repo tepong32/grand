@@ -12,13 +12,13 @@ from .access import (
 )
 from .forms import (
     FinanceDocumentRuleForm, FinanceItemForm, FinanceNumberingSequenceForm, FinanceReleaseForm,
-    FinancePartyClaimantForm, FinancePartyForm, FinanceSignatoryForm, FinanceTemplateForm,
-    FinanceStarterTemplateForm, FinanceTransactionVariantForm,
+    FinancePartyClaimantForm, FinancePartyForm, FinancePostingRuleForm, FinancePostingRuleLineForm,
+    FinanceSignatoryForm, FinanceTemplateForm, FinanceStarterTemplateForm, FinanceTransactionVariantForm,
 )
-from .models import FinanceConfigurationRelease, FinanceParty, FinanceTemplateVersion
+from .models import FinanceConfigurationRelease, FinanceParty, FinanceTemplateVersion, FinanceTransactionVariant
 from .services import (
-    FinanceTemplateError, build_finance_starter_workbook, evaluate_readiness, preflight_finance_template,
-    record_event, synthetic_preview, transition_release,
+    FinanceTemplateError, build_finance_starter_workbook, create_recognition_posting_starter,
+    evaluate_readiness, preflight_finance_template, record_event, synthetic_preview, transition_release,
 )
 
 
@@ -56,7 +56,7 @@ def release_detail(request, pk):
     department = department_for_user(request.user)
     release = get_object_or_404(FinanceConfigurationRelease.objects.prefetch_related(
         "items", "templates", "signatories", "numbering_sequences", "parties__authorized_claimants",
-        "transaction_variants__document_rules", "events__actor",
+        "transaction_variants__document_rules", "transaction_variants__posting_rules__lines", "events__actor",
     ), pk=pk, department=department)
     return render(request, "finance/release_detail.html", {
         "release": release, "readiness": evaluate_readiness(release),
@@ -117,6 +117,68 @@ def document_rule_create(request):
         "form": form, "title": "Add transaction document rule",
         "guidance": "State whether the evidence is required, conditional, or waivable and cite the reviewed authority. Do not upload sensitive source documents into setup.",
     })
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def posting_rule_create(request):
+    department = department_for_user(request.user)
+    form = FinancePostingRuleForm(
+        request.POST or None, department=department, initial={"variant": request.GET.get("variant")},
+    )
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.created_by = request.user
+        item.full_clean(); item.save(); record_event(item, request.user, "posting_rule_created")
+        messages.success(request, "Draft posting rule created. Add both debit and credit instructions before review.")
+        return redirect("finance:release_detail", pk=item.variant.release_id)
+    return render(request, "finance/form.html", {
+        "form": form, "title": "Add transaction posting rule",
+        "guidance": (
+            "Describe the accounting event in ordinary office language, choose when it is recognized, and cite the "
+            "locally reviewed basis. The debit and credit instructions are added on the next screen."
+        ),
+    })
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def posting_rule_line_create(request):
+    department = department_for_user(request.user)
+    form = FinancePostingRuleLineForm(
+        request.POST or None, department=department, initial={"rule": request.GET.get("rule")},
+    )
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.full_clean(); item.save(); record_event(item.rule, request.user, "posting_rule_line_created")
+        messages.success(request, "Debit or credit instruction added to the draft posting rule.")
+        return redirect("finance:release_detail", pk=item.rule.variant.release_id)
+    return render(request, "finance/form.html", {
+        "form": form, "title": "Add debit or credit instruction",
+        "guidance": (
+            "Choose where the account and amount come from. Use a fixed account only after Accounting confirms the "
+            "exact local chart-of-accounts code."
+        ),
+    })
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def posting_rule_starter(request, variant_pk):
+    if request.method != "POST":
+        raise Http404
+    department = department_for_user(request.user)
+    variant = get_object_or_404(
+        FinanceTransactionVariant.objects.select_related("release", "department"),
+        pk=variant_pk, department=department,
+    )
+    try:
+        create_recognition_posting_starter(variant, request.user)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(
+            request,
+            "Editable recognition starter added. Review its timing, accounts, wording, and authority before submission.",
+        )
+    return redirect("finance:release_detail", pk=variant.release_id)
 
 
 @finance_permission_required(can_manage_finance_configuration)

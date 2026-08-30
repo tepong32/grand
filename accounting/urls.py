@@ -41,5 +41,7 @@ urlpatterns = [
     path("sources/vouchers/<uuid:public_id>/materialize/", views.voucher_source_materialize, name="voucher_source_materialize"),
     path("sources/vouchers/<uuid:public_id>/reconcile/", views.voucher_source_reconcile, name="voucher_source_reconcile"),
     path("ledger/", views.ledger, name="ledger"),
+    path("ledger/export/", views.ledger_export, name="ledger_export"),
     path("trial-balance/", views.trial_balance, name="trial_balance"),
+    path("trial-balance/export/", views.trial_balance_export, name="trial_balance_export"),
 ]
