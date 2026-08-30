@@ -22,14 +22,16 @@ from vouchers.models import DisbursementVoucher, PaymentInstrument, VoucherCase
 from .access import can_post_journals, can_prepare_journals, can_view_accounting
 from .models import (
     AccountingAuditEvent, AccountingPeriod, FiscalYear, FiscalYearReadinessApproval,
-    Fund, FundingSource, JournalEntry, JournalLine, LedgerAccount,
-    OpeningBalanceBatch, OpeningBalanceRow, ProgramActivityProject, ResponsibilityCenter,
+    Fund, FundingSource, JournalEntry, JournalLine, JournalSubsidiaryLine,
+    LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow,
+    PostingMapping, ProgramActivityProject, ResponsibilityCenter,
 )
 from .services import (
     adopt_configuration_release, begin_foundation_amendment, create_reversal, decide_readiness_layer,
+    control_reconciliation_snapshot,
     correct_opening_batch, correct_opening_row, decide_opening_batch, discard_draft, ensure_readiness_layers,
     evaluate_fiscal_year_readiness, post_entry, post_opening_batch, reconcile_opening_batch,
-    stage_opening_csv, submit_entry, submit_opening_batch, transition_fiscal_year,
+    run_control_reconciliation, stage_opening_csv, submit_entry, submit_opening_batch, transition_fiscal_year,
     validate_opening_batch,
 )
 
@@ -53,7 +55,7 @@ class StandaloneAccountingTests(TestCase):
         )
         cls._grant(
             cls.poster, "view_accounting_workspace", "post_journal_entries",
-            "post_opening_balances", "view_general_ledger",
+            "post_opening_balances", "view_general_ledger", "reconcile_control_accounts",
         )
         cls._grant(
             cls.setup_approver, "view_accounting_workspace", "approve_fiscal_readiness",
@@ -73,6 +75,9 @@ class StandaloneAccountingTests(TestCase):
         )
         cls.revenue = LedgerAccount.objects.create(
             **owner, code="SYN-401", title="Synthetic Revenue", account_type="revenue", normal_balance="credit",
+        )
+        cls.payable = LedgerAccount.objects.create(
+            **owner, code="SYN-201", title="Synthetic Accounts Payable", account_type="liability", normal_balance="credit",
         )
 
     @classmethod
@@ -806,6 +811,138 @@ class StandaloneAccountingTests(TestCase):
         post_entry(replacement, self.poster)
         replacement.refresh_from_db()
         self.assertEqual(replacement.status, JournalEntry.POSTED)
+
+    def test_subsidiary_detail_reverses_with_the_posted_control_line(self):
+        entry = JournalEntry.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            reference="SYN-JEV-SUB-ORIGINAL",
+            entry_date=date(2027, 1, 15), period=self.period, fund=self.fund,
+            description="Synthetic payable recognition", created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        JournalLine.objects.create(
+            entry=entry, sequence=1, account=self.cash, responsibility_center=self.center,
+            debit=Decimal("100.00"), credit=Decimal("0.00"),
+        )
+        payable_line = JournalLine.objects.create(
+            entry=entry, sequence=2, account=self.payable,
+            debit=Decimal("0.00"), credit=Decimal("100.00"),
+        )
+        detail = JournalSubsidiaryLine.objects.create(
+            entry=entry, journal_line=payable_line, category=JournalSubsidiaryLine.PAYABLE,
+            reference_key="party-001", reference_label="Synthetic Supplier",
+            source_code="ordinary-supplier", source_reference="synthetic-source",
+            debit=Decimal("0.00"), credit=Decimal("100.00"),
+        )
+        submit_entry(entry, self.preparer)
+        post_entry(entry, self.poster)
+
+        reversal = create_reversal(
+            entry, self.preparer, reference="SYN-JEV-SUB-REVERSAL",
+            entry_date=date(2027, 1, 20), period=self.period,
+            reason="Reverse the synthetic supplier recognition",
+        )
+        reversed_detail = reversal.subsidiary_lines.get()
+        self.assertEqual(reversed_detail.reference_key, detail.reference_key)
+        self.assertEqual(reversed_detail.debit, Decimal("100.00"))
+        self.assertEqual(reversed_detail.credit, Decimal("0.00"))
+        self.assertEqual(reversed_detail.source_snapshot["reversal_of_subsidiary_line"], detail.pk)
+
+    def test_control_reconciliation_records_balanced_run_and_exposes_missing_detail(self):
+        as_of_date = timezone.localdate()
+        reconciliation_period = AccountingPeriod.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            fiscal_year=as_of_date.year,
+            period_number=12,
+            label="Synthetic reconciliation period",
+            starts_on=date(as_of_date.year, 1, 1),
+            ends_on=date(as_of_date.year, 12, 31),
+        )
+        PostingMapping.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            category=PostingMapping.PAYABLE, source_code="ordinary-supplier",
+            label="Ordinary supplier payable", account=self.payable,
+        )
+        entry = JournalEntry.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            reference="SYN-JEV-SUB-CONTROL",
+            entry_date=as_of_date, period=reconciliation_period, fund=self.fund,
+            description="Synthetic subsidiary control", created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        JournalLine.objects.create(
+            entry=entry, sequence=1, account=self.cash, debit=Decimal("100.00"), credit=Decimal("0.00"),
+        )
+        payable_line = JournalLine.objects.create(
+            entry=entry, sequence=2, account=self.payable, debit=Decimal("0.00"), credit=Decimal("100.00"),
+        )
+        JournalSubsidiaryLine.objects.create(
+            entry=entry, journal_line=payable_line, category=JournalSubsidiaryLine.PAYABLE,
+            reference_key="party-002", reference_label="Reconciliation Supplier",
+            source_code="ordinary-supplier", source_reference="synthetic-reconciliation-source",
+            debit=Decimal("0.00"), credit=Decimal("100.00"),
+        )
+        submit_entry(entry, self.preparer)
+        post_entry(entry, self.poster)
+
+        snapshot, checksum = control_reconciliation_snapshot(
+            self.accounting_department.pk, as_of_date,
+        )
+        self.assertTrue(snapshot["balanced"])
+        self.assertEqual(Decimal(snapshot["rows"][0]["difference"]), Decimal("0.00"))
+        run = run_control_reconciliation(
+            self.accounting_department, self.poster, as_of_date,
+        )
+        self.assertEqual(run.result_checksum, checksum)
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            run.save()
+
+        unmatched = JournalEntry.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            reference="SYN-JEV-SUB-UNMATCHED",
+            entry_date=as_of_date, period=reconciliation_period, fund=self.fund,
+            description="Synthetic manual control posting", created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        JournalLine.objects.create(
+            entry=unmatched, sequence=1, account=self.cash, debit=Decimal("10.00"), credit=Decimal("0.00"),
+        )
+        JournalLine.objects.create(
+            entry=unmatched, sequence=2, account=self.payable, debit=Decimal("0.00"), credit=Decimal("10.00"),
+        )
+        submit_entry(unmatched, self.preparer)
+        post_entry(unmatched, self.poster)
+        exception, _checksum = control_reconciliation_snapshot(
+            self.accounting_department.pk, as_of_date,
+        )
+        self.assertFalse(exception["balanced"])
+        self.assertEqual(Decimal(exception["absolute_difference_total"]), Decimal("10.00"))
+
+        self.client.force_login(self.poster)
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            workspace = self.client.get(
+                reverse("accounting:subsidiary_controls"), {"as_of": as_of_date.isoformat()},
+            )
+            schedule = self.client.get(
+                reverse("accounting:subsidiary_export", args=(JournalSubsidiaryLine.PAYABLE,)),
+                {"as_of": as_of_date.isoformat()},
+            )
+            evidence = self.client.get(
+                reverse("accounting:subsidiary_reconciliation_export", args=(run.public_id,)),
+            )
+            self.assertContains(workspace, "Reconciliation Supplier")
+            self.assertContains(workspace, "10.00")
+            for response in (schedule, evidence):
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+                artifact = Path(export_root) / response["X-GRAND-Export-Relative-Path"]
+                self.assertTrue(artifact.exists())
+                self.assertTrue(Path(str(artifact) + ".manifest.json").exists())
 
     def test_generated_journal_header_and_existing_lines_cannot_be_rewritten(self):
         entry = self._entry(reference="SYN-JEV-GENERATED")

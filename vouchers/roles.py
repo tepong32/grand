@@ -84,6 +84,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "accounting.post_journal_entries",
         "accounting.post_opening_balances",
         "accounting.view_general_ledger",
+        "accounting.reconcile_control_accounts",
     ),
     "Treasury Disbursement Officer": (
         "vouchers.view_voucher_workbench",

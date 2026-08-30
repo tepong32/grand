@@ -16,7 +16,10 @@ from django.urls import reverse
 from django.utils import timezone
 
 from departments.models import Department
-from accounting.models import AccountingPeriod, Fund, JournalEntry, LedgerAccount, PostingMapping, ResponsibilityCenter
+from accounting.models import (
+    AccountingPeriod, Fund, JournalEntry, JournalSubsidiaryLine, LedgerAccount,
+    PostingMapping, ResponsibilityCenter,
+)
 from accounting.services import post_entry, submit_entry
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
@@ -302,6 +305,15 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(linked_entry.status, JournalEntry.POSTED)
         self.assertEqual(linked_entry.source_snapshot["voucher_case"], str(case.public_id))
         self.assertEqual(linked_entry.totals, (Decimal("1000.00"), Decimal("1000.00")))
+        subsidiary = linked_entry.subsidiary_lines.order_by("category")
+        self.assertEqual(subsidiary.count(), 2)
+        payable = subsidiary.get(category=JournalSubsidiaryLine.PAYABLE)
+        withholding = subsidiary.get(category=JournalSubsidiaryLine.WITHHOLDING)
+        self.assertEqual(payable.reference_key, f"finance-party:{self.party.code}")
+        self.assertEqual(payable.reference_label, self.party.display_name)
+        self.assertEqual(payable.credit, Decimal("900.00"))
+        self.assertEqual(withholding.reference_key, "ewt")
+        self.assertEqual(withholding.credit, Decimal("100.00"))
         self.assertEqual(case.events.filter(action="grand_jev_posted").count(), 1)
         first = issue_check(
             case=case, actor=self.treasury_user, bank_account_code="gf-lbp", check_number="000101", amount=Decimal("400.00"),

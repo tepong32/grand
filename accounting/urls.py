@@ -44,4 +44,12 @@ urlpatterns = [
     path("ledger/export/", views.ledger_export, name="ledger_export"),
     path("trial-balance/", views.trial_balance, name="trial_balance"),
     path("trial-balance/export/", views.trial_balance_export, name="trial_balance_export"),
+    path("subsidiary-controls/", views.subsidiary_controls, name="subsidiary_controls"),
+    path("subsidiary-controls/reconcile/", views.subsidiary_reconcile, name="subsidiary_reconcile"),
+    path("subsidiary-controls/<slug:category>/export/", views.subsidiary_export, name="subsidiary_export"),
+    path(
+        "subsidiary-controls/reconciliations/<uuid:public_id>/export/",
+        views.subsidiary_reconciliation_export,
+        name="subsidiary_reconciliation_export",
+    ),
 ]

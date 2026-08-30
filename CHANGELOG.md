@@ -4,6 +4,13 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance payable and withholding subsidiary controls
+
+- Added F7.2 immutable payable and withholding subsidiary movements to governed voucher JEV lines, using stable Finance Party/deduction identities and exact line amounts.
+- Extended posted reversals with equal opposite subsidiary movements and retained source lineage; manual or opening control-account postings without detail remain visible reconciliation exceptions.
+- Added a familiar Accounting control workspace, dated checksum-backed reconciliation evidence, dedicated permission/role ownership, journal-line lineage, and a versioned department-specific floating `?` guide.
+- Added controlled payable, withholding, and reconciliation CSV exports archived in the TraceSync-ready department/user/file tree with adjacent manifests and explicit local-form acceptance boundaries.
+
 ### Finance transaction posting rules and governed JEV handoff
 
 - Added F7.1 plain-language, transaction-specific recognition, adjustment, liquidation, payment, remittance, cancellation, reversal, and replacement rule models with explicit recognition points and ordered debit/credit account-and-amount sources.

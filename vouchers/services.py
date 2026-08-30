@@ -1345,6 +1345,8 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         "recognition_basis": recognition_basis,
         "posting_rule_public_id": str(posting_rule.public_id),
         "posting_rule_checksum": rule_checksum,
+        "payee_key": f"finance-party:{case.payee.code}" if case.payee_id else f"voucher-case:{case.public_id}",
+        "payee_code": case.payee.code if case.payee_id else "",
         "payee_name": case.payee_name,
         "particulars": case.particulars,
         "gross_amount": str(voucher.gross_amount),

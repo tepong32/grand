@@ -7,18 +7,20 @@ from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Sum
 from django.forms.models import model_to_dict
 from django.utils import timezone
 
 from .access import (
     can_approve_fiscal_readiness, can_approve_opening_balances, can_manage_setup,
-    can_post_opening_balances, can_prepare_opening_balances,
+    can_post_opening_balances, can_prepare_opening_balances, can_reconcile_controls,
 )
 from .models import (
-    AccountingAuditEvent, AccountingPeriod, FiscalYear, FiscalYearReadinessApproval,
-    Fund, FundingSource, JournalEntry, JournalLine, LedgerAccount,
+    AccountingAuditEvent, AccountingPeriod, ControlAccountReconciliation, FiscalYear,
+    FiscalYearReadinessApproval, Fund, FundingSource, JournalEntry, JournalLine,
+    JournalSubsidiaryLine, LedgerAccount,
     OpeningBalanceBatch, OpeningBalanceEvent, OpeningBalancePosting, OpeningBalanceRow,
-    ProgramActivityProject, ResponsibilityCenter,
+    PostingMapping, ProgramActivityProject, ResponsibilityCenter,
 )
 
 
@@ -1158,6 +1160,26 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
         )
         reversed_line.full_clean()
         reversed_line.save()
+        original_subsidiary = JournalSubsidiaryLine.objects.filter(journal_line=line).first()
+        if original_subsidiary:
+            reversed_subsidiary = JournalSubsidiaryLine(
+                entry=reversal,
+                journal_line=reversed_line,
+                category=original_subsidiary.category,
+                reference_key=original_subsidiary.reference_key,
+                reference_label=original_subsidiary.reference_label,
+                source_code=original_subsidiary.source_code,
+                source_reference=str(reversal.public_id),
+                debit=original_subsidiary.credit,
+                credit=original_subsidiary.debit,
+                source_snapshot={
+                    "reversal_of_subsidiary_line": original_subsidiary.pk,
+                    "original_entry": str(locked.public_id),
+                    "original_source_reference": original_subsidiary.source_reference,
+                },
+            )
+            reversed_subsidiary.full_clean()
+            reversed_subsidiary.save()
     record_event(
         locked, "reversal_prepared", actor, reason=reason,
         snapshot={"reversal_entry": str(reversal.public_id), "reversal_reference": reversal.reference},
@@ -1167,6 +1189,166 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
         snapshot={"original_entry": str(locked.public_id), "original_reference": locked.reference},
     )
     return reversal
+
+
+def subsidiary_schedule_rows(department_id, category, as_of_date):
+    """Aggregate posted immutable subsidiary details by fund, control account, and reference."""
+    if category not in dict(JournalSubsidiaryLine.CATEGORY_CHOICES):
+        raise ValidationError("Choose a supported subsidiary schedule.")
+    rows = JournalSubsidiaryLine.objects.filter(
+        entry__department_id=department_id,
+        entry__status=JournalEntry.POSTED,
+        entry__entry_date__lte=as_of_date,
+        category=category,
+    ).values(
+        "entry__fund__code", "journal_line__account__code", "journal_line__account__title",
+        "reference_key", "reference_label", "source_code",
+    ).annotate(
+        debit_total=Sum("debit"), credit_total=Sum("credit"),
+    ).order_by(
+        "entry__fund__code", "journal_line__account__code", "reference_label", "reference_key",
+    )
+    result = []
+    for row in rows:
+        debit = row["debit_total"] or Decimal("0.00")
+        credit = row["credit_total"] or Decimal("0.00")
+        result.append({
+            "fund_code": row["entry__fund__code"],
+            "account_code": row["journal_line__account__code"],
+            "account_title": row["journal_line__account__title"],
+            "reference_key": row["reference_key"],
+            "reference_label": row["reference_label"],
+            "source_code": row["source_code"],
+            "debit": debit,
+            "credit": credit,
+            "balance": credit - debit,
+        })
+    return result
+
+
+def control_reconciliation_snapshot(department_id, as_of_date):
+    """Compare posted GL control accounts with posted subsidiary detail by fund and category."""
+    category_map = {
+        PostingMapping.PAYABLE: JournalSubsidiaryLine.PAYABLE,
+        PostingMapping.DEDUCTION: JournalSubsidiaryLine.WITHHOLDING,
+    }
+    mappings = list(PostingMapping.objects.filter(
+        department_id=department_id,
+        category__in=category_map,
+    ).select_related("account"))
+    pairs = {}
+    for mapping in mappings:
+        fund_ids = JournalLine.objects.filter(
+            entry__department_id=department_id,
+            entry__status=JournalEntry.POSTED,
+            entry__entry_date__lte=as_of_date,
+            account_id=mapping.account_id,
+        ).values_list("entry__fund_id", flat=True).distinct()
+        for fund_id in fund_ids:
+            key = (category_map[mapping.category], mapping.account_id, fund_id)
+            pair = pairs.setdefault(key, {"mapping_codes": set()})
+            pair["mapping_codes"].add(mapping.source_code)
+    subsidiary_pairs = JournalSubsidiaryLine.objects.filter(
+        entry__department_id=department_id,
+        entry__status=JournalEntry.POSTED,
+        entry__entry_date__lte=as_of_date,
+    ).values_list("category", "journal_line__account_id", "entry__fund_id", "source_code")
+    for category, account_id, fund_id, source_code in subsidiary_pairs:
+        pair = pairs.setdefault((category, account_id, fund_id), {"mapping_codes": set()})
+        pair["mapping_codes"].add(source_code)
+
+    account_ids = {key[1] for key in pairs}
+    fund_ids = {key[2] for key in pairs}
+    accounts = {item.pk: item for item in LedgerAccount.objects.filter(pk__in=account_ids)}
+    funds = {item.pk: item for item in Fund.objects.filter(pk__in=fund_ids)}
+    result_rows = []
+    absolute_difference = Decimal("0.00")
+    for (category, account_id, fund_id), pair in sorted(
+        pairs.items(), key=lambda item: (funds[item[0][2]].code, item[0][0], accounts[item[0][1]].code),
+    ):
+        gl = JournalLine.objects.filter(
+            entry__department_id=department_id,
+            entry__status=JournalEntry.POSTED,
+            entry__entry_date__lte=as_of_date,
+            entry__fund_id=fund_id,
+            account_id=account_id,
+        ).aggregate(debit=Sum("debit"), credit=Sum("credit"))
+        subsidiary = JournalSubsidiaryLine.objects.filter(
+            entry__department_id=department_id,
+            entry__status=JournalEntry.POSTED,
+            entry__entry_date__lte=as_of_date,
+            entry__fund_id=fund_id,
+            journal_line__account_id=account_id,
+            category=category,
+        ).aggregate(debit=Sum("debit"), credit=Sum("credit"))
+        gl_balance = (gl["credit"] or Decimal("0.00")) - (gl["debit"] or Decimal("0.00"))
+        subsidiary_balance = (subsidiary["credit"] or Decimal("0.00")) - (subsidiary["debit"] or Decimal("0.00"))
+        difference = gl_balance - subsidiary_balance
+        absolute_difference += abs(difference)
+        result_rows.append({
+            "category": category,
+            "category_label": dict(JournalSubsidiaryLine.CATEGORY_CHOICES)[category],
+            "fund_id": fund_id,
+            "fund_code": funds[fund_id].code,
+            "account_id": account_id,
+            "account_code": accounts[account_id].code,
+            "account_title": accounts[account_id].title,
+            "mapping_codes": sorted(pair["mapping_codes"]),
+            "gl_balance": str(gl_balance),
+            "subsidiary_balance": str(subsidiary_balance),
+            "difference": str(difference),
+            "balanced": difference == 0,
+        })
+    snapshot = {
+        "schema_version": 1,
+        "as_of_date": as_of_date.isoformat(),
+        "balance_basis": "credit minus debit by fund and mapped control account",
+        "configured": bool(mappings),
+        "configured_categories": sorted({category_map[item.category] for item in mappings}),
+        "rows": result_rows,
+        "absolute_difference_total": str(absolute_difference),
+        "balanced": bool(mappings) and absolute_difference == 0,
+    }
+    encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return snapshot, hashlib.sha256(encoded).hexdigest()
+
+
+@transaction.atomic(using=FINANCE_DB)
+def run_control_reconciliation(department, actor, as_of_date):
+    if not can_reconcile_controls(actor):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    if as_of_date > timezone.localdate():
+        raise ValidationError("The control reconciliation date cannot be in the future.")
+    snapshot, checksum = control_reconciliation_snapshot(department.pk, as_of_date)
+    run = ControlAccountReconciliation(
+        department_id=department.pk,
+        department_label=department.name,
+        as_of_date=as_of_date,
+        is_balanced=snapshot["balanced"],
+        absolute_difference_total=Decimal(snapshot["absolute_difference_total"]),
+        result_snapshot=snapshot,
+        result_checksum=checksum,
+        prepared_by_id=actor.pk,
+        prepared_by_label=actor_label(actor),
+    )
+    run.full_clean()
+    run.save()
+    AccountingAuditEvent.objects.create(
+        department_id=department.pk,
+        department_label=department.name,
+        action="control_reconciliation_run",
+        actor_id=actor.pk,
+        actor_label=actor_label(actor),
+        snapshot={
+            "reconciliation_public_id": str(run.public_id),
+            "as_of_date": as_of_date.isoformat(),
+            "balanced": run.is_balanced,
+            "absolute_difference_total": str(run.absolute_difference_total),
+            "result_checksum": checksum,
+        },
+    )
+    return run
 
 
 @transaction.atomic(using=FINANCE_DB)

@@ -781,6 +781,95 @@ class JournalLine(models.Model):
         return super().delete(*args, **kwargs)
 
 
+class JournalSubsidiaryLine(models.Model):
+    PAYABLE = "payable"
+    WITHHOLDING = "withholding"
+    CATEGORY_CHOICES = (
+        (PAYABLE, "Payable by claimant / payee"),
+        (WITHHOLDING, "Deduction / withholding payable"),
+    )
+
+    entry = models.ForeignKey(JournalEntry, on_delete=models.PROTECT, related_name="subsidiary_lines")
+    journal_line = models.OneToOneField(
+        JournalLine, on_delete=models.PROTECT, related_name="subsidiary_posting",
+    )
+    category = models.CharField(max_length=16, choices=CATEGORY_CHOICES)
+    reference_key = models.CharField(
+        max_length=100,
+        help_text="Stable payee key, deduction code, or other governed subsidiary identity.",
+    )
+    reference_label = models.CharField(max_length=220)
+    source_code = models.CharField(max_length=80)
+    source_reference = models.CharField(max_length=120)
+    debit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    credit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    source_snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("entry__entry_date", "entry_id", "journal_line__sequence")
+        constraints = (
+            models.CheckConstraint(
+                condition=(
+                    models.Q(debit__gt=0, credit=0)
+                    | models.Q(credit__gt=0, debit=0)
+                ),
+                name="one_sided_positive_subsidiary_amount",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.get_category_display()} · {self.reference_label} · {self.entry.reference}"
+
+    def clean(self):
+        if self.journal_line_id:
+            if self.journal_line.entry_id != self.entry_id:
+                raise ValidationError("The subsidiary detail must belong to its journal line's entry.")
+            if self.debit != self.journal_line.debit or self.credit != self.journal_line.credit:
+                raise ValidationError("The subsidiary amount must exactly mirror its journal control-account line.")
+        if not self.reference_key.strip() or not self.reference_label.strip():
+            raise ValidationError("Subsidiary details require a stable reference and readable label.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Journal subsidiary details are immutable. Reverse the posted entry instead.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Journal subsidiary details cannot be deleted. Reverse the journal entry instead.")
+
+
+class ControlAccountReconciliation(DepartmentOwnedModel):
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    as_of_date = models.DateField()
+    is_balanced = models.BooleanField(default=False)
+    absolute_difference_total = models.DecimalField(
+        max_digits=20, decimal_places=2, default=Decimal("0.00"),
+    )
+    result_snapshot = models.JSONField(default=dict)
+    result_checksum = models.CharField(max_length=64)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_by_label = models.CharField(max_length=160)
+    prepared_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-as_of_date", "-prepared_at", "-pk")
+        permissions = (
+            ("reconcile_control_accounts", "Can record payable and withholding control reconciliations"),
+        )
+
+    def __str__(self):
+        return f"Control reconciliation through {self.as_of_date}"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Control-account reconciliation evidence is immutable. Run a new reconciliation.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Control-account reconciliation evidence cannot be deleted.")
+
+
 class AccountingAuditEvent(DepartmentOwnedModel):
     entry = models.ForeignKey(JournalEntry, on_delete=models.PROTECT, null=True, blank=True, related_name="audit_events")
     action = models.CharField(max_length=40)

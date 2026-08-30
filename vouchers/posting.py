@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from accounting.access import can_post_journals, can_prepare_journals, department_for_user
 from accounting.models import (
-    AccountingAuditEvent, AccountingPeriod, Fund, JournalEntry, JournalLine,
+    AccountingAuditEvent, AccountingPeriod, Fund, JournalEntry, JournalLine, JournalSubsidiaryLine,
     LedgerAccount, PostingMapping, ResponsibilityCenter,
 )
 from finance.models import FinancePostingRuleLine
@@ -171,13 +171,27 @@ def materialize_voucher_journal(posting_request, actor):
                                 ),
                                 f"Map or create active responsibility center '{center_code}' in Accounting Setup.",
                             )
-                        rows.append((account, center, Decimal(str(item["amount"])), side, memo))
+                        rows.append({
+                            "account": account, "center": center,
+                            "amount": Decimal(str(item["amount"])), "side": side, "memo": memo,
+                            "subsidiary": None,
+                        })
                 elif account_source == FinancePostingRuleLine.DEDUCTION_MAPPINGS:
                     if amount_source != FinancePostingRuleLine.EACH_DEDUCTION:
                         raise PostingRequestError("The pinned deduction instruction does not use each deduction amount.")
                     for item in payload.get("deductions") or []:
                         account = mapped_account(PostingMapping.DEDUCTION, item["code"])
-                        rows.append((account, None, Decimal(str(item["amount"])), side, str(item.get("description") or memo)))
+                        rows.append({
+                            "account": account, "center": None,
+                            "amount": Decimal(str(item["amount"])), "side": side,
+                            "memo": str(item.get("description") or memo),
+                            "subsidiary": {
+                                "category": JournalSubsidiaryLine.WITHHOLDING,
+                                "reference_key": str(item["code"]),
+                                "reference_label": str(item.get("description") or item["code"]),
+                                "source_code": str(item["code"]),
+                            },
+                        })
                 else:
                     if amount_source not in scalar_amounts:
                         raise PostingRequestError("The pinned posting rule contains an unsupported amount source.")
@@ -194,11 +208,28 @@ def materialize_voucher_journal(posting_request, actor):
                         account = posting_account(str(instruction.get("ledger_account_code") or "").strip())
                     else:
                         raise PostingRequestError("The pinned posting rule contains an unsupported account source.")
-                    rows.append((account, None, amount, side, memo))
+                    subsidiary = None
+                    if account_source == FinancePostingRuleLine.PAYABLE_MAPPING:
+                        subsidiary = {
+                            "category": JournalSubsidiaryLine.PAYABLE,
+                            "reference_key": str(
+                                payload.get("payee_key") or f"voucher-case:{payload['voucher_case_public_id']}"
+                            ),
+                            "reference_label": str(payload["payee_name"]),
+                            "source_code": mapping_code or payload["transaction_type"],
+                        }
+                    rows.append({
+                        "account": account, "center": None, "amount": amount,
+                        "side": side, "memo": memo, "subsidiary": subsidiary,
+                    })
 
-            rows = [row for row in rows if row[2] != Decimal("0.00")]
-            debit_sum = sum((row[2] for row in rows if row[3] == FinancePostingRuleLine.DEBIT), Decimal("0.00"))
-            credit_sum = sum((row[2] for row in rows if row[3] == FinancePostingRuleLine.CREDIT), Decimal("0.00"))
+            rows = [row for row in rows if row["amount"] != Decimal("0.00")]
+            debit_sum = sum((
+                row["amount"] for row in rows if row["side"] == FinancePostingRuleLine.DEBIT
+            ), Decimal("0.00"))
+            credit_sum = sum((
+                row["amount"] for row in rows if row["side"] == FinancePostingRuleLine.CREDIT
+            ), Decimal("0.00"))
             if len(rows) < 2 or debit_sum <= 0 or debit_sum != credit_sum:
                 raise PostingRequestError(
                     f"The pinned posting rule produces an unbalanced entry: debit {debit_sum:.2f}, credit {credit_sum:.2f}."
@@ -223,6 +254,9 @@ def materialize_voucher_journal(posting_request, actor):
                     "posting_rule_checksum": request.posting_rule_checksum,
                     "posting_event": request.kind,
                     "recognition_decision": payload.get("recognition_decision", "legacy_pre_f7"),
+                    "payee_key": payload.get("payee_key", ""),
+                    "payee_code": payload.get("payee_code", ""),
+                    "payee_name": payload.get("payee_name", ""),
                 },
                 description=f"{payload['voucher_reference']} · {payload['particulars']}",
                 created_by_id=actor.pk,
@@ -230,14 +264,35 @@ def materialize_voucher_journal(posting_request, actor):
             )
             entry.full_clean()
             entry.save()
-            for sequence, (account, center, amount, side, memo) in enumerate(rows, start=1):
+            for sequence, row in enumerate(rows, start=1):
                 line = JournalLine(
-                    entry=entry, sequence=sequence, account=account, responsibility_center=center,
-                    debit=amount if side == FinancePostingRuleLine.DEBIT else Decimal("0.00"),
-                    credit=amount if side == FinancePostingRuleLine.CREDIT else Decimal("0.00"),
-                    memo=memo,
+                    entry=entry, sequence=sequence, account=row["account"],
+                    responsibility_center=row["center"],
+                    debit=row["amount"] if row["side"] == FinancePostingRuleLine.DEBIT else Decimal("0.00"),
+                    credit=row["amount"] if row["side"] == FinancePostingRuleLine.CREDIT else Decimal("0.00"),
+                    memo=row["memo"],
                 )
                 line.full_clean(); line.save()
+                if row["subsidiary"]:
+                    detail = JournalSubsidiaryLine(
+                        entry=entry,
+                        journal_line=line,
+                        category=row["subsidiary"]["category"],
+                        reference_key=row["subsidiary"]["reference_key"],
+                        reference_label=row["subsidiary"]["reference_label"],
+                        source_code=row["subsidiary"]["source_code"],
+                        source_reference=source_reference,
+                        debit=line.debit,
+                        credit=line.credit,
+                        source_snapshot={
+                            "posting_request": source_reference,
+                            "voucher_case": payload["voucher_case_public_id"],
+                            "voucher_reference": payload["voucher_reference"],
+                            "dv_number": payload["dv_number"],
+                            "posting_rule_checksum": request.posting_rule_checksum,
+                        },
+                    )
+                    detail.full_clean(); detail.save()
             AccountingAuditEvent.objects.create(
                 department_id=department.pk,
                 department_label=department.name,

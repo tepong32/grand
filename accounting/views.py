@@ -1,5 +1,7 @@
 import csv
 from decimal import Decimal
+import hashlib
+import json
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -7,7 +9,10 @@ from django.db import transaction
 from django.db.models import Count, Max, Q, Sum
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.text import slugify
+from django.utils.dateparse import parse_date
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from src.export_archive import archive_export
@@ -16,7 +21,7 @@ from .access import (
     accounting_access_required, accounting_permission_required, can_approve_fiscal_readiness,
     can_approve_opening_balances, can_govern_setup, can_manage_setup, can_post_journals,
     can_post_opening_balances, can_prepare_journals, can_prepare_opening_balances,
-    can_view_ledger, department_for_user,
+    can_reconcile_controls, can_view_ledger, department_for_user,
 )
 from .forms import (
     AccountingPeriodForm, FiscalYearForm, FundForm, FundingSourceForm, JournalEntryForm, JournalLineForm,
@@ -25,16 +30,18 @@ from .forms import (
     ResponsibilityCenterForm, ReversalForm,
 )
 from .models import (
-    AccountingAuditEvent, AccountingPeriod, FiscalYear, FiscalYearReadinessApproval, Fund,
-    FundingSource, JournalEntry, JournalLine, LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow, PostingMapping,
-    ProgramActivityProject, ResponsibilityCenter,
+    AccountingAuditEvent, AccountingPeriod, ControlAccountReconciliation, FiscalYear,
+    FiscalYearReadinessApproval, Fund, FundingSource, JournalEntry, JournalLine,
+    JournalSubsidiaryLine, LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow,
+    PostingMapping, ProgramActivityProject, ResponsibilityCenter,
 )
 from .services import (
     adopt_configuration_release, begin_foundation_amendment, close_period, create_reversal,
     correct_opening_batch, correct_opening_row, decide_opening_batch, decide_readiness_layer, discard_draft,
     ensure_readiness_layers, evaluate_fiscal_year_readiness, finalize_foundation_amendment,
     post_entry, post_opening_batch, reconcile_opening_batch, record_opening_event, return_entry, stage_opening_csv,
-    submit_entry, submit_opening_batch, transition_fiscal_year, validate_opening_batch,
+    run_control_reconciliation, subsidiary_schedule_rows, submit_entry, submit_opening_batch,
+    transition_fiscal_year, validate_opening_batch, control_reconciliation_snapshot,
 )
 
 
@@ -639,7 +646,8 @@ def entry_detail(request, public_id):
     reversal_entry = reversal_entries.first()
     active_reversal_entry = reversal_entries.exclude(status=JournalEntry.VOIDED).first()
     return render(request, "accounting/entry_detail.html", {
-        "entry": entry, "lines": entry.lines.select_related("account", "responsibility_center"),
+        "entry": entry,
+        "lines": entry.lines.select_related("account", "responsibility_center").prefetch_related("subsidiary_posting"),
         "debit_total": debit, "credit_total": credit, "balanced": debit > 0 and debit == credit,
         "can_prepare": can_prepare_journals(request.user), "can_post": can_post_journals(request.user),
         "reversal_entry": reversal_entry, "active_reversal_entry": active_reversal_entry,
@@ -1017,5 +1025,146 @@ def trial_balance_export(request):
             "total_debit": str(totals["debit"]), "total_credit": str(totals["credit"]),
             "balanced": totals["debit"] == totals["credit"],
             "official_status": "controlled data interchange; not automatically an official COA/local form",
+        },
+    )
+
+
+def _report_as_of(raw_value):
+    value = parse_date((raw_value or "").strip())
+    today = timezone.localdate()
+    if value is None:
+        return today
+    return min(value, today)
+
+
+@require_GET
+@accounting_permission_required(can_view_ledger)
+def subsidiary_controls(request):
+    department = department_for_user(request.user)
+    as_of_date = _report_as_of(request.GET.get("as_of"))
+    payables = subsidiary_schedule_rows(department.pk, JournalSubsidiaryLine.PAYABLE, as_of_date)
+    withholdings = subsidiary_schedule_rows(department.pk, JournalSubsidiaryLine.WITHHOLDING, as_of_date)
+    snapshot, _checksum = control_reconciliation_snapshot(department.pk, as_of_date)
+
+    def totals(rows):
+        return {
+            "debit": sum((row["debit"] for row in rows), Decimal("0.00")),
+            "credit": sum((row["credit"] for row in rows), Decimal("0.00")),
+            "balance": sum((row["balance"] for row in rows), Decimal("0.00")),
+        }
+
+    return render(request, "accounting/subsidiary_controls.html", {
+        "as_of_date": as_of_date,
+        "payables": payables,
+        "withholdings": withholdings,
+        "payable_totals": totals(payables),
+        "withholding_totals": totals(withholdings),
+        "current_reconciliation": snapshot,
+        "runs": ControlAccountReconciliation.objects.filter(department_id=department.pk)[:25],
+        "can_reconcile": can_reconcile_controls(request.user),
+    })
+
+
+@require_POST
+@accounting_permission_required(can_reconcile_controls)
+def subsidiary_reconcile(request):
+    department = department_for_user(request.user)
+    raw_as_of = (request.POST.get("as_of") or "").strip()
+    as_of_date = parse_date(raw_as_of) if raw_as_of else timezone.localdate()
+    try:
+        if as_of_date is None:
+            raise ValidationError("Enter a valid reconciliation date.")
+        run = run_control_reconciliation(department, request.user, as_of_date)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        if run.is_balanced:
+            messages.success(request, "The configured control accounts reconcile to subsidiary detail.")
+        else:
+            messages.warning(
+                request,
+                f"Reconciliation recorded with an absolute difference of {run.absolute_difference_total:.2f}.",
+            )
+    redirect_date = as_of_date if as_of_date and as_of_date <= timezone.localdate() else timezone.localdate()
+    return redirect(f"{reverse('accounting:subsidiary_controls')}?as_of={redirect_date.isoformat()}")
+
+
+@require_GET
+@accounting_permission_required(can_view_ledger)
+def subsidiary_export(request, category):
+    if category not in dict(JournalSubsidiaryLine.CATEGORY_CHOICES):
+        raise Http404
+    department = department_for_user(request.user)
+    as_of_date = _report_as_of(request.GET.get("as_of"))
+    rows = subsidiary_schedule_rows(department.pk, category, as_of_date)
+    filename = f"{category}-subsidiary-through-{as_of_date.isoformat()}.csv"
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    writer = csv.writer(response)
+    writer.writerow((
+        "export_kind", "department", "as_of_date", "category", "fund_code", "control_account_code",
+        "control_account_title", "reference_key", "reference_label", "source_code",
+        "debit_movements", "credit_movements", "credit_balance",
+    ))
+    for row in rows:
+        writer.writerow((
+            "posted_subsidiary_schedule", _csv_text(department.name), as_of_date, category,
+            _csv_text(row["fund_code"]), _csv_text(row["account_code"]), _csv_text(row["account_title"]),
+            _csv_text(row["reference_key"]), _csv_text(row["reference_label"]), _csv_text(row["source_code"]),
+            row["debit"], row["credit"], row["balance"],
+        ))
+    return _archived_csv_response(
+        response=response, request=request, department=department,
+        category=f"finance-{category}-subsidiary", filename=filename,
+        metadata={
+            "kind": "posted_subsidiary_schedule", "subsidiary_category": category,
+            "as_of_date": as_of_date.isoformat(), "row_count": len(rows),
+            "official_status": "controlled data interchange; not automatically an official COA/local schedule",
+        },
+    )
+
+
+@require_GET
+@accounting_permission_required(can_view_ledger)
+def subsidiary_reconciliation_export(request, public_id):
+    department = department_for_user(request.user)
+    run = get_object_or_404(
+        ControlAccountReconciliation, public_id=public_id, department_id=department.pk,
+    )
+    encoded = json.dumps(run.result_snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    if hashlib.sha256(encoded).hexdigest() != run.result_checksum:
+        return HttpResponse(
+            "The stored control-reconciliation checksum no longer matches its evidence. Contact an administrator.",
+            status=409,
+            content_type="text/plain; charset=utf-8",
+        )
+    filename = f"control-reconciliation-{run.as_of_date.isoformat()}-{str(run.public_id)[:8]}.csv"
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    writer = csv.writer(response)
+    writer.writerow((
+        "export_kind", "department", "as_of_date", "result_checksum", "category", "fund_code",
+        "control_account_code", "control_account_title", "mapping_codes", "gl_credit_balance",
+        "subsidiary_credit_balance", "difference", "balanced",
+    ))
+    for row in run.result_snapshot.get("rows", []):
+        writer.writerow((
+            "control_account_reconciliation", _csv_text(department.name), run.as_of_date,
+            run.result_checksum, row["category"], _csv_text(row["fund_code"]),
+            _csv_text(row["account_code"]), _csv_text(row["account_title"]),
+            _csv_text(" | ".join(row["mapping_codes"])), row["gl_balance"],
+            row["subsidiary_balance"], row["difference"], row["balanced"],
+        ))
+    return _archived_csv_response(
+        response=response, request=request, department=department,
+        category="finance-control-reconciliation", filename=filename,
+        metadata={
+            "kind": "control_account_reconciliation", "reconciliation_public_id": str(run.public_id),
+            "as_of_date": run.as_of_date.isoformat(), "result_checksum": run.result_checksum,
+            "balanced": run.is_balanced,
+            "absolute_difference_total": str(run.absolute_difference_total),
+            "official_status": "controlled reconciliation evidence; local review and acceptance still apply",
         },
     )
