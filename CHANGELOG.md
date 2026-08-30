@@ -4,6 +4,13 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance deduction and withholding remittance execution
+
+- Added F8.1 one-fund, cross-voucher agency remittance batches sourced only from positive posted withholding subsidiary balances, with live reservation against concurrent batches.
+- Added reason-required, retained pre-release allocation revisions/removals, independent Accounting approve/return, immutable actual-release and acknowledgement evidence, and completion only after JEV posting.
+- Added checksum-pinned liability-debit/bank-credit remittance JEVs, mapping-drift stops, controlled successors for discarded generated drafts, and posted subsidiary reduction without repeating release.
+- Added conservative Treasury/Accounting workspaces, role-specific floating Internal How-Tos, and versioned remittance CSV registers in the TraceSync-ready department/user/category tree with adjacent manifests.
+
 ### Finance payment-event posting and portable register
 
 - Added F7.3 immutable payment-instrument event requests that can create a governed JEV or retain an explicit locally reviewed no-entry decision for payment, cancellation, and replacement.

@@ -20,7 +20,7 @@ from accounting.models import (
     AccountingPeriod, Fund, JournalEntry, JournalSubsidiaryLine, LedgerAccount,
     PostingMapping, ResponsibilityCenter,
 )
-from accounting.services import post_entry, submit_entry
+from accounting.services import discard_draft, post_entry, submit_entry
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
     FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
@@ -35,9 +35,15 @@ from tracepoint.models import PacketItem, TrackedPacket
 from .access import can_view_workbench
 from .models import (
     PayableIntake, PaymentInstrument, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
+    RemittancePostingRequest, TreasuryRemittanceBatch, TreasuryRemittanceLine,
     VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
 )
 from .posting import materialize_voucher_journal, reconcile_posted_voucher_entry
+from .remittances import (
+    add_line, create_batch, export_batch_csv, materialize_remittance_journal,
+    reconcile_posted_remittance_entry, release_batch, review_batch, revise_line,
+    submit_batch, supersede_discarded_request, withholding_availability,
+)
 from .services import (
     amend_nonfinancial_voucher, approve_override, cancel_check, certify_budget, create_budget_case,
     finalize_bank_advice, generate_shadow_dv, issue_check, link_tracepoint_item, prepare_voucher, record_signature_return,
@@ -363,6 +369,142 @@ class VoucherWorkflowTests(TestCase):
                 created_by=self.preparer,
             )
         return payment
+
+    def enable_remittance_route(self):
+        self.treasury_user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers",
+            codename__in=("view_remittance_workbench", "prepare_remittances", "approve_remittances", "release_remittances", "view_remittance_audit"),
+        ))
+        self.validator.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers",
+            codename__in=("view_remittance_workbench", "approve_remittances", "view_remittance_audit"),
+        ))
+        self.preparer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="view_remittance_workbench",
+        ))
+        agency = FinanceParty.objects.create(
+            department=self.accounting, release=self.release, code="bir-agency", version=1,
+            display_name="Synthetic Revenue Agency", party_type=FinanceParty.AGENCY,
+            effective_from=date(2026, 1, 1), status="active", created_by=self.preparer,
+        )
+        bank_account = LedgerAccount.objects.create(
+            department_id=self.accounting.pk, department_label=self.accounting.name,
+            code="1-01-02", title="Synthetic cash in bank", account_type="asset", normal_balance="debit",
+        )
+        PostingMapping.objects.create(
+            department_id=self.accounting.pk, department_label=self.accounting.name,
+            category=PostingMapping.BANK, source_code="gf-lbp", label="General Fund bank", account=bank_account,
+        )
+        for document_type, prefix in (("deduction-remittance", "REM-"), ("journal-entry", "REM-JEV-")):
+            FinanceNumberingSequence.objects.create(
+                department=self.accounting, release=self.release, fiscal_year=2026,
+                document_type=document_type, prefix=prefix, padding=5, next_number=1,
+                status="active", created_by=self.preparer,
+            )
+        rule = FinancePostingRule.objects.create(
+            variant=self.transaction_variant, code="ordinary-supplier-remittance",
+            title="Remit ordinary supplier withholdings", event_kind=FinancePostingRule.REMITTANCE,
+            recognition_point=FinancePostingRule.DEDUCTION_REMITTANCE,
+            description="Debit each posted withholding liability and credit the releasing bank account.",
+            authority_reference="Synthetic locally reviewed remittance policy.", created_by=self.preparer,
+        )
+        FinancePostingRuleLine.objects.bulk_create((
+            FinancePostingRuleLine(
+                rule=rule, sequence=10, label="Reduce deduction liabilities",
+                side=FinancePostingRuleLine.DEBIT,
+                account_source=FinancePostingRuleLine.DEDUCTION_MAPPINGS,
+                amount_source=FinancePostingRuleLine.EACH_DEDUCTION,
+            ),
+            FinancePostingRuleLine(
+                rule=rule, sequence=20, label="Credit releasing bank",
+                side=FinancePostingRuleLine.CREDIT,
+                account_source=FinancePostingRuleLine.BANK_MAPPING,
+                amount_source=FinancePostingRuleLine.EVENT_AMOUNT,
+            ),
+        ))
+        return agency
+
+    def test_remittance_batch_versions_allocations_and_completes_only_after_posting(self):
+        agency = self.enable_remittance_route()
+        case = self.ready_for_treasury()
+        availability = withholding_availability(
+            finance_department_id=self.accounting.pk,
+            transaction_type=self.transaction_variant.code,
+            as_of_date=date(2026, 8, 31),
+        )
+        self.assertEqual(len(availability), 1)
+        self.assertEqual(availability[0]["available"], Decimal("100.00"))
+        batch = create_batch(
+            actor=self.treasury_user, configuration_release=self.release,
+            transaction_variant=self.transaction_variant, recipient_party=agency,
+            fund_code="general-fund", bank_account_code="gf-lbp",
+            remittance_date=date(2026, 8, 31), payment_method="Electronic transfer",
+            authority_reference="Synthetic reviewed remittance authority",
+            evidence_reference="Synthetic withholding schedule 2026-08",
+        )
+        self.assertEqual(batch.reference_code, "REM-00001")
+        first = add_line(
+            batch=batch, actor=self.treasury_user, choice_key=availability[0]["choice_key"],
+            amount=Decimal("80.00"), reason="Initial reviewed schedule amount",
+        )
+        successor = revise_line(
+            line=first, actor=self.treasury_user, amount=Decimal("100.00"),
+            reason="Corrected to the final reviewed withholding return",
+        )
+        first.refresh_from_db(); batch.refresh_from_db()
+        self.assertEqual(first.status, TreasuryRemittanceLine.SUPERSEDED)
+        self.assertEqual(successor.version, 2)
+        self.assertEqual(batch.total_amount, Decimal("100.00"))
+        submit_batch(batch=batch, actor=self.treasury_user)
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, TreasuryRemittanceBatch.FOR_REVIEW)
+        with self.assertRaisesMessage(ValidationError, "preparer cannot approve"):
+            review_batch(batch=batch, actor=self.treasury_user, approve=True, reason="Self approval")
+        review_batch(batch=batch, actor=self.validator, approve=True, reason="Matched to the reviewed return and posted subsidiary balance")
+        batch.refresh_from_db()
+        posting_request = release_batch(
+            batch=batch, actor=self.treasury_user,
+            release_reference="BANK-REM-0001", acknowledgement_reference="OR-0001",
+        )
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, TreasuryRemittanceBatch.ACCOUNTING_POSTING)
+        self.assertEqual(posting_request.jev_number, "REM-JEV-00001")
+        entry, created = materialize_remittance_journal(posting_request, self.preparer)
+        self.assertTrue(created)
+        self.assertEqual(entry.source_type, "remittance")
+        self.assertEqual(entry.totals, (Decimal("100.00"), Decimal("100.00")))
+        detail = entry.subsidiary_lines.get()
+        self.assertEqual((detail.debit, detail.credit), (Decimal("100.00"), Decimal("0.00")))
+        discard_draft(entry, self.preparer, "Replace the generated draft before posting")
+        successor_request = supersede_discarded_request(
+            posting_request=posting_request, actor=self.preparer,
+            reason="Replace the generated draft before posting",
+        )
+        posting_request.refresh_from_db(); batch.refresh_from_db()
+        self.assertEqual(posting_request.status, RemittancePostingRequest.CANCELLED)
+        self.assertEqual(successor_request.jev_number, "REM-JEV-00002")
+        self.assertEqual(batch.status, TreasuryRemittanceBatch.ACCOUNTING_POSTING)
+        self.assertEqual(batch.release_reference, "BANK-REM-0001")
+        entry, created = materialize_remittance_journal(successor_request, self.preparer)
+        self.assertTrue(created)
+        submit_entry(entry, self.preparer); entry.refresh_from_db()
+        post_entry(entry, self.validator); entry.refresh_from_db()
+        reconcile_posted_remittance_entry(entry, self.validator)
+        batch.refresh_from_db(); successor_request.refresh_from_db()
+        self.assertEqual(batch.status, TreasuryRemittanceBatch.COMPLETED)
+        self.assertEqual(successor_request.status, RemittancePostingRequest.POSTED)
+        self.assertEqual(withholding_availability(
+            finance_department_id=self.accounting.pk,
+            transaction_type=self.transaction_variant.code,
+            as_of_date=date(2026, 8, 31),
+        ), [])
+        content, archived = export_batch_csv(batch=batch, actor=self.treasury_user)
+        self.assertIn(b"BANK-REM-0001", content)
+        self.assertIn("voucher-treasury/treasurycashier/finance-remittances", archived["relative_path"])
+        self.client.force_login(self.treasury_user)
+        response = self.client.get(reverse("vouchers:remittance_detail", args=(batch.public_id,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Remitted and posted")
 
     def test_complete_supplier_disbursement_route_uses_one_shared_case(self):
         case = self.ready_for_treasury()

@@ -97,11 +97,15 @@ def workspace(request):
         Fund.objects.filter(department_id=department.pk, is_active=True).exists(),
         LedgerAccount.objects.filter(department_id=department.pk, is_active=True, allow_posting=True).exists(),
     ))
-    from vouchers.models import VoucherPostingRequest
+    from vouchers.models import RemittancePostingRequest, VoucherPostingRequest
     source_requests = VoucherPostingRequest.objects.filter(
         finance_department_id=department.pk,
         status__in=(VoucherPostingRequest.PENDING, VoucherPostingRequest.FAILED, VoucherPostingRequest.MATERIALIZED),
     ).select_related("case")[:50]
+    remittance_requests = RemittancePostingRequest.objects.filter(
+        finance_department_id=department.pk,
+        status__in=(RemittancePostingRequest.PENDING, RemittancePostingRequest.FAILED, RemittancePostingRequest.MATERIALIZED),
+    ).select_related("batch", "batch__recipient_party")[:50]
     return render(request, "accounting/workspace.html", {
         "entries": entries[:100], "metrics": metrics, "setup_ready": setup_ready,
         "status_choices": JournalEntry.STATUS_CHOICES, "selected_status": selected_status, "query": query,
@@ -110,7 +114,7 @@ def workspace(request):
         "can_prepare_opening": can_prepare_opening_balances(request.user),
         "can_approve_opening": can_approve_opening_balances(request.user),
         "can_post_opening": can_post_opening_balances(request.user),
-        "source_requests": source_requests,
+        "source_requests": source_requests, "remittance_requests": remittance_requests,
     })
 
 
@@ -750,17 +754,21 @@ def entry_post(request, public_id):
         messages.error(request, " ".join(exc.messages))
     else:
         messages.success(request, "Journal posted to the general ledger.")
-        if posted.source_type == "voucher":
+        if posted.source_type in {"voucher", "remittance"}:
             try:
-                from vouchers.posting import reconcile_posted_voucher_entry
-                reconcile_posted_voucher_entry(posted, request.user)
+                if posted.source_type == "voucher":
+                    from vouchers.posting import reconcile_posted_voucher_entry
+                    reconcile_posted_voucher_entry(posted, request.user)
+                else:
+                    from vouchers.remittances import reconcile_posted_remittance_entry
+                    reconcile_posted_remittance_entry(posted, request.user)
             except ValidationError as exc:
                 messages.warning(
                     request,
                     "The JEV is safely posted, but its Voucher Workbench handoff needs retry: " + " ".join(exc.messages),
                 )
             else:
-                messages.success(request, "Voucher handoff completed; its recorded Finance workflow can now continue.")
+                messages.success(request, "Source handoff completed; its recorded Finance workflow can now continue.")
     return redirect("accounting:entry_detail", public_id=entry.public_id)
 
 
@@ -781,7 +789,23 @@ def entry_discard(request, public_id):
         messages.error(request, " ".join(exc.messages))
     else:
         messages.success(request, "Draft journal discarded and retained in the audit trail.")
-        if discarded.source_type == "voucher" and discarded.source_reference:
+        if discarded.source_type == "remittance" and discarded.source_reference:
+            from vouchers.models import RemittancePostingRequest
+            source = RemittancePostingRequest.objects.filter(
+                public_id=discarded.source_reference,
+                accounting_entry_public_id=discarded.public_id,
+            ).exclude(status=RemittancePostingRequest.POSTED).first()
+            if source:
+                try:
+                    from vouchers.remittances import supersede_discarded_request
+                    successor = supersede_discarded_request(posting_request=source, actor=request.user, reason=reason)
+                except ValidationError as exc:
+                    messages.warning(request, "The draft is retained as voided, but its successor handoff needs attention: " + " ".join(exc.messages))
+                else:
+                    messages.info(request, f"A controlled successor request ({successor.jev_number}) is waiting in Accounting; the actual remittance was not repeated.")
+            else:
+                messages.warning(request, "The draft was discarded, but its remittance handoff needs administrative reconciliation.")
+        elif discarded.source_type == "voucher" and discarded.source_reference:
             from vouchers.models import VoucherPostingRequest
             source = VoucherPostingRequest.objects.filter(
                 public_id=discarded.source_reference,
@@ -877,6 +901,41 @@ def voucher_source_reconcile(request, public_id):
         messages.error(request, " ".join(exc.messages))
     else:
         messages.success(request, "Voucher handoff reconciled; Treasury can continue.")
+    return redirect("accounting:entry_detail", public_id=entry.public_id)
+
+
+@require_POST
+@accounting_permission_required(can_prepare_journals)
+def remittance_source_materialize(request, public_id):
+    from vouchers.models import RemittancePostingRequest
+    from vouchers.remittances import materialize_remittance_journal
+    source = get_object_or_404(RemittancePostingRequest, public_id=public_id)
+    try:
+        entry, created = materialize_remittance_journal(source, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+        return redirect("accounting:workspace")
+    messages.success(request, "Draft GRAND remittance JEV created from the immutable released schedule." if created else "Existing remittance JEV reopened; no duplicate was created.")
+    return redirect("accounting:entry_detail", public_id=entry.public_id)
+
+
+@require_POST
+@accounting_permission_required(can_post_journals)
+def remittance_source_reconcile(request, public_id):
+    from vouchers.models import RemittancePostingRequest
+    from vouchers.remittances import reconcile_posted_remittance_entry
+    department = department_for_user(request.user)
+    source = get_object_or_404(RemittancePostingRequest, public_id=public_id, finance_department_id=department.pk)
+    if not source.accounting_entry_public_id:
+        messages.error(request, "Create the GRAND remittance JEV before retrying the handoff.")
+        return redirect("accounting:workspace")
+    entry = get_object_or_404(JournalEntry, public_id=source.accounting_entry_public_id, department_id=department.pk)
+    try:
+        reconcile_posted_remittance_entry(entry, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, "Remittance handoff reconciled and completed.")
     return redirect("accounting:entry_detail", public_id=entry.public_id)
 
 

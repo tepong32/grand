@@ -7,6 +7,22 @@ from ..models import Department, InternalHowTo, InternalHowToStep
 
 ACCOUNTING_GUIDES = (
     {
+        "slug": "finance-remittance-accounting",
+        "version": 1,
+        "title": "Review and post withholding remittances",
+        "summary": "Independently review Treasury's exact schedule, then post the generated liability-reducing JEV after actual release.",
+        "permission": "vouchers.approve_remittances",
+        "patterns": ["vouchers:remittance_*", "accounting:workspace", "accounting:entry_*"],
+        "order": 55,
+        "steps": (
+            ("Review the submitted schedule", "Open the remittance and compare its fund, agency, date, authority/evidence references, selected subsidiary balances, and total to the reviewed return or schedule.", "The batch agrees with its accepted local source and every selected liability is still available.", "A public COA or agency memo is guidance; record local applicability and the actual reviewed schedule.", "Open Remittances", "vouchers:remittance_workspace"),
+            ("Approve or return independently", "Record a specific approval basis, or return the same batch with corrections Treasury can act on.", "An approved schedule becomes read-only; a return reopens the reasoned modification allowance.", "The preparer cannot approve the same batch.", "", ""),
+            ("Create the released remittance JEV", "After Treasury records actual release, use Create remittance JEV in Accounting. GRAND resolves each pinned withholding account and the bank mapping from the checksummed rule.", "The draft debits the exact posted liabilities and credits the releasing bank for the control total.", "Do not create a manual duplicate or substitute a different liability account when a mapping changed.", "Open Accounting", "accounting:workspace"),
+            ("Submit and post independently", "Submit the balanced generated draft and have a different authorized poster review and post it.", "The remittance becomes complete only after the ledger entry posts and the handoff reconciles.", "Discarding a pre-post draft creates a new controlled JEV request; it never repeats the actual remittance.", "", ""),
+            ("Correct after posting", "Use a linked reversal or adjustment with a reason. Keep the original batch, release evidence, and JEV intact.", "The liability schedule and general ledger remain reconstructible.", "Never edit or delete posted subsidiary detail.", "", ""),
+        ),
+    },
+    {
         "slug": "finance-opening-prepare",
         "title": "Stage and correct opening balances",
         "summary": "Prepare controlled opening rows, resolve differences, and submit only after every declared control is exact.",
@@ -282,6 +298,23 @@ BUDGET_GUIDES = (
 )
 
 TREASURY_GUIDES = (
+    {
+        "slug": "finance-treasury-remittance",
+        "version": 1,
+        "title": "Prepare and release withholding remittances",
+        "summary": "Build one-fund agency schedules from posted withholding balances, use the pre-release modification allowance, and complete only after Accounting posts.",
+        "permission": "vouchers.prepare_remittances",
+        "patterns": ["vouchers:remittance_*"],
+        "order": 10,
+        "steps": (
+            ("Start from posted balances", "Open Remittances, choose the active Finance setup, transaction group, receiving government agency, fund, payment account, date, method, and reviewed authority/evidence references.", "A controlled remittance number is reserved and only posted subsidiary balances for that transaction group are offered.", "Use one fund per batch and do not re-encode an unposted voucher deduction.", "Open Remittances", "vouchers:remittance_workspace"),
+            ("Build the schedule", "Select each posted withholding balance and enter the amount supported by the reviewed return or schedule. GRAND reserves it against concurrent batches.", "The active line total equals the batch control total without exceeding availability.", "Separate agency, fund, or transaction groups into their proper batches.", "", ""),
+            ("Use the modification allowance", "Before submission, or after Accounting returns the batch, use Revise. Enter a corrected amount or zero to remove and record the reason.", "The prior line and its successor remain visible in retained history.", "After approval the schedule is read-only; after actual release use Accounting correction routes rather than rewriting it.", "", ""),
+            ("Submit for independent review", "Send the reconciled schedule to Accounting and wait for approval or a specific return reason.", "Accounting reviews the same checksum-backed batch; Treasury cannot self-approve through its normal role.", "Do not release a returned or merely submitted schedule.", "", ""),
+            ("Record actual release once", "For an approved batch, record the bank/payment release reference and agency acknowledgement or official receipt when available.", "GRAND closes the modification window and creates a controlled JEV request.", "Do not repeat release while Accounting is posting or replacing a discarded draft.", "", ""),
+            ("Confirm completion and export", "Wait for Accounting to post the JEV, then export the register when needed. Copy or synchronize the complete GRAND export root with sibling manifests.", "The batch reads Remitted and posted; the subsidiary liability is reduced and portable evidence is retained.", "The CSV is controlled interchange, not automatically an official agency, COA, or local form.", "", ""),
+        ),
+    },
     {
         "slug": "finance-treasury-payment",
         "version": 2,

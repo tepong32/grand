@@ -15,7 +15,7 @@ from django.urls import reverse
 from departments.models import Department
 from finance.models import (
     FinanceConfigurationRelease, FinanceDocumentRule, FinanceParty, FinancePartyClaimant,
-    FinancePostingRule, FinanceTemplateVersion,
+    FinanceNumberingSequence, FinancePostingRule, FinanceTemplateVersion, FinanceTransactionVariant,
 )
 
 
@@ -712,6 +712,248 @@ class VoucherOutput(models.Model):
             if any(getattr(prior, field) != getattr(self, field) for field in immutable) or prior.file.name != self.file.name:
                 raise ValidationError("Generated voucher output evidence is immutable. Create a new version.")
         return super().save(*args, **kwargs)
+
+
+class TreasuryRemittanceBatch(models.Model):
+    """Controlled cross-voucher settlement of posted deduction/withholding liabilities."""
+
+    DRAFT = "draft"
+    RETURNED = "returned"
+    FOR_REVIEW = "for_review"
+    APPROVED = "approved"
+    ACCOUNTING_POSTING = "accounting_posting"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft"), (RETURNED, "Returned for correction"),
+        (FOR_REVIEW, "For Accounting review"), (APPROVED, "Approved for remittance"),
+        (ACCOUNTING_POSTING, "Released; Accounting posting"),
+        (COMPLETED, "Remitted and posted"), (CANCELLED, "Cancelled before release"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    reference_code = models.CharField(max_length=60, unique=True)
+    configuration_release = models.ForeignKey(
+        FinanceConfigurationRelease, on_delete=models.PROTECT, related_name="treasury_remittance_batches",
+    )
+    transaction_variant = models.ForeignKey(
+        FinanceTransactionVariant, on_delete=models.PROTECT, related_name="treasury_remittance_batches",
+    )
+    recipient_party = models.ForeignKey(
+        FinanceParty, on_delete=models.PROTECT, related_name="treasury_remittance_batches",
+    )
+    treasury_department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, related_name="treasury_remittance_batches",
+    )
+    finance_department_id = models.PositiveBigIntegerField()
+    finance_department_label = models.CharField(max_length=160)
+    fund_code = models.CharField(max_length=80)
+    bank_account_code = models.CharField(max_length=80)
+    remittance_date = models.DateField()
+    payment_method = models.CharField(max_length=80)
+    authority_reference = models.TextField()
+    evidence_reference = models.TextField()
+    release_reference = models.CharField(max_length=160, blank=True)
+    acknowledgement_reference = models.CharField(max_length=160, blank=True)
+    total_amount = models.DecimalField(**MONEY)
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=DRAFT, db_index=True)
+    state_version = models.PositiveIntegerField(default=0)
+    posting_rule = models.ForeignKey(
+        FinancePostingRule, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="treasury_remittance_batches",
+    )
+    posting_rule_snapshot = models.JSONField(default=dict, blank=True)
+    posting_rule_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_remittance_batches")
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="submitted_remittance_batches")
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="reviewed_remittance_batches")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_reason = models.TextField(blank=True)
+    released_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="released_remittance_batches")
+    released_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="cancelled_remittance_batches")
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-remittance_date", "-pk")
+        permissions = (
+            ("view_remittance_workbench", "Can view the Treasury remittance workbench"),
+            ("prepare_remittances", "Can prepare deduction and withholding remittances"),
+            ("approve_remittances", "Can independently review remittances"),
+            ("release_remittances", "Can record actual remittance release"),
+            ("view_remittance_audit", "Can view remittance audit history"),
+        )
+
+    def __str__(self):
+        return self.reference_code
+
+    def get_absolute_url(self):
+        return reverse("vouchers:remittance_detail", kwargs={"public_id": self.public_id})
+
+    def clean(self):
+        if self.configuration_release_id and self.transaction_variant_id:
+            if self.transaction_variant.release_id != self.configuration_release_id:
+                raise ValidationError("The remittance variant must belong to its pinned configuration release.")
+        if self.configuration_release_id and self.recipient_party_id:
+            if self.recipient_party.release_id != self.configuration_release_id or self.recipient_party.party_type != FinanceParty.AGENCY:
+                raise ValidationError("Choose an active government agency from the pinned release.")
+        if self.total_amount < Decimal("0.00"):
+            raise ValidationError({"total_amount": "The remittance total cannot be negative."})
+        governed = bool(self.posting_rule_id or self.posting_rule_snapshot or self.posting_rule_checksum)
+        if governed and not all((self.posting_rule_id, self.posting_rule_snapshot, self.posting_rule_checksum)):
+            raise ValidationError("The remittance posting rule, snapshot, and checksum must be pinned together.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "reference_code", "configuration_release_id", "transaction_variant_id",
+                "recipient_party_id", "treasury_department_id", "finance_department_id",
+                "finance_department_label", "fund_code", "bank_account_code", "remittance_date",
+                "payment_method", "authority_reference", "evidence_reference", "total_amount",
+                "posting_rule_id", "posting_rule_snapshot", "posting_rule_checksum", "created_by_id", "created_at",
+            )
+            if prior.status not in {self.DRAFT, self.RETURNED} and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("An approved or released remittance schedule is immutable. Use the governed return, cancellation, reversal, or adjustment route.")
+        return super().save(*args, **kwargs)
+
+
+class TreasuryRemittanceLine(models.Model):
+    ACTIVE = "active"
+    SUPERSEDED = "superseded"
+    REMOVED = "removed"
+    STATUS_CHOICES = ((ACTIVE, "Active"), (SUPERSEDED, "Superseded"), (REMOVED, "Removed"))
+
+    batch = models.ForeignKey(TreasuryRemittanceBatch, on_delete=models.PROTECT, related_name="lines")
+    lineage_key = models.UUIDField(default=uuid.uuid4)
+    version = models.PositiveSmallIntegerField(default=1)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=ACTIVE)
+    supersedes = models.OneToOneField("self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor")
+    fund_code = models.CharField(max_length=80)
+    account_code = models.CharField(max_length=80)
+    account_title = models.CharField(max_length=180)
+    reference_key = models.CharField(max_length=100)
+    reference_label = models.CharField(max_length=220)
+    deduction_code = models.CharField(max_length=80)
+    source_as_of_date = models.DateField()
+    available_balance_snapshot = models.DecimalField(**MONEY)
+    amount = models.DecimalField(**MONEY, validators=[MinValueValidator(Decimal("0.01"))])
+    source_checksum = models.CharField(max_length=64)
+    change_reason = models.TextField()
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_remittance_lines")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("lineage_key", "version")
+        constraints = (
+            models.UniqueConstraint(fields=("batch", "lineage_key", "version"), name="unique_remittance_line_version"),
+            models.UniqueConstraint(fields=("batch", "lineage_key"), condition=models.Q(status="active"), name="unique_active_remittance_line"),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Remittance allocation versions are immutable. Create a reasoned successor.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Remittance allocation evidence cannot be deleted.")
+
+
+class RemittanceNumberIssue(models.Model):
+    batch = models.ForeignKey(TreasuryRemittanceBatch, on_delete=models.PROTECT, related_name="number_issues")
+    sequence = models.ForeignKey(FinanceNumberingSequence, on_delete=models.PROTECT, related_name="remittance_number_issues")
+    document_type = models.SlugField(max_length=80)
+    numeric_value = models.PositiveBigIntegerField()
+    formatted_value = models.CharField(max_length=60)
+    issued_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="remittance_number_issues")
+    issued_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = (
+            models.UniqueConstraint(fields=("sequence", "numeric_value"), name="unique_issued_remittance_number"),
+            models.UniqueConstraint(fields=("batch", "document_type"), name="unique_remittance_document_number"),
+        )
+
+
+class RemittancePostingRequest(models.Model):
+    PENDING = "pending"
+    MATERIALIZED = "materialized"
+    POSTED = "posted"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    STATUS_CHOICES = (
+        (PENDING, "Waiting for JEV creation"), (MATERIALIZED, "Draft JEV created"),
+        (POSTED, "JEV posted"), (FAILED, "Needs intervention"), (CANCELLED, "Cancelled"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    batch = models.ForeignKey(TreasuryRemittanceBatch, on_delete=models.PROTECT, related_name="posting_requests")
+    version = models.PositiveSmallIntegerField(default=1)
+    jev_number = models.CharField(max_length=60)
+    jev_date = models.DateField()
+    finance_department_id = models.PositiveBigIntegerField()
+    finance_department_label = models.CharField(max_length=160)
+    posting_rule = models.ForeignKey(FinancePostingRule, on_delete=models.PROTECT, related_name="remittance_posting_requests")
+    posting_rule_snapshot = models.JSONField(default=dict)
+    posting_rule_checksum = models.CharField(max_length=64)
+    payload = models.JSONField(default=dict)
+    payload_checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
+    accounting_entry_public_id = models.UUIDField(null=True, blank=True)
+    failure_reason = models.TextField(blank=True)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="remittance_posting_requests")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    materialized_at = models.DateTimeField(null=True, blank=True)
+    posted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-requested_at", "-pk")
+        constraints = (
+            models.UniqueConstraint(fields=("batch", "version"), name="unique_remittance_posting_version"),
+            models.UniqueConstraint(fields=("finance_department_id", "jev_number"), name="unique_remittance_jev_number"),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            immutable = (
+                "batch_id", "version", "jev_number", "jev_date", "finance_department_id",
+                "finance_department_label", "posting_rule_id", "posting_rule_snapshot",
+                "posting_rule_checksum", "payload", "payload_checksum", "requested_by_id", "requested_at",
+            )
+            if any(getattr(prior, field) != getattr(self, field) for field in immutable):
+                raise ValidationError("Remittance posting evidence is immutable. Create a successor request.")
+        return super().save(*args, **kwargs)
+
+
+class RemittanceEvent(models.Model):
+    batch = models.ForeignKey(TreasuryRemittanceBatch, on_delete=models.PROTECT, related_name="events")
+    action = models.CharField(max_length=80)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="remittance_events")
+    actor_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="remittance_events")
+    from_status = models.CharField(max_length=24, blank=True)
+    to_status = models.CharField(max_length=24, blank=True)
+    reason = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    state_version = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Remittance events are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Remittance events cannot be deleted.")
 
 
 class VoucherPrintJob(models.Model):

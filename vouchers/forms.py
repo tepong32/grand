@@ -11,13 +11,13 @@ from departments.models import Department
 from budget.models import ObligationMovement, ObligationRequest, PayableObligationAllocation
 from budget.services import obligation_lineage_request_ids
 from finance.models import (
-    FinanceConfigurationItem, FinanceParty, FinancePartyClaimant, FinanceSignatory,
+    FinanceConfigurationItem, FinanceConfigurationRelease, FinanceParty, FinancePartyClaimant, FinanceSignatory,
     FinanceTransactionVariant,
 )
 
 from .models import (
     PayableDocumentEvidence, PayableIntake, PaymentInstrument, VoucherCase,
-    VoucherPrintJob, WetSignatureTask,
+    TreasuryRemittanceLine, VoucherPrintJob, WetSignatureTask,
 )
 
 
@@ -179,6 +179,81 @@ class PayableIntakeForm(forms.Form):
             if relationship in (PayableIntake.PARTIAL, PayableIntake.PROGRESS) and allocation_amount >= remaining:
                 self.add_error("initial_allocation_amount", "A partial or progress allocation must leave a positive obligation balance.")
         return cleaned
+
+
+class RemittanceBatchForm(forms.Form):
+    configuration_release = forms.ModelChoiceField(queryset=FinanceConfigurationRelease.objects.none(), label="Approved Finance setup")
+    transaction_variant = forms.ModelChoiceField(queryset=FinanceTransactionVariant.objects.none(), label="Transaction / withholding group")
+    recipient_party = forms.ModelChoiceField(queryset=FinanceParty.objects.none(), label="Receiving government agency")
+    fund_code = forms.ChoiceField(label="Fund")
+    bank_account_code = forms.ChoiceField(label="Bank / payment account")
+    remittance_date = forms.DateField(widget=DateInput)
+    payment_method = forms.CharField(max_length=80, help_text="For example: check, debit advice, electronic transfer, or other locally accepted method.")
+    authority_reference = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), help_text="Record the reviewed COA/BIR/GSIS/PhilHealth/Pag-IBIG/local basis that applies; public guidance alone is not local acceptance.")
+    evidence_reference = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), help_text="Reference the reviewed schedule, return, advice, or source packet without copying sensitive contents.")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        today = timezone.localdate()
+        releases = FinanceConfigurationRelease.objects.filter(status="active", effective_from__lte=today).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
+        self.fields["configuration_release"].queryset = releases
+        release = None
+        release_id = self.data.get("configuration_release") if self.is_bound else None
+        if release_id and str(release_id).isdigit():
+            release = releases.filter(pk=int(release_id)).first()
+        if release is None:
+            release = releases.order_by("-activated_at", "-pk").first()
+        self.fields["configuration_release"].initial = release
+        self.fields["transaction_variant"].queryset = FinanceTransactionVariant.objects.filter(release=release, status="active") if release else FinanceTransactionVariant.objects.none()
+        self.fields["recipient_party"].queryset = FinanceParty.objects.filter(release=release, status="active", party_type=FinanceParty.AGENCY) if release else FinanceParty.objects.none()
+        self.fields["fund_code"].choices = _items(release, "fund")
+        self.fields["bank_account_code"].choices = _items(release, "bank_account")
+        self.fields["remittance_date"].initial = today
+
+    def clean(self):
+        cleaned = super().clean()
+        release = cleaned.get("configuration_release")
+        for field in ("transaction_variant", "recipient_party"):
+            item = cleaned.get(field)
+            if release and item and item.release_id != release.pk:
+                self.add_error(field, "Choose an active item from the selected Finance setup release.")
+        return cleaned
+
+
+class RemittanceLineForm(forms.Form):
+    balance = forms.ChoiceField(label="Posted withholding balance")
+    amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.01"))
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), initial="Included in the reviewed remittance schedule.")
+
+    def __init__(self, *args, batch=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .remittances import withholding_availability
+        rows = withholding_availability(finance_department_id=batch.finance_department_id, transaction_type=batch.transaction_variant.code, as_of_date=batch.remittance_date) if batch else []
+        rows = [row for row in rows if row["fund_code"] == batch.fund_code]
+        self.fields["balance"].choices = [
+            (row["choice_key"], f"{row['reference_label']} · {row['account_code']} · available {row['available']:,.2f}")
+            for row in rows
+        ]
+
+
+class RemittanceLineRevisionForm(forms.Form):
+    revised_amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.00"), help_text="Enter zero to remove this allocation before release.")
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), help_text="Explain the correction. GRAND keeps both versions.")
+
+    def __init__(self, *args, line=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if line:
+            self.fields["revised_amount"].initial = line.amount
+
+
+class RemittanceReviewForm(forms.Form):
+    decision = forms.ChoiceField(choices=(("approve", "Approve for Treasury release"), ("return", "Return for correction")))
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), label="Review basis / correction instructions")
+
+
+class RemittanceReleaseForm(forms.Form):
+    release_reference = forms.CharField(max_length=160, label="Bank / payment release reference")
+    acknowledgement_reference = forms.CharField(max_length=160, required=False, label="Agency acknowledgement / official receipt reference")
 
 
 class PayableAllocationAddForm(WorkflowForm):

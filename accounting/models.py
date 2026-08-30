@@ -643,6 +643,7 @@ class JournalEntry(DepartmentOwnedModel):
     STATUS_CHOICES = ((DRAFT, "Draft"), (SUBMITTED, "For posting"), (POSTED, "Posted"), (VOIDED, "Voided"))
     SOURCE_CHOICES = (
         ("manual", "Manual journal"), ("voucher", "Voucher"),
+        ("remittance", "Deduction / withholding remittance"),
         ("adjustment", "Adjusting entry"), ("reversal", "Reversing entry"),
         ("opening", "Opening balance"),
     )

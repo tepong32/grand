@@ -22,6 +22,9 @@ ACTION_PERMISSIONS = (
     "vouchers.return_voucher_case",
     "vouchers.amend_nonfinancial_voucher",
     "vouchers.approve_control_overrides",
+    "vouchers.prepare_remittances",
+    "vouchers.approve_remittances",
+    "vouchers.release_remittances",
 )
 
 

@@ -294,6 +294,7 @@ def materialize_voucher_journal(posting_request, actor):
                             "voucher_case": payload["voucher_case_public_id"],
                             "voucher_reference": payload["voucher_reference"],
                             "dv_number": payload["dv_number"],
+                            "transaction_type": payload.get("transaction_type", ""),
                             "posting_rule_checksum": request.posting_rule_checksum,
                         },
                     )
