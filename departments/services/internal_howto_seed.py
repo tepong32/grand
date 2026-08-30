@@ -50,22 +50,23 @@ ACCOUNTING_GUIDES = (
     },
     {
         "slug": "finance-journal-prepare",
-        "version": 2,
+        "version": 3,
         "title": "Prepare and submit a journal entry",
         "summary": "Create manual JEVs only for supported events, or materialize a voucher JEV from its pinned posting rule, then send it to a different poster.",
         "permission": "accounting.prepare_journal_entries",
         "patterns": ["accounting:entry_*", "accounting:workspace"],
         "order": 60,
         "steps": (
-            ("Choose the correct source route", "For a voucher handoff, review its event, recognition decision, recognition point, and pinned posting-rule title, then use Create GRAND JEV. Use New journal only for a separately supported manual event.", "The selected route preserves the source and policy lineage.", "Do not recreate a voucher or opening-balance JEV manually.", "Open Accounting", "accounting:workspace"),
+            ("Choose the correct source route", "For a voucher handoff, review whether it is recognition, payment release, or another governed event, its recognition point, current event amount, and pinned posting-rule title, then use Create GRAND JEV. Use New journal only for a separately supported manual event.", "The selected route preserves the source, physical-instrument trigger, and policy lineage.", "Do not recreate a voucher or opening-balance JEV manually.", "Open Accounting", "accounting:workspace"),
             ("Create or inspect the draft", "For a manual event, choose the open period and fund and record its reference, date, and source. For a voucher event, let GRAND resolve the pinned account/amount instructions and verify the generated rule checksum.", "A department-scoped draft exists with its source evidence.", "A mapping error must be corrected in governed setup; do not substitute an unexplained account.", "", ""),
             ("Add controlled lines", "Add one positive debit or credit per line using active posting accounts and the correct responsibility center.", "The live totals are non-zero and equal.", "Do not use a manual journal to bypass a source-generated voucher or opening route.", "", ""),
+            ("Replace a discarded event draft safely", "If a generated payment-event draft must be discarded before posting, record the reason. GRAND retains the voided draft and reserves a new controlled JEV number for a successor request.", "The voucher stays at Accounting payment-event posting and a new request appears without re-releasing the check.", "Do not issue a manual duplicate or repeat the physical release.", "", ""),
             ("Submit for posting", "Review the source evidence and totals, then submit. The draft becomes read-only while under independent review.", "A different poster receives the entry in the posting queue.", "", "", ""),
         ),
     },
     {
         "slug": "finance-journal-post",
-        "version": 3,
+        "version": 4,
         "title": "Review, post, or return a JEV",
         "summary": "Independently review source lineage and balanced lines before they enter the immutable ledger.",
         "permission": "accounting.post_journal_entries",
@@ -73,7 +74,7 @@ ACCOUNTING_GUIDES = (
         "order": 70,
         "steps": (
             ("Review the submitted entry", "Confirm the period/fund, source reference, description, accounts, centers, line details, and equal debit/credit totals. For a voucher JEV, compare its event, recognition decision, pinned posting-rule checksum, claimant/payee, and deduction subsidiary labels to the handoff.", "The entry agrees with its supporting evidence and immutable posting rule.", "Posting is an authoritative boundary; do not approve an unexplained mapping, missing subsidiary identity, or a rule used at the wrong recognition point.", "Open Accounting", "accounting:workspace"),
-            ("Return or post", "Return with a specific reason when correction is needed. Otherwise post once; source-generated voucher handoff then advances recoverably.", "The entry is either editable again by its preparer or immutable in the ledger.", "", "", ""),
+            ("Return or post", "Return with a specific reason when review can be resolved on the same generated draft. Otherwise post once; a recognition JEV moves to check preparation, while a payment-event JEV resumes its exact recorded Treasury stage or completes the last release.", "The entry is either editable again by its preparer or immutable in the ledger, and the shared case resumes once.", "Do not manually move a voucher around its recorded resume stage.", "", ""),
             ("Correct after posting properly", "Use a linked reversing or adjusting entry with a mandatory reason rather than changing posted lines.", "The original and correction both remain traceable.", "", "", ""),
         ),
     },
@@ -283,6 +284,7 @@ BUDGET_GUIDES = (
 TREASURY_GUIDES = (
     {
         "slug": "finance-treasury-payment",
+        "version": 2,
         "title": "Prepare, advise, and release a payment instrument",
         "summary": "Issue and release checks only through the shared case, with cancellation/replacement history and advice controls intact.",
         "permission": "vouchers.issue_payment_instruments",
@@ -291,8 +293,10 @@ TREASURY_GUIDES = (
         "steps": (
             ("Confirm payment readiness", "Open a case in Treasury check preparation and verify its posted Accounting handoff, net amount, payee, payment account, and cash/payment prerequisites.", "The case is authorized for instrument preparation under the enabled pilot route.", "Never issue from an unposted or mismatched case.", "Open Finance Queue", "vouchers:workspace"),
             ("Register the physical check", "Record the controlled check number, amount, account, preparer, and issue evidence. Issued numbers are never silently reused.", "The case carries a traceable payment instrument.", "Issuance closes the convenience modification window for voucher fields.", "", ""),
-            ("Handle exceptions visibly", "For spoilage or error, cancel with a reason and create a linked replacement; do not edit the issued instrument.", "The cancelled and replacement instruments remain in one history.", "", "", ""),
-            ("Release only after advice", "After the applicable accountant/bank advice is finalized, record actual release and acknowledgement to the authorized recipient.", "The case completes with advice and release evidence.", "", "", ""),
+            ("Handle exceptions visibly", "For spoilage or error before release, cancel with a reason and create a linked replacement; do not edit the issued instrument. The pinned local rule records either a JEV handoff or an explicit no-entry decision.", "The cancelled and replacement instruments and their accounting decisions remain in one history.", "Never reuse a cancelled physical check number or treat a no-entry decision as missing work.", "", ""),
+            ("Release only after advice", "After the applicable accountant/bank advice is finalized, record the actual claimant, receipt reference, and release. If the pinned payment rule posts on release, the case moves temporarily to Accounting.", "The exact released instrument and amount become an immutable payment-event handoff.", "Do not repeat the release while Accounting is posting its JEV.", "", ""),
+            ("Resume the same release queue", "After Accounting posts the event JEV, reopen the same case. GRAND returns it to release remaining advised checks or completes it when the last check is settled.", "Each partial release is posted once and the shared case preserves its place.", "Do not create a second voucher to continue a split payment.", "Open Finance Queue", "vouchers:workspace"),
+            ("Export the portable payment register", "Use Export payment register when authorized. Copy or synchronize the complete GRAND export root so the CSV stays beside its checksum manifest under department/user/category/year/month.", "Check lineage, advice, claimant, receipt, cancellation, replacement, and posting status remain portable for safekeeping.", "The CSV is controlled interchange, not automatically an accepted official COA/local form.", "", ""),
         ),
     },
 )

@@ -760,7 +760,7 @@ def entry_post(request, public_id):
                     "The JEV is safely posted, but its Voucher Workbench handoff needs retry: " + " ".join(exc.messages),
                 )
             else:
-                messages.success(request, "Voucher handoff completed; Treasury can now prepare the payment instrument.")
+                messages.success(request, "Voucher handoff completed; its recorded Finance workflow can now continue.")
     return redirect("accounting:entry_detail", public_id=entry.public_id)
 
 
@@ -783,14 +783,35 @@ def entry_discard(request, public_id):
         messages.success(request, "Draft journal discarded and retained in the audit trail.")
         if discarded.source_type == "voucher" and discarded.source_reference:
             from vouchers.models import VoucherPostingRequest
-            updated = VoucherPostingRequest.objects.filter(
+            source = VoucherPostingRequest.objects.filter(
                 public_id=discarded.source_reference,
                 accounting_entry_public_id=discarded.public_id,
-            ).exclude(status=VoucherPostingRequest.POSTED).update(
-                status=VoucherPostingRequest.CANCELLED,
-                failure_reason="Draft GRAND JEV was discarded; return the voucher for correction before revalidating.",
-            )
-            if updated:
+            ).exclude(status=VoucherPostingRequest.POSTED).first()
+            if source and source.kind in {"payment", "remittance", "cancellation", "replacement"} and source.resume_stage:
+                try:
+                    from vouchers.services import supersede_discarded_event_posting_request
+                    successor = supersede_discarded_event_posting_request(
+                        posting_request=source,
+                        actor=request.user,
+                        reason=reason,
+                    )
+                except ValidationError as exc:
+                    messages.warning(
+                        request,
+                        "The draft is safely retained as voided, but its successor handoff needs attention: "
+                        + " ".join(exc.messages),
+                    )
+                else:
+                    messages.info(
+                        request,
+                        f"A controlled successor request ({successor.jev_number}) is waiting in the Accounting workspace.",
+                    )
+            elif source:
+                source.status = VoucherPostingRequest.CANCELLED
+                source.failure_reason = (
+                    "Draft GRAND JEV was discarded; return the voucher for correction before revalidating."
+                )
+                source.save(update_fields=("status", "failure_reason"))
                 messages.info(request, "The voucher posting request was cancelled and can now be returned for correction.")
             else:
                 messages.warning(request, "The draft was discarded, but its voucher handoff needs administrative reconciliation.")

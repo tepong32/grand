@@ -15,6 +15,11 @@ urlpatterns = [
     path("posting-rules/new/", views.posting_rule_create, name="posting_rule_create"),
     path("posting-rule-lines/new/", views.posting_rule_line_create, name="posting_rule_line_create"),
     path("variants/<int:variant_pk>/posting-starter/", views.posting_rule_starter, name="posting_rule_starter"),
+    path(
+        "variants/<int:variant_pk>/payment-posting-starters/",
+        views.payment_posting_starters,
+        name="payment_posting_starters",
+    ),
     path("signatories/new/", views.signatory_create, name="signatory_create"),
     path("parties/new/", views.party_create, name="party_create"),
     path("parties/<int:party_pk>/claimants/new/", views.claimant_create, name="claimant_create"),

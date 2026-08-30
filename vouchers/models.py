@@ -45,6 +45,7 @@ class VoucherCase(models.Model):
     AWAITING_SIGNATURES = "awaiting_signatures"
     ACCOUNTING_VALIDATION = "accounting_validation"
     ACCOUNTING_POSTING = "accounting_posting"
+    ACCOUNTING_EVENT_POSTING = "accounting_event_posting"
     TREASURY_CHECK_PREPARATION = "treasury_check_preparation"
     ACCOUNTING_BANK_ADVICE = "accounting_bank_advice"
     TREASURY_RELEASE = "treasury_release"
@@ -58,6 +59,7 @@ class VoucherCase(models.Model):
         (AWAITING_SIGNATURES, "Awaiting wet signatures"),
         (ACCOUNTING_VALIDATION, "Accounting validation"),
         (ACCOUNTING_POSTING, "Accounting JEV posting"),
+        (ACCOUNTING_EVENT_POSTING, "Accounting payment-event JEV posting"),
         (TREASURY_CHECK_PREPARATION, "Treasury check preparation"),
         (ACCOUNTING_BANK_ADVICE, "Accounting bank advice"),
         (TREASURY_RELEASE, "Treasury check release"),
@@ -454,20 +456,25 @@ class VoucherPostingRequest(models.Model):
     POSTED = "posted"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    NOT_REQUIRED = "not_required"
     STATUS_CHOICES = (
         (PENDING, "Waiting for JEV creation"),
         (MATERIALIZED, "Draft JEV created"),
         (POSTED, "JEV posted"),
         (FAILED, "Needs intervention"),
         (CANCELLED, "Cancelled"),
+        (NOT_REQUIRED, "No journal entry required"),
     )
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     case = models.ForeignKey(VoucherCase, on_delete=models.PROTECT, related_name="posting_requests")
     kind = models.CharField(max_length=20, choices=KIND_CHOICES, default=RECOGNITION)
     version = models.PositiveSmallIntegerField(default=1)
-    jev_number = models.CharField(max_length=60)
+    jev_number = models.CharField(max_length=60, null=True, blank=True)
     jev_date = models.DateField()
+    origin_stage = models.CharField(max_length=40, choices=VoucherCase.STAGE_CHOICES, blank=True)
+    resume_stage = models.CharField(max_length=40, choices=VoucherCase.STAGE_CHOICES, blank=True)
+    trigger_key = models.CharField(max_length=180, blank=True)
     finance_department_id = models.PositiveBigIntegerField()
     finance_department_label = models.CharField(max_length=160)
     posting_rule = models.ForeignKey(
@@ -493,10 +500,15 @@ class VoucherPostingRequest(models.Model):
         constraints = (
             models.UniqueConstraint(fields=("case", "kind", "version"), name="unique_voucher_posting_version"),
             models.UniqueConstraint(fields=("finance_department_id", "jev_number"), name="unique_voucher_jev_number"),
+            models.UniqueConstraint(
+                fields=("case", "kind", "trigger_key"),
+                condition=~models.Q(trigger_key=""),
+                name="unique_voucher_posting_trigger",
+            ),
         )
 
     def __str__(self):
-        return f"{self.jev_number} · {self.get_status_display()}"
+        return f"{self.jev_number or self.get_kind_display()} · {self.get_status_display()}"
 
     def clean(self):
         governed = bool(self.posting_rule_id or self.posting_rule_snapshot or self.posting_rule_checksum)
@@ -512,12 +524,24 @@ class VoucherPostingRequest(models.Model):
                 raise ValidationError("The pinned posting-rule snapshot checksum does not match its content.")
             if self.kind != self.posting_rule_snapshot.get("event_kind"):
                 raise ValidationError("The posting request event does not match the pinned posting rule.")
+            effect = self.posting_rule_snapshot.get("accounting_effect", FinancePostingRule.JOURNAL_ENTRY)
+            if effect == FinancePostingRule.JOURNAL_ENTRY and not self.jev_number:
+                raise ValidationError("A journal-producing posting request requires a controlled JEV number.")
+            if effect == FinancePostingRule.NO_ENTRY and self.jev_number:
+                raise ValidationError("A no-entry accounting decision cannot reserve a JEV number.")
+            if self.status == self.NOT_REQUIRED and effect != FinancePostingRule.NO_ENTRY:
+                raise ValidationError("Only an explicit no-entry rule may close without a JEV.")
+            if effect == FinancePostingRule.NO_ENTRY and self.status != self.NOT_REQUIRED:
+                raise ValidationError("An explicit no-entry accounting decision must close as no journal entry required.")
+        if self.resume_stage and self.resume_stage not in dict(VoucherCase.STAGE_CHOICES):
+            raise ValidationError("Choose a valid workflow stage to resume after posting.")
 
     def save(self, *args, **kwargs):
         if self.pk:
             prior = type(self).objects.get(pk=self.pk)
             immutable = (
-                "case_id", "kind", "version", "jev_number", "jev_date", "finance_department_id",
+                "case_id", "kind", "version", "jev_number", "jev_date", "origin_stage", "resume_stage",
+                "trigger_key", "finance_department_id",
                 "finance_department_label", "posting_rule_id", "posting_rule_public_id_snapshot",
                 "posting_rule_snapshot", "posting_rule_checksum", "payload", "payload_checksum",
                 "requested_by_id", "requested_at",

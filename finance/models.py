@@ -298,6 +298,9 @@ class FinancePostingRule(models.Model):
     DV_VALIDATION = "dv_validation"
     PAYMENT_ISSUANCE = "payment_issuance"
     PAYMENT_RELEASE = "payment_release"
+    PAYMENT_CANCELLATION = "payment_cancellation"
+    PAYMENT_REPLACEMENT = "payment_replacement"
+    DEDUCTION_REMITTANCE = "deduction_remittance"
     LIQUIDATION_ACCEPTANCE = "liquidation_acceptance"
     PERIOD_END = "period_end"
     OTHER = "other"
@@ -307,12 +310,21 @@ class FinancePostingRule(models.Model):
         (DV_VALIDATION, "DV Accounting validation"),
         (PAYMENT_ISSUANCE, "Check / payment-instrument issuance"),
         (PAYMENT_RELEASE, "Actual payment release"),
+        (PAYMENT_CANCELLATION, "Payment-instrument cancellation"),
+        (PAYMENT_REPLACEMENT, "Replacement payment-instrument issuance"),
+        (DEDUCTION_REMITTANCE, "Deduction / withholding remittance"),
         (LIQUIDATION_ACCEPTANCE, "Liquidation acceptance"),
         (PERIOD_END, "Period-end review"),
         (OTHER, "Other locally confirmed point"),
     )
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    JOURNAL_ENTRY = "journal_entry"
+    NO_ENTRY = "no_entry"
+    ACCOUNTING_EFFECT_CHOICES = (
+        (JOURNAL_ENTRY, "Create a governed journal entry"),
+        (NO_ENTRY, "Record that no journal entry is required"),
+    )
     variant = models.ForeignKey(
         FinanceTransactionVariant, on_delete=models.PROTECT, related_name="posting_rules",
     )
@@ -320,6 +332,12 @@ class FinancePostingRule(models.Model):
     title = models.CharField(max_length=180)
     event_kind = models.CharField(max_length=24, choices=EVENT_KIND_CHOICES)
     recognition_point = models.CharField(max_length=32, choices=RECOGNITION_POINT_CHOICES)
+    accounting_effect = models.CharField(
+        max_length=16,
+        choices=ACCOUNTING_EFFECT_CHOICES,
+        default=JOURNAL_ENTRY,
+        help_text="Choose an explicit no-entry decision when the reviewed local treatment has no ledger effect.",
+    )
     description = models.TextField(help_text="Explain in ordinary Accounting language when this entry is used.")
     authority_reference = models.TextField(
         help_text="Reviewed COA/local accounting basis and local applicability or acceptance reference."
@@ -382,12 +400,14 @@ class FinancePostingRuleLine(models.Model):
     GROSS = "gross"
     NET = "net"
     TOTAL_DEDUCTIONS = "total_deductions"
+    EVENT_AMOUNT = "event_amount"
     AMOUNT_SOURCE_CHOICES = (
         (EACH_ALLOCATION, "Each allocation amount"),
         (EACH_DEDUCTION, "Each deduction amount"),
         (GROSS, "Voucher gross amount"),
         (NET, "Voucher net amount"),
         (TOTAL_DEDUCTIONS, "Total deductions"),
+        (EVENT_AMOUNT, "Current payment / cancellation / replacement / remittance amount"),
     )
 
     rule = models.ForeignKey(FinancePostingRule, on_delete=models.PROTECT, related_name="lines")
@@ -425,7 +445,9 @@ class FinancePostingRuleLine(models.Model):
         if self.account_source not in {self.ALLOCATION_ACCOUNTS, self.DEDUCTION_MAPPINGS} and self.amount_source in {
             self.EACH_ALLOCATION, self.EACH_DEDUCTION,
         }:
-            raise ValidationError({"amount_source": "Choose gross, net, or total deductions for this account source."})
+            raise ValidationError({
+                "amount_source": "Choose gross, net, total deductions, or the current event amount for this account source."
+            })
         if self.account_source == self.FIXED_ACCOUNT:
             if not self.ledger_account_code.strip():
                 raise ValidationError({"ledger_account_code": "Enter the locally confirmed posting account code."})

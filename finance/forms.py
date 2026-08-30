@@ -104,7 +104,7 @@ class FinancePostingRuleForm(forms.ModelForm):
     class Meta:
         model = FinancePostingRule
         fields = (
-            "variant", "code", "title", "event_kind", "recognition_point",
+            "variant", "code", "title", "event_kind", "recognition_point", "accounting_effect",
             "description", "authority_reference",
         )
         widgets = {

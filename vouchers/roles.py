@@ -140,7 +140,7 @@ ROLE_PROFILES = {
         "empty_message": "No voucher case is waiting for Accounting action.",
         "stages": (
             "payable_review", "accounting_preparation", "awaiting_signatures", "accounting_validation",
-            "accounting_posting", "accounting_bank_advice",
+            "accounting_posting", "accounting_event_posting", "accounting_bank_advice",
         ),
         "icon": "fa-balance-scale",
     },
@@ -161,7 +161,7 @@ ROLE_PROFILES = {
         "empty_message": "No finance case is currently open.",
         "stages": (
             "budget_draft", "payable_preparation", "payable_review", "accounting_preparation", "awaiting_signatures", "accounting_validation",
-            "accounting_posting", "treasury_check_preparation", "accounting_bank_advice", "treasury_release",
+            "accounting_posting", "accounting_event_posting", "treasury_check_preparation", "accounting_bank_advice", "treasury_release",
         ),
         "icon": "fa-route",
     },
@@ -176,6 +176,7 @@ STAGE_NEXT_ACTION = {
     "awaiting_signatures": "Prepare the controlled signing copy, link its packet, and record returned wet signatures",
     "accounting_validation": "Validate the voucher and request a JEV",
     "accounting_posting": "Create, submit, and independently post the GRAND JEV",
+    "accounting_event_posting": "Post the governed payment-event JEV, then resume the recorded Treasury step",
     "treasury_check_preparation": "Register or replace checks",
     "accounting_bank_advice": "Finalize bank advice",
     "treasury_release": "Release advised checks",

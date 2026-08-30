@@ -4,6 +4,13 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance payment-event posting and portable register
+
+- Added F7.3 immutable payment-instrument event requests that can create a governed JEV or retain an explicit locally reviewed no-entry decision for payment, cancellation, and replacement.
+- Added payment-release payable-to-bank JEV materialization, exact Treasury-stage resume after independent posting, split-payment support, and controlled successor requests when a generated event draft is discarded.
+- Added editable payment, remittance, cancellation, and replacement starters; complete-event readiness/submission gates; event-aware Accounting/Treasury queues; and versioned department-specific floating `?` guides.
+- Added a case payment-register CSV with issue, advice, claimant/release/receipt, cancellation/replacement lineage, and posting status, archived in the TraceSync-ready department/user/category tree with a checksum manifest.
+
 ### Finance payable and withholding subsidiary controls
 
 - Added F7.2 immutable payable and withholding subsidiary movements to governed voucher JEV lines, using stable Finance Party/deduction identities and exact line amounts.

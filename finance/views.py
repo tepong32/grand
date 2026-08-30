@@ -17,8 +17,9 @@ from .forms import (
 )
 from .models import FinanceConfigurationRelease, FinanceParty, FinanceTemplateVersion, FinanceTransactionVariant
 from .services import (
-    FinanceTemplateError, build_finance_starter_workbook, create_recognition_posting_starter,
-    evaluate_readiness, preflight_finance_template, record_event, synthetic_preview, transition_release,
+    FinanceTemplateError, build_finance_starter_workbook, create_payment_event_posting_starters,
+    create_recognition_posting_starter, evaluate_readiness, preflight_finance_template,
+    record_event, synthetic_preview, transition_release,
 )
 
 
@@ -177,6 +178,28 @@ def posting_rule_starter(request, variant_pk):
         messages.success(
             request,
             "Editable recognition starter added. Review its timing, accounts, wording, and authority before submission.",
+        )
+    return redirect("finance:release_detail", pk=variant.release_id)
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def payment_posting_starters(request, variant_pk):
+    if request.method != "POST":
+        raise Http404
+    department = department_for_user(request.user)
+    variant = get_object_or_404(
+        FinanceTransactionVariant.objects.select_related("release", "department"),
+        pk=variant_pk,
+        department=department,
+    )
+    try:
+        created = create_payment_event_posting_starters(variant, request.user)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(
+            request,
+            f"{len(created)} editable payment-cycle starter rule(s) added. Replace every warning with the reviewed local treatment before submission.",
         )
     return redirect("finance:release_detail", pk=variant.release_id)
 

@@ -292,6 +292,78 @@ class VoucherWorkflowTests(TestCase):
         case.refresh_from_db()
         return case
 
+    def enable_payment_event_rules(self):
+        owner = {"department_id": self.accounting.pk, "department_label": self.accounting.name}
+        bank_account = LedgerAccount.objects.create(
+            **owner,
+            code="1-01-02",
+            title="Synthetic cash in bank",
+            account_type="asset",
+            normal_balance="debit",
+        )
+        PostingMapping.objects.create(
+            **owner,
+            category=PostingMapping.BANK,
+            source_code="gf-lbp",
+            label="General Fund bank account",
+            account=bank_account,
+        )
+        FinanceNumberingSequence.objects.create(
+            department=self.accounting,
+            release=self.release,
+            fiscal_year=timezone.localdate().year,
+            document_type="journal-entry",
+            prefix="PAY-JEV-",
+            padding=5,
+            next_number=1,
+            status="active",
+            created_by=self.preparer,
+        )
+        payment = FinancePostingRule.objects.create(
+            variant=self.transaction_variant,
+            code="ordinary-supplier-payment",
+            title="Record payment on actual release",
+            event_kind=FinancePostingRule.PAYMENT,
+            recognition_point=FinancePostingRule.PAYMENT_RELEASE,
+            description="Debit payable and credit the releasing bank account.",
+            authority_reference="Synthetic locally reviewed payment policy.",
+            created_by=self.preparer,
+        )
+        FinancePostingRuleLine.objects.bulk_create((
+            FinancePostingRuleLine(
+                rule=payment,
+                sequence=10,
+                label="Debit released payable",
+                side=FinancePostingRuleLine.DEBIT,
+                account_source=FinancePostingRuleLine.PAYABLE_MAPPING,
+                amount_source=FinancePostingRuleLine.EVENT_AMOUNT,
+            ),
+            FinancePostingRuleLine(
+                rule=payment,
+                sequence=20,
+                label="Credit releasing bank",
+                side=FinancePostingRuleLine.CREDIT,
+                account_source=FinancePostingRuleLine.BANK_MAPPING,
+                amount_source=FinancePostingRuleLine.EVENT_AMOUNT,
+            ),
+        ))
+        for kind, point in (
+            (FinancePostingRule.CANCELLATION, FinancePostingRule.PAYMENT_CANCELLATION),
+            (FinancePostingRule.REPLACEMENT, FinancePostingRule.PAYMENT_REPLACEMENT),
+        ):
+            FinancePostingRule.objects.create(
+                variant=self.transaction_variant,
+                code=f"ordinary-supplier-{kind}",
+                title=f"Record {kind} without ledger effect",
+                event_kind=kind,
+                recognition_point=point,
+                accounting_effect=FinancePostingRule.NO_ENTRY,
+                description=f"Retain the pre-release {kind} evidence without creating a JEV.",
+                authority_reference=f"Synthetic locally reviewed {kind} policy.",
+                created_by=self.preparer,
+            )
+        return payment
+
     def test_complete_supplier_disbursement_route_uses_one_shared_case(self):
         case = self.ready_for_treasury()
         posting_request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
@@ -344,6 +416,182 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(case.disbursement_voucher.net_amount, Decimal("900.00"))
         self.assertEqual(case.events.filter(action="disbursement_completed").count(), 1)
         self.assertTrue(all(event.actor_department_id for event in case.events.all()))
+
+    def test_payment_release_creates_event_jev_resumes_and_exports_register(self):
+        payment_rule = self.enable_payment_event_rules()
+        case = self.ready_for_treasury()
+        instrument = issue_check(
+            case=case,
+            actor=self.treasury_user,
+            bank_account_code="gf-lbp",
+            check_number="000151",
+            amount=Decimal("900.00"),
+            expected_version=case.state_version,
+            idempotency_key="payment-event-issue",
+        )
+        case.refresh_from_db()
+        submit_checks_for_advice(
+            case=case,
+            actor=self.treasury_user,
+            expected_version=case.state_version,
+            idempotency_key="payment-event-submit",
+        )
+        case.refresh_from_db()
+        finalize_bank_advice(
+            case=case,
+            actor=self.validator,
+            advice_number="ADV-PAYMENT-EVENT",
+            advice_date=date(2026, 8, 25),
+            expected_version=case.state_version,
+            idempotency_key="payment-event-advice",
+        )
+        case.refresh_from_db(); instrument.refresh_from_db()
+        release_check(
+            case=case,
+            instrument=instrument,
+            actor=self.treasury_user,
+            claimant=self.claimant,
+            receipt_reference="RECEIPT-PAYMENT-EVENT",
+            expected_version=case.state_version,
+            idempotency_key="payment-event-release",
+        )
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_EVENT_POSTING)
+        request = case.posting_requests.get(kind=VoucherPostingRequest.PAYMENT)
+        self.assertEqual(request.posting_rule, payment_rule)
+        self.assertEqual(request.resume_stage, VoucherCase.COMPLETED)
+        self.assertEqual(request.payload["event_amount"], "900.00")
+        self.assertEqual(request.payload["trigger"]["instrument_public_id"], str(instrument.public_id))
+        entry, created = materialize_voucher_journal(request, self.preparer)
+        self.assertTrue(created)
+        self.assertEqual(entry.totals, (Decimal("900.00"), Decimal("900.00")))
+        payable_line = entry.lines.get(account__code="2-01-01")
+        bank_line = entry.lines.get(account__code="1-01-02")
+        self.assertEqual(payable_line.debit, Decimal("900.00"))
+        self.assertEqual(bank_line.credit, Decimal("900.00"))
+        payable_detail = entry.subsidiary_lines.get(category=JournalSubsidiaryLine.PAYABLE)
+        self.assertEqual(payable_detail.debit, Decimal("900.00"))
+        submit_entry(entry, self.preparer)
+        entry.refresh_from_db()
+        post_entry(entry, self.validator)
+        entry.refresh_from_db()
+        reconcile_posted_voucher_entry(entry, self.validator)
+        case.refresh_from_db(); request.refresh_from_db()
+        self.assertEqual(request.status, VoucherPostingRequest.POSTED)
+        self.assertEqual(case.current_stage, VoucherCase.COMPLETED)
+        self.assertTrue(case.events.filter(action="payment_jev_posted").exists())
+
+        self.client.force_login(self.treasury_user)
+        response = self.client.get(reverse("vouchers:payment_register_export", args=(case.public_id,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+        self.assertIn("voucher-treasury/treasurycashier/finance-payment-registers", response["X-GRAND-Export-Relative-Path"])
+        exported = response.content.decode("utf-8")
+        self.assertIn("ADV-PAYMENT-EVENT", exported)
+        self.assertIn(request.jev_number, exported)
+        self.assertIn("RECEIPT-PAYMENT-EVENT", exported)
+
+    def test_cancellation_and_replacement_record_explicit_no_entry_decisions(self):
+        self.enable_payment_event_rules()
+        case = self.ready_for_treasury()
+        cancelled = issue_check(
+            case=case,
+            actor=self.treasury_user,
+            bank_account_code="gf-lbp",
+            check_number="000161",
+            amount=Decimal("900.00"),
+            expected_version=case.state_version,
+            idempotency_key="no-entry-issue",
+        )
+        case.refresh_from_db()
+        cancel_check(
+            case=case,
+            instrument=cancelled,
+            actor=self.treasury_user,
+            reason="Synthetic spoiled instrument",
+            expected_version=case.state_version,
+            idempotency_key="no-entry-cancel",
+        )
+        case.refresh_from_db()
+        cancellation = case.posting_requests.get(kind=VoucherPostingRequest.CANCELLATION)
+        self.assertEqual(cancellation.status, VoucherPostingRequest.NOT_REQUIRED)
+        self.assertIsNone(cancellation.jev_number)
+        self.assertEqual(case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
+        replacement = issue_check(
+            case=case,
+            actor=self.treasury_user,
+            bank_account_code="gf-lbp",
+            check_number="000162",
+            amount=Decimal("900.00"),
+            replaces=cancelled,
+            expected_version=case.state_version,
+            idempotency_key="no-entry-replacement",
+        )
+        case.refresh_from_db()
+        replacement_request = case.posting_requests.get(kind=VoucherPostingRequest.REPLACEMENT)
+        self.assertEqual(replacement_request.status, VoucherPostingRequest.NOT_REQUIRED)
+        self.assertEqual(replacement_request.payload["trigger"]["replaces_instrument_public_id"], str(cancelled.public_id))
+        self.assertEqual(replacement.replaces, cancelled)
+        self.assertEqual(case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
+
+    def test_discarded_payment_event_draft_gets_controlled_successor(self):
+        self.enable_payment_event_rules()
+        case = self.ready_for_treasury()
+        instrument = issue_check(
+            case=case,
+            actor=self.treasury_user,
+            bank_account_code="gf-lbp",
+            check_number="000171",
+            amount=Decimal("900.00"),
+            expected_version=case.state_version,
+            idempotency_key="event-discard-issue",
+        )
+        case.refresh_from_db()
+        submit_checks_for_advice(
+            case=case,
+            actor=self.treasury_user,
+            expected_version=case.state_version,
+            idempotency_key="event-discard-submit",
+        )
+        case.refresh_from_db()
+        finalize_bank_advice(
+            case=case,
+            actor=self.validator,
+            advice_number="ADV-EVENT-DISCARD",
+            advice_date=date(2026, 8, 25),
+            expected_version=case.state_version,
+            idempotency_key="event-discard-advice",
+        )
+        case.refresh_from_db(); instrument.refresh_from_db()
+        release_check(
+            case=case,
+            instrument=instrument,
+            actor=self.treasury_user,
+            claimant=self.claimant,
+            receipt_reference="RECEIPT-EVENT-DISCARD",
+            expected_version=case.state_version,
+            idempotency_key="event-discard-release",
+        )
+        original = case.posting_requests.get(kind=VoucherPostingRequest.PAYMENT)
+        entry, _created = materialize_voucher_journal(original, self.preparer)
+        self.client.force_login(self.preparer)
+        response = self.client.post(
+            reverse("accounting:entry_discard", args=(entry.public_id,)),
+            {"reason": "Replace the generated event draft after setup review."},
+        )
+        self.assertEqual(response.status_code, 302)
+        case.refresh_from_db(); original.refresh_from_db(); entry.refresh_from_db()
+        self.assertEqual(entry.status, JournalEntry.VOIDED)
+        self.assertEqual(original.status, VoucherPostingRequest.CANCELLED)
+        successor = case.posting_requests.get(kind=VoucherPostingRequest.PAYMENT, version=2)
+        self.assertEqual(successor.status, VoucherPostingRequest.PENDING)
+        self.assertNotEqual(successor.jev_number, original.jev_number)
+        self.assertEqual(successor.resume_stage, VoucherCase.COMPLETED)
+        self.assertEqual(successor.payload["trigger"], original.payload["trigger"])
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_EVENT_POSTING)
+        successor_entry, created = materialize_voucher_journal(successor, self.preparer)
+        self.assertTrue(created)
+        self.assertNotEqual(successor_entry.public_id, entry.public_id)
 
     def test_dv_validation_does_not_collapse_prior_accrual_into_recognition(self):
         case = self.create_case("accrual-route-create")

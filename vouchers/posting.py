@@ -44,6 +44,8 @@ def materialize_voucher_journal(posting_request, actor):
     request = VoucherPostingRequest.objects.select_related("case", "posting_rule").get(pk=posting_request.pk)
     if request.finance_department_id != department.pk:
         raise PermissionDenied
+    if request.status == VoucherPostingRequest.NOT_REQUIRED:
+        raise PostingRequestError("This governed event explicitly requires no journal entry; there is nothing to create.")
     if request.status in {VoucherPostingRequest.CANCELLED, VoucherPostingRequest.POSTED}:
         raise PostingRequestError("This posting request is no longer eligible for draft creation.")
 
@@ -148,6 +150,7 @@ def materialize_voucher_journal(posting_request, actor):
                 FinancePostingRuleLine.GROSS: gross,
                 FinancePostingRuleLine.NET: net,
                 FinancePostingRuleLine.TOTAL_DEDUCTIONS: deduction_total,
+                FinancePostingRuleLine.EVENT_AMOUNT: Decimal(str(payload.get("event_amount") or "0")),
             }
             rows = []
             for instruction in sorted(rule_lines, key=lambda item: (item.get("sequence", 0), item.get("label", ""))):
@@ -253,6 +256,8 @@ def materialize_voucher_journal(posting_request, actor):
                     "posting_rule_public_id": request.posting_rule_public_id_snapshot,
                     "posting_rule_checksum": request.posting_rule_checksum,
                     "posting_event": request.kind,
+                    "posting_trigger": payload.get("trigger", {}),
+                    "event_amount": payload.get("event_amount", ""),
                     "recognition_decision": payload.get("recognition_decision", "legacy_pre_f7"),
                     "payee_key": payload.get("payee_key", ""),
                     "payee_code": payload.get("payee_code", ""),
@@ -344,11 +349,39 @@ def reconcile_posted_voucher_entry(entry, actor):
     request.save(update_fields=("status", "accounting_entry_public_id", "failure_reason", "posted_at"))
 
     case = VoucherCase.objects.select_for_update().get(pk=request.case_id)
+    from .services import _advance
     if case.current_stage == VoucherCase.ACCOUNTING_POSTING:
-        from .services import _advance
+        destination = request.resume_stage or VoucherCase.TREASURY_CHECK_PREPARATION
         _advance(
-            case, actor, VoucherCase.TREASURY_CHECK_PREPARATION, "grand_jev_posted",
+            case, actor, destination, "grand_jev_posted",
             f"grand-jev-posted-{entry.public_id}",
-            metadata={"posting_request": str(request.public_id), "accounting_entry": str(entry.public_id), "jev_number": entry.reference},
+            metadata={
+                "posting_request": str(request.public_id),
+                "posting_event": request.kind,
+                "accounting_entry": str(entry.public_id),
+                "jev_number": entry.reference,
+                "resume_stage": destination,
+            },
+        )
+    elif case.current_stage == VoucherCase.ACCOUNTING_EVENT_POSTING:
+        destination = request.resume_stage
+        if not destination:
+            raise PostingRequestError("The payment-event handoff has no recorded workflow stage to resume.")
+        pending_other = case.posting_requests.filter(
+            status__in=(VoucherPostingRequest.PENDING, VoucherPostingRequest.MATERIALIZED, VoucherPostingRequest.FAILED),
+        ).exclude(pk=request.pk).exists()
+        if pending_other:
+            raise PostingRequestError("Another posting request for this voucher still needs Accounting action.")
+        _advance(
+            case, actor, destination, f"{request.kind}_jev_posted",
+            f"payment-event-jev-posted-{entry.public_id}",
+            metadata={
+                "posting_request": str(request.public_id),
+                "posting_event": request.kind,
+                "posting_trigger": request.payload.get("trigger", {}),
+                "accounting_entry": str(entry.public_id),
+                "jev_number": entry.reference,
+                "resume_stage": destination,
+            },
         )
     return request

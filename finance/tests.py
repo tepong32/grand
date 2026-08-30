@@ -24,8 +24,9 @@ from .models import (
     FinanceTemplateVersion, FinanceWorkflowExemption, FinanceTransactionVariant,
 )
 from .services import (
-    FinanceTemplateError, build_finance_starter_workbook, create_recognition_posting_starter,
-    evaluate_readiness, inspect_finance_workbook, posting_rule_snapshot, preflight_finance_template,
+    FinanceTemplateError, build_finance_starter_workbook, create_payment_event_posting_starters,
+    create_recognition_posting_starter,
+    evaluate_readiness, inspect_finance_workbook, payment_event_policy_error, posting_rule_snapshot, preflight_finance_template,
     record_event, synthetic_preview, transition_release,
 )
 
@@ -348,6 +349,7 @@ class FinanceSetupCenterTests(TestCase):
             target_type="financedocumentrule", action="document_rule_created",
         ).exists())
         posting = create_recognition_posting_starter(variant, self.manager)
+        payment_rules = create_payment_event_posting_starters(variant, self.manager)
         snapshot, checksum = posting_rule_snapshot(posting)
         self.assertEqual(snapshot["event_kind"], FinancePostingRule.RECOGNITION)
         self.assertEqual(len(snapshot["lines"]), 3)
@@ -356,11 +358,38 @@ class FinanceSetupCenterTests(TestCase):
             list(posting.lines.values_list("side", flat=True)),
             [FinancePostingRuleLine.DEBIT, FinancePostingRuleLine.CREDIT, FinancePostingRuleLine.CREDIT],
         )
+        self.assertEqual(
+            {rule.event_kind for rule in payment_rules},
+            {
+                FinancePostingRule.PAYMENT,
+                FinancePostingRule.REMITTANCE,
+                FinancePostingRule.CANCELLATION,
+                FinancePostingRule.REPLACEMENT,
+            },
+        )
+        cancellation = variant.posting_rules.get(event_kind=FinancePostingRule.CANCELLATION)
+        cancellation_snapshot, _checksum = posting_rule_snapshot(cancellation)
+        self.assertEqual(cancellation_snapshot["accounting_effect"], FinancePostingRule.NO_ENTRY)
+        self.assertEqual(cancellation_snapshot["lines"], [])
+        payment = variant.posting_rules.get(event_kind=FinancePostingRule.PAYMENT)
+        self.assertEqual(
+            set(payment.lines.values_list("amount_source", flat=True)),
+            {FinancePostingRuleLine.EVENT_AMOUNT},
+        )
+        payment.recognition_point = FinancePostingRule.PAYMENT_ISSUANCE
+        self.assertIn("requires journal-producing", payment_event_policy_error([
+            payment,
+            *variant.posting_rules.exclude(pk=payment.pk),
+        ]))
+        payment.recognition_point = FinancePostingRule.PAYMENT_RELEASE
         with self.assertRaisesMessage(ValidationError, "still an editable starter"):
             transition_release(self.release, "submit", self.manager)
         posting.authority_reference = "Synthetic locally reviewed supplier recognition policy."
         posting.full_clean()
         posting.save(update_fields=("authority_reference",))
+        variant.posting_rules.exclude(pk=posting.pk).update(
+            authority_reference="Synthetic locally reviewed payment-cycle policy.",
+        )
         transition_release(self.release, "submit", self.manager)
         variant.refresh_from_db()
         self.assertEqual(variant.status, "submitted")

@@ -48,6 +48,7 @@ STAGE_PERMISSION = {
     VoucherCase.AWAITING_SIGNATURES: "vouchers.track_wet_signatures",
     VoucherCase.ACCOUNTING_VALIDATION: "vouchers.validate_accounting_voucher",
     VoucherCase.ACCOUNTING_POSTING: "accounting.prepare_journal_entries",
+    VoucherCase.ACCOUNTING_EVENT_POSTING: "accounting.prepare_journal_entries",
     VoucherCase.TREASURY_CHECK_PREPARATION: "vouchers.issue_payment_instruments",
     VoucherCase.ACCOUNTING_BANK_ADVICE: "vouchers.finalize_bank_advice",
     VoucherCase.TREASURY_RELEASE: "vouchers.release_payment_instruments",
@@ -117,22 +118,237 @@ def _advance(case, actor, stage, action, idempotency_key, reason="", metadata=No
     return case
 
 
-def _consume_number(case, actor, document_type):
+def _consume_sequence_number(case, actor, sequence_document_type, issue_document_type):
     sequence = FinanceNumberingSequence.objects.select_for_update().filter(
         release=case.configuration_release, fiscal_year=timezone.localdate().year,
-        document_type=document_type, status="active",
+        document_type=sequence_document_type, status="active",
     ).first()
     if not sequence:
-        raise VoucherWorkflowError(f"No active {document_type} numbering sequence is configured for this fiscal year.")
+        raise VoucherWorkflowError(
+            f"No active {sequence_document_type} numbering sequence is configured for this fiscal year."
+        )
     value = sequence.next_number
     formatted = f"{sequence.prefix}{value:0{sequence.padding}d}"
     VoucherNumberIssue.objects.create(
-        case=case, sequence=sequence, document_type=document_type, numeric_value=value,
+        case=case, sequence=sequence, document_type=issue_document_type, numeric_value=value,
         formatted_value=formatted, issued_by=actor,
     )
     sequence.next_number += 1
     sequence.save(update_fields=("next_number",))
     return formatted
+
+
+def _consume_number(case, actor, document_type):
+    return _consume_sequence_number(case, actor, document_type, document_type)
+
+
+def _event_posting_payload(case, posting_rule, rule_checksum, *, event_amount, bank_account_code, trigger):
+    voucher = case.disbursement_voucher
+    return {
+        "schema_version": 3,
+        "voucher_case_public_id": str(case.public_id),
+        "voucher_reference": case.reference_code,
+        "dv_number": voucher.dv_number,
+        "transaction_type": case.transaction_type,
+        "posting_rule_public_id": str(posting_rule.public_id),
+        "posting_rule_checksum": rule_checksum,
+        "payee_key": f"finance-party:{case.payee.code}" if case.payee_id else f"voucher-case:{case.public_id}",
+        "payee_code": case.payee.code if case.payee_id else "",
+        "payee_name": case.payee_name,
+        "particulars": case.particulars,
+        "gross_amount": str(voucher.gross_amount),
+        "total_deductions": str(voucher.total_deductions),
+        "net_amount": str(voucher.net_amount),
+        "event_amount": str(event_amount),
+        "bank_account_code": bank_account_code,
+        "trigger": trigger,
+        "allocations": [
+            {
+                "fund_code": line.fund_code,
+                "responsibility_center_code": line.responsibility_center_code,
+                "account_code": line.account_code,
+                "amount": str(line.amount),
+            }
+            for line in case.obligation.allocation_lines.order_by("pk")
+        ],
+        "deductions": [
+            {"code": item.code, "description": item.description, "amount": str(item.amount)}
+            for item in voucher.deductions.order_by("pk")
+        ],
+    }
+
+
+def _create_event_posting_request(
+    *, case, actor, event_kind, recognition_point, event_date, event_amount,
+    bank_account_code, trigger_key, trigger, resume_stage,
+):
+    """Pin one configured payment-cycle decision and optionally queue its governed JEV."""
+    variant = case.configuration_release.transaction_variants.filter(
+        code=case.transaction_type,
+        status__in=("approved", "scheduled", "active", "superseded"),
+    ).first()
+    if variant is None:
+        raise VoucherWorkflowError(
+            f"The pinned Finance Setup release has no governed transaction variant for '{case.transaction_type}'."
+        )
+    posting_rule = variant.posting_rules.filter(event_kind=event_kind).first()
+    if posting_rule is None or posting_rule.recognition_point != recognition_point:
+        return None
+    existing = case.posting_requests.filter(kind=event_kind, trigger_key=trigger_key).first()
+    if existing:
+        return existing
+    rule_snapshot, rule_checksum = posting_rule_snapshot(posting_rule)
+    version = (case.posting_requests.filter(kind=event_kind).aggregate(value=Max("version"))["value"] or 0) + 1
+    effect = rule_snapshot["accounting_effect"]
+    jev_number = None
+    if effect == FinancePostingRule.JOURNAL_ENTRY:
+        jev_number = _consume_sequence_number(
+            case,
+            actor,
+            "journal-entry",
+            f"journal-entry-{event_kind}-{version}",
+        )
+    payload = _event_posting_payload(
+        case,
+        posting_rule,
+        rule_checksum,
+        event_amount=event_amount,
+        bank_account_code=bank_account_code,
+        trigger=trigger,
+    )
+    payload["jev_number"] = jev_number or ""
+    payload["jev_date"] = event_date.isoformat()
+    checksum = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    request = VoucherPostingRequest(
+        case=case,
+        kind=event_kind,
+        version=version,
+        jev_number=jev_number,
+        jev_date=event_date,
+        origin_stage=case.current_stage,
+        resume_stage=resume_stage,
+        trigger_key=trigger_key,
+        finance_department_id=case.configuration_release.department_id,
+        finance_department_label=case.configuration_release.department.name,
+        posting_rule=posting_rule,
+        posting_rule_public_id_snapshot=str(posting_rule.public_id),
+        posting_rule_snapshot=rule_snapshot,
+        posting_rule_checksum=rule_checksum,
+        payload=payload,
+        payload_checksum=checksum,
+        status=(
+            VoucherPostingRequest.NOT_REQUIRED
+            if effect == FinancePostingRule.NO_ENTRY
+            else VoucherPostingRequest.PENDING
+        ),
+        requested_by=actor,
+    )
+    request.full_clean()
+    request.save()
+    return request
+
+
+def _route_event_posting_or_resume(
+    *, case, actor, request, resume_stage, action, idempotency_key, metadata=None, reason="",
+):
+    event_metadata = dict(metadata or {})
+    if request is not None:
+        event_metadata.update({
+            "posting_request": str(request.public_id),
+            "posting_event": request.kind,
+            "posting_rule_checksum": request.posting_rule_checksum,
+            "accounting_effect": request.posting_rule_snapshot.get("accounting_effect"),
+        })
+    if request is not None and request.status != VoucherPostingRequest.NOT_REQUIRED:
+        return _advance(
+            case,
+            actor,
+            VoucherCase.ACCOUNTING_EVENT_POSTING,
+            action,
+            idempotency_key,
+            reason,
+            event_metadata,
+        )
+    return _advance(case, actor, resume_stage, action, idempotency_key, reason, event_metadata)
+
+
+@transaction.atomic
+def supersede_discarded_event_posting_request(*, posting_request, actor, reason):
+    """Create a numbered successor after a generated payment-event draft is discarded."""
+    _require(actor, "accounting.prepare_journal_entries")
+    request = VoucherPostingRequest.objects.select_for_update().select_related(
+        "case", "posting_rule",
+    ).get(pk=posting_request.pk)
+    case = VoucherCase.objects.select_for_update().get(pk=request.case_id)
+    if request.kind not in {
+        VoucherPostingRequest.PAYMENT,
+        VoucherPostingRequest.REMITTANCE,
+        VoucherPostingRequest.CANCELLATION,
+        VoucherPostingRequest.REPLACEMENT,
+    } or not request.resume_stage:
+        raise VoucherWorkflowError("Only payment-event handoffs use the automatic successor-draft route.")
+    if case.current_stage != VoucherCase.ACCOUNTING_EVENT_POSTING:
+        raise VoucherWorkflowError("The voucher is no longer waiting at its payment-event Accounting handoff.")
+    if request.status == VoucherPostingRequest.POSTED:
+        raise VoucherWorkflowError("A posted payment-event request must be corrected through reversal, not draft replacement.")
+    if request.posting_rule_snapshot.get("accounting_effect") != FinancePostingRule.JOURNAL_ENTRY:
+        raise VoucherWorkflowError("A no-entry accounting decision cannot have a discarded draft JEV.")
+    version = (
+        case.posting_requests.filter(kind=request.kind).aggregate(value=Max("version"))["value"] or 0
+    ) + 1
+    jev_number = _consume_sequence_number(
+        case,
+        actor,
+        "journal-entry",
+        f"journal-entry-{request.kind}-{version}",
+    )
+    payload = dict(request.payload)
+    payload["jev_number"] = jev_number
+    payload_checksum = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    request.status = VoucherPostingRequest.CANCELLED
+    request.failure_reason = reason.strip() or "Generated payment-event draft was discarded before posting."
+    request.save(update_fields=("status", "failure_reason"))
+    successor = VoucherPostingRequest(
+        case=case,
+        kind=request.kind,
+        version=version,
+        jev_number=jev_number,
+        jev_date=request.jev_date,
+        origin_stage=request.origin_stage,
+        resume_stage=request.resume_stage,
+        trigger_key=f"{request.trigger_key}:retry:{version}",
+        finance_department_id=request.finance_department_id,
+        finance_department_label=request.finance_department_label,
+        posting_rule=request.posting_rule,
+        posting_rule_public_id_snapshot=request.posting_rule_public_id_snapshot,
+        posting_rule_snapshot=request.posting_rule_snapshot,
+        posting_rule_checksum=request.posting_rule_checksum,
+        payload=payload,
+        payload_checksum=payload_checksum,
+        requested_by=actor,
+    )
+    successor.full_clean()
+    successor.save()
+    case.state_version += 1
+    case.save(update_fields=("state_version", "updated_at"))
+    _event(
+        case,
+        actor,
+        f"{request.kind}_jev_draft_replaced",
+        case.current_stage,
+        request.failure_reason,
+        {
+            "superseded_posting_request": str(request.public_id),
+            "successor_posting_request": str(successor.public_id),
+            "successor_jev_number": successor.jev_number,
+        },
+        f"payment-event-jev-draft-replaced-{successor.public_id}",
+    )
+    return successor
 
 
 def _create_signature_round(case, voucher_date):
@@ -1328,7 +1544,7 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
             "This recognition rule belongs to an earlier or later accounting point and cannot be silently executed at DV validation."
         )
     rule_snapshot, rule_checksum = posting_rule_snapshot(posting_rule)
-    AccountingValidation.objects.create(
+    validation = AccountingValidation.objects.create(
         case=case, decision=AccountingValidation.ACCEPTED, jev_number=jev_number.strip(), jev_date=jev_date,
         note=note.strip(), validated_by=actor, validated_at=timezone.now(),
     )
@@ -1367,7 +1583,9 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         ],
     }
     checksum = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
-    version = (case.posting_requests.aggregate(value=Max("version"))["value"] or 0) + 1
+    version = (
+        case.posting_requests.filter(kind=event_kind).aggregate(value=Max("version"))["value"] or 0
+    ) + 1
     department = department_for_user(actor)
     request = VoucherPostingRequest(
         case=case,
@@ -1375,6 +1593,9 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         version=version,
         jev_number=jev_number.strip(),
         jev_date=jev_date,
+        origin_stage=VoucherCase.ACCOUNTING_VALIDATION,
+        resume_stage=VoucherCase.TREASURY_CHECK_PREPARATION,
+        trigger_key=f"accounting-validation:{validation.pk}",
         finance_department_id=department.pk,
         finance_department_label=department.name,
         posting_rule=posting_rule,
@@ -1425,9 +1646,41 @@ def issue_check(*, case, actor, bank_account_code, check_number, amount, expecte
         amount=amount, status=PaymentInstrument.ISSUED, replaces=replaces,
         issued_by=actor, issued_at=timezone.now(),
     )
-    case.state_version += 1
-    case.save(update_fields=("state_version", "updated_at"))
-    _event(case, actor, "check_issued", case.current_stage, "", {"instrument_id": str(instrument.public_id), "check_number": check_number, "amount": str(amount)}, idempotency_key)
+    event_kind = FinancePostingRule.REPLACEMENT if replaces else FinancePostingRule.PAYMENT
+    recognition_point = (
+        FinancePostingRule.PAYMENT_REPLACEMENT if replaces else FinancePostingRule.PAYMENT_ISSUANCE
+    )
+    posting_request = _create_event_posting_request(
+        case=case,
+        actor=actor,
+        event_kind=event_kind,
+        recognition_point=recognition_point,
+        event_date=timezone.localdate(instrument.issued_at),
+        event_amount=instrument.amount,
+        bank_account_code=instrument.bank_account_code,
+        trigger_key=f"payment-instrument:{instrument.public_id}:issued",
+        trigger={
+            "type": "payment_instrument_issued",
+            "instrument_public_id": str(instrument.public_id),
+            "check_number": instrument.check_number,
+            "replaces_instrument_public_id": str(replaces.public_id) if replaces else "",
+        },
+        resume_stage=VoucherCase.TREASURY_CHECK_PREPARATION,
+    )
+    _route_event_posting_or_resume(
+        case=case,
+        actor=actor,
+        request=posting_request,
+        resume_stage=VoucherCase.TREASURY_CHECK_PREPARATION,
+        action="replacement_check_issued" if replaces else "check_issued",
+        idempotency_key=idempotency_key,
+        metadata={
+            "instrument_id": str(instrument.public_id),
+            "check_number": check_number,
+            "amount": str(amount),
+            "replaces_instrument_id": str(replaces.public_id) if replaces else "",
+        },
+    )
     return instrument
 
 
@@ -1487,12 +1740,41 @@ def release_check(*, case, instrument, actor, claimant, receipt_reference, expec
     instrument.released_to_claimant, instrument.released_to = claimant, claimant.display_name
     instrument.receipt_reference = receipt_reference.strip()
     instrument.save(update_fields=("status", "released_by", "released_at", "released_to_claimant", "released_to", "receipt_reference"))
-    if case.payment_instruments.exclude(status__in=(PaymentInstrument.RELEASED, PaymentInstrument.CANCELLED)).exists():
-        case.state_version += 1
-        case.save(update_fields=("state_version", "updated_at"))
-        _event(case, actor, "check_released", case.current_stage, "", {"check_number": instrument.check_number}, idempotency_key)
-        return case
-    return _advance(case, actor, VoucherCase.COMPLETED, "disbursement_completed", idempotency_key, metadata={"last_check_number": instrument.check_number})
+    remaining = case.payment_instruments.exclude(
+        status__in=(PaymentInstrument.RELEASED, PaymentInstrument.CANCELLED),
+    ).exists()
+    resume_stage = VoucherCase.TREASURY_RELEASE if remaining else VoucherCase.COMPLETED
+    posting_request = _create_event_posting_request(
+        case=case,
+        actor=actor,
+        event_kind=FinancePostingRule.PAYMENT,
+        recognition_point=FinancePostingRule.PAYMENT_RELEASE,
+        event_date=timezone.localdate(instrument.released_at),
+        event_amount=instrument.amount,
+        bank_account_code=instrument.bank_account_code,
+        trigger_key=f"payment-instrument:{instrument.public_id}:released",
+        trigger={
+            "type": "payment_instrument_released",
+            "instrument_public_id": str(instrument.public_id),
+            "check_number": instrument.check_number,
+            "claimant_id": claimant.pk,
+            "receipt_reference": instrument.receipt_reference,
+        },
+        resume_stage=resume_stage,
+    )
+    return _route_event_posting_or_resume(
+        case=case,
+        actor=actor,
+        request=posting_request,
+        resume_stage=resume_stage,
+        action="check_released" if remaining else "disbursement_completed",
+        idempotency_key=idempotency_key,
+        metadata={
+            "instrument_id": str(instrument.public_id),
+            "check_number": instrument.check_number,
+            "receipt_reference": instrument.receipt_reference,
+        },
+    )
 
 
 @transaction.atomic
@@ -1508,7 +1790,36 @@ def cancel_check(*, case, instrument, actor, reason, expected_version, idempoten
     instrument.status, instrument.cancelled_by, instrument.cancelled_at = PaymentInstrument.CANCELLED, actor, timezone.now()
     instrument.cancellation_reason = reason.strip()
     instrument.save(update_fields=("status", "cancelled_by", "cancelled_at", "cancellation_reason"))
-    return _advance(case, actor, VoucherCase.TREASURY_CHECK_PREPARATION, "check_cancelled", idempotency_key, reason, {"check_number": instrument.check_number})
+    posting_request = _create_event_posting_request(
+        case=case,
+        actor=actor,
+        event_kind=FinancePostingRule.CANCELLATION,
+        recognition_point=FinancePostingRule.PAYMENT_CANCELLATION,
+        event_date=timezone.localdate(instrument.cancelled_at),
+        event_amount=instrument.amount,
+        bank_account_code=instrument.bank_account_code,
+        trigger_key=f"payment-instrument:{instrument.public_id}:cancelled",
+        trigger={
+            "type": "payment_instrument_cancelled",
+            "instrument_public_id": str(instrument.public_id),
+            "check_number": instrument.check_number,
+            "reason": instrument.cancellation_reason,
+        },
+        resume_stage=VoucherCase.TREASURY_CHECK_PREPARATION,
+    )
+    return _route_event_posting_or_resume(
+        case=case,
+        actor=actor,
+        request=posting_request,
+        resume_stage=VoucherCase.TREASURY_CHECK_PREPARATION,
+        action="check_cancelled",
+        idempotency_key=idempotency_key,
+        reason=reason,
+        metadata={
+            "instrument_id": str(instrument.public_id),
+            "check_number": instrument.check_number,
+        },
+    )
 
 
 @transaction.atomic

@@ -18,7 +18,7 @@ from .forms import (
     PayableAllocationAddForm, PayableAllocationRevisionForm, PayableClaimControlForm,
     ControlledPrintPrepareForm, FinancePacketAssemblyForm, PrintEvidenceForm,
 )
-from .models import PaymentInstrument, VoucherCase, VoucherOutput, VoucherPrintJob
+from .models import PaymentInstrument, VoucherCase, VoucherOutput, VoucherPostingRequest, VoucherPrintJob
 from .roles import STAGE_NEXT_ACTION, finance_workspace_profile
 from .services import (
     VoucherWorkflowError, _active_release, amend_nonfinancial_voucher, cancel_check, certify_budget,
@@ -30,6 +30,12 @@ from .services import (
     revise_payable_claim_control, revise_payable_obligation_allocation,
     assemble_finance_packet, prepare_controlled_dv_print, record_dv_printed,
 )
+
+
+def _csv_safe(value):
+    """Keep portable CSV text from being treated as a spreadsheet formula."""
+    text = str(value or "")
+    return "'" + text if text[:1] in ("=", "+", "-", "@") else text
 
 
 def _permissions(user):
@@ -62,6 +68,7 @@ def _actionable_stages(permissions, can_access_accounting=False):
         (permissions["signatures"], VoucherCase.AWAITING_SIGNATURES),
         (permissions["validate"], VoucherCase.ACCOUNTING_VALIDATION),
         (can_access_accounting, VoucherCase.ACCOUNTING_POSTING),
+        (can_access_accounting, VoucherCase.ACCOUNTING_EVENT_POSTING),
         (permissions["issue"], VoucherCase.TREASURY_CHECK_PREPARATION),
         (permissions["advice"], VoucherCase.ACCOUNTING_BANK_ADVICE),
         (permissions["release"], VoucherCase.TREASURY_RELEASE),
@@ -435,6 +442,114 @@ def transaction_export(request, public_id):
         },
     )
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    response["X-GRAND-Export-Relative-Path"] = archived["relative_path"]
+    return response
+
+
+@voucher_access_required
+def payment_register_export(request, public_id):
+    case = _case(public_id)
+    if not has_explicit_permission(request.user, "vouchers.view_voucher_audit"):
+        raise PermissionDenied
+    from .access import department_for_user
+
+    request_by_trigger = {}
+    for posting in case.posting_requests.all():
+        parts = posting.trigger_key.split(":")
+        if not posting.trigger_key.startswith("payment-instrument:") or len(parts) < 3:
+            continue
+        key = (posting.kind, parts[1])
+        current = request_by_trigger.get(key)
+        if current is None or posting.version > current.version:
+            request_by_trigger[key] = posting
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    writer = csv.writer(response)
+    writer.writerow((
+        "export_kind", "case_reference", "case_public_id", "dv_number", "requesting_office",
+        "transaction_type", "payee", "instrument_public_id", "bank_account_code", "check_number",
+        "amount", "status", "issued_at", "issued_by", "replaces_instrument_public_id",
+        "replaces_check_number", "advice_number", "advice_date", "released_at", "released_by",
+        "released_to", "receipt_reference", "cancelled_at", "cancelled_by", "cancellation_reason",
+        "payment_accounting_effect", "payment_jev_number", "payment_posting_status",
+        "cancellation_accounting_effect", "cancellation_jev_number", "cancellation_posting_status",
+        "replacement_accounting_effect", "replacement_jev_number", "replacement_posting_status",
+    ))
+    for instrument in case.payment_instruments.select_related(
+        "issued_by", "released_by", "cancelled_by", "replaces", "advice_item__batch",
+    ).order_by("issued_at", "pk"):
+        requests = {
+            kind: request_by_trigger.get((kind, str(instrument.public_id)))
+            for kind in (
+                VoucherPostingRequest.PAYMENT,
+                VoucherPostingRequest.CANCELLATION,
+                VoucherPostingRequest.REPLACEMENT,
+            )
+        }
+
+        def posting_value(kind, key):
+            posting = requests[kind]
+            if posting is None:
+                return ""
+            if key == "effect":
+                return posting.posting_rule_snapshot.get("accounting_effect_label", "")
+            if key == "number":
+                return posting.jev_number or ""
+            return posting.get_status_display()
+
+        advice = getattr(getattr(instrument, "advice_item", None), "batch", None)
+        writer.writerow((
+            "payment_instrument_register", _csv_safe(case.reference_code), case.public_id,
+            _csv_safe(case.disbursement_voucher.dv_number), _csv_safe(case.requesting_department.name),
+            _csv_safe(case.transaction_type), _csv_safe(case.payee_name), instrument.public_id,
+            _csv_safe(instrument.bank_account_code), _csv_safe(instrument.check_number), instrument.amount,
+            instrument.get_status_display(), instrument.issued_at.isoformat(),
+            _csv_safe(instrument.issued_by.get_full_name() or instrument.issued_by.username),
+            instrument.replaces.public_id if instrument.replaces_id else "",
+            _csv_safe(instrument.replaces.check_number if instrument.replaces_id else ""),
+            _csv_safe(advice.advice_number if advice else ""), advice.advice_date if advice else "",
+            instrument.released_at.isoformat() if instrument.released_at else "",
+            _csv_safe(
+                instrument.released_by.get_full_name() or instrument.released_by.username
+                if instrument.released_by_id else ""
+            ),
+            _csv_safe(instrument.released_to), _csv_safe(instrument.receipt_reference),
+            instrument.cancelled_at.isoformat() if instrument.cancelled_at else "",
+            _csv_safe(
+                instrument.cancelled_by.get_full_name() or instrument.cancelled_by.username
+                if instrument.cancelled_by_id else ""
+            ),
+            _csv_safe(instrument.cancellation_reason),
+            posting_value(VoucherPostingRequest.PAYMENT, "effect"),
+            posting_value(VoucherPostingRequest.PAYMENT, "number"),
+            posting_value(VoucherPostingRequest.PAYMENT, "status"),
+            posting_value(VoucherPostingRequest.CANCELLATION, "effect"),
+            posting_value(VoucherPostingRequest.CANCELLATION, "number"),
+            posting_value(VoucherPostingRequest.CANCELLATION, "status"),
+            posting_value(VoucherPostingRequest.REPLACEMENT, "effect"),
+            posting_value(VoucherPostingRequest.REPLACEMENT, "number"),
+            posting_value(VoucherPostingRequest.REPLACEMENT, "status"),
+        ))
+    filename = f"{slugify(case.reference_code)}-payment-register.csv"
+    export_department = department_for_user(request.user)
+    archived = archive_export(
+        content=response.content,
+        department=export_department,
+        user=request.user,
+        category="finance-payment-registers",
+        filename=filename,
+        metadata={
+            "kind": "payment_instrument_register_export",
+            "case_public_id": str(case.public_id),
+            "case_reference": case.reference_code,
+            "state_version": case.state_version,
+            "row_count": case.payment_instruments.count(),
+            "official_status": "controlled data interchange; not automatically an official COA/local form",
+        },
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
     response["X-GRAND-Export-Archived"] = "true"
     response["X-GRAND-Export-SHA256"] = archived["sha256"]
     response["X-GRAND-Export-Relative-Path"] = archived["relative_path"]

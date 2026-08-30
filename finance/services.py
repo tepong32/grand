@@ -216,10 +216,13 @@ def record_event(instance, actor, action, reason="", evidence=None):
 def posting_rule_snapshot(rule):
     """Return a stable, plain-data posting recipe suitable for an immutable transaction snapshot."""
     lines = list(rule.lines.order_by("sequence", "pk"))
-    if not lines:
-        raise ValidationError("The selected posting rule has no debit or credit instructions.")
-    if not {line.side for line in lines}.issuperset({FinancePostingRuleLine.DEBIT, FinancePostingRuleLine.CREDIT}):
-        raise ValidationError("The selected posting rule must contain at least one debit and one credit instruction.")
+    if rule.accounting_effect == FinancePostingRule.JOURNAL_ENTRY:
+        if not lines:
+            raise ValidationError("A journal-producing posting rule needs debit and credit instructions.")
+        if not {line.side for line in lines}.issuperset({FinancePostingRuleLine.DEBIT, FinancePostingRuleLine.CREDIT}):
+            raise ValidationError("The selected posting rule must contain at least one debit and one credit instruction.")
+    elif lines:
+        raise ValidationError("An explicit no-entry rule cannot contain debit or credit instructions.")
     snapshot = {
         "schema_version": 1,
         "rule_public_id": str(rule.public_id),
@@ -230,6 +233,8 @@ def posting_rule_snapshot(rule):
         "event_label": rule.get_event_kind_display(),
         "recognition_point": rule.recognition_point,
         "recognition_point_label": rule.get_recognition_point_display(),
+        "accounting_effect": rule.accounting_effect,
+        "accounting_effect_label": rule.get_accounting_effect_display(),
         "title": rule.title,
         "description": rule.description,
         "authority_reference": rule.authority_reference,
@@ -252,6 +257,28 @@ def posting_rule_snapshot(rule):
     }
     encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return snapshot, hashlib.sha256(encoded).hexdigest()
+
+
+def payment_event_policy_error(rules):
+    """Reject an issuance-time settlement policy that would not undo/reapply its ledger effect."""
+    by_event = {rule.event_kind: rule for rule in rules}
+    payment = by_event.get(FinancePostingRule.PAYMENT)
+    if not payment or payment.accounting_effect != FinancePostingRule.JOURNAL_ENTRY:
+        return ""
+    if payment.recognition_point != FinancePostingRule.PAYMENT_ISSUANCE:
+        return ""
+    missing_effects = [
+        kind for kind in (FinancePostingRule.CANCELLATION, FinancePostingRule.REPLACEMENT)
+        if not by_event.get(kind) or by_event[kind].accounting_effect != FinancePostingRule.JOURNAL_ENTRY
+    ]
+    if not missing_effects:
+        return ""
+    labels = dict(FinancePostingRule.EVENT_KIND_CHOICES)
+    return (
+        "A payment JEV recorded at instrument issuance requires journal-producing "
+        + " and ".join(labels[kind].lower() for kind in missing_effects)
+        + " rules so a cancelled or replacement instrument cannot leave an unexplained ledger effect."
+    )
 
 
 @transaction.atomic
@@ -310,6 +337,100 @@ def create_recognition_posting_starter(variant, actor):
 
 
 @transaction.atomic
+def create_payment_event_posting_starters(variant, actor):
+    """Create editable payment-cycle starters, including explicit no-entry decisions."""
+    if not can_manage_finance_configuration(actor, variant.department):
+        raise PermissionDenied
+    variant = FinanceTransactionVariant.objects.select_for_update().select_related(
+        "release", "department",
+    ).get(pk=variant.pk)
+    if variant.release.status != "draft" or variant.status != "draft":
+        raise ValidationError("Payment-event starters can be added only to a draft transaction variant.")
+    definitions = (
+        (
+            FinancePostingRule.PAYMENT,
+            FinancePostingRule.PAYMENT_RELEASE,
+            FinancePostingRule.JOURNAL_ENTRY,
+            "Record payment on actual release",
+            "At actual release, debit the transaction payable and credit the configured bank/cash account for this instrument.",
+            (
+                (10, "Debit the released payable", FinancePostingRuleLine.DEBIT, FinancePostingRuleLine.PAYABLE_MAPPING),
+                (20, "Credit the releasing bank/cash account", FinancePostingRuleLine.CREDIT, FinancePostingRuleLine.BANK_MAPPING),
+            ),
+        ),
+        (
+            FinancePostingRule.CANCELLATION,
+            FinancePostingRule.PAYMENT_CANCELLATION,
+            FinancePostingRule.NO_ENTRY,
+            "Record pre-release check cancellation",
+            "Record the cancelled or spoiled instrument and its reason without a JEV when no payment was recognized before release.",
+            (),
+        ),
+        (
+            FinancePostingRule.REPLACEMENT,
+            FinancePostingRule.PAYMENT_REPLACEMENT,
+            FinancePostingRule.NO_ENTRY,
+            "Record pre-release replacement check",
+            "Record the replacement lineage without a JEV when the related cancelled check never reached payment recognition.",
+            (),
+        ),
+        (
+            FinancePostingRule.REMITTANCE,
+            FinancePostingRule.DEDUCTION_REMITTANCE,
+            FinancePostingRule.JOURNAL_ENTRY,
+            "Record deduction or withholding remittance",
+            "At accepted remittance, debit each remitted deduction payable and credit the configured bank/cash account.",
+            (
+                (10, "Debit each remitted deduction payable", FinancePostingRuleLine.DEBIT, FinancePostingRuleLine.DEDUCTION_MAPPINGS),
+                (20, "Credit the remitting bank/cash account", FinancePostingRuleLine.CREDIT, FinancePostingRuleLine.BANK_MAPPING),
+            ),
+        ),
+    )
+    created = []
+    for event_kind, point, effect, title, description, lines in definitions:
+        if variant.posting_rules.filter(event_kind=event_kind).exists():
+            continue
+        rule = FinancePostingRule(
+            variant=variant,
+            code=f"{variant.code}-{event_kind}",
+            title=title,
+            event_kind=event_kind,
+            recognition_point=point,
+            accounting_effect=effect,
+            description=description,
+            authority_reference=(
+                "EDIT BEFORE SUBMISSION — compare this starter with the locally accepted payment, cancellation, "
+                "replacement, or remittance treatment and the current COA/local accounting basis."
+            ),
+            created_by=actor,
+        )
+        rule.full_clean()
+        rule.save()
+        for sequence, label, side, account_source in lines:
+            amount_source = (
+                FinancePostingRuleLine.EACH_DEDUCTION
+                if account_source == FinancePostingRuleLine.DEDUCTION_MAPPINGS
+                else FinancePostingRuleLine.TOTAL_DEDUCTIONS
+                if event_kind == FinancePostingRule.REMITTANCE and account_source == FinancePostingRuleLine.BANK_MAPPING
+                else FinancePostingRuleLine.EVENT_AMOUNT
+            )
+            FinancePostingRuleLine.objects.create(
+                rule=rule,
+                sequence=sequence,
+                label=label,
+                side=side,
+                account_source=account_source,
+                amount_source=amount_source,
+                memo=label,
+            )
+        record_event(rule, actor, "payment_event_posting_starter_created")
+        created.append(rule)
+    if not created:
+        raise ValidationError("This transaction variant already has payment-cycle rules for every starter event.")
+    return created
+
+
+@transaction.atomic
 def transition_release(release, action, actor, reason=""):
     release = FinanceConfigurationRelease.objects.select_for_update().get(pk=release.pk)
     workflow_exemption = None
@@ -321,7 +442,28 @@ def transition_release(release, action, actor, reason=""):
         for variant in release.transaction_variants.all():
             if not variant.posting_rules.exists():
                 raise ValidationError(f"{variant.label} needs at least one locally reviewed posting rule.")
-            for posting_rule in variant.posting_rules.all():
+            event_kinds = set(variant.posting_rules.values_list("event_kind", flat=True))
+            required_payment_events = {
+                FinancePostingRule.PAYMENT,
+                FinancePostingRule.REMITTANCE,
+                FinancePostingRule.CANCELLATION,
+                FinancePostingRule.REPLACEMENT,
+            }
+            if not event_kinds.intersection({FinancePostingRule.RECOGNITION, FinancePostingRule.LIQUIDATION}):
+                raise ValidationError(f"{variant.label} needs a reviewed recognition or liquidation rule.")
+            missing = required_payment_events - event_kinds
+            if missing:
+                labels = dict(FinancePostingRule.EVENT_KIND_CHOICES)
+                raise ValidationError(
+                    f"{variant.label} still needs payment-cycle decisions for: "
+                    + ", ".join(labels[kind] for kind in sorted(missing))
+                    + ". Use an explicit no-entry rule where locally accepted."
+                )
+            posting_rules = list(variant.posting_rules.all())
+            policy_error = payment_event_policy_error(posting_rules)
+            if policy_error:
+                raise ValidationError(f"{variant.label}: {policy_error}")
+            for posting_rule in posting_rules:
                 if posting_rule.authority_reference.startswith("EDIT BEFORE SUBMISSION"):
                     raise ValidationError(
                         f"{posting_rule.title} is still an editable starter. Replace its authority note with the reviewed local basis."
@@ -482,11 +624,24 @@ def evaluate_readiness(release, as_of=None):
     ).filter(models_q_open_ended("effective_to", as_of))
     typed_variant_ready = typed_variants.exists() and not typed_variants.filter(document_rules__isnull=True).exists()
     typed_posting_ready = typed_variants.exists()
+    required_payment_events = {
+        FinancePostingRule.PAYMENT,
+        FinancePostingRule.REMITTANCE,
+        FinancePostingRule.CANCELLATION,
+        FinancePostingRule.REPLACEMENT,
+    }
     if typed_posting_ready:
         try:
             for variant in typed_variants.prefetch_related("posting_rules__lines"):
                 rules = list(variant.posting_rules.all())
-                if not rules:
+                event_kinds = {rule.event_kind for rule in rules}
+                has_initial_recognition = bool(
+                    event_kinds & {FinancePostingRule.RECOGNITION, FinancePostingRule.LIQUIDATION}
+                )
+                if not has_initial_recognition or not required_payment_events.issubset(event_kinds):
+                    typed_posting_ready = False
+                    break
+                if payment_event_policy_error(rules):
                     typed_posting_ready = False
                     break
                 for rule in rules:
@@ -504,8 +659,8 @@ def evaluate_readiness(release, as_of=None):
         (
             "transaction_posting_rules",
             typed_posting_ready or not typed_variants.exists(),
-            "Each approved typed transaction variant has a governed posting rule with debit and credit instructions.",
-            "Every typed transaction variant needs a locally reviewed posting rule with debit and credit instructions.",
+            "Each approved typed transaction variant governs initial recognition and the payment, remittance, cancellation, and replacement events.",
+            "Every typed transaction variant needs locally reviewed initial-recognition and payment-cycle rules; an explicit no-entry decision is allowed where locally accepted.",
         ),
         ("active_signatory", release.signatories.filter(status__in=governed_statuses, valid_from__lte=as_of).filter(models_q_open_ended("valid_to", as_of)).exists(), "An approved signatory assignment covers the applicable date.", "No approved signatory is valid for the applicable date."),
         ("fund_and_payment_account", "fund" in categories and bool(categories & {"bank_account", "payment_method"}), "An approved fund and payment account or method apply.", "An approved fund and payment account or method are required."),
