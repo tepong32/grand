@@ -15,6 +15,10 @@ ACCOUNTING_PERMISSIONS = (
     "accounting.post_journal_entries",
     "accounting.view_general_ledger",
     "accounting.reconcile_control_accounts",
+    "accounting.view_bank_reconciliation",
+    "accounting.prepare_bank_reconciliation",
+    "accounting.approve_bank_reconciliation",
+    "accounting.export_bank_reconciliation",
 )
 
 
@@ -82,6 +86,22 @@ def can_view_ledger(user):
 
 def can_reconcile_controls(user):
     return has_explicit_permission(user, "accounting.reconcile_control_accounts")
+
+
+def can_view_bank_reconciliation(user):
+    return has_explicit_permission(user, "accounting.view_bank_reconciliation")
+
+
+def can_prepare_bank_reconciliation(user):
+    return has_explicit_permission(user, "accounting.prepare_bank_reconciliation")
+
+
+def can_approve_bank_reconciliation(user):
+    return has_explicit_permission(user, "accounting.approve_bank_reconciliation")
+
+
+def can_export_bank_reconciliation(user):
+    return has_explicit_permission(user, "accounting.export_bank_reconciliation")
 
 
 def accounting_access_required(view):

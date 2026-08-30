@@ -198,6 +198,8 @@ Deliver:
 
 Exit gate: issued, signed, advised, released, cancelled, replaced, remitted, and reconciled instruments agree exactly with vouchers, JEVs, registers, and bank evidence.
 
+Implementation position: F8.1–F8.2 synthetic controls are implemented. F8.1 covers cross-voucher withholding remittance through posted liability reduction. F8.2 covers checksummed monthly bank-statement versions, exact/guided posted-GL matching, adjusted-balance timing items, independent zero-difference reconciliation, Internal How-Tos, and portable evidence; see [Finance remittance execution](FINANCE_REMITTANCE_EXECUTION.md) and [Finance bank reconciliation](FINANCE_BANK_RECONCILIATION.md). Cash-position programming, stale/unclaimed handling, prior-item ageing/carry-forward, exact official BRS acceptance, and full redacted instrument-to-bank replay remain acceptance/delivery gates.
+
 ### F9 — Statutory outputs, management reporting, and accountability
 
 Deliver:

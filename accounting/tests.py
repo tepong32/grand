@@ -22,17 +22,20 @@ from vouchers.models import DisbursementVoucher, PaymentInstrument, VoucherCase
 from .access import can_post_journals, can_prepare_journals, can_view_accounting
 from .models import (
     AccountingAuditEvent, AccountingPeriod, FiscalYear, FiscalYearReadinessApproval,
+    BankOutstandingItem, BankStatementBatch, BankStatementMatch,
     Fund, FundingSource, JournalEntry, JournalLine, JournalSubsidiaryLine,
     LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow,
     PostingMapping, ProgramActivityProject, ResponsibilityCenter,
 )
 from .services import (
     adopt_configuration_release, begin_foundation_amendment, create_reversal, decide_readiness_layer,
+    auto_match_bank_statement, bank_reconciliation_snapshot, classify_bank_outstanding,
     control_reconciliation_snapshot,
     correct_opening_batch, correct_opening_row, decide_opening_batch, discard_draft, ensure_readiness_layers,
     evaluate_fiscal_year_readiness, post_entry, post_opening_batch, reconcile_opening_batch,
     run_control_reconciliation, stage_opening_csv, submit_entry, submit_opening_batch, transition_fiscal_year,
-    validate_opening_batch,
+    decide_bank_reconciliation, stage_bank_statement_csv, submit_bank_reconciliation,
+    unclassify_bank_outstanding, unmatch_bank_statement_row, validate_opening_batch,
 )
 
 
@@ -51,7 +54,8 @@ class StandaloneAccountingTests(TestCase):
         cls.superuser = cls._employee("platform.admin", cls.accounting_department, is_superuser=True, is_staff=True)
         cls._grant(
             cls.preparer, "view_accounting_workspace", "prepare_journal_entries",
-            "manage_accounting_setup", "prepare_opening_balances",
+            "manage_accounting_setup", "prepare_opening_balances", "view_bank_reconciliation",
+            "prepare_bank_reconciliation", "export_bank_reconciliation",
         )
         cls._grant(
             cls.poster, "view_accounting_workspace", "post_journal_entries",
@@ -59,7 +63,7 @@ class StandaloneAccountingTests(TestCase):
         )
         cls._grant(
             cls.setup_approver, "view_accounting_workspace", "approve_fiscal_readiness",
-            "approve_opening_balances",
+            "approve_opening_balances", "view_bank_reconciliation", "approve_bank_reconciliation",
         )
         cls._grant(cls.viewer, "view_accounting_workspace")
         cls._grant(cls.outsider, "view_accounting_workspace")
@@ -1035,3 +1039,155 @@ class StandaloneAccountingTests(TestCase):
                 self.assertTrue(Path(str(artifact) + ".manifest.json").exists())
             self.assertTrue((Path(export_root) / "GRAND_EXPORT_ROOT.json").exists())
         self.assertEqual(AccountingAuditEvent.objects.filter(action="report_exported").count(), 2)
+
+    def test_bank_statement_versions_match_outstanding_items_and_close_zero_difference_independently(self):
+        PostingMapping.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            category="bank_account",
+            source_code="SYN-BANK-MAIN",
+            label="Synthetic main depository account",
+            account=self.cash,
+        )
+        deposit_entry = JournalEntry.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            reference="DEP-001",
+            entry_date=date(2027, 1, 10),
+            period=self.period,
+            fund=self.fund,
+            description="Synthetic cleared deposit DEP-001",
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        deposit_line = JournalLine.objects.create(
+            entry=deposit_entry, sequence=1, account=self.cash,
+            debit=Decimal("1000.00"), credit=Decimal("0.00"), memo="DEP-001 bank receipt",
+        )
+        JournalLine.objects.create(
+            entry=deposit_entry, sequence=2, account=self.revenue,
+            debit=Decimal("0.00"), credit=Decimal("1000.00"), memo="Synthetic collection",
+        )
+        JournalEntry.objects.filter(pk=deposit_entry.pk).update(status=JournalEntry.POSTED)
+
+        check_entry = JournalEntry.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            reference="CHK-0099",
+            entry_date=date(2027, 1, 28),
+            period=self.period,
+            fund=self.fund,
+            description="Synthetic issued check not yet cleared",
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        JournalLine.objects.create(
+            entry=check_entry, sequence=1, account=self.payable,
+            debit=Decimal("200.00"), credit=Decimal("0.00"), memo="Settle payable",
+        )
+        check_bank_line = JournalLine.objects.create(
+            entry=check_entry, sequence=2, account=self.cash,
+            debit=Decimal("0.00"), credit=Decimal("200.00"), memo="Check CHK-0099",
+        )
+        JournalEntry.objects.filter(pk=check_entry.pk).update(status=JournalEntry.POSTED)
+
+        batch = BankStatementBatch.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            statement_reference="SYN-BRS-2027-01",
+            bank_account_code="SYN-BANK-MAIN",
+            bank_name="Synthetic Government Bank",
+            account_number_masked="••••0099",
+            fund=self.fund,
+            period_start=date(2027, 1, 1),
+            period_end=date(2027, 1, 31),
+            received_on=date(2027, 2, 2),
+            opening_balance=Decimal("0.00"),
+            closing_balance=Decimal("1000.00"),
+            expected_row_count=1,
+            expected_deposits=Decimal("1000.00"),
+            expected_withdrawals=Decimal("0.00"),
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        statement = (
+            "transaction_date,bank_reference,description,withdrawal,deposit,running_balance\n"
+            "2027-01-10,DEP-001,Synthetic cleared deposit,,1000.00,1000.00\n"
+        )
+        staged = stage_bank_statement_csv(
+            batch, self.preparer,
+            SimpleUploadedFile("statement-v1.csv", statement.encode("utf-8"), content_type="text/csv"),
+        )
+        self.assertEqual(staged.status, BankStatementBatch.VALIDATED)
+        self.assertEqual(auto_match_bank_statement(staged, self.preparer), 1)
+        first_row = staged.rows.get(source_version=1)
+        first_match = BankStatementMatch.objects.get(statement_row=first_row, status=BankStatementMatch.ACTIVE)
+        self.assertEqual(first_match.journal_line_id, deposit_line.pk)
+
+        unmatch_bank_statement_row(first_row, self.preparer, reason="Recheck against corrected bank description.")
+        staged = stage_bank_statement_csv(
+            staged, self.preparer,
+            SimpleUploadedFile("statement-v2.csv", statement.encode("utf-8"), content_type="text/csv"),
+            change_reason="Bank supplied a corrected descriptive statement copy; amounts are unchanged.",
+        )
+        self.assertEqual(staged.source_version, 2)
+        self.assertTrue(BankStatementMatch.objects.filter(pk=first_match.pk, status=BankStatementMatch.SUPERSEDED).exists())
+        self.assertEqual(auto_match_bank_statement(staged, self.preparer), 1)
+        classify_bank_outstanding(
+            staged, check_bank_line, self.preparer,
+            explanation="Issued near month-end and absent from the January bank statement.",
+            evidence_reference="Check register CHK-0099",
+            expected_clearance_date=date(2027, 2, 10),
+        )
+        unclassify_bank_outstanding(
+            staged, check_bank_line, self.preparer,
+            reason="Replace the timing evidence with the reviewed check-register reference.",
+        )
+        classify_bank_outstanding(
+            staged, check_bank_line, self.preparer,
+            explanation="Issued near month-end and absent from the January bank statement.",
+            evidence_reference="Reviewed check register CHK-0099",
+            expected_clearance_date=date(2027, 2, 10),
+        )
+        snapshot, _checksum, _rows, _matches, _lines, _items = bank_reconciliation_snapshot(staged)
+        self.assertEqual(snapshot["adjusted_bank_balance"], "800.00")
+        self.assertEqual(snapshot["book_balance"], "800.00")
+        self.assertEqual(snapshot["difference"], "0.00")
+        self.assertTrue(snapshot["ready_for_review"])
+        self.assertTrue(BankOutstandingItem.objects.filter(
+            batch=staged, journal_line=check_bank_line, kind=BankOutstandingItem.OUTSTANDING_CHECK,
+        ).exists())
+
+        submitted = submit_bank_reconciliation(staged, self.preparer)
+        self._grant(self.preparer, "approve_bank_reconciliation")
+        with self.assertRaisesMessage(ValidationError, "independent"):
+            decide_bank_reconciliation(
+                submitted, self.preparer, decision=BankStatementBatch.RECONCILED,
+                evidence_note="Synthetic self-review must fail.",
+            )
+        reconciled = decide_bank_reconciliation(
+            submitted, self.setup_approver, decision=BankStatementBatch.RECONCILED,
+            evidence_note="Reviewed synthetic statement, GL, check register, and adjusted-balance schedule.",
+        )
+        self.assertEqual(reconciled.status, BankStatementBatch.RECONCILED)
+        self.assertTrue(reconciled.reconciliation_checksum)
+        reconciled.bank_name = "Attempted rewrite"
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            reconciled.save(update_fields=("bank_name",))
+        reconciled.refresh_from_db()
+
+        self.client.force_login(self.preparer)
+        starter = self.client.get(reverse("accounting:bank_reconciliation_starter"))
+        self.assertEqual(starter.status_code, 200)
+        self.assertIn("transaction_date,bank_reference", starter.content.decode("utf-8"))
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            response = self.client.get(reverse("accounting:bank_reconciliation_export", args=(batch.public_id,)))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+            exported = response.content.decode("utf-8")
+            self.assertIn("statement_row", exported)
+            self.assertIn("ledger_outstanding", exported)
+            self.assertTrue(list(Path(export_root).rglob("*bank-reconciliation-*.csv")))
+        detail = self.client.get(reverse("accounting:bank_reconciliation_detail", args=(batch.public_id,)))
+        self.assertContains(detail, "Adjusted-balance control")
+        self.assertContains(detail, "CHK-0099")

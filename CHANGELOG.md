@@ -4,6 +4,13 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance bank-statement intake and reconciliation
+
+- Added F8.2 one-bank-account/one-fund monthly statement batches with checksum-backed retained CSV versions, declared/running-balance validation, and a plain human-editable starter.
+- Added unique exact and guided manual matching to posted bank-account journal lines, reasoned pre-submission unmatching/restaging, and explicit handling of bank-only items through authorized JEV correction rather than forced matching.
+- Added evidence-backed deposits in transit and outstanding checks, adjusted-bank-to-GL zero-difference controls, independent Accounting reconciliation, immutable event/checksum evidence, and conservative workspaces.
+- Added role/page-specific floating Internal How-Tos and controlled CSV evidence archived in the TraceSync-ready department/user/category tree with adjacent manifests and an explicit local official-BRS acceptance boundary.
+
 ### Finance deduction and withholding remittance execution
 
 - Added F8.1 one-fund, cross-voucher agency remittance batches sourced only from positive posted withholding subsidiary balances, with live reservation against concurrent batches.

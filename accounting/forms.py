@@ -2,6 +2,7 @@ from django import forms
 
 from .models import (
     AccountingPeriod, FiscalYear, Fund, FundingSource, JournalEntry, JournalLine,
+    BankStatementBatch,
     LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow, PostingMapping,
     ProgramActivityProject, ResponsibilityCenter,
 )
@@ -207,6 +208,83 @@ class OpeningBalanceRowCorrectionForm(forms.Form):
                 "subsidiary_reference": row.subsidiary_reference,
                 "memo": row.memo,
             }
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+
+
+class BankStatementBatchForm(StyledModelForm):
+    class Meta:
+        model = BankStatementBatch
+        fields = (
+            "statement_reference", "bank_account_code", "bank_name", "account_number_masked", "fund",
+            "period_start", "period_end", "received_on", "opening_balance", "closing_balance",
+            "expected_row_count", "expected_deposits", "expected_withdrawals",
+        )
+        widgets = {
+            "period_start": forms.DateInput(attrs={"type": "date"}),
+            "period_end": forms.DateInput(attrs={"type": "date"}),
+            "received_on": forms.DateInput(attrs={"type": "date"}),
+            "opening_balance": forms.NumberInput(attrs={"step": "0.01"}),
+            "closing_balance": forms.NumberInput(attrs={"step": "0.01"}),
+            "expected_deposits": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
+            "expected_withdrawals": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
+        }
+        help_texts = {
+            "statement_reference": "Use the bank's statement number or a locally controlled monthly reference.",
+            "bank_account_code": "Enter the human-readable code from the active Finance Setup bank-account mapping.",
+            "account_number_masked": "Keep only a safe masked value, for example ••••1234.",
+        }
+
+    def __init__(self, *args, department, **kwargs):
+        super().__init__(*args, department=department, **kwargs)
+        self.fields["fund"].queryset = Fund.objects.filter(department_id=department.pk, is_active=True)
+
+
+class BankStatementBatchCorrectionForm(BankStatementBatchForm):
+    change_reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Cite the corrected bank statement, bank advice, reviewer instruction, or other supporting reference.",
+    )
+
+
+class BankStatementImportForm(forms.Form):
+    source_file = forms.FileField(
+        help_text=(
+            "UTF-8 CSV columns: transaction_date, bank_reference, description, withdrawal, deposit, "
+            "running_balance. Use YYYY-MM-DD dates; running_balance may be blank."
+        ),
+        widget=forms.ClearableFileInput(attrs={"accept": ".csv,text/csv", "class": "form-control-file"}),
+    )
+    change_reason = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+        help_text="Required when replacing an already staged statement version.",
+    )
+
+
+class BankMatchForm(forms.Form):
+    journal_line_id = forms.IntegerField(widget=forms.HiddenInput())
+    reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+        help_text="Record the exact bank reference, paid check, transfer reference, or other match basis.",
+    )
+
+
+class BankUnmatchForm(forms.Form):
+    reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+        help_text="Explain why the prior match is being superseded.",
+    )
+
+
+class BankOutstandingForm(forms.Form):
+    journal_line_id = forms.IntegerField(widget=forms.HiddenInput())
+    explanation = forms.CharField(widget=forms.Textarea(attrs={"rows": 2, "class": "form-control"}))
+    evidence_reference = forms.CharField(max_length=160)
+    expected_clearance_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")

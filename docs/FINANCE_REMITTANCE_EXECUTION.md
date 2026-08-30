@@ -43,4 +43,4 @@ Materialization stops when a current deduction mapping no longer matches the acc
 
 ## Acceptance still required
 
-Before official use, named local process owners must confirm recipient-agency handling, deadlines, forms/returns, authority references, fund/account separation, payment and acknowledgement evidence, exact account mappings, printed or electronic layouts, exception handling, and redacted end-to-end replay. Bank statement import/reconciliation, cash-position control, stale/unclaimed instruments, and consolidated statutory reporting remain later F8/F9 work.
+Before official use, named local process owners must confirm recipient-agency handling, deadlines, forms/returns, authority references, fund/account separation, payment and acknowledgement evidence, exact account mappings, printed or electronic layouts, exception handling, and redacted end-to-end replay. F8.2 now supplies synthetic bank-statement intake/reconciliation; cash-position control, stale/unclaimed instruments, and consolidated statutory reporting remain later F8/F9 work.

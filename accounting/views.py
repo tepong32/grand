@@ -18,30 +18,37 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from src.export_archive import archive_export
 
 from .access import (
-    accounting_access_required, accounting_permission_required, can_approve_fiscal_readiness,
+    accounting_access_required, accounting_permission_required, can_approve_bank_reconciliation, can_approve_fiscal_readiness,
     can_approve_opening_balances, can_govern_setup, can_manage_setup, can_post_journals,
     can_post_opening_balances, can_prepare_journals, can_prepare_opening_balances,
-    can_reconcile_controls, can_view_ledger, department_for_user,
+    can_reconcile_controls, can_view_bank_reconciliation, can_view_ledger, department_for_user,
+    can_export_bank_reconciliation, can_prepare_bank_reconciliation,
 )
 from .forms import (
     AccountingPeriodForm, FiscalYearForm, FundForm, FundingSourceForm, JournalEntryForm, JournalLineForm,
+    BankMatchForm, BankOutstandingForm, BankStatementBatchCorrectionForm, BankStatementBatchForm,
+    BankStatementImportForm, BankUnmatchForm,
     LedgerAccountForm, OpeningBalanceBatchCorrectionForm, OpeningBalanceBatchForm, OpeningBalanceImportForm,
     OpeningBalanceRowCorrectionForm, PostingMappingForm, ProgramActivityProjectForm,
     ResponsibilityCenterForm, ReversalForm,
 )
 from .models import (
     AccountingAuditEvent, AccountingPeriod, ControlAccountReconciliation, FiscalYear,
+    BankOutstandingItem, BankStatementBatch, BankStatementMatch, BankStatementRow,
     FiscalYearReadinessApproval, Fund, FundingSource, JournalEntry, JournalLine,
     JournalSubsidiaryLine, LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow,
     PostingMapping, ProgramActivityProject, ResponsibilityCenter,
 )
 from .services import (
     adopt_configuration_release, begin_foundation_amendment, close_period, create_reversal,
+    auto_match_bank_statement, bank_reconciliation_snapshot, classify_bank_outstanding,
+    correct_bank_statement_batch, decide_bank_reconciliation, match_bank_statement_row,
     correct_opening_batch, correct_opening_row, decide_opening_batch, decide_readiness_layer, discard_draft,
     ensure_readiness_layers, evaluate_fiscal_year_readiness, finalize_foundation_amendment,
     post_entry, post_opening_batch, reconcile_opening_batch, record_opening_event, return_entry, stage_opening_csv,
     run_control_reconciliation, subsidiary_schedule_rows, submit_entry, submit_opening_batch,
-    transition_fiscal_year, validate_opening_batch, control_reconciliation_snapshot,
+    record_bank_reconciliation_event, stage_bank_statement_csv, submit_bank_reconciliation, transition_fiscal_year,
+    unclassify_bank_outstanding, unmatch_bank_statement_row, validate_bank_statement, validate_opening_batch, control_reconciliation_snapshot,
 )
 
 
@@ -114,6 +121,7 @@ def workspace(request):
         "can_prepare_opening": can_prepare_opening_balances(request.user),
         "can_approve_opening": can_approve_opening_balances(request.user),
         "can_post_opening": can_post_opening_balances(request.user),
+        "can_view_bank_reconciliation": can_view_bank_reconciliation(request.user),
         "source_requests": source_requests, "remittance_requests": remittance_requests,
     })
 
@@ -614,6 +622,380 @@ def opening_reconcile(request, public_id):
         else:
             messages.error(request, "Posted totals do not reconcile. The immutable failure evidence was retained for investigation.")
     return redirect("accounting:opening_detail", public_id=public_id)
+
+
+@require_GET
+@accounting_permission_required(can_view_bank_reconciliation)
+def bank_reconciliation_workspace(request):
+    department = department_for_user(request.user)
+    batches = BankStatementBatch.objects.filter(department_id=department.pk).select_related("fund")
+    metrics = batches.aggregate(
+        drafts=Count("pk", filter=Q(status__in=(BankStatementBatch.DRAFT, BankStatementBatch.RETURNED))),
+        validated=Count("pk", filter=Q(status=BankStatementBatch.VALIDATED)),
+        review=Count("pk", filter=Q(status=BankStatementBatch.FOR_REVIEW)),
+        reconciled=Count("pk", filter=Q(status=BankStatementBatch.RECONCILED)),
+    )
+    return render(request, "accounting/bank_reconciliation_workspace.html", {
+        "batches": batches[:100],
+        "metrics": metrics,
+        "can_prepare_bank": can_prepare_bank_reconciliation(request.user),
+    })
+
+
+@require_GET
+@accounting_permission_required(can_view_bank_reconciliation)
+def bank_reconciliation_starter(request):
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="bank-statement-import-starter.csv"'
+    response["X-Content-Type-Options"] = "nosniff"
+    writer = csv.writer(response)
+    writer.writerow(("transaction_date", "bank_reference", "description", "withdrawal", "deposit", "running_balance"))
+    writer.writerow(("2027-01-05", "CHK-000001", "Sample cleared check - replace or remove this starter row", "1250.00", "", "8750.00"))
+    writer.writerow(("2027-01-08", "DEP-000001", "Sample cleared deposit - replace or remove this starter row", "", "2500.00", "11250.00"))
+    return response
+
+
+@require_http_methods(["GET", "POST"])
+@accounting_permission_required(can_prepare_bank_reconciliation)
+def bank_reconciliation_create(request):
+    department = department_for_user(request.user)
+    form = BankStatementBatchForm(request.POST or None, department=department)
+    if request.method == "POST" and form.is_valid():
+        batch = form.save(commit=False)
+        batch.department_id = department.pk
+        batch.department_label = department.name
+        batch.created_by_id = request.user.pk
+        batch.created_by_label = request.user.get_full_name() or request.user.username
+        try:
+            batch.full_clean()
+            batch.save()
+        except ValidationError as exc:
+            form.add_error(None, " ".join(exc.messages))
+        else:
+            record_bank_reconciliation_event(batch, "batch_created", request.user, snapshot={
+                "statement_reference": batch.statement_reference,
+                "bank_account_code": batch.bank_account_code,
+                "fund_code": batch.fund.code,
+                "period_start": batch.period_start.isoformat(),
+                "period_end": batch.period_end.isoformat(),
+            })
+            messages.success(request, "Bank-statement reconciliation batch created. Stage the controlled CSV next.")
+            return redirect("accounting:bank_reconciliation_detail", public_id=batch.public_id)
+    return render(request, "accounting/form.html", {
+        "form": form,
+        "title": "Create monthly bank reconciliation",
+        "cancel_url": "accounting:bank_reconciliation_workspace",
+    })
+
+
+def _bank_batch_for_department(request, public_id):
+    department = department_for_user(request.user)
+    return get_object_or_404(
+        BankStatementBatch.objects.select_related("fund"), public_id=public_id, department_id=department.pk,
+    )
+
+
+@require_http_methods(["GET", "POST"])
+@accounting_permission_required(can_prepare_bank_reconciliation)
+def bank_reconciliation_edit(request, public_id):
+    batch = _bank_batch_for_department(request, public_id)
+    if batch.status not in (BankStatementBatch.DRAFT, BankStatementBatch.VALIDATED, BankStatementBatch.RETURNED):
+        messages.error(request, "Only a pre-submission or returned bank reconciliation can be corrected.")
+        return redirect("accounting:bank_reconciliation_detail", public_id=public_id)
+    department = department_for_user(request.user)
+    form = BankStatementBatchCorrectionForm(request.POST or None, instance=batch, department=department)
+    if request.method == "POST" and form.is_valid():
+        try:
+            correct_bank_statement_batch(
+                batch, request.user, values=form.cleaned_data, reason=form.cleaned_data["change_reason"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, " ".join(exc.messages))
+        else:
+            messages.success(request, "Statement controls corrected with before/after evidence. Validate and match again.")
+            return redirect("accounting:bank_reconciliation_detail", public_id=public_id)
+    return render(request, "accounting/form.html", {
+        "form": form,
+        "title": f"Correct {batch.statement_reference}",
+        "cancel_url": "accounting:bank_reconciliation_detail",
+        "cancel_public_id": batch.public_id,
+    })
+
+
+@require_GET
+@accounting_permission_required(can_view_bank_reconciliation)
+def bank_reconciliation_detail(request, public_id):
+    batch = _bank_batch_for_department(request, public_id)
+    try:
+        snapshot, snapshot_checksum, rows, matches, unmatched_lines, items = bank_reconciliation_snapshot(batch)
+        setup_error = ""
+    except ValidationError as exc:
+        snapshot, snapshot_checksum, rows, matches, unmatched_lines, items = {}, "", [], [], [], []
+        setup_error = " ".join(exc.messages)
+    match_map = {match.statement_row_id: match for match in matches}
+    reserved_ids = set(BankStatementMatch.objects.filter(status=BankStatementMatch.ACTIVE).values_list("journal_line_id", flat=True))
+    for row in rows:
+        row.active_match = match_map.get(row.pk)
+        row.candidates = [
+            line for line in unmatched_lines
+            if line.pk not in reserved_ids
+            and row.withdrawal == line.credit and row.deposit == line.debit
+        ][:30]
+    item_map = {item.journal_line_id: item for item in items}
+    for line in unmatched_lines:
+        line.active_outstanding_item = item_map.get(line.pk)
+    return render(request, "accounting/bank_reconciliation_detail.html", {
+        "batch": batch,
+        "rows": rows,
+        "matches": matches,
+        "unmatched_lines": unmatched_lines,
+        "items": items,
+        "snapshot": snapshot,
+        "snapshot_checksum": snapshot_checksum,
+        "setup_error": setup_error,
+        "import_form": BankStatementImportForm(),
+        "can_prepare_bank": can_prepare_bank_reconciliation(request.user),
+        "can_approve_bank": can_approve_bank_reconciliation(request.user),
+        "can_export_bank": can_export_bank_reconciliation(request.user),
+    })
+
+
+@require_POST
+@accounting_permission_required(can_prepare_bank_reconciliation)
+def bank_reconciliation_stage(request, public_id):
+    batch = _bank_batch_for_department(request, public_id)
+    form = BankStatementImportForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, "Choose a UTF-8 bank statement CSV and provide a restaging reason when required.")
+    else:
+        try:
+            staged = stage_bank_statement_csv(
+                batch, request.user, form.cleaned_data["source_file"],
+                change_reason=form.cleaned_data.get("change_reason", ""),
+            )
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        else:
+            if staged.status == BankStatementBatch.VALIDATED:
+                messages.success(request, "Statement source and declared controls validate. Match the rows to posted bank journals.")
+            else:
+                messages.warning(request, "Statement staged, but the declared or running-balance controls need correction.")
+    return redirect("accounting:bank_reconciliation_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_prepare_bank_reconciliation)
+def bank_reconciliation_validate(request, public_id):
+    batch = _bank_batch_for_department(request, public_id)
+    try:
+        validated = validate_bank_statement(batch, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        if validated.status == BankStatementBatch.VALIDATED:
+            messages.success(request, "Statement rows, running balances, and declared controls validate.")
+        else:
+            messages.warning(request, "Validation found control differences. Correct the batch or restage the source.")
+    return redirect("accounting:bank_reconciliation_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_prepare_bank_reconciliation)
+def bank_reconciliation_auto_match(request, public_id):
+    batch = _bank_batch_for_department(request, public_id)
+    try:
+        count = auto_match_bank_statement(batch, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, f"Recorded {count} unique exact match(es). Ambiguous rows remain for guided review.")
+    return redirect("accounting:bank_reconciliation_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_prepare_bank_reconciliation)
+def bank_reconciliation_match(request, public_id, row_id):
+    batch = _bank_batch_for_department(request, public_id)
+    row = get_object_or_404(BankStatementRow, pk=row_id, batch=batch)
+    form = BankMatchForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Choose a candidate journal and record the match basis.")
+    else:
+        line = get_object_or_404(JournalLine, pk=form.cleaned_data["journal_line_id"])
+        try:
+            match_bank_statement_row(row, line, request.user, reason=form.cleaned_data["reason"])
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        else:
+            messages.success(request, f"Statement row {row.row_number} matched with retained evidence.")
+    return redirect("accounting:bank_reconciliation_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_prepare_bank_reconciliation)
+def bank_reconciliation_unmatch(request, public_id, row_id):
+    batch = _bank_batch_for_department(request, public_id)
+    row = get_object_or_404(BankStatementRow, pk=row_id, batch=batch)
+    form = BankUnmatchForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Explain why the prior match is being superseded.")
+    else:
+        try:
+            unmatch_bank_statement_row(row, request.user, reason=form.cleaned_data["reason"])
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        else:
+            messages.success(request, f"Statement row {row.row_number} is unmatched; prior evidence remains in history.")
+    return redirect("accounting:bank_reconciliation_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_prepare_bank_reconciliation)
+def bank_reconciliation_classify(request, public_id):
+    batch = _bank_batch_for_department(request, public_id)
+    form = BankOutstandingForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Complete the outstanding-item explanation, evidence, and expected clearance date.")
+    else:
+        line = get_object_or_404(JournalLine, pk=form.cleaned_data["journal_line_id"])
+        try:
+            classify_bank_outstanding(
+                batch, line, request.user,
+                explanation=form.cleaned_data["explanation"],
+                evidence_reference=form.cleaned_data["evidence_reference"],
+                expected_clearance_date=form.cleaned_data["expected_clearance_date"],
+            )
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        else:
+            messages.success(request, "Outstanding item classified with expected-clearance evidence.")
+    return redirect("accounting:bank_reconciliation_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_prepare_bank_reconciliation)
+def bank_reconciliation_unclassify(request, public_id, line_id):
+    batch = _bank_batch_for_department(request, public_id)
+    line = get_object_or_404(JournalLine, pk=line_id)
+    form = BankUnmatchForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Explain why the prior timing-item classification is being superseded.")
+    else:
+        try:
+            unclassify_bank_outstanding(batch, line, request.user, reason=form.cleaned_data["reason"])
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        else:
+            messages.success(request, "Timing-item classification removed; prior evidence remains in history.")
+    return redirect("accounting:bank_reconciliation_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_prepare_bank_reconciliation)
+def bank_reconciliation_submit(request, public_id):
+    batch = _bank_batch_for_department(request, public_id)
+    try:
+        submit_bank_reconciliation(batch, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, "Zero-difference reconciliation submitted for independent Accounting review.")
+    return redirect("accounting:bank_reconciliation_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_approve_bank_reconciliation)
+def bank_reconciliation_decide(request, public_id, decision):
+    batch = _bank_batch_for_department(request, public_id)
+    try:
+        decided = decide_bank_reconciliation(
+            batch, request.user, decision=decision, evidence_note=request.POST.get("evidence_note", ""),
+        )
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        if decided.status == BankStatementBatch.RECONCILED:
+            messages.success(request, "Bank reconciliation independently approved and checksummed.")
+        else:
+            messages.warning(request, "Bank reconciliation returned to the preparer for controlled correction.")
+    return redirect("accounting:bank_reconciliation_detail", public_id=public_id)
+
+
+@require_GET
+@accounting_permission_required(can_export_bank_reconciliation)
+def bank_reconciliation_export(request, public_id):
+    department = department_for_user(request.user)
+    batch = get_object_or_404(
+        BankStatementBatch.objects.select_related("fund"), public_id=public_id, department_id=department.pk,
+    )
+    snapshot, checksum, rows, matches, unmatched_lines, items = bank_reconciliation_snapshot(batch)
+    match_map = {match.statement_row_id: match for match in matches}
+    item_map = {item.journal_line_id: item for item in items}
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    reference = slugify(batch.statement_reference)[:80] or str(batch.public_id)
+    filename = f"bank-reconciliation-{reference}.csv"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    writer = csv.writer(response)
+    writer.writerow((
+        "record_kind", "statement_reference", "status", "bank_account_code", "fund_code", "period_start",
+        "period_end", "source_version", "source_checksum", "row_number", "transaction_date", "bank_reference",
+        "description", "withdrawal", "deposit", "running_balance", "journal_reference", "journal_date",
+        "journal_line_id", "match_method", "evidence_reference", "expected_clearance_date", "evidence_checksum",
+    ))
+    for row in rows:
+        match = match_map.get(row.pk)
+        writer.writerow((
+            "statement_row", _csv_text(batch.statement_reference), batch.status, _csv_text(batch.bank_account_code),
+            _csv_text(batch.fund.code), batch.period_start, batch.period_end, batch.source_version,
+            batch.source_checksum, row.row_number, row.transaction_date, _csv_text(row.bank_reference),
+            _csv_text(row.description), row.withdrawal, row.deposit, row.running_balance or "",
+            _csv_text(match.journal_line.entry.reference if match else ""),
+            match.journal_line.entry.entry_date if match else "", match.journal_line_id if match else "",
+            match.method if match else "unmatched", "", "", match.source_checksum if match else row.row_checksum,
+        ))
+    for line in unmatched_lines:
+        item = item_map.get(line.pk)
+        writer.writerow((
+            "ledger_outstanding" if item else "ledger_unclassified", _csv_text(batch.statement_reference), batch.status,
+            _csv_text(batch.bank_account_code), _csv_text(batch.fund.code), batch.period_start, batch.period_end,
+            batch.source_version, batch.source_checksum, "", "", "", _csv_text(line.memo), line.credit,
+            line.debit, "", _csv_text(line.entry.reference), line.entry.entry_date, line.pk,
+            item.kind if item else "", _csv_text(item.evidence_reference if item else ""),
+            item.expected_clearance_date if item else "", item.source_checksum if item else "",
+        ))
+    writer.writerow((
+        "reconciliation_control", _csv_text(batch.statement_reference), batch.status, _csv_text(batch.bank_account_code),
+        _csv_text(batch.fund.code), batch.period_start, batch.period_end, batch.source_version, batch.source_checksum,
+        "", "", "", "adjusted bank / book / difference", snapshot["outstanding_checks"],
+        snapshot["outstanding_deposits"], snapshot["statement_closing_balance"], snapshot["book_balance"], "",
+        "", "", "", "", checksum,
+    ))
+    archived = archive_export(
+        content=response.content,
+        department=department,
+        user=request.user,
+        category="finance-bank-reconciliation",
+        filename=filename,
+        metadata={
+            "kind": "bank_reconciliation_evidence",
+            "batch_public_id": str(batch.public_id),
+            "statement_reference": batch.statement_reference,
+            "bank_account_code": batch.bank_account_code,
+            "fund_code": batch.fund.code,
+            "period_end": batch.period_end,
+            "status": batch.status,
+            "source_checksum": batch.source_checksum,
+            "reconciliation_checksum": batch.reconciliation_checksum or checksum,
+            "official_status": "controlled working/evidence export; locally accepted official BRS layout remains required",
+        },
+    )
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    record_bank_reconciliation_event(batch, "exported", request.user, snapshot={
+        "relative_path": archived["relative_path"], "sha256": archived["sha256"],
+    })
+    return response
 
 
 @require_http_methods(["GET", "POST"])

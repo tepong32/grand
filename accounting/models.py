@@ -871,6 +871,258 @@ class ControlAccountReconciliation(DepartmentOwnedModel):
         raise ValidationError("Control-account reconciliation evidence cannot be deleted.")
 
 
+class BankStatementBatch(DepartmentOwnedModel):
+    DRAFT = "draft"
+    VALIDATED = "validated"
+    FOR_REVIEW = "for_review"
+    RECONCILED = "reconciled"
+    RETURNED = "returned"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft / staging"),
+        (VALIDATED, "Statement controls validated"),
+        (FOR_REVIEW, "For independent review"),
+        (RECONCILED, "Reconciled"),
+        (RETURNED, "Returned for correction"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    statement_reference = models.CharField(max_length=100)
+    bank_account_code = models.CharField(max_length=80)
+    bank_name = models.CharField(max_length=160)
+    account_number_masked = models.CharField(max_length=40, blank=True)
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT, related_name="bank_statement_batches")
+    period_start = models.DateField()
+    period_end = models.DateField()
+    received_on = models.DateField()
+    opening_balance = models.DecimalField(max_digits=18, decimal_places=2)
+    closing_balance = models.DecimalField(max_digits=18, decimal_places=2)
+    expected_row_count = models.PositiveIntegerField()
+    expected_deposits = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    expected_withdrawals = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    source_version = models.PositiveIntegerField(default=0)
+    source_filename = models.CharField(max_length=255, blank=True)
+    source_checksum = models.CharField(max_length=64, blank=True)
+    validation_summary = models.JSONField(default=dict, blank=True)
+    created_by_id = models.PositiveBigIntegerField()
+    created_by_label = models.CharField(max_length=160)
+    submitted_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    submitted_by_label = models.CharField(max_length=160, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reconciled_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reconciled_by_label = models.CharField(max_length=160, blank=True)
+    reconciled_at = models.DateTimeField(null=True, blank=True)
+    reconciliation_checksum = models.CharField(max_length=64, blank=True)
+    state_version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-period_end", "bank_account_code", "-pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("department_id", "bank_account_code", "statement_reference"),
+                name="unique_bank_statement_reference",
+            ),
+        )
+        permissions = (
+            ("view_bank_reconciliation", "Can view bank reconciliation workspaces"),
+            ("prepare_bank_reconciliation", "Can stage and match bank statements"),
+            ("approve_bank_reconciliation", "Can independently approve bank reconciliations"),
+            ("export_bank_reconciliation", "Can export bank reconciliation evidence"),
+        )
+
+    def __str__(self):
+        return f"{self.bank_account_code} · {self.statement_reference}"
+
+    def clean(self):
+        if self.period_end < self.period_start:
+            raise ValidationError({"period_end": "The statement end cannot precede its start."})
+        if self.received_on and self.period_end and self.received_on < self.period_end:
+            raise ValidationError({"received_on": "The statement cannot be received before its covered period ends."})
+        if self.fund_id and self.fund.department_id != self.department_id:
+            raise ValidationError({"fund": "The fund must belong to this department ledger."})
+        if self.expected_deposits < 0 or self.expected_withdrawals < 0:
+            raise ValidationError("Statement control totals cannot be negative.")
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            governed = (
+                "department_id", "statement_reference", "bank_account_code", "bank_name",
+                "account_number_masked", "fund_id", "period_start", "period_end", "received_on",
+                "opening_balance", "closing_balance", "expected_row_count", "expected_deposits",
+                "expected_withdrawals",
+            )
+            if prior and prior.status in (self.FOR_REVIEW, self.RECONCILED) and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Submitted bank-reconciliation controls are immutable. Return the batch before correction.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.status == self.RECONCILED:
+                raise ValidationError("Reconciled bank evidence is immutable. Use a later adjustment and successor reconciliation.")
+            if prior and prior.status == self.FOR_REVIEW:
+                changed = {
+                    field.name for field in self._meta.concrete_fields
+                    if field.name not in ("id", "updated_at") and getattr(prior, field.name) != getattr(self, field.name)
+                }
+                if changed and self.status not in (self.RETURNED, self.RECONCILED):
+                    raise ValidationError("A bank reconciliation under review can only be returned or reconciled.")
+                allowed = {"status", "state_version"}
+                if self.status == self.RECONCILED:
+                    allowed.update((
+                        "reconciled_by_id", "reconciled_by_label", "reconciled_at", "reconciliation_checksum",
+                    ))
+                if changed - allowed:
+                    raise ValidationError("A bank reconciliation under review is read-only until it is returned.")
+        return super().save(*args, **kwargs)
+
+
+class BankStatementRow(models.Model):
+    batch = models.ForeignKey(BankStatementBatch, on_delete=models.PROTECT, related_name="rows")
+    source_version = models.PositiveIntegerField()
+    row_number = models.PositiveIntegerField()
+    transaction_date = models.DateField()
+    bank_reference = models.CharField(max_length=120, blank=True)
+    description = models.CharField(max_length=255)
+    withdrawal = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    deposit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    running_balance = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    row_checksum = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("source_version", "row_number", "pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("batch", "source_version", "row_number"), name="unique_statement_version_row",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(withdrawal__gt=0, deposit=0)
+                    | models.Q(deposit__gt=0, withdrawal=0)
+                ),
+                name="one_sided_bank_statement_amount",
+            ),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Staged bank rows are immutable. Restage a corrected statement version.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Staged bank rows are retained as source evidence.")
+
+
+class BankStatementMatch(models.Model):
+    ACTIVE = "active"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = ((ACTIVE, "Active"), (SUPERSEDED, "Superseded"))
+    AUTO = "auto"
+    MANUAL = "manual"
+    METHOD_CHOICES = ((AUTO, "Unique exact suggestion"), (MANUAL, "Guided manual match"))
+
+    batch = models.ForeignKey(BankStatementBatch, on_delete=models.PROTECT, related_name="matches")
+    statement_row = models.ForeignKey(BankStatementRow, on_delete=models.PROTECT, related_name="matches")
+    journal_line = models.ForeignKey(JournalLine, on_delete=models.PROTECT, related_name="bank_statement_matches")
+    method = models.CharField(max_length=12, choices=METHOD_CHOICES)
+    reason = models.TextField()
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=ACTIVE)
+    source_snapshot = models.JSONField(default=dict)
+    source_checksum = models.CharField(max_length=64)
+    created_by_id = models.PositiveBigIntegerField()
+    created_by_label = models.CharField(max_length=160)
+    created_at = models.DateTimeField(auto_now_add=True)
+    superseded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("statement_row__row_number", "-created_at", "-pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("statement_row",), condition=models.Q(status="active"),
+                name="unique_active_statement_row_match",
+            ),
+            models.UniqueConstraint(
+                fields=("journal_line",), condition=models.Q(status="active"),
+                name="unique_active_bank_journal_match",
+            ),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk and not getattr(self, "_lineage_transition", False):
+            raise ValidationError("Bank match evidence is immutable. Supersede it through the guided correction action.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Bank match evidence cannot be deleted.")
+
+
+class BankOutstandingItem(models.Model):
+    OUTSTANDING_DEPOSIT = "outstanding_deposit"
+    OUTSTANDING_CHECK = "outstanding_check"
+    KIND_CHOICES = (
+        (OUTSTANDING_DEPOSIT, "Deposit in transit"),
+        (OUTSTANDING_CHECK, "Outstanding check / withdrawal"),
+    )
+    ACTIVE = "active"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = ((ACTIVE, "Active"), (SUPERSEDED, "Superseded"))
+
+    batch = models.ForeignKey(BankStatementBatch, on_delete=models.PROTECT, related_name="outstanding_items")
+    journal_line = models.ForeignKey(JournalLine, on_delete=models.PROTECT, related_name="bank_outstanding_items")
+    kind = models.CharField(max_length=24, choices=KIND_CHOICES)
+    explanation = models.TextField()
+    evidence_reference = models.CharField(max_length=160)
+    expected_clearance_date = models.DateField()
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=ACTIVE)
+    source_snapshot = models.JSONField(default=dict)
+    source_checksum = models.CharField(max_length=64)
+    created_by_id = models.PositiveBigIntegerField()
+    created_by_label = models.CharField(max_length=160)
+    created_at = models.DateTimeField(auto_now_add=True)
+    superseded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("journal_line__entry__entry_date", "journal_line_id", "-created_at")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("batch", "journal_line"), condition=models.Q(status="active"),
+                name="unique_active_bank_outstanding_item",
+            ),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk and not getattr(self, "_lineage_transition", False):
+            raise ValidationError("Outstanding-item evidence is immutable. Supersede it through guided correction.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Outstanding-item evidence cannot be deleted.")
+
+
+class BankReconciliationEvent(DepartmentOwnedModel):
+    batch = models.ForeignKey(BankStatementBatch, on_delete=models.PROTECT, related_name="events")
+    action = models.CharField(max_length=40)
+    actor_id = models.PositiveBigIntegerField()
+    actor_label = models.CharField(max_length=160)
+    reason = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Bank-reconciliation events are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Bank-reconciliation events cannot be deleted.")
+
+
 class AccountingAuditEvent(DepartmentOwnedModel):
     entry = models.ForeignKey(JournalEntry, on_delete=models.PROTECT, null=True, blank=True, related_name="audit_events")
     action = models.CharField(max_length=40)

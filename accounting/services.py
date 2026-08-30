@@ -7,18 +7,21 @@ from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.forms.models import model_to_dict
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from .access import (
-    can_approve_fiscal_readiness, can_approve_opening_balances, can_manage_setup,
+    can_approve_bank_reconciliation, can_approve_fiscal_readiness, can_approve_opening_balances, can_manage_setup,
     can_post_opening_balances, can_prepare_opening_balances, can_reconcile_controls,
+    can_prepare_bank_reconciliation,
 )
 from .models import (
     AccountingAuditEvent, AccountingPeriod, ControlAccountReconciliation, FiscalYear,
     FiscalYearReadinessApproval, Fund, FundingSource, JournalEntry, JournalLine,
     JournalSubsidiaryLine, LedgerAccount,
+    BankOutstandingItem, BankReconciliationEvent, BankStatementBatch, BankStatementMatch, BankStatementRow,
     OpeningBalanceBatch, OpeningBalanceEvent, OpeningBalancePosting, OpeningBalanceRow,
     PostingMapping, ProgramActivityProject, ResponsibilityCenter,
 )
@@ -1372,4 +1375,602 @@ def close_period(period, actor):
         actor_label=actor_label(actor),
         snapshot={"fiscal_year": locked.fiscal_year, "period_number": locked.period_number},
     )
+    return locked
+
+
+def _bank_event(batch, action, actor, *, reason="", snapshot=None):
+    return BankReconciliationEvent.objects.create(
+        department_id=batch.department_id,
+        department_label=batch.department_label,
+        batch=batch,
+        action=action,
+        actor_id=actor.pk,
+        actor_label=actor_label(actor),
+        reason=str(reason or "").strip(),
+        snapshot=snapshot or {},
+    )
+
+
+def record_bank_reconciliation_event(batch, action, actor, *, reason="", snapshot=None):
+    return _bank_event(batch, action, actor, reason=reason, snapshot=snapshot)
+
+
+def _bank_money(value, label):
+    text = str(value or "").replace(",", "").strip()
+    if not text:
+        return Decimal("0.00")
+    try:
+        amount = Decimal(text).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValidationError(f"{label} must be a valid amount.") from exc
+    if amount < 0:
+        raise ValidationError(f"{label} cannot be negative.")
+    return amount
+
+
+def _bank_account(batch):
+    mapping = PostingMapping.objects.select_related("account").filter(
+        department_id=batch.department_id,
+        category="bank_account",
+        source_code__iexact=batch.bank_account_code.strip(),
+        is_active=True,
+    ).first()
+    if not mapping:
+        raise ValidationError(
+            f"No active bank-account posting mapping exists for {batch.bank_account_code}. "
+            "Adopt or correct Finance Setup before reconciling this statement."
+        )
+    return mapping.account
+
+
+def _bank_lines(batch):
+    account = _bank_account(batch)
+    return JournalLine.objects.select_related("entry", "account").filter(
+        entry__department_id=batch.department_id,
+        entry__fund_id=batch.fund_id,
+        entry__status=JournalEntry.POSTED,
+        entry__entry_date__lte=batch.period_end,
+        account=account,
+    ).order_by("entry__entry_date", "entry__reference", "sequence", "pk")
+
+
+def _match_snapshot(row, line):
+    return {
+        "statement": {
+            "row_id": row.pk,
+            "source_version": row.source_version,
+            "row_number": row.row_number,
+            "date": row.transaction_date.isoformat(),
+            "reference": row.bank_reference,
+            "description": row.description,
+            "withdrawal": str(row.withdrawal),
+            "deposit": str(row.deposit),
+            "row_checksum": row.row_checksum,
+        },
+        "ledger": {
+            "journal_line_id": line.pk,
+            "entry_public_id": str(line.entry.public_id),
+            "entry_reference": line.entry.reference,
+            "entry_date": line.entry.entry_date.isoformat(),
+            "source_type": line.entry.source_type,
+            "source_reference": line.entry.source_reference,
+            "account_code": line.account.code,
+            "debit": str(line.debit),
+            "credit": str(line.credit),
+            "memo": line.memo,
+        },
+    }
+
+
+def _snapshot_checksum(snapshot):
+    encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+@transaction.atomic(using=FINANCE_DB)
+def correct_bank_statement_batch(batch, actor, *, values, reason):
+    if not can_prepare_bank_reconciliation(actor):
+        raise ValidationError("You are not authorized to correct bank reconciliation controls.")
+    locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    if locked.status not in (BankStatementBatch.DRAFT, BankStatementBatch.VALIDATED, BankStatementBatch.RETURNED):
+        raise ValidationError("Only a pre-submission or returned bank reconciliation can be corrected.")
+    note = str(reason or "").strip()
+    if not note:
+        raise ValidationError("Explain the authority or source for this correction.")
+    fields = (
+        "statement_reference", "bank_account_code", "bank_name", "account_number_masked", "fund",
+        "period_start", "period_end", "received_on", "opening_balance", "closing_balance",
+        "expected_row_count", "expected_deposits", "expected_withdrawals",
+    )
+    before = {field: getattr(locked, f"{field}_id", None) if field == "fund" else getattr(locked, field) for field in fields}
+    for field in fields:
+        if field in values:
+            setattr(locked, field, values[field])
+    locked.status = BankStatementBatch.DRAFT
+    locked.validation_summary = {}
+    locked.state_version += 1
+    locked.full_clean()
+    locked.save()
+    now = timezone.now()
+    BankStatementMatch.objects.filter(batch=locked, status=BankStatementMatch.ACTIVE).update(
+        status=BankStatementMatch.SUPERSEDED, superseded_at=now,
+    )
+    BankOutstandingItem.objects.filter(batch=locked, status=BankOutstandingItem.ACTIVE).update(
+        status=BankOutstandingItem.SUPERSEDED, superseded_at=now,
+    )
+    after = {field: getattr(locked, f"{field}_id", None) if field == "fund" else getattr(locked, field) for field in fields}
+    safe_change = json.loads(json.dumps({"before": before, "after": after}, default=str))
+    _bank_event(locked, "controls_corrected", actor, reason=note, snapshot=safe_change)
+    return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def stage_bank_statement_csv(batch, actor, uploaded_file, *, change_reason=""):
+    if not can_prepare_bank_reconciliation(actor):
+        raise ValidationError("You are not authorized to stage bank statements.")
+    locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    if locked.status not in (BankStatementBatch.DRAFT, BankStatementBatch.VALIDATED, BankStatementBatch.RETURNED):
+        raise ValidationError("Only a pre-submission or returned bank statement can be restaged.")
+    if locked.source_version and not str(change_reason or "").strip():
+        raise ValidationError("Explain why the staged bank statement is being replaced.")
+    raw = uploaded_file.read()
+    if len(raw) > 5 * 1024 * 1024:
+        raise ValidationError("The bank statement CSV exceeds the 5 MB staging limit.")
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValidationError("Use a UTF-8 CSV bank statement.") from exc
+    reader = csv.DictReader(io.StringIO(text))
+    required = {"transaction_date", "bank_reference", "description", "withdrawal", "deposit", "running_balance"}
+    if not reader.fieldnames or not required.issubset({str(name or "").strip() for name in reader.fieldnames}):
+        raise ValidationError(
+            "Use CSV columns: transaction_date, bank_reference, description, withdrawal, deposit, running_balance."
+        )
+    source_version = locked.source_version + 1
+    staged = []
+    for row_number, source in enumerate(reader, start=1):
+        if not any(str(value or "").strip() for value in source.values()):
+            continue
+        transaction_date = parse_date(str(source.get("transaction_date") or "").strip())
+        if not transaction_date:
+            raise ValidationError(f"Row {row_number}: transaction_date must use YYYY-MM-DD.")
+        if not locked.period_start <= transaction_date <= locked.period_end:
+            raise ValidationError(f"Row {row_number}: transaction date is outside the statement period.")
+        withdrawal = _bank_money(source.get("withdrawal"), f"Row {row_number} withdrawal")
+        deposit = _bank_money(source.get("deposit"), f"Row {row_number} deposit")
+        if (withdrawal > 0) == (deposit > 0):
+            raise ValidationError(f"Row {row_number}: enter a positive withdrawal or deposit, not both.")
+        running_raw = str(source.get("running_balance") or "").replace(",", "").strip()
+        try:
+            running_balance = Decimal(running_raw).quantize(Decimal("0.01")) if running_raw else None
+        except InvalidOperation as exc:
+            raise ValidationError(f"Row {row_number}: running_balance must be a valid amount.") from exc
+        evidence = {
+            "source_version": source_version,
+            "row_number": row_number,
+            "transaction_date": transaction_date.isoformat(),
+            "bank_reference": str(source.get("bank_reference") or "").strip(),
+            "description": str(source.get("description") or "").strip(),
+            "withdrawal": str(withdrawal),
+            "deposit": str(deposit),
+            "running_balance": str(running_balance) if running_balance is not None else "",
+        }
+        staged.append(BankStatementRow(
+            batch=locked,
+            source_version=source_version,
+            row_number=row_number,
+            transaction_date=transaction_date,
+            bank_reference=evidence["bank_reference"][:120],
+            description=evidence["description"][:255] or "Bank statement transaction",
+            withdrawal=withdrawal,
+            deposit=deposit,
+            running_balance=running_balance,
+            row_checksum=_snapshot_checksum(evidence),
+        ))
+    if not staged:
+        raise ValidationError("The bank statement CSV contains no transaction rows.")
+    now = timezone.now()
+    if locked.source_version:
+        BankStatementMatch.objects.filter(
+            batch=locked, statement_row__source_version=locked.source_version, status=BankStatementMatch.ACTIVE,
+        ).update(status=BankStatementMatch.SUPERSEDED, superseded_at=now)
+        BankOutstandingItem.objects.filter(batch=locked, status=BankOutstandingItem.ACTIVE).update(
+            status=BankOutstandingItem.SUPERSEDED, superseded_at=now,
+        )
+    BankStatementRow.objects.bulk_create(staged)
+    locked.source_version = source_version
+    locked.source_filename = str(getattr(uploaded_file, "name", "bank-statement.csv"))[:255]
+    locked.source_checksum = hashlib.sha256(raw).hexdigest()
+    locked.status = BankStatementBatch.DRAFT
+    locked.validation_summary = {}
+    locked.state_version += 1
+    locked.save(update_fields=(
+        "source_version", "source_filename", "source_checksum", "status", "validation_summary",
+        "state_version", "updated_at",
+    ))
+    _bank_event(
+        locked,
+        "statement_staged" if source_version == 1 else "statement_restaged",
+        actor,
+        reason=change_reason,
+        snapshot={
+            "source_version": source_version,
+            "source_filename": locked.source_filename,
+            "source_checksum": locked.source_checksum,
+            "row_count": len(staged),
+        },
+    )
+    return validate_bank_statement(locked, actor)
+
+
+@transaction.atomic(using=FINANCE_DB)
+def validate_bank_statement(batch, actor):
+    if not can_prepare_bank_reconciliation(actor):
+        raise ValidationError("You are not authorized to validate bank statements.")
+    locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    if locked.status not in (BankStatementBatch.DRAFT, BankStatementBatch.RETURNED, BankStatementBatch.VALIDATED):
+        raise ValidationError("Only draft, returned, or validated statement staging can be validated.")
+    _bank_account(locked)
+    rows = list(locked.rows.filter(source_version=locked.source_version).order_by("row_number"))
+    deposits = sum((row.deposit for row in rows), Decimal("0.00"))
+    withdrawals = sum((row.withdrawal for row in rows), Decimal("0.00"))
+    computed_closing = locked.opening_balance + deposits - withdrawals
+    running_errors = []
+    running = locked.opening_balance
+    for row in rows:
+        running += row.deposit - row.withdrawal
+        if row.running_balance is not None and row.running_balance != running:
+            running_errors.append(row.row_number)
+    errors = []
+    if len(rows) != locked.expected_row_count:
+        errors.append("Declared row count does not match the staged rows.")
+    if deposits != locked.expected_deposits:
+        errors.append("Declared deposits do not match the staged rows.")
+    if withdrawals != locked.expected_withdrawals:
+        errors.append("Declared withdrawals do not match the staged rows.")
+    if computed_closing != locked.closing_balance:
+        errors.append("Opening balance plus deposits less withdrawals does not equal the closing balance.")
+    if running_errors:
+        errors.append("Running balance differs on row(s): " + ", ".join(str(value) for value in running_errors[:20]))
+    summary = {
+        "valid": bool(rows) and not errors,
+        "source_version": locked.source_version,
+        "row_count": len(rows),
+        "deposits": str(deposits),
+        "withdrawals": str(withdrawals),
+        "computed_closing": str(computed_closing),
+        "errors": errors,
+    }
+    locked.status = BankStatementBatch.VALIDATED if summary["valid"] else BankStatementBatch.DRAFT
+    locked.validation_summary = summary
+    locked.state_version += 1
+    locked.save(update_fields=("status", "validation_summary", "state_version", "updated_at"))
+    _bank_event(
+        locked, "statement_validated" if summary["valid"] else "statement_validation_failed", actor,
+        snapshot=summary,
+    )
+    return locked
+
+
+def _assert_bank_batch_editable(batch):
+    if batch.status not in (BankStatementBatch.DRAFT, BankStatementBatch.VALIDATED, BankStatementBatch.RETURNED):
+        raise ValidationError("Matching can change only before submission or after an independent return.")
+
+
+@transaction.atomic(using=FINANCE_DB)
+def match_bank_statement_row(row, line, actor, *, reason, method=BankStatementMatch.MANUAL):
+    if not can_prepare_bank_reconciliation(actor):
+        raise ValidationError("You are not authorized to match bank statement rows.")
+    locked_row = BankStatementRow.objects.select_for_update().select_related("batch").get(pk=row.pk)
+    batch = BankStatementBatch.objects.select_for_update().get(pk=locked_row.batch_id)
+    _assert_bank_batch_editable(batch)
+    if locked_row.source_version != batch.source_version:
+        raise ValidationError("Only the current staged statement version can be matched.")
+    note = str(reason or "").strip()
+    if not note:
+        raise ValidationError("Record the match basis or supporting reference.")
+    ledger_line = JournalLine.objects.select_related("entry", "account").get(pk=line.pk)
+    if ledger_line not in _bank_lines(batch):
+        raise ValidationError("Choose a posted bank-account journal line for this fund and statement period.")
+    if locked_row.withdrawal != ledger_line.credit or locked_row.deposit != ledger_line.debit:
+        raise ValidationError("The bank row amount and debit/credit direction must exactly match the journal line.")
+    if BankStatementMatch.objects.filter(journal_line=ledger_line, status=BankStatementMatch.ACTIVE).exclude(
+        statement_row=locked_row,
+    ).exists():
+        raise ValidationError("That journal line is already matched to another active bank row.")
+    now = timezone.now()
+    BankStatementMatch.objects.filter(statement_row=locked_row, status=BankStatementMatch.ACTIVE).update(
+        status=BankStatementMatch.SUPERSEDED, superseded_at=now,
+    )
+    BankOutstandingItem.objects.filter(
+        batch=batch, journal_line=ledger_line, status=BankOutstandingItem.ACTIVE,
+    ).update(status=BankOutstandingItem.SUPERSEDED, superseded_at=now)
+    snapshot = _match_snapshot(locked_row, ledger_line)
+    match = BankStatementMatch.objects.create(
+        batch=batch,
+        statement_row=locked_row,
+        journal_line=ledger_line,
+        method=method,
+        reason=note,
+        source_snapshot=snapshot,
+        source_checksum=_snapshot_checksum(snapshot),
+        created_by_id=actor.pk,
+        created_by_label=actor_label(actor),
+    )
+    batch.state_version += 1
+    batch.save(update_fields=("state_version", "updated_at"))
+    _bank_event(batch, "row_matched", actor, reason=note, snapshot={
+        "statement_row": locked_row.row_number,
+        "journal_line_id": ledger_line.pk,
+        "entry_reference": ledger_line.entry.reference,
+        "method": method,
+        "match_checksum": match.source_checksum,
+    })
+    return match
+
+
+@transaction.atomic(using=FINANCE_DB)
+def auto_match_bank_statement(batch, actor):
+    if not can_prepare_bank_reconciliation(actor):
+        raise ValidationError("You are not authorized to match bank statements.")
+    locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_editable(locked)
+    rows = locked.rows.filter(source_version=locked.source_version).exclude(
+        matches__status=BankStatementMatch.ACTIVE,
+    ).order_by("row_number")
+    available = list(_bank_lines(locked).exclude(bank_statement_matches__status=BankStatementMatch.ACTIVE).distinct())
+    matched = 0
+    for row in rows:
+        reference = row.bank_reference.strip().casefold()
+        if len(reference) < 3:
+            continue
+        candidates = []
+        for line in available:
+            haystack = " ".join((
+                line.entry.reference, line.entry.source_reference or "", line.entry.description, line.memo,
+            )).casefold()
+            amount_ok = row.withdrawal == line.credit and row.deposit == line.debit
+            if amount_ok and row.transaction_date == line.entry.entry_date and reference in haystack:
+                candidates.append(line)
+        if len(candidates) == 1:
+            line = candidates[0]
+            match_bank_statement_row(
+                row, line, actor,
+                reason="Unique exact date, reference, amount, and debit/credit-direction match.",
+                method=BankStatementMatch.AUTO,
+            )
+            available.remove(line)
+            matched += 1
+    return matched
+
+
+@transaction.atomic(using=FINANCE_DB)
+def unmatch_bank_statement_row(row, actor, *, reason):
+    if not can_prepare_bank_reconciliation(actor):
+        raise ValidationError("You are not authorized to correct bank matches.")
+    locked_row = BankStatementRow.objects.select_for_update().select_related("batch").get(pk=row.pk)
+    batch = BankStatementBatch.objects.select_for_update().get(pk=locked_row.batch_id)
+    _assert_bank_batch_editable(batch)
+    note = str(reason or "").strip()
+    if not note:
+        raise ValidationError("Explain why the match is being removed.")
+    match = BankStatementMatch.objects.filter(
+        statement_row=locked_row, status=BankStatementMatch.ACTIVE,
+    ).first()
+    if not match:
+        raise ValidationError("This statement row has no active match.")
+    match._lineage_transition = True
+    match.status = BankStatementMatch.SUPERSEDED
+    match.superseded_at = timezone.now()
+    match.save(update_fields=("status", "superseded_at"))
+    batch.state_version += 1
+    batch.save(update_fields=("state_version", "updated_at"))
+    _bank_event(batch, "row_unmatched", actor, reason=note, snapshot={
+        "statement_row": locked_row.row_number,
+        "journal_line_id": match.journal_line_id,
+        "prior_match_checksum": match.source_checksum,
+    })
+    return batch
+
+
+@transaction.atomic(using=FINANCE_DB)
+def classify_bank_outstanding(batch, line, actor, *, explanation, evidence_reference, expected_clearance_date):
+    if not can_prepare_bank_reconciliation(actor):
+        raise ValidationError("You are not authorized to classify outstanding bank items.")
+    locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_editable(locked)
+    note = str(explanation or "").strip()
+    evidence = str(evidence_reference or "").strip()
+    if not note or not evidence or not expected_clearance_date:
+        raise ValidationError("Explanation, supporting reference, and expected clearance date are required.")
+    if expected_clearance_date <= locked.period_end:
+        raise ValidationError("Expected clearance must be after the statement end date.")
+    ledger_line = JournalLine.objects.select_related("entry", "account").get(pk=line.pk)
+    if ledger_line not in _bank_lines(locked):
+        raise ValidationError("Choose an eligible posted bank-account journal line.")
+    if BankStatementMatch.objects.filter(journal_line=ledger_line, status=BankStatementMatch.ACTIVE).exists():
+        raise ValidationError("A matched journal line is not an outstanding item.")
+    kind = (
+        BankOutstandingItem.OUTSTANDING_DEPOSIT if ledger_line.debit > 0
+        else BankOutstandingItem.OUTSTANDING_CHECK
+    )
+    now = timezone.now()
+    BankOutstandingItem.objects.filter(
+        batch=locked, journal_line=ledger_line, status=BankOutstandingItem.ACTIVE,
+    ).update(status=BankOutstandingItem.SUPERSEDED, superseded_at=now)
+    snapshot = {
+        "journal_line_id": ledger_line.pk,
+        "entry_public_id": str(ledger_line.entry.public_id),
+        "entry_reference": ledger_line.entry.reference,
+        "entry_date": ledger_line.entry.entry_date.isoformat(),
+        "account_code": ledger_line.account.code,
+        "debit": str(ledger_line.debit),
+        "credit": str(ledger_line.credit),
+        "kind": kind,
+        "expected_clearance_date": expected_clearance_date.isoformat(),
+        "evidence_reference": evidence,
+    }
+    item = BankOutstandingItem.objects.create(
+        batch=locked,
+        journal_line=ledger_line,
+        kind=kind,
+        explanation=note,
+        evidence_reference=evidence,
+        expected_clearance_date=expected_clearance_date,
+        source_snapshot=snapshot,
+        source_checksum=_snapshot_checksum(snapshot),
+        created_by_id=actor.pk,
+        created_by_label=actor_label(actor),
+    )
+    locked.state_version += 1
+    locked.save(update_fields=("state_version", "updated_at"))
+    _bank_event(locked, "outstanding_item_classified", actor, reason=note, snapshot={
+        "journal_line_id": ledger_line.pk,
+        "kind": kind,
+        "evidence_reference": evidence,
+        "expected_clearance_date": expected_clearance_date.isoformat(),
+        "item_checksum": item.source_checksum,
+    })
+    return item
+
+
+@transaction.atomic(using=FINANCE_DB)
+def unclassify_bank_outstanding(batch, line, actor, *, reason):
+    if not can_prepare_bank_reconciliation(actor):
+        raise ValidationError("You are not authorized to correct outstanding bank items.")
+    locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_editable(locked)
+    note = str(reason or "").strip()
+    if not note:
+        raise ValidationError("Explain why the timing-item classification is being removed.")
+    item = BankOutstandingItem.objects.filter(
+        batch=locked, journal_line=line, status=BankOutstandingItem.ACTIVE,
+    ).first()
+    if not item:
+        raise ValidationError("This journal line has no active outstanding-item classification.")
+    item._lineage_transition = True
+    item.status = BankOutstandingItem.SUPERSEDED
+    item.superseded_at = timezone.now()
+    item.save(update_fields=("status", "superseded_at"))
+    locked.state_version += 1
+    locked.save(update_fields=("state_version", "updated_at"))
+    _bank_event(locked, "outstanding_item_unclassified", actor, reason=note, snapshot={
+        "journal_line_id": line.pk,
+        "prior_item_checksum": item.source_checksum,
+    })
+    return locked
+
+
+def bank_reconciliation_snapshot(batch):
+    rows = list(batch.rows.filter(source_version=batch.source_version).order_by("row_number"))
+    row_ids = [row.pk for row in rows]
+    matches = list(BankStatementMatch.objects.filter(
+        statement_row_id__in=row_ids, status=BankStatementMatch.ACTIVE,
+    ).select_related("statement_row", "journal_line__entry"))
+    all_lines = list(_bank_lines(batch))
+    globally_matched_ids = set(BankStatementMatch.objects.filter(
+        journal_line_id__in=[line.pk for line in all_lines], status=BankStatementMatch.ACTIVE,
+    ).values_list("journal_line_id", flat=True))
+    unmatched_lines = [line for line in all_lines if line.pk not in globally_matched_ids]
+    items = list(BankOutstandingItem.objects.filter(
+        batch=batch, journal_line_id__in=[line.pk for line in unmatched_lines], status=BankOutstandingItem.ACTIVE,
+    ).select_related("journal_line__entry"))
+    item_line_ids = {item.journal_line_id for item in items}
+    outstanding_deposits = sum((item.journal_line.debit for item in items), Decimal("0.00"))
+    outstanding_checks = sum((item.journal_line.credit for item in items), Decimal("0.00"))
+    book_balance = sum((line.debit - line.credit for line in all_lines), Decimal("0.00"))
+    adjusted_bank_balance = batch.closing_balance + outstanding_deposits - outstanding_checks
+    difference = adjusted_bank_balance - book_balance
+    snapshot = {
+        "schema_version": 1,
+        "method": "adjusted_balance",
+        "batch_public_id": str(batch.public_id),
+        "bank_account_code": batch.bank_account_code,
+        "fund_code": batch.fund.code,
+        "period_start": batch.period_start.isoformat(),
+        "period_end": batch.period_end.isoformat(),
+        "source_version": batch.source_version,
+        "source_checksum": batch.source_checksum,
+        "statement_row_count": len(rows),
+        "matched_row_count": len(matches),
+        "unmatched_statement_row_count": len(rows) - len(matches),
+        "unmatched_ledger_line_count": len(unmatched_lines),
+        "classified_outstanding_count": len(items),
+        "unclassified_ledger_line_count": len([line for line in unmatched_lines if line.pk not in item_line_ids]),
+        "statement_closing_balance": str(batch.closing_balance),
+        "outstanding_deposits": str(outstanding_deposits),
+        "outstanding_checks": str(outstanding_checks),
+        "adjusted_bank_balance": str(adjusted_bank_balance),
+        "book_balance": str(book_balance),
+        "difference": str(difference),
+        "matched_line_ids": sorted(match.journal_line_id for match in matches),
+        "outstanding_item_checksums": sorted(item.source_checksum for item in items),
+    }
+    snapshot["ready_for_review"] = bool(batch.validation_summary.get("valid")) and all((
+        snapshot["unmatched_statement_row_count"] == 0,
+        snapshot["unclassified_ledger_line_count"] == 0,
+        difference == 0,
+    ))
+    return snapshot, _snapshot_checksum(snapshot), rows, matches, unmatched_lines, items
+
+
+@transaction.atomic(using=FINANCE_DB)
+def submit_bank_reconciliation(batch, actor):
+    if not can_prepare_bank_reconciliation(actor):
+        raise ValidationError("You are not authorized to submit bank reconciliations.")
+    locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    if locked.status != BankStatementBatch.VALIDATED:
+        raise ValidationError("Validate the current statement staging before submission.")
+    snapshot, checksum, _rows, _matches, _lines, _items = bank_reconciliation_snapshot(locked)
+    if not snapshot["ready_for_review"]:
+        raise ValidationError(
+            "Reconciliation is not ready: match every statement row, classify every unmatched ledger line, "
+            "and resolve the adjusted-bank-to-book difference to zero."
+        )
+    locked.status = BankStatementBatch.FOR_REVIEW
+    locked.submitted_by_id = actor.pk
+    locked.submitted_by_label = actor_label(actor)
+    locked.submitted_at = timezone.now()
+    locked.state_version += 1
+    locked.save(update_fields=(
+        "status", "submitted_by_id", "submitted_by_label", "submitted_at", "state_version", "updated_at",
+    ))
+    _bank_event(locked, "submitted_for_review", actor, snapshot={**snapshot, "snapshot_checksum": checksum})
+    return locked
+
+
+@transaction.atomic(using=FINANCE_DB)
+def decide_bank_reconciliation(batch, actor, *, decision, evidence_note):
+    if not can_approve_bank_reconciliation(actor):
+        raise ValidationError("You are not authorized to decide bank reconciliations.")
+    locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    note = str(evidence_note or "").strip()
+    if not note:
+        raise ValidationError("Record the reviewed BRS and supporting-evidence reference.")
+    if decision == BankStatementBatch.RETURNED:
+        if locked.status != BankStatementBatch.FOR_REVIEW:
+            raise ValidationError("Only a reconciliation under review can be returned.")
+        locked.status = BankStatementBatch.RETURNED
+        locked.state_version += 1
+        locked.save(update_fields=("status", "state_version", "updated_at"))
+        _bank_event(locked, "returned_for_correction", actor, reason=note)
+        return locked
+    if decision != BankStatementBatch.RECONCILED or locked.status != BankStatementBatch.FOR_REVIEW:
+        raise ValidationError("Only a reconciliation under review can be reconciled.")
+    if actor.pk in (locked.created_by_id, locked.submitted_by_id):
+        raise ValidationError("The independent bank-reconciliation reviewer must differ from its preparer and submitter.")
+    snapshot, checksum, _rows, _matches, _lines, _items = bank_reconciliation_snapshot(locked)
+    if not snapshot["ready_for_review"]:
+        raise ValidationError("The reconciliation controls changed or no longer produce a zero difference.")
+    locked.status = BankStatementBatch.RECONCILED
+    locked.reconciled_by_id = actor.pk
+    locked.reconciled_by_label = actor_label(actor)
+    locked.reconciled_at = timezone.now()
+    locked.reconciliation_checksum = checksum
+    locked.state_version += 1
+    locked.save(update_fields=(
+        "status", "reconciled_by_id", "reconciled_by_label", "reconciled_at",
+        "reconciliation_checksum", "state_version", "updated_at",
+    ))
+    _bank_event(locked, "reconciled", actor, reason=note, snapshot={**snapshot, "reconciliation_checksum": checksum})
     return locked

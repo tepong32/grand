@@ -7,6 +7,38 @@ from ..models import Department, InternalHowTo, InternalHowToStep
 
 ACCOUNTING_GUIDES = (
     {
+        "slug": "finance-bank-reconciliation-prepare",
+        "version": 1,
+        "title": "Prepare a monthly bank reconciliation",
+        "summary": "Stage the bank statement, match posted journals, document timing items, and submit only a zero-difference adjusted-balance schedule.",
+        "permission": "accounting.prepare_bank_reconciliation",
+        "patterns": ["accounting:bank_reconciliation_*"],
+        "order": 50,
+        "steps": (
+            ("Create the monthly control", "Choose one mapped bank account and fund, enter the statement period/receipt date, and copy the independently checked opening, closing, row, deposit, and withdrawal controls.", "A draft identifies one bank account, one fund, and one monthly statement.", "Use the bank-account code adopted in Finance Setup; do not enter a replacement COA account.", "Open Bank Reconciliation", "accounting:bank_reconciliation_workspace"),
+            ("Stage the bank CSV", "Upload the UTF-8 starter CSV. GRAND checks each date, one-sided amount, optional running balance, declared totals, closing equation, and SHA-256 source checksum.", "The statement becomes Validated only when every source control agrees.", "Before submission you may restage a corrected source, but must explain the replacement; prior versions remain retained.", "Open Bank Reconciliation", "accounting:bank_reconciliation_workspace"),
+            ("Match only posted book evidence", "Run unique exact matching, then review remaining same-amount candidates manually against bank references, checks, transfers, and posted JEVs.", "Every bank row points to one posted bank-account journal line with the same amount and direction.", "A bank charge, credit memo, or book error with no posted line requires an authorized JEV or correction before the BRS can close.", "Open Accounting", "accounting:workspace"),
+            ("Explain ledger-only timing items", "For each posted bank line absent from the statement, record the check/deposit evidence, reason, and expected clearance date.", "Deposits in transit and outstanding checks are explicit and feed the adjusted-balance calculation.", "Classification is not an adjustment and does not hide an unexplained difference.", "", ""),
+            ("Reach zero and submit", "Confirm adjusted bank balance equals the posted GL book balance, every statement row is matched, and every ledger-only line is classified; then submit to a different reviewer.", "The BRS is read-only under independent review with a checksum-backed snapshot.", "Do not force agreement with a balancing line or approve your own preparation.", "", ""),
+            ("Export portable evidence", "After review, export the controlled CSV when needed. GRAND archives the same bytes and manifest inside the department/user/category TraceSync-ready folder tree.", "The statement, matches, timing items, control totals, and checksums remain portable.", "Use the locally accepted signed BRS template for official submission until its exact layout is confirmed and configured.", "", ""),
+        ),
+    },
+    {
+        "slug": "finance-bank-reconciliation-review",
+        "version": 1,
+        "title": "Review a bank reconciliation independently",
+        "summary": "Review the statement, posted GL, reconciling items, and adjusted-balance result before closing the monthly control.",
+        "permission": "accounting.approve_bank_reconciliation",
+        "patterns": ["accounting:bank_reconciliation_*"],
+        "order": 51,
+        "steps": (
+            ("Confirm independent assignment", "Verify that you did not create or submit this reconciliation and that the bank account, fund, period, and department are correct.", "The maker/checker separation is clear.", "Do not review through the preparer's account.", "Open Bank Reconciliation", "accounting:bank_reconciliation_workspace"),
+            ("Compare statement and matches", "Review the checksummed current statement version and trace every bank row to its posted JEV, payment, remittance, deposit, debit memo, or credit memo evidence.", "No statement-only transaction remains unrecognized in the books.", "GRAND's exact checks do not replace review of the bank's source document.", "", ""),
+            ("Review timing items and equation", "Check each outstanding check or deposit in transit against its evidence and expected clearance date, then confirm adjusted bank and GL book balances are equal.", "The unexplained difference is exactly zero.", "Bank charges, credits, and book errors normally require a JEV, not timing-item classification.", "", ""),
+            ("Approve or return", "Record the signed BRS, GL comparison, bank statement, and supporting-schedule reference when approving; otherwise return a specific correction instruction.", "Approval creates an immutable reconciliation checksum; return reopens the reasoned correction window.", "Official submission copies and deadlines remain subject to locally accepted COA/LGU practice.", "", ""),
+        ),
+    },
+    {
         "slug": "finance-remittance-accounting",
         "version": 1,
         "title": "Review and post withholding remittances",
