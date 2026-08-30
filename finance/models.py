@@ -281,6 +281,18 @@ class FinanceSignatory(models.Model):
     display_name = models.CharField(max_length=180)
     position_title = models.CharField(max_length=180)
     acting = models.BooleanField(default=False)
+    custody_department = models.ForeignKey(
+        Department,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="finance_signature_routes",
+        help_text="Office that physically receives the paper for this signature. Leave blank to use the Finance office.",
+    )
+    custody_instructions = models.TextField(
+        blank=True,
+        help_text="Plain-language packet instruction, such as 'Leave with the Mayor's receiving clerk for signature.'",
+    )
     valid_from = models.DateField()
     valid_to = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=16, choices=LIFECYCLE_CHOICES, default="draft")
@@ -397,6 +409,16 @@ class FinanceNumberingSequence(models.Model):
 
 
 class FinanceTemplateVersion(models.Model):
+    STARTER = "starter"
+    PILOT = "pilot"
+    LOCALLY_ACCEPTED = "locally_accepted"
+    FORM_STATUS_CHOICES = (
+        (STARTER, "Editable starter — not yet locally accepted"),
+        (PILOT, "Pilot comparison — acceptance pending"),
+        (LOCALLY_ACCEPTED, "Locally accepted against recorded evidence"),
+    )
+    PAPER_SIZE_CHOICES = (("a4", "A4"), ("letter", "Letter"), ("legal", "Legal"))
+    ORIENTATION_CHOICES = (("portrait", "Portrait"), ("landscape", "Landscape"))
     DOCUMENT_TYPE_CHOICES = (
         ("disbursement-voucher", "Disbursement voucher"),
         ("obr", "Obligation request / OBR"),
@@ -434,6 +456,31 @@ class FinanceTemplateVersion(models.Model):
     document_type = models.SlugField(max_length=80, choices=DOCUMENT_TYPE_CHOICES, default="disbursement-voucher")
     version = models.PositiveIntegerField(default=1)
     title = models.CharField(max_length=180)
+    form_reference = models.CharField(
+        max_length=180,
+        blank=True,
+        help_text="Familiar form number or local title shown to users. Do not call it official unless locally accepted.",
+    )
+    authority_reference = models.TextField(
+        blank=True,
+        help_text="Reviewed COA/DBM/local issuance or procedure used to assess this layout.",
+    )
+    comparison_reference = models.TextField(
+        blank=True,
+        help_text="Blank form, redacted sample, comparison record, and accepting office reference.",
+    )
+    form_status = models.CharField(max_length=24, choices=FORM_STATUS_CHOICES, default=STARTER)
+    paper_size = models.CharField(max_length=12, choices=PAPER_SIZE_CHOICES, default="a4")
+    orientation = models.CharField(max_length=12, choices=ORIENTATION_CHOICES, default="portrait")
+    default_copy_count = models.PositiveSmallIntegerField(default=1)
+    printer_instructions = models.TextField(
+        blank=True,
+        help_text="Ordinary operator guidance: paper stock, tray, duplex setting, margins, or copy handling.",
+    )
+    controlled_print_required = models.BooleanField(
+        default=True,
+        help_text="Require a recorded print version and TracePoint packet before wet-signature recording.",
+    )
     workbook = models.FileField(upload_to=finance_template_path, max_length=500, validators=[FileExtensionValidator(("xlsx",))])
     mapping = models.JSONField(default=dict, blank=True)
     workbook_checksum = models.CharField(max_length=64, blank=True)
@@ -474,10 +521,21 @@ class FinanceTemplateVersion(models.Model):
             raise ValidationError({"document_type": "Choose a supported controlled finance document type."})
         if self.status in LOCKED_STATES and not self.preflight_passed:
             raise ValidationError({"status": "A workbook must pass preflight before approval or activation."})
+        if self.form_status == self.LOCALLY_ACCEPTED:
+            if not self.authority_reference.strip() or not self.comparison_reference.strip():
+                raise ValidationError(
+                    "A locally accepted form needs both its reviewed authority and side-by-side comparison/acceptance reference."
+                )
         if self.pk:
             prior = type(self).objects.filter(pk=self.pk).first()
             if prior and prior.status in LOCKED_STATES:
-                fields = ("department_id", "release_id", "document_type", "version", "title", "mapping", "workbook_checksum", "mapping_checksum", "preflight_result", "effective_from", "effective_to")
+                fields = (
+                    "department_id", "release_id", "document_type", "version", "title",
+                    "form_reference", "authority_reference", "comparison_reference", "form_status",
+                    "paper_size", "orientation", "default_copy_count", "printer_instructions",
+                    "controlled_print_required", "mapping", "workbook_checksum", "mapping_checksum",
+                    "preflight_result", "effective_from", "effective_to",
+                )
                 changed = any(getattr(prior, field) != getattr(self, field) for field in fields) or prior.workbook.name != self.workbook.name
                 if changed:
                     raise ValidationError("Approved finance template versions are immutable. Upload a new version.")

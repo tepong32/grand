@@ -4,6 +4,13 @@ Material GRAND changes are recorded here. The repository's Git history remains t
 
 ## Unreleased
 
+### Finance controlled DV printing and custody
+
+- Added F6.1 immutable `Ready to print -> Printed -> Awaiting wet signatures -> Signed packet returned` jobs with output/version/checksum identity, actual copies/printer evidence, mandatory returned-packet gates, and explicit permission/role ownership.
+- Added reason-required reprints that supersede obsolete output and pending signature rounds, preserve `DO NOT SIGN` evidence, and close the convenience path after payment-instrument issuance.
+- Added automatic TracePoint packet/item creation with configured signatory-office checkpoints and no monetary-field copying, plus TraceSync-ready signing-file archives and manifests.
+- Added a plain-language, human-editable macro-free DV starter generator with paper/layout/copy/signature controls, evidence-backed starter/pilot/locally-accepted statuses, conservative existing UI, and a versioned department-specific `?` guide.
+
 ### Finance payable relationships, recognition, and exports
 
 - Added F5.3 versioned obligation-to-payable allocations for one-to-one, one-to-many, many-to-one, partial, progress, final, and full claims without creating a second Budget authority ledger.

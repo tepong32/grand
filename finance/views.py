@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.text import slugify
 
 from .access import (
     can_approve_finance_configuration, can_manage_finance_configuration,
@@ -12,11 +13,11 @@ from .access import (
 from .forms import (
     FinanceDocumentRuleForm, FinanceItemForm, FinanceNumberingSequenceForm, FinanceReleaseForm,
     FinancePartyClaimantForm, FinancePartyForm, FinanceSignatoryForm, FinanceTemplateForm,
-    FinanceTransactionVariantForm,
+    FinanceStarterTemplateForm, FinanceTransactionVariantForm,
 )
 from .models import FinanceConfigurationRelease, FinanceParty, FinanceTemplateVersion
 from .services import (
-    FinanceTemplateError, evaluate_readiness, preflight_finance_template,
+    FinanceTemplateError, build_finance_starter_workbook, evaluate_readiness, preflight_finance_template,
     record_event, synthetic_preview, transition_release,
 )
 
@@ -182,6 +183,33 @@ def template_create(request):
         messages.success(request, "Workbook version uploaded. Run preflight before review.")
         return redirect("finance:release_detail", pk=template.release_id)
     return render(request, "finance/form.html", {"form": form, "title": "Upload finance workbook version", "multipart": True, "guidance": "Only macro-free .xlsx files are accepted. External links and suspicious formulas are rejected during preflight."})
+
+
+@finance_permission_required(can_manage_finance_templates)
+def starter_template(request):
+    department = department_for_user(request.user)
+    form = FinanceStarterTemplateForm(
+        request.POST or None,
+        initial={"lgu_name": department.name, "finance_office_name": department.name},
+    )
+    if request.method == "POST" and form.is_valid():
+        payload = build_finance_starter_workbook(form.cleaned_data)
+        filename = f"{slugify(form.cleaned_data['lgu_name']) or 'lgu'}-editable-dv-starter.xlsx"
+        response = HttpResponse(
+            payload,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["X-GRAND-Template-Status"] = "editable-starter-not-locally-accepted"
+        return response
+    return render(request, "finance/form.html", {
+        "form": form,
+        "title": "Build an editable DV starter",
+        "guidance": (
+            "Use familiar wording and simple print settings. GRAND creates a macro-free workbook that ordinary staff can "
+            "adjust in Excel, then upload as a draft for preflight and side-by-side local review."
+        ),
+    })
 
 
 @finance_permission_required(can_manage_finance_templates)

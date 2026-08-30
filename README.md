@@ -99,6 +99,7 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 - [TracePoint physical-custody contract](docs/TRACEPOINT.md)
 - [Finance Setup Center operations](docs/FINANCE_SETUP.md)
 - [Voucher and Disbursement Workbench](docs/VOUCHER_WORKBENCH.md)
+- [Finance controlled DV printing and custody](docs/FINANCE_CONTROLLED_PRINT_CUSTODY.md)
 - [GRAND Finance complete-cycle roadmap](docs/FINANCE_ROADMAP.md)
 - [Finance process discovery protocol](docs/FINANCE_PROCESS_DISCOVERY.md)
 - [Finance evidence register and interview kit](docs/finance-discovery/README.md)
@@ -114,6 +115,6 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 
 GRAND remains the platform identity. GRAND Finance will become one role-shaped, complete-cycle sub-application: requesting offices initiate funded work, Budget governs appropriations/allotments/obligations, Accounting governs payables/books/reports, and Treasury governs cash/payment/reconciliation. TracePoint owns physical-document custody, Records owns retained authoritative files, and Finance Setup owns governed configuration; those domains link to the shared finance lineage without duplicating authority.
 
-The current Voucher Workbench remains in shadow comparison mode. F5.1 connects a requesting-office payable to its authoritative obligation, and F5.2 adds configurable transaction variants plus documentary-readiness review. The parent F5 phase still lacks accepted per-variant rules/replays, relationship patterns, payable-recognition decisions, controlled exports, and accepted templates. The delivery order, acceptance gates, and current-position matrix are documented in the [GRAND Finance complete-cycle roadmap](docs/FINANCE_ROADMAP.md).
+The current Voucher Workbench remains in controlled synthetic/pilot comparison mode. F5.1–F5.3 connect requesting-office payables to authoritative obligations, typed documentary rules, versioned allocation relationships, recognition decisions, and portable exports. F6.1 adds editable starter-template intake, checksum/versioned printing, reasoned reprints, mandatory TracePoint packet creation, and returned-wet-signature gates. Parent F5/F6 acceptance still requires locally accepted per-variant rules/forms, redacted replay, paper/printer tests, and named-office reconciliation. The delivery order and gates are documented in the [GRAND Finance complete-cycle roadmap](docs/FINANCE_ROADMAP.md).
 
 All showcase records and screenshots are synthetic. Production citizen data, credentials, uploaded records, and generated official reports must never be added to the repository.

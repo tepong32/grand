@@ -103,8 +103,18 @@ class FinanceDocumentRuleForm(forms.ModelForm):
 class FinanceTemplateForm(forms.ModelForm):
     class Meta:
         model = FinanceTemplateVersion
-        fields = ("release", "document_type", "version", "title", "workbook", "effective_from", "effective_to")
-        widgets = {"effective_from": DateInput(), "effective_to": DateInput()}
+        fields = (
+            "release", "document_type", "version", "title", "form_reference",
+            "authority_reference", "comparison_reference", "form_status",
+            "paper_size", "orientation", "default_copy_count", "printer_instructions",
+            "controlled_print_required", "workbook", "effective_from", "effective_to",
+        )
+        widgets = {
+            "authority_reference": forms.Textarea(attrs={"rows": 3}),
+            "comparison_reference": forms.Textarea(attrs={"rows": 3}),
+            "printer_instructions": forms.Textarea(attrs={"rows": 3}),
+            "effective_from": DateInput(), "effective_to": DateInput(),
+        }
 
     def __init__(self, *args, department=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -122,14 +132,51 @@ class FinanceTemplateForm(forms.ModelForm):
 class FinanceSignatoryForm(forms.ModelForm):
     class Meta:
         model = FinanceSignatory
-        fields = ("release", "role_code", "display_name", "position_title", "acting", "valid_from", "valid_to")
-        widgets = {"valid_from": DateInput(), "valid_to": DateInput()}
+        fields = (
+            "release", "role_code", "display_name", "position_title", "acting",
+            "custody_department", "custody_instructions", "valid_from", "valid_to",
+        )
+        widgets = {
+            "custody_instructions": forms.Textarea(attrs={"rows": 2}),
+            "valid_from": DateInput(), "valid_to": DateInput(),
+        }
 
     def __init__(self, *args, department=None, **kwargs):
         super().__init__(*args, **kwargs)
         if department:
             self.instance.department = department
             self.fields["release"].queryset = FinanceConfigurationRelease.objects.filter(department=department, status="draft")
+
+
+class FinanceStarterTemplateForm(forms.Form):
+    lgu_name = forms.CharField(
+        max_length=180,
+        label="Local government name",
+        help_text="Example: Municipality of Sample. This remains editable in Excel.",
+    )
+    finance_office_name = forms.CharField(max_length=180, initial="Accounting Office")
+    form_title = forms.CharField(max_length=180, initial="DISBURSEMENT VOUCHER")
+    form_reference = forms.CharField(
+        max_length=180,
+        initial="Editable starter — verify current local form",
+        help_text="Enter a form number only after the municipality confirms it.",
+    )
+    paper_size = forms.ChoiceField(choices=FinanceTemplateVersion.PAPER_SIZE_CHOICES, initial="a4")
+    orientation = forms.ChoiceField(choices=FinanceTemplateVersion.ORIENTATION_CHOICES, initial="portrait")
+    particulars_rows = forms.IntegerField(
+        min_value=4, max_value=24, initial=8,
+        label="Rows for particulars",
+        help_text="More rows make the form longer; the uploaded version will be checked before use.",
+    )
+    default_copy_count = forms.IntegerField(min_value=1, max_value=10, initial=2, label="Usual number of copies")
+    prepared_label = forms.CharField(max_length=120, initial="Prepared by")
+    certified_label = forms.CharField(max_length=120, initial="Certified / reviewed by")
+    approved_label = forms.CharField(max_length=120, initial="Approved for payment by")
+    footer_note = forms.CharField(
+        required=False,
+        initial="STARTER FOR LOCAL REVIEW — compare with the current approved blank form before official use.",
+        widget=forms.Textarea(attrs={"rows": 2}),
+    )
 
 
 class FinanceNumberingSequenceForm(forms.ModelForm):

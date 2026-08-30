@@ -99,6 +99,7 @@ class VoucherCase(models.Model):
             ("review_payable_intake", "Can review payable readiness independently"),
             ("certify_budget_obligation", "Can certify budget obligations"),
             ("prepare_disbursement_voucher", "Can prepare disbursement vouchers"),
+            ("control_dv_printing", "Can prepare and record controlled DV signing copies"),
             ("track_wet_signatures", "Can track wet signature circulation"),
             ("link_tracepoint_custody", "Can link voucher cases to TracePoint custody items"),
             ("validate_accounting_voucher", "Can validate accounting vouchers and JEV references"),
@@ -361,6 +362,14 @@ class WetSignatureTask(models.Model):
     role_code = models.SlugField(max_length=80)
     signatory_name_snapshot = models.CharField(max_length=180)
     position_snapshot = models.CharField(max_length=180, blank=True)
+    custody_department = models.ForeignKey(
+        Department,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="voucher_signature_custody_tasks",
+    )
+    custody_instructions = models.TextField(blank=True)
     status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=PENDING)
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="recorded_wet_signatures")
     recorded_at = models.DateTimeField(null=True, blank=True)
@@ -645,3 +654,111 @@ class VoucherOutput(models.Model):
             if any(getattr(prior, field) != getattr(self, field) for field in immutable) or prior.file.name != self.file.name:
                 raise ValidationError("Generated voucher output evidence is immutable. Create a new version.")
         return super().save(*args, **kwargs)
+
+
+class VoucherPrintJob(models.Model):
+    READY_TO_PRINT = "ready_to_print"
+    PRINTED = "printed"
+    AWAITING_SIGNATURES = "awaiting_signatures"
+    SIGNED_PACKET_RETURNED = "signed_packet_returned"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (READY_TO_PRINT, "Ready to print"),
+        (PRINTED, "Printed copies recorded"),
+        (AWAITING_SIGNATURES, "Awaiting wet signatures"),
+        (SIGNED_PACKET_RETURNED, "Signed packet returned"),
+        (SUPERSEDED, "Superseded — do not sign"),
+    )
+
+    case = models.ForeignKey(VoucherCase, on_delete=models.PROTECT, related_name="print_jobs")
+    version = models.PositiveIntegerField()
+    output = models.OneToOneField(VoucherOutput, on_delete=models.PROTECT, related_name="print_job")
+    output_checksum = models.CharField(max_length=64)
+    signature_round = models.PositiveSmallIntegerField()
+    status = models.CharField(max_length=28, choices=STATUS_CHOICES, default=READY_TO_PRINT, db_index=True)
+    copy_count = models.PositiveSmallIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
+    printer_or_form_stock = models.CharField(max_length=180, blank=True)
+    print_note = models.TextField(blank=True)
+    prepared_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="prepared_voucher_print_jobs",
+    )
+    prepared_at = models.DateTimeField(auto_now_add=True)
+    printed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="printed_voucher_print_jobs",
+    )
+    printed_at = models.DateTimeField(null=True, blank=True)
+    tracepoint_item = models.ForeignKey(
+        "tracepoint.PacketItem", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="voucher_print_jobs",
+    )
+    packet_reference = models.CharField(max_length=80, blank=True)
+    archive_manifest = models.JSONField(default=dict, blank=True)
+    custody_manifest = models.JSONField(default=dict, blank=True)
+    custody_confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="assembled_voucher_print_jobs",
+    )
+    custody_confirmed_at = models.DateTimeField(null=True, blank=True)
+    signed_returned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="returned_voucher_print_jobs",
+    )
+    signed_returned_at = models.DateTimeField(null=True, blank=True)
+    supersedes = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor_print_job",
+    )
+    supersession_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("-version", "-pk")
+        constraints = (
+            models.UniqueConstraint(fields=("case", "version"), name="unique_voucher_print_job_version"),
+            models.UniqueConstraint(
+                fields=("case",),
+                condition=models.Q(status__in=("ready_to_print", "printed", "awaiting_signatures")),
+                name="unique_active_voucher_print_job",
+            ),
+        )
+
+    def clean(self):
+        if self.output_id and self.case_id and self.output.case_id != self.case_id:
+            raise ValidationError("The print job output must belong to the same voucher case.")
+        if self.output_id and self.output_checksum != self.output.checksum:
+            raise ValidationError("The print job checksum must match its immutable controlled output.")
+        if not self.archive_manifest or self.archive_manifest.get("sha256") != self.output_checksum:
+            raise ValidationError("A controlled signing copy requires its matching TraceSync-ready archive manifest.")
+        if self.status in {self.PRINTED, self.AWAITING_SIGNATURES, self.SIGNED_PACKET_RETURNED}:
+            if not self.copy_count or not self.printed_by_id or not self.printed_at:
+                raise ValidationError("Printed signing copies require copy count, operator, and server time.")
+        if self.status in {self.AWAITING_SIGNATURES, self.SIGNED_PACKET_RETURNED}:
+            if not self.tracepoint_item_id or not self.packet_reference or not self.custody_confirmed_at:
+                raise ValidationError("Signature circulation requires a verified TracePoint packet item.")
+        if self.status == self.SIGNED_PACKET_RETURNED and not self.signed_returned_at:
+            raise ValidationError("A returned signed packet requires its server receipt time.")
+        if self.status == self.SUPERSEDED and not self.supersession_reason.strip():
+            raise ValidationError("A superseded signing copy requires a reason.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            immutable = (
+                "case_id", "version", "output_id", "output_checksum", "signature_round",
+                "archive_manifest", "prepared_by_id", "prepared_at", "supersedes_id",
+            )
+            if any(getattr(prior, field) != getattr(self, field) for field in immutable):
+                raise ValidationError("Print identity and source evidence are immutable. Create a successor print job.")
+            if prior.printed_at and any(
+                getattr(prior, field) != getattr(self, field)
+                for field in ("copy_count", "printer_or_form_stock", "print_note", "printed_by_id", "printed_at")
+            ):
+                raise ValidationError("Recorded print evidence is immutable.")
+            if prior.tracepoint_item_id and any(
+                getattr(prior, field) != getattr(self, field)
+                for field in ("tracepoint_item_id", "packet_reference", "custody_manifest", "custody_confirmed_by_id", "custody_confirmed_at")
+            ):
+                raise ValidationError("Recorded packet assembly evidence is immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Print job evidence cannot be deleted.")

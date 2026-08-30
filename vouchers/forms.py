@@ -15,7 +15,10 @@ from finance.models import (
     FinanceTransactionVariant,
 )
 
-from .models import PayableDocumentEvidence, PayableIntake, PaymentInstrument, VoucherCase, WetSignatureTask
+from .models import (
+    PayableDocumentEvidence, PayableIntake, PaymentInstrument, VoucherCase,
+    VoucherPrintJob, WetSignatureTask,
+)
 
 
 class DateInput(forms.DateInput):
@@ -348,6 +351,56 @@ class SignatureReturnForm(WorkflowForm):
         super().__init__(*args, case=case, **kwargs)
         if case:
             self.fields["task"].queryset = case.signature_tasks.filter(status=WetSignatureTask.PENDING).order_by("sequence")
+
+
+class ControlledPrintPrepareForm(WorkflowForm):
+    replacement_reason = forms.CharField(
+        required=False,
+        label="Reason for replacing the earlier signing copy",
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Leave blank for the first signing copy. A reprint must explain why the earlier copy must not be signed.",
+    )
+
+
+class PrintEvidenceForm(WorkflowForm):
+    copy_count = forms.IntegerField(min_value=1, max_value=20, label="Number of copies actually printed")
+    printer_or_form_stock = forms.CharField(
+        max_length=180,
+        label="Printer / paper used",
+        help_text="Plain description only, for example: Accounting printer 1 · A4 bond · single-sided.",
+    )
+    print_note = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Optional note about alignment, spoiled copies, or assembly handling.",
+    )
+
+    def __init__(self, *args, case=None, **kwargs):
+        super().__init__(*args, case=case, **kwargs)
+        if case and case.voucher_template_id:
+            self.fields["copy_count"].initial = case.voucher_template.default_copy_count
+            self.fields["printer_or_form_stock"].initial = case.voucher_template.printer_instructions
+
+
+class FinancePacketAssemblyForm(WorkflowForm):
+    expected_document_count = forms.IntegerField(
+        min_value=1, max_value=500, initial=1,
+        label="Expected documents in the packet",
+    )
+    expected_page_count = forms.IntegerField(
+        required=False, min_value=1, max_value=10000,
+        label="Expected page count (if counted)",
+    )
+    confidentiality = forms.ChoiceField(
+        choices=(("internal", "Internal"), ("restricted", "Restricted"), ("confidential", "Confidential / sensitive")),
+        initial="restricted",
+        help_text="Custody users see the packet identity and route, not voucher amounts.",
+    )
+    assembly_note = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        initial="Controlled DV signing copy and referenced supporting documents counted and assembled.",
+        label="Packet assembly note",
+    )
 
 
 class SignatorySelectionField(forms.ModelMultipleChoiceField):

@@ -24,7 +24,7 @@ from .models import (
     FinanceTransactionVariant,
 )
 from .services import (
-    FinanceTemplateError, evaluate_readiness, inspect_finance_workbook,
+    FinanceTemplateError, build_finance_starter_workbook, evaluate_readiness, inspect_finance_workbook,
     preflight_finance_template, record_event, synthetic_preview, transition_release,
 )
 
@@ -223,6 +223,42 @@ class FinanceSetupCenterTests(TestCase):
                 target.writestr(member, b"synthetic-test-only")
             with self.assertRaisesMessage(FinanceTemplateError, expected):
                 inspect_finance_workbook(output.getvalue())
+
+    def test_plain_language_dv_starter_is_editable_and_preflight_ready(self):
+        values = {
+            "lgu_name": "Municipality of Sample",
+            "finance_office_name": "Municipal Accounting Office",
+            "form_title": "DISBURSEMENT VOUCHER",
+            "form_reference": "Editable starter — local comparison pending",
+            "paper_size": "a4",
+            "orientation": "portrait",
+            "particulars_rows": 10,
+            "default_copy_count": 2,
+            "prepared_label": "Prepared by",
+            "certified_label": "Certified / reviewed by",
+            "approved_label": "Approved for payment by",
+            "footer_note": "STARTER FOR LOCAL REVIEW",
+        }
+        payload = build_finance_starter_workbook(values)
+        workbook, mapping, result = inspect_finance_workbook(payload)
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["line_item_row_capacity"], 10)
+        self.assertEqual(set(mapping), set(FinanceTemplateVersion.REQUIRED_NAMES))
+        self.assertEqual(workbook["DV Starter"]["A1"].value, "Municipality of Sample")
+        self.assertIn("not automatically an official", workbook["Read Me First"]["B2"].value)
+
+        self.client.force_login(self.manager)
+        response = self.client.post(reverse("finance:starter_template"), values)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["X-GRAND-Template-Status"], "editable-starter-not-locally-accepted")
+        downloaded = b"".join(response.streaming_content) if response.streaming else response.content
+        _workbook, _mapping, downloaded_result = inspect_finance_workbook(downloaded)
+        self.assertTrue(downloaded_result["passed"])
+
+        template = self._template()
+        template.form_status = FinanceTemplateVersion.LOCALLY_ACCEPTED
+        with self.assertRaisesMessage(ValidationError, "reviewed authority"):
+            template.full_clean()
 
     def test_readiness_returns_reusable_reason_codes_then_passes_complete_release(self):
         initial = evaluate_readiness(self.release, as_of=date(2027, 1, 1))

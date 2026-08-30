@@ -76,7 +76,7 @@ ACCOUNTING_GUIDES = (
     },
     {
         "slug": "finance-dv-prepare",
-        "version": 2,
+        "version": 3,
         "title": "Prepare and route a disbursement voucher",
         "summary": "Continue the shared Budget–Accounting–Treasury case without re-encoding facts or bypassing wet-signature custody.",
         "permission": "vouchers.prepare_disbursement_voucher",
@@ -85,8 +85,12 @@ ACCOUNTING_GUIDES = (
         "steps": (
             ("Open your Accounting queue", "Select a case at Accounting preparation and review its claim-to-allocation control, relationship types, recognition/adjustment decision, Budget classification, claimant/payee, and documents.", "The shared case—not a copied transaction—is open with zero relationship difference.", "Current Voucher Workbench controls remain a controlled UAT slice until parent roadmap gates pass.", "Open Finance Queue", "vouchers:workspace"),
             ("Return before DV when relationships need correction", "If the claim, obligation allocation, or snapshot is wrong, return the same case to requesting-office payable preparation with a specific reason before creating a DV.", "The governed pre-DV modification window reopens without losing prior review history.", "After a DV exists, use the coordinated voucher/payment correction route instead.", "", ""),
-            ("Prepare the DV", "Use governed setup values, reconcile gross/deductions/net, and complete the applicable document checklist.", "The DV is ready for its controlled print and signature route.", "", "", ""),
-            ("Track the physical route", "Record controlled printing, wet-signature rounds, and the required TracePoint custody linkage without representing paper signatures as digital signatures.", "The returned signed packet has traceable version and custody evidence.", "", "", ""),
+            ("Prepare the DV", "Use governed setup values, reconcile gross/deductions/net, complete the applicable document checklist, and confirm the pinned template's form status and local comparison evidence.", "The DV is ready for its controlled print and signature route.", "A starter or pilot workbook is editable and preflighted, but it is not automatically a locally accepted official form.", "", ""),
+            ("Prepare one signing file", "At the controlled signing-copy card, choose Prepare print-ready file. Download only the current version and compare its visible layout, paper size, names, totals, and signature labels before printing.", "GRAND pins the output checksum and automatically retains the same bytes and manifest in the TraceSync-ready export folder.", "Do not alter the generated signing file. Correct the governed source/template and create a reasoned replacement instead.", "", ""),
+            ("Record what was actually printed", "Enter the number of copies and the printer, paper stock, tray, duplex, or margin setting actually used. Add a short alignment or quality note when useful.", "The current print version carries immutable operator, time, copy, and printer evidence.", "Do not claim that a file was printed until the physical copies were checked.", "", ""),
+            ("Assemble the physical packet", "Count the documents and pages, describe the assembly, and create the linked TracePoint packet. GRAND builds the configured office/signatory checkpoints without copying voucher amounts into TracePoint.", "The exact signing version is linked to one custody item and its receiving route.", "The TracePoint record proves custody events; it does not replace the paper signatures or Finance record.", "", ""),
+            ("Replace bad copies safely", "If the current copies are damaged, misaligned, or wrong, enter a specific replacement reason. Mark every earlier physical copy DO NOT SIGN, prepare the successor version, then repeat print recording and packet assembly.", "The earlier output and signing round are superseded while their evidence remains visible.", "Never reuse or silently discard a superseded signing copy.", "", ""),
+            ("Record each returned signature", "After the linked packet returns, select the signer task and record the actual returned wet signature with a useful note. Repeat only for the current print version and signature round.", "When all current tasks are returned, the packet is marked returned and the case advances to Accounting validation.", "Do not record a digital approval or a signature expected later as if the paper were already returned.", "", ""),
         ),
     },
     {

@@ -10,7 +10,10 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.forms.models import model_to_dict
 from django.utils import timezone
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.workbook.defined_name import DefinedName
+from openpyxl.worksheet.page import PageMargins
 
 from .access import can_approve_finance_configuration, can_manage_finance_configuration, can_manage_finance_templates
 from .models import (
@@ -22,6 +25,163 @@ from .models import (
 
 class FinanceTemplateError(ValueError):
     pass
+
+
+def build_finance_starter_workbook(values):
+    """Build a deliberately plain, editable, macro-free DV starter for local comparison."""
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "DV Starter"
+    instructions = workbook.create_sheet("Read Me First")
+
+    thin = Side(style="thin", color="000000")
+    medium = Side(style="medium", color="000000")
+    plain_border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    header_fill = PatternFill("solid", fgColor="E7E6E6")
+    starter_fill = PatternFill("solid", fgColor="FFF2CC")
+
+    sheet.merge_cells("A1:F1")
+    sheet["A1"] = values["lgu_name"]
+    sheet["A1"].font = Font(name="Arial", size=12, bold=True)
+    sheet["A1"].alignment = Alignment(horizontal="center")
+    sheet.merge_cells("A2:F2")
+    sheet["A2"] = values["finance_office_name"]
+    sheet["A2"].font = Font(name="Arial", size=10, bold=True)
+    sheet["A2"].alignment = Alignment(horizontal="center")
+    sheet.merge_cells("A3:F3")
+    sheet["A3"] = values["form_title"]
+    sheet["A3"].font = Font(name="Arial", size=14, bold=True)
+    sheet["A3"].alignment = Alignment(horizontal="center")
+
+    sheet.merge_cells("A4:D4")
+    sheet["A4"] = values["form_reference"]
+    sheet["A4"].fill = starter_fill
+    sheet["A4"].font = Font(name="Arial", size=9, italic=True)
+    sheet["E4"], sheet["F4"] = "DV No.", ""
+    sheet["E5"], sheet["F5"] = "DV Date", ""
+    sheet["A5"], sheet["B5"] = "Fund", ""
+    sheet.merge_cells("B5:D5")
+    sheet["A6"], sheet["B6"] = "Payee", ""
+    sheet.merge_cells("B6:F6")
+    sheet["A7"], sheet["B7"] = "Address", ""
+    sheet.merge_cells("B7:D7")
+    sheet["E7"], sheet["F7"] = "TIN", ""
+    sheet["A8"], sheet["B8"] = "OBR / ORS / ALOBS reference", ""
+    sheet.merge_cells("B8:D8")
+    sheet["E8"], sheet["F8"] = "Claim reference", ""
+    sheet["A9"], sheet["B9"], sheet["C9"] = "Particulars", "Account code", "Amount"
+    sheet.merge_cells("C9:F9")
+
+    detail_start = 10
+    detail_end = detail_start + int(values["particulars_rows"]) - 1
+    for row in range(detail_start, detail_end + 1):
+        sheet.merge_cells(start_row=row, start_column=3, end_row=row, end_column=6)
+        sheet.row_dimensions[row].height = 22
+    totals_row = detail_end + 1
+    for offset, (label, name) in enumerate((
+        ("Gross amount", "GRAND_GROSS_AMOUNT"),
+        ("Total deductions", "GRAND_TOTAL_DEDUCTIONS"),
+        ("Net amount", "GRAND_NET_AMOUNT"),
+    )):
+        row = totals_row + offset
+        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+        sheet.cell(row, 1).value = label
+        sheet.cell(row, 1).alignment = Alignment(horizontal="right")
+        sheet.cell(row, 5).value = "PHP"
+        sheet.cell(row, 6).number_format = '#,##0.00'
+        workbook.defined_names.add(DefinedName(name, attr_text=f"'DV Starter'!$F${row}"))
+
+    certification_row = totals_row + 4
+    certification_labels = (
+        ("A", "B", values["prepared_label"], "GRAND_PREPARED_BY"),
+        ("C", "D", values["certified_label"], "GRAND_CERTIFIED_BY"),
+        ("E", "F", values["approved_label"], "GRAND_APPROVED_BY"),
+    )
+    for start_col, end_col, label, name in certification_labels:
+        sheet.merge_cells(f"{start_col}{certification_row}:{end_col}{certification_row}")
+        sheet[f"{start_col}{certification_row}"] = label
+        sheet[f"{start_col}{certification_row}"].fill = header_fill
+        sheet[f"{start_col}{certification_row}"].font = Font(name="Arial", size=9, bold=True)
+        sheet.merge_cells(f"{start_col}{certification_row + 1}:{end_col}{certification_row + 3}")
+        sheet[f"{start_col}{certification_row + 1}"].alignment = Alignment(horizontal="center", vertical="bottom", wrap_text=True)
+        workbook.defined_names.add(DefinedName(name, attr_text=f"'DV Starter'!${start_col}${certification_row + 1}"))
+
+    receipt_row = certification_row + 4
+    sheet.merge_cells(start_row=receipt_row, start_column=1, end_row=receipt_row, end_column=6)
+    sheet.cell(receipt_row, 1).value = "Payment / receipt details — reserved for the locally accepted Treasury process"
+    sheet.cell(receipt_row, 1).fill = header_fill
+    sheet.cell(receipt_row, 1).font = Font(name="Arial", size=9, bold=True)
+    sheet.merge_cells(start_row=receipt_row + 1, start_column=1, end_row=receipt_row + 2, end_column=6)
+    sheet.cell(receipt_row + 1, 1).value = "Do not add check, claimant, or receipt fields here until the F8 route and local form are confirmed."
+    sheet.cell(receipt_row + 1, 1).alignment = Alignment(wrap_text=True, vertical="top")
+
+    footer_row = receipt_row + 3
+    sheet.merge_cells(start_row=footer_row, start_column=1, end_row=footer_row, end_column=6)
+    sheet.cell(footer_row, 1).value = values.get("footer_note", "")
+    sheet.cell(footer_row, 1).font = Font(name="Arial", size=8, italic=True)
+    sheet.cell(footer_row, 1).alignment = Alignment(horizontal="center", wrap_text=True)
+
+    fixed_names = {
+        "GRAND_DV_NUMBER": "$F$4",
+        "GRAND_DV_DATE": "$F$5",
+        "GRAND_PAYEE": "$B$6",
+        "GRAND_PARTICULARS": "$A$10",
+        "GRAND_LINE_ITEMS": f"$A${detail_start}:$C${detail_end}",
+    }
+    for name, coordinate in fixed_names.items():
+        workbook.defined_names.add(DefinedName(name, attr_text=f"'DV Starter'!{coordinate}"))
+
+    for row in sheet.iter_rows(min_row=4, max_row=receipt_row + 2, min_col=1, max_col=6):
+        for cell in row:
+            cell.border = plain_border
+            cell.font = cell.font.copy(name="Arial", size=cell.font.sz or 9)
+            cell.alignment = cell.alignment.copy(vertical=cell.alignment.vertical or "center", wrap_text=True)
+    for cell in sheet[9]:
+        cell.fill = header_fill
+        cell.font = Font(name="Arial", size=9, bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    sheet.row_dimensions[9].height = 28
+    sheet.column_dimensions["A"].width = 42
+    sheet.column_dimensions["B"].width = 18
+    sheet.column_dimensions["C"].width = 8
+    sheet.column_dimensions["D"].width = 8
+    sheet.column_dimensions["E"].width = 12
+    sheet.column_dimensions["F"].width = 18
+    sheet.sheet_view.showGridLines = False
+    sheet.freeze_panes = "A9"
+    sheet.print_area = f"A1:F{footer_row}"
+    sheet.print_title_rows = "1:9"
+    sheet.page_setup.paperSize = {"a4": "9", "letter": "1", "legal": "5"}[values["paper_size"]]
+    sheet.page_setup.orientation = values["orientation"]
+    sheet.page_setup.fitToWidth = 1
+    sheet.page_setup.fitToHeight = 0
+    sheet.sheet_properties.pageSetUpPr.fitToPage = True
+    sheet.page_margins = PageMargins(left=0.3, right=0.3, top=0.4, bottom=0.4, header=0.15, footer=0.15)
+
+    instructions.column_dimensions["A"].width = 28
+    instructions.column_dimensions["B"].width = 90
+    instructions["A1"], instructions["B1"] = "Editable DV starter", "What to do"
+    instructions["A1"].font = instructions["B1"].font = Font(name="Arial", size=11, bold=True)
+    guidance = (
+        ("Status", "This workbook is a starter for local review. It is not automatically an official COA, DBM, or municipal form."),
+        ("Safe edits", "Change ordinary labels, wording, row heights, borders, logo space, paper size, and signatory captions in Excel."),
+        ("Keep these controls", "Do not delete workbook-level names beginning GRAND_. GRAND uses them to place reviewed data without macros."),
+        ("Local comparison", "Compare the starter side by side with the current blank form, a redacted completed sample, the actual signature route, and printer output."),
+        ("Upload", "Upload the edited .xlsx as a new draft Finance Template version, record its authority and comparison references, then run preflight."),
+        ("Copies", f"Starter assumption: {values['default_copy_count']} copy/copies. Confirm this locally before activation."),
+        ("Security", "Do not place real citizen, supplier, employee, bank, tax, or claim data in the reusable blank workbook."),
+    )
+    for row_index, (topic, explanation) in enumerate(guidance, start=2):
+        instructions.cell(row_index, 1).value = topic
+        instructions.cell(row_index, 1).font = Font(name="Arial", size=10, bold=True)
+        instructions.cell(row_index, 2).value = explanation
+        instructions.cell(row_index, 2).alignment = Alignment(wrap_text=True, vertical="top")
+        instructions.row_dimensions[row_index].height = 34
+    instructions.sheet_view.showGridLines = False
+
+    stream = io.BytesIO()
+    workbook.save(stream)
+    return stream.getvalue()
 
 
 def _snapshot(instance):

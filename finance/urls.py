@@ -17,6 +17,7 @@ urlpatterns = [
     path("parties/<int:party_pk>/claimants/new/", views.claimant_create, name="claimant_create"),
     path("sequences/new/", views.sequence_create, name="sequence_create"),
     path("templates/new/", views.template_create, name="template_create"),
+    path("templates/starter/", views.starter_template, name="starter_template"),
     path("templates/<int:pk>/preflight/", views.template_preflight, name="template_preflight"),
     path("templates/<int:pk>/download/", views.template_download, name="template_download"),
     path("templates/<int:pk>/synthetic-preview/", views.template_preview, name="template_preview"),

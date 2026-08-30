@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 import io
+from pathlib import Path
 import tempfile
 
 from django.contrib import admin
@@ -31,14 +32,14 @@ from tracepoint.models import PacketItem, TrackedPacket
 from .access import can_view_workbench
 from .models import (
     PaymentInstrument, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
-    VoucherNumberIssue, VoucherPostingRequest,
+    VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
 )
 from .posting import materialize_voucher_journal, reconcile_posted_voucher_entry
 from .services import (
     amend_nonfinancial_voucher, approve_override, cancel_check, certify_budget, create_budget_case,
     finalize_bank_advice, generate_shadow_dv, issue_check, link_tracepoint_item, prepare_voucher, record_signature_return,
     release_check, request_override, return_case, submit_checks_for_advice,
-    validate_accounting,
+    validate_accounting, assemble_finance_packet, prepare_controlled_dv_print, record_dv_printed,
 )
 
 
@@ -47,7 +48,11 @@ class VoucherWorkflowTests(TestCase):
     @classmethod
     def setUpClass(cls):
         cls._media_directory = tempfile.TemporaryDirectory()
-        cls._media_override = override_settings(MEDIA_ROOT=cls._media_directory.name)
+        cls._export_directory = tempfile.TemporaryDirectory()
+        cls._media_override = override_settings(
+            MEDIA_ROOT=cls._media_directory.name,
+            GRAND_EXPORT_ROOT=cls._export_directory.name,
+        )
         cls._media_override.enable()
         super().setUpClass()
 
@@ -55,6 +60,7 @@ class VoucherWorkflowTests(TestCase):
     def tearDownClass(cls):
         super().tearDownClass()
         cls._media_override.disable()
+        cls._export_directory.cleanup()
         cls._media_directory.cleanup()
 
     @classmethod
@@ -65,7 +71,7 @@ class VoucherWorkflowTests(TestCase):
         cls.requesting = Department.objects.create(name="General Services Office", slug="voucher-gso")
 
         cls.budget_user = cls.employee("budget.clerk", cls.budget, "view_voucher_workbench", "initiate_budget_case", "certify_budget_obligation", "return_voucher_case", "view_voucher_audit")
-        cls.preparer = cls.employee("accounting.preparer", cls.accounting, "view_voucher_workbench", "prepare_disbursement_voucher", "amend_nonfinancial_voucher", "track_wet_signatures", "link_tracepoint_custody", "validate_accounting_voucher", "finalize_bank_advice", "return_voucher_case", "view_voucher_audit")
+        cls.preparer = cls.employee("accounting.preparer", cls.accounting, "view_voucher_workbench", "prepare_disbursement_voucher", "control_dv_printing", "amend_nonfinancial_voucher", "track_wet_signatures", "link_tracepoint_custody", "validate_accounting_voucher", "finalize_bank_advice", "return_voucher_case", "view_voucher_audit")
         cls.validator = cls.employee("accounting.validator", cls.accounting, "view_voucher_workbench", "validate_accounting_voucher", "finalize_bank_advice", "approve_control_overrides", "return_voucher_case", "view_voucher_audit")
         cls.treasury_user = cls.employee("treasury.cashier", cls.treasury, "view_voucher_workbench", "issue_payment_instruments", "release_payment_instruments", "manage_payment_exceptions", "return_voucher_case", "view_voucher_audit")
         cls.requesting_user = cls.employee(
@@ -74,7 +80,10 @@ class VoucherWorkflowTests(TestCase):
         cls.outsider = cls.employee("mpdo.viewer", cls.requesting)
         cls.superuser = cls.employee("platform.superuser", cls.accounting, is_superuser=True)
         cls.preparer.user_permissions.add(Permission.objects.get(content_type__app_label="finance", codename="manage_finance_templates"))
-        cls.preparer.user_permissions.add(Permission.objects.get(content_type__app_label="tracepoint", codename="view_tracepoint_workspace"))
+        cls.preparer.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="tracepoint",
+            codename__in=("view_tracepoint_workspace", "prepare_tracked_packets", "print_packet_labels"),
+        ))
         cls.preparer.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="accounting",
             codename__in=("view_accounting_workspace", "prepare_journal_entries", "manage_accounting_setup"),
@@ -167,7 +176,7 @@ class VoucherWorkflowTests(TestCase):
         cls.template = FinanceTemplateVersion.objects.create(
             department=cls.accounting, release=cls.release, document_type="disbursement-voucher", version=1,
             title="Synthetic controlled DV", workbook=SimpleUploadedFile("synthetic-dv.xlsx", stream.getvalue()),
-            effective_from=date(2026, 1, 1), created_by=cls.preparer,
+            controlled_print_required=False, effective_from=date(2026, 1, 1), created_by=cls.preparer,
         )
         preflight_finance_template(cls.template, cls.preparer)
         cls.template.status = "active"; cls.template.save(update_fields=("status",))
@@ -704,6 +713,121 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(response["X-GRAND-SHA256"], output.checksum)
         with self.assertRaises(RecordWorkflowError):
             source_department(output)
+
+    def test_controlled_print_reprint_and_tracepoint_packet_gate_wet_signatures(self):
+        self.template.controlled_print_required = True
+        self.template.form_status = FinanceTemplateVersion.STARTER
+        self.template.form_reference = "Editable DV starter for synthetic local comparison"
+        self.template.default_copy_count = 2
+        self.template.printer_instructions = "Accounting printer 1 · A4 bond · single-sided"
+        self.template.save(update_fields=(
+            "controlled_print_required", "form_status", "form_reference",
+            "default_copy_count", "printer_instructions",
+        ))
+        case = self.create_case("f61-print-create")
+        self.budget_certify(case, "f61-print-budget")
+        self.accounting_prepare(case, "f61-print-dv")
+        case.refresh_from_db()
+        first_task = case.signature_tasks.filter(status="pending").first()
+        with self.assertRaisesMessage(ValidationError, "Prepare and record the current signing copies"):
+            record_signature_return(
+                case=case, task=first_task, actor=self.preparer, note="Attempted before printing",
+                expected_version=case.state_version, idempotency_key="f61-too-early-signature",
+            )
+
+        first_job = prepare_controlled_dv_print(
+            case=case, actor=self.preparer, replacement_reason="",
+            expected_version=case.state_version, idempotency_key="f61-ready-v1",
+        )
+        self.assertEqual(first_job.status, VoucherPrintJob.READY_TO_PRINT)
+        self.assertEqual(first_job.output_checksum, first_job.output.checksum)
+        self.assertEqual(first_job.archive_manifest["sha256"], first_job.output_checksum)
+        self.assertTrue((Path(self._export_directory.name) / first_job.archive_manifest["relative_path"]).exists())
+        case.refresh_from_db()
+        first_job = record_dv_printed(
+            case=case, actor=self.preparer, copy_count=2,
+            printer_or_form_stock="Accounting printer 1 · A4 bond · single-sided",
+            print_note="Alignment checked against the starter comparison copy.",
+            expected_version=case.state_version, idempotency_key="f61-printed-v1",
+        )
+        case.refresh_from_db()
+        first_job = assemble_finance_packet(
+            case=case, actor=self.preparer, expected_document_count=4, expected_page_count=12,
+            confidentiality=TrackedPacket.RESTRICTED,
+            assembly_note="Two signing copies and referenced supporting papers counted.",
+            expected_version=case.state_version, idempotency_key="f61-packet-v1",
+        )
+        case.refresh_from_db(); first_job.refresh_from_db()
+        self.assertEqual(first_job.status, VoucherPrintJob.AWAITING_SIGNATURES)
+        self.assertEqual(first_job.tracepoint_item, case.tracepoint_item)
+        self.assertEqual(first_job.tracepoint_item.current_packet.checkpoints.count(), 2)
+        self.assertNotIn("1000.00", first_job.tracepoint_item.current_packet.contents_manifest)
+        self.assertEqual(first_job.custody_manifest["copy_count"], 2)
+
+        replacement = prepare_controlled_dv_print(
+            case=case, actor=self.preparer,
+            replacement_reason="First copies were smudged during alignment checking; mark them do-not-sign.",
+            expected_version=case.state_version, idempotency_key="f61-ready-v2",
+        )
+        first_job.refresh_from_db(); first_job.output.refresh_from_db(); case.refresh_from_db()
+        self.assertEqual(first_job.status, VoucherPrintJob.SUPERSEDED)
+        self.assertEqual(first_job.output.status, "superseded")
+        self.assertEqual(replacement.version, 2)
+        self.assertGreater(replacement.signature_round, first_job.signature_round)
+        self.assertFalse(case.signature_tasks.filter(
+            round_number=first_job.signature_round, status="pending",
+        ).exists())
+
+        replacement = record_dv_printed(
+            case=case, actor=self.preparer, copy_count=2,
+            printer_or_form_stock="Accounting printer 1 · A4 bond · single-sided",
+            print_note="Replacement copies clear and aligned.",
+            expected_version=case.state_version, idempotency_key="f61-printed-v2",
+        )
+        case.refresh_from_db()
+        replacement = assemble_finance_packet(
+            case=case, actor=self.preparer, expected_document_count=4, expected_page_count=12,
+            confidentiality=TrackedPacket.RESTRICTED,
+            assembly_note="Replacement signing copies placed in the existing controlled packet.",
+            expected_version=case.state_version, idempotency_key="f61-packet-v2",
+        )
+        for index, task in enumerate(
+            case.signature_tasks.filter(round_number=replacement.signature_round).order_by("sequence"),
+            start=1,
+        ):
+            case.refresh_from_db()
+            record_signature_return(
+                case=case, task=task, actor=self.preparer, note="Signed replacement returned in packet.",
+                expected_version=case.state_version, idempotency_key=f"f61-return-v2-{index}",
+            )
+        case.refresh_from_db(); replacement.refresh_from_db()
+        self.assertEqual(replacement.status, VoucherPrintJob.SIGNED_PACKET_RETURNED)
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_VALIDATION)
+        self.assertTrue(case.events.filter(action="finance_packet_assembled").exists())
+
+        amendment = amend_nonfinancial_voucher(
+            case=case,
+            actor=self.preparer,
+            voucher_date=date(2026, 8, 26),
+            signatories=list(FinanceSignatory.objects.filter(release=self.release, status="active")),
+            reason="Correct the DV date before check issuance and replace the signed paper packet.",
+            expected_version=case.state_version,
+            idempotency_key="f61-amend-after-return",
+        )
+        case.refresh_from_db(); replacement.refresh_from_db()
+        self.assertEqual(replacement.status, VoucherPrintJob.SUPERSEDED)
+        self.assertEqual(case.current_stage, VoucherCase.AWAITING_SIGNATURES)
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertContains(response, "Prepare replacement signing copy")
+
+        successor = prepare_controlled_dv_print(
+            case=case, actor=self.preparer, replacement_reason="",
+            expected_version=case.state_version, idempotency_key="f61-ready-v3-after-amendment",
+        )
+        self.assertEqual(successor.supersedes, replacement)
+        self.assertEqual(successor.signature_round, amendment.signature_round_number)
+        self.assertEqual(successor.supersession_reason, replacement.supersession_reason)
 
     def test_tracepoint_link_records_only_custody_reference_not_financial_fields(self):
         case = self.create_case("tracepoint-create")

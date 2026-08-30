@@ -20,6 +20,7 @@ from finance.models import (
 )
 from finance.services import FinanceTemplateError, _destination, inspect_finance_workbook, verify_template_evidence
 from profiles.models import EmployeeProfile
+from src.export_archive import archive_export
 
 from .access import department_for_user, has_explicit_permission
 from .models import (
@@ -28,7 +29,7 @@ from .models import (
     PayableDocumentEvidence, PayableIntake,
     VoucherCase, VoucherDeduction, VoucherDocumentCheck, VoucherEvent,
     VoucherLineItem, VoucherNonFinancialAmendment, VoucherNumberIssue, VoucherOutput,
-    VoucherPostingRequest, VoucherTask, WetSignatureTask,
+    VoucherPostingRequest, VoucherPrintJob, VoucherTask, WetSignatureTask,
 )
 
 
@@ -146,6 +147,8 @@ def _create_signature_round_from_signatories(case, signatories):
         WetSignatureTask.objects.create(
             case=case, round_number=round_number, sequence=index, role_code=signatory.role_code,
             signatory_name_snapshot=signatory.display_name, position_snapshot=signatory.position_title,
+            custody_department=signatory.custody_department or signatory.department,
+            custody_instructions=signatory.custody_instructions,
         )
     return round_number, bool(signatories)
 
@@ -1063,6 +1066,13 @@ def record_signature_return(*, case, task, actor, note, expected_version, idempo
         return case
     if case.current_stage != VoucherCase.AWAITING_SIGNATURES or task.case_id != case.pk or task.status != WetSignatureTask.PENDING:
         raise VoucherWorkflowError("This wet-signature task is not awaiting return.")
+    print_job = None
+    if case.voucher_template_id and case.voucher_template.controlled_print_required:
+        print_job = case.print_jobs.filter(status=VoucherPrintJob.AWAITING_SIGNATURES).order_by("-version").first()
+        if not print_job or print_job.signature_round != task.round_number or not case.tracepoint_item_id:
+            raise VoucherWorkflowError(
+                "Prepare and record the current signing copies, then assemble or verify their TracePoint packet before recording signatures."
+            )
     earlier_pending = case.signature_tasks.filter(round_number=task.round_number, sequence__lt=task.sequence, status=WetSignatureTask.PENDING).exists()
     if earlier_pending:
         raise VoucherWorkflowError("Record wet signatures in their configured order.")
@@ -1073,6 +1083,12 @@ def record_signature_return(*, case, task, actor, note, expected_version, idempo
         case.save(update_fields=("state_version", "updated_at"))
         _event(case, actor, "wet_signature_returned", case.current_stage, note, {"role_code": task.role_code}, idempotency_key)
         return case
+    if print_job:
+        print_job.status = VoucherPrintJob.SIGNED_PACKET_RETURNED
+        print_job.signed_returned_by = actor
+        print_job.signed_returned_at = timezone.now()
+        print_job.full_clean()
+        print_job.save(update_fields=("status", "signed_returned_by", "signed_returned_at"))
     amendment = case.nonfinancial_amendments.filter(
         status=VoucherNonFinancialAmendment.AWAITING_SIGNATURES,
         signature_round_number=task.round_number,
@@ -1179,6 +1195,10 @@ def amend_nonfinancial_voucher(*, case, actor, voucher_date, signatories, reason
     voucher.voucher_date = voucher_date
     voucher.save(update_fields=("voucher_date",))
     case.outputs.exclude(status=VoucherOutput.SUPERSEDED).update(status=VoucherOutput.SUPERSEDED)
+    case.print_jobs.exclude(status=VoucherPrintJob.SUPERSEDED).update(
+        status=VoucherPrintJob.SUPERSEDED,
+        supersession_reason=reason,
+    )
     version = (case.nonfinancial_amendments.aggregate(value=Max("version"))["value"] or 0) + 1
     amendment = VoucherNonFinancialAmendment.objects.create(
         case=case,
@@ -1226,6 +1246,11 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         return case
     if case.current_stage != VoucherCase.ACCOUNTING_VALIDATION:
         raise VoucherWorkflowError("This voucher is not awaiting Accounting validation.")
+    if case.voucher_template_id and case.voucher_template.controlled_print_required:
+        signed_job = case.print_jobs.filter(status=VoucherPrintJob.SIGNED_PACKET_RETURNED).order_by("-version").first()
+        latest_job = case.print_jobs.order_by("-version").first()
+        if not signed_job or latest_job.pk != signed_job.pk:
+            raise VoucherWorkflowError("The latest controlled signing copy must return with its TracePoint-linked packet before validation.")
     workflow_exemption = None
     case_override = None
     if actor.pk == case.disbursement_voucher.prepared_by_id:
@@ -1600,3 +1625,240 @@ def generate_shadow_dv(*, case, actor, idempotency_key):
     case.save(update_fields=("state_version", "updated_at"))
     _event(case, actor, "shadow_dv_generated", case.current_stage, "", {"output_id": output.pk, "checksum": output.checksum}, idempotency_key)
     return output
+
+
+def _supersede_print_job(job, reason):
+    job.status = VoucherPrintJob.SUPERSEDED
+    job.supersession_reason = reason.strip()
+    job.full_clean()
+    job.save(update_fields=("status", "supersession_reason"))
+    if job.output.status != VoucherOutput.SUPERSEDED:
+        job.output.status = VoucherOutput.SUPERSEDED
+        job.output.save(update_fields=("status",))
+
+
+@transaction.atomic
+def prepare_controlled_dv_print(*, case, actor, replacement_reason, expected_version, idempotency_key):
+    _require(actor, "vouchers.control_dv_printing")
+    case, existing = _locked(case, expected_version, idempotency_key)
+    if existing:
+        return VoucherPrintJob.objects.get(pk=existing.metadata["print_job_id"])
+    if not hasattr(case, "disbursement_voucher") or not case.voucher_template_id:
+        raise VoucherWorkflowError("Prepare the DV and pin a preflighted workbook before creating a signing copy.")
+    if case.current_stage != VoucherCase.AWAITING_SIGNATURES:
+        raise VoucherWorkflowError("Controlled signing copies are prepared only in the DV printing and wet-signature step.")
+    if case.payment_instruments.exists():
+        raise VoucherWorkflowError("A check already exists. Use the coordinated payment correction route instead of reprinting the DV here.")
+    print_jobs = case.print_jobs.select_for_update()
+    latest = print_jobs.order_by("-version", "-pk").first()
+    active = print_jobs.filter(
+        status__in=(
+            VoucherPrintJob.READY_TO_PRINT,
+            VoucherPrintJob.PRINTED,
+            VoucherPrintJob.AWAITING_SIGNATURES,
+        )
+    ).first()
+    reason = replacement_reason.strip()
+    if active and not reason:
+        raise VoucherWorkflowError("Explain why the earlier signing copy must be replaced and marked do-not-sign.")
+    if active:
+        if active.status in {VoucherPrintJob.PRINTED, VoucherPrintJob.AWAITING_SIGNATURES}:
+            case.signature_tasks.filter(
+                round_number=active.signature_round,
+                status=WetSignatureTask.PENDING,
+            ).update(status=WetSignatureTask.DECLINED, note="Superseded by a controlled DV reprint.")
+            _create_signature_round(case, case.disbursement_voucher.voucher_date)
+        _supersede_print_job(active, reason)
+    predecessor = active or (latest if latest and latest.status == VoucherPrintJob.SUPERSEDED else None)
+    if predecessor and not reason:
+        reason = predecessor.supersession_reason
+    output = generate_shadow_dv(
+        case=case,
+        actor=actor,
+        idempotency_key=f"{idempotency_key}:controlled-output",
+    )
+    case.refresh_from_db()
+    output.file.open("rb")
+    try:
+        archived = archive_export(
+            content=output.file.read(),
+            department=case.configuration_release.department,
+            user=actor,
+            category="finance-dv-signing-copies",
+            filename=output.file.name.rsplit("/", 1)[-1],
+            metadata={
+                "kind": "controlled_dv_signing_copy",
+                "case_public_id": str(case.public_id),
+                "case_reference": case.reference_code,
+                "print_version": (case.print_jobs.aggregate(value=Max("version"))["value"] or 0) + 1,
+                "output_id": output.pk,
+                "template_id": output.template_id,
+                "template_checksum": output.template.workbook_checksum,
+                "form_status": output.template.form_status,
+                "official_status": "controlled signing copy; local form acceptance remains governed by the pinned template evidence",
+            },
+        )
+    finally:
+        output.file.close()
+    version = (case.print_jobs.aggregate(value=Max("version"))["value"] or 0) + 1
+    signature_round = output.input_snapshot.get("signature_round") or 0
+    job = VoucherPrintJob(
+        case=case,
+        version=version,
+        output=output,
+        output_checksum=output.checksum,
+        archive_manifest={
+            "relative_path": archived["relative_path"],
+            "sha256": archived["sha256"],
+            "manifest_filename": archived["manifest_path"].name,
+        },
+        signature_round=signature_round,
+        prepared_by=actor,
+        supersedes=predecessor,
+        supersession_reason=reason if predecessor else "",
+    )
+    job.full_clean()
+    job.save()
+    case.state_version += 1
+    case.save(update_fields=("state_version", "updated_at"))
+    _event(
+        case, actor, "dv_signing_copy_ready", case.current_stage, reason,
+        {"print_job_id": job.pk, "print_version": job.version, "output_id": output.pk, "checksum": output.checksum},
+        idempotency_key,
+    )
+    return job
+
+
+@transaction.atomic
+def record_dv_printed(*, case, actor, copy_count, printer_or_form_stock, print_note, expected_version, idempotency_key):
+    _require(actor, "vouchers.control_dv_printing")
+    case, existing = _locked(case, expected_version, idempotency_key)
+    if existing:
+        return VoucherPrintJob.objects.get(pk=existing.metadata["print_job_id"])
+    if case.current_stage != VoucherCase.AWAITING_SIGNATURES:
+        raise VoucherWorkflowError("This voucher is not in its controlled printing and wet-signature step.")
+    job = case.print_jobs.select_for_update().filter(status=VoucherPrintJob.READY_TO_PRINT).first()
+    if not job:
+        raise VoucherWorkflowError("Create the current print-ready signing copy before recording printed copies.")
+    description = printer_or_form_stock.strip()
+    if not description:
+        raise VoucherWorkflowError("Describe the printer and paper or form stock actually used.")
+    job.status = VoucherPrintJob.PRINTED
+    job.copy_count = copy_count
+    job.printer_or_form_stock = description
+    job.print_note = print_note.strip()
+    job.printed_by = actor
+    job.printed_at = timezone.now()
+    job.full_clean()
+    job.save(update_fields=(
+        "status", "copy_count", "printer_or_form_stock", "print_note", "printed_by", "printed_at",
+    ))
+    case.state_version += 1
+    case.save(update_fields=("state_version", "updated_at"))
+    _event(
+        case, actor, "dv_copies_printed", case.current_stage, job.print_note,
+        {"print_job_id": job.pk, "print_version": job.version, "copy_count": job.copy_count},
+        idempotency_key,
+    )
+    return job
+
+
+@transaction.atomic
+def assemble_finance_packet(*, case, actor, expected_document_count, expected_page_count, confidentiality, assembly_note, expected_version, idempotency_key):
+    _require(actor, "vouchers.control_dv_printing")
+    _require(actor, "vouchers.link_tracepoint_custody")
+    case, existing = _locked(case, expected_version, idempotency_key)
+    if existing:
+        return VoucherPrintJob.objects.get(pk=existing.metadata["print_job_id"])
+    if case.current_stage != VoucherCase.AWAITING_SIGNATURES:
+        raise VoucherWorkflowError("This voucher is not in its controlled printing and wet-signature step.")
+    job = case.print_jobs.select_for_update().filter(status=VoucherPrintJob.PRINTED).first()
+    if not job:
+        raise VoucherWorkflowError("Record the printed signing copies before assembling their physical packet.")
+    note = assembly_note.strip()
+    if not note:
+        raise VoucherWorkflowError("Record what was counted and assembled for signature circulation.")
+
+    checkpoint_rows = []
+    if case.tracepoint_item_id:
+        item = case.tracepoint_item
+        packet = item.current_packet
+    else:
+        from tracepoint.models import PacketCheckpoint
+        from tracepoint.services import add_checkpoint, add_packet_item, create_packet
+
+        packet = create_packet(
+            actor=actor,
+            title=f"DV signing packet — {case.reference_code}",
+            contents_manifest=(
+                f"Controlled signing copy v{job.version} for DV {case.disbursement_voucher.dv_number}; "
+                "supporting documents are referenced in GRAND and counted without copying financial values into TracePoint."
+            ),
+            final_destination_department=case.configuration_release.department,
+            confidentiality=confidentiality,
+            expected_document_count=expected_document_count,
+            expected_page_count=expected_page_count,
+        )
+        item = add_packet_item(
+            packet=packet,
+            actor=actor,
+            title=f"DV {case.disbursement_voucher.dv_number}",
+            description=f"GRAND case {case.reference_code} · signing copy v{job.version}",
+            expected_attachment_count=max(int(expected_document_count or 1) - 1, 0),
+            expected_page_count=expected_page_count,
+        )
+        tasks = case.signature_tasks.filter(round_number=job.signature_round).order_by("sequence", "pk")
+        for task in tasks:
+            checkpoint = add_checkpoint(
+                packet=packet,
+                actor=actor,
+                department=task.custody_department or case.configuration_release.department,
+                purpose=PacketCheckpoint.SIGNATURE,
+                label=f"Signature: {task.signatory_name_snapshot} — {task.position_snapshot or task.role_code}",
+                instructions=task.custody_instructions or "Confirm physical receipt for the configured wet-signature step.",
+                required=True,
+            )
+            checkpoint_rows.append({
+                "signature_task_id": task.pk,
+                "checkpoint_id": checkpoint.pk,
+                "sequence": checkpoint.sequence,
+                "department_id": checkpoint.department_id,
+                "label": checkpoint.label,
+            })
+        case.tracepoint_item = item
+
+    job.status = VoucherPrintJob.AWAITING_SIGNATURES
+    job.tracepoint_item = item
+    job.packet_reference = packet.tracking_number
+    job.custody_manifest = {
+        "case_reference": case.reference_code,
+        "dv_number": case.disbursement_voucher.dv_number,
+        "print_version": job.version,
+        "output_checksum": job.output_checksum,
+        "copy_count": job.copy_count,
+        "tracepoint_packet": packet.tracking_number,
+        "tracepoint_item": item.reference_number,
+        "expected_document_count": expected_document_count,
+        "expected_page_count": expected_page_count,
+        "assembly_note": note,
+        "checkpoints": checkpoint_rows,
+    }
+    job.custody_confirmed_by = actor
+    job.custody_confirmed_at = timezone.now()
+    job.full_clean()
+    job.save(update_fields=(
+        "status", "tracepoint_item", "packet_reference", "custody_manifest",
+        "custody_confirmed_by", "custody_confirmed_at",
+    ))
+    case.state_version += 1
+    case.save(update_fields=("tracepoint_item", "state_version", "updated_at"))
+    _event(
+        case, actor, "finance_packet_assembled", case.current_stage, note,
+        {
+            "print_job_id": job.pk, "print_version": job.version,
+            "packet_reference": packet.tracking_number, "item_reference": item.reference_number,
+            "checkpoint_count": len(checkpoint_rows),
+        },
+        idempotency_key,
+    )
+    return job

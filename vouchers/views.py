@@ -16,8 +16,9 @@ from .forms import (
     NonFinancialAmendmentForm, SignatureReturnForm, SubmitChecksForm, VoucherPreparationForm,
     TracePointLinkForm, PayableEvidenceForm, PayableReviewForm, PayableSubmitForm,
     PayableAllocationAddForm, PayableAllocationRevisionForm, PayableClaimControlForm,
+    ControlledPrintPrepareForm, FinancePacketAssemblyForm, PrintEvidenceForm,
 )
-from .models import PaymentInstrument, VoucherCase, VoucherOutput
+from .models import PaymentInstrument, VoucherCase, VoucherOutput, VoucherPrintJob
 from .roles import STAGE_NEXT_ACTION, finance_workspace_profile
 from .services import (
     VoucherWorkflowError, _active_release, amend_nonfinancial_voucher, cancel_check, certify_budget,
@@ -27,6 +28,7 @@ from .services import (
     record_payable_document_evidence, review_payable_intake, submit_payable_intake,
     add_payable_obligation_allocation, payable_relationship_summary,
     revise_payable_claim_control, revise_payable_obligation_allocation,
+    assemble_finance_packet, prepare_controlled_dv_print, record_dv_printed,
 )
 
 
@@ -36,6 +38,7 @@ def _permissions(user):
         "certify": has_explicit_permission(user, "vouchers.certify_budget_obligation"),
         "review_payable": has_explicit_permission(user, "vouchers.review_payable_intake"),
         "prepare": has_explicit_permission(user, "vouchers.prepare_disbursement_voucher"),
+        "control_print": has_explicit_permission(user, "vouchers.control_dv_printing"),
         "signatures": has_explicit_permission(user, "vouchers.track_wet_signatures"),
         "tracepoint_link": has_explicit_permission(user, "vouchers.link_tracepoint_custody"),
         "validate": has_explicit_permission(user, "vouchers.validate_accounting_voucher"),
@@ -175,6 +178,7 @@ def case_detail(request, public_id):
         VoucherCase.TREASURY_CHECK_PREPARATION,
     }
     relationship_summary = payable_relationship_summary(case) if hasattr(case, "payable_intake") else None
+    current_print_job = case.print_jobs.order_by("-version").first()
     return render(request, "vouchers/case_detail.html", {
         "case": case, "permissions": permissions, "workspace_profile": profile,
         "next_action_label": STAGE_NEXT_ACTION.get(case.current_stage, case.get_current_stage_display()),
@@ -190,6 +194,9 @@ def case_detail(request, public_id):
         "return_form": ReturnCaseForm(case=case),
         "cancel_form": CancelCheckForm(case=case),
         "tracepoint_form": TracePointLinkForm(case=case),
+        "controlled_print_form": ControlledPrintPrepareForm(case=case),
+        "print_evidence_form": PrintEvidenceForm(case=case),
+        "packet_assembly_form": FinancePacketAssemblyForm(case=case),
         "amendment_form": NonFinancialAmendmentForm(case=case),
         "payable_evidence_form": PayableEvidenceForm(case=case),
         "payable_submit_form": PayableSubmitForm(case=case),
@@ -198,6 +205,7 @@ def case_detail(request, public_id):
         "payable_allocation_revision_form": PayableAllocationRevisionForm(case=case),
         "payable_claim_control_form": PayableClaimControlForm(case=case),
         "payable_relationships": relationship_summary,
+        "current_print_job": current_print_job,
         "can_amend_nonfinancial": bool(
             permissions["amend_nonfinancial"]
             and hasattr(case, "disbursement_voucher")
@@ -224,6 +232,9 @@ def case_action(request, public_id, action):
         "return": ReturnCaseForm,
         "cancel-check": CancelCheckForm,
         "generate-dv": SubmitChecksForm,
+        "prepare-controlled-print": ControlledPrintPrepareForm,
+        "record-dv-printed": PrintEvidenceForm,
+        "assemble-finance-packet": FinancePacketAssemblyForm,
         "link-tracepoint": TracePointLinkForm,
         "amend-nonfinancial": NonFinancialAmendmentForm,
         "reconcile-obligation": SubmitChecksForm,
@@ -308,6 +319,26 @@ def case_action(request, public_id, action):
             cancel_check(**common, instrument=data["instrument"], reason=data["reason"])
         elif action == "generate-dv":
             generate_shadow_dv(case=case, actor=request.user, idempotency_key=data["idempotency_key"])
+        elif action == "prepare-controlled-print":
+            prepare_controlled_dv_print(
+                **common,
+                replacement_reason=data["replacement_reason"],
+            )
+        elif action == "record-dv-printed":
+            record_dv_printed(
+                **common,
+                copy_count=data["copy_count"],
+                printer_or_form_stock=data["printer_or_form_stock"],
+                print_note=data["print_note"],
+            )
+        elif action == "assemble-finance-packet":
+            assemble_finance_packet(
+                **common,
+                expected_document_count=data["expected_document_count"],
+                expected_page_count=data["expected_page_count"],
+                confidentiality=data["confidentiality"],
+                assembly_note=data["assembly_note"],
+            )
         elif action == "link-tracepoint":
             from tracepoint.models import PacketItem
             item = get_object_or_404(PacketItem, reference_number=data["reference_number"])
