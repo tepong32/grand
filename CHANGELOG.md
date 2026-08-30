@@ -1,5 +1,13 @@
 # Changelog
 
+## F8.5 Bank-reconciliation carry-forward and later clearance
+
+- Added one-action carry-forward of the latest unresolved timing item from an earlier independently reconciled statement for the same bank account and fund.
+- Preserved source-statement/checksum lineage, original evidence and expected-clearance date, item age, and overdue visibility without retyping or rewriting a closed month.
+- Added later-statement clearance across the retained lineage and reason-required reopening when a match or staged statement is corrected before submission.
+- Extended the conservative reconciliation screen, department-specific floating guides, reconciliation checksum, and TraceSync-ready CSV with carry/clearance evidence.
+- Added a consecutive-month synthetic test covering carry, overdue display, clearance, correction/rematch, export, and independent reconciliation.
+
 ## F8.4 Bank advice acknowledgement and returned instruments
 
 - Replaced the legacy single-case finalized advice flag with checksum-backed, multi-case versions separated into preparation, independent Accounting review, actual bank submission, and bank acknowledgement/return.

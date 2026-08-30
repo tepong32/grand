@@ -29,13 +29,14 @@ from .models import (
 )
 from .services import (
     adopt_configuration_release, begin_foundation_amendment, create_reversal, decide_readiness_layer,
-    auto_match_bank_statement, bank_reconciliation_snapshot, classify_bank_outstanding,
+    auto_match_bank_statement, bank_outstanding_carry_candidates, bank_reconciliation_snapshot,
+    classify_bank_outstanding,
     control_reconciliation_snapshot,
     correct_opening_batch, correct_opening_row, decide_opening_batch, discard_draft, ensure_readiness_layers,
     evaluate_fiscal_year_readiness, post_entry, post_opening_batch, reconcile_opening_batch,
     run_control_reconciliation, stage_opening_csv, submit_entry, submit_opening_batch, transition_fiscal_year,
     decide_bank_reconciliation, stage_bank_statement_csv, submit_bank_reconciliation,
-    unclassify_bank_outstanding, unmatch_bank_statement_row, validate_opening_batch,
+    match_bank_statement_row, unclassify_bank_outstanding, unmatch_bank_statement_row, validate_opening_batch,
 )
 
 
@@ -1191,3 +1192,122 @@ class StandaloneAccountingTests(TestCase):
         detail = self.client.get(reverse("accounting:bank_reconciliation_detail", args=(batch.public_id,)))
         self.assertContains(detail, "Adjusted-balance control")
         self.assertContains(detail, "CHK-0099")
+
+        february = BankStatementBatch.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            statement_reference="SYN-BRS-2027-02",
+            bank_account_code="SYN-BANK-MAIN",
+            bank_name="Synthetic Government Bank",
+            account_number_masked="••••0099",
+            fund=self.fund,
+            period_start=date(2027, 2, 1),
+            period_end=date(2027, 2, 28),
+            received_on=date(2027, 3, 2),
+            opening_balance=Decimal("1000.00"),
+            closing_balance=Decimal("800.00"),
+            expected_row_count=1,
+            expected_deposits=Decimal("0.00"),
+            expected_withdrawals=Decimal("200.00"),
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        february_statement = (
+            "transaction_date,bank_reference,description,withdrawal,deposit,running_balance\n"
+            "2027-02-05,CHK-0099,Synthetic check cleared,200.00,,800.00\n"
+        )
+        february = stage_bank_statement_csv(
+            february, self.preparer,
+            SimpleUploadedFile(
+                "statement-february.csv", february_statement.encode("utf-8"), content_type="text/csv",
+            ),
+        )
+        candidates = bank_outstanding_carry_candidates(february)
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0].batch_id, reconciled.pk)
+
+        carry_response = self.client.post(reverse(
+            "accounting:bank_reconciliation_carry_forward", args=(february.public_id,),
+        ))
+        self.assertEqual(carry_response.status_code, 302)
+        carried = BankOutstandingItem.objects.get(
+            batch=february, journal_line=check_bank_line, status=BankOutstandingItem.ACTIVE,
+        )
+        self.assertEqual(carried.carried_from.batch_id, reconciled.pk)
+        self.assertEqual(carried.expected_clearance_date, date(2027, 2, 10))
+        self.assertGreater(carried.age_days, 0)
+        self.assertEqual(bank_outstanding_carry_candidates(february), [])
+        carried_detail = self.client.get(reverse(
+            "accounting:bank_reconciliation_detail", args=(february.public_id,),
+        ))
+        self.assertContains(carried_detail, "Carried from")
+        self.assertContains(carried_detail, "SYN-BRS-2027-01")
+        self.assertContains(carried_detail, "Past the recorded expected-clearance date")
+
+        original_carried_checksum = carried.source_checksum
+        carried = classify_bank_outstanding(
+            february, check_bank_line, self.preparer,
+            explanation="Updated after the February ageing review; the check remains a valid timing item.",
+            evidence_reference="Reviewed check register CHK-0099 and February ageing note",
+            expected_clearance_date=date(2027, 3, 10),
+        )
+        self.assertEqual(carried.carried_from.batch_id, reconciled.pk)
+        self.assertEqual(carried.source_snapshot["replaces_item_checksum"], original_carried_checksum)
+
+        february_row = february.rows.get(source_version=february.source_version)
+        match_bank_statement_row(
+            february_row, check_bank_line, self.preparer,
+            reason="Matched to CHK-0099 after comparing the February bank statement and check register.",
+        )
+        january_item = BankOutstandingItem.objects.get(
+            batch=reconciled, journal_line=check_bank_line, status=BankOutstandingItem.CLEARED,
+        )
+        carried.refresh_from_db()
+        self.assertEqual(carried.status, BankOutstandingItem.CLEARED)
+        self.assertEqual(carried.cleared_by_match_id, january_item.cleared_by_match_id)
+
+        unmatch_bank_statement_row(
+            february_row, self.preparer,
+            reason="The first clearance link used the wrong supporting annotation; review and rematch.",
+        )
+        january_item.refresh_from_db()
+        carried.refresh_from_db()
+        self.assertEqual(january_item.status, BankOutstandingItem.ACTIVE)
+        self.assertEqual(carried.status, BankOutstandingItem.ACTIVE)
+        self.assertIsNone(carried.cleared_by_match_id)
+        match_bank_statement_row(
+            february_row, check_bank_line, self.preparer,
+            reason="Rematched CHK-0099 using the corrected February bank annotation.",
+        )
+        january_snapshot_after_clearance, january_checksum_after_clearance, *_ = bank_reconciliation_snapshot(
+            reconciled,
+        )
+        self.assertTrue(january_snapshot_after_clearance["ready_for_review"])
+        self.assertEqual(january_checksum_after_clearance, reconciled.reconciliation_checksum)
+        february_snapshot, _checksum, _rows, _matches, _lines, _items = bank_reconciliation_snapshot(february)
+        self.assertEqual(february_snapshot["carried_forward_count"], 0)
+        self.assertEqual(february_snapshot["adjusted_bank_balance"], "800.00")
+        self.assertEqual(february_snapshot["book_balance"], "800.00")
+        self.assertEqual(february_snapshot["difference"], "0.00")
+        self.assertTrue(february_snapshot["ready_for_review"])
+
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            exported_response = self.client.get(reverse(
+                "accounting:bank_reconciliation_export", args=(february.public_id,),
+            ))
+            exported_text = exported_response.content.decode("utf-8")
+            self.assertIn("carried_from_statement", exported_text)
+            self.assertIn("cleared_by_statement", exported_text)
+            self.assertIn("cleared_prior_statements", exported_text)
+            self.assertIn("SYN-BRS-2027-01", exported_text)
+            january_export = self.client.get(reverse(
+                "accounting:bank_reconciliation_export", args=(reconciled.public_id,),
+            )).content.decode("utf-8")
+            self.assertIn("SYN-BRS-2027-02", january_export)
+
+        submitted_february = submit_bank_reconciliation(february, self.preparer)
+        reconciled_february = decide_bank_reconciliation(
+            submitted_february, self.setup_approver, decision=BankStatementBatch.RECONCILED,
+            evidence_note="Reviewed February statement, prior-item lineage, clearance, and zero-difference control.",
+        )
+        self.assertEqual(reconciled_february.status, BankStatementBatch.RECONCILED)

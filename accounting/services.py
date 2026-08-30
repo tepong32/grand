@@ -1492,7 +1492,13 @@ def correct_bank_statement_batch(batch, actor, *, values, reason):
     locked.full_clean()
     locked.save()
     now = timezone.now()
-    BankStatementMatch.objects.filter(batch=locked, status=BankStatementMatch.ACTIVE).update(
+    active_matches = list(BankStatementMatch.objects.select_for_update().filter(
+        batch=locked, status=BankStatementMatch.ACTIVE,
+    ))
+    _reopen_cleared_items_for_matches(
+        active_matches, actor, reason=f"Statement control correction: {note}",
+    )
+    BankStatementMatch.objects.filter(pk__in=[match.pk for match in active_matches]).update(
         status=BankStatementMatch.SUPERSEDED, superseded_at=now,
     )
     BankOutstandingItem.objects.filter(batch=locked, status=BankOutstandingItem.ACTIVE).update(
@@ -1571,9 +1577,15 @@ def stage_bank_statement_csv(batch, actor, uploaded_file, *, change_reason=""):
         raise ValidationError("The bank statement CSV contains no transaction rows.")
     now = timezone.now()
     if locked.source_version:
-        BankStatementMatch.objects.filter(
+        active_matches = list(BankStatementMatch.objects.select_for_update().filter(
             batch=locked, statement_row__source_version=locked.source_version, status=BankStatementMatch.ACTIVE,
-        ).update(status=BankStatementMatch.SUPERSEDED, superseded_at=now)
+        ))
+        _reopen_cleared_items_for_matches(
+            active_matches, actor, reason=f"Statement source restaged: {change_reason}",
+        )
+        BankStatementMatch.objects.filter(pk__in=[match.pk for match in active_matches]).update(
+            status=BankStatementMatch.SUPERSEDED, superseded_at=now,
+        )
         BankOutstandingItem.objects.filter(batch=locked, status=BankOutstandingItem.ACTIVE).update(
             status=BankOutstandingItem.SUPERSEDED, superseded_at=now,
         )
@@ -1657,6 +1669,166 @@ def _assert_bank_batch_editable(batch):
         raise ValidationError("Matching can change only before submission or after an independent return.")
 
 
+def bank_outstanding_carry_candidates(batch):
+    """Return the latest unresolved, approved prior-period item for each eligible ledger line."""
+    eligible_line_ids = list(_bank_lines(batch).values_list("pk", flat=True))
+    if not eligible_line_ids:
+        return []
+    current_line_ids = set(BankOutstandingItem.objects.filter(
+        batch=batch, status=BankOutstandingItem.ACTIVE,
+    ).values_list("journal_line_id", flat=True))
+    matched_line_ids = set(BankStatementMatch.objects.filter(
+        journal_line_id__in=eligible_line_ids, status=BankStatementMatch.ACTIVE,
+    ).values_list("journal_line_id", flat=True))
+    candidates = BankOutstandingItem.objects.filter(
+        status=BankOutstandingItem.ACTIVE,
+        batch__department_id=batch.department_id,
+        batch__bank_account_code__iexact=batch.bank_account_code.strip(),
+        batch__fund_id=batch.fund_id,
+        batch__status=BankStatementBatch.RECONCILED,
+        batch__period_end__lt=batch.period_start,
+        journal_line_id__in=eligible_line_ids,
+    ).exclude(
+        journal_line_id__in=current_line_ids | matched_line_ids,
+    ).select_related(
+        "batch", "journal_line__entry", "journal_line__account", "carried_from__batch",
+    ).order_by("journal_line_id", "-batch__period_end", "-created_at", "-pk")
+    latest = {}
+    for item in candidates:
+        latest.setdefault(item.journal_line_id, item)
+    return list(latest.values())
+
+
+@transaction.atomic(using=FINANCE_DB)
+def carry_forward_bank_outstanding(batch, actor):
+    if not can_prepare_bank_reconciliation(actor):
+        raise ValidationError("You are not authorized to carry bank-reconciliation timing items.")
+    locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_editable(locked)
+    if not locked.validation_summary.get("valid"):
+        raise ValidationError("Validate the current bank statement before carrying prior timing items.")
+    source_candidates = bank_outstanding_carry_candidates(locked)
+    if not source_candidates:
+        return []
+    source_ids = [item.pk for item in source_candidates]
+    sources = BankOutstandingItem.objects.select_for_update().select_related(
+        "batch", "journal_line__entry", "journal_line__account",
+    ).filter(
+        pk__in=source_ids,
+        status=BankOutstandingItem.ACTIVE,
+        batch__status=BankStatementBatch.RECONCILED,
+    )
+    source_map = {item.pk: item for item in sources}
+    now = timezone.now()
+    created = []
+    for source_id in source_ids:
+        source = source_map[source_id]
+        if BankStatementMatch.objects.filter(
+            journal_line_id=source.journal_line_id, status=BankStatementMatch.ACTIVE,
+        ).exists() or BankOutstandingItem.objects.filter(
+            batch=locked, journal_line_id=source.journal_line_id, status=BankOutstandingItem.ACTIVE,
+        ).exists():
+            continue
+        snapshot = {
+            "journal_line_id": source.journal_line_id,
+            "entry_public_id": str(source.journal_line.entry.public_id),
+            "entry_reference": source.journal_line.entry.reference,
+            "entry_date": source.journal_line.entry.entry_date.isoformat(),
+            "account_code": source.journal_line.account.code,
+            "debit": str(source.journal_line.debit),
+            "credit": str(source.journal_line.credit),
+            "kind": source.kind,
+            "expected_clearance_date": source.expected_clearance_date.isoformat(),
+            "evidence_reference": source.evidence_reference,
+            "carried_from_item_id": source.pk,
+            "carried_from_batch_public_id": str(source.batch.public_id),
+            "carried_from_statement_reference": source.batch.statement_reference,
+            "carried_from_period_end": source.batch.period_end.isoformat(),
+            "carried_from_checksum": source.source_checksum,
+            "overdue_as_of_period_end": source.expected_clearance_date <= locked.period_end,
+        }
+        created.append(BankOutstandingItem.objects.create(
+            batch=locked,
+            journal_line=source.journal_line,
+            kind=source.kind,
+            explanation=source.explanation,
+            evidence_reference=source.evidence_reference,
+            expected_clearance_date=source.expected_clearance_date,
+            source_snapshot=snapshot,
+            source_checksum=_snapshot_checksum(snapshot),
+            created_by_id=actor.pk,
+            created_by_label=actor_label(actor),
+            carried_from=source,
+            carried_by_id=actor.pk,
+            carried_by_label=actor_label(actor),
+            carried_at=now,
+        ))
+    if created:
+        locked.state_version += 1
+        locked.save(update_fields=("state_version", "updated_at"))
+        _bank_event(locked, "prior_outstanding_items_carried", actor, snapshot={
+            "count": len(created),
+            "item_checksums": [item.source_checksum for item in created],
+            "source_statement_references": sorted({item.carried_from.batch.statement_reference for item in created}),
+            "overdue_count": sum(item.expected_clearance_date <= locked.period_end for item in created),
+        })
+    return created
+
+
+def _clear_outstanding_items_for_match(batch, match, actor):
+    items = list(BankOutstandingItem.objects.select_for_update().select_related("batch").filter(
+        status=BankOutstandingItem.ACTIVE,
+        journal_line_id=match.journal_line_id,
+        batch__department_id=batch.department_id,
+        batch__bank_account_code__iexact=batch.bank_account_code.strip(),
+        batch__fund_id=batch.fund_id,
+        batch__period_end__lte=batch.period_end,
+    ))
+    now = timezone.now()
+    for item in items:
+        item._lineage_transition = True
+        item.status = BankOutstandingItem.CLEARED
+        item.cleared_by_match = match
+        item.cleared_by_id = actor.pk
+        item.cleared_by_label = actor_label(actor)
+        item.cleared_at = now
+        item.save(update_fields=(
+            "status", "cleared_by_match", "cleared_by_id", "cleared_by_label", "cleared_at",
+        ))
+        _bank_event(item.batch, "outstanding_item_cleared", actor, reason=match.reason, snapshot={
+            "item_checksum": item.source_checksum,
+            "clearing_statement_reference": batch.statement_reference,
+            "clearing_statement_row": match.statement_row.row_number,
+            "clearing_match_checksum": match.source_checksum,
+        })
+    return items
+
+
+def _reopen_cleared_items_for_matches(matches, actor, *, reason):
+    match_ids = [match.pk for match in matches]
+    if not match_ids:
+        return []
+    items = list(BankOutstandingItem.objects.select_for_update().select_related("batch").filter(
+        status=BankOutstandingItem.CLEARED, cleared_by_match_id__in=match_ids,
+    ))
+    for item in items:
+        prior_match_id = item.cleared_by_match_id
+        item._lineage_transition = True
+        item.status = BankOutstandingItem.ACTIVE
+        item.cleared_by_match = None
+        item.cleared_by_id = None
+        item.cleared_by_label = ""
+        item.cleared_at = None
+        item.save(update_fields=(
+            "status", "cleared_by_match", "cleared_by_id", "cleared_by_label", "cleared_at",
+        ))
+        _bank_event(item.batch, "outstanding_item_clearance_reopened", actor, reason=reason, snapshot={
+            "item_checksum": item.source_checksum,
+            "superseded_match_id": prior_match_id,
+        })
+    return items
+
+
 @transaction.atomic(using=FINANCE_DB)
 def match_bank_statement_row(row, line, actor, *, reason, method=BankStatementMatch.MANUAL):
     if not can_prepare_bank_reconciliation(actor):
@@ -1682,9 +1854,6 @@ def match_bank_statement_row(row, line, actor, *, reason, method=BankStatementMa
     BankStatementMatch.objects.filter(statement_row=locked_row, status=BankStatementMatch.ACTIVE).update(
         status=BankStatementMatch.SUPERSEDED, superseded_at=now,
     )
-    BankOutstandingItem.objects.filter(
-        batch=batch, journal_line=ledger_line, status=BankOutstandingItem.ACTIVE,
-    ).update(status=BankOutstandingItem.SUPERSEDED, superseded_at=now)
     snapshot = _match_snapshot(locked_row, ledger_line)
     match = BankStatementMatch.objects.create(
         batch=batch,
@@ -1697,6 +1866,7 @@ def match_bank_statement_row(row, line, actor, *, reason, method=BankStatementMa
         created_by_id=actor.pk,
         created_by_label=actor_label(actor),
     )
+    cleared_items = _clear_outstanding_items_for_match(batch, match, actor)
     batch.state_version += 1
     batch.save(update_fields=("state_version", "updated_at"))
     _bank_event(batch, "row_matched", actor, reason=note, snapshot={
@@ -1705,6 +1875,7 @@ def match_bank_statement_row(row, line, actor, *, reason, method=BankStatementMa
         "entry_reference": ledger_line.entry.reference,
         "method": method,
         "match_checksum": match.source_checksum,
+        "cleared_outstanding_item_checksums": [item.source_checksum for item in cleared_items],
     })
     return match
 
@@ -1759,6 +1930,9 @@ def unmatch_bank_statement_row(row, actor, *, reason):
     ).first()
     if not match:
         raise ValidationError("This statement row has no active match.")
+    reopened_items = _reopen_cleared_items_for_matches(
+        [match], actor, reason=f"Match correction: {note}",
+    )
     match._lineage_transition = True
     match.status = BankStatementMatch.SUPERSEDED
     match.superseded_at = timezone.now()
@@ -1769,6 +1943,7 @@ def unmatch_bank_statement_row(row, actor, *, reason):
         "statement_row": locked_row.row_number,
         "journal_line_id": match.journal_line_id,
         "prior_match_checksum": match.source_checksum,
+        "reopened_outstanding_item_checksums": [item.source_checksum for item in reopened_items],
     })
     return batch
 
@@ -1795,9 +1970,14 @@ def classify_bank_outstanding(batch, line, actor, *, explanation, evidence_refer
         else BankOutstandingItem.OUTSTANDING_CHECK
     )
     now = timezone.now()
-    BankOutstandingItem.objects.filter(
+    prior_item = BankOutstandingItem.objects.select_for_update().select_related("carried_from").filter(
         batch=locked, journal_line=ledger_line, status=BankOutstandingItem.ACTIVE,
-    ).update(status=BankOutstandingItem.SUPERSEDED, superseded_at=now)
+    ).first()
+    if prior_item:
+        prior_item._lineage_transition = True
+        prior_item.status = BankOutstandingItem.SUPERSEDED
+        prior_item.superseded_at = now
+        prior_item.save(update_fields=("status", "superseded_at"))
     snapshot = {
         "journal_line_id": ledger_line.pk,
         "entry_public_id": str(ledger_line.entry.public_id),
@@ -1809,7 +1989,13 @@ def classify_bank_outstanding(batch, line, actor, *, explanation, evidence_refer
         "kind": kind,
         "expected_clearance_date": expected_clearance_date.isoformat(),
         "evidence_reference": evidence,
+        "replaces_item_checksum": prior_item.source_checksum if prior_item else "",
     }
+    if prior_item and prior_item.carried_from_id:
+        snapshot.update({
+            "carried_from_item_id": prior_item.carried_from_id,
+            "carried_from_checksum": prior_item.carried_from.source_checksum,
+        })
     item = BankOutstandingItem.objects.create(
         batch=locked,
         journal_line=ledger_line,
@@ -1821,6 +2007,10 @@ def classify_bank_outstanding(batch, line, actor, *, explanation, evidence_refer
         source_checksum=_snapshot_checksum(snapshot),
         created_by_id=actor.pk,
         created_by_label=actor_label(actor),
+        carried_from=prior_item.carried_from if prior_item and prior_item.carried_from_id else None,
+        carried_by_id=prior_item.carried_by_id if prior_item and prior_item.carried_from_id else None,
+        carried_by_label=prior_item.carried_by_label if prior_item and prior_item.carried_from_id else "",
+        carried_at=prior_item.carried_at if prior_item and prior_item.carried_from_id else None,
     )
     locked.state_version += 1
     locked.save(update_fields=("state_version", "updated_at"))
@@ -1830,6 +2020,7 @@ def classify_bank_outstanding(batch, line, actor, *, explanation, evidence_refer
         "evidence_reference": evidence,
         "expected_clearance_date": expected_clearance_date.isoformat(),
         "item_checksum": item.source_checksum,
+        "replaced_item_checksum": prior_item.source_checksum if prior_item else "",
     })
     return item
 
@@ -1869,12 +2060,19 @@ def bank_reconciliation_snapshot(batch):
     ).select_related("statement_row", "journal_line__entry"))
     all_lines = list(_bank_lines(batch))
     globally_matched_ids = set(BankStatementMatch.objects.filter(
-        journal_line_id__in=[line.pk for line in all_lines], status=BankStatementMatch.ACTIVE,
+        journal_line_id__in=[line.pk for line in all_lines],
+        status=BankStatementMatch.ACTIVE,
+        batch__period_end__lte=batch.period_end,
     ).values_list("journal_line_id", flat=True))
     unmatched_lines = [line for line in all_lines if line.pk not in globally_matched_ids]
     items = list(BankOutstandingItem.objects.filter(
-        batch=batch, journal_line_id__in=[line.pk for line in unmatched_lines], status=BankOutstandingItem.ACTIVE,
-    ).select_related("journal_line__entry"))
+        batch=batch, journal_line_id__in=[line.pk for line in unmatched_lines],
+    ).filter(
+        Q(status=BankOutstandingItem.ACTIVE)
+        | Q(status=BankOutstandingItem.CLEARED, cleared_by_match__batch__period_end__gt=batch.period_end),
+    ).select_related(
+        "batch", "journal_line__entry", "carried_from__batch", "cleared_by_match__batch",
+    ))
     item_line_ids = {item.journal_line_id for item in items}
     outstanding_deposits = sum((item.journal_line.debit for item in items), Decimal("0.00"))
     outstanding_checks = sum((item.journal_line.credit for item in items), Decimal("0.00"))
@@ -1882,7 +2080,7 @@ def bank_reconciliation_snapshot(batch):
     adjusted_bank_balance = batch.closing_balance + outstanding_deposits - outstanding_checks
     difference = adjusted_bank_balance - book_balance
     snapshot = {
-        "schema_version": 1,
+        "schema_version": 2,
         "method": "adjusted_balance",
         "batch_public_id": str(batch.public_id),
         "bank_account_code": batch.bank_account_code,
@@ -1896,6 +2094,8 @@ def bank_reconciliation_snapshot(batch):
         "unmatched_statement_row_count": len(rows) - len(matches),
         "unmatched_ledger_line_count": len(unmatched_lines),
         "classified_outstanding_count": len(items),
+        "carried_forward_count": sum(bool(item.carried_from_id) for item in items),
+        "overdue_outstanding_count": sum(item.expected_clearance_date <= batch.period_end for item in items),
         "unclassified_ledger_line_count": len([line for line in unmatched_lines if line.pk not in item_line_ids]),
         "statement_closing_balance": str(batch.closing_balance),
         "outstanding_deposits": str(outstanding_deposits),
@@ -1905,6 +2105,9 @@ def bank_reconciliation_snapshot(batch):
         "difference": str(difference),
         "matched_line_ids": sorted(match.journal_line_id for match in matches),
         "outstanding_item_checksums": sorted(item.source_checksum for item in items),
+        "carry_forward_lineage": sorted(
+            f"{item.carried_from_id}:{item.source_checksum}" for item in items if item.carried_from_id
+        ),
     }
     snapshot["ready_for_review"] = bool(batch.validation_summary.get("valid")) and all((
         snapshot["unmatched_statement_row_count"] == 0,

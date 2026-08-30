@@ -35,6 +35,7 @@ urlpatterns = [
     path("bank-reconciliation/<uuid:public_id>/stage/", views.bank_reconciliation_stage, name="bank_reconciliation_stage"),
     path("bank-reconciliation/<uuid:public_id>/validate/", views.bank_reconciliation_validate, name="bank_reconciliation_validate"),
     path("bank-reconciliation/<uuid:public_id>/auto-match/", views.bank_reconciliation_auto_match, name="bank_reconciliation_auto_match"),
+    path("bank-reconciliation/<uuid:public_id>/carry-forward/", views.bank_reconciliation_carry_forward, name="bank_reconciliation_carry_forward"),
     path("bank-reconciliation/<uuid:public_id>/rows/<int:row_id>/match/", views.bank_reconciliation_match, name="bank_reconciliation_match"),
     path("bank-reconciliation/<uuid:public_id>/rows/<int:row_id>/unmatch/", views.bank_reconciliation_unmatch, name="bank_reconciliation_unmatch"),
     path("bank-reconciliation/<uuid:public_id>/classify/", views.bank_reconciliation_classify, name="bank_reconciliation_classify"),

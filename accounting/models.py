@@ -1068,7 +1068,12 @@ class BankOutstandingItem(models.Model):
     )
     ACTIVE = "active"
     SUPERSEDED = "superseded"
-    STATUS_CHOICES = ((ACTIVE, "Active"), (SUPERSEDED, "Superseded"))
+    CLEARED = "cleared"
+    STATUS_CHOICES = (
+        (ACTIVE, "Outstanding"),
+        (SUPERSEDED, "Superseded"),
+        (CLEARED, "Cleared by later bank statement"),
+    )
 
     batch = models.ForeignKey(BankStatementBatch, on_delete=models.PROTECT, related_name="outstanding_items")
     journal_line = models.ForeignKey(JournalLine, on_delete=models.PROTECT, related_name="bank_outstanding_items")
@@ -1083,6 +1088,20 @@ class BankOutstandingItem(models.Model):
     created_by_label = models.CharField(max_length=160)
     created_at = models.DateTimeField(auto_now_add=True)
     superseded_at = models.DateTimeField(null=True, blank=True)
+    carried_from = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="carry_forward_versions",
+    )
+    carried_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    carried_by_label = models.CharField(max_length=160, blank=True)
+    carried_at = models.DateTimeField(null=True, blank=True)
+    cleared_by_match = models.ForeignKey(
+        BankStatementMatch, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="cleared_outstanding_items",
+    )
+    cleared_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    cleared_by_label = models.CharField(max_length=160, blank=True)
+    cleared_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("journal_line__entry__entry_date", "journal_line_id", "-created_at")
@@ -1100,6 +1119,12 @@ class BankOutstandingItem(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Outstanding-item evidence cannot be deleted.")
+
+    @property
+    def age_days(self):
+        if not self.batch_id or not self.journal_line_id:
+            return 0
+        return max((self.batch.period_end - self.journal_line.entry.entry_date).days, 0)
 
 
 class BankReconciliationEvent(DepartmentOwnedModel):

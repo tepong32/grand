@@ -1,6 +1,6 @@
 # Finance bank-statement intake and reconciliation
 
-Status: **F8.2 implemented synthetic control; local BRS/template acceptance remains required**.
+Status: **F8.2 + F8.5 implemented synthetic control; local BRS/template acceptance remains required**.
 
 This slice provides a familiar monthly Accounting workflow for one bank account and fund at a time. It does not connect directly to a bank, replace authorized JEV preparation, or claim that GRAND's controlled CSV is the locally accepted official Bank Reconciliation Statement (BRS).
 
@@ -17,16 +17,18 @@ The public COA Government Accounting Manual Chapter 21 describes bank reconcilia
 
 1. An Accounting preparer creates one monthly batch using the active Finance Setup bank-account code, fund, bank/statement identity, safe masked account value, statement dates, receipt date, and independently checked control totals.
 2. The preparer uploads the [human-editable starter CSV](finance-starters/BANK_STATEMENT_IMPORT.csv). GRAND records its SHA-256, keeps each source version, validates dates, one-sided amounts, row totals, optional running balances, and the opening-plus-deposits-less-withdrawals closing equation.
-3. Unique exact matching requires the same date, reference, amount, and debit/credit direction. Ambiguous same-amount candidates remain visible for a human evidence-based choice.
-4. A statement transaction without a posted matching book line cannot close. Bank charges, credit/debit memoranda, direct credits, or book errors must follow the authorized JEV/correction route, then be matched.
-5. Posted ledger bank lines absent from the statement may be classified as deposits in transit or outstanding checks/withdrawals only with explanation, supporting reference, and expected clearance date.
-6. GRAND computes `statement closing + deposits in transit - outstanding checks = adjusted bank balance` and compares that to the posted GL cash balance through the statement end.
-7. Submission requires every statement row matched, every ledger-only line classified, valid statement controls, and exactly zero unexplained difference.
-8. A different Accounting reviewer approves with the reviewed BRS/evidence reference or returns a specific correction instruction.
+3. After validation, the preparer uses **Carry unresolved prior items**. GRAND selects only the latest active item from an earlier independently reconciled statement for the same bank account/fund, and preserves the original statement, evidence checksum, expected-clearance date, age, and overdue state.
+4. Unique exact matching requires the same date, reference, amount, and debit/credit direction. Ambiguous same-amount candidates remain visible for a human evidence-based choice.
+5. When a later bank row is matched to a carried check/deposit, GRAND closes every active occurrence in that retained lineage. The closed prior month itself is never rewritten.
+6. A statement transaction without a posted matching book line cannot close. Bank charges, credit/debit memoranda, direct credits, or book errors must follow the authorized JEV/correction route, then be matched.
+7. New posted ledger bank lines absent from the statement may be classified as deposits in transit or outstanding checks/withdrawals only with explanation, supporting reference, and expected clearance date.
+8. GRAND computes `statement closing + deposits in transit - outstanding checks = adjusted bank balance` and compares that to the posted GL cash balance through the statement end.
+9. Submission requires every statement row matched, every ledger-only line classified, valid statement controls, and exactly zero unexplained difference.
+10. A different Accounting reviewer approves with the reviewed BRS/evidence reference or returns a specific correction instruction.
 
 ## Modification allowance and history
 
-Until submission, and again after a return, the preparer may correct declared controls, replace the staged CSV, change a match, or replace timing-item evidence. Every replacement requires a reason where applicable; source versions, prior matches/classifications, checksums, actors, and events remain retained. Under review and after reconciliation, controls are read-only. A later discovered book error uses an adjusting/reversing JEV and, where required, a successor BRS rather than rewriting the closed record.
+Until submission, and again after a return, the preparer may correct declared controls, replace the staged CSV, change a match, or replace timing-item evidence. Every replacement requires a reason where applicable; source versions, prior matches/classifications, checksums, actors, and events remain retained. If a later-bank match is removed or its statement is restaged, GRAND reopens the timing items that match had cleared, with the correction reason; a corrected rematch closes the same lineage again. Under review and after reconciliation, controls are read-only. A later discovered book error uses an adjusting/reversing JEV and, where required, a successor BRS rather than rewriting the closed record.
 
 ## Starter CSV
 
@@ -44,10 +46,10 @@ transaction_date,bank_reference,description,withdrawal,deposit,running_balance
 
 ## Export and safekeeping
 
-The controlled evidence export contains current statement rows, matches, outstanding items, adjusted-balance controls, source/version checksums, and reconciliation checksum. The same bytes are archived atomically below `department/user/finance-bank-reconciliation/year/month` inside `GRAND_EXPORT_ROOT`, beside a manifest suitable for whole-folder TraceSync copying.
+The controlled evidence export contains current statement rows, matches, outstanding items, carried-from statement/checksum, age, later-cleared prior statements, adjusted-balance controls, source/version checksums, and reconciliation checksum. The same bytes are archived atomically below `department/user/finance-bank-reconciliation/year/month` inside `GRAND_EXPORT_ROOT`, beside a manifest suitable for whole-folder TraceSync copying.
 
 The export is controlled working/evidence data, not automatically an official BRS. Keep the approved signed BRS and attachments under the locally accepted records procedure.
 
 ## Acceptance still required
 
-Before official use, named Accounting, Treasury, management, and audit-coordination owners must confirm the actual bank statement formats, bank-account/fund scope, prior-month outstanding-item carry-forward and ageing, bank debit/credit memo route, book-adjustment route, local review/signature matrix, deadlines/copies/recipients, official BRS layout, and at least one redacted month replayed to zero.
+Before official use, named Accounting, Treasury, management, and audit-coordination owners must confirm the actual bank statement formats, bank-account/fund scope, local ageing/escalation treatment for carried items, bank debit/credit memo route, book-adjustment route, local review/signature matrix, deadlines/copies/recipients, official BRS layout, and at least two consecutive redacted months replayed through carry-forward, later clearance, and zero difference.

@@ -41,7 +41,8 @@ from .models import (
 )
 from .services import (
     adopt_configuration_release, begin_foundation_amendment, close_period, create_reversal,
-    auto_match_bank_statement, bank_reconciliation_snapshot, classify_bank_outstanding,
+    auto_match_bank_statement, bank_outstanding_carry_candidates, bank_reconciliation_snapshot,
+    carry_forward_bank_outstanding, classify_bank_outstanding,
     correct_bank_statement_batch, decide_bank_reconciliation, match_bank_statement_row,
     correct_opening_batch, correct_opening_row, decide_opening_batch, decide_readiness_layer, discard_draft,
     ensure_readiness_layers, evaluate_fiscal_year_readiness, finalize_foundation_amendment,
@@ -744,12 +745,14 @@ def bank_reconciliation_detail(request, public_id):
     item_map = {item.journal_line_id: item for item in items}
     for line in unmatched_lines:
         line.active_outstanding_item = item_map.get(line.pk)
+    carry_candidates = bank_outstanding_carry_candidates(batch) if can_prepare_bank_reconciliation(request.user) else []
     return render(request, "accounting/bank_reconciliation_detail.html", {
         "batch": batch,
         "rows": rows,
         "matches": matches,
         "unmatched_lines": unmatched_lines,
         "items": items,
+        "carry_candidates": carry_candidates,
         "snapshot": snapshot,
         "snapshot_checksum": snapshot_checksum,
         "setup_error": setup_error,
@@ -758,6 +761,25 @@ def bank_reconciliation_detail(request, public_id):
         "can_approve_bank": can_approve_bank_reconciliation(request.user),
         "can_export_bank": can_export_bank_reconciliation(request.user),
     })
+
+
+@require_POST
+@accounting_permission_required(can_prepare_bank_reconciliation)
+def bank_reconciliation_carry_forward(request, public_id):
+    batch = _bank_batch_for_department(request, public_id)
+    try:
+        items = carry_forward_bank_outstanding(batch, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        if items:
+            messages.success(
+                request,
+                f"Carried {len(items)} unresolved prior-period item(s) with retained statement lineage.",
+            )
+        else:
+            messages.info(request, "No unresolved approved prior-period items need carrying.")
+    return redirect("accounting:bank_reconciliation_detail", public_id=public_id)
 
 
 @require_POST
@@ -931,6 +953,13 @@ def bank_reconciliation_export(request, public_id):
     snapshot, checksum, rows, matches, unmatched_lines, items = bank_reconciliation_snapshot(batch)
     match_map = {match.statement_row_id: match for match in matches}
     item_map = {item.journal_line_id: item for item in items}
+    cleared_map = {}
+    cleared_items = BankOutstandingItem.objects.filter(
+        cleared_by_match_id__in=[match.pk for match in matches],
+        status=BankOutstandingItem.CLEARED,
+    ).select_related("batch")
+    for cleared_item in cleared_items:
+        cleared_map.setdefault(cleared_item.cleared_by_match_id, []).append(cleared_item)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     reference = slugify(batch.statement_reference)[:80] or str(batch.public_id)
     filename = f"bank-reconciliation-{reference}.csv"
@@ -942,9 +971,12 @@ def bank_reconciliation_export(request, public_id):
         "period_end", "source_version", "source_checksum", "row_number", "transaction_date", "bank_reference",
         "description", "withdrawal", "deposit", "running_balance", "journal_reference", "journal_date",
         "journal_line_id", "match_method", "evidence_reference", "expected_clearance_date", "evidence_checksum",
+        "carried_from_statement", "carried_from_checksum", "age_days", "cleared_by_statement",
+        "cleared_prior_statements",
     ))
     for row in rows:
         match = match_map.get(row.pk)
+        cleared = cleared_map.get(match.pk, []) if match else []
         writer.writerow((
             "statement_row", _csv_text(batch.statement_reference), batch.status, _csv_text(batch.bank_account_code),
             _csv_text(batch.fund.code), batch.period_start, batch.period_end, batch.source_version,
@@ -953,6 +985,8 @@ def bank_reconciliation_export(request, public_id):
             _csv_text(match.journal_line.entry.reference if match else ""),
             match.journal_line.entry.entry_date if match else "", match.journal_line_id if match else "",
             match.method if match else "unmatched", "", "", match.source_checksum if match else row.row_checksum,
+            "", "", "", "",
+            _csv_text(" | ".join(sorted({item.batch.statement_reference for item in cleared}))),
         ))
     for line in unmatched_lines:
         item = item_map.get(line.pk)
@@ -963,13 +997,21 @@ def bank_reconciliation_export(request, public_id):
             line.debit, "", _csv_text(line.entry.reference), line.entry.entry_date, line.pk,
             item.kind if item else "", _csv_text(item.evidence_reference if item else ""),
             item.expected_clearance_date if item else "", item.source_checksum if item else "",
+            _csv_text(item.carried_from.batch.statement_reference if item and item.carried_from_id else ""),
+            item.carried_from.source_checksum if item and item.carried_from_id else "",
+            item.age_days if item else "",
+            _csv_text(
+                item.cleared_by_match.batch.statement_reference
+                if item and item.cleared_by_match_id else ""
+            ),
+            "",
         ))
     writer.writerow((
         "reconciliation_control", _csv_text(batch.statement_reference), batch.status, _csv_text(batch.bank_account_code),
         _csv_text(batch.fund.code), batch.period_start, batch.period_end, batch.source_version, batch.source_checksum,
         "", "", "", "adjusted bank / book / difference", snapshot["outstanding_checks"],
         snapshot["outstanding_deposits"], snapshot["statement_closing_balance"], snapshot["book_balance"], "",
-        "", "", "", "", checksum,
+        "", "", "", "", checksum, "", "", "", "", "",
     ))
     archived = archive_export(
         content=response.content,
