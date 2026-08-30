@@ -52,6 +52,9 @@ def _permissions(user):
         "advice": has_explicit_permission(user, "vouchers.finalize_bank_advice"),
         "release": has_explicit_permission(user, "vouchers.release_payment_instruments"),
         "exceptions": has_explicit_permission(user, "vouchers.manage_payment_exceptions"),
+        "cash_view": has_explicit_permission(user, "vouchers.view_cash_position"),
+        "cash_prepare": has_explicit_permission(user, "vouchers.prepare_cash_position"),
+        "cash_approve": has_explicit_permission(user, "vouchers.approve_cash_position"),
         "return": has_explicit_permission(user, "vouchers.return_voucher_case"),
         "amend_nonfinancial": has_explicit_permission(user, "vouchers.amend_nonfinancial_voucher"),
         "audit": has_explicit_permission(user, "vouchers.view_voucher_audit"),
@@ -313,7 +316,10 @@ def case_action(request, public_id, action):
         elif action == "validate-accounting":
             validate_accounting(**common, jev_number=data["jev_number"], jev_date=data["jev_date"], note=data["note"])
         elif action == "issue-check":
-            issue_check(**common, bank_account_code=data["bank_account_code"], check_number=data["check_number"], amount=data["amount"], replaces=data["replaces"])
+            issue_check(
+                **common, bank_account_code=data["bank_account_code"], fund_code=data["fund_code"],
+                check_number=data["check_number"], amount=data["amount"], replaces=data["replaces"],
+            )
         elif action == "submit-checks":
             submit_checks_for_advice(**common)
         elif action == "finalize-advice":

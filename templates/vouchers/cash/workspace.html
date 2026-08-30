@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block title_ext %} · Treasury Cash Position{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div>
+      <p class="text-uppercase text-primary small font-weight-bold mb-1">Treasury Office</p>
+      <h1 class="h3 mb-1">Cash position and instrument ageing</h1>
+      <p class="text-muted mb-0">Keep cash authority separate from budget authority, reserve approved cash at issue, and resolve ageing exceptions without rewriting check history.</p>
+    </div>
+    <div class="mt-2">
+      <a class="btn btn-outline-secondary" href="{% url 'vouchers:workspace' %}">Finance queue</a>
+      <a class="btn btn-outline-secondary" href="{% url 'vouchers:cash_starter' %}"><i class="fas fa-file-csv mr-1"></i>Planning starter</a>
+      {% if can_export %}<a class="btn btn-outline-primary" href="{% url 'vouchers:cash_export' %}"><i class="fas fa-file-export mr-1"></i>Export</a>{% endif %}
+      {% if can_prepare %}<a class="btn btn-primary" href="{% url 'vouchers:cash_policy_create' %}"><i class="fas fa-plus mr-1"></i>Prepare policy</a>{% endif %}
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <strong>Local acceptance gate.</strong> Observe mode reports availability without blocking issue. Enforce mode blocks issue only after a different reviewer activates the bank/fund policy and approves a current cash position. Public COA/DBM guidance is supporting context, not automatic local acceptance.
+  </div>
+
+  <div class="card card-outline card-primary">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Bank and fund controls</h2></div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead><tr><th>Bank / fund</th><th>Mode</th><th>Policy</th><th>Current position</th><th class="text-right">Reserved</th><th class="text-right">Available</th><th></th></tr></thead>
+        <tbody>
+          {% for policy in policies %}
+          <tr>
+            <td><strong>{{ policy.bank_account_code }}</strong><br><span class="text-muted">{{ policy.fund_code }} · v{{ policy.version }}</span></td>
+            <td>{{ policy.get_mode_display }}</td>
+            <td><span class="badge {% if policy.status == 'active' %}badge-success{% elif policy.status == 'for_review' %}badge-info{% else %}badge-secondary{% endif %}">{{ policy.get_status_display }}</span></td>
+            <td>{% if policy.current_position %}{{ policy.current_position.as_of_date }}{% if not policy.position_current %} <span class="badge badge-warning">old</span>{% endif %}{% else %}<span class="text-muted">None approved</span>{% endif %}</td>
+            <td class="text-right">{{ policy.reserved_amount|floatformat:2 }}</td>
+            <td class="text-right">{% if policy.available_amount != None %}{{ policy.available_amount|floatformat:2 }}{% else %}—{% endif %}</td>
+            <td class="text-right"><a class="btn btn-sm btn-outline-primary" href="{% url 'vouchers:cash_policy_detail' policy.public_id %}">Open</a></td>
+          </tr>
+          {% empty %}<tr><td colspan="7" class="text-center text-muted py-4">No cash-control policy has been prepared.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-header"><h2 class="card-title font-weight-bold">Open instrument exceptions</h2></div>
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead><tr><th>Check</th><th>Case</th><th>Exception</th><th>Observed</th><th>Evidence</th><th></th></tr></thead>
+            <tbody>
+              {% for exception in exceptions %}
+              <tr>
+                <td>{{ exception.instrument.check_number }}</td><td>{{ exception.instrument.case.reference_code }}</td>
+                <td>{{ exception.get_kind_display }}</td><td>{{ exception.observed_on }}</td><td>{{ exception.evidence_reference }}</td>
+                <td>
+                  {% if can_exceptions %}
+                  <form method="post" action="{% url 'vouchers:cash_exception_resolve' exception.public_id %}">{% csrf_token %}
+                    <textarea class="form-control form-control-sm mb-1" name="resolution" rows="2" required placeholder="Resolution and evidence"></textarea>
+                    <button class="btn btn-sm btn-outline-success" type="submit">Resolve</button>
+                  </form>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">No open unclaimed, stale, or returned instrument exception.</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      {% if can_exceptions %}
+      <div class="card card-outline card-warning">
+        <div class="card-header"><h2 class="card-title font-weight-bold">Classify an instrument exception</h2></div>
+        <div class="card-body">
+          <p class="small text-muted">Thresholds come from the active local bank/fund policy. Stale instruments cannot be released; use cancellation/replacement or the accepted Accounting correction route.</p>
+          <form method="post" action="{% url 'vouchers:cash_exception_open' %}">{% csrf_token %}{{ exception_form|crispy }}<button class="btn btn-warning" type="submit">Record exception</button></form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Instrument ageing queue</h2></div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Check</th><th>Case</th><th>Bank / fund</th><th>Issue date</th><th>Payment state</th><th>Operational state</th></tr></thead>
+        <tbody>
+          {% for instrument in instruments %}<tr><td>{{ instrument.check_number }}</td><td><a href="{{ instrument.case.get_absolute_url }}">{{ instrument.case.reference_code }}</a></td><td>{{ instrument.bank_account_code }}<br><span class="text-muted">{{ instrument.fund_code|default:'Fund not pinned' }}</span></td><td>{{ instrument.issued_at|date:'Y-m-d' }}</td><td>{{ instrument.get_status_display }}</td><td>{{ instrument.get_operational_status_display }}</td></tr>
+          {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">No payment instruments yet.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

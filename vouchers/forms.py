@@ -10,6 +10,7 @@ from django.utils import timezone
 from departments.models import Department
 from budget.models import ObligationMovement, ObligationRequest, PayableObligationAllocation
 from budget.services import obligation_lineage_request_ids
+from accounting.models import Fund
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceParty, FinancePartyClaimant, FinanceSignatory,
     FinanceTransactionVariant,
@@ -17,6 +18,7 @@ from finance.models import (
 
 from .models import (
     PayableDocumentEvidence, PayableIntake, PaymentInstrument, VoucherCase,
+    PaymentInstrumentException, TreasuryCashPolicy, TreasuryCashPosition,
     TreasuryRemittanceLine, VoucherPrintJob, WetSignatureTask,
 )
 
@@ -554,6 +556,7 @@ class AccountingValidationForm(WorkflowForm):
 
 class CheckIssueForm(WorkflowForm):
     bank_account_code = forms.ChoiceField(label="Bank / payment account")
+    fund_code = forms.ChoiceField(label="Cash fund", required=False)
     check_number = forms.CharField(max_length=60)
     amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.01"))
     replaces = forms.ModelChoiceField(queryset=PaymentInstrument.objects.none(), required=False, label="Replaces cancelled check")
@@ -561,6 +564,11 @@ class CheckIssueForm(WorkflowForm):
     def __init__(self, *args, case=None, **kwargs):
         super().__init__(*args, case=case, **kwargs)
         self.fields["bank_account_code"].choices = _items(case.configuration_release if case else None, "bank_account")
+        funds = []
+        if case and hasattr(case, "obligation"):
+            codes = case.obligation.allocation_lines.values_list("fund_code", flat=True).distinct()
+            funds = [(code, code) for code in codes]
+        self.fields["fund_code"].choices = funds
         if case and hasattr(case, "disbursement_voucher"):
             existing = sum((item.amount for item in case.payment_instruments.exclude(status=PaymentInstrument.CANCELLED)), Decimal("0.00"))
             self.fields["amount"].initial = case.disbursement_voucher.net_amount - existing
@@ -614,6 +622,99 @@ class CancelCheckForm(WorkflowForm):
         super().__init__(*args, case=case, **kwargs)
         if case:
             self.fields["instrument"].queryset = case.payment_instruments.filter(status__in=(PaymentInstrument.ISSUED, PaymentInstrument.ADVISED))
+
+
+class TreasuryCashPolicyForm(forms.Form):
+    configuration_release = forms.ModelChoiceField(
+        queryset=FinanceConfigurationRelease.objects.none(), label="Approved Finance setup",
+    )
+    bank_account_code = forms.ChoiceField(label="Bank / payment account")
+    fund_code = forms.ChoiceField(label="Accounting fund")
+    mode = forms.ChoiceField(choices=TreasuryCashPolicy.MODE_CHOICES, label="Control mode")
+    minimum_reserve = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.00"))
+    position_max_age_days = forms.IntegerField(min_value=1, max_value=366, initial=35, label="Maximum position age (days)")
+    unclaimed_after_days = forms.IntegerField(min_value=1, max_value=366, initial=30, label="Mark unclaimed after (days)")
+    stale_after_days = forms.IntegerField(min_value=2, max_value=730, initial=180, label="Mark stale after (days)")
+    effective_from = forms.DateField(widget=DateInput)
+    effective_to = forms.DateField(widget=DateInput, required=False)
+    authority_reference = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Name the reviewed COA/DBM/bank/local issuance or approved procedure.",
+    )
+    local_applicability_note = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Explain who accepted this rule locally and where the signed or approved basis is kept.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        today = timezone.localdate()
+        releases = FinanceConfigurationRelease.objects.filter(
+            status="active", effective_from__lte=today,
+        ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today)).order_by("-fiscal_year", "title")
+        self.fields["configuration_release"].queryset = releases
+        release_id = self.data.get("configuration_release") or self.initial.get("configuration_release")
+        release = releases.filter(pk=release_id).first() if release_id else releases.first()
+        self.fields["bank_account_code"].choices = _items(release, "bank_account")
+        self.fields["fund_code"].choices = list(
+            Fund.objects.filter(department_id=release.department_id, is_active=True).order_by("code").values_list("code", "name")
+        ) if release else []
+        self.fields["effective_from"].initial = today
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("stale_after_days", 0) <= cleaned.get("unclaimed_after_days", 0):
+            self.add_error("stale_after_days", "The stale threshold must be later than the unclaimed threshold.")
+        return cleaned
+
+
+class TreasuryCashPositionForm(forms.Form):
+    as_of_date = forms.DateField(widget=DateInput)
+    confirmed_inflows = forms.DecimalField(
+        max_digits=18, decimal_places=2, min_value=Decimal("0.00"), initial=Decimal("0.00"),
+        help_text="Confirmed credits after the reconciled period; do not include hopeful forecasts.",
+    )
+    confirmed_outflows = forms.DecimalField(
+        max_digits=18, decimal_places=2, min_value=Decimal("0.00"), initial=Decimal("0.00"),
+        help_text="Confirmed withdrawals after the reconciled period that are not already reserved here.",
+    )
+    other_holds = forms.DecimalField(
+        max_digits=18, decimal_places=2, min_value=Decimal("0.00"), initial=Decimal("0.00"),
+        help_text="Restricted or earmarked cash excluded by the locally approved policy.",
+    )
+    evidence_reference = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    preparation_note = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["as_of_date"].initial = timezone.localdate()
+
+
+class TreasuryCashReviewForm(forms.Form):
+    decision = forms.ChoiceField(choices=(("approve", "Approve"), ("return", "Return for correction")))
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), label="Review basis / correction instruction")
+
+
+class InstrumentExceptionForm(forms.Form):
+    instrument = forms.ModelChoiceField(queryset=PaymentInstrument.objects.none())
+    kind = forms.ChoiceField(choices=PaymentInstrumentException.KIND_CHOICES)
+    observed_on = forms.DateField(widget=DateInput)
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    evidence_reference = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["instrument"].queryset = PaymentInstrument.objects.exclude(
+            status__in=(PaymentInstrument.DRAFT, PaymentInstrument.CANCELLED),
+        ).select_related("case").order_by("-issued_at", "check_number")
+        self.fields["observed_on"].initial = timezone.localdate()
+
+
+class InstrumentExceptionResolutionForm(forms.Form):
+    resolution = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Record the claimant contact, cancellation/replacement, bank acknowledgement, or Accounting correction reference.",
+    )
 
 
 class TracePointLinkForm(WorkflowForm):

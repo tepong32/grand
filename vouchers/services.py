@@ -29,7 +29,7 @@ from .access import department_for_user, has_explicit_permission
 from .models import (
     AccountingValidation, BankAdviceBatch, BankAdviceItem, BudgetAllocationLine,
     BudgetObligation, ControlOverride, DisbursementVoucher, PaymentInstrument,
-    PayableDocumentEvidence, PayableIntake,
+    PayableDocumentEvidence, PayableIntake, PaymentInstrumentException, TreasuryCashReservation,
     VoucherCase, VoucherDeduction, VoucherDocumentCheck, VoucherEvent,
     VoucherLineItem, VoucherNonFinancialAmendment, VoucherNumberIssue, VoucherOutput,
     VoucherPostingRequest, VoucherPrintJob, VoucherTask, WetSignatureTask,
@@ -1626,7 +1626,7 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
 
 
 @transaction.atomic
-def issue_check(*, case, actor, bank_account_code, check_number, amount, expected_version, idempotency_key, replaces=None):
+def issue_check(*, case, actor, bank_account_code, check_number, amount, expected_version, idempotency_key, replaces=None, fund_code=""):
     _require(actor, "vouchers.issue_payment_instruments")
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
@@ -1634,6 +1634,10 @@ def issue_check(*, case, actor, bank_account_code, check_number, amount, expecte
     if case.current_stage != VoucherCase.TREASURY_CHECK_PREPARATION:
         raise VoucherWorkflowError("This voucher is not ready for Treasury check preparation.")
     amount = Decimal(amount)
+    from .cash_positions import preflight_instrument_cash, reserve_instrument_cash
+    fund_code, cash_policy, cash_availability = preflight_instrument_cash(
+        case=case, bank_account_code=bank_account_code, fund_code=fund_code, amount=amount,
+    )
     if PaymentInstrument.objects.filter(bank_account_code=bank_account_code, check_number=check_number).exists():
         raise VoucherWorkflowError("That physical check number has already been registered for this bank account and cannot be reused.")
     if replaces and (replaces.case_id != case.pk or replaces.status != PaymentInstrument.CANCELLED or hasattr(replaces, "replacement")):
@@ -1642,9 +1646,12 @@ def issue_check(*, case, actor, bank_account_code, check_number, amount, expecte
     if active_total + amount > case.disbursement_voucher.net_amount:
         raise VoucherWorkflowError("Active checks cannot exceed the voucher net amount.")
     instrument = PaymentInstrument.objects.create(
-        case=case, bank_account_code=bank_account_code, check_number=check_number,
+        case=case, bank_account_code=bank_account_code, fund_code=fund_code, check_number=check_number,
         amount=amount, status=PaymentInstrument.ISSUED, replaces=replaces,
         issued_by=actor, issued_at=timezone.now(),
+    )
+    reserve_instrument_cash(
+        instrument=instrument, actor=actor, policy=cash_policy, availability=cash_availability,
     )
     event_kind = FinancePostingRule.REPLACEMENT if replaces else FinancePostingRule.PAYMENT
     recognition_point = (
@@ -1733,6 +1740,8 @@ def release_check(*, case, instrument, actor, claimant, receipt_reference, expec
         return case
     if case.current_stage != VoucherCase.TREASURY_RELEASE or instrument.case_id != case.pk or instrument.status != PaymentInstrument.ADVISED:
         raise VoucherWorkflowError("Only an advised check in Treasury's release queue may be released.")
+    if instrument.operational_status in (PaymentInstrument.STALE, PaymentInstrument.RETURNED):
+        raise VoucherWorkflowError("This instrument has an open stale/returned exception and cannot be released.")
     if claimant.party_id != case.payee_id or claimant.status != "active":
         raise VoucherWorkflowError("Select an active authorized claimant for this payee.")
     instrument.status = PaymentInstrument.RELEASED
@@ -1740,6 +1749,19 @@ def release_check(*, case, instrument, actor, claimant, receipt_reference, expec
     instrument.released_to_claimant, instrument.released_to = claimant, claimant.display_name
     instrument.receipt_reference = receipt_reference.strip()
     instrument.save(update_fields=("status", "released_by", "released_at", "released_to_claimant", "released_to", "receipt_reference"))
+    from .cash_positions import close_reservation, resolve_instrument_exception
+    close_reservation(
+        instrument=instrument, actor=actor, status=TreasuryCashReservation.CONSUMED,
+        reason=f"Released to authorized claimant; receipt {instrument.receipt_reference}",
+    )
+    for exception in instrument.exceptions.filter(
+        status=PaymentInstrumentException.OPEN, kind=PaymentInstrumentException.UNCLAIMED,
+    ):
+        resolve_instrument_exception(
+            exception=exception, actor=actor,
+            resolution=f"Released to authorized claimant; receipt {instrument.receipt_reference}",
+            permission_required=False,
+        )
     remaining = case.payment_instruments.exclude(
         status__in=(PaymentInstrument.RELEASED, PaymentInstrument.CANCELLED),
     ).exists()
@@ -1790,6 +1812,17 @@ def cancel_check(*, case, instrument, actor, reason, expected_version, idempoten
     instrument.status, instrument.cancelled_by, instrument.cancelled_at = PaymentInstrument.CANCELLED, actor, timezone.now()
     instrument.cancellation_reason = reason.strip()
     instrument.save(update_fields=("status", "cancelled_by", "cancelled_at", "cancellation_reason"))
+    from .cash_positions import close_reservation, resolve_instrument_exception
+    close_reservation(
+        instrument=instrument, actor=actor, status=TreasuryCashReservation.RELEASED,
+        reason=f"Instrument cancelled: {instrument.cancellation_reason}",
+    )
+    for exception in instrument.exceptions.filter(status=PaymentInstrumentException.OPEN):
+        resolve_instrument_exception(
+            exception=exception, actor=actor,
+            resolution=f"Instrument cancelled; follow the controlled replacement/accounting route. {instrument.cancellation_reason}",
+            permission_required=False,
+        )
     posting_request = _create_event_posting_request(
         case=case,
         actor=actor,

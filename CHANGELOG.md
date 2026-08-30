@@ -1,5 +1,14 @@
 # Changelog
 
+## F8.3 Treasury cash position and instrument ageing
+
+- Added locally versioned Observe/Enforce cash-control policies by Finance setup, bank account, and fund, with reserves, position-age limits, instrument thresholds, authority references, local-applicability notes, effective dates, and independent review.
+- Added reconciliation-backed cash-position snapshots with confirmed later movements, restricted/held cash, checksum-backed maker/checker approval, and retained reasoned successor corrections.
+- Added issue-time cash reservations, enforced insufficient/stale-position gates, release consumption, cancellation release, and a dashboard that keeps cash authority distinct from Budget authority.
+- Added evidence-backed unclaimed, stale, and returned instrument classifications; stale release blocking; escalation/resolution history; and locally configurable thresholds.
+- Added a plain CSV planning starter, Treasury/Accounting floating Internal How-Tos, and TraceSync-ready cash policy/position/reservation/exception exports.
+- Corrected the F8.2 bank-reconciliation lookup to use Accounting's authoritative `PostingMapping.BANK` category.
+
 Material GRAND changes are recorded here. The repository's Git history remains the detailed source of truth.
 
 ## Unreleased

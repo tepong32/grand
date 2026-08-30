@@ -25,6 +25,9 @@ ACTION_PERMISSIONS = (
     "vouchers.prepare_remittances",
     "vouchers.approve_remittances",
     "vouchers.release_remittances",
+    "vouchers.prepare_cash_position",
+    "vouchers.approve_cash_position",
+    "vouchers.export_cash_position",
 )
 
 

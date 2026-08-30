@@ -7,6 +7,22 @@ from ..models import Department, InternalHowTo, InternalHowToStep
 
 ACCOUNTING_GUIDES = (
     {
+        "slug": "finance-cash-position-review",
+        "version": 1,
+        "title": "Review Treasury cash policies and positions",
+        "summary": "Independently review bank/fund cash rules and reconciled cash-position snapshots before they may govern check issue.",
+        "permission": "vouchers.approve_cash_position",
+        "patterns": ["vouchers:cash_*", "accounting:bank_reconciliation_*"],
+        "order": 52,
+        "steps": (
+            ("Review the local rule before activation", "Compare the bank account, fund, Observe/Enforce choice, reserve, position-age limit, and unclaimed/stale thresholds with the named local authority, bank terms, and accepted Treasury procedure.", "The policy describes an applicable local control rather than copying a generic public rule.", "Keep a new route in Observe mode until named owners accept its operation and evidence.", "Open Cash Position", "vouchers:cash_workspace"),
+            ("Confirm maker/checker separation", "Verify that you did not create or submit the policy or position you are deciding.", "A different authorized reviewer records the decision basis.", "Do not approve through the preparer's account.", "", ""),
+            ("Trace the bank basis", "Open the pinned bank reconciliation and compare its bank, fund, period end, book balance, and checksum with the cash position.", "The position starts from independently reconciled book evidence.", "A budget balance, bank-screen screenshot, or unposted forecast cannot substitute for the reconciled cash basis.", "Open Bank Reconciliation", "accounting:bank_reconciliation_workspace"),
+            ("Review confirmed later movements", "Check each summarized inflow, outflow, restricted amount, and evidence reference after the reconciliation date. Confirm that outstanding issued reservations are not entered again as outflows.", "The calculation is reproducible and does not double count issued instruments.", "Return unclear summaries for a successor version; never edit submitted evidence.", "", ""),
+            ("Approve or return", "Record the reviewed policy/schedule references when approving, or a specific correction instruction when returning.", "Approval creates a checksum-backed source for Treasury; a return keeps the version and calls for a reasoned successor.", "Approval confirms the GRAND control, not an unverified official form layout.", "", ""),
+        ),
+    },
+    {
         "slug": "finance-bank-reconciliation-prepare",
         "version": 1,
         "title": "Prepare a monthly bank reconciliation",
@@ -330,6 +346,24 @@ BUDGET_GUIDES = (
 )
 
 TREASURY_GUIDES = (
+    {
+        "slug": "finance-treasury-cash-position",
+        "version": 1,
+        "title": "Maintain cash position and instrument ageing",
+        "summary": "Prepare locally governed bank/fund cash controls, reserve approved cash at issue, and resolve unclaimed, stale, or returned instruments with retained evidence.",
+        "permission": "vouchers.prepare_cash_position",
+        "patterns": ["vouchers:cash_*", "vouchers:case_*"],
+        "order": 5,
+        "steps": (
+            ("Start with the plain-language starter", "Download the Planning starter to discuss bank/fund routes, reserves, position age, and instrument thresholds with Treasury and Accounting. Copy accepted values into GRAND; the file is editable planning material, not an automatic official form.", "Each route has one clear locally reviewed rule.", "Use Observe first when acceptance or evidence is incomplete.", "Open Cash Position", "vouchers:cash_workspace"),
+            ("Prepare and submit the policy", "Choose the active Finance setup, bank, fund, mode, reserve, thresholds, and effective dates. Cite the reviewed authority and where local acceptance is retained, then submit to a different Accounting reviewer.", "Only an Active policy can support cash positions or ageing classification.", "Do not hard-code a generic validity period when the applicable bank/local rule is unresolved.", "", ""),
+            ("Prepare the cash position", "GRAND pins the latest reconciled bank/book balance. Add only confirmed later inflows and outflows, reviewed restricted cash, and the source schedule reference.", "Available cash equals reconciled book balance plus confirmed inflows, less confirmed outflows, other holds, the minimum reserve, and existing issued reservations.", "Budget availability is a separate upstream control and cannot substitute for cash availability.", "", ""),
+            ("Use the modification allowance", "Before approval, replace a returned same-date schedule with a successor and explain the correction in Preparation note. Before any check exists, use the voucher's guided correction route for eligible DV fields and evidence.", "Prior cash and voucher evidence stays visible; issued instruments are never silently edited.", "After check issue, use cancellation/replacement or Accounting adjustment routes as applicable.", "", ""),
+            ("Issue against the approved position", "At check issue, choose the obligation's fund. Observe mode records available context when possible; Enforce mode requires a current approved position and sufficient cash after all reservations.", "Each eligible check pins a reservation to the approved position.", "A cash pass does not override budget, posting, advice, claimant, or release controls.", "Open Finance Queue", "vouchers:workspace"),
+            ("Classify ageing with evidence", "Use the ageing queue only after the policy threshold. Record follow-up evidence for unclaimed checks, block stale checks from release, and record bank evidence for returned released checks.", "The original issue/advice/release history remains unchanged and the exception stays open until resolved.", "Age alone does not cancel a check or release its cash reservation; cancellation/stop-payment and Accounting action must follow the accepted route.", "Open Cash Position", "vouchers:cash_workspace"),
+            ("Resolve, export, and safeguard", "Record the claimant release, cancellation/replacement, bank acknowledgement, or Accounting correction that resolved the exception. Export when requested and copy or synchronize the complete GRAND export root.", "Cash policy, positions, reservations, exceptions, checksums, and manifests remain together under the TraceSync-ready department/user/category tree.", "Copy the whole export root rather than an isolated CSV when preserving evidence.", "", ""),
+        ),
+    },
     {
         "slug": "finance-treasury-remittance",
         "version": 1,

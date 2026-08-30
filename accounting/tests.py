@@ -1044,7 +1044,7 @@ class StandaloneAccountingTests(TestCase):
         PostingMapping.objects.create(
             department_id=self.accounting_department.pk,
             department_label=self.accounting_department.name,
-            category="bank_account",
+            category=PostingMapping.BANK,
             source_code="SYN-BANK-MAIN",
             label="Synthetic main depository account",
             account=self.cash,

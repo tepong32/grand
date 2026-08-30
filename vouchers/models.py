@@ -111,6 +111,10 @@ class VoucherCase(models.Model):
             ("finalize_bank_advice", "Can finalize accountant bank advice"),
             ("release_payment_instruments", "Can release checks and payment instruments"),
             ("manage_payment_exceptions", "Can cancel and replace payment instruments"),
+            ("view_cash_position", "Can view Treasury cash positions and instrument ageing"),
+            ("prepare_cash_position", "Can prepare Treasury cash policies and positions"),
+            ("approve_cash_position", "Can independently approve Treasury cash policies and positions"),
+            ("export_cash_position", "Can export Treasury cash-position evidence"),
             ("return_voucher_case", "Can return a voucher case for correction"),
             ("amend_nonfinancial_voucher", "Can amend voucher dates and signatories before check issuance"),
             ("view_voucher_audit", "Can view voucher audit history"),
@@ -559,12 +563,25 @@ class PaymentInstrument(models.Model):
     CANCELLED = "cancelled"
     STATUS_CHOICES = ((DRAFT, "Draft"), (ISSUED, "Issued"), (ADVISED, "Included in finalized advice"), (RELEASED, "Released"), (CANCELLED, "Cancelled / spoiled"))
 
+    NORMAL = "normal"
+    UNCLAIMED = "unclaimed"
+    STALE = "stale"
+    RETURNED = "returned"
+    OPERATIONAL_STATUS_CHOICES = (
+        (NORMAL, "No open exception"),
+        (UNCLAIMED, "Unclaimed / awaiting claimant action"),
+        (STALE, "Stale / release blocked"),
+        (RETURNED, "Returned by bank / resolution required"),
+    )
+
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     case = models.ForeignKey(VoucherCase, on_delete=models.PROTECT, related_name="payment_instruments")
     bank_account_code = models.CharField(max_length=80)
+    fund_code = models.CharField(max_length=80, blank=True)
     check_number = models.CharField(max_length=60)
     amount = models.DecimalField(**MONEY, validators=[MinValueValidator(Decimal("0.01"))])
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    operational_status = models.CharField(max_length=16, choices=OPERATIONAL_STATUS_CHOICES, default=NORMAL)
     replaces = models.OneToOneField("self", on_delete=models.PROTECT, null=True, blank=True, related_name="replacement")
     issued_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="issued_payment_instruments")
     issued_at = models.DateTimeField(null=True, blank=True)
@@ -608,6 +625,349 @@ class BankAdviceBatch(models.Model):
 class BankAdviceItem(models.Model):
     batch = models.ForeignKey(BankAdviceBatch, on_delete=models.PROTECT, related_name="items")
     instrument = models.OneToOneField(PaymentInstrument, on_delete=models.PROTECT, related_name="advice_item")
+
+
+class TreasuryCashPolicy(models.Model):
+    OBSERVE = "observe"
+    ENFORCE = "enforce"
+    MODE_CHOICES = (
+        (OBSERVE, "Observe and report only"),
+        (ENFORCE, "Enforce cash availability at instrument issue"),
+    )
+    DRAFT = "draft"
+    FOR_REVIEW = "for_review"
+    ACTIVE = "active"
+    RETURNED = "returned"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft"), (FOR_REVIEW, "For independent review"),
+        (ACTIVE, "Active"), (RETURNED, "Returned for correction"),
+        (SUPERSEDED, "Superseded"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    configuration_release = models.ForeignKey(
+        FinanceConfigurationRelease, on_delete=models.PROTECT, related_name="treasury_cash_policies",
+    )
+    treasury_department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, related_name="treasury_cash_policies",
+    )
+    bank_account_code = models.CharField(max_length=80)
+    fund_code = models.CharField(max_length=80)
+    mode = models.CharField(max_length=12, choices=MODE_CHOICES, default=OBSERVE)
+    minimum_reserve = models.DecimalField(**MONEY)
+    position_max_age_days = models.PositiveSmallIntegerField(default=35)
+    unclaimed_after_days = models.PositiveSmallIntegerField(default=30)
+    stale_after_days = models.PositiveSmallIntegerField(default=180)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True, blank=True)
+    authority_reference = models.TextField()
+    local_applicability_note = models.TextField()
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    version = models.PositiveIntegerField(default=1)
+    supersedes = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_treasury_cash_policies",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_treasury_cash_policies",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="approved_treasury_cash_policies",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    state_version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ("-effective_from", "bank_account_code", "fund_code", "-version")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("configuration_release", "bank_account_code", "fund_code", "version"),
+                name="unique_treasury_cash_policy_version",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.bank_account_code} · {self.fund_code} · v{self.version}"
+
+    def clean(self):
+        if self.minimum_reserve < 0:
+            raise ValidationError({"minimum_reserve": "The minimum reserve cannot be negative."})
+        if self.stale_after_days <= self.unclaimed_after_days:
+            raise ValidationError({"stale_after_days": "The stale threshold must be later than the unclaimed threshold."})
+        if self.effective_to and self.effective_to < self.effective_from:
+            raise ValidationError({"effective_to": "The end date cannot precede the start date."})
+        if self.supersedes_id and (
+            self.supersedes.configuration_release_id != self.configuration_release_id
+            or self.supersedes.bank_account_code != self.bank_account_code
+            or self.supersedes.fund_code != self.fund_code
+        ):
+            raise ValidationError({"supersedes": "A successor must cover the same release, bank account, and fund."})
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            governed = (
+                "configuration_release_id", "treasury_department_id", "bank_account_code", "fund_code",
+                "mode", "minimum_reserve", "position_max_age_days", "unclaimed_after_days",
+                "stale_after_days", "effective_from", "effective_to", "authority_reference",
+                "local_applicability_note", "version", "supersedes_id",
+            )
+            if prior and prior.status in (self.ACTIVE, self.SUPERSEDED) and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Active cash-control policy is immutable. Prepare a successor version.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "configuration_release_id", "treasury_department_id", "bank_account_code", "fund_code",
+                "mode", "minimum_reserve", "position_max_age_days", "unclaimed_after_days",
+                "stale_after_days", "effective_from", "effective_to", "authority_reference",
+                "local_applicability_note", "version", "supersedes_id",
+            )
+            if prior.status in (self.ACTIVE, self.SUPERSEDED) and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Active cash-control policy is immutable. Prepare a successor version.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Cash-policy history is retained. Supersede the policy instead of deleting it.")
+
+
+class TreasuryCashPosition(models.Model):
+    DRAFT = "draft"
+    FOR_REVIEW = "for_review"
+    APPROVED = "approved"
+    RETURNED = "returned"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft"), (FOR_REVIEW, "For independent review"),
+        (APPROVED, "Approved"), (RETURNED, "Returned for correction"),
+        (SUPERSEDED, "Superseded"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    policy = models.ForeignKey(TreasuryCashPolicy, on_delete=models.PROTECT, related_name="positions")
+    as_of_date = models.DateField()
+    reconciliation_public_id = models.UUIDField()
+    reconciliation_checksum = models.CharField(max_length=64)
+    reconciliation_period_end = models.DateField()
+    reconciled_book_balance = models.DecimalField(**MONEY)
+    confirmed_inflows = models.DecimalField(**MONEY)
+    confirmed_outflows = models.DecimalField(**MONEY)
+    other_holds = models.DecimalField(**MONEY)
+    evidence_reference = models.TextField()
+    preparation_note = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    version = models.PositiveIntegerField(default=1)
+    supersedes = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor",
+    )
+    snapshot_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_treasury_cash_positions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_treasury_cash_positions",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="approved_treasury_cash_positions",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    state_version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ("-as_of_date", "-version", "-pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("policy", "as_of_date", "version"), name="unique_treasury_cash_position_version",
+            ),
+        )
+
+    @property
+    def approved_available_cash(self):
+        return (
+            self.reconciled_book_balance + self.confirmed_inflows - self.confirmed_outflows
+            - self.other_holds - self.policy.minimum_reserve
+        )
+
+    def __str__(self):
+        return f"{self.policy} · {self.as_of_date}"
+
+    def clean(self):
+        if min(self.confirmed_inflows, self.confirmed_outflows, self.other_holds) < 0:
+            raise ValidationError("Cash-position additions, deductions, and holds cannot be negative.")
+        if self.as_of_date < self.reconciliation_period_end:
+            raise ValidationError({"as_of_date": "The cash position cannot predate its reconciled bank evidence."})
+        if self.supersedes_id and self.supersedes.policy_id != self.policy_id:
+            raise ValidationError({"supersedes": "A successor position must use the same cash-control policy."})
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            governed = (
+                "policy_id", "as_of_date", "reconciliation_public_id", "reconciliation_checksum",
+                "reconciliation_period_end", "reconciled_book_balance", "confirmed_inflows",
+                "confirmed_outflows", "other_holds", "evidence_reference", "preparation_note",
+                "version", "supersedes_id", "snapshot_checksum",
+            )
+            if prior and prior.status in (self.APPROVED, self.SUPERSEDED) and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Approved cash positions are immutable. Prepare a successor snapshot.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "policy_id", "as_of_date", "reconciliation_public_id", "reconciliation_checksum",
+                "reconciliation_period_end", "reconciled_book_balance", "confirmed_inflows",
+                "confirmed_outflows", "other_holds", "evidence_reference", "preparation_note",
+                "version", "supersedes_id", "snapshot_checksum",
+            )
+            if prior.status in (self.APPROVED, self.SUPERSEDED) and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Approved cash positions are immutable. Prepare a successor snapshot.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Cash-position history is retained. Prepare a successor instead of deleting it.")
+
+
+class TreasuryCashReservation(models.Model):
+    RESERVED = "reserved"
+    CONSUMED = "consumed"
+    RELEASED = "released"
+    STATUS_CHOICES = (
+        (RESERVED, "Reserved at issue"), (CONSUMED, "Consumed by release"),
+        (RELEASED, "Released after cancellation"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    position = models.ForeignKey(TreasuryCashPosition, on_delete=models.PROTECT, related_name="reservations")
+    instrument = models.OneToOneField(PaymentInstrument, on_delete=models.PROTECT, related_name="cash_reservation")
+    amount = models.DecimalField(**MONEY, validators=[MinValueValidator(Decimal("0.01"))])
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=RESERVED)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_treasury_cash_reservations",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="closed_treasury_cash_reservations",
+    )
+    closed_at = models.DateTimeField(null=True, blank=True)
+    close_reason = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            if prior.status != self.RESERVED:
+                raise ValidationError("A closed cash reservation is immutable.")
+            immutable = ("position_id", "instrument_id", "amount", "created_by_id", "created_at")
+            if any(getattr(prior, field) != getattr(self, field) for field in immutable):
+                raise ValidationError("Cash-reservation source evidence is immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Cash reservations cannot be deleted.")
+
+
+class PaymentInstrumentException(models.Model):
+    UNCLAIMED = "unclaimed"
+    STALE = "stale"
+    RETURNED = "returned"
+    KIND_CHOICES = (
+        (UNCLAIMED, "Unclaimed instrument"),
+        (STALE, "Stale instrument"),
+        (RETURNED, "Returned by bank"),
+    )
+    OPEN = "open"
+    RESOLVED = "resolved"
+    STATUS_CHOICES = ((OPEN, "Open"), (RESOLVED, "Resolved"))
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    instrument = models.ForeignKey(PaymentInstrument, on_delete=models.PROTECT, related_name="exceptions")
+    policy = models.ForeignKey(TreasuryCashPolicy, on_delete=models.PROTECT, related_name="instrument_exceptions")
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES)
+    observed_on = models.DateField()
+    reason = models.TextField()
+    evidence_reference = models.TextField()
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=OPEN)
+    opened_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="opened_payment_instrument_exceptions",
+    )
+    opened_at = models.DateTimeField(auto_now_add=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="resolved_payment_instrument_exceptions",
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolution = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("-observed_on", "-pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("instrument", "kind"), condition=models.Q(status="open"),
+                name="unique_open_instrument_exception_kind",
+            ),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            if prior.status == self.RESOLVED:
+                raise ValidationError("Resolved instrument exceptions are immutable.")
+            immutable = (
+                "instrument_id", "policy_id", "kind", "observed_on", "reason",
+                "evidence_reference", "opened_by_id", "opened_at",
+            )
+            if any(getattr(prior, field) != getattr(self, field) for field in immutable):
+                raise ValidationError("Instrument exception source evidence is immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Instrument exception history cannot be deleted.")
+
+
+class TreasuryCashEvent(models.Model):
+    policy = models.ForeignKey(
+        TreasuryCashPolicy, on_delete=models.PROTECT, null=True, blank=True, related_name="events",
+    )
+    position = models.ForeignKey(
+        TreasuryCashPosition, on_delete=models.PROTECT, null=True, blank=True, related_name="events",
+    )
+    instrument = models.ForeignKey(
+        PaymentInstrument, on_delete=models.PROTECT, null=True, blank=True, related_name="cash_events",
+    )
+    action = models.CharField(max_length=80)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="treasury_cash_events")
+    actor_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="treasury_cash_events")
+    reason = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Treasury cash history is append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Treasury cash history cannot be deleted.")
 
 
 class VoucherTask(models.Model):

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 import io
 from pathlib import Path
@@ -17,10 +17,10 @@ from django.utils import timezone
 
 from departments.models import Department
 from accounting.models import (
-    AccountingPeriod, Fund, JournalEntry, JournalSubsidiaryLine, LedgerAccount,
+    AccountingPeriod, BankStatementBatch, Fund, JournalEntry, JournalSubsidiaryLine, LedgerAccount,
     PostingMapping, ResponsibilityCenter,
 )
-from accounting.services import discard_draft, post_entry, submit_entry
+from accounting.services import bank_reconciliation_snapshot, discard_draft, post_entry, submit_entry
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
     FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
@@ -34,11 +34,17 @@ from tracepoint.models import PacketItem, TrackedPacket
 
 from .access import can_view_workbench
 from .models import (
-    PayableIntake, PaymentInstrument, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
+    PayableIntake, PaymentInstrument, PaymentInstrumentException, TreasuryCashPolicy,
+    TreasuryCashPosition, TreasuryCashReservation, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
     RemittancePostingRequest, TreasuryRemittanceBatch, TreasuryRemittanceLine,
     VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
 )
 from .posting import materialize_voucher_journal, reconcile_posted_voucher_entry
+from .cash_positions import (
+    create_policy, create_position, decide_policy, decide_position, export_cash_position_csv,
+    open_instrument_exception, policy_availability, preflight_instrument_cash, submit_policy,
+    submit_position,
+)
 from .remittances import (
     add_line, create_batch, export_batch_csv, materialize_remittance_journal,
     reconcile_posted_remittance_entry, release_batch, review_batch, revise_line,
@@ -1337,3 +1343,201 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(case.tracepoint_item, item)
         self.assertFalse(any(field.name in {"gross_amount", "net_amount", "certified_amount"} for field in PacketItem._meta.fields))
         self.assertTrue(case.events.filter(action="tracepoint_item_linked", metadata__reference_number="TP-ITEM-001").exists())
+
+    def test_f83_cash_enforcement_reservation_ageing_and_portable_export(self):
+        self.treasury_user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers",
+            codename__in=("view_cash_position", "prepare_cash_position", "approve_cash_position", "export_cash_position"),
+        ))
+        self.validator.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers",
+            codename__in=("view_cash_position", "approve_cash_position", "export_cash_position"),
+        ))
+        self.enable_payment_event_rules()
+        policy = create_policy(
+            actor=self.treasury_user,
+            configuration_release=self.release,
+            bank_account_code="gf-lbp",
+            fund_code="general-fund",
+            mode=TreasuryCashPolicy.ENFORCE,
+            minimum_reserve=Decimal("100.00"),
+            position_max_age_days=35,
+            unclaimed_after_days=30,
+            stale_after_days=180,
+            effective_from=date(2026, 1, 1),
+            authority_reference="Synthetic reviewed COA/DBM/bank and local Treasury authority.",
+            local_applicability_note="Synthetic Treasury and Accounting UAT acceptance only.",
+        )
+        submit_policy(policy=policy, actor=self.treasury_user)
+        with self.assertRaises(ValidationError):
+            decide_policy(policy=policy, actor=self.treasury_user, approve=True, reason="Self-review must fail.")
+        decide_policy(policy=policy, actor=self.validator, approve=True, reason="Independent synthetic route review.")
+        policy.refresh_from_db()
+        self.assertEqual(policy.status, TreasuryCashPolicy.ACTIVE)
+
+        batch = BankStatementBatch.objects.create(
+            department_id=self.accounting.pk,
+            department_label=self.accounting.name,
+            statement_reference="F83-CASH-BASE",
+            bank_account_code="gf-lbp",
+            bank_name="Synthetic Government Bank",
+            fund=self.accounting_fund,
+            period_start=date(2026, 8, 1),
+            period_end=date(2026, 8, 30),
+            received_on=date(2026, 8, 31),
+            opening_balance=Decimal("0.00"),
+            closing_balance=Decimal("0.00"),
+            expected_row_count=0,
+            expected_deposits=Decimal("0.00"),
+            expected_withdrawals=Decimal("0.00"),
+            validation_summary={"valid": True},
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        bank_snapshot, reconciliation_checksum, *_unused = bank_reconciliation_snapshot(batch)
+        self.assertEqual(bank_snapshot["book_balance"], "0.00")
+        BankStatementBatch.objects.filter(pk=batch.pk).update(
+            status=BankStatementBatch.RECONCILED,
+            reconciliation_checksum=reconciliation_checksum,
+            reconciled_by_id=self.validator.pk,
+            reconciled_by_label=self.validator.username,
+            reconciled_at=timezone.now(),
+        )
+
+        position = create_position(
+            policy=policy,
+            actor=self.treasury_user,
+            as_of_date=date(2026, 8, 31),
+            confirmed_inflows=Decimal("1500.00"),
+            confirmed_outflows=Decimal("0.00"),
+            other_holds=Decimal("100.00"),
+            evidence_reference="Synthetic bank credit and restricted-cash schedules.",
+            preparation_note="UAT cash position.",
+        )
+        self.assertEqual(position.approved_available_cash, Decimal("1300.00"))
+        submit_position(position=position, actor=self.treasury_user)
+        with self.assertRaises(ValidationError):
+            decide_position(position=position, actor=self.treasury_user, approve=True, reason="Self-review must fail.")
+        decide_position(position=position, actor=self.validator, approve=True, reason="Compared with reconciled evidence.")
+        position.refresh_from_db()
+        self.assertEqual(position.status, TreasuryCashPosition.APPROVED)
+        position.other_holds = Decimal("101.00")
+        with self.assertRaises(ValidationError):
+            position.save()
+        position.refresh_from_db()
+        with self.assertRaises(ValidationError):
+            create_position(
+                policy=policy, actor=self.treasury_user, as_of_date=date(2026, 8, 31),
+                confirmed_inflows=Decimal("1500.00"), confirmed_outflows=Decimal("0.00"),
+                other_holds=Decimal("90.00"), evidence_reference="Corrected synthetic restriction schedule.",
+            )
+        successor = create_position(
+            policy=policy, actor=self.treasury_user, as_of_date=date(2026, 8, 31),
+            confirmed_inflows=Decimal("1500.00"), confirmed_outflows=Decimal("0.00"),
+            other_holds=Decimal("90.00"), evidence_reference="Corrected synthetic restriction schedule.",
+            preparation_note="Correct the retained same-date restriction total before a new review.",
+        )
+        self.assertEqual(successor.supersedes, position)
+        self.assertEqual(successor.status, TreasuryCashPosition.DRAFT)
+
+        case = self.ready_for_treasury()
+        instrument = issue_check(
+            case=case, actor=self.treasury_user, bank_account_code="gf-lbp", fund_code="general-fund",
+            check_number="F83-0001", amount=Decimal("900.00"), expected_version=case.state_version,
+            idempotency_key="f83-issue",
+        )
+        reservation = instrument.cash_reservation
+        self.assertEqual(reservation.status, TreasuryCashReservation.RESERVED)
+        self.assertEqual(policy_availability(policy)["available"], Decimal("400.00"))
+        with self.assertRaises(ValidationError):
+            preflight_instrument_cash(
+                case=case, bank_account_code="gf-lbp", fund_code="general-fund", amount=Decimal("400.01"),
+            )
+
+        successor_policy = create_policy(
+            actor=self.treasury_user, configuration_release=self.release,
+            bank_account_code="gf-lbp", fund_code="general-fund", mode=TreasuryCashPolicy.ENFORCE,
+            minimum_reserve=Decimal("100.00"), position_max_age_days=35,
+            unclaimed_after_days=30, stale_after_days=180, effective_from=date(2026, 1, 1),
+            authority_reference="Synthetic reviewed successor authority.",
+            local_applicability_note="Successor keeps the accepted route and threshold for UAT.",
+        )
+        submit_policy(policy=successor_policy, actor=self.treasury_user)
+        decide_policy(
+            policy=successor_policy, actor=self.validator, approve=True,
+            reason="Independently reviewed successor policy.",
+        )
+        successor_position = create_position(
+            policy=successor_policy, actor=self.treasury_user, as_of_date=date(2026, 8, 31),
+            confirmed_inflows=Decimal("1500.00"), confirmed_outflows=Decimal("0.00"),
+            other_holds=Decimal("100.00"), evidence_reference="Successor position uses the same reconciled UAT evidence.",
+        )
+        submit_position(position=successor_position, actor=self.treasury_user)
+        decide_position(
+            position=successor_position, actor=self.validator, approve=True,
+            reason="Compared successor with the retained reconciliation.",
+        )
+        successor_availability = policy_availability(successor_policy)
+        self.assertEqual(successor_availability["reserved"], Decimal("900.00"))
+        self.assertEqual(successor_availability["available"], Decimal("400.00"))
+        policy = successor_policy
+
+        case.refresh_from_db()
+        submit_checks_for_advice(
+            case=case, actor=self.treasury_user, expected_version=case.state_version,
+            idempotency_key="f83-submit-advice",
+        )
+        case.refresh_from_db()
+        finalize_bank_advice(
+            case=case, actor=self.validator, advice_number="F83-ADV-1", advice_date=date(2026, 8, 31),
+            expected_version=case.state_version, idempotency_key="f83-finalize-advice",
+        )
+        old_issue = timezone.now() - timedelta(days=181)
+        PaymentInstrument.objects.filter(pk=instrument.pk).update(issued_at=old_issue)
+        instrument.refresh_from_db()
+        unclaimed = open_instrument_exception(
+            instrument=instrument, actor=self.treasury_user, kind=PaymentInstrumentException.UNCLAIMED,
+            observed_on=date(2026, 8, 31), reason="Claimant has not collected the advised check.",
+            evidence_reference="Treasury release log follow-up 1.",
+        )
+        stale = open_instrument_exception(
+            instrument=instrument, actor=self.treasury_user, kind=PaymentInstrumentException.STALE,
+            observed_on=date(2026, 8, 31), reason="Instrument exceeded the locally reviewed validity threshold.",
+            evidence_reference="Treasury stale-check review 1.",
+        )
+        unclaimed.refresh_from_db(); instrument.refresh_from_db()
+        self.assertEqual(unclaimed.status, PaymentInstrumentException.RESOLVED)
+        self.assertEqual(stale.status, PaymentInstrumentException.OPEN)
+        self.assertEqual(instrument.operational_status, PaymentInstrument.STALE)
+        case.refresh_from_db()
+        with self.assertRaises(ValidationError):
+            release_check(
+                case=case, instrument=instrument, actor=self.treasury_user, claimant=self.claimant,
+                receipt_reference="BLOCKED-STale", expected_version=case.state_version,
+                idempotency_key="f83-block-stale-release",
+            )
+        cancel_check(
+            case=case, instrument=instrument, actor=self.treasury_user,
+            reason="Cancel after locally reviewed stale classification and prepare a controlled replacement if still payable.",
+            expected_version=case.state_version, idempotency_key="f83-cancel-stale",
+        )
+        reservation.refresh_from_db(); stale.refresh_from_db(); instrument.refresh_from_db()
+        self.assertEqual(reservation.status, TreasuryCashReservation.RELEASED)
+        self.assertEqual(stale.status, PaymentInstrumentException.RESOLVED)
+        self.assertEqual(instrument.operational_status, PaymentInstrument.NORMAL)
+
+        content, archived = export_cash_position_csv(actor=self.treasury_user, policy=policy)
+        self.assertIn(b"F83-0001", content)
+        self.assertIn("voucher-treasury/treasurycashier/finance-cash-position", archived["relative_path"])
+        self.client.force_login(self.treasury_user)
+        response = self.client.get(reverse("vouchers:cash_workspace"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Cash position and instrument ageing")
+        detail = self.client.get(reverse("vouchers:cash_policy_detail", args=(policy.public_id,)))
+        self.assertEqual(detail.status_code, 200)
+        starter = self.client.get(reverse("vouchers:cash_starter"))
+        self.assertEqual(starter.status_code, 200)
+        self.assertIn(b"gf-lbp", starter.content)
+        exported = self.client.get(reverse("vouchers:cash_policy_export", args=(policy.public_id,)))
+        self.assertEqual(exported.status_code, 200)
+        self.assertEqual(exported["X-GRAND-Export-Archived"], "true")

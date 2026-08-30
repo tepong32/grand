@@ -10,6 +10,7 @@
     </div>
     <div class="mt-2">
       {% if permissions.issue or permissions.release %}
+        <a class="btn btn-outline-primary" href="{% url 'vouchers:cash_workspace' %}"><i class="fas fa-wallet mr-1"></i>Cash position</a>
         <a class="btn btn-outline-primary" href="{% url 'vouchers:remittance_workspace' %}"><i class="fas fa-receipt mr-1"></i>Remittances</a>
       {% endif %}
       {% if permissions.initiate_payable %}

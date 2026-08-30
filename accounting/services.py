@@ -1411,7 +1411,7 @@ def _bank_money(value, label):
 def _bank_account(batch):
     mapping = PostingMapping.objects.select_related("account").filter(
         department_id=batch.department_id,
-        category="bank_account",
+        category=PostingMapping.BANK,
         source_code__iexact=batch.bank_account_code.strip(),
         is_active=True,
     ).first()

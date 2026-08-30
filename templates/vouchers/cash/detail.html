@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block title_ext %} · Cash Policy {{ policy.bank_account_code }}{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div><p class="text-uppercase text-primary small font-weight-bold mb-1">Treasury cash control</p><h1 class="h3 mb-1">{{ policy.bank_account_code }} · {{ policy.fund_code }}</h1><p class="text-muted mb-0">{{ policy.get_mode_display }} · policy v{{ policy.version }}</p></div>
+    <div class="mt-2"><a class="btn btn-outline-secondary" href="{% url 'vouchers:cash_workspace' %}">Cash workspace</a>{% if can_export %}<a class="btn btn-outline-primary" href="{% url 'vouchers:cash_policy_export' policy.public_id %}">Export evidence</a>{% endif %}</div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-3"><div class="small-box bg-info"><div class="inner"><h3>{{ policy.get_status_display }}</h3><p>Policy status</p></div><div class="icon"><i class="fas fa-shield-alt"></i></div></div></div>
+    <div class="col-md-3"><div class="small-box bg-secondary"><div class="inner"><h3>{{ policy.minimum_reserve|floatformat:2 }}</h3><p>Minimum reserve</p></div><div class="icon"><i class="fas fa-lock"></i></div></div></div>
+    <div class="col-md-3"><div class="small-box bg-warning"><div class="inner"><h3>{{ availability.reserved|floatformat:2 }}</h3><p>Issued reservations</p></div><div class="icon"><i class="fas fa-money-check"></i></div></div></div>
+    <div class="col-md-3"><div class="small-box bg-success"><div class="inner"><h3>{% if availability.available != None %}{{ availability.available|floatformat:2 }}{% else %}—{% endif %}</h3><p>Available after controls</p></div><div class="icon"><i class="fas fa-wallet"></i></div></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Policy authority and thresholds</h2><span class="badge badge-light float-right">Effective {{ policy.effective_from }}{% if policy.effective_to %} to {{ policy.effective_to }}{% endif %}</span></div>
+    <div class="card-body">
+      <dl class="row mb-0"><dt class="col-md-3">Reviewed authority</dt><dd class="col-md-9">{{ policy.authority_reference|linebreaksbr }}</dd><dt class="col-md-3">Local applicability</dt><dd class="col-md-9">{{ policy.local_applicability_note|linebreaksbr }}</dd><dt class="col-md-3">Position / ageing</dt><dd class="col-md-9">Position no older than {{ policy.position_max_age_days }} days · unclaimed after {{ policy.unclaimed_after_days }} days · stale after {{ policy.stale_after_days }} days</dd></dl>
+    </div>
+    {% if can_prepare and policy.status == 'draft' %}<div class="card-footer"><form method="post" action="{% url 'vouchers:cash_policy_submit' policy.public_id %}">{% csrf_token %}<button class="btn btn-primary" type="submit">Submit policy for review</button></form></div>{% endif %}
+    {% if policy.status == 'returned' %}<div class="card-footer text-muted">This version is retained as returned evidence. Use <strong>Prepare policy</strong> in the cash workspace to create a reasoned successor version.</div>{% endif %}
+  </div>
+
+  {% if can_approve and policy.status == 'for_review' %}
+  <div class="card card-outline card-info"><div class="card-header"><h2 class="card-title font-weight-bold">Independent policy review</h2></div><div class="card-body"><form method="post" action="{% url 'vouchers:cash_policy_decide' policy.public_id %}">{% csrf_token %}{{ review_form|crispy }}<button class="btn btn-info" type="submit">Record policy decision</button></form></div></div>
+  {% endif %}
+
+  {% if can_prepare and policy.status == 'active' %}
+  <div class="card card-outline card-primary"><div class="card-header"><h2 class="card-title font-weight-bold">Prepare a cash-position snapshot</h2></div><div class="card-body"><p class="text-muted">GRAND pins the latest independently reconciled bank/book balance for this bank and fund. Enter only confirmed later movements and reviewed holds; a reviewer must approve the result before it supports issue.</p><form method="post" action="{% url 'vouchers:cash_position_create' policy.public_id %}">{% csrf_token %}{{ position_form|crispy }}<button class="btn btn-primary" type="submit">Save cash position</button></form></div></div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Position history</h2></div>
+    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>As of</th><th>Reconciled basis</th><th class="text-right">Available before issued reservations</th><th>Status</th><th>Evidence</th><th>Action</th></tr></thead><tbody>
+      {% for position in positions %}<tr><td>{{ position.as_of_date }}<br><span class="text-muted">v{{ position.version }}</span></td><td>{{ position.reconciliation_period_end }}<br><code>{{ position.reconciliation_checksum|slice:':12' }}</code></td><td class="text-right">{{ position.approved_available_cash|floatformat:2 }}</td><td>{{ position.get_status_display }}</td><td>{{ position.evidence_reference }}</td><td>
+        {% if can_prepare and position.status == 'draft' %}<form method="post" action="{% url 'vouchers:cash_position_submit' policy.public_id position.public_id %}">{% csrf_token %}<button class="btn btn-sm btn-primary" type="submit">Submit</button></form>{% endif %}
+        {% if position.status == 'returned' %}<span class="small text-muted">Retained; prepare a reasoned successor above.</span>{% endif %}
+        {% if can_approve and position.status == 'for_review' %}<form method="post" action="{% url 'vouchers:cash_position_decide' policy.public_id position.public_id %}">{% csrf_token %}<select class="form-control form-control-sm mb-1" name="decision"><option value="approve">Approve</option><option value="return">Return</option></select><textarea class="form-control form-control-sm mb-1" name="reason" rows="2" required placeholder="Review basis"></textarea><button class="btn btn-sm btn-info" type="submit">Decide</button></form>{% endif %}
+      </td></tr>{% empty %}<tr><td colspan="6" class="text-center text-muted py-4">No cash-position snapshot yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </div>
+</div>
+{% endblock %}
