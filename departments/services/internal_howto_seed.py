@@ -26,7 +26,7 @@ ACCOUNTING_GUIDES = (
     },
     {
         "slug": "finance-accountability-reporting-accounting",
-        "version": 6,
+        "version": 7,
         "title": "Prepare, map, and review Accounting reports",
         "summary": "Prepare operational schedules and governed management statements from posted entries, explain every measure and equation, and retain portable reproduction evidence.",
         "permission": "reporting.view_reporting_workspace",
@@ -45,6 +45,7 @@ ACCOUNTING_GUIDES = (
             ("Prepare governed tax schedules", "Choose Governed Tax Withholding Detail when certificate support needs voucher, payee, ATC, base, rate, and posted-JEV evidence. Choose Governed Tax Return / Remittance Summary when Accounting needs totals grouped by return form, tax family, ATC, and rate for the covered period.", "Each line is recalculated against its pinned locally confirmed rule, checked against the posted withholding movement, and retained with source drill-through.", "These are controlled source schedules, not filed BIR returns, issued certificates, proof of remittance, or automatic deadline advice. Restrict TIN-bearing exports to authorized Accounting custody.", "Open Reports", "reporting:workspace"),
             ("Drill through the total", "Use Source drill-through to open retained posted JEVs and compare fund, account, source reference, description, debit, credit, and posting evidence.", "Every reported control total is explainable from permission-checked source entries.", "Never edit a posted JEV to make a report agree; use a governed adjustment or reversal.", "", ""),
             ("Review and approve independently", "A different authorized reviewer checks the control evidence, source entries, exact local template, and applicability record before review and approval.", "The approval is attributable and the prior run remains retained if superseded.", "Pilot layouts and pending local applicability stay unavailable for official approval.", "", ""),
+            ("Assemble the accountability package", "Open Accountability packages. Choose the independently accepted checklist profile and exact period, then select the approved Budget, Accounting, Treasury, statement-note, signed-reference, and verified tax evidence offered for each required slot.", "Submission freezes the profile, source UUIDs, periods, workflow states, and SHA-256 checksums for a different Accounting reviewer.", "Before approval, replace a mistaken selection only with a reason; after approval, create a linked successor. Use the source module's reversal or adjustment route for financial corrections—changing a report package never reverses a JEV or payment.", "Open Accountability packages", "reporting:accountability_workspace"),
             ("Export and safeguard", "Download the output, control-evidence CSV, and reproduction receipt when required. Copy or synchronize the complete GRAND export root so each artifact remains beside its manifest.", "TraceSync-ready department/user/category folders retain checksums and reproduction keys without user re-filing.", "Keep the complete export folder rather than isolated files without manifests.", "", ""),
         ),
     },

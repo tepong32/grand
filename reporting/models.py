@@ -1174,6 +1174,464 @@ class ReportReferenceComparisonEvent(models.Model):
         raise ValidationError("Reference-comparison events cannot be deleted.")
 
 
+class FinanceAccountabilityPackageProfile(models.Model):
+    """Locally accepted, human-editable recipe for a Finance accountability package."""
+
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    RETURNED = "returned"
+    ACTIVE = "active"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (DRAFT, "Editable draft"),
+        (SUBMITTED, "For independent review"),
+        (RETURNED, "Returned for correction"),
+        (ACTIVE, "Active package profile"),
+        (SUPERSEDED, "Superseded profile"),
+    )
+    LOCKED_STATUSES = {SUBMITTED, ACTIVE, SUPERSEDED}
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, related_name="finance_accountability_package_profiles",
+    )
+    code = models.SlugField(max_length=80)
+    version = models.PositiveSmallIntegerField(default=1)
+    name = models.CharField(max_length=180)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    supersedes = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor_profiles",
+    )
+    authority_reference = models.TextField(
+        blank=True,
+        help_text="Plain-language COA, DBM, BIR, ordinance, memorandum, or accepted local-procedure basis.",
+    )
+    local_acceptance_note = models.TextField(
+        blank=True,
+        help_text="Record the office and person who accepted this package recipe and where its evidence is retained.",
+    )
+    snapshot_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_finance_accountability_package_profiles",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_accountability_package_profiles",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_finance_accountability_package_profiles",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("code", "-version")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("department", "code", "version"), name="unique_accountability_profile_version",
+            ),
+            models.UniqueConstraint(
+                fields=("department", "code"), condition=models.Q(status="active"),
+                name="one_active_accountability_profile",
+            ),
+        )
+        permissions = (
+            ("manage_accountability_package_profiles", "Can prepare Finance accountability package profiles"),
+            ("approve_accountability_package_profiles", "Can independently approve Finance accountability package profiles"),
+            ("prepare_accountability_packages", "Can prepare Finance accountability packages"),
+            ("review_accountability_packages", "Can independently review Finance accountability packages"),
+            ("export_accountability_packages", "Can export approved Finance accountability packages"),
+        )
+
+    def __str__(self):
+        return f"{self.name} v{self.version}"
+
+    def get_absolute_url(self):
+        return reverse("reporting:accountability_profile_detail", kwargs={"public_id": self.public_id})
+
+    @property
+    def is_editable(self):
+        return self.status in (self.DRAFT, self.RETURNED)
+
+    def clean(self):
+        if self.supersedes_id:
+            if self.supersedes_id == self.pk:
+                raise ValidationError({"supersedes": "A profile cannot supersede itself."})
+            if (
+                self.supersedes.department_id != self.department_id
+                or self.supersedes.code != self.code
+                or self.version <= self.supersedes.version
+            ):
+                raise ValidationError({"supersedes": "Choose an earlier version of this department package profile."})
+        if self.status == self.ACTIVE:
+            if not self.authority_reference.strip() or not self.local_acceptance_note.strip():
+                raise ValidationError("An active package profile requires authority and local acceptance evidence.")
+            if not self.snapshot_checksum or not self.reviewed_at or not self.reviewed_by_id:
+                raise ValidationError("An active package profile requires pinned independent-review evidence.")
+            if self.reviewed_by_id in (self.created_by_id, self.submitted_by_id):
+                raise ValidationError("The profile preparer or submitter cannot approve the same profile.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "department_id", "code", "version", "name", "description", "supersedes_id",
+                "authority_reference", "local_acceptance_note", "snapshot_checksum", "created_by_id",
+            )
+            if prior.status in self.LOCKED_STATUSES and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Submitted package profiles are immutable. Return the profile or create a successor.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status in self.LOCKED_STATUSES or self.events.exists() or self.packages.exists():
+            raise ValidationError("Package-profile history cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceAccountabilityPackageRequirement(models.Model):
+    REPORT_RUN = "report_run"
+    STATEMENT_NOTES = "statement_notes"
+    SIGNED_REFERENCE = "signed_reference"
+    TAX_FILING = "tax_filing"
+    EVIDENCE_CHOICES = (
+        (REPORT_RUN, "Approved GRAND report"),
+        (STATEMENT_NOTES, "Approved financial-statement notes"),
+        (SIGNED_REFERENCE, "Reconciled signed-reference comparison"),
+        (TAX_FILING, "Verified tax-filing evidence"),
+    )
+
+    profile = models.ForeignKey(
+        FinanceAccountabilityPackageProfile, on_delete=models.PROTECT, related_name="requirements",
+    )
+    position = models.PositiveSmallIntegerField()
+    code = models.SlugField(max_length=80)
+    label = models.CharField(max_length=180)
+    evidence_kind = models.CharField(max_length=24, choices=EVIDENCE_CHOICES)
+    source_department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, related_name="finance_accountability_source_requirements",
+        help_text="Office responsible for the approved source output.",
+    )
+    report_definition = models.ForeignKey(
+        ReportDefinition, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="finance_accountability_requirements",
+    )
+    tax_form_code = models.CharField(max_length=40, blank=True)
+    required = models.BooleanField(default=True)
+    instructions = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("position", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("profile", "position"), name="unique_accountability_requirement_position"),
+            models.UniqueConstraint(fields=("profile", "code"), name="unique_accountability_requirement_code"),
+        )
+
+    def __str__(self):
+        return f"{self.profile}: {self.label}"
+
+    def clean(self):
+        if self.report_definition_id:
+            if self.report_definition.department_id != self.source_department_id:
+                raise ValidationError({"report_definition": "Choose a report owned by the selected source office."})
+        if self.evidence_kind in (self.REPORT_RUN, self.SIGNED_REFERENCE):
+            if not self.report_definition_id:
+                raise ValidationError({"report_definition": "Choose the exact governed report required for this slot."})
+            if self.tax_form_code.strip():
+                raise ValidationError({"tax_form_code": "Use a tax form code only for tax-filing evidence."})
+        elif self.report_definition_id:
+            raise ValidationError({"report_definition": "This evidence type does not use a report definition."})
+        if self.evidence_kind == self.TAX_FILING:
+            if not self.tax_form_code.strip():
+                raise ValidationError({"tax_form_code": "Enter the locally confirmed return form code."})
+        elif self.tax_form_code.strip():
+            raise ValidationError({"tax_form_code": "This evidence type does not use a tax form code."})
+
+    def save(self, *args, **kwargs):
+        if self.profile_id and not self.profile.is_editable:
+            raise ValidationError("Locked package requirements are immutable. Create a successor profile.")
+        self.tax_form_code = self.tax_form_code.strip().upper()
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if not self.profile.is_editable:
+            raise ValidationError("Locked package requirements cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceAccountabilityPackage(models.Model):
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    RETURNED = "returned"
+    APPROVED = "approved"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (DRAFT, "Editable draft"),
+        (SUBMITTED, "For independent review"),
+        (RETURNED, "Returned for correction"),
+        (APPROVED, "Approved accountability package"),
+        (SUPERSEDED, "Superseded package"),
+    )
+    LOCKED_STATUSES = {SUBMITTED, APPROVED, SUPERSEDED}
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, related_name="finance_accountability_packages",
+    )
+    profile = models.ForeignKey(
+        FinanceAccountabilityPackageProfile, on_delete=models.PROTECT, related_name="packages",
+    )
+    title = models.CharField(max_length=200)
+    period_start = models.DateField()
+    period_end = models.DateField()
+    version = models.PositiveSmallIntegerField(default=1)
+    supersedes = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor_packages",
+    )
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    preparation_note = models.TextField(blank=True)
+    profile_snapshot = models.JSONField(default=dict)
+    profile_checksum = models.CharField(max_length=64)
+    package_snapshot = models.JSONField(default=dict, blank=True)
+    package_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_finance_accountability_packages",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_accountability_packages",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_finance_accountability_packages",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-period_end", "profile__code", "-version")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("department", "profile", "period_start", "period_end", "version"),
+                name="unique_accountability_package_version",
+            ),
+            models.UniqueConstraint(
+                fields=("department", "profile", "period_start", "period_end"),
+                condition=models.Q(status="approved"), name="one_approved_accountability_package",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.title} · {self.period_end:%Y-%m-%d} · v{self.version}"
+
+    def get_absolute_url(self):
+        return reverse("reporting:accountability_package_detail", kwargs={"public_id": self.public_id})
+
+    @property
+    def is_editable(self):
+        return self.status in (self.DRAFT, self.RETURNED)
+
+    def clean(self):
+        if self.period_end < self.period_start:
+            raise ValidationError({"period_end": "The package period cannot end before it starts."})
+        if self.profile_id and self.profile.department_id != self.department_id:
+            raise ValidationError({"profile": "Choose a profile owned by this Accounting office."})
+        if self.supersedes_id:
+            if self.supersedes_id == self.pk:
+                raise ValidationError({"supersedes": "A package cannot supersede itself."})
+            if (
+                self.supersedes.department_id != self.department_id
+                or self.supersedes.profile.code != self.profile.code
+                or self.supersedes.period_start != self.period_start
+                or self.supersedes.period_end != self.period_end
+                or self.version <= self.supersedes.version
+            ):
+                raise ValidationError({"supersedes": "Choose an earlier package for the same profile and exact period."})
+        if self.status == self.APPROVED:
+            if not self.package_checksum or not self.reviewed_at or not self.reviewed_by_id:
+                raise ValidationError("Approved packages require pinned independent-review evidence.")
+            if self.reviewed_by_id in (self.created_by_id, self.submitted_by_id):
+                raise ValidationError("The package preparer or submitter cannot approve the same package.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "department_id", "profile_id", "title", "period_start", "period_end", "version",
+                "supersedes_id", "preparation_note", "profile_snapshot", "profile_checksum",
+                "package_snapshot", "package_checksum", "created_by_id",
+            )
+            if prior.status in self.LOCKED_STATUSES and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Submitted accountability packages are immutable. Return the package or create a successor.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status in self.LOCKED_STATUSES or self.events.exists():
+            raise ValidationError("Accountability-package history cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceAccountabilityPackageSlot(models.Model):
+    package = models.ForeignKey(
+        FinanceAccountabilityPackage, on_delete=models.PROTECT, related_name="slots",
+    )
+    position = models.PositiveSmallIntegerField()
+    code = models.SlugField(max_length=80)
+    label = models.CharField(max_length=180)
+    evidence_kind = models.CharField(
+        max_length=24, choices=FinanceAccountabilityPackageRequirement.EVIDENCE_CHOICES,
+    )
+    source_department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, related_name="finance_accountability_package_slots",
+    )
+    source_department_label = models.CharField(max_length=160)
+    report_definition = models.ForeignKey(
+        ReportDefinition, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="finance_accountability_package_slots",
+    )
+    report_definition_label = models.CharField(max_length=180, blank=True)
+    tax_form_code = models.CharField(max_length=40, blank=True)
+    required = models.BooleanField(default=True)
+    instructions = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("position", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("package", "position"), name="unique_accountability_slot_position"),
+            models.UniqueConstraint(fields=("package", "code"), name="unique_accountability_slot_code"),
+        )
+
+    def __str__(self):
+        return f"{self.package}: {self.label}"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Package requirement snapshots are immutable. Create a successor package profile.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Package requirement snapshots cannot be deleted.")
+
+    @property
+    def current_selection(self):
+        return self.selections.filter(status=FinanceAccountabilityPackageSelection.CURRENT).first()
+
+
+class FinanceAccountabilityPackageSelection(models.Model):
+    CURRENT = "current"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = ((CURRENT, "Current selection"), (SUPERSEDED, "Superseded selection"))
+
+    slot = models.ForeignKey(
+        FinanceAccountabilityPackageSlot, on_delete=models.PROTECT, related_name="selections",
+    )
+    version = models.PositiveSmallIntegerField(default=1)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=CURRENT)
+    supersedes = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor",
+    )
+    source_public_id = models.UUIDField()
+    source_label = models.CharField(max_length=240)
+    source_snapshot = models.JSONField(default=dict)
+    source_checksum = models.CharField(max_length=64)
+    change_reason = models.TextField(blank=True)
+    selected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="finance_accountability_package_selections",
+    )
+    selected_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("slot", "-version")
+        constraints = (
+            models.UniqueConstraint(fields=("slot", "version"), name="unique_accountability_selection_version"),
+            models.UniqueConstraint(
+                fields=("slot",), condition=models.Q(status="current"),
+                name="one_current_accountability_selection",
+            ),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            immutable = (
+                "slot_id", "version", "supersedes_id", "source_public_id", "source_label",
+                "source_snapshot", "source_checksum", "change_reason", "selected_by_id", "selected_at",
+            )
+            if any(getattr(prior, field) != getattr(self, field) for field in immutable):
+                raise ValidationError("Package evidence selections are immutable. Create a reasoned successor selection.")
+            if prior.status != self.CURRENT or self.status != self.SUPERSEDED:
+                raise ValidationError("A selection may only move once from current to superseded.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Package evidence-selection history cannot be deleted.")
+
+
+class FinanceAccountabilityPackageEvent(models.Model):
+    package = models.ForeignKey(
+        FinanceAccountabilityPackage, on_delete=models.PROTECT, related_name="events",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="finance_accountability_package_events",
+    )
+    action = models.CharField(max_length=60)
+    reason = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Accountability-package events are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Accountability-package events cannot be deleted.")
+
+
+class FinanceAccountabilityPackageProfileEvent(models.Model):
+    profile = models.ForeignKey(
+        FinanceAccountabilityPackageProfile, on_delete=models.PROTECT, related_name="events",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="finance_accountability_package_profile_events",
+    )
+    action = models.CharField(max_length=60)
+    reason = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Accountability-profile events are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Accountability-profile events cannot be deleted.")
+
+
 class ReportRunEvent(models.Model):
     run = models.ForeignKey(ReportRun, on_delete=models.CASCADE, related_name="events")
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="report_run_events")

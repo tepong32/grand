@@ -58,8 +58,19 @@ Permissions are independently assignable for workspace access, definition manage
 | `approve_reports` | Approve official outputs or superseding versions |
 | `download_reports` | Download archived output files |
 | `view_department_reports` | View report records across the assigned department |
+| `manage_accountability_package_profiles` | Prepare readable Finance accountability-package recipes |
+| `approve_accountability_package_profiles` | Independently activate a package recipe |
+| `prepare_accountability_packages` | Assemble exact-period packages and reasoned successors |
+| `review_accountability_packages` | Independently approve or return assembled packages |
+| `export_accountability_packages` | Export approved or historically superseded package manifests |
 
 Assign permissions through Django groups or individual user permissions. Prefer role-based groups in production so access reviews remain understandable.
+
+## Finance accountability packages
+
+The Finance accountability workspace connects approved cross-office outputs without copying or weakening their authority. A locally reviewed profile defines required and optional slots in plain language. An Accounting preparer selects only matching approved report, statement-note, signed-reference, or verified tax-filing evidence for the exact package period; submission pins the profile, source UUIDs, approval facts, and SHA-256 checksums for a different reviewer.
+
+Draft and returned selections may be replaced only with a reason, retaining the earlier version. Approved profiles and packages use linked successors. Package correction never substitutes for a source transaction reversal or adjustment. Approved and historically superseded package manifests use the same TraceSync-ready export root. See [Finance accountability-package profiles and assembly](FINANCE_ACCOUNTABILITY_PACKAGES.md).
 
 ## Operator commands
 

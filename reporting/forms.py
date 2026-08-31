@@ -6,11 +6,169 @@ from accounting.models import LedgerAccount
 
 from .datasets import DATASETS, available_datasets, dataset_registry
 from .models import (
+    FinanceAccountabilityPackage, FinanceAccountabilityPackageProfile,
+    FinanceAccountabilityPackageRequirement,
     FinanceStatementLine, FinanceStatementMapping, FinanceStatementNote,
     FinanceStatementNoteSet, ReportDefinition, ReportReferenceComparison, ReportRun,
     ReportSchedule, ReportTemplateMappingField, ReportTemplatePromotion, ReportTemplateVersion,
 )
+from .accountability_services import create_package, source_choices
 from .statement_services import comparison_controls, create_note_set
+
+
+class FinanceAccountabilityPackageProfileForm(forms.ModelForm):
+    code = forms.SlugField(
+        required=False,
+        label="Reusable package code",
+        help_text="A short familiar name such as annual-accountability. Leave blank to use the package name.",
+    )
+
+    class Meta:
+        model = FinanceAccountabilityPackageProfile
+        fields = ("name", "code", "description", "authority_reference", "local_acceptance_note")
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "authority_reference": forms.Textarea(attrs={"rows": 3}),
+            "local_acceptance_note": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, department=None, user=None, **kwargs):
+        self.department, self.user = department, user
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["code"].disabled = True
+
+    def clean_code(self):
+        value = slugify(self.cleaned_data.get("code") or self.cleaned_data.get("name") or "")
+        if not value:
+            raise forms.ValidationError("Enter a package name or reusable package code.")
+        if not self.instance.pk and FinanceAccountabilityPackageProfile.objects.filter(
+            department=self.department, code=value,
+            status__in=(
+                FinanceAccountabilityPackageProfile.DRAFT,
+                FinanceAccountabilityPackageProfile.RETURNED,
+                FinanceAccountabilityPackageProfile.SUBMITTED,
+                FinanceAccountabilityPackageProfile.ACTIVE,
+            ),
+        ).exists():
+            raise forms.ValidationError(
+                "This package code already has a current version. Open it and use its correction or successor action."
+            )
+        return value
+
+    def save(self, commit=True):
+        profile = super().save(commit=False)
+        if not profile.pk:
+            latest = FinanceAccountabilityPackageProfile.objects.filter(
+                department=self.department, code=profile.code,
+            ).order_by("-version").first()
+            profile.department = self.department
+            profile.created_by = self.user
+            profile.version = (latest.version if latest else 0) + 1
+            profile.supersedes = (
+                latest if latest and latest.status == FinanceAccountabilityPackageProfile.ACTIVE else None
+            )
+        if commit:
+            profile.full_clean()
+            profile.save()
+        return profile
+
+
+class FinanceAccountabilityPackageRequirementForm(forms.ModelForm):
+    class Meta:
+        model = FinanceAccountabilityPackageRequirement
+        fields = (
+            "position", "code", "label", "evidence_kind", "source_department",
+            "report_definition", "tax_form_code", "required", "instructions",
+        )
+        labels = {
+            "position": "Order",
+            "code": "Requirement code",
+            "source_department": "Source office",
+            "report_definition": "Exact GRAND report",
+            "tax_form_code": "Tax return form code",
+            "required": "Required before submission",
+        }
+        help_texts = {
+            "code": "A short stable label such as statement-position or bir-1601eq.",
+            "tax_form_code": "Used only for verified tax-filing evidence, for example 1601-EQ.",
+            "instructions": "Plain-language guidance for the employee assembling this package.",
+        }
+        widgets = {"instructions": forms.Textarea(attrs={"rows": 3})}
+
+    def __init__(self, *args, profile=None, **kwargs):
+        self.profile = profile
+        super().__init__(*args, **kwargs)
+        self.fields["report_definition"].queryset = ReportDefinition.objects.filter(
+            is_active=True,
+        ).select_related("department").order_by("department__name", "name")
+        self.fields["report_definition"].label_from_instance = lambda item: (
+            f"{item.department.name} · {item.name}"
+        )
+
+    def clean_code(self):
+        return slugify(self.cleaned_data["code"])
+
+    def save(self, commit=True):
+        requirement = super().save(commit=False)
+        requirement.profile = self.profile
+        if commit:
+            requirement.save()
+        return requirement
+
+
+class FinanceAccountabilityPackageForm(forms.ModelForm):
+    class Meta:
+        model = FinanceAccountabilityPackage
+        fields = ("profile", "title", "period_start", "period_end", "preparation_note")
+        labels = {"profile": "Accepted package profile"}
+        widgets = {
+            "period_start": forms.DateInput(attrs={"type": "date"}),
+            "period_end": forms.DateInput(attrs={"type": "date"}),
+            "preparation_note": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, department=None, user=None, **kwargs):
+        self.department, self.user = department, user
+        super().__init__(*args, **kwargs)
+        self.fields["profile"].queryset = FinanceAccountabilityPackageProfile.objects.filter(
+            department=department, status=FinanceAccountabilityPackageProfile.ACTIVE,
+        ).order_by("name")
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get("period_start"), cleaned.get("period_end")
+        if start and end and end < start:
+            self.add_error("period_end", "The package period cannot end before it starts.")
+        return cleaned
+
+    def save(self, commit=True):
+        if not commit:
+            raise ValueError("Accountability packages must be created atomically from an approved profile.")
+        return create_package(
+            profile=self.cleaned_data["profile"], department=self.department, actor=self.user,
+            title=self.cleaned_data["title"], period_start=self.cleaned_data["period_start"],
+            period_end=self.cleaned_data["period_end"],
+            preparation_note=self.cleaned_data.get("preparation_note", ""),
+        )
+
+
+class FinanceAccountabilityPackageSelectionForm(forms.Form):
+    source_public_id = forms.ChoiceField(label="Approved evidence")
+    change_reason = forms.CharField(
+        required=False, widget=forms.Textarea(attrs={"rows": 3}),
+        label="Why this selection is being changed",
+        help_text="Required only when replacing an earlier selection; the prior version remains in audit history.",
+    )
+
+    def __init__(self, *args, slot=None, **kwargs):
+        self.slot = slot
+        super().__init__(*args, **kwargs)
+        self.fields["source_public_id"].choices = [
+            (public_id, label) for public_id, label, _snapshot in source_choices(slot)
+        ]
+        if slot.current_selection:
+            self.fields["change_reason"].required = True
 
 
 class FinanceStatementMappingForm(forms.ModelForm):

@@ -1,5 +1,16 @@
 # Changelog
 
+## F9.7 Governed Finance accountability-package assembly
+
+- Added human-editable, versioned package profiles with plain-language requirement rows for approved GRAND reports, accepted statement notes, reconciled signed-reference comparisons, and verified tax-filing evidence from named source offices.
+- Added separate configuration preparation/approval permissions, immutable submitted profile snapshots, authority/local-acceptance gates, copied successor recipes, append-only history, and non-executable configuration boundaries.
+- Added exact-period Accounting package assembly that pins profile versions, immutable requirement slots, source UUIDs, approval facts, reproduction/control evidence, and SHA-256 checksums across Budget–Accounting–Treasury sources.
+- Added reason-required draft/returned evidence replacement with retained selection versions; independently reviewed submission/return/approval; and approved-package correction successors that leave the predecessor official until the successor is approved.
+- Preserved the financial reversal boundary: a reporting-package correction cannot edit or reverse an obligation, JEV, remittance, check, or payment and must consume the corrected approved output from the source module.
+- Added historical reproducibility after legitimate source/profile supersession while blocking new drafts from choosing obsolete evidence, plus department-bounded views and cross-office source constraints.
+- Added a conservative accountability workspace, contextual floating `?` tutorial, Accounting Internal How-To version 7, permission-separated roles, focused regression coverage, and TraceSync-ready package manifests that do not duplicate confidential report bodies or signature images.
+- Added the F9.7 operator guide and comprehensive F9 review/handoff; the parent F9 gate remains pending actual accepted package contents/forms, signed/acknowledged sources, exact-output replay, and named-office acceptance.
+
 ## F9.6 Governed tax remittance and filing evidence
 
 - Replaced ordinary manual source-schedule hash entry with guided selection of an exact-period, one-form, approved and control-reconciled GRAND tax summary using a department-validated official template; GRAND now pins immutable run, definition, template, dataset, control, output, and reproduction evidence automatically.

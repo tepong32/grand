@@ -259,7 +259,7 @@ class ReportTemplatePromotionTests(TestCase):
         self.assertIn("reporting.approve_template_promotions", config_approver)
         accounting = next(item for item in ACCOUNTING_GUIDES if item["slug"] == "finance-accountability-reporting-accounting")
         budget = next(item for item in BUDGET_GUIDES if item["slug"] == "finance-accountability-reporting-budget")
-        self.assertEqual(accounting["version"], 6)
+        self.assertEqual(accounting["version"], 7)
         self.assertEqual(budget["version"], 3)
         self.assertIn("Promote a checked layout", {step[0] for step in accounting["steps"]})
         self.assertIn("Compare and promote the editable layout", {step[0] for step in budget["steps"]})

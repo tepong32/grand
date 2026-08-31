@@ -14,14 +14,19 @@ from src.export_archive import archive_export
 
 from .access import (
     can_activate_template_promotions, can_approve_template_promotions,
+    can_approve_accountability_profiles, can_export_accountability_packages,
     can_approve_reports, can_download_reports, can_generate_reports, can_manage_definitions,
+    can_manage_accountability_profiles, can_prepare_accountability_packages,
     can_manage_templates, can_review_reports, can_schedule_reports, department_for_user,
+    can_review_accountability_packages,
     can_prepare_template_promotions,
     can_view_department_reports, can_prepare_reference_comparisons, can_prepare_statement_notes,
     can_review_reference_comparisons, can_review_statement_notes, can_export_statement_packages,
     reporting_access_required, reporting_permission_required,
 )
 from .forms import (
+    FinanceAccountabilityPackageForm, FinanceAccountabilityPackageProfileForm,
+    FinanceAccountabilityPackageRequirementForm, FinanceAccountabilityPackageSelectionForm,
     FinanceStatementLineForm, FinanceStatementMappingForm, FinanceStatementNoteForm,
     FinanceStatementNoteSetForm, ManualReportForm, ReportDefinitionForm,
     ReportReferenceComparisonForm, ReportScheduleForm, ReportTemplateMappingFieldForm,
@@ -29,11 +34,18 @@ from .forms import (
 )
 from .mappers import TemplateMappingError, preflight_template
 from .models import (
+    FinanceAccountabilityPackage, FinanceAccountabilityPackageEvent,
+    FinanceAccountabilityPackageProfile, FinanceAccountabilityPackageRequirement,
     FinanceStatementLine, FinanceStatementMapping, FinanceStatementNote,
     FinanceStatementNoteEvent, FinanceStatementNoteSet, ReportDefinition,
     ReportReferenceComparison, ReportReferenceComparisonEvent, ReportRun, ReportRunEvent,
     ReportSchedule, ReportTemplateMappingField, ReportTemplatePromotion,
     ReportTemplatePromotionEvent, ReportTemplateVersion,
+)
+from .accountability_services import (
+    create_package_successor, create_profile_successor, package_export_manifest, review_package, review_profile,
+    select_source, source_choices, submit_package, submit_profile, validate_package,
+    validate_profile,
 )
 from .services import create_manual_run, transition_run
 from .template_services import (
@@ -131,7 +143,344 @@ def workspace(request):
         ).select_related("run__definition", "created_by", "reviewed_by")[:5],
         "explained_measures": _explained_finance_measures(visible_runs),
         "statement_mappings_enabled": statement_mappings_enabled,
+        "accountability_packages_enabled": bool(
+            can_manage_accountability_profiles(request.user)
+            or can_prepare_accountability_packages(request.user)
+            or can_review_accountability_packages(request.user)
+            or can_export_accountability_packages(request.user)
+        ),
     })
+
+
+def _accountability_profile_for_user(user, public_id):
+    return get_object_or_404(
+        FinanceAccountabilityPackageProfile.objects.filter(
+            department=department_for_user(user),
+        ).select_related(
+            "department", "created_by", "submitted_by", "reviewed_by", "supersedes",
+        ).prefetch_related(
+            "requirements__source_department", "requirements__report_definition", "events__actor",
+        ),
+        public_id=public_id,
+    )
+
+
+def _accountability_package_for_user(user, public_id):
+    return get_object_or_404(
+        FinanceAccountabilityPackage.objects.filter(
+            department=department_for_user(user),
+        ).select_related(
+            "department", "profile", "created_by", "submitted_by", "reviewed_by", "supersedes",
+        ).prefetch_related(
+            "slots__source_department", "slots__report_definition", "slots__selections__selected_by",
+            "events__actor",
+        ),
+        public_id=public_id,
+    )
+
+
+@reporting_access_required
+def accountability_workspace(request):
+    department = department_for_user(request.user)
+    profiles = FinanceAccountabilityPackageProfile.objects.filter(department=department).select_related(
+        "created_by", "reviewed_by",
+    ).prefetch_related("requirements")
+    packages = FinanceAccountabilityPackage.objects.filter(department=department).select_related(
+        "profile", "created_by", "reviewed_by", "supersedes",
+    )
+    return render(request, "reporting/accountability_workspace.html", {
+        "department": department, "profiles": profiles, "packages": packages,
+        "can_manage_profiles": can_manage_accountability_profiles(request.user),
+        "can_approve_profiles": can_approve_accountability_profiles(request.user),
+        "can_prepare_packages": can_prepare_accountability_packages(request.user),
+        "can_review_packages": can_review_accountability_packages(request.user),
+        "can_export_packages": can_export_accountability_packages(request.user),
+    })
+
+
+@reporting_permission_required(can_manage_accountability_profiles)
+@require_http_methods(["GET", "POST"])
+def accountability_profile_create(request):
+    department = department_for_user(request.user)
+    form = FinanceAccountabilityPackageProfileForm(
+        request.POST or None, department=department, user=request.user,
+    )
+    if request.method == "POST" and form.is_valid():
+        profile = form.save()
+        messages.success(request, "Editable package profile created. Add the evidence offices actually require.")
+        return redirect(profile)
+    return render(request, "reporting/accountability_profile_form.html", {
+        "form": form, "mode": "Create",
+    })
+
+
+@reporting_access_required
+def accountability_profile_detail(request, public_id):
+    profile = _accountability_profile_for_user(request.user, public_id)
+    return render(request, "reporting/accountability_profile_detail.html", {
+        "profile": profile, "validation": validate_profile(profile),
+        "can_manage": can_manage_accountability_profiles(request.user),
+        "can_approve": can_approve_accountability_profiles(request.user),
+    })
+
+
+@reporting_permission_required(can_manage_accountability_profiles)
+@require_http_methods(["GET", "POST"])
+def accountability_profile_update(request, public_id):
+    profile = _accountability_profile_for_user(request.user, public_id)
+    if not profile.is_editable:
+        messages.error(request, "Locked profiles are immutable. Create a successor version instead.")
+        return redirect(profile)
+    form = FinanceAccountabilityPackageProfileForm(
+        request.POST or None, instance=profile, department=profile.department, user=request.user,
+    )
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Package profile details saved.")
+        return redirect(profile)
+    return render(request, "reporting/accountability_profile_form.html", {
+        "form": form, "mode": "Update", "profile": profile,
+    })
+
+
+@reporting_permission_required(can_manage_accountability_profiles)
+@require_http_methods(["GET", "POST"])
+def accountability_requirement_create(request, public_id):
+    profile = _accountability_profile_for_user(request.user, public_id)
+    if not profile.is_editable:
+        messages.error(request, "Locked requirements are immutable. Create a successor profile.")
+        return redirect(profile)
+    form = FinanceAccountabilityPackageRequirementForm(request.POST or None, profile=profile)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Evidence requirement added.")
+        return redirect(profile)
+    return render(request, "reporting/accountability_requirement_form.html", {
+        "form": form, "profile": profile, "mode": "Add",
+    })
+
+
+@reporting_permission_required(can_manage_accountability_profiles)
+@require_http_methods(["GET", "POST"])
+def accountability_requirement_update(request, public_id, pk):
+    profile = _accountability_profile_for_user(request.user, public_id)
+    requirement = get_object_or_404(FinanceAccountabilityPackageRequirement, profile=profile, pk=pk)
+    if not profile.is_editable:
+        messages.error(request, "Locked requirements are immutable. Create a successor profile.")
+        return redirect(profile)
+    form = FinanceAccountabilityPackageRequirementForm(
+        request.POST or None, instance=requirement, profile=profile,
+    )
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Evidence requirement saved.")
+        return redirect(profile)
+    return render(request, "reporting/accountability_requirement_form.html", {
+        "form": form, "profile": profile, "requirement": requirement, "mode": "Update",
+    })
+
+
+@reporting_permission_required(can_manage_accountability_profiles)
+@require_POST
+def accountability_requirement_delete(request, public_id, pk):
+    profile = _accountability_profile_for_user(request.user, public_id)
+    requirement = get_object_or_404(FinanceAccountabilityPackageRequirement, profile=profile, pk=pk)
+    try:
+        requirement.delete()
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(request, "Evidence requirement removed from this editable profile.")
+    return redirect(profile)
+
+
+@reporting_permission_required(can_manage_accountability_profiles)
+@require_POST
+def accountability_profile_submit(request, public_id):
+    profile = _accountability_profile_for_user(request.user, public_id)
+    try:
+        submit_profile(profile, request.user)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(request, "Package profile submitted with a pinned requirement snapshot.")
+    return redirect(profile)
+
+
+@reporting_permission_required(can_approve_accountability_profiles)
+@require_POST
+def accountability_profile_review(request, public_id, action):
+    if action not in ("approve", "return"):
+        from django.http import Http404
+        raise Http404
+    profile = _accountability_profile_for_user(request.user, public_id)
+    try:
+        review_profile(
+            profile, request.user, approve=action == "approve",
+            note=request.POST.get("review_note", ""),
+        )
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(request, "Package profile activated." if action == "approve" else "Package profile returned for correction.")
+    return redirect(profile)
+
+
+@reporting_permission_required(can_manage_accountability_profiles)
+@require_POST
+def accountability_profile_successor(request, public_id):
+    profile = _accountability_profile_for_user(request.user, public_id)
+    try:
+        successor = create_profile_successor(
+            profile, request.user, reason=request.POST.get("change_reason", ""),
+        )
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+        return redirect(profile)
+    messages.success(request, "Editable successor profile created with the accepted requirements copied for review.")
+    return redirect(successor)
+
+
+@reporting_permission_required(can_prepare_accountability_packages)
+@require_http_methods(["GET", "POST"])
+def accountability_package_create(request):
+    department = department_for_user(request.user)
+    form = FinanceAccountabilityPackageForm(
+        request.POST or None, department=department, user=request.user,
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            package = form.save()
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Editable package created from the approved profile. Select each required source.")
+            return redirect(package)
+    return render(request, "reporting/accountability_package_form.html", {"form": form})
+
+
+@reporting_access_required
+def accountability_package_detail(request, public_id):
+    package = _accountability_package_for_user(request.user, public_id)
+    slots = []
+    for slot in package.slots.all():
+        choices = source_choices(slot) if package.is_editable else []
+        slots.append({
+            "slot": slot, "selection": slot.current_selection,
+            "eligible_count": len(choices),
+        })
+    return render(request, "reporting/accountability_package_detail.html", {
+        "package": package, "slots": slots, "validation": validate_package(package),
+        "can_prepare": can_prepare_accountability_packages(request.user),
+        "can_review": can_review_accountability_packages(request.user),
+        "can_export": can_export_accountability_packages(request.user),
+    })
+
+
+@reporting_permission_required(can_prepare_accountability_packages)
+@require_http_methods(["GET", "POST"])
+def accountability_package_select(request, public_id, pk):
+    package = _accountability_package_for_user(request.user, public_id)
+    slot = get_object_or_404(package.slots.select_related("package", "source_department", "report_definition"), pk=pk)
+    if not package.is_editable:
+        messages.error(request, "Locked packages cannot change evidence. Return it or create a successor.")
+        return redirect(package)
+    form = FinanceAccountabilityPackageSelectionForm(request.POST or None, slot=slot)
+    if request.method == "POST" and form.is_valid():
+        try:
+            select_source(
+                slot, request.user, source_public_id=form.cleaned_data["source_public_id"],
+                reason=form.cleaned_data.get("change_reason", ""),
+            )
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Approved evidence pinned to the package with its checksum.")
+            return redirect(package)
+    return render(request, "reporting/accountability_selection_form.html", {
+        "form": form, "package": package, "slot": slot,
+    })
+
+
+@reporting_permission_required(can_prepare_accountability_packages)
+@require_POST
+def accountability_package_submit(request, public_id):
+    package = _accountability_package_for_user(request.user, public_id)
+    try:
+        submit_package(package, request.user)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(request, "Accountability package submitted with every source snapshot pinned.")
+    return redirect(package)
+
+
+@reporting_permission_required(can_review_accountability_packages)
+@require_POST
+def accountability_package_review(request, public_id, action):
+    if action not in ("approve", "return"):
+        from django.http import Http404
+        raise Http404
+    package = _accountability_package_for_user(request.user, public_id)
+    try:
+        review_package(
+            package, request.user, approve=action == "approve",
+            note=request.POST.get("review_note", ""),
+        )
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(request, "Accountability package approved." if action == "approve" else "Accountability package returned for correction.")
+    return redirect(package)
+
+
+@reporting_permission_required(can_prepare_accountability_packages)
+@require_POST
+def accountability_package_successor(request, public_id):
+    package = _accountability_package_for_user(request.user, public_id)
+    try:
+        successor = create_package_successor(
+            package, request.user, reason=request.POST.get("change_reason", ""),
+        )
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+        return redirect(package)
+    messages.success(request, "Correction package created. The approved predecessor remains official until this successor is approved.")
+    return redirect(successor)
+
+
+@reporting_permission_required(can_export_accountability_packages)
+def accountability_package_export(request, public_id):
+    package = _accountability_package_for_user(request.user, public_id)
+    try:
+        manifest = package_export_manifest(package)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+        return redirect(package)
+    content = json.dumps(
+        manifest, cls=DjangoJSONEncoder, indent=2, sort_keys=True, ensure_ascii=False,
+    ).encode("utf-8") + b"\n"
+    filename = f"finance-accountability_{package.period_end}_{str(package.public_id)[:8]}.json"
+    archived = archive_export(
+        content=content, department=package.department, user=request.user,
+        category="finance-accountability-packages", filename=filename,
+        metadata={
+            "kind": "finance_accountability_package", "package_public_id": str(package.public_id),
+            "profile_code": package.profile.code, "profile_version": package.profile.version,
+            "period_start": package.period_start, "period_end": package.period_end,
+            "package_version": package.version, "package_checksum": package.package_checksum,
+        },
+    )
+    response = HttpResponse(content, content_type="application/json; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    FinanceAccountabilityPackageEvent.objects.create(
+        package=package, actor=request.user, action="exported",
+        reason=f"Archived {archived['relative_path']} with SHA-256 {archived['sha256']}.",
+        snapshot={"relative_path": archived["relative_path"], "sha256": archived["sha256"]},
+    )
+    return response
 
 
 @reporting_access_required
