@@ -3,11 +3,13 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
+import json
 import uuid
 from datetime import date, timedelta
 
 from dateutil.relativedelta import relativedelta
 from django.core.files.base import ContentFile
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.utils import timezone
 from django.utils.formats import date_format
@@ -23,9 +25,12 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from reportlab.lib.utils import ImageReader
 
-from .datasets import build_dataset
+from .datasets import build_dataset_with_evidence as build_dataset
 from .mappers import generate_mapped_xlsx, generate_pdf_overlay
-from .models import ReportDefinition, ReportRun, ReportRunEvent, ReportSchedule, ReportTemplateVersion
+from .models import (
+    ReportDefinition, ReportRun, ReportRunEvent, ReportRunSource, ReportSchedule,
+    ReportTemplateVersion,
+)
 
 
 def display_value(value):
@@ -40,26 +45,67 @@ def display_value(value):
 
 def definition_snapshot(definition):
     return {
+        "name": definition.name,
+        "slug": definition.slug,
+        "description": definition.description,
         "dataset_key": definition.dataset_key,
         "selected_fields": list(definition.selected_fields),
         "filters": dict(definition.filters or {}),
         "group_by": list(definition.group_by or []),
         "totals": list(definition.totals or []),
         "sort_by": list(definition.sort_by or []),
+        "applicability_status": definition.applicability_status,
+        "authority_reference": definition.authority_reference,
+        "local_acceptance_note": definition.local_acceptance_note,
     }
 
 
 def run_parameters(definition, runtime_parameters=None, template_version=None):
     parameters = dict(runtime_parameters or {})
     parameters["_definition_snapshot"] = definition_snapshot(definition)
+    statement_types = {
+        "finance_statement_position": "position",
+        "finance_statement_performance": "performance",
+    }
+    statement_type = statement_types.get(definition.dataset_key)
+    if statement_type:
+        from .statement_services import current_statement_mapping, statement_mapping_snapshot
+        mapping = current_statement_mapping(definition.department, statement_type)
+        if mapping:
+            parameters["_statement_mapping_snapshot"] = statement_mapping_snapshot(mapping)
+            parameters["_statement_mapping_checksum"] = mapping.snapshot_checksum
     if template_version:
         parameters["_template_snapshot"] = {
             "version": template_version.version,
+            "title": template_version.title,
+            "header_text": template_version.header_text,
+            "certification_text": template_version.certification_text,
+            "footer_text": template_version.footer_text,
+            "document_control_prefix": template_version.document_control_prefix,
+            "signatories": list(template_version.signatories or []),
+            "layout_config": dict(template_version.layout_config or {}),
             "render_mode": template_version.render_mode,
             "mapping_checksum": template_version.mapping_checksum,
             "mapping_summary": dict(template_version.mapping_summary or {}),
+            "fidelity_status": template_version.fidelity_status,
+            "fidelity_notes": template_version.fidelity_notes,
+            "page_size": template_version.page_size,
+            "orientation": template_version.orientation,
+            "margin_mm": template_version.margin_mm,
+            "page_border": template_version.page_border,
         }
     return parameters
+
+
+def _json_safe(value):
+    return json.loads(json.dumps(value, cls=DjangoJSONEncoder, sort_keys=True))
+
+
+def _checksum_json(value):
+    payload = json.dumps(
+        _json_safe(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _selected_fields(run):
@@ -281,7 +327,16 @@ def generate_report(run):
     if run.status not in (ReportRun.DRAFT, ReportRun.FAILED):
         return run
     try:
-        adapter, rows, totals = build_dataset(run.definition, run.period_start, run.period_end, run.parameters)
+        dataset_result = build_dataset(
+            run.definition, run.period_start, run.period_end, run.parameters,
+        )
+        if len(dataset_result) == 3:
+            # Preserve the original dataset-builder contract for integrations and
+            # tests that provide a synthetic adapter without Finance evidence.
+            adapter, rows, totals = dataset_result
+            evidence = {}
+        else:
+            adapter, rows, totals, evidence = dataset_result
         labels = adapter.labels_for(_selected_fields(run))
         template = run.template_version
         if not template.supports_format(run.output_format):
@@ -297,17 +352,71 @@ def generate_report(run):
         else:
             payload = GENERATORS[run.output_format](run, labels, rows, totals)
         checksum = hashlib.sha256(payload).hexdigest()
+        dataset_snapshot = _json_safe({"rows": rows, "totals": totals})
+        dataset_checksum = _checksum_json(dataset_snapshot)
+        control_totals = _json_safe(evidence.get("control_totals") or {})
+        source_snapshots = _json_safe(evidence.get("sources") or [])
+        control_checksum = _checksum_json({
+            "control_totals": control_totals,
+            "sources": source_snapshots,
+            "status": evidence.get("control_status", ReportRun.CONTROL_NOT_APPLICABLE),
+        })
+        reproduction_key = _checksum_json({
+            "run_public_id": str(run.public_id),
+            "period_start": run.period_start,
+            "period_end": run.period_end,
+            "parameters": run.parameters,
+            "dataset_checksum": dataset_checksum,
+            "control_checksum": control_checksum,
+            "output_checksum": checksum,
+        })
         filename = f"{run.definition.slug}_{run.period_start:%Y%m%d}_{run.period_end:%Y%m%d}_{str(run.public_id)[:8]}.{run.output_format}"
         previous = run.status
         run.output_file.save(filename, ContentFile(payload), save=False)
         run.status = ReportRun.GENERATED
         run.checksum = checksum
         run.row_count = len(rows)
+        run.dataset_snapshot = dataset_snapshot
+        run.dataset_checksum = dataset_checksum
+        run.control_totals = control_totals
+        run.control_checksum = control_checksum
+        run.control_status = evidence.get("control_status", ReportRun.CONTROL_NOT_APPLICABLE)
+        run.control_message = evidence.get("control_message", "")
+        run.control_gate_required = bool(evidence.get("control_gate_required"))
+        run.source_record_count = len(source_snapshots)
+        run.source_freshness_at = evidence.get("freshness_at")
+        run.reproduction_key = reproduction_key
         run.error_message = ""
         run.generated_at = timezone.now()
-        run.full_clean()
-        run.save()
-        ReportRunEvent.objects.create(run=run, actor=run.created_by, action="generated", from_status=previous, to_status=run.status, note=f"Generated {len(rows)} data rows with SHA-256 {checksum}.")
+        source_records = [
+            ReportRunSource(
+                run=run,
+                source_app=item.get("source_app", ""),
+                source_model=item.get("source_model", ""),
+                source_pk=item.get("source_pk", ""),
+                source_public_id=item.get("source_public_id", ""),
+                source_reference=item.get("source_reference", ""),
+                source_date=item.get("source_date") or None,
+                control_group=item.get("control_group", ""),
+                amount=item.get("amount") or 0,
+                source_checksum=item.get("source_checksum", ""),
+                source_url=item.get("source_url", ""),
+                snapshot=_json_safe(item.get("snapshot") or {}),
+            )
+            for item in evidence.get("sources") or []
+        ]
+        with transaction.atomic():
+            run.full_clean()
+            run.save()
+            ReportRunSource.objects.bulk_create(source_records)
+            ReportRunEvent.objects.create(
+                run=run, actor=run.created_by, action="generated", from_status=previous,
+                to_status=run.status,
+                note=(
+                    f"Generated {len(rows)} data rows with output SHA-256 {checksum}, "
+                    f"dataset SHA-256 {dataset_checksum}, and control SHA-256 {control_checksum}."
+                ),
+            )
     except Exception as exc:
         previous = run.status
         run.status = ReportRun.FAILED
@@ -338,10 +447,20 @@ def transition_run(run, action, actor, note=""):
     previous = run.status
     now = timezone.now()
     if action == "review" and run.status == ReportRun.GENERATED:
+        if run.control_gate_required and run.control_status != ReportRun.CONTROL_RECONCILED:
+            raise ValueError("Finance control totals must reconcile before this run can enter official review.")
         run.status, run.reviewed_by, run.reviewed_at = ReportRun.REVIEWED, actor, now
     elif action == "approve" and run.status == ReportRun.REVIEWED:
         if not run.template_version.is_official_ready:
             raise ValueError("This output uses a pilot layout. Validate the template against the department's current form before approving it as official.")
+        definition_snapshot = run.parameters.get("_definition_snapshot", {})
+        if definition_snapshot.get("applicability_status") == ReportDefinition.APPLICABILITY_CANDIDATE:
+            raise ValueError(
+                "This definition was generated while local applicability was still pending. "
+                "Confirm the accepted local form and authority, then generate a successor run."
+            )
+        if run.control_gate_required and run.control_status != ReportRun.CONTROL_RECONCILED:
+            raise ValueError("Finance control totals must reconcile before official approval.")
         previous_approved = list(ReportRun.objects.filter(definition=run.definition, period_start=run.period_start, period_end=run.period_end, status=ReportRun.APPROVED).exclude(pk=run.pk))
         for prior in previous_approved:
             prior.status = ReportRun.SUPERSEDED

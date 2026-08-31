@@ -8,6 +8,8 @@ from .roles import is_finance_uat_viewer
 
 ACTION_PERMISSIONS = (
     "vouchers.initiate_budget_case",
+    "vouchers.initiate_payable_case",
+    "vouchers.review_payable_intake",
     "vouchers.certify_budget_obligation",
     "vouchers.prepare_disbursement_voucher",
     "vouchers.track_wet_signatures",
@@ -15,11 +17,24 @@ ACTION_PERMISSIONS = (
     "vouchers.validate_accounting_voucher",
     "vouchers.issue_payment_instruments",
     "vouchers.finalize_bank_advice",
+    "vouchers.view_bank_advice",
+    "vouchers.prepare_bank_advice",
+    "vouchers.approve_bank_advice",
+    "vouchers.submit_bank_advice",
+    "vouchers.acknowledge_bank_advice",
+    "vouchers.review_returned_instruments",
+    "vouchers.export_bank_advice",
     "vouchers.release_payment_instruments",
     "vouchers.manage_payment_exceptions",
     "vouchers.return_voucher_case",
     "vouchers.amend_nonfinancial_voucher",
     "vouchers.approve_control_overrides",
+    "vouchers.prepare_remittances",
+    "vouchers.approve_remittances",
+    "vouchers.release_remittances",
+    "vouchers.prepare_cash_position",
+    "vouchers.approve_cash_position",
+    "vouchers.export_cash_position",
 )
 
 

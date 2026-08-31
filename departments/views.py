@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.http import JsonResponse
 from django.shortcuts import render
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_POST, require_http_methods
 
 from .models import Department
 from .services.query_service import get_department_by_slug
+from .services.internal_howtos import set_step_completion
 
 
 @require_http_methods(["GET"])
@@ -30,3 +32,11 @@ def department_detail(request, slug: str):
 
     context = {"department": department}
     return render(request, "home/authed/dashboards/generic.html", context)
+
+
+@require_POST
+@login_required
+def internal_howto_step_completion(request, step_id):
+    completed = request.POST.get("completed", "true").lower() in {"1", "true", "yes", "on"}
+    _completion, is_completed = set_step_completion(user=request.user, step_id=step_id, completed=completed)
+    return JsonResponse({"step_id": step_id, "completed": is_completed})

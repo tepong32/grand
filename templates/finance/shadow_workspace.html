@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Finance shadow operation & cutover{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div><p class="text-uppercase text-primary small font-weight-bold mb-1">F11 governed transition</p><h1 class="h3 mb-1">Shadow operation &amp; cutover</h1><p class="text-muted mb-0">Compare first. Let each office accept its own work. Record authority last.</p></div>
+    {% if can_manage %}<a class="btn btn-primary mt-2" href="{% url 'finance:shadow_cycle_create' %}"><i class="fas fa-plus mr-1"></i> Plan a cycle</a>{% endif %}
+  </div>
+  <div class="alert alert-warning"><strong>GRAND remains in shadow/UAT mode by default.</strong> A reconciled pilot is evidence, not authority. Only an authorized cutover record applies, and only to its exact scope and date.</div>
+  <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Cycles visible to you</h2></div><div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-hover mb-0"><thead><tr><th>Cycle</th><th>Run</th><th>Controls</th><th>Stakeholders</th><th>Status</th></tr></thead><tbody>
+    {% for cycle in cycles %}<tr>
+      <td><a href="{% url 'finance:shadow_cycle_detail' cycle.pk %}"><strong>{{ cycle.title }}</strong></a><div class="small text-muted">{{ cycle.code }} · FY {{ cycle.fiscal_year }} · {{ cycle.department.name }}</div></td>
+      <td>{{ cycle.get_run_kind_display }}<div class="small text-muted">{{ cycle.planned_start|date:'M j' }}–{{ cycle.planned_end|date:'M j, Y' }}</div></td>
+      <td>{{ cycle.comparisons.count }} comparison{{ cycle.comparisons.count|pluralize }}</td>
+      <td>{{ cycle.stakeholder_acceptances.count }} assigned</td>
+      <td><span class="badge badge-{% if cycle.status == 'reconciled' %}success{% elif cycle.status == 'returned' %}danger{% elif cycle.status == 'reconciliation_review' %}info{% else %}secondary{% endif %}">{{ cycle.get_status_display }}</span></td>
+    </tr>{% empty %}<tr><td colspan="5" class="text-center text-muted py-5">No shadow or parallel cycle is visible to this account.</td></tr>{% endfor %}
+    </tbody></table>
+  </div></div></div>
+  <p class="small text-muted mt-3"><i class="fas fa-folder-open mr-1"></i> Exported evidence is also retained under the single TraceSync-ready GRAND export root with its checksum manifest.</p>
+</div>
+{% endblock %}

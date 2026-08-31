@@ -63,6 +63,58 @@ def can_view_department_reports(user, department=None):
     )
 
 
+def can_prepare_statement_notes(user, department=None):
+    return _authorized(user, "reporting.prepare_statement_notes", department)
+
+
+def can_review_statement_notes(user, department=None):
+    return _authorized(user, "reporting.review_statement_notes", department)
+
+
+def can_prepare_reference_comparisons(user, department=None):
+    return _authorized(user, "reporting.prepare_reference_comparisons", department)
+
+
+def can_review_reference_comparisons(user, department=None):
+    return _authorized(user, "reporting.review_reference_comparisons", department)
+
+
+def can_export_statement_packages(user, department=None):
+    return _authorized(user, "reporting.export_statement_packages", department)
+
+
+def can_prepare_template_promotions(user, department=None):
+    return _authorized(user, "reporting.prepare_template_promotions", department)
+
+
+def can_approve_template_promotions(user, department=None):
+    return _authorized(user, "reporting.approve_template_promotions", department)
+
+
+def can_activate_template_promotions(user, department=None):
+    return _authorized(user, "reporting.activate_template_promotions", department)
+
+
+def can_manage_accountability_profiles(user, department=None):
+    return _authorized(user, "reporting.manage_accountability_package_profiles", department)
+
+
+def can_approve_accountability_profiles(user, department=None):
+    return _authorized(user, "reporting.approve_accountability_package_profiles", department)
+
+
+def can_prepare_accountability_packages(user, department=None):
+    return _authorized(user, "reporting.prepare_accountability_packages", department)
+
+
+def can_review_accountability_packages(user, department=None):
+    return _authorized(user, "reporting.review_accountability_packages", department)
+
+
+def can_export_accountability_packages(user, department=None):
+    return _authorized(user, "reporting.export_accountability_packages", department)
+
+
 def reporting_access_required(view_func):
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):

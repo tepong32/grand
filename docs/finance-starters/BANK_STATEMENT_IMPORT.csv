@@ -1,0 +1,3 @@
+transaction_date,bank_reference,description,withdrawal,deposit,running_balance
+2027-01-05,CHK-000001,Sample cleared check - replace or remove this starter row,1250.00,,8750.00
+2027-01-08,DEP-000001,Sample cleared deposit - replace or remove this starter row,,2500.00,11250.00

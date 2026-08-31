@@ -1,8 +1,286 @@
 # Changelog
 
+## F9.7 Governed Finance accountability-package assembly
+
+- Added human-editable, versioned package profiles with plain-language requirement rows for approved GRAND reports, accepted statement notes, reconciled signed-reference comparisons, and verified tax-filing evidence from named source offices.
+- Added separate configuration preparation/approval permissions, immutable submitted profile snapshots, authority/local-acceptance gates, copied successor recipes, append-only history, and non-executable configuration boundaries.
+- Added exact-period Accounting package assembly that pins profile versions, immutable requirement slots, source UUIDs, approval facts, reproduction/control evidence, and SHA-256 checksums across Budget–Accounting–Treasury sources.
+- Added reason-required draft/returned evidence replacement with retained selection versions; independently reviewed submission/return/approval; and approved-package correction successors that leave the predecessor official until the successor is approved.
+- Preserved the financial reversal boundary: a reporting-package correction cannot edit or reverse an obligation, JEV, remittance, check, or payment and must consume the corrected approved output from the source module.
+- Added historical reproducibility after legitimate source/profile supersession while blocking new drafts from choosing obsolete evidence, plus department-bounded views and cross-office source constraints.
+- Added a conservative accountability workspace, contextual floating `?` tutorial, Accounting Internal How-To version 7, permission-separated roles, focused regression coverage, and TraceSync-ready package manifests that do not duplicate confidential report bodies or signature images.
+- Added the F9.7 operator guide and comprehensive F9 review/handoff; the parent F9 gate remains pending actual accepted package contents/forms, signed/acknowledged sources, exact-output replay, and named-office acceptance.
+
+## F9.6 Governed tax remittance and filing evidence
+
+- Replaced ordinary manual source-schedule hash entry with guided selection of an exact-period, one-form, approved and control-reconciled GRAND tax summary using a department-validated official template; GRAND now pins immutable run, definition, template, dataset, control, output, and reproduction evidence automatically.
+- Retained a clearly labeled advanced external-schedule route requiring its own reviewed reference, SHA-256, and plain-language exception basis; migrated existing F9.6 evidence to that truthful legacy classification while preserving its original checksum schema.
+- Updated the in-page filing form, remittance evidence summary, Accounting/Treasury floating guides, CSV lineage fields, documentation, and lifecycle coverage without changing actual e-filing or official-form acceptance boundaries.
+- Preserved governed tax family, return/remittance form, ATC, rule checksum, and source-balance checksum on Treasury remittance allocations, posting payloads, liability-reducing subsidiary movements, UI rows, and portable registers while keeping generic deductions compatible.
+- Added a post-release filing-evidence package for actual period, channel, filing acknowledgement, payment confirmation, checksummed source schedule, and restricted custody references without implementing e-filing or deadline calculation.
+- Added maker-checker Accounting verification, returned-draft corrections, immutable verified evidence, explicit amended successors, append-only remittance events, and checksum validation.
+- Added department-specific floating-guide updates, a conservative in-page workflow, TraceSync-ready `finance-tax-filings` exports, migration, documentation, and focused lifecycle/tamper-boundary coverage.
+
+## F9.5 Governed tax withholding capture and reporting
+
+- Added plain-language, versioned Finance Setup tax rules for tax family, ATC, rate, base, form codes, reporting date, rounding, TIN requirement, authority, effectivity, and local acceptance without requiring users to edit JSON.
+- Kept researched starters as Candidate and blocked reporting-enabled candidates from entering an approved setup release until actual local applicability is recorded.
+- Replaced the single DV deduction pair with a guided multi-line deduction editor that validates unique governed rules, payee/TIN requirements, base-times-rate formula, cent rounding, and the pre-issue modification boundary.
+- Pinned immutable rule, payee, tax-base, form, rule-checksum, and contextual evidence-checksum snapshots into voucher deductions, Accounting subsidiary postings, governed reversals, case display, and requesting-office transaction exports while withholding the full TIN from the latter.
+- Added Accounting-only governed tax detail/certificate-source and return/remittance-summary datasets with reporting-basis selection, posted-JEV drill-through, reversal treatment, formula/rule/evidence/ledger/TIN control gates, editable candidate starters, and TraceSync-ready report evidence.
+- Updated department-specific floating `?` guides for setup, DV preparation/correction, and Accounting reporting, and documented the official BIR source context without claiming filing, issued certificates, current deadlines, exact forms, or local acceptance.
+- Added the schema migration and focused Finance Setup, Voucher, Accounting evidence, report reconciliation, reversal, export, and tamper-detection regression coverage.
+
+## F11.5 Consecutive field-cycle qualification and signed decision references
+
+- Added a human-editable, maker–checker field-qualification plan for the local minimum consecutive cycles, optional mandatory parallel run, retained local authority, accepted rules/forms, and actual field-evidence basis; the two-cycle starter is explicitly not represented as a COA, DBM, or local rule.
+- Added independently reviewed, checksum-backed field-cycle evidence rows with exact Finance office/fiscal year/scope validation, retained execution and rules/forms references, return/correction history, and immutable acceptance.
+- Required an uninterrupted explicit predecessor chain ending at the cutover candidate, the approved minimum accepted cycles, no open field-evidence rows, and a parallel run when the approved plan requires one.
+- Added retained signed/attributable stakeholder decision references and SHA-256 locks, plus signed cutover-authority reference/checksum/custody fields, without storing signature images or claiming to create digital signatures.
+- Extended the conservative shadow/cutover workspace, stakeholder guide version 3, cutover-manager guide version 4, append-only audit history, readiness checks, and TraceSync JSON package to schema v5.
+- Left actual local field execution, accepted rules/forms, signatures/attributed decisions, and optional production adapters outside the implementation claim; GRAND now enforces how those records are entered and reviewed but does not fabricate them.
+
+## F11.4 Governed curricula, support, and witnessed readiness exercises
+
+- Added a human-editable curriculum/support plan for role curricula, floating/desk quick guides, supervisor observation/rerun instructions, named support ownership, channels/hours, escalation procedure, local acceptance evidence, and an explicit learning-privacy boundary.
+- Added checksum-backed maker–checker plan submission, return, approval, and post-approval immutability.
+- Added locally written readiness exercises with exact scope, procedure, expected result, owner, different assigned witness, schedule/due time, and a pinned approved support route.
+- Required one independently passed role exercise for every named stakeholder plus passed security/access, privacy, accessibility, performance, printing/custody, backup/restore, business-continuity, and incident/support exercises before cutover submission.
+- Added owner-submitted actual results and retained redacted evidence, witness-only pass/rerun decisions, resubmission after a reasoned return, immutable passed evidence, and append-only audit events.
+- Kept private floating Internal How-To progress out of formal training, competence, performance, acceptance, and portable evidence; bumped the stakeholder guide to version 2 and cutover-manager guide to version 3.
+- Extended the conservative Finance workspace and TraceSync JSON package to schema v4 with readiness-plan, exercise, result, checksum, witness, rerun, and readiness-gate metadata.
+- Left actual locally accepted curriculum/runbook content, devices, volumes, forms, timings, pass conditions, complete field execution, consecutive cycles, and stakeholder/cutover signatures outside the implementation claim.
+
+## F11.3 Scheduled reconciliation and governed defect resolution
+
+- Added human-editable calendar-day or working-day reconciliation plans with first due time, grace period, minimum reviewed runs, enabled transaction types, retained local authority/acceptance evidence, and editable Critical/High/Medium/Low correction targets and escalation routes.
+- Added checksum-backed maker–checker plan submission, return, and approval; cycles cannot start without the independently approved local plan.
+- Added ordered scheduled runs that prevent overlap, retain current comparison and defect snapshots, calculate exact outcome counts, flag due/overdue work, and receive independent Reconciled, Reviewed with exceptions, or Returned decisions.
+- Added stable defect intake with severity, impact, owner, calculated correction deadline, pinned escalation route, actual escalation history, owner correction evidence, and independent accept/reopen review.
+- Kept reviewed exceptions distinct from resolution and blocked final cycle review until the local minimum run count is met, every opened run is reviewed, and every current defect is independently resolved.
+- Extended the conservative Finance workspace, Accounting floating Internal How-To version 2, append-only audit evidence, and TraceSync JSON schema v3 with cadence, run, defect, resolution, and escalation metadata.
+- Left actual local plan values, production adapters, accepted support/curricula, non-functional exercises, consecutive field cycles, and stakeholder/cutover signatures outside the implementation claim.
+
+## F11.2 Versioned redacted source staging and schema-drift review
+
+- Replaced required hand-calculated hashes in the ordinary cycle form with a guided UTF-8 redacted CSV path that calculates the exact file checksum, normalized headings, row count, and ordered layout signature.
+- Added a separately labeled advanced external-lock path for approved custody arrangements where the source must remain outside GRAND.
+- Retained every pre-start source version, required reasons for replacements, and closed the source modification window when a cycle starts.
+- Compared layouts to the predecessor cycle or prior draft version and blocked pilot start until a different reconciliation reviewer accepts changed headings with a plain-language mapping basis; rejection requires a corrected successor version.
+- Added redaction confirmation/notes, sensitive-heading reminders, append-only source/drift events, conservative Finance screens, Accounting Internal How-To version 2, and metadata-only TraceSync evidence that excludes CSV row values.
+- Kept production/eGAPS connectivity, scheduled ingestion/reconciliation, locally accepted source layouts, field cycles, and actual stakeholder authority outside the implemented claim.
+
+## F11.1 Governed shadow operation and controlled cutover
+
+- Added limited shadow/parallel cycle plans with exact enabled scope, redacted/read-only source references, SHA-256 source locks, and schema signatures for drift review.
+- Added case, batch, period, register, ledger, and report amount/count comparisons with calculated differences, plain-language explanations, owned blocking defects, and immutable evidence checksums.
+- Added independent reconciliation, successor-cycle correction boundaries, and append-only actor/reason/evidence events.
+- Added named requesting-office, Budget, Accounting, Treasury, IT, management, and audit acceptance rows with separate role-training/UAT references; conditional, rejected, or pending decisions block cutover.
+- Added exact-scope/date authority records covering opening reconciliation, authority matrix, rollback criteria, legacy read-only retention, and recovery/continuity evidence, with separate authorization and retained rollback.
+- Added conservative Finance screens, cross-office assigned-reviewer access, department-specific floating Internal How-Tos that keep personal progress non-evaluative, and TraceSync-ready JSON evidence packages with manifests.
+- Left automatic source adapters/daily reconciliation, locally accepted curricula/runbooks/escalations, named non-functional exercises, consecutive field cycles, and actual seven-party sign-off open under the parent F11 gate.
+
+## F10.1 Governed visual template promotion and rollback
+
+- Replaced direct free-text fidelity activation with retained preview, comparison, independent approval, and separate activation records.
+- Added automatic same-period golden checks across dataset/control checksums, row/source counts, and control status, with blocking differences.
+- Added human-readable layout diffs and practical checks for headings, totals, signatories, pagination, overflow, form stock, and printer alignment.
+- Added schedule-impact review, optional compatible-schedule reassignment, deployment-free activation, and reasoned restoration of the prior official version.
+- Added immutable template/submission checksums, append-only events, department-bounded roles and screens, updated Accounting/Budget floating guidance, and TraceSync-ready JSON receipts.
+- Kept actual local forms, accepted golden outputs, printer/form-stock trials, optional-block behavior, and named-office acceptance open under the parent F10 gate.
+
+## F9.4 Statement notes and signed-reference comparison
+
+- Added versioned, human-editable financial-statement note packages pinned to exact control-reconciled position and performance runs for the same period.
+- Added plain-language candidate disclosure topics, line links, reasoned not-applicable decisions, and a visible candidate-versus-locally-confirmed boundary instead of hard-coding local disclosure claims.
+- Added immutable run/mapping/output/data/control/reproduction snapshots, SHA-256 package evidence, submission drift detection, and independent return, working-note acceptance, or locally accepted approval.
+- Added signed/redacted PDF, macro-free XLSX, and image reference intake with explicit privacy confirmation, exact control-total differences, file checksums, comparison checksums, and independent zero-difference reconciliation.
+- Added department-bounded reporting screens, Finance role separation, Accounting Internal How-To version 4, conservative inline guidance, and TraceSync-ready note/comparison exports with adjacent manifests.
+- Added focused regression coverage and documented the COA/BIR public-source context while leaving current tax outputs, exact form fidelity, complete signed-package replay, and named-office acceptance open.
+
+## F7.4 Governed period close and controlled reopen
+
+- Replaced the direct one-click Accounting close action with a checksummed checklist and independent close approval.
+- Added human-readable Observe/Enforce close policies, controlled starters, authority/local-acceptance evidence, maker–checker activation, and immutable successor history.
+- Added ordered-period, unresolved-JEV, posted trial-balance, adjustment-review, subsidiary-control, mapped-bank, reconciled-statement, source-handoff, and year-end nominal-balance checks.
+- Added evidence-drift protection between submission and approval, append-only close events, posting blocks after close, and reason/authority-required ordered reopen with successor re-close evidence.
+- Added conservative close workspaces, a floating `?` guide, department-specific Internal How-To, Finance role ownership, and TraceSync-ready CSV evidence with adjacent manifests.
+- Added F7.4 regression coverage and documented the public COA context, local-confirmation boundary, and remaining parent-F7 acceptance work.
+
+## F9.3 Finance statement composition and explained measures
+
+- Added versioned, department-owned financial-statement mappings with readable account-type or selected-code rules.
+- Added exact active-account coverage checks, immutable mapping history, checksummed snapshots, and maker–checker submission/return/activation.
+- Added controlled broad starters for financial position and financial performance without claiming local official-form acceptance.
+- Added posted-ledger financial-position and performance datasets with retained JEV drill-through and pinned mapping snapshots.
+- Added the visible equation `Assets = Liabilities + Equity + unclosed operating result`, period surplus/deficit, and unmapped/duplicate-account exception gates.
+- Added explained reporting-workspace measures that show the definition, covered period, source freshness, control result, and retained run.
+- Added statement-mapping screens, a floating contextual `?` guide, and Accounting Internal How-To version 3.
+- Added F9.3 regression coverage and documented the remaining signed-reference, notes, tax, exact-form, and acceptance boundaries.
+
+## F9.2 Finance operational report catalog
+
+- Added fiscal-year-to-date Budget-versus-posted-actual reporting that maps only exact fiscal-year/fund/responsibility-center/account keys and blocks review for unmatched, ambiguous, or missing Accounting classifications instead of silently allocating expenses.
+- Added a line-level posted general ledger with exact debit/credit controls and immutable JEV/source-line evidence.
+- Added posted payable and withholding subsidiary schedules controlled exactly to their mapped general-ledger accounts by fund, including missing-mapping and difference gates.
+- Added a Treasury payment-instrument/disbursement register covering issue, advice, release, receipt, return/exception, cancellation, and replacement evidence, with retained exception runs for incomplete historical sources.
+- Added five conservative candidate starter definitions/templates, successor Budget/Accounting floating guides, and a new Treasury reporting guide while keeping working withholding schedules explicitly separate from BIR returns or filing proof.
+- Reused F9.1 source drill-through, immutable snapshots/checksums, review gates, reproduction receipts, and TraceSync-ready export manifests; added focused regression coverage without changing the familiar reporting workflow.
+
+## F9.1 Finance accountability reporting and reproducibility
+
+- Added Finance-native Budget accountability and posted-trial-balance datasets with cumulative authority/usage equations, exact debit/credit controls, freshness, and permission-aware drill-through to retained source records.
+- Added immutable report data/control snapshots, independent SHA-256 evidence, source identities, reproduction keys, exception gates, and deterministic control CSV and reproduction-receipt JSON exports.
+- Added explicit departmental/candidate/locally-confirmed applicability positions so COA/DBM-informed starters cannot be approved as official until their authority and local acceptance decision are recorded.
+- Added conservative, human-editable Budget and Accounting starter definitions/templates, Finance role permissions, and department-specific floating `?` guides without changing the familiar reporting workflow.
+- Archived outputs and report evidence through the existing department/user/category/year/month TraceSync hierarchy with adjacent checksum manifests for whole-folder safekeeping.
+- Added synthetic tests for Budget equations, balanced and broken trial balances, immutable evidence, candidate/confirmed approval behavior, source drill-through, and reproducible portable exports while preserving the legacy reporting contract.
+
+## F8.5 Bank-reconciliation carry-forward and later clearance
+
+- Added one-action carry-forward of the latest unresolved timing item from an earlier independently reconciled statement for the same bank account and fund.
+- Preserved source-statement/checksum lineage, original evidence and expected-clearance date, item age, and overdue visibility without retyping or rewriting a closed month.
+- Added later-statement clearance across the retained lineage and reason-required reopening when a match or staged statement is corrected before submission.
+- Extended the conservative reconciliation screen, department-specific floating guides, reconciliation checksum, and TraceSync-ready CSV with carry/clearance evidence.
+- Added a consecutive-month synthetic test covering carry, overdue display, clearance, correction/rematch, export, and independent reconciliation.
+
+## F8.4 Bank advice acknowledgement and returned instruments
+
+- Replaced the legacy single-case finalized advice flag with checksum-backed, multi-case versions separated into preparation, independent Accounting review, actual bank submission, and bank acknowledgement/return.
+- Blocked Treasury release until every active check has a current acknowledged advice and added immutable, reason-required successors for review- or bank-returned versions.
+- Added governed returned-released-instrument review with Treasury clarification successors, Accounting reissue/close decisions, payment-return reversal or explicit no-entry treatment, exact-stage resume, and replacement blocking until completion.
+- Added conservative Accounting/Treasury workspaces, a plain human-editable starter, department- and permission-specific floating Internal How-Tos, and TraceSync-ready advice exports with checksum manifests.
+- Preserved legacy finalized batches as acknowledged migration evidence with explicit legacy-reference gaps instead of inventing historical bank proof.
+
+## F8.3 Treasury cash position and instrument ageing
+
+- Added locally versioned Observe/Enforce cash-control policies by Finance setup, bank account, and fund, with reserves, position-age limits, instrument thresholds, authority references, local-applicability notes, effective dates, and independent review.
+- Added reconciliation-backed cash-position snapshots with confirmed later movements, restricted/held cash, checksum-backed maker/checker approval, and retained reasoned successor corrections.
+- Added issue-time cash reservations, enforced insufficient/stale-position gates, release consumption, cancellation release, and a dashboard that keeps cash authority distinct from Budget authority.
+- Added evidence-backed unclaimed, stale, and returned instrument classifications; stale release blocking; escalation/resolution history; and locally configurable thresholds.
+- Added a plain CSV planning starter, Treasury/Accounting floating Internal How-Tos, and TraceSync-ready cash policy/position/reservation/exception exports.
+- Corrected the F8.2 bank-reconciliation lookup to use Accounting's authoritative `PostingMapping.BANK` category.
+
 Material GRAND changes are recorded here. The repository's Git history remains the detailed source of truth.
 
 ## Unreleased
+
+### Finance bank-statement intake and reconciliation
+
+- Added F8.2 one-bank-account/one-fund monthly statement batches with checksum-backed retained CSV versions, declared/running-balance validation, and a plain human-editable starter.
+- Added unique exact and guided manual matching to posted bank-account journal lines, reasoned pre-submission unmatching/restaging, and explicit handling of bank-only items through authorized JEV correction rather than forced matching.
+- Added evidence-backed deposits in transit and outstanding checks, adjusted-bank-to-GL zero-difference controls, independent Accounting reconciliation, immutable event/checksum evidence, and conservative workspaces.
+- Added role/page-specific floating Internal How-Tos and controlled CSV evidence archived in the TraceSync-ready department/user/category tree with adjacent manifests and an explicit local official-BRS acceptance boundary.
+
+### Finance deduction and withholding remittance execution
+
+- Added F8.1 one-fund, cross-voucher agency remittance batches sourced only from positive posted withholding subsidiary balances, with live reservation against concurrent batches.
+- Added reason-required, retained pre-release allocation revisions/removals, independent Accounting approve/return, immutable actual-release and acknowledgement evidence, and completion only after JEV posting.
+- Added checksum-pinned liability-debit/bank-credit remittance JEVs, mapping-drift stops, controlled successors for discarded generated drafts, and posted subsidiary reduction without repeating release.
+- Added conservative Treasury/Accounting workspaces, role-specific floating Internal How-Tos, and versioned remittance CSV registers in the TraceSync-ready department/user/category tree with adjacent manifests.
+
+### Finance payment-event posting and portable register
+
+- Added F7.3 immutable payment-instrument event requests that can create a governed JEV or retain an explicit locally reviewed no-entry decision for payment, cancellation, and replacement.
+- Added payment-release payable-to-bank JEV materialization, exact Treasury-stage resume after independent posting, split-payment support, and controlled successor requests when a generated event draft is discarded.
+- Added editable payment, remittance, cancellation, and replacement starters; complete-event readiness/submission gates; event-aware Accounting/Treasury queues; and versioned department-specific floating `?` guides.
+- Added a case payment-register CSV with issue, advice, claimant/release/receipt, cancellation/replacement lineage, and posting status, archived in the TraceSync-ready department/user/category tree with a checksum manifest.
+
+### Finance payable and withholding subsidiary controls
+
+- Added F7.2 immutable payable and withholding subsidiary movements to governed voucher JEV lines, using stable Finance Party/deduction identities and exact line amounts.
+- Extended posted reversals with equal opposite subsidiary movements and retained source lineage; manual or opening control-account postings without detail remain visible reconciliation exceptions.
+- Added a familiar Accounting control workspace, dated checksum-backed reconciliation evidence, dedicated permission/role ownership, journal-line lineage, and a versioned department-specific floating `?` guide.
+- Added controlled payable, withholding, and reconciliation CSV exports archived in the TraceSync-ready department/user/file tree with adjacent manifests and explicit local-form acceptance boundaries.
+
+### Finance transaction posting rules and governed JEV handoff
+
+- Added F7.1 plain-language, transaction-specific recognition, adjustment, liquidation, payment, remittance, cancellation, reversal, and replacement rule models with explicit recognition points and ordered debit/credit account-and-amount sources.
+- Added an editable ordinary-recognition starter whose unresolved authority warning blocks release submission, plus Finance Setup forms, readiness checks, audit events, and versioned department-specific Internal How-Tos.
+- Replaced new voucher JEVs' hard-coded recipe with immutable, checksum-pinned rule interpretation; preserved explicit legacy compatibility, blocked earlier-accrual/existing-payable decisions from duplicate recognition, and retained independent posting/reversal controls.
+- Added TraceSync-ready posted general-ledger and trial-balance CSV exports with adjacent manifests, Accounting export audit events, and posting-rule lineage where applicable.
+
+### Finance controlled DV printing and custody
+
+- Added F6.1 immutable `Ready to print -> Printed -> Awaiting wet signatures -> Signed packet returned` jobs with output/version/checksum identity, actual copies/printer evidence, mandatory returned-packet gates, and explicit permission/role ownership.
+- Added reason-required reprints that supersede obsolete output and pending signature rounds, preserve `DO NOT SIGN` evidence, and close the convenience path after payment-instrument issuance.
+- Added automatic TracePoint packet/item creation with configured signatory-office checkpoints and no monetary-field copying, plus TraceSync-ready signing-file archives and manifests.
+- Added a plain-language, human-editable macro-free DV starter generator with paper/layout/copy/signature controls, evidence-backed starter/pilot/locally-accepted statuses, conservative existing UI, and a versioned department-specific `?` guide.
+
+### Finance payable relationships, recognition, and exports
+
+- Added F5.3 versioned obligation-to-payable allocations for one-to-one, one-to-many, many-to-one, partial, progress, final, and full claims without creating a second Budget authority ledger.
+- Added exact claim/allocation reconciliation, capacity locks, duplicate-active database protection, pre-DV claim/allocation revisions with retained reasons, stale-snapshot recovery after governed Budget corrections, and modification closure after DV/check issuance.
+- Added independent Accounting recognition/obligation-adjustment routing decisions, relationship-aware compatibility projections, permission-controlled TraceSync-ready transaction CSV archives/manifests, and successor Internal How-Tos for requesting offices and Accounting.
+
+### Finance transaction variants and payable readiness
+
+- Added F5.2 typed ordinary-supplier, payroll, reimbursement, utility, financial-assistance, cash-advance/liquidation, infrastructure/progress-billing, and locally approved transaction variants with effective-dated authority/applicability evidence.
+- Added ordered required/conditional documentary rules, explicit applicability conditions, governed waivers, immutable case snapshots, requesting-office evidence decisions, and an independent Accounting accept/return gate before DV preparation.
+- Added obligation-freshness rechecks, reviewer-office and segregation controls, correction/resubmission history, permission-accurate payable UI, and versioned requester/Accounting Internal How-Tos whose private progress is not copied forward.
+
+### Finance payable intake and obligation handoff
+
+- Added F5.1 requesting-office payable intake from an unlinked certified F4.2 obligation, with pinned UUID, controlled number, corrected lineage amount, checksum, and classified compatibility projection instead of a second Budget certification.
+- Added procurement, delivery, inspection/acceptance, invoice, claim, and evidence references; human-reviewed duplicate warnings; and a zero-difference obligation-to-final-claim gate for the ordinary-supplier pilot.
+- Added a recoverable cross-database binding state and reconciliation action, DV-time lineage freshness checks, department-scoped permissions, and a floating Internal How-To covering the pre-DV modification allowance.
+
+### Finance obligation control and RAAO registry
+
+- Added F4.2 requesting-office ALOBS/ORS/OBR initiation with exact appropriation-line scheduling, Budget return/certification, controlled numbering, concurrency-safe unobligated-allotment validation, and immutable checksum-backed movements.
+- Added RAAO-equivalent appropriation/released/held/executable/obligated/unobligated views, PPA/account/office lineage, duplicate and excess controls, period protection, and safeguards preventing later allotment changes below certified obligations.
+- Added guided draft/returned modification, linked pre-DV/check adjustment/return/cancellation, post-issuance correction blocking, department-specific requester/Budget Internal How-Tos, and TraceSync-ready registry CSV archives.
+
+### Finance allotment release control
+
+- Added F4.1 ARO/equivalent preparation for initial/later releases, reserves, deferrals, adjustments, returns, and cancellations against exact immutable authorized appropriation lines.
+- Added zero-difference signed controls, independent posting, line-locked cumulative balance validation, append-only movements/checksums, and linked successor correction instead of posted-record editing.
+- Added authorized/released/held/unreleased/executable drilldowns, department-bounded permissions, a role-specific Internal How-To, and TraceSync-ready posted-schedule CSV archives.
+
+### Finance annual budget preparation
+
+- Added the F3.1 Annual Budget workspace for independently reviewed calls and department ceilings, classified proposal/target/resource versions, traceable executive consolidation, comparison, audit evidence, and TraceSync-ready CSV exports.
+- Enforced the appropriation authority boundary: even an approved proposal remains non-spendable until the separate F3.2 ordinance, review, effectivity, and control-total authorization workflow succeeds.
+- Added F3.2 maker-checker appropriation authorization with ordinance/effectivity/review conditions, zero-difference signed controls, immutable classified schedule snapshots and checksums, successor-only correction, and portable authorized-schedule exports.
+
+### Department Internal How-Tos
+
+- Added reusable department-scoped, permission-filtered, page-aware internal guides with ordered instructions, expected results, cautions, workspace links, draft/published/retired lifecycle, and immutable published versions.
+- Added a persistent floating `?` button and responsive non-modal help window so employees can read a tutorial while continuing work on the current page.
+- Added private per-user step progress while computing guide visibility live from the current employee department/role, preventing reassigned employees and successors from inheriting another user's tutorial state.
+- Added department-bounded guide administration, protected asynchronous completion actions, repeatable Finance starter-guide seeding, and role-specific opening, journal, DV, Budget, Treasury, and setup tutorials.
+
+### Finance opening balances and control totals
+
+- Added F2.2 checksum-backed opening CSV staging with governed fund/account/center mapping, row and declared controls, exact batch and per-fund balancing, and explicit zero-balance declarations.
+- Added reason-required row/control corrections, independent approval and pre-posting return, immutable per-fund opening JEV lineage, and a separate zero-difference reconciliation gate for fiscal readiness.
+- Added department-scoped opening workspaces, guided actions, controlled CSV exports, dedicated Finance roles, synthetic regression coverage, and an operating/acceptance guide.
+- Defined reusable Finance exports as scoped evidence/data interchange carrying stable lineage and context, without representing them as automatically approved official forms.
+
+### Portable export archive
+
+- Added one configurable `GRAND_EXPORT_ROOT` with normalized department/user/category/year/month folders suitable for whole-tree synchronization by TraceSync or another ordinary folder-copy tool.
+- Added atomic, collision-resistant artifact retention and adjacent JSON manifests carrying SHA-256, size, export time, exporting identity, department, and source lineage.
+- Connected controlled Finance opening CSV exports and generated report downloads to the archive while preserving their browser download and existing authorization boundaries.
+
+### Finance fiscal-year and classification foundation
+
+- Added the F2.1 typed fiscal year and business-date lifecycle in the isolated Finance store, with maker-checker approval, state versions, and append-only evidence.
+- Added effective-dated funding sources and MFO/program/PPA/project/activity hierarchies plus stable UUID and account/office dimensions for existing ledger masters.
+- Added independently evidenced technical, Budget, Accounting, Treasury, and forms readiness layers that block activation until structural checks and all decisions pass.
+- Added checksum-pinned, idempotent adoption of approved Finance Setup releases and an additive migration path for existing periods and accounting masters.
+- Added guided setup screens, explicit configuration-manager/approver roles, synthetic regression tests, and an F2.1 operating/acceptance guide.
+- Added a reason-required guided modification allowance before any affected DV/check issuance; edits retain before/after evidence, reopen impacted readiness, and close in favor of successor/correction workflows after issuance.
+
+### Finance evidence and interview foundation
+
+- Added the F0.1 Finance evidence register and interview kit, including repository-safe authority, transaction, role/signature, actual-step, decision, redaction, and synthetic-replay templates.
+- Added an initial COA/DBM official-source and template register, including effectivity/scope cautions for the 2023 LGU Budget Operations Manual, LGU NGAS/RCA materials, deferred 2020 GAM for LGUs, updated documentary requirements, and DV form lineage.
+
+### Complete-cycle Finance information architecture
+
+- Added the F1.1 role/permission, landing/My Work, shared case/timeline/search, notification, accessibility, responsive, and status-vocabulary contracts.
+- Added a no-network clickable synthetic prototype with role-shaped queues, a complete-cycle authority chain, append-only timeline filters, authorized-search behavior, and explicit shadow/read-only context.
 
 ### GRAND Finance complete-cycle roadmap
 

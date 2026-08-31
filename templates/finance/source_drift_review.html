@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Review source column changes{% endblock %}
+{% block content %}
+<div class="container pb-4">
+  <a class="small" href="{% url 'finance:shadow_cycle_detail' cycle.pk %}">&larr; Back to {{ cycle.code }}</a>
+  <h1 class="h3 mt-2">Review source column changes</h1>
+  <p class="text-muted">This is an independent safety check on the comparison layout. It does not approve the transactions or make GRAND authoritative.</p>
+  <div class="card card-outline card-warning"><div class="card-header"><h2 class="card-title font-weight-bold">What GRAND detected</h2></div><div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-4">Current version</dt><dd class="col-sm-8">v{{ source.version }} · {{ source.get_intake_kind_display }}</dd>
+      <dt class="col-sm-4">Current headings</dt><dd class="col-sm-8">{% if source.normalized_headers %}{{ source.normalized_headers|join:', ' }}{% else %}Externally reviewed layout; headings not retained in GRAND{% endif %}</dd>
+      <dt class="col-sm-4">Prior layout lock</dt><dd class="col-sm-8"><code>{{ source.predecessor_schema_signature }}</code></dd>
+      <dt class="col-sm-4">Current layout lock</dt><dd class="col-sm-8"><code>{{ source.schema_signature }}</code></dd>
+      <dt class="col-sm-4">Prepared by</dt><dd class="col-sm-8">{{ source.staged_by.get_full_name|default:source.staged_by.username }}</dd>
+    </dl>
+  </div></div>
+  <div class="card"><div class="card-body">
+    <form method="post" novalidate>{% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      {{ form.as_p }}
+      <button class="btn btn-success" name="decision" value="accept">Accept layout for this cycle</button>
+      <button class="btn btn-outline-danger" name="decision" value="reject">Reject and require a corrected version</button>
+    </form>
+  </div></div>
+</div>
+{% endblock %}

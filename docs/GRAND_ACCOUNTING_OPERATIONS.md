@@ -34,6 +34,9 @@ All access is explicit; platform-superuser status alone does not grant finance a
 - `prepare_journal_entries` — create and correct drafts, manage lines, submit, and discard drafts.
 - `post_journal_entries` — independently review, return, and post submitted entries.
 - `view_general_ledger` — view posted-ledger and trial-balance screens.
+- `prepare_opening_balances` — create, stage, correct, validate, and submit opening controls.
+- `approve_opening_balances` — independently approve or return an opening batch before posting.
+- `post_opening_balances` — post approved opening JEVs and run their separate reconciliation gate.
 
 Assign permissions through an approved role/group procedure. The preparer and poster should be different people.
 
@@ -45,14 +48,15 @@ Available controls cover Finance Setup self-approval, Budget-certifier/DV prepar
 
 ## Operator workflow
 
-1. In **Accounting → Setup**, add an open period, fund, optional responsibility centers, posting accounts, and controlled voucher posting mappings.
-2. Create a journal from **Accounting → New journal entry**.
-3. Add debit and credit lines. GRAND explains missing or invalid values next to the affected field.
-4. Confirm the live balance card shows equal non-zero debits and credits.
-5. Submit the draft. The entry becomes read-only for the preparer.
-6. A different authorized poster reviews it, then either returns it with a correction reason or posts it.
-7. Posted lines appear in the general ledger and trial balance and cannot be edited. An authorized preparer can prepare an exact reversing JEV with a mandatory reason and original-entry link; that reversal must pass the same independent submit-and-post workflow.
-8. Close a period only after its drafts and submitted entries are cleared. Closed periods reject new postings.
+1. In **Accounting → Setup**, create or adopt the typed fiscal year, add its calendar periods, funds, responsibility centers, posting accounts, funding sources and PPA/MFO/project/activity classifications, then obtain the five independent readiness decisions described in the [F2.1 operating guide](FINANCE_FISCAL_FOUNDATION.md).
+2. Stage, approve, post, and reconcile the year's opening controls using the [F2.2 opening-balance guide](FINANCE_OPENING_BALANCES.md). Use the controlled CSV export for review/data interchange, not as an automatically official form.
+3. Create a journal from **Accounting → New journal entry**.
+4. Add debit and credit lines. GRAND explains missing or invalid values next to the affected field.
+5. Confirm the live balance card shows equal non-zero debits and credits.
+6. Submit the draft. The entry becomes read-only for the preparer.
+7. A different authorized poster reviews it, then either returns it with a correction reason or posts it.
+8. Posted lines appear in the general ledger and trial balance and cannot be edited. An authorized preparer can prepare an exact reversing JEV with a mandatory reason and original-entry link; that reversal must pass the same independent submit-and-post workflow.
+9. Close a period only after its drafts and submitted entries are cleared. Closed periods reject new postings.
 
 For Voucher Workbench cases, Accounting validation creates an immutable, checksum-backed posting request in GRAND's core database. The Accounting workspace materializes that request into the separate GRAND finance database. The operation is idempotent: retrying opens the same JEV rather than creating a duplicate. After independent posting, a recoverable reconciliation step advances the same voucher case to Treasury. A posted source JEV blocks silent voucher rewrites.
 
@@ -66,7 +70,7 @@ The amendment keeps the same case and DV number, snapshots the unchanged gross/d
 
 This route does not change the JEV date, accounting period, fund, accounts, allocations, deductions, or amounts. Those are financial corrections and continue to require the accounting return/reversal workflow.
 
-Master records used by journals are archived instead of deleted. Codes and names already used in history cannot be silently redefined.
+Master records used by journals are archived instead of deleted. Codes, effective dates, account/office dimensions, and names already used in history cannot be silently redefined. Active fiscal-year classifications and readiness evidence require a governed successor rather than in-place rewriting.
 
 ## Excel templates
 
@@ -76,4 +80,4 @@ GRAND's existing Finance Setup Center already accepts macro-free `.xlsx` version
 
 The current native slice covers setup, manual and voucher-generated journals, controlled posting mappings, cross-database handoff/retry, submit/return/post controls, pre-check non-financial DV amendments, correction reversals, audit evidence, general ledger, and trial balance. Subsidiary ledgers, automated payment-side postings, closing entries, financial statements, and the visual Template Studio remain subsequent phases. Historical eGAPS migration is optional and will be designed only if separately authorized.
 
-Before official use, Accounting also needs reconciled opening balances; locally accepted journals and posting batches; control-account and subsidiary reconciliation; payable/withholding/remittance schedules; cash, check, cancellation and bank-reconciliation entries; close/reopen procedures; financial statements; and cross-cycle corrections coordinated with Budget, DV, Treasury, Records, and TracePoint evidence. Passing a balanced synthetic JEV test does not satisfy those complete-cycle gates.
+F2.2 now provides synthetic opening intake, posting, reconciliation, and export controls. Before official use, Accounting still needs a locally accepted chart and opening/conversion schedule; locally accepted journals and posting batches; control-account and subsidiary reconciliation; payable/withholding/remittance schedules; cash, check, cancellation and bank-reconciliation entries; close/reopen procedures; financial statements; and cross-cycle corrections coordinated with Budget, DV, Treasury, Records, and TracePoint evidence. Passing a balanced synthetic JEV or opening-control test does not satisfy those complete-cycle gates.

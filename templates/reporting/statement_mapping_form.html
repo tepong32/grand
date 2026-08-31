@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title_ext %} - {{ mode }} statement mapping{% endblock %}
+{% block content %}
+<div class="container py-3"><a href="{% if mapping %}{{ mapping.get_absolute_url }}{% else %}{% url 'reporting:statement_mapping_list' %}{% endif %}" class="small">&larr; Statement mappings</a>
+  <div class="card card-outline card-primary mt-3"><div class="card-header"><h1 class="h4 mb-0">{{ mode }} statement mapping</h1></div><div class="card-body">
+    <div class="alert alert-light border">Keep the starter broad and readable. Record the exact COA/GAM or locally approved authority and describe the signed reference or formal review used for local acceptance. A different user must activate it.</div>
+    <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Save editable mapping</button></form>
+  </div></div>
+</div>
+{% endblock %}

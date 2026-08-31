@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title_ext %} · Treasury Remittances{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div><p class="text-uppercase text-primary small font-weight-bold mb-1">Treasury Office</p><h1 class="h3 mb-1">Deduction and withholding remittances</h1><p class="text-muted mb-0">Prepare one-fund agency remittance schedules from posted Accounting subsidiary balances.</p></div>
+    <div class="mt-2"><a class="btn btn-outline-secondary" href="{% url 'vouchers:workspace' %}">Voucher queue</a>{% if can_prepare %}<a class="btn btn-primary" href="{% url 'vouchers:remittance_create' %}"><i class="fas fa-plus mr-1"></i>New remittance</a>{% endif %}</div>
+  </div>
+  <div class="alert alert-info"><strong>Modification allowance:</strong> allocations may be revised or removed with a reason only while draft or returned. Accounting approval makes the schedule read-only; actual release then requires its JEV to post before completion.</div>
+  <div class="card card-outline card-primary">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Remittance register</h2></div>
+    <div class="card-body border-bottom"><form method="get" class="form-inline"><label class="mr-2" for="remittance-status">Status</label><select id="remittance-status" class="form-control mr-2" name="status"><option value="">All statuses</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><button class="btn btn-outline-primary">Apply</button></form></div>
+    <div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Reference</th><th>Date / fund</th><th>Agency</th><th>Total</th><th>Status</th><th>Prepared by</th></tr></thead><tbody>
+      {% for batch in batches %}<tr><td><a class="font-weight-bold" href="{{ batch.get_absolute_url }}">{{ batch.reference_code }}</a><div class="small text-muted">{{ batch.transaction_variant.label }}</div></td><td>{{ batch.remittance_date|date:"M j, Y" }}<div class="small text-muted">{{ batch.fund_code }}</div></td><td>{{ batch.recipient_party.display_name }}</td><td>{{ batch.total_amount }}</td><td><span class="badge {% if batch.status == 'completed' %}badge-success{% elif batch.status == 'returned' %}badge-danger{% elif batch.status == 'for_review' or batch.status == 'accounting_posting' %}badge-warning{% else %}badge-secondary{% endif %}">{{ batch.get_status_display }}</span></td><td>{{ batch.created_by.get_full_name|default:batch.created_by.username }}</td></tr>
+      {% empty %}<tr><td colspan="6" class="text-center text-muted py-5">No remittance batches match this view.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </div>
+</div>
+{% endblock %}

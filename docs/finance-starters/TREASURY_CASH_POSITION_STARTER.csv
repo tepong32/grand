@@ -1,0 +1,2 @@
+finance_setup,bank_account_code,fund_code,control_mode,minimum_reserve,position_max_age_days,unclaimed_after_days,stale_after_days,effective_from,authority_reference,local_applicability_note,as_of_date,confirmed_inflows,confirmed_outflows,other_holds,position_evidence_reference,preparation_note
+ACTIVE-SETUP-v1,REVIEWED-BANK-CODE,REVIEWED-FUND-CODE,observe,0.00,35,30,180,2026-01-01,,,2026-01-31,0.00,0.00,0.00,,

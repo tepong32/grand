@@ -8,16 +8,24 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 
 - Configurable public identity, service cards, icons, media, colors, and plain-language navigation.
 - Dynamic employee dashboards with department-specific modules, leadership, team, plantilla, leave, contacts, and announcements.
+- Floating, non-modal Internal How-Tos that follow the employee's current department and role, prioritize the current page, retain private progress, and never transfer a predecessor's completion to a successor.
 - Assistance submission, secure editing and tracking, document review, status history, notifications, and separate MSWD processing views.
 - Internal social-welfare programs and activities for seminars, feeding programs, outreach, distributions, schedules, venues, attendance totals, and outcomes.
 - Permission-restricted citizen review with assistance usage history, duplicate-candidate indicators, review ownership, notes, and audit events.
 - Leave requests and predictable credit accrual with approval deductions.
-- Cross-department reporting definitions, native print layouts, controlled mapped-XLSX and exact-PDF compatibility, recurring schedules, checksums, fidelity validation, permission-aware print/download actions, review, approval, and supersession.
+- Cross-department reporting definitions, governed Finance statements and notes, signed/redacted reference control comparison, native print layouts, controlled mapped-XLSX and exact-PDF compatibility, recurring schedules, checksums, fidelity validation, permission-aware print/download actions, review, approval, and supersession.
+- One configurable, TraceSync-ready export root with portable department/user/category folders, atomic copies, and adjacent checksum/lineage manifests for requested reports and transaction exports.
 - Department-bounded records with source-in-place links, checksum-backed uploads, confidentiality controls, review and approval, audited downloads, retention, legal holds, supersession, archival, and disposition.
 - TracePoint physical-paper custody with stable packet labels, revocable daily employee QR codes, individual voucher manifests, split/rebundle lineage, repeatable office checkpoints, explicit terminal receipt, immutable handoff history, and separate delivery/completion states.
 - Finance Setup Center with effective-dated releases, versioned master data and rules, separate preparation/approval, signatory and numbering governance, safe macro-free Excel intake, synthetic previews, and structured readiness blockers.
-- Standalone Accounting with its own finance database, guided periods/funds/centers/chart setup, balanced journal preparation, independent posting, immutable audit history, general ledger, and trial balance—without an eGAPS runtime dependency.
-- Voucher and Disbursement Workbench shadow vertical slice with one shared Budget–Accounting–Treasury case, governed supplier/payee selectors, pilot OBR and DV numbering, wet-signature rounds, JEV references, multi-check controls, bank advice, release, correction history, and checksum-backed outputs. Authoritative annual appropriations, AROs, RAAO/equivalent balances, and complete fiscal-year operation remain roadmap work.
+- Governed Finance shadow/parallel cycles with source and schema checksums, exact case-to-report comparisons, owned defect gates, independent reconciliation, named seven-party training/UAT acceptance, exact-scope cutover authority, retained rollback, and TraceSync-ready evidence packages.
+- Standalone Accounting with its own finance database, guided fiscal setup, controlled opening-balance staging/reconciliation/export, transaction-specific posting-rule snapshots, balanced journal preparation, independent posting, immutable payable/withholding subsidiary detail and control reconciliation, general ledger, trial balance, and TraceSync-ready evidence exports—without an eGAPS runtime dependency.
+- Annual Budget preparation with reviewed calls and ceilings, classified department proposals and targets, resource estimates, traceable consolidation, version comparison, and portable exports; approved proposals remain non-spendable until authorization.
+- Allotment release control against immutable operational appropriations, with initial/later releases, reserves, deferrals, adjustments, returns/cancellations, exact signed totals, independent posting, live balances, correction lineage, and TraceSync-ready exports.
+- Authoritative obligation control with requesting-office ALOBS/ORS/OBR drafts, independent Budget certification, exact appropriation/allotment lineage, immutable RAAO-equivalent balances, guided corrections, and portable registry exports.
+- Voucher and Disbursement Workbench shadow vertical slice with one shared Budget–Accounting–Treasury case, governed supplier/payee selectors, authoritative F4.2 obligation/payable intake, typed transaction variants, authority-backed documentary checklists, one-to-many/many-to-one/partial/progress/final relationship controls, recognition/adjustment decisions, independent Accounting readiness review, portable transaction exports, pilot DV numbering, wet-signature rounds, JEV references, multi-check controls, versioned multi-case bank advice and bank acknowledgement, release, returned-payment Accounting/reissue, remittance, bank reconciliation with prior-item carry/clearance lineage, reconciliation-backed cash positions, issue reservations, instrument ageing, correction history, and checksum-backed outputs. Legacy cases retain their pilot OBR history; F5 relationships version authoritative obligation UUID/checksum allocations and do not post a second Budget balance.
+- Governed tax evidence from plain-language Finance Setup rules through DV capture, Accounting subsidiary posting/reversal, reconciled source schedules, tax-aware Treasury remittance, and independently reviewed external filing/payment references with amendment lineage and TraceSync-ready exports; GRAND does not perform e-filing or invent current local deadlines/forms.
+- Governed Finance accountability packages built from approved cross-office reports, statement notes, signed-reference comparisons, and verified tax-filing evidence, using locally editable package recipes, maker–checker approval, reasoned correction successors, checksum traceback, and TraceSync-ready manifests.
 - Public and internal announcements, employee/citizen profiles, department records, and organization views.
 
 GRAND keeps operational modules separate: an employee's dashboard summarizes work and links to specialized workspaces instead of embedding full processing screens in the landing page.
@@ -34,8 +42,9 @@ GRAND keeps operational modules separate: an employee's dashboard summarizes wor
 | Reports | `reporting` | Controlled datasets, layouts, generation, schedules, approvals, and archives |
 | Records | `records` | Official department registry, source links, files, review, retention, and controlled retrieval |
 | Physical custody | `tracepoint` | QR-tagged paper packets, daily employee codes, confirmed handoffs, exceptions, and completion |
-| Finance setup | `finance` | Approved master data, rules, signatories, numbering policies, voucher workbook versions, and readiness |
-| Accounting | `accounting` | Separate-database periods, chart, journals, posting, ledger, and trial balance |
+| Finance setup and cutover | `finance` | Approved master data, rules, signatories, numbering/templates, shadow reconciliation, stakeholder acceptance, and explicit cutover authority |
+| Accounting | `accounting` | Separate-database fiscal/opening controls, chart, journals, posting, ledger, and trial balance |
+| Budget, allotment, and obligations | `budget` | Annual calls/proposals, operational appropriation authorization, posted allotment control, requesting-office obligation certification, and RAAO-equivalent registry |
 | Voucher operations | `vouchers` | Cross-office OBR, DV, signature, Accounting, check, advice, and release workflow |
 | Workforce | `leave_mgt`, `salaries` | Leave workflows and salary-related records |
 
@@ -51,10 +60,13 @@ python -m pip install -r requirements.txt
 python manage.py migrate
 python manage.py migrate --database=finance
 python manage.py seed_reporting_presets
+python manage.py seed_internal_howtos
 python manage.py runserver
 ```
 
 Local development uses SQLite, the console email backend, and `src.settings.dev` by default. Do not commit local database or uploaded-media changes. Production uses `src.settings.prod`, MySQL, HTTPS security settings, SMTP, and environment-provided secrets.
+
+Set `GRAND_EXPORT_ROOT` to the single local folder synchronized by TraceSync. Every requested export is downloaded and atomically retained there under a normalized department/user/category path with an adjacent SHA-256 manifest. See the [portable export archive guide](docs/EXPORT_ARCHIVE.md); syncing this folder complements but does not replace controlled records and tested backups.
 
 The reporting seed command is idempotent: it creates or preserves the five MSWD pilot definitions without duplicating them. See [Reporting operations](docs/REPORTING.md) before configuring templates or scheduled runs, and [GRAND accounting operations](docs/GRAND_ACCOUNTING_OPERATIONS.md) before assigning finance roles or opening periods.
 
@@ -83,14 +95,26 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 
 - [Documentation map](docs/README.md)
 - [Reporting operations and governance](docs/REPORTING.md)
+- [Portable GRAND export archive](docs/EXPORT_ARCHIVE.md)
+- [Department Internal How-Tos](docs/INTERNAL_HOWTOS.md)
 - [Department report-template intake](docs/REPORT_TEMPLATE_INTAKE.md)
 - [Department records operations](docs/RECORDS.md)
 - [TracePoint physical-custody contract](docs/TRACEPOINT.md)
 - [Finance Setup Center operations](docs/FINANCE_SETUP.md)
 - [Voucher and Disbursement Workbench](docs/VOUCHER_WORKBENCH.md)
+- [Finance controlled DV printing and custody](docs/FINANCE_CONTROLLED_PRINT_CUSTODY.md)
+- [Finance cash position and instrument ageing](docs/FINANCE_CASH_POSITION.md)
+- [Finance bank advice and returned instruments](docs/FINANCE_BANK_ADVICE.md)
+- [Finance shadow operation, UAT acceptance, and controlled cutover](docs/FINANCE_SHADOW_CUTOVER.md)
 - [GRAND Finance complete-cycle roadmap](docs/FINANCE_ROADMAP.md)
 - [Finance process discovery protocol](docs/FINANCE_PROCESS_DISCOVERY.md)
+- [Finance evidence register and interview kit](docs/finance-discovery/README.md)
+- [Complete-cycle Finance information architecture and prototype](docs/finance-ia/README.md)
+- [Finance opening balances and control-total intake](docs/FINANCE_OPENING_BALANCES.md)
 - [Finance process-fidelity baseline](docs/FINANCE_PROCESS_FIDELITY_BASELINE.md)
+- [Finance visual template promotion and rollback](docs/FINANCE_TEMPLATE_PROMOTION.md)
+- [Finance accountability-package profiles and assembly](docs/FINANCE_ACCOUNTABILITY_PACKAGES.md)
+- [F9 comprehensive review and implementation handoff](docs/FINANCE_F9_REVIEW_AND_HANDOFF.md)
 - [Product roadmap](docs/ROADMAP.md)
 - [Security maintenance](SECURITY.md)
 - [Synthetic portfolio screenshots](output/playwright/grand-portfolio/README.md)
@@ -100,6 +124,6 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 
 GRAND remains the platform identity. GRAND Finance will become one role-shaped, complete-cycle sub-application: requesting offices initiate funded work, Budget governs appropriations/allotments/obligations, Accounting governs payables/books/reports, and Treasury governs cash/payment/reconciliation. TracePoint owns physical-document custody, Records owns retained authoritative files, and Finance Setup owns governed configuration; those domains link to the shared finance lineage without duplicating authority.
 
-The current Voucher Workbench remains in shadow comparison mode. It starts later than the complete LGU cycle because authoritative annual appropriations, allotment releases, and obligation balances are not yet implemented. The delivery order, acceptance gates, and current-position matrix are documented in the [GRAND Finance complete-cycle roadmap](docs/FINANCE_ROADMAP.md).
+The current Voucher Workbench remains in controlled synthetic/pilot comparison mode. F5.1–F5.3 connect requesting-office payables to authoritative obligations, typed documentary rules, versioned allocation relationships, recognition decisions, and portable exports. F6.1 adds editable starter-template intake, checksum/versioned printing, reasoned reprints, mandatory TracePoint packet creation, and returned-wet-signature gates. F7.1 adds locally reviewable transaction/event posting rules and immutable rule-backed JEV requests; F7.2 adds posted payable/withholding subsidiary detail and checksum-backed control reconciliation; F7.3 carries governed payment-release events through Accounting and exports portable payment-register evidence; F7.4 adds human-modifiable close policies, checksummed maker–checker close, and ordered controlled reopen. F8.1 executes controlled cross-voucher deduction/withholding remittances through independent review and liability-reducing posting; F8.2 adds checksummed bank-statement reconciliation; F8.3 adds locally reviewable cash policies, reconciliation-backed positions, issue reservations, and instrument ageing; F8.4 adds retained multi-case advice review/submission/bank response, release acknowledgement gates, and returned-payment reversal/reissue orchestration; F8.5 carries unresolved reconciled timing items into the next statement and closes/reopens their lineage through reasoned matches. Parent F5–F8 acceptance still requires locally accepted rules/forms/thresholds, consecutive redacted replay, paper/printer/accounting tests, and named-office acceptance. The delivery order and gates are documented in the [GRAND Finance complete-cycle roadmap](docs/FINANCE_ROADMAP.md).
 
 All showcase records and screenshots are synthetic. Production citizen data, credentials, uploaded records, and generated official reports must never be added to the repository.

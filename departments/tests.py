@@ -1,10 +1,14 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
 from assistance.models import AssistanceRequest, AssistanceType
-from .models import Department
+from .models import Department, InternalHowTo, InternalHowToStep, InternalHowToStepCompletion
 from .services import DEFAULT_DASHBOARD_TEMPLATE, get_department_home_context
+from .services.internal_howtos import set_step_completion, visible_internal_how_tos
+from .services.internal_howto_seed import seed_finance_internal_howtos
 from .services.query_service import get_department_by_slug, get_department_for_user
 from .services.query_service import get_dashboard_template
 
@@ -227,3 +231,204 @@ class DynamicDepartmentDashboardTests(TestCase):
         response = self.client.get(reverse("department_dashboard"))
 
         self.assertRedirects(response, reverse("home"))
+
+
+class InternalHowToTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.accounting = Department.objects.create(name="Municipal Accounting Office", slug="accounting")
+        cls.hr = Department.objects.create(name="Human Resources", slug="hr-howto")
+        cls.preparer = cls._employee("howto.preparer", cls.accounting)
+        cls.successor = cls._employee("howto.successor", cls.accounting)
+        cls.outsider = cls._employee("howto.outsider", cls.hr)
+        permission = Permission.objects.get(content_type__app_label="accounting", codename="prepare_opening_balances")
+        cls.preparer.user_permissions.add(permission)
+        cls.successor.user_permissions.add(permission)
+        cls.outsider.user_permissions.add(permission)
+        cls.guide = InternalHowTo.objects.create(
+            department=cls.accounting,
+            slug="opening-controls-test",
+            version=1,
+            title="Opening controls test guide",
+            summary="Synthetic role and department guide.",
+            required_permission="accounting.prepare_opening_balances",
+            page_patterns=["department_dashboard", "accounting:opening_*"],
+            status=InternalHowTo.DRAFT,
+        )
+        cls.step = InternalHowToStep.objects.create(
+            how_to=cls.guide,
+            position=1,
+            title="Synthetic controlled step",
+            instruction="Follow the current department's synthetic instruction.",
+            expected_result="Synthetic result is visible.",
+        )
+        cls.guide.status = InternalHowTo.PUBLISHED
+        cls.guide.save(update_fields=("status", "updated_at"))
+        InternalHowTo.objects.create(
+            department=cls.accounting,
+            slug="draft-hidden",
+            title="Hidden draft guide",
+            summary="Not published.",
+            status=InternalHowTo.DRAFT,
+        )
+        InternalHowTo.objects.create(
+            department=cls.accounting,
+            slug="retired-hidden",
+            title="Hidden retired guide",
+            summary="No longer current.",
+            status=InternalHowTo.RETIRED,
+        )
+
+    @classmethod
+    def _employee(cls, username, department):
+        user = get_user_model().objects.create_user(
+            username=username,
+            email=f"{username}@example.test",
+            password="internal-howto-test-password",
+        )
+        user.employeeprofile.assigned_department = department
+        user.employeeprofile.save(update_fields=("assigned_department",))
+        return get_user_model().objects.get(pk=user.pk)
+
+    def test_visibility_is_computed_from_current_department_role_and_publication(self):
+        department, guides = visible_internal_how_tos(self.preparer, "department_dashboard")
+        self.assertEqual(department, self.accounting)
+        self.assertEqual([guide.pk for guide in guides], [self.guide.pk])
+        self.assertTrue(guides[0].matches_current_page)
+
+        permission = Permission.objects.get(content_type__app_label="accounting", codename="prepare_opening_balances")
+        self.preparer.user_permissions.remove(permission)
+        self.preparer = get_user_model().objects.get(pk=self.preparer.pk)
+        self.assertEqual(visible_internal_how_tos(self.preparer)[1], [])
+        self.assertEqual(visible_internal_how_tos(self.outsider)[1], [])
+
+    def test_reassignment_removes_old_guides_without_assigning_them_to_users(self):
+        self.assertEqual(len(visible_internal_how_tos(self.preparer)[1]), 1)
+        profile = self.preparer.employeeprofile
+        profile.assigned_department = self.hr
+        profile.save(update_fields=("assigned_department",))
+        self.preparer = get_user_model().objects.get(pk=self.preparer.pk)
+        self.assertEqual(visible_internal_how_tos(self.preparer)[1], [])
+        self.assertFalse(hasattr(self.guide, "user_id"))
+
+    def test_successor_sees_guide_but_not_predecessor_progress(self):
+        completion, completed = set_step_completion(user=self.preparer, step_id=self.step.pk, completed=True)
+        self.assertTrue(completed)
+        self.assertEqual(completion.department, self.accounting)
+        predecessor_guide = visible_internal_how_tos(self.preparer)[1][0]
+        successor_guide = visible_internal_how_tos(self.successor)[1][0]
+        self.assertEqual(predecessor_guide.completed_count, 1)
+        self.assertEqual(successor_guide.completed_count, 0)
+        self.assertFalse(InternalHowToStepCompletion.objects.filter(user=self.successor).exists())
+
+    def test_floating_nonmodal_panel_renders_and_saves_progress(self):
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("department_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="grand-howto-toggle"')
+        self.assertContains(response, 'id="grand-howto-panel"')
+        self.assertContains(response, "Opening controls test guide")
+        self.assertContains(response, "hidden")
+        self.assertNotContains(response, "modal-backdrop")
+
+        response = self.client.post(
+            reverse("departments:internal_howto_step_completion", args=(self.step.pk,)),
+            {"completed": "true"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"step_id": self.step.pk, "completed": True})
+        self.assertTrue(InternalHowToStepCompletion.objects.filter(user=self.preparer, step=self.step).exists())
+
+    def test_completion_endpoint_rejects_other_departments_and_missing_permissions(self):
+        endpoint = reverse("departments:internal_howto_step_completion", args=(self.step.pk,))
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.post(endpoint, {"completed": "true"}).status_code, 403)
+
+        permission = Permission.objects.get(
+            content_type__app_label="accounting",
+            codename="prepare_opening_balances",
+        )
+        self.preparer.user_permissions.remove(permission)
+        self.client.force_login(self.preparer)
+        self.assertEqual(self.client.post(endpoint, {"completed": "true"}).status_code, 403)
+        self.assertFalse(InternalHowToStepCompletion.objects.filter(step=self.step).exists())
+
+    def test_current_page_guides_are_ordered_before_other_page_guides(self):
+        broad = InternalHowTo.objects.create(
+            department=self.accounting,
+            slug="broad-guide",
+            title="A different-page guide",
+            summary="Visible in the department but intended for another page.",
+            page_patterns=["vouchers:*"],
+            status=InternalHowTo.DRAFT,
+            sort_order=1,
+        )
+        InternalHowToStep.objects.create(
+            how_to=broad,
+            position=1,
+            title="Broad step",
+            instruction="Use the broad guide when it is relevant.",
+        )
+        broad.status = InternalHowTo.PUBLISHED
+        broad.save(update_fields=("status", "updated_at"))
+
+        guides = visible_internal_how_tos(self.preparer, "accounting:opening_workspace")[1]
+        self.assertEqual([guide.pk for guide in guides[:2]], [self.guide.pk, broad.pk])
+        self.assertTrue(guides[0].matches_current_page)
+        self.assertFalse(guides[1].matches_current_page)
+
+    def test_published_content_and_steps_require_a_new_version(self):
+        guide = InternalHowTo.objects.get(pk=self.guide.pk)
+        guide.title = "Silently changed title"
+        with self.assertRaisesMessage(ValidationError, "new version"):
+            guide.full_clean()
+        step = InternalHowToStep.objects.get(pk=self.step.pk)
+        step.instruction = "Silently changed instruction"
+        with self.assertRaisesMessage(ValidationError, "new guide version"):
+            step.save()
+
+    def test_finance_seed_is_repeatable_and_preserves_published_guides(self):
+        InternalHowTo.objects.filter(department=self.accounting).update(status=InternalHowTo.RETIRED)
+        first = seed_finance_internal_howtos()
+        second = seed_finance_internal_howtos()
+        self.assertGreaterEqual(first["guides_created"], 1)
+        self.assertGreaterEqual(second["guides_preserved"], 1)
+        self.assertTrue(InternalHowTo.objects.filter(
+            department=self.accounting,
+            slug="finance-opening-prepare",
+            status=InternalHowTo.PUBLISHED,
+        ).exists())
+
+    def test_finance_seed_supersedes_an_old_guide_without_copying_personal_progress(self):
+        old = InternalHowTo.objects.create(
+            department=self.accounting,
+            slug="finance-requesting-office-payable-intake",
+            version=1,
+            title="Old payable intake guide",
+            summary="Synthetic predecessor instructions.",
+            required_permission="vouchers.initiate_payable_case",
+            page_patterns=["vouchers:*"],
+            status=InternalHowTo.DRAFT,
+        )
+        old_step = InternalHowToStep.objects.create(
+            how_to=old, position=1, title="Old step", instruction="Follow the predecessor instruction.",
+        )
+        old.status = InternalHowTo.PUBLISHED
+        old.save(update_fields=("status", "updated_at"))
+        InternalHowToStepCompletion.objects.create(
+            user=self.preparer, step=old_step, department=self.accounting,
+        )
+
+        counts = seed_finance_internal_howtos()
+
+        old.refresh_from_db()
+        current = InternalHowTo.objects.get(
+            department=self.accounting,
+            slug="finance-requesting-office-payable-intake",
+            status=InternalHowTo.PUBLISHED,
+        )
+        self.assertEqual(old.status, InternalHowTo.RETIRED)
+        self.assertGreater(current.version, old.version)
+        self.assertGreaterEqual(counts["guides_retired"], 1)
+        self.assertTrue(InternalHowToStepCompletion.objects.filter(user=self.preparer, step=old_step).exists())
+        self.assertFalse(InternalHowToStepCompletion.objects.filter(user=self.preparer, step__how_to=current).exists())

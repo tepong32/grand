@@ -7,9 +7,24 @@ from django.core.exceptions import PermissionDenied
 ACCOUNTING_PERMISSIONS = (
     "accounting.view_accounting_workspace",
     "accounting.manage_accounting_setup",
+    "accounting.approve_fiscal_readiness",
+    "accounting.prepare_opening_balances",
+    "accounting.approve_opening_balances",
+    "accounting.post_opening_balances",
     "accounting.prepare_journal_entries",
     "accounting.post_journal_entries",
     "accounting.view_general_ledger",
+    "accounting.reconcile_control_accounts",
+    "accounting.view_bank_reconciliation",
+    "accounting.prepare_bank_reconciliation",
+    "accounting.approve_bank_reconciliation",
+    "accounting.export_bank_reconciliation",
+    "accounting.manage_period_close_policies",
+    "accounting.approve_period_close_policies",
+    "accounting.prepare_period_close",
+    "accounting.approve_period_close",
+    "accounting.reopen_period",
+    "accounting.export_period_close",
 )
 
 
@@ -43,6 +58,26 @@ def can_manage_setup(user):
     return has_explicit_permission(user, "accounting.manage_accounting_setup")
 
 
+def can_approve_fiscal_readiness(user):
+    return has_explicit_permission(user, "accounting.approve_fiscal_readiness")
+
+
+def can_govern_setup(user):
+    return can_manage_setup(user) or can_approve_fiscal_readiness(user)
+
+
+def can_prepare_opening_balances(user):
+    return has_explicit_permission(user, "accounting.prepare_opening_balances")
+
+
+def can_approve_opening_balances(user):
+    return has_explicit_permission(user, "accounting.approve_opening_balances")
+
+
+def can_post_opening_balances(user):
+    return has_explicit_permission(user, "accounting.post_opening_balances")
+
+
 def can_prepare_journals(user):
     return has_explicit_permission(user, "accounting.prepare_journal_entries")
 
@@ -53,6 +88,50 @@ def can_post_journals(user):
 
 def can_view_ledger(user):
     return has_explicit_permission(user, "accounting.view_general_ledger")
+
+
+def can_reconcile_controls(user):
+    return has_explicit_permission(user, "accounting.reconcile_control_accounts")
+
+
+def can_view_bank_reconciliation(user):
+    return has_explicit_permission(user, "accounting.view_bank_reconciliation")
+
+
+def can_prepare_bank_reconciliation(user):
+    return has_explicit_permission(user, "accounting.prepare_bank_reconciliation")
+
+
+def can_approve_bank_reconciliation(user):
+    return has_explicit_permission(user, "accounting.approve_bank_reconciliation")
+
+
+def can_export_bank_reconciliation(user):
+    return has_explicit_permission(user, "accounting.export_bank_reconciliation")
+
+
+def can_manage_period_close_policies(user):
+    return has_explicit_permission(user, "accounting.manage_period_close_policies")
+
+
+def can_approve_period_close_policies(user):
+    return has_explicit_permission(user, "accounting.approve_period_close_policies")
+
+
+def can_prepare_period_close(user):
+    return has_explicit_permission(user, "accounting.prepare_period_close")
+
+
+def can_approve_period_close(user):
+    return has_explicit_permission(user, "accounting.approve_period_close")
+
+
+def can_reopen_period(user):
+    return has_explicit_permission(user, "accounting.reopen_period")
+
+
+def can_export_period_close(user):
+    return has_explicit_permission(user, "accounting.export_period_close")
 
 
 def accounting_access_required(view):

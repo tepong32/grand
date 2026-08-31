@@ -8,7 +8,7 @@ The employee workspace is available at `/reports/`. Access is department-bounded
 
 Authorized template managers may attach PDF, XLSX, XLS, DOCX, PNG, or JPEG reference files. GRAND stores them as non-executable references unless an XLSX or PDF version is explicitly configured with one of the controlled mappers below. GRAND never runs embedded queries, scripts, macros, or template code.
 
-Each usable layout is represented by a versioned `ReportTemplateVersion` containing its title, institutional header, certification text, signatory lines, footer, document-control prefix, logos, paper geometry, page-border behavior, and controlled layout settings. Technical approval permits manual or scheduled pilot generation. A separate department fidelity validation is required before a run can be approved as an official output.
+Each usable layout is represented by a versioned `ReportTemplateVersion` containing its title, institutional header, certification text, signatory lines, footer, document-control prefix, logos, paper geometry, page-border behavior, and controlled layout settings. Technical approval permits controlled preview generation. Official use requires a retained promotion with golden comparison or first-layout reference review, independent approval, and separate activation.
 
 Three rendering modes are supported:
 
@@ -25,9 +25,9 @@ DOCX and image files remain intake evidence. GRAND does not depend on desktop Wo
 3. Upload the existing form as a reference when it helps reviewers compare the result.
 4. Choose native rendering or configure the controlled Excel/PDF mapper.
 5. Run mapper preflight, which records a SHA-256 checksum and validated layout summary, then have an authorized approver approve the version for pilot generation.
-6. Generate the same period through GRAND and the department's current process, then compare both outputs.
-7. Record the comparison and department sign-off as fidelity evidence.
-8. Only then validate the template for official report approval and distribution.
+6. Prepare a promotion using the accepted prior run for the same period and format; GRAND generates the candidate preview and compares data/control evidence automatically.
+7. Record the human form, signatory, pagination, overflow, printer, and form-stock comparison plus the schedule-impact choice.
+8. A different reviewer approves the locked evidence, and an authorized manager activates or later rolls back the version without a software deployment.
 
 Use the [department template-intake checklist](REPORT_TEMPLATE_INTAKE.md) to inventory actual forms. Any coordinate, reserved range, or source-file change invalidates preflight; approved versions are immutable and must be replaced with a new version.
 
@@ -58,8 +58,19 @@ Permissions are independently assignable for workspace access, definition manage
 | `approve_reports` | Approve official outputs or superseding versions |
 | `download_reports` | Download archived output files |
 | `view_department_reports` | View report records across the assigned department |
+| `manage_accountability_package_profiles` | Prepare readable Finance accountability-package recipes |
+| `approve_accountability_package_profiles` | Independently activate a package recipe |
+| `prepare_accountability_packages` | Assemble exact-period packages and reasoned successors |
+| `review_accountability_packages` | Independently approve or return assembled packages |
+| `export_accountability_packages` | Export approved or historically superseded package manifests |
 
 Assign permissions through Django groups or individual user permissions. Prefer role-based groups in production so access reviews remain understandable.
+
+## Finance accountability packages
+
+The Finance accountability workspace connects approved cross-office outputs without copying or weakening their authority. A locally reviewed profile defines required and optional slots in plain language. An Accounting preparer selects only matching approved report, statement-note, signed-reference, or verified tax-filing evidence for the exact package period; submission pins the profile, source UUIDs, approval facts, and SHA-256 checksums for a different reviewer.
+
+Draft and returned selections may be replaced only with a reason, retaining the earlier version. Approved profiles and packages use linked successors. Package correction never substitutes for a source transaction reversal or adjustment. Approved and historically superseded package manifests use the same TraceSync-ready export root. See [Finance accountability-package profiles and assembly](FINANCE_ACCOUNTABILITY_PACKAGES.md).
 
 ## Operator commands
 

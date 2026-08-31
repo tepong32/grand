@@ -19,12 +19,15 @@ from profiles.models import EmployeeProfile
 from .access import can_approve_finance_configuration, can_manage_finance_configuration
 from .exemptions import workflow_exemption_for
 from .models import (
-    FinanceAuditEvent, FinanceConfigurationItem, FinanceConfigurationRelease,
-    FinanceNumberingSequence, FinanceSignatory, FinanceTemplateVersion, FinanceWorkflowExemption,
+    FinanceAuditEvent, FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule,
+    FinanceNumberingSequence, FinancePostingRule, FinancePostingRuleLine, FinanceSignatory,
+    FinanceTemplateVersion, FinanceWorkflowExemption, FinanceTransactionVariant,
 )
 from .services import (
-    FinanceTemplateError, evaluate_readiness, inspect_finance_workbook,
-    preflight_finance_template, record_event, synthetic_preview, transition_release,
+    FinanceTemplateError, build_finance_starter_workbook, create_payment_event_posting_starters,
+    create_recognition_posting_starter,
+    evaluate_readiness, inspect_finance_workbook, payment_event_policy_error, posting_rule_snapshot, preflight_finance_template,
+    record_event, synthetic_preview, transition_release,
 )
 
 
@@ -131,6 +134,43 @@ class FinanceSetupCenterTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "approval basis"):
             transition_release(self.release, "approve", self.approver, "")
 
+    def test_structured_tax_starter_requires_local_confirmation_before_release_submission(self):
+        item = FinanceConfigurationItem.objects.create(
+            department=self.accounting, release=self.release, category="tax_rule", code="ewt-starter",
+            version=1, label="Expanded withholding starter", description="Editable UAT starter",
+            configuration={
+                "reporting_enabled": True, "tax_family": "expanded_income", "atc": "WI158",
+                "rate_percent": "1", "tax_base_label": "Reviewed gross income payment",
+                "return_form_code": "1601-EQ", "certificate_form_code": "2307",
+                "reporting_basis": "accounting_posting", "rounding_mode": "half_up",
+                "requires_tax_identifier": True,
+                "authority_reference": "Official BIR source pending local applicability review",
+                "applicability_status": "candidate",
+                "local_acceptance_note": "Local confirmation pending",
+            },
+            effective_from=date(2027, 1, 1), created_by=self.manager,
+        )
+        with self.assertRaisesMessage(ValidationError, "still a tax-reporting starter"):
+            transition_release(self.release, "submit", self.manager)
+        item.configuration = {
+            **item.configuration,
+            "applicability_status": "locally_confirmed",
+            "local_acceptance_note": "Synthetic Municipal Accountant review retained in ACCTG-TAX-001",
+        }
+        item.full_clean(); item.save(update_fields=("configuration", "updated_at"))
+        transition_release(self.release, "submit", self.manager)
+        self.release.refresh_from_db()
+        self.assertEqual(self.release.status, "submitted")
+
+    def test_structured_tax_rule_form_uses_plain_fields_and_no_json(self):
+        self.client.force_login(self.manager)
+        response = self.client.get(reverse("finance:tax_rule_create"), {"release": self.release.pk})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Alphanumeric tax code")
+        self.assertContains(response, "Rate (%)")
+        self.assertContains(response, "Local decision and retained evidence")
+        self.assertNotContains(response, "configuration_json")
+
     def test_admin_policy_can_exempt_a_named_user_or_role_and_records_each_use(self):
         self._grant(self.manager, "approve_finance_configuration")
         role = Group.objects.create(name="Synthetic small-office finance role")
@@ -223,6 +263,42 @@ class FinanceSetupCenterTests(TestCase):
             with self.assertRaisesMessage(FinanceTemplateError, expected):
                 inspect_finance_workbook(output.getvalue())
 
+    def test_plain_language_dv_starter_is_editable_and_preflight_ready(self):
+        values = {
+            "lgu_name": "Municipality of Sample",
+            "finance_office_name": "Municipal Accounting Office",
+            "form_title": "DISBURSEMENT VOUCHER",
+            "form_reference": "Editable starter — local comparison pending",
+            "paper_size": "a4",
+            "orientation": "portrait",
+            "particulars_rows": 10,
+            "default_copy_count": 2,
+            "prepared_label": "Prepared by",
+            "certified_label": "Certified / reviewed by",
+            "approved_label": "Approved for payment by",
+            "footer_note": "STARTER FOR LOCAL REVIEW",
+        }
+        payload = build_finance_starter_workbook(values)
+        workbook, mapping, result = inspect_finance_workbook(payload)
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["line_item_row_capacity"], 10)
+        self.assertEqual(set(mapping), set(FinanceTemplateVersion.REQUIRED_NAMES))
+        self.assertEqual(workbook["DV Starter"]["A1"].value, "Municipality of Sample")
+        self.assertIn("not automatically an official", workbook["Read Me First"]["B2"].value)
+
+        self.client.force_login(self.manager)
+        response = self.client.post(reverse("finance:starter_template"), values)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["X-GRAND-Template-Status"], "editable-starter-not-locally-accepted")
+        downloaded = b"".join(response.streaming_content) if response.streaming else response.content
+        _workbook, _mapping, downloaded_result = inspect_finance_workbook(downloaded)
+        self.assertTrue(downloaded_result["passed"])
+
+        template = self._template()
+        template.form_status = FinanceTemplateVersion.LOCALLY_ACCEPTED
+        with self.assertRaisesMessage(ValidationError, "reviewed authority"):
+            template.full_clean()
+
     def test_readiness_returns_reusable_reason_codes_then_passes_complete_release(self):
         initial = evaluate_readiness(self.release, as_of=date(2027, 1, 1))
         self.assertFalse(initial["ready"])
@@ -273,3 +349,88 @@ class FinanceSetupCenterTests(TestCase):
         event = FinanceAuditEvent.objects.get(action="created", target_type="financeconfigurationitem")
         self.assertEqual(event.actor, self.manager)
         self.assertEqual(event.department, self.accounting)
+
+    def test_typed_transaction_variant_and_document_rule_are_department_scoped_and_locked_with_release(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(reverse("finance:variant_create"), {
+            "release": self.release.pk, "code": "ordinary-supplier-claim",
+            "label": "Ordinary supplier claim", "kind": FinanceTransactionVariant.ORDINARY_SUPPLIER,
+            "description": "Synthetic supplier payable route.",
+            "authority_reference": "Synthetic reviewed COA/DBM/local applicability decision.",
+            "effective_from": "2027-01-01", "effective_to": "",
+        })
+        self.assertRedirects(response, reverse("finance:release_detail", args=(self.release.pk,)))
+        variant = FinanceTransactionVariant.objects.get(code="ordinary-supplier-claim")
+        response = self.client.post(reverse("finance:document_rule_create"), {
+            "variant": variant.pk, "code": "invoice", "label": "Invoice / billing",
+            "evidence_kind": FinanceDocumentRule.INVOICE, "required": "on",
+            "waiver_allowed": "", "condition_description": "",
+            "authority_reference": "Synthetic reviewed invoice requirement.", "display_order": 10,
+        })
+        self.assertRedirects(response, reverse("finance:release_detail", args=(self.release.pk,)))
+        rule = variant.document_rules.get()
+        self.assertTrue(rule.required)
+        self.assertEqual(rule.department, self.accounting)
+        conditional_without_scope = FinanceDocumentRule(
+            variant=variant, code="conditional-without-scope", label="Unscoped conditional evidence",
+            evidence_kind=FinanceDocumentRule.OTHER, required=False, waiver_allowed=False,
+            condition_description="", authority_reference="Synthetic reviewed applicability decision.",
+            created_by=self.manager,
+        )
+        with self.assertRaisesMessage(ValidationError, "must state when it applies"):
+            conditional_without_scope.full_clean()
+        self.assertTrue(FinanceAuditEvent.objects.filter(
+            target_type="financetransactionvariant", action="created",
+        ).exists())
+        self.assertTrue(FinanceAuditEvent.objects.filter(
+            target_type="financedocumentrule", action="document_rule_created",
+        ).exists())
+        posting = create_recognition_posting_starter(variant, self.manager)
+        payment_rules = create_payment_event_posting_starters(variant, self.manager)
+        snapshot, checksum = posting_rule_snapshot(posting)
+        self.assertEqual(snapshot["event_kind"], FinancePostingRule.RECOGNITION)
+        self.assertEqual(len(snapshot["lines"]), 3)
+        self.assertEqual(len(checksum), 64)
+        self.assertEqual(
+            list(posting.lines.values_list("side", flat=True)),
+            [FinancePostingRuleLine.DEBIT, FinancePostingRuleLine.CREDIT, FinancePostingRuleLine.CREDIT],
+        )
+        self.assertEqual(
+            {rule.event_kind for rule in payment_rules},
+            {
+                FinancePostingRule.PAYMENT,
+                FinancePostingRule.REMITTANCE,
+                FinancePostingRule.CANCELLATION,
+                FinancePostingRule.REPLACEMENT,
+                FinancePostingRule.REVERSAL,
+            },
+        )
+        cancellation = variant.posting_rules.get(event_kind=FinancePostingRule.CANCELLATION)
+        cancellation_snapshot, _checksum = posting_rule_snapshot(cancellation)
+        self.assertEqual(cancellation_snapshot["accounting_effect"], FinancePostingRule.NO_ENTRY)
+        self.assertEqual(cancellation_snapshot["lines"], [])
+        payment = variant.posting_rules.get(event_kind=FinancePostingRule.PAYMENT)
+        self.assertEqual(
+            set(payment.lines.values_list("amount_source", flat=True)),
+            {FinancePostingRuleLine.EVENT_AMOUNT},
+        )
+        payment.recognition_point = FinancePostingRule.PAYMENT_ISSUANCE
+        self.assertIn("requires journal-producing", payment_event_policy_error([
+            payment,
+            *variant.posting_rules.exclude(pk=payment.pk),
+        ]))
+        payment.recognition_point = FinancePostingRule.PAYMENT_RELEASE
+        with self.assertRaisesMessage(ValidationError, "still an editable starter"):
+            transition_release(self.release, "submit", self.manager)
+        posting.authority_reference = "Synthetic locally reviewed supplier recognition policy."
+        posting.full_clean()
+        posting.save(update_fields=("authority_reference",))
+        variant.posting_rules.exclude(pk=posting.pk).update(
+            authority_reference="Synthetic locally reviewed payment-cycle policy.",
+        )
+        transition_release(self.release, "submit", self.manager)
+        variant.refresh_from_db()
+        self.assertEqual(variant.status, "submitted")
+        variant.label = "Silently changed variant"
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            variant.full_clean()

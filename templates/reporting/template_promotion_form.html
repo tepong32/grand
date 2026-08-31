@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title_ext %} - Prepare template promotion{% endblock %}
+{% block content %}
+<div class="container py-3">
+  <a href="{{ template.definition.get_absolute_url }}" class="small">&larr; {{ template.definition.name }}</a>
+  <div class="row mt-3">
+    <div class="col-lg-8">
+      <div class="card card-outline card-primary">
+        <div class="card-header"><h1 class="h4 mb-0">Compare template version {{ template.version }}</h1></div>
+        <div class="card-body">
+          <div class="alert alert-light border">
+            <strong>This creates evidence, not an immediate switch.</strong>
+            GRAND will generate one retained preview, compare its data and controls with the accepted prior output when available, and show affected schedules before anyone approves or activates the layout.
+          </div>
+          <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Create controlled preview and comparison</button></form>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header"><h2 class="h6 mb-0">What to check</h2></div><div class="card-body small">
+        <ol class="pl-3 mb-0">
+          <li class="mb-2">Use a blank or safely redacted department form.</li>
+          <li class="mb-2">Choose the same period and format as the accepted prior output.</li>
+          <li class="mb-2">Check every heading, total, signatory, page break, and overflow case.</li>
+          <li>Record form stock or printer alignment when the office prints on a prescribed form.</li>
+        </ol>
+      </div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+<div class="card card-outline card-primary">
+  <div class="card-header"><h2 class="card-title font-weight-bold">Prepare Disbursement Voucher</h2></div>
+  <form method="post" action="{% url 'vouchers:case_action' case.public_id 'prepare-dv' %}">
+    <div class="card-body">
+      {% csrf_token %}
+      {{ voucher_form.as_p }}
+      <hr>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h3 class="h6 mb-1">Deductions and withholdings</h3>
+          <p class="small text-muted mb-0">Add only the rows that apply. Structured tax rules calculate against the reviewed base and retain the ATC, rate, form, payee, and authority snapshot.</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="add-deduction-row">Add another</button>
+      </div>
+      {{ voucher_deduction_formset.management_form }}
+      <div id="deduction-rows">
+        {% for deduction_form in voucher_deduction_formset %}
+          <div class="border rounded p-2 mb-2 deduction-row">
+            {% for hidden in deduction_form.hidden_fields %}{{ hidden }}{% endfor %}
+            <div class="form-row">
+              <div class="col-12">{{ deduction_form.tax_rule.label_tag }}{{ deduction_form.tax_rule }}{{ deduction_form.tax_rule.errors }}</div>
+              <div class="col-md-6">{{ deduction_form.tax_base.label_tag }}{{ deduction_form.tax_base }}<div class="small text-muted">{{ deduction_form.tax_base.help_text }}</div>{{ deduction_form.tax_base.errors }}</div>
+              <div class="col-md-6">{{ deduction_form.amount.label_tag }}{{ deduction_form.amount }}{{ deduction_form.amount.errors }}</div>
+            </div>
+            <div class="small mt-1">{{ deduction_form.DELETE }} {{ deduction_form.DELETE.label_tag }}</div>
+          </div>
+        {% endfor %}
+      </div>
+      <template id="empty-deduction-row">
+        <div class="border rounded p-2 mb-2 deduction-row">
+          {% with deduction_form=voucher_deduction_formset.empty_form %}
+            {% for hidden in deduction_form.hidden_fields %}{{ hidden }}{% endfor %}
+            <div class="form-row">
+              <div class="col-12">{{ deduction_form.tax_rule.label_tag }}{{ deduction_form.tax_rule }}</div>
+              <div class="col-md-6">{{ deduction_form.tax_base.label_tag }}{{ deduction_form.tax_base }}<div class="small text-muted">{{ deduction_form.tax_base.help_text }}</div></div>
+              <div class="col-md-6">{{ deduction_form.amount.label_tag }}{{ deduction_form.amount }}</div>
+            </div>
+            <div class="small mt-1">{{ deduction_form.DELETE }} {{ deduction_form.DELETE.label_tag }}</div>
+          {% endwith %}
+        </div>
+      </template>
+      <div class="alert alert-light border small mb-0">
+        A public BIR form or rate is not silently assumed. If a required rule is missing, ask the Finance Setup manager to add a plain-language candidate, confirm it locally, and activate it through maker–checker review.
+      </div>
+    </div>
+    <div class="card-footer"><button class="btn btn-primary btn-block">Create controlled DV</button></div>
+  </form>
+</div>
+<script>
+(function () {
+  const button = document.getElementById('add-deduction-row');
+  const total = document.getElementById('id_deductions-TOTAL_FORMS');
+  const rows = document.getElementById('deduction-rows');
+  const template = document.getElementById('empty-deduction-row');
+  if (!button || !total || !rows || !template) return;
+  button.addEventListener('click', function () {
+    const index = Number(total.value);
+    if (index >= 20) return;
+    rows.insertAdjacentHTML('beforeend', template.innerHTML.replaceAll('__prefix__', String(index)));
+    total.value = String(index + 1);
+  });
+})();
+</script>

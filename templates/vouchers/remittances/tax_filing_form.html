@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title_ext %} · {{ title }}{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="row justify-content-center"><div class="col-xl-9">
+    <div class="mb-3"><p class="text-uppercase text-primary small font-weight-bold mb-1">Treasury remittance</p><h1 class="h3 mb-1">{{ title }}</h1><p class="text-muted mb-0">Record what was actually filed and paid outside GRAND, then send the evidence to Accounting for an independent check.</p></div>
+    <div class="alert alert-info"><strong>Recommended source:</strong> select an approved GRAND tax return/remittance summary. GRAND copies its immutable report, template, control, and output checksums so ordinary users do not need to calculate or paste a hash.</div>
+    <form method="post" novalidate>{% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="card card-outline card-primary"><div class="card-header"><h2 class="card-title font-weight-bold">Filing and payment details</h2></div><div class="card-body"><div class="row">
+        {% for field in form %}{% if field.name == 'return_form_code' or field.name == 'tax_period_start' or field.name == 'tax_period_end' or field.name == 'filing_date' or field.name == 'submission_channel' or field.name == 'filing_reference' or field.name == 'payment_confirmation_reference' %}<div class="form-group {% if field.name == 'submission_channel' or field.name == 'filing_reference' or field.name == 'payment_confirmation_reference' %}col-md-12{% else %}col-md-6{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endif %}{% endfor %}
+      </div></div></div>
+      <div class="card card-outline card-info"><div class="card-header"><h2 class="card-title font-weight-bold">Reviewed source schedule</h2></div><div class="card-body">
+        <div class="form-group"><label for="{{ form.source_mode.id_for_label }}">{{ form.source_mode.label }}</label>{{ form.source_mode }}{% for error in form.source_mode.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+        <div id="grand-report-source"><div class="form-group"><label for="{{ form.source_report_run.id_for_label }}">{{ form.source_report_run.label }}</label>{{ form.source_report_run }}{% if form.source_report_run.help_text %}<small class="form-text text-muted">{{ form.source_report_run.help_text }}</small>{% endif %}{% if not form.source_report_run.field.queryset.exists %}<div class="alert alert-warning small mt-2 mb-0">No eligible report is ready yet. Ask Accounting to generate, reconcile, review, and approve the exact-form tax return/remittance summary using the locally accepted template; or use the advanced external source only when that is the accepted procedure.</div>{% endif %}{% for error in form.source_report_run.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div></div>
+        <div id="external-schedule-source"><div class="alert alert-warning small"><strong>Advanced fallback.</strong> Use this only when the locally accepted source schedule is outside GRAND. Confirm its reference and SHA-256 with the record custodian.</div>
+          {% for field in form %}{% if field.name == 'source_schedule_reference' or field.name == 'source_schedule_checksum' or field.name == 'external_source_basis' %}<div class="form-group"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endif %}{% endfor %}
+        </div>
+      </div></div>
+      <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Evidence custody</h2></div><div class="card-body"><div class="form-group"><label for="{{ form.evidence_reference.id_for_label }}">{{ form.evidence_reference.label }}</label>{{ form.evidence_reference }}{% if form.evidence_reference.help_text %}<small class="form-text text-muted">{{ form.evidence_reference.help_text }}</small>{% endif %}{% for error in form.evidence_reference.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div></div></div>
+      <button class="btn btn-primary">Save checksum-backed draft</button><a href="{{ cancel_object.get_absolute_url }}" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div></div>
+</div>
+<script>
+(function () {
+  var mode = document.getElementById('{{ form.source_mode.id_for_label }}');
+  var grand = document.getElementById('grand-report-source');
+  var external = document.getElementById('external-schedule-source');
+  function refreshSourceMode() {
+    var useExternal = mode && mode.value === 'external_schedule';
+    if (grand) grand.hidden = useExternal;
+    if (external) external.hidden = !useExternal;
+  }
+  if (mode) mode.addEventListener('change', refreshSourceMode);
+  refreshSourceMode();
+}());
+</script>
+{% endblock %}

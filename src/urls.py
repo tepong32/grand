@@ -36,6 +36,7 @@ urlpatterns = [
     path('finance/setup/', include('finance.urls', namespace="finance")),
     path('finance/vouchers/', include('vouchers.urls', namespace="vouchers")),
     path('finance/accounting/', include('accounting.urls', namespace="accounting")),
+    path('finance/budget/', include('budget.urls', namespace="budget")),
     path('leave-mgt/', include('leave_mgt.urls')),
     path('departments/', include('departments.urls')),
     path('profiles/', include('profiles.urls')),
