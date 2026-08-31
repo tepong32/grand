@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import tempfile
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -14,13 +14,19 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from accounting.models import AccountingPeriod, FiscalYear, Fund, JournalEntry, JournalLine, LedgerAccount
+from accounting.models import (
+    AccountingPeriod, FiscalYear, Fund, JournalEntry, JournalLine, JournalSubsidiaryLine,
+    LedgerAccount, PostingMapping, ResponsibilityCenter,
+)
 from budget.models import (
     AllotmentMovement, AllotmentReleaseOrder, AppropriationAuthorization,
     AuthorizedAppropriationLine, BudgetCall, BudgetVersion, ObligationMovement,
     ObligationRequest,
 )
 from departments.models import Department
+from vouchers.models import (
+    BankAdviceBatch, BankAdviceItem, DisbursementVoucher, PaymentInstrument, VoucherCase,
+)
 
 from .datasets import build_dataset_with_evidence
 from .models import ReportDefinition, ReportRun, ReportTemplateVersion
@@ -289,6 +295,257 @@ class FinanceAccountabilityReportingTests(TestCase):
             root = Path(export_root)
             self.assertTrue((root / "GRAND_EXPORT_ROOT.json").exists())
             self.assertEqual(len(list(root.rglob("*.manifest.json"))), 2)
+
+    def test_posted_general_ledger_retains_line_level_controls_and_entry_sources(self):
+        definition = ReportDefinition.objects.get(
+            department=self.accounting, dataset_key="finance_posted_general_ledger",
+        )
+        run = create_manual_run(
+            definition, definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer,
+        )
+        self.assertEqual(run.control_status, ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(run.row_count, 2)
+        self.assertEqual(run.control_totals["debit"], "1250.00")
+        self.assertEqual(run.control_totals["credit"], "1250.00")
+        self.assertEqual(run.source_record_count, 1)
+        source = run.source_records.get()
+        self.assertEqual(source.source_reference, self.entry.reference)
+        self.assertEqual(len(source.snapshot["lines"]), 2)
+
+    def test_payable_schedule_must_reconcile_to_its_mapped_gl_control(self):
+        owner = {"department_id": self.accounting.pk, "department_label": self.accounting.name}
+        payable = LedgerAccount.objects.create(
+            **owner, code="20101010", title="Accounts payable",
+            account_type="liability", normal_balance="credit",
+        )
+        PostingMapping.objects.create(
+            **owner, category=PostingMapping.PAYABLE, source_code="ordinary-supplier",
+            label="Ordinary supplier payable", account=payable,
+        )
+        entry = JournalEntry.objects.create(
+            **owner, reference="JEV-F9-AP-0001", entry_date=date(2027, 2, 15),
+            period=self.period, fund=self.fund, source_type="voucher",
+            source_reference="CASE-F9-AP-1", description="Synthetic payable recognition",
+            status=JournalEntry.DRAFT, created_by_id=self.accounting_preparer.pk,
+            created_by_label=self.accounting_preparer.username,
+            posted_by_id=self.accounting_reviewer.pk,
+            posted_by_label=self.accounting_reviewer.username, posted_at=timezone.now(),
+        )
+        JournalLine.objects.create(
+            entry=entry, sequence=1, account=self.cash, debit=Decimal("200.00"),
+        )
+        payable_line = JournalLine.objects.create(
+            entry=entry, sequence=2, account=payable, credit=Decimal("200.00"),
+        )
+        JournalSubsidiaryLine.objects.create(
+            entry=entry, journal_line=payable_line, category=JournalSubsidiaryLine.PAYABLE,
+            reference_key="party-f9", reference_label="Synthetic Supplier",
+            source_code="ordinary-supplier", source_reference="CASE-F9-AP-1",
+            credit=Decimal("200.00"),
+        )
+        JournalEntry.objects.filter(pk=entry.pk).update(status=JournalEntry.POSTED)
+        definition = ReportDefinition.objects.get(
+            department=self.accounting, dataset_key="finance_posted_payable_schedule",
+        )
+        run = create_manual_run(
+            definition, definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer,
+        )
+        self.assertEqual(run.control_status, ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(run.control_totals["subsidiary_balance"], "200.00")
+        self.assertEqual(run.control_totals["gl_control_balance"], "200.00")
+        self.assertEqual(run.source_records.get().snapshot["reference_key"], "party-f9")
+
+        broken = JournalEntry.objects.create(
+            **owner, reference="JEV-F9-AP-BROKEN", entry_date=date(2027, 2, 16),
+            period=self.period, fund=self.fund, source_type="manual",
+            description="Synthetic control posting without subsidiary detail",
+            status=JournalEntry.DRAFT, created_by_id=self.accounting_preparer.pk,
+            created_by_label=self.accounting_preparer.username,
+            posted_by_id=self.accounting_reviewer.pk,
+            posted_by_label=self.accounting_reviewer.username, posted_at=timezone.now(),
+        )
+        JournalLine.objects.create(entry=broken, sequence=1, account=self.cash, debit=Decimal("50.00"))
+        JournalLine.objects.create(entry=broken, sequence=2, account=payable, credit=Decimal("50.00"))
+        JournalEntry.objects.filter(pk=broken.pk).update(status=JournalEntry.POSTED)
+        exception_run = create_manual_run(
+            definition, definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer,
+        )
+        self.assertEqual(exception_run.control_status, ReportRun.CONTROL_EXCEPTION)
+        self.assertEqual(exception_run.control_totals["difference"], "50.00")
+        with self.assertRaisesMessage(ValueError, "must reconcile"):
+            transition_run(exception_run, "review", self.accounting_reviewer)
+
+        withholding_definition = ReportDefinition.objects.get(
+            department=self.accounting, dataset_key="finance_posted_withholding_schedule",
+        )
+        withholding_run = create_manual_run(
+            withholding_definition, withholding_definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer,
+        )
+        self.assertEqual(withholding_run.control_status, ReportRun.CONTROL_EXCEPTION)
+        self.assertIn("mapping is not configured", withholding_run.control_message)
+
+    def test_budget_vs_actual_requires_exact_classification_mapping(self):
+        owner = {"department_id": self.accounting.pk, "department_label": self.accounting.name}
+        center = ResponsibilityCenter.objects.create(
+            **owner, code="GSO", name="General Services Office",
+            office_id=self.requesting.pk, office_code=self.requesting.slug,
+        )
+        expense = LedgerAccount.objects.create(
+            **owner, code="5-02-03", title="Office operations",
+            account_type="expense", normal_balance="debit",
+        )
+        entry = JournalEntry.objects.create(
+            **owner, reference="JEV-F9-ACTUAL-1", entry_date=date(2027, 2, 20),
+            period=self.period, fund=self.fund, source_type="voucher",
+            source_reference="CASE-F9-ACTUAL-1", description="Synthetic posted actual",
+            status=JournalEntry.DRAFT, created_by_id=self.accounting_preparer.pk,
+            created_by_label=self.accounting_preparer.username,
+            posted_by_id=self.accounting_reviewer.pk,
+            posted_by_label=self.accounting_reviewer.username, posted_at=timezone.now(),
+        )
+        JournalLine.objects.create(
+            entry=entry, sequence=1, account=expense, responsibility_center=center,
+            debit=Decimal("20000.00"),
+        )
+        JournalLine.objects.create(entry=entry, sequence=2, account=self.cash, credit=Decimal("20000.00"))
+        JournalEntry.objects.filter(pk=entry.pk).update(status=JournalEntry.POSTED)
+        definition = ReportDefinition.objects.get(
+            department=self.budget, dataset_key="finance_budget_vs_posted_actual",
+        )
+        adapter, rows, totals, evidence = build_dataset_with_evidence(
+            definition, date(2027, 1, 1), date(2027, 3, 31),
+            {"_definition_snapshot": {
+                "dataset_key": definition.dataset_key,
+                "selected_fields": definition.selected_fields, "filters": {}, "group_by": [],
+                "totals": definition.totals, "sort_by": [],
+            }},
+        )
+        self.assertEqual(adapter.key, "finance_budget_vs_posted_actual")
+        self.assertEqual(rows[0]["posted_actual"], Decimal("20000.00"))
+        self.assertEqual(rows[0]["balance_vs_actual"], Decimal("60000.00"))
+        self.assertEqual(totals["posted_actual"], Decimal("20000.00"))
+        self.assertEqual(evidence["control_status"], ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(evidence["control_totals"]["mapping_exception_count"], 0)
+
+        unmatched = LedgerAccount.objects.create(
+            **owner, code="5-02-99", title="Unmapped expense",
+            account_type="expense", normal_balance="debit",
+        )
+        broken = JournalEntry.objects.create(
+            **owner, reference="JEV-F9-ACTUAL-2", entry_date=date(2027, 2, 21),
+            period=self.period, fund=self.fund, source_type="manual",
+            description="Synthetic unmatched actual", status=JournalEntry.DRAFT,
+            created_by_id=self.accounting_preparer.pk,
+            created_by_label=self.accounting_preparer.username,
+            posted_by_id=self.accounting_reviewer.pk,
+            posted_by_label=self.accounting_reviewer.username, posted_at=timezone.now(),
+        )
+        JournalLine.objects.create(
+            entry=broken, sequence=1, account=unmatched, responsibility_center=center,
+            debit=Decimal("100.00"),
+        )
+        JournalLine.objects.create(entry=broken, sequence=2, account=self.cash, credit=Decimal("100.00"))
+        JournalEntry.objects.filter(pk=broken.pk).update(status=JournalEntry.POSTED)
+        _adapter, _rows, _totals, exception = build_dataset_with_evidence(
+            definition, date(2027, 1, 1), date(2027, 3, 31),
+            {"_definition_snapshot": {
+                "dataset_key": definition.dataset_key,
+                "selected_fields": definition.selected_fields, "filters": {}, "group_by": [],
+                "totals": definition.totals, "sort_by": [],
+            }},
+        )
+        self.assertEqual(exception["control_status"], ReportRun.CONTROL_EXCEPTION)
+        self.assertEqual(exception["control_totals"]["unmapped_actual"], Decimal("100.00"))
+
+    def test_treasury_register_reconciles_issue_advice_release_and_receipt_evidence(self):
+        treasury = Department.objects.create(name="Municipal Treasury Office", slug="f9-treasury")
+        treasury_preparer = self.employee(
+            treasury, "f9.treasury.preparer",
+            "view_reporting_workspace", "generate_reports", "download_reports",
+        )
+        treasury.deptHead_or_oic = treasury_preparer
+        treasury.save(update_fields=("deptHead_or_oic",))
+        seed_finance_presets()
+        instrument_time = timezone.make_aware(datetime(2027, 3, 5, 10, 30))
+        case = VoucherCase.objects.create(
+            reference_code="CASE-F9-TRSY-1", transaction_type="ordinary-supplier-claim",
+            requesting_department=self.requesting, current_department=treasury,
+            payee_name="Synthetic Supplier", particulars="Synthetic released disbursement",
+            authoritative_obligation_amount=Decimal("1000.00"),
+            current_stage=VoucherCase.COMPLETED, created_by=treasury_preparer,
+            completed_at=instrument_time,
+        )
+        DisbursementVoucher.objects.create(
+            case=case, dv_number="DV-F9-TRSY-1", voucher_date=date(2027, 3, 1),
+            gross_amount=Decimal("1000.00"), total_deductions=Decimal("100.00"),
+            net_amount=Decimal("900.00"), prepared_by=treasury_preparer,
+            prepared_at=instrument_time,
+        )
+        advice = BankAdviceBatch.objects.create(
+            advice_number="ADV-F9-1", advice_date=date(2027, 3, 5),
+            bank_account_code="GF-CHECKING", status=BankAdviceBatch.ACKNOWLEDGED,
+            accounting_department=self.accounting, preparation_note="Synthetic retained advice",
+            authority_reference="Synthetic authority", local_applicability_note="Synthetic UAT",
+            item_count=1, total_amount=Decimal("900.00"), snapshot_checksum="d" * 64,
+            created_by=treasury_preparer, review_submitted_by=treasury_preparer,
+            review_submitted_at=instrument_time, approved_by=self.accounting_reviewer,
+            approved_at=instrument_time, bank_submitted_by=treasury_preparer,
+            bank_submitted_at=instrument_time, submission_reference="SUB-F9-1",
+            acknowledged_by=self.accounting_reviewer, acknowledged_at=instrument_time,
+            acknowledgement_reference="ACK-F9-1",
+        )
+        instrument = PaymentInstrument.objects.create(
+            case=case, bank_account_code="GF-CHECKING", fund_code="GF",
+            check_number="CHK-F9-0001", amount=Decimal("900.00"),
+            status=PaymentInstrument.RELEASED, issued_by=treasury_preparer,
+            issued_at=instrument_time, released_by=treasury_preparer,
+            released_at=instrument_time, released_to="Authorized claimant",
+            receipt_reference="RCPT-F9-1", current_advice_batch=advice,
+        )
+        BankAdviceItem.objects.create(
+            batch=advice, instrument=instrument,
+            instrument_public_id_snapshot=instrument.public_id,
+            check_number_snapshot=instrument.check_number, fund_code_snapshot=instrument.fund_code,
+            amount_snapshot=instrument.amount, issued_at_snapshot=instrument.issued_at,
+        )
+        definition = ReportDefinition.objects.get(
+            department=treasury, dataset_key="finance_payment_instrument_register",
+        )
+        run = create_manual_run(
+            definition, definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 12, 31), {}, treasury_preparer,
+        )
+        self.assertEqual(run.control_status, ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(run.control_totals["issued_amount"], "900.00")
+        self.assertEqual(run.control_totals["released_amount"], "900.00")
+        self.assertEqual(run.source_record_count, 1)
+        self.assertEqual(run.source_records.get().source_reference, "CHK-F9-0001")
+        self.assertEqual(run.dataset_snapshot["rows"][0]["receipt_reference"], "RCPT-F9-1")
+
+        incomplete_case = VoucherCase.objects.create(
+            reference_code="CASE-F9-TRSY-BROKEN", transaction_type="ordinary-supplier-claim",
+            requesting_department=self.requesting, current_department=treasury,
+            payee_name="Incomplete synthetic payee", particulars="Missing DV source evidence",
+            authoritative_obligation_amount=Decimal("10.00"),
+            current_stage=VoucherCase.TREASURY_CHECK_PREPARATION, created_by=treasury_preparer,
+        )
+        PaymentInstrument.objects.create(
+            case=incomplete_case, bank_account_code="GF-CHECKING", fund_code="GF",
+            check_number="CHK-F9-BROKEN", amount=Decimal("10.00"),
+            status=PaymentInstrument.ISSUED, issued_by=treasury_preparer,
+            issued_at=instrument_time,
+        )
+        exception_run = create_manual_run(
+            definition, definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 12, 31), {}, treasury_preparer,
+        )
+        self.assertEqual(exception_run.status, ReportRun.GENERATED)
+        self.assertEqual(exception_run.control_status, ReportRun.CONTROL_EXCEPTION)
+        self.assertEqual(exception_run.control_totals["evidence_exception_count"], 1)
 
 
 def tearDownModule():

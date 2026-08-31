@@ -46,6 +46,36 @@ FINANCE_PRESETS = {
                 {"role": "Reviewed by", "name": "Budget Officer / authorized reviewer"},
             ],
         },
+        {
+            "name": "Budget versus Posted Actual Schedule",
+            "slug": "budget-versus-posted-actual",
+            "dataset_key": "finance_budget_vs_posted_actual",
+            "description": (
+                "Authorized appropriation, executable allotment, certified obligation, and posted "
+                "Accounting expense compared only through exact fiscal-year, fund, responsibility-center, and account keys. "
+                "Unmatched or ambiguous actuals remain visible control exceptions."
+            ),
+            "fields": [
+                "fiscal_year", "fund_code", "responsibility_center_code", "program_code",
+                "account_code", "particulars", "appropriation", "executable_allotment",
+                "obligation", "posted_actual", "balance_vs_actual", "actual_utilization_percent",
+                "mapping_status",
+            ],
+            "totals": [
+                "appropriation", "executable_allotment", "obligation", "posted_actual",
+                "balance_vs_actual",
+            ],
+            "authority_reference": (
+                "DBM/COA budget-accountability and posted-expenditure comparison guidance; exact local "
+                "schedule, classification bridge, signatories, and routing remain to be confirmed."
+            ),
+            "header": "Municipal Budget Office",
+            "prefix": "BUD-ACTUAL",
+            "signatories": [
+                {"role": "Prepared by", "name": "Budget accountability report preparer"},
+                {"role": "Reviewed by", "name": "Budget Officer / authorized reviewer"},
+            ],
+        },
     ),
     "accounting": (
         {
@@ -72,6 +102,107 @@ FINANCE_PRESETS = {
                 {"role": "Reviewed by", "name": "Municipal Accountant / authorized reviewer"},
             ],
         },
+        {
+            "name": "Posted General Ledger",
+            "slug": "posted-general-ledger",
+            "dataset_key": "finance_posted_general_ledger",
+            "description": (
+                "Line-level posted JEV register for the covered period with fund, responsibility center, "
+                "account, source, debit/credit control, and source-entry drill-through."
+            ),
+            "fields": [
+                "entry_date", "jev_reference", "source_type", "source_reference", "fund_code",
+                "responsibility_center_code", "account_code", "account_title", "debit", "credit",
+                "memo", "description",
+            ],
+            "totals": ["debit", "credit"],
+            "authority_reference": (
+                "COA Government Accounting Manual general-ledger and journal reporting guidance; exact "
+                "current local layout, pagination, signatories, and submission route remain to be confirmed."
+            ),
+            "header": "Municipal Accounting Office",
+            "prefix": "ACCTG-GL",
+            "signatories": [
+                {"role": "Prepared by", "name": "Accounting report preparer"},
+                {"role": "Reviewed by", "name": "Municipal Accountant / authorized reviewer"},
+            ],
+        },
+        {
+            "name": "Posted Accounts Payable Subsidiary Schedule",
+            "slug": "posted-payable-subsidiary",
+            "dataset_key": "finance_posted_payable_schedule",
+            "description": (
+                "Payee-level posted payable balances through the selected end date, controlled to the "
+                "mapped general-ledger payable accounts by fund."
+            ),
+            "fields": [
+                "fund_code", "account_code", "account_title", "reference_key",
+                "reference_label", "source_code", "debit", "credit", "balance",
+            ],
+            "totals": ["debit", "credit", "balance"],
+            "authority_reference": (
+                "COA Government Accounting Manual subsidiary-ledger/control-account guidance; exact local "
+                "schedule, ageing treatment, signatories, and routing remain to be confirmed."
+            ),
+            "header": "Municipal Accounting Office",
+            "prefix": "ACCTG-AP",
+            "signatories": [
+                {"role": "Prepared by", "name": "Accounting subsidiary-ledger preparer"},
+                {"role": "Reviewed by", "name": "Municipal Accountant / authorized reviewer"},
+            ],
+        },
+        {
+            "name": "Posted Withholding Liability Schedule",
+            "slug": "posted-withholding-liability",
+            "dataset_key": "finance_posted_withholding_schedule",
+            "description": (
+                "Agency/deduction-level posted withholding balances through the selected end date, controlled "
+                "to mapped general-ledger liability accounts. This is not a BIR return or attachment."
+            ),
+            "fields": [
+                "fund_code", "account_code", "account_title", "reference_key",
+                "reference_label", "source_code", "debit", "credit", "balance",
+            ],
+            "totals": ["debit", "credit", "balance"],
+            "authority_reference": (
+                "COA subsidiary-liability guidance and locally applicable BIR withholding requirements; "
+                "current tax classification, return/attachment, deadline, signatory, and filing acceptance remain open."
+            ),
+            "header": "Municipal Accounting Office",
+            "prefix": "ACCTG-WHT",
+            "signatories": [
+                {"role": "Prepared by", "name": "Accounting withholding-schedule preparer"},
+                {"role": "Reviewed by", "name": "Municipal Accountant / authorized reviewer"},
+            ],
+        },
+    ),
+    "treasury": (
+        {
+            "name": "Payment Instrument and Disbursement Register",
+            "slug": "payment-instrument-disbursement-register",
+            "dataset_key": "finance_payment_instrument_register",
+            "description": (
+                "Issued, advised, released, returned, cancelled, and replacement instrument activity for "
+                "the covered period with voucher, advice, claimant receipt, and exception evidence."
+            ),
+            "fields": [
+                "case_reference", "dv_number", "voucher_date", "payee", "fund_code",
+                "bank_account_code", "check_number", "amount", "status", "operational_status",
+                "issued_at", "advice_number", "advice_status", "released_at", "released_to",
+                "receipt_reference", "cancelled_at", "cancellation_reason", "replacement_number",
+            ],
+            "totals": ["amount"],
+            "authority_reference": (
+                "COA cash/disbursement-register guidance and locally approved Treasury custody procedure; "
+                "exact register layout, instrument scope, signatories, copies, and recipients remain to be confirmed."
+            ),
+            "header": "Municipal Treasury Office",
+            "prefix": "TRSY-DISB",
+            "signatories": [
+                {"role": "Prepared by", "name": "Treasury disbursement-register preparer"},
+                {"role": "Reviewed by", "name": "Municipal Treasurer / authorized reviewer"},
+            ],
+        },
     ),
 }
 
@@ -80,6 +211,8 @@ def _department_kind(department):
     identity = f"{department.slug or ''} {department.name or ''}".casefold()
     if "budget" in identity:
         return "budget"
+    if "treasury" in identity:
+        return "treasury"
     if any(term in identity for term in ("accounting", "acctg", "finance")):
         return "accounting"
     return ""

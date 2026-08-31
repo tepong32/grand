@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
 from django.urls import reverse
 
 from assistance.models import AssistanceRequest
+from departments.models import Department
 from social_welfare.models import ProgramActivity, SocialWelfareProgram
 
 
@@ -141,6 +145,13 @@ def _department_identity(department):
 def _latest_datetime(values):
     values = [value for value in values if value is not None]
     return max(values) if values else None
+
+
+def _snapshot_checksum(value):
+    encoded = json.dumps(
+        value, cls=DjangoJSONEncoder, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 class BudgetAccountabilityDataset(ApprovedDataset):
@@ -390,10 +401,508 @@ class PostedTrialBalanceDataset(ApprovedDataset):
         )
 
 
+class PostedGeneralLedgerDataset(ApprovedDataset):
+    key = "finance_posted_general_ledger"
+    label = "Posted general ledger for the covered period"
+    columns = (
+        Column("entry_date", "Date", "date"), Column("jev_reference", "JEV reference"),
+        Column("source_type", "Source type"), Column("source_reference", "Source reference"),
+        Column("fund_code", "Fund"), Column("responsibility_center_code", "Responsibility center"),
+        Column("account_code", "Account code"), Column("account_title", "Account title"),
+        Column("debit", "Debit", "decimal"), Column("credit", "Credit", "decimal"),
+        Column("memo", "Line memo"), Column("description", "JEV description"),
+    )
+
+    def supports_department(self, department):
+        identity = _department_identity(department)
+        return any(term in identity for term in ("accounting", "acctg", "finance"))
+
+    def payload(self, department, period_start, period_end, parameters):
+        from accounting.models import JournalEntry, JournalLine
+
+        lines = list(
+            JournalLine.objects.filter(
+                entry__department_id=department.pk, entry__status=JournalEntry.POSTED,
+                entry__entry_date__range=(period_start, period_end),
+            ).select_related(
+                "entry", "entry__fund", "account", "responsibility_center",
+            ).order_by("entry__entry_date", "entry__reference", "sequence", "pk")
+        )
+        source_labels = dict(JournalEntry.SOURCE_CHOICES)
+        rows = [{
+            "entry_date": line.entry.entry_date,
+            "jev_reference": line.entry.reference,
+            "source_type": source_labels.get(line.entry.source_type, line.entry.source_type),
+            "source_reference": line.entry.source_reference or "",
+            "fund_code": line.entry.fund.code,
+            "responsibility_center_code": line.responsibility_center.code if line.responsibility_center else "",
+            "account_code": line.account.code,
+            "account_title": line.account.title,
+            "debit": line.debit,
+            "credit": line.credit,
+            "memo": line.memo,
+            "description": line.entry.description,
+        } for line in lines]
+        entries = {}
+        for line in lines:
+            item = entries.setdefault(line.entry_id, {
+                "entry": line.entry, "debit": Decimal("0.00"), "credit": Decimal("0.00"), "lines": [],
+            })
+            item["debit"] += line.debit
+            item["credit"] += line.credit
+            item["lines"].append({
+                "sequence": line.sequence, "account": line.account.code,
+                "responsibility_center": line.responsibility_center.code if line.responsibility_center else "",
+                "debit": str(line.debit), "credit": str(line.credit), "memo": line.memo,
+            })
+        total_debit = sum((line.debit for line in lines), Decimal("0.00"))
+        total_credit = sum((line.credit for line in lines), Decimal("0.00"))
+        difference = total_debit - total_credit
+        sources = []
+        for item in entries.values():
+            entry = item["entry"]
+            snapshot = {
+                "fund": entry.fund.code, "source_type": entry.source_type,
+                "source_reference": entry.source_reference or "", "description": entry.description,
+                "debit": str(item["debit"]), "credit": str(item["credit"]),
+                "posted_by": entry.posted_by_label, "posted_at": entry.posted_at,
+                "lines": item["lines"],
+            }
+            sources.append({
+                "source_app": "accounting", "source_model": "JournalEntry",
+                "source_pk": str(entry.pk), "source_public_id": str(entry.public_id),
+                "source_reference": entry.reference, "source_date": entry.entry_date,
+                "control_group": "posted general ledger", "amount": item["debit"],
+                "source_checksum": _snapshot_checksum(snapshot),
+                "source_url": reverse("accounting:entry_detail", kwargs={"public_id": entry.public_id}),
+                "snapshot": snapshot,
+            })
+        controls = {
+            "debit": total_debit, "credit": total_credit, "difference": difference,
+            "posted_entry_count": len(entries), "posted_line_count": len(lines),
+        }
+        status = "reconciled" if difference == 0 else "exception"
+        message = (
+            "Every posted JEV in the covered period is represented and debit and credit totals agree exactly."
+            if status == "reconciled"
+            else "Posted general-ledger debit and credit totals do not agree; review cannot proceed."
+        )
+        freshness = _latest_datetime([
+            item["entry"].posted_at or item["entry"].updated_at for item in entries.values()
+        ])
+        return DatasetPayload(
+            rows=rows, sources=sources, control_totals=controls, control_status=status,
+            control_message=message, control_gate_required=True, freshness_at=freshness,
+        )
+
+
+class PostedSubsidiaryScheduleDataset(ApprovedDataset):
+    category = ""
+    control_group = ""
+
+    columns = (
+        Column("fund_code", "Fund"), Column("account_code", "Control account"),
+        Column("account_title", "Control account title"), Column("reference_key", "Reference key"),
+        Column("reference_label", "Payee / agency"), Column("source_code", "Source code"),
+        Column("debit", "Debit movements", "decimal"), Column("credit", "Credit movements", "decimal"),
+        Column("balance", "Credit balance", "decimal"),
+    )
+
+    def supports_department(self, department):
+        identity = _department_identity(department)
+        return any(term in identity for term in ("accounting", "acctg", "finance"))
+
+    def payload(self, department, period_start, period_end, parameters):
+        from accounting.models import JournalEntry, JournalSubsidiaryLine
+        from accounting.services import control_reconciliation_snapshot, subsidiary_schedule_rows
+
+        rows = subsidiary_schedule_rows(department.pk, self.category, period_end)
+        reconciliation, _checksum = control_reconciliation_snapshot(department.pk, period_end)
+        control_rows = [row for row in reconciliation["rows"] if row["category"] == self.category]
+        configured = self.category in reconciliation["configured_categories"]
+        absolute_difference = sum(
+            (abs(Decimal(row["difference"])) for row in control_rows), Decimal("0.00"),
+        )
+        details = list(
+            JournalSubsidiaryLine.objects.filter(
+                entry__department_id=department.pk, entry__status=JournalEntry.POSTED,
+                entry__entry_date__lte=period_end, category=self.category,
+            ).select_related(
+                "entry", "entry__fund", "journal_line", "journal_line__account",
+            ).order_by("entry__entry_date", "entry__reference", "journal_line__sequence")
+        )
+        sources = []
+        for detail in details:
+            snapshot = {
+                "category": detail.category, "fund": detail.entry.fund.code,
+                "account": detail.journal_line.account.code,
+                "reference_key": detail.reference_key, "reference_label": detail.reference_label,
+                "source_code": detail.source_code, "source_reference": detail.source_reference,
+                "debit": str(detail.debit), "credit": str(detail.credit),
+                "source_snapshot": detail.source_snapshot,
+            }
+            sources.append({
+                "source_app": "accounting", "source_model": "JournalSubsidiaryLine",
+                "source_pk": str(detail.pk), "source_public_id": str(detail.entry.public_id),
+                "source_reference": detail.entry.reference, "source_date": detail.entry.entry_date,
+                "control_group": self.control_group,
+                "amount": detail.credit - detail.debit,
+                "source_checksum": _snapshot_checksum(snapshot),
+                "source_url": reverse("accounting:entry_detail", kwargs={"public_id": detail.entry.public_id}),
+                "snapshot": snapshot,
+            })
+        total_debit = sum((row["debit"] for row in rows), Decimal("0.00"))
+        total_credit = sum((row["credit"] for row in rows), Decimal("0.00"))
+        total_balance = sum((row["balance"] for row in rows), Decimal("0.00"))
+        gl_balance = sum((Decimal(row["gl_balance"]) for row in control_rows), Decimal("0.00"))
+        controls = {
+            "debit": total_debit, "credit": total_credit, "subsidiary_balance": total_balance,
+            "gl_control_balance": gl_balance, "difference": gl_balance - total_balance,
+            "absolute_difference": absolute_difference, "configured_mapping_count": len(control_rows),
+            "source_line_count": len(details),
+        }
+        status = "reconciled" if configured and absolute_difference == 0 else "exception"
+        if not configured:
+            message = "The required payable/withholding control-account mapping is not configured."
+        elif absolute_difference:
+            message = "Posted subsidiary detail does not agree with its mapped general-ledger control account."
+        else:
+            message = "Posted subsidiary detail agrees exactly with its mapped general-ledger control account."
+        freshness = _latest_datetime([
+            detail.entry.posted_at or detail.entry.updated_at for detail in details
+        ])
+        return DatasetPayload(
+            rows=rows, sources=sources, control_totals=controls, control_status=status,
+            control_message=message, control_gate_required=True, freshness_at=freshness,
+        )
+
+
+class PostedPayableScheduleDataset(PostedSubsidiaryScheduleDataset):
+    key = "finance_posted_payable_schedule"
+    label = "Posted accounts-payable subsidiary schedule"
+    category = "payable"
+    control_group = "payable subsidiary"
+
+
+class PostedWithholdingScheduleDataset(PostedSubsidiaryScheduleDataset):
+    key = "finance_posted_withholding_schedule"
+    label = "Posted withholding-liability schedule (working schedule; BIR form acceptance pending)"
+    category = "withholding"
+    control_group = "withholding subsidiary"
+
+
+class BudgetVersusPostedActualDataset(ApprovedDataset):
+    key = "finance_budget_vs_posted_actual"
+    label = "Budget versus posted actual schedule"
+    columns = (
+        Column("fiscal_year", "Fiscal year", "integer"), Column("fund_code", "Fund"),
+        Column("responsibility_center_code", "Office / responsibility center"),
+        Column("program_code", "PPA"), Column("account_code", "Account"),
+        Column("particulars", "Particulars"),
+        Column("appropriation", "Authorized appropriation", "decimal"),
+        Column("executable_allotment", "Executable allotment", "decimal"),
+        Column("obligation", "Certified obligation", "decimal"),
+        Column("posted_actual", "Posted actual expense", "decimal"),
+        Column("balance_vs_actual", "Executable balance after actual", "decimal"),
+        Column("actual_utilization_percent", "Actual utilization %", "decimal"),
+        Column("mapping_status", "Actual mapping status"),
+    )
+
+    def supports_department(self, department):
+        return "budget" in _department_identity(department)
+
+    def payload(self, department, period_start, period_end, parameters):
+        from accounting.models import JournalEntry, JournalLine
+
+        budget_payload = BudgetAccountabilityDataset().payload(
+            department, period_start, period_end, parameters,
+        )
+        accounting_departments = [
+            item for item in Department.objects.all()
+            if (
+                any(term in _department_identity(item) for term in ("accounting", "acctg"))
+                or (
+                    "finance" in _department_identity(item)
+                    and "budget" not in _department_identity(item)
+                    and "treasury" not in _department_identity(item)
+                )
+            )
+        ]
+        accounting_department = accounting_departments[0] if len(accounting_departments) == 1 else None
+        budget_years = sorted({row["fiscal_year"] for row in budget_payload.rows})
+        actual_lines = []
+        if accounting_department:
+            actual_period_filter = (
+                Q(entry__period__fiscal_year__in=budget_years, entry__entry_date__lte=period_end)
+                if budget_years
+                else Q(entry__entry_date__range=(period_start, period_end))
+            )
+            actual_lines = list(
+                JournalLine.objects.filter(
+                    actual_period_filter,
+                    entry__department_id=accounting_department.pk,
+                    entry__status=JournalEntry.POSTED,
+                    account__account_type="expense",
+                ).select_related(
+                    "entry", "entry__fund", "entry__period", "account", "responsibility_center",
+                ).order_by("entry__entry_date", "entry__reference", "sequence")
+            )
+        budget_key_counts = {}
+        for row in budget_payload.rows:
+            key = (
+                row["fiscal_year"], row["fund_code"],
+                row["responsibility_center_code"], row["account_code"],
+            )
+            budget_key_counts[key] = budget_key_counts.get(key, 0) + 1
+        actual_by_key = {}
+        for line in actual_lines:
+            key = (
+                line.entry.period.fiscal_year,
+                line.entry.fund.code,
+                line.responsibility_center.code if line.responsibility_center else "",
+                line.account.code,
+            )
+            actual_by_key[key] = actual_by_key.get(key, Decimal("0.00")) + line.debit - line.credit
+        rows = []
+        mapped_keys = set()
+        ambiguous_keys = set()
+        for source_row in budget_payload.rows:
+            row = dict(source_row)
+            key = (
+                row["fiscal_year"], row["fund_code"],
+                row["responsibility_center_code"], row["account_code"],
+            )
+            actual = Decimal("0.00")
+            if budget_key_counts[key] == 1:
+                actual = actual_by_key.get(key, Decimal("0.00"))
+                mapped_keys.add(key)
+                row["mapping_status"] = "Exact fund / responsibility center / account match"
+            elif key in actual_by_key:
+                ambiguous_keys.add(key)
+                row["mapping_status"] = "Ambiguous: more than one Budget line shares the actual key"
+            else:
+                row["mapping_status"] = "No posted actual activity for this Budget line"
+            row["posted_actual"] = actual
+            row["balance_vs_actual"] = row["executable_allotment"] - actual
+            row["actual_utilization_percent"] = (
+                (actual / row["executable_allotment"] * Decimal("100.00"))
+                if row["executable_allotment"] else Decimal("0.00")
+            )
+            rows.append(row)
+        unmapped_keys = set(actual_by_key) - mapped_keys - ambiguous_keys
+        entry_totals = {}
+        for line in actual_lines:
+            item = entry_totals.setdefault(line.entry_id, {
+                "entry": line.entry, "actual": Decimal("0.00"), "lines": [],
+            })
+            amount = line.debit - line.credit
+            item["actual"] += amount
+            item["lines"].append({
+                "fund": line.entry.fund.code,
+                "fiscal_year": line.entry.period.fiscal_year,
+                "responsibility_center": line.responsibility_center.code if line.responsibility_center else "",
+                "account": line.account.code, "net_expense": str(amount),
+            })
+        actual_sources = []
+        for item in entry_totals.values():
+            entry = item["entry"]
+            snapshot = {
+                "source_type": entry.source_type, "source_reference": entry.source_reference or "",
+                "description": entry.description, "posted_actual": str(item["actual"]),
+                "posted_by": entry.posted_by_label, "posted_at": entry.posted_at,
+                "expense_lines": item["lines"],
+            }
+            actual_sources.append({
+                "source_app": "accounting", "source_model": "JournalEntry",
+                "source_pk": str(entry.pk), "source_public_id": str(entry.public_id),
+                "source_reference": entry.reference, "source_date": entry.entry_date,
+                "control_group": "posted actual expense", "amount": item["actual"],
+                "source_checksum": _snapshot_checksum(snapshot),
+                "source_url": reverse("accounting:entry_detail", kwargs={"public_id": entry.public_id}),
+                "snapshot": snapshot,
+            })
+        actual_total = sum(actual_by_key.values(), Decimal("0.00"))
+        mapped_total = sum((actual_by_key[key] for key in mapped_keys), Decimal("0.00"))
+        ambiguous_total = sum((actual_by_key[key] for key in ambiguous_keys), Decimal("0.00"))
+        unmapped_total = sum((actual_by_key[key] for key in unmapped_keys), Decimal("0.00"))
+        mapping_exception_count = len(ambiguous_keys) + len(unmapped_keys)
+        if not accounting_department:
+            mapping_exception_count += 1
+        controls = dict(budget_payload.control_totals)
+        controls.update({
+            "posted_actual": actual_total, "mapped_actual": mapped_total,
+            "ambiguous_actual": ambiguous_total, "unmapped_actual": unmapped_total,
+            "mapping_exception_count": mapping_exception_count,
+            "accounting_department_count": len(accounting_departments),
+            "actual_basis": "fiscal-year-to-date posted expense through the selected period end",
+        })
+        status = (
+            "reconciled"
+            if budget_payload.control_status == "reconciled" and mapping_exception_count == 0
+            else "exception"
+        )
+        if not accounting_department:
+            message = "Exactly one Accounting department is required before posted actuals can be mapped."
+        elif mapping_exception_count:
+            message = "One or more posted expense keys are unmatched or ambiguous; no amount was silently allocated."
+        elif budget_payload.control_status != "reconciled":
+            message = budget_payload.control_message
+        else:
+            message = "Budget authority and posted actual expenses reconcile through exact fund, responsibility-center, and account keys."
+        freshness = _latest_datetime(
+            [budget_payload.freshness_at]
+            + [item["entry"].posted_at or item["entry"].updated_at for item in entry_totals.values()]
+        )
+        return DatasetPayload(
+            rows=rows, sources=budget_payload.sources + actual_sources,
+            control_totals=controls, control_status=status, control_message=message,
+            control_gate_required=True, freshness_at=freshness,
+        )
+
+
+class PaymentInstrumentRegisterDataset(ApprovedDataset):
+    key = "finance_payment_instrument_register"
+    label = "Payment instrument and disbursement register"
+    columns = (
+        Column("case_reference", "Case reference"), Column("dv_number", "DV number"),
+        Column("voucher_date", "Voucher date", "date"), Column("payee", "Payee"),
+        Column("fund_code", "Fund"), Column("bank_account_code", "Bank account code"),
+        Column("check_number", "Check / instrument number"), Column("amount", "Amount", "decimal"),
+        Column("status", "Instrument status"), Column("operational_status", "Exception status"),
+        Column("issued_at", "Issued at", "datetime"), Column("advice_number", "Current advice"),
+        Column("advice_status", "Advice status"), Column("released_at", "Released at", "datetime"),
+        Column("released_to", "Released to"), Column("receipt_reference", "Receipt reference"),
+        Column("cancelled_at", "Cancelled at", "datetime"), Column("cancellation_reason", "Cancellation reason"),
+        Column("replacement_number", "Replacement number"),
+    )
+
+    def supports_department(self, department):
+        return "treasury" in _department_identity(department)
+
+    def payload(self, department, period_start, period_end, parameters):
+        from vouchers.models import PaymentInstrument
+
+        instruments = list(
+            PaymentInstrument.objects.filter(
+                Q(issued_at__date__range=(period_start, period_end))
+                | Q(released_at__date__range=(period_start, period_end))
+                | Q(cancelled_at__date__range=(period_start, period_end))
+            ).select_related(
+                "case", "case__disbursement_voucher", "current_advice_batch",
+            ).order_by("issued_at", "bank_account_code", "check_number", "pk").distinct()
+        )
+        replacements = {
+            item.replaces_id: item.check_number
+            for item in PaymentInstrument.objects.filter(
+                replaces_id__in=[instrument.pk for instrument in instruments],
+            ).only("replaces_id", "check_number")
+        }
+        statuses = dict(PaymentInstrument.STATUS_CHOICES)
+        operational_statuses = dict(PaymentInstrument.OPERATIONAL_STATUS_CHOICES)
+        rows, sources = [], []
+        exception_count = 0
+        issued_amount = released_amount = cancelled_amount = Decimal("0.00")
+        for instrument in instruments:
+            voucher = getattr(instrument.case, "disbursement_voucher", None)
+            advice = instrument.current_advice_batch
+            row_exceptions = []
+            if voucher is None:
+                row_exceptions.append("missing disbursement voucher")
+            if instrument.status == PaymentInstrument.DRAFT:
+                row_exceptions.append("draft instrument has reportable activity evidence")
+            if not instrument.issued_at or not instrument.issued_by_id:
+                row_exceptions.append("missing issue evidence")
+            if not instrument.fund_code or not instrument.bank_account_code or not instrument.check_number:
+                row_exceptions.append("incomplete instrument identity")
+            if instrument.status == PaymentInstrument.RELEASED and (
+                not instrument.released_at or not instrument.released_by_id
+                or not instrument.receipt_reference.strip()
+                or not (instrument.released_to.strip() or instrument.released_to_claimant_id)
+            ):
+                row_exceptions.append("incomplete release evidence")
+            if instrument.status == PaymentInstrument.CANCELLED and (
+                not instrument.cancelled_at or not instrument.cancelled_by_id
+                or not instrument.cancellation_reason.strip()
+            ):
+                row_exceptions.append("incomplete cancellation evidence")
+            if instrument.status in (PaymentInstrument.ADVISED, PaymentInstrument.RELEASED) and not advice:
+                row_exceptions.append("missing retained advice link")
+            if (
+                instrument.status in (PaymentInstrument.ADVISED, PaymentInstrument.RELEASED)
+                and advice
+                and advice.status not in (advice.ACKNOWLEDGED, advice.FINALIZED)
+            ):
+                row_exceptions.append("current advice is not bank-acknowledged")
+            exception_count += len(row_exceptions)
+            if instrument.issued_at and period_start <= instrument.issued_at.date() <= period_end:
+                issued_amount += instrument.amount
+            if instrument.released_at and period_start <= instrument.released_at.date() <= period_end:
+                released_amount += instrument.amount
+            if instrument.cancelled_at and period_start <= instrument.cancelled_at.date() <= period_end:
+                cancelled_amount += instrument.amount
+            row = {
+                "case_reference": instrument.case.reference_code,
+                "dv_number": voucher.dv_number if voucher else "",
+                "voucher_date": voucher.voucher_date if voucher else None,
+                "payee": instrument.case.payee_name,
+                "fund_code": instrument.fund_code, "bank_account_code": instrument.bank_account_code,
+                "check_number": instrument.check_number, "amount": instrument.amount,
+                "status": statuses.get(instrument.status, instrument.status),
+                "operational_status": operational_statuses.get(
+                    instrument.operational_status, instrument.operational_status,
+                ),
+                "issued_at": instrument.issued_at,
+                "advice_number": advice.advice_number if advice else "",
+                "advice_status": advice.get_status_display() if advice else "",
+                "released_at": instrument.released_at, "released_to": instrument.released_to,
+                "receipt_reference": instrument.receipt_reference,
+                "cancelled_at": instrument.cancelled_at,
+                "cancellation_reason": instrument.cancellation_reason,
+                "replacement_number": replacements.get(instrument.pk, ""),
+            }
+            rows.append(row)
+            snapshot = dict(row)
+            snapshot.update({
+                "public_id": str(instrument.public_id), "case_public_id": str(instrument.case.public_id),
+                "exceptions": row_exceptions,
+            })
+            sources.append({
+                "source_app": "vouchers", "source_model": "PaymentInstrument",
+                "source_pk": str(instrument.pk), "source_public_id": str(instrument.public_id),
+                "source_reference": instrument.check_number,
+                "source_date": instrument.issued_at.date() if instrument.issued_at else None,
+                "control_group": "payment instrument", "amount": instrument.amount,
+                "source_checksum": _snapshot_checksum(snapshot),
+                "source_url": reverse("vouchers:case_detail", kwargs={"public_id": instrument.case.public_id}),
+                "snapshot": snapshot,
+            })
+        controls = {
+            "instrument_count": len(instruments), "issued_amount": issued_amount,
+            "released_amount": released_amount, "cancelled_amount": cancelled_amount,
+            "evidence_exception_count": exception_count,
+        }
+        status = "reconciled" if exception_count == 0 else "exception"
+        message = (
+            "Every included instrument has complete issue and applicable advice, release, or cancellation evidence."
+            if status == "reconciled"
+            else "One or more included instruments have incomplete retained control evidence."
+        )
+        freshness = _latest_datetime([
+            max(filter(None, (item.issued_at, item.released_at, item.cancelled_at)), default=None)
+            for item in instruments
+        ])
+        return DatasetPayload(
+            rows=rows, sources=sources, control_totals=controls, control_status=status,
+            control_message=message, control_gate_required=True, freshness_at=freshness,
+        )
+
+
 DATASETS = (
     AssistanceVolumeDataset(), ProgramAccomplishmentDataset(), AttendanceReachDataset(),
     ActivityScheduleDataset(), DepartmentWorkloadDataset(), BudgetAccountabilityDataset(),
-    PostedTrialBalanceDataset(),
+    PostedTrialBalanceDataset(), PostedGeneralLedgerDataset(), PostedPayableScheduleDataset(),
+    PostedWithholdingScheduleDataset(), BudgetVersusPostedActualDataset(),
+    PaymentInstrumentRegisterDataset(),
 )
 dataset_registry = {dataset.key: dataset for dataset in DATASETS}
 

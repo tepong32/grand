@@ -1,5 +1,14 @@
 # Changelog
 
+## F9.2 Finance operational report catalog
+
+- Added fiscal-year-to-date Budget-versus-posted-actual reporting that maps only exact fiscal-year/fund/responsibility-center/account keys and blocks review for unmatched, ambiguous, or missing Accounting classifications instead of silently allocating expenses.
+- Added a line-level posted general ledger with exact debit/credit controls and immutable JEV/source-line evidence.
+- Added posted payable and withholding subsidiary schedules controlled exactly to their mapped general-ledger accounts by fund, including missing-mapping and difference gates.
+- Added a Treasury payment-instrument/disbursement register covering issue, advice, release, receipt, return/exception, cancellation, and replacement evidence, with retained exception runs for incomplete historical sources.
+- Added five conservative candidate starter definitions/templates, successor Budget/Accounting floating guides, and a new Treasury reporting guide while keeping working withholding schedules explicitly separate from BIR returns or filing proof.
+- Reused F9.1 source drill-through, immutable snapshots/checksums, review gates, reproduction receipts, and TraceSync-ready export manifests; added focused regression coverage without changing the familiar reporting workflow.
+
 ## F9.1 Finance accountability reporting and reproducibility
 
 - Added Finance-native Budget accountability and posted-trial-balance datasets with cumulative authority/usage equations, exact debit/credit controls, freshness, and permission-aware drill-through to retained source records.

@@ -8,16 +8,17 @@ from ..models import Department, InternalHowTo, InternalHowToStep
 ACCOUNTING_GUIDES = (
     {
         "slug": "finance-accountability-reporting-accounting",
-        "version": 1,
+        "version": 2,
         "title": "Prepare and review Accounting reports",
-        "summary": "Generate a posted trial balance from governed journals, explain every control total, compare the local layout, and retain portable reproduction evidence.",
+        "summary": "Prepare trial balance, general ledger, payable, and withholding schedules from governed postings, explain every control total, and retain portable reproduction evidence.",
         "permission": "reporting.view_reporting_workspace",
         "patterns": ["reporting:*", "accounting:trial_balance", "accounting:entry_*"],
         "order": 60,
         "steps": (
-            ("Open the report starter", "Open Reports and choose Posted Trial Balance. Confirm the covered period and use the approved native or mapped template version.", "The run pins the exact definition, template, period, and output format.", "The starter follows COA trial-balance guidance but is not automatically the LGU's accepted signed form.", "Open Reports", "reporting:workspace"),
+            ("Choose the report starter", "Open Reports and choose Posted Trial Balance, Posted General Ledger, Posted Accounts Payable Subsidiary Schedule, or Posted Withholding Liability Schedule. Confirm whether the report covers a period or balances through an end date.", "The run pins the exact definition, template, period, and output format.", "The starters follow accounting-control guidance but are not automatically the LGU's accepted signed forms or BIR returns.", "Open Reports", "reporting:workspace"),
             ("Check local applicability", "Read the authority/reference and applicability badge. Keep the definition as Local confirmation pending until the Municipal Accountant or named owner confirms the exact form, signatories, routing, and retained comparison evidence.", "Official-form claims remain separate from a technically correct report.", "Do not mark a public recommendation as locally accepted without actual confirmation.", "", ""),
             ("Generate and reconcile", "Generate the covered period. Confirm total posted debit equals total posted credit and that the control status reads reconciled.", "The report stores immutable row, control, freshness, and checksum evidence.", "A control exception cannot enter official review; correct the posted source through normal Accounting routes, then generate a successor.", "Open Trial Balance", "accounting:trial_balance"),
+            ("Reconcile subsidiary schedules", "For payable and withholding schedules, compare the schedule balance with the mapped general-ledger control balance at the same end date. Resolve a missing mapping or difference in Subsidiary Controls before regenerating.", "The report advances only when immutable subsidiary details agree exactly with posted control accounts by fund.", "Do not force a schedule balance or use a tax working schedule as a filed BIR form.", "Open Subsidiary Controls", "accounting:subsidiary_controls"),
             ("Drill through the total", "Use Source drill-through to open retained posted JEVs and compare fund, account, source reference, description, debit, credit, and posting evidence.", "Every reported control total is explainable from permission-checked source entries.", "Never edit a posted JEV to make a report agree; use a governed adjustment or reversal.", "", ""),
             ("Review and approve independently", "A different authorized reviewer checks the control evidence, source entries, exact local template, and applicability record before review and approval.", "The approval is attributable and the prior run remains retained if superseded.", "Pilot layouts and pending local applicability stay unavailable for official approval.", "", ""),
             ("Export and safeguard", "Download the output, control-evidence CSV, and reproduction receipt when required. Copy or synchronize the complete GRAND export root so each artifact remains beside its manifest.", "TraceSync-ready department/user/category folders retain checksums and reproduction keys without user re-filing.", "Keep the complete export folder rather than isolated files without manifests.", "", ""),
@@ -321,9 +322,9 @@ REQUESTING_GUIDES = (
 BUDGET_GUIDES = (
     {
         "slug": "finance-accountability-reporting-budget",
-        "version": 1,
+        "version": 2,
         "title": "Prepare the quarterly Budget accountability schedule",
-        "summary": "Generate cumulative appropriation, allotment, hold, obligation, and remaining-balance controls while keeping the LBAc-equivalent starter distinct from the locally accepted official form.",
+        "summary": "Generate cumulative Budget accountability and Budget-versus-posted-actual controls while keeping working starters distinct from locally accepted official forms.",
         "permission": "reporting.view_reporting_workspace",
         "patterns": ["reporting:*", "budget:authorization_*", "budget:allotment_*", "budget:obligation_*"],
         "order": 60,
@@ -331,6 +332,7 @@ BUDGET_GUIDES = (
             ("Open the quarterly starter", "Open Reports and choose Quarterly Budget Accountability Schedule. Select the quarter start and end covered by the review.", "The report calculates cumulative authority and posted movements through the selected period end.", "The native starter is LBAc Form No. 2-equivalent working material; it is not automatically the current locally accepted DBM/COA form.", "Open Reports", "reporting:workspace"),
             ("Confirm authority and local use", "Read the DBM recommendation basis and Local confirmation pending badge. Ask the named Budget owner to confirm the actual form, deadlines, signatories, copies, recipients, and retained signed comparison.", "The definition becomes Locally confirmed only with a specific authority and acceptance note.", "Do not infer current local applicability from a generic circular or manual alone.", "", ""),
             ("Generate and read the equation", "Generate the run and review appropriation, released allotment, reserve/deferral, executable allotment, obligation, unreleased appropriation, and unobligated allotment.", "No cumulative balance is negative or exceeds its controlling authority.", "A control exception blocks review; correct the authoritative Budget transaction through its governed successor route.", "Open Budget Accountability", "budget:obligation_workspace"),
+            ("Compare posted actuals carefully", "Choose Budget versus Posted Actual for the same fiscal year and period end. Review only exact fiscal-year, fund, responsibility-center, and account matches and investigate every unmatched or ambiguous Accounting expense key.", "Posted actuals are never silently spread across several PPAs or Budget lines.", "Resolve the classification bridge with Budget and Accounting evidence; do not allocate an amount merely to clear the exception.", "Open Reports", "reporting:workspace"),
             ("Drill through movements", "Open the appropriation, allotment order, or certified obligation from Source drill-through and compare the retained numbers, dates, checksums, classifications, and evidence references.", "Each total traces to immutable posted Budget movements.", "Do not create a balancing movement merely to force a report total.", "", ""),
             ("Compare the editable layout", "Create a new template version when the LGU supplies its blank XLSX/PDF. Map and preflight it, compare against a redacted signed sample, and record fidelity validation separately.", "A non-developer can adapt the controlled layout while prior versions remain reproducible.", "Never overwrite an approved template version.", "", ""),
             ("Review, export, and safeguard", "Have a different authorized user review the controls. Export the output, source evidence, and reproduction receipt, then copy or synchronize the complete GRAND export root.", "The report and its TraceSync manifests remain portable and explainable.", "Pending local applicability or pilot fidelity remains unavailable for official approval.", "", ""),
@@ -415,6 +417,22 @@ BUDGET_GUIDES = (
 
 TREASURY_GUIDES = (
     {
+        "slug": "finance-accountability-reporting-treasury",
+        "version": 1,
+        "title": "Prepare the payment instrument and disbursement register",
+        "summary": "Report issued, advised, released, returned, cancelled, and replacement instruments with complete voucher and custody evidence.",
+        "permission": "reporting.view_reporting_workspace",
+        "patterns": ["reporting:*", "vouchers:case_*", "vouchers:advice_*"],
+        "order": 60,
+        "steps": (
+            ("Open the controlled starter", "Open Reports and choose Payment Instrument and Disbursement Register. Select the activity period and the approved native or mapped template version.", "The run pins one reproducible view of instrument activity during the period.", "The editable starter is not automatically the locally accepted COA/Treasury register.", "Open Reports", "reporting:workspace"),
+            ("Check local applicability", "Confirm the instrument scope, status treatment, signatories, copies, recipients, deadlines, and the retained local acceptance evidence before requesting official approval.", "The report remains visibly pending until a named owner records the accepted requirement.", "Do not infer local acceptance from a public manual or another LGU's template.", "", ""),
+            ("Review control evidence", "Confirm every included instrument has complete issue identity and the applicable advice, release/claimant receipt, cancellation reason, or replacement lineage.", "The control status is reconciled with no missing retained evidence.", "Correct the source transaction through its governed route and generate a successor; never edit report evidence.", "Open Finance Queue", "vouchers:workspace"),
+            ("Drill through exceptions", "Open each source case to compare the DV, check identity, current advice, bank response, claimant receipt, return/cancellation, and replacement history.", "Every reported status and amount is explainable from the shared voucher case.", "Do not use the register to bypass an open returned-instrument or Accounting posting decision.", "", ""),
+            ("Review, export, and safeguard", "Have a different authorized user review the report. Download the output, control/source CSV, and reproduction receipt, then synchronize the complete GRAND export root.", "The same evidence and manifests can be copied safely without manual re-filing.", "Pilot fidelity or pending local applicability remains unavailable for official approval.", "", ""),
+        ),
+    },
+    {
         "slug": "finance-bank-advice-submit-release",
         "version": 1,
         "title": "Submit bank advice and release acknowledged checks",
@@ -488,12 +506,12 @@ TREASURY_GUIDES = (
 
 def _department_kind(department):
     identity = f"{department.slug or ''} {department.name or ''}".lower()
-    if "account" in identity or "acctg" in identity or "finance" in identity:
-        return "accounting"
     if "budget" in identity:
         return "budget"
     if "treasur" in identity:
         return "treasury"
+    if "account" in identity or "acctg" in identity or "finance" in identity:
+        return "accounting"
     return ""
 
 
