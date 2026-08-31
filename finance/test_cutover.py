@@ -6,6 +6,7 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -21,6 +22,8 @@ from .cutover_services import (
     decide_stakeholder_acceptance,
     record_cutover_rollback,
     review_shadow_cycle,
+    review_shadow_source_drift,
+    stage_shadow_source_csv,
     start_shadow_cycle,
     submit_cutover_decision,
     submit_shadow_cycle,
@@ -30,14 +33,16 @@ from .models import (
     FinanceCutoverDecision,
     FinanceShadowComparison,
     FinanceShadowCycle,
+    FinanceShadowSourceVersion,
     FinanceStakeholderAcceptance,
 )
 
 
 EXPORT_ROOT = tempfile.mkdtemp(prefix="grand-cutover-export-tests-")
+MEDIA_ROOT = tempfile.mkdtemp(prefix="grand-cutover-media-tests-")
 
 
-@override_settings(GRAND_EXPORT_ROOT=EXPORT_ROOT)
+@override_settings(GRAND_EXPORT_ROOT=EXPORT_ROOT, MEDIA_ROOT=MEDIA_ROOT)
 class FinanceShadowCutoverTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -85,6 +90,25 @@ class FinanceShadowCutoverTests(TestCase):
             planned_end=date(2027, 1, 29),
             created_by=self.manager,
         )
+
+    def _unlocked_cycle(self, *, code="fy-2027-source-pilot", predecessor=None):
+        return FinanceShadowCycle.objects.create(
+            department=self.accounting,
+            code=code,
+            title="FY 2027 source staging pilot",
+            fiscal_year=2027,
+            enabled_scope="Redacted ordinary-DV comparison copy only",
+            source_system_label="Current signed register and redacted export",
+            source_extract_reference="Controlled comparison packet SRC-001",
+            planned_start=date(2027, 2, 1),
+            planned_end=date(2027, 2, 12),
+            predecessor=predecessor,
+            created_by=self.manager,
+        )
+
+    @staticmethod
+    def _csv(name="source.csv", headings="case_id,amount,status", row="DV-001,1250.00,approved"):
+        return SimpleUploadedFile(name, f"{headings}\n{row}\n".encode("utf-8"), content_type="text/csv")
 
     def _matched_comparison(self, cycle):
         comparison = FinanceShadowComparison(
@@ -155,6 +179,91 @@ class FinanceShadowCutoverTests(TestCase):
         comparison.outcome = FinanceShadowComparison.MATCHED
         with self.assertRaisesMessage(ValidationError, "zero"):
             comparison.full_clean()
+
+    def test_redacted_csv_is_versioned_and_grand_calculates_safe_metadata(self):
+        cycle = self._unlocked_cycle()
+        first = stage_shadow_source_csv(
+            cycle, self.manager, self._csv(headings="case_id,payee_name,amount"),
+            redaction_confirmed=True,
+            redaction_note="Payee names replaced with controlled aliases; no bank details included.",
+        )
+        cycle.refresh_from_db()
+        self.assertEqual(first.version, 1)
+        self.assertEqual(first.row_count, 1)
+        self.assertEqual(first.normalized_headers, ["case_id", "payee_name", "amount"])
+        self.assertEqual(first.sensitive_header_warnings, ["payee_name"])
+        self.assertEqual(len(first.source_checksum), 64)
+        self.assertEqual(cycle.source_checksum, first.source_checksum)
+        self.assertEqual(first.schema_comparison, FinanceShadowSourceVersion.BASELINE)
+        with self.assertRaisesMessage(ValidationError, "Explain why"):
+            stage_shadow_source_csv(
+                cycle, self.manager, self._csv(name="replacement.csv"),
+                redaction_confirmed=True, redaction_note="Still redacted.",
+            )
+        second = stage_shadow_source_csv(
+            cycle, self.manager,
+            self._csv(name="replacement.csv", headings="case_id,payee_name,amount", row="DV-002,Alias-2,900.00"),
+            redaction_confirmed=True, redaction_note="Case IDs only; no direct identifiers retained.",
+            change_reason="Corrected the locally approved extraction date and regenerated the copy.",
+        )
+        first.refresh_from_db()
+        self.assertFalse(first.is_current)
+        self.assertTrue(second.is_current)
+        self.assertEqual(second.version, 2)
+        self.assertEqual(cycle.source_versions.count(), 2)
+        start_shadow_cycle(cycle, self.manager)
+
+    def test_malformed_or_unconfirmed_source_is_rejected(self):
+        cycle = self._unlocked_cycle()
+        with self.assertRaisesMessage(ValidationError, "Confirm redaction"):
+            stage_shadow_source_csv(
+                cycle, self.manager, self._csv(), redaction_confirmed=False, redaction_note="",
+            )
+        with self.assertRaisesMessage(ValidationError, "header defines"):
+            stage_shadow_source_csv(
+                cycle, self.manager,
+                self._csv(headings="case_id,amount", row="DV-001,100.00,extra"),
+                redaction_confirmed=True, redaction_note="Redacted comparison copy.",
+            )
+        self.assertFalse(cycle.source_versions.exists())
+
+    def test_predecessor_schema_drift_blocks_start_until_independent_acceptance(self):
+        predecessor = self._cycle()
+        predecessor.status = FinanceShadowCycle.RECONCILED
+        predecessor.save(update_fields=("status", "updated_at"))
+        cycle = self._unlocked_cycle(code="fy-2027-drift-pilot", predecessor=predecessor)
+        source = stage_shadow_source_csv(
+            cycle, self.manager, self._csv(headings="case_id,amount,new_control_code"),
+            redaction_confirmed=True,
+            redaction_note="Direct identifiers removed; new control code contains no personal data.",
+        )
+        self.assertEqual(source.schema_comparison, FinanceShadowSourceVersion.DRIFT)
+        self.assertEqual(source.review_status, FinanceShadowSourceVersion.PENDING)
+        with self.assertRaisesMessage(ValidationError, "independent review"):
+            start_shadow_cycle(cycle, self.manager)
+        with self.assertRaisesMessage(ValidationError, "staged the source"):
+            review_shadow_source_drift(source, self.manager, accept=True, reason="Self review")
+        review_shadow_source_drift(
+            source, self.reconciler, accept=True,
+            reason="new_control_code maps to the reviewed DV classification and reconciles to retained control CMP-SCHEMA-01.",
+        )
+        start_shadow_cycle(cycle, self.manager)
+        source.refresh_from_db()
+        self.assertEqual(source.review_status, FinanceShadowSourceVersion.ACCEPTED)
+
+    def test_evidence_export_includes_source_controls_but_not_csv_row_values(self):
+        cycle = self._unlocked_cycle()
+        stage_shadow_source_csv(
+            cycle, self.manager, self._csv(row="SECRET-ROW-VALUE,1250.00,approved"),
+            redaction_confirmed=True, redaction_note="Synthetic case identifier only.",
+        )
+        content, _filename, _receipt = build_cutover_evidence_package(cycle, self.manager)
+        payload = json.loads(content)
+        self.assertEqual(payload["schema_version"], 2)
+        self.assertEqual(payload["cycle"]["schema_version"], 2)
+        self.assertEqual(payload["cycle"]["source_versions"][0]["row_count"], 1)
+        self.assertEqual(payload["cycle"]["source_versions"][0]["normalized_headers"], ["case_id", "amount", "status"])
+        self.assertNotIn("SECRET-ROW-VALUE", content.decode("utf-8"))
 
     def test_submission_locks_checksum_and_requires_an_independent_reconciler(self):
         cycle = self._cycle()

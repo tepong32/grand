@@ -1,5 +1,14 @@
 # Changelog
 
+## F11.2 Versioned redacted source staging and schema-drift review
+
+- Replaced required hand-calculated hashes in the ordinary cycle form with a guided UTF-8 redacted CSV path that calculates the exact file checksum, normalized headings, row count, and ordered layout signature.
+- Added a separately labeled advanced external-lock path for approved custody arrangements where the source must remain outside GRAND.
+- Retained every pre-start source version, required reasons for replacements, and closed the source modification window when a cycle starts.
+- Compared layouts to the predecessor cycle or prior draft version and blocked pilot start until a different reconciliation reviewer accepts changed headings with a plain-language mapping basis; rejection requires a corrected successor version.
+- Added redaction confirmation/notes, sensitive-heading reminders, append-only source/drift events, conservative Finance screens, Accounting Internal How-To version 2, and metadata-only TraceSync evidence that excludes CSV row values.
+- Kept production/eGAPS connectivity, scheduled ingestion/reconciliation, locally accepted source layouts, field cycles, and actual stakeholder authority outside the implemented claim.
+
 ## F11.1 Governed shadow operation and controlled cutover
 
 - Added limited shadow/parallel cycle plans with exact enabled scope, redacted/read-only source references, SHA-256 source locks, and schema signatures for drift review.

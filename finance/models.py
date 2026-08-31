@@ -27,6 +27,13 @@ def finance_template_path(instance, filename):
     return f"finance/templates/{instance.department.slug}/{instance.document_type}/v{instance.version}/{filename}"
 
 
+def finance_shadow_source_path(instance, filename):
+    return (
+        f"finance/shadow-sources/{instance.cycle.department.slug}/"
+        f"{instance.cycle.code}/v{instance.version}/{filename}"
+    )
+
+
 class FinanceConfigurationRelease(models.Model):
     department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="finance_releases")
     code = models.SlugField(max_length=80)
@@ -850,8 +857,8 @@ class FinanceShadowCycle(models.Model):
     enabled_scope = models.TextField(help_text="State the offices, funds, transaction types, and dates included in this cycle.")
     source_system_label = models.CharField(max_length=120, default="Current locally authoritative process")
     source_extract_reference = models.TextField(help_text="Reference the redacted/read-only source extract or retained register; do not upload production data here.")
-    source_checksum = models.CharField(max_length=64, help_text="SHA-256 checksum of the exact redacted/read-only source used for comparison.")
-    source_schema_signature = models.CharField(max_length=64, help_text="SHA-256 signature of the reviewed column/schema contract used to detect drift.")
+    source_checksum = models.CharField(max_length=64, blank=True, help_text="GRAND calculates this lock when a redacted CSV is staged.")
+    source_schema_signature = models.CharField(max_length=64, blank=True, help_text="GRAND calculates this column-layout signature to detect drift.")
     planned_start = models.DateField()
     planned_end = models.DateField()
     status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=DRAFT)
@@ -884,8 +891,10 @@ class FinanceShadowCycle(models.Model):
             raise ValidationError({"planned_end": "The end date cannot be before the start date."})
         for field in ("source_checksum", "source_schema_signature"):
             value = getattr(self, field, "").lower()
-            if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+            if value and (len(value) != 64 or any(character not in "0123456789abcdef" for character in value)):
                 raise ValidationError({field: "Enter the 64-character SHA-256 value for the reviewed source."})
+        if self.status != self.DRAFT and (not self.source_checksum or not self.source_schema_signature):
+            raise ValidationError("Lock a redacted/read-only source before starting the shadow cycle.")
         if self.predecessor_id:
             if self.predecessor_id == self.pk or self.predecessor.department_id != self.department_id:
                 raise ValidationError({"predecessor": "A predecessor must be an earlier cycle owned by the same Finance office."})
@@ -908,6 +917,121 @@ class FinanceShadowCycle(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         return super().save(*args, **kwargs)
+
+
+class FinanceShadowSourceVersion(models.Model):
+    UPLOADED_CSV = "uploaded_csv"
+    EXTERNAL_LOCK = "external_lock"
+    INTAKE_CHOICES = (
+        (UPLOADED_CSV, "Redacted CSV staged in GRAND"),
+        (EXTERNAL_LOCK, "Externally calculated source lock"),
+    )
+    BASELINE = "baseline"
+    MATCHED = "matched"
+    DRIFT = "drift"
+    SCHEMA_CHOICES = (
+        (BASELINE, "Baseline; no predecessor to compare"),
+        (MATCHED, "Matches predecessor layout"),
+        (DRIFT, "Column layout changed"),
+    )
+    NOT_REQUIRED = "not_required"
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    REVIEW_CHOICES = (
+        (NOT_REQUIRED, "No separate drift review required"),
+        (PENDING, "Awaiting independent drift review"),
+        (ACCEPTED, "Drift independently accepted for this cycle"),
+        (REJECTED, "Drift rejected"),
+    )
+
+    cycle = models.ForeignKey(FinanceShadowCycle, on_delete=models.PROTECT, related_name="source_versions")
+    version = models.PositiveIntegerField()
+    intake_kind = models.CharField(max_length=20, choices=INTAKE_CHOICES)
+    source_file = models.FileField(
+        upload_to=finance_shadow_source_path, max_length=500, blank=True,
+        validators=[FileExtensionValidator(("csv",))],
+        help_text="Retained redacted/read-only CSV. GRAND does not execute or import its rows.",
+    )
+    original_filename = models.CharField(max_length=255, blank=True)
+    file_size = models.PositiveIntegerField(default=0)
+    source_checksum = models.CharField(max_length=64)
+    normalized_headers = models.JSONField(default=list, blank=True)
+    row_count = models.PositiveIntegerField(null=True, blank=True)
+    schema_signature = models.CharField(max_length=64)
+    predecessor_schema_signature = models.CharField(max_length=64, blank=True)
+    schema_comparison = models.CharField(max_length=16, choices=SCHEMA_CHOICES)
+    sensitive_header_warnings = models.JSONField(default=list, blank=True)
+    redaction_confirmed = models.BooleanField(default=False)
+    redaction_note = models.TextField()
+    change_reason = models.TextField(blank=True)
+    is_current = models.BooleanField(default=True)
+    review_status = models.CharField(max_length=16, choices=REVIEW_CHOICES, default=NOT_REQUIRED)
+    review_note = models.TextField(blank=True)
+    staged_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="staged_finance_shadow_sources",
+    )
+    staged_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_finance_shadow_source_drifts",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-version", "-pk")
+        constraints = (
+            models.UniqueConstraint(fields=("cycle", "version"), name="unique_shadow_source_version"),
+            models.UniqueConstraint(
+                fields=("cycle",), condition=models.Q(is_current=True),
+                name="unique_current_shadow_source_version",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.cycle.code} source v{self.version}"
+
+    def clean(self):
+        if self.cycle_id and self.cycle.status != FinanceShadowCycle.DRAFT:
+            raise ValidationError("Source versions can be staged or reviewed only before the cycle starts.")
+        for field in ("source_checksum", "schema_signature"):
+            value = getattr(self, field, "").lower()
+            if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+                raise ValidationError({field: "A valid 64-character SHA-256 value is required."})
+        if self.source_file and self.file_size > 5 * 1024 * 1024:
+            raise ValidationError({"source_file": "The redacted CSV must be 5 MB or smaller."})
+        if self.intake_kind == self.UPLOADED_CSV and not self.source_file:
+            raise ValidationError({"source_file": "Choose the redacted CSV to stage."})
+        if self.intake_kind == self.EXTERNAL_LOCK and self.source_file:
+            raise ValidationError({"source_file": "An external lock does not retain a source file."})
+        if not isinstance(self.normalized_headers, list) or not isinstance(self.sensitive_header_warnings, list):
+            raise ValidationError("Source header evidence must be stored as a list.")
+        if not self.redaction_confirmed or not self.redaction_note.strip():
+            raise ValidationError("Confirm redaction and describe what was removed, masked, or intentionally retained.")
+        if self.schema_comparison == self.DRIFT and self.review_status == self.NOT_REQUIRED:
+            raise ValidationError("A changed column layout requires independent review.")
+        if self.review_status in {self.ACCEPTED, self.REJECTED}:
+            if not self.reviewed_by_id or not self.reviewed_at or not self.review_note.strip():
+                raise ValidationError("A drift decision requires the reviewer, date, and plain-language basis.")
+            if self.reviewed_by_id == self.staged_by_id:
+                raise ValidationError("The person who staged the source cannot review its schema drift.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            immutable = (
+                "cycle_id", "version", "intake_kind", "source_file", "original_filename", "file_size",
+                "source_checksum", "normalized_headers", "row_count", "schema_signature",
+                "predecessor_schema_signature", "schema_comparison", "sensitive_header_warnings",
+                "redaction_confirmed", "redaction_note", "change_reason", "staged_by_id", "staged_at",
+            )
+            if any(getattr(prior, field) != getattr(self, field) for field in immutable):
+                raise ValidationError("Staged source evidence is immutable. Stage a new version with a reason.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Source-version evidence is retained and cannot be deleted.")
 
 
 class FinanceShadowComparison(models.Model):

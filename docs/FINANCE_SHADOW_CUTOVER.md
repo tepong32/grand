@@ -1,6 +1,6 @@
 # Finance shadow operation, UAT acceptance, and controlled cutover
 
-Status: F11.1 governed transition checkpoint implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate or any local production cutover has occurred.
+Status: F11.1 governed transition control and F11.2 versioned redacted source staging implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate or any local production cutover has occurred.
 
 ## Purpose and authority boundary
 
@@ -17,16 +17,20 @@ Public COA/DBM/BIR sources remain requirements or recommendations only within th
 
 ## Cycle preparation and source drift
 
-The Finance Configuration Manager records:
+The Finance Configuration Manager records the limited cycle and source custody reference, then chooses one of two source-lock paths:
 
 - a readable cycle code/title, fiscal year, limited shadow or controlled parallel mode, dates, and exact enabled scope;
 - the current locally authoritative process/source label;
 - a retained redacted/read-only extract, register, or records-packet reference—never production credentials or an unredacted database upload;
-- the 64-character SHA-256 checksum of the exact source evidence;
-- the 64-character SHA-256 signature of the reviewed source-column/schema contract; and
 - an optional predecessor when a returned or failed cycle must be corrected.
 
-The signature makes schema drift visible between cycles, but F11.1 does not parse or synchronize an eGAPS database. A changed extract or schema receives a new checksum/signature and, after submission, a successor cycle. Historical eGAPS/current-process retention remains read-only and independent from GRAND runtime operation.
+The normal, less-technical path accepts a UTF-8 redacted CSV up to 5 MB. GRAND calculates the exact file SHA-256, normalizes and retains only the headings as inspection evidence, counts non-empty data rows, and calculates the ordered column-layout SHA-256. It retains the redacted file as evidence but never executes it or imports its rows into operational Finance tables. Headings commonly associated with names, contact details, TINs, or account identifiers produce a visible reminder; the preparer must always confirm and describe redaction because a heading check cannot prove a file is safe.
+
+An advanced external-lock path remains available when approved custody requires the source file to stay outside GRAND. The preparer enters externally calculated file and layout SHA-256 values plus the redaction/custody note. This path is explicit and is not presented as an automatic adapter.
+
+Every pre-start replacement becomes a new retained version and requires a plain-language reason. The predecessor cycle's layout lock is the primary drift baseline; when no predecessor exists, a replacement is compared with the prior draft version. Matching or first-baseline layouts need no separate drift decision. A changed layout blocks cycle start until a different user with reconciliation-review authority accepts it with a mapping basis. Rejection also blocks start and requires a corrected source version. Once a cycle starts, source versions are locked and a changed extract belongs in a successor cycle.
+
+F11.2 does not connect to, parse, or synchronize an eGAPS production database. Historical eGAPS/current-process retention remains read-only and independent from GRAND runtime operation.
 
 ## Comparisons and defect handling
 
@@ -87,7 +91,7 @@ This transition allowance does not reopen issued vouchers/checks or bypass their
 
 Department-bounded Finance permissions control cycle preparation, independent reconciliation, and cutover authority. A named cross-office stakeholder can read only the assigned cycle and record only their pending decision; assignment does not grant Finance preparation or authority actions. Finance UAT viewers remain read-only within their office boundary.
 
-Every visible cycle can produce a JSON evidence package containing the source lock, comparisons, stored/computed evidence checksums, stakeholder decisions, readiness checks, and current cutover decision. The downloaded bytes are also archived atomically under:
+Every visible cycle can produce a JSON evidence package containing each source version's checksum, headings, row count, drift/review metadata, comparisons, stored/computed evidence checksums, stakeholder decisions, readiness checks, and current cutover decision. Source row values and the retained CSV bytes are deliberately excluded from the portable JSON. The downloaded bytes are also archived atomically under:
 
 `department/user/finance-shadow-cutover/year/month`
 
@@ -97,7 +101,7 @@ inside the single `GRAND_EXPORT_ROOT`, beside a SHA-256 manifest for TraceSync w
 
 Before claiming the parent exit gate, the LGU still must confirm and execute:
 
-- current redacted source layouts and, if useful, a reviewed read-only adapter with automatic schema-drift detection;
+- current locally accepted redacted source layouts and, if useful, a separately reviewed read-only adapter beyond the implemented file-staging boundary;
 - daily reconciliation cadence, defect severity/escalation rules, and enabled transaction-type sign-off;
 - complete role curricula, quick guides, supervisor/support runbooks, and actual attendance/exercise evidence;
 - named security, privacy, accessibility, performance, print/form-stock, backup/restore, continuity, and incident exercises;

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
+import re
 
+from django.core.files.base import ContentFile
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
@@ -20,6 +24,7 @@ from .models import (
     FinanceAuditEvent,
     FinanceCutoverDecision,
     FinanceShadowCycle,
+    FinanceShadowSourceVersion,
     FinanceStakeholderAcceptance,
 )
 
@@ -33,6 +38,42 @@ REQUIRED_STAKEHOLDERS = {
     FinanceStakeholderAcceptance.MANAGEMENT,
     FinanceStakeholderAcceptance.AUDIT,
 }
+
+SHADOW_SOURCE_MAX_BYTES = 5 * 1024 * 1024
+SENSITIVE_HEADER_TERMS = {
+    "account_number", "address", "bank_account", "birth_date", "contact_number", "email",
+    "employee_name", "full_name", "mobile_number", "payee_name", "phone_number", "tin",
+}
+
+
+def _normalized_header(value):
+    return re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower()).strip("_")
+
+
+def _source_version_data(item):
+    return {
+        "version": item.version,
+        "intake_kind": item.intake_kind,
+        "original_filename": item.original_filename,
+        "file_size": item.file_size,
+        "source_checksum": item.source_checksum,
+        "normalized_headers": item.normalized_headers,
+        "row_count": item.row_count,
+        "schema_signature": item.schema_signature,
+        "predecessor_schema_signature": item.predecessor_schema_signature,
+        "schema_comparison": item.schema_comparison,
+        "sensitive_header_warnings": item.sensitive_header_warnings,
+        "redaction_confirmed": item.redaction_confirmed,
+        "redaction_note": item.redaction_note,
+        "change_reason": item.change_reason,
+        "is_current": item.is_current,
+        "review_status": item.review_status,
+        "review_note": item.review_note,
+        "staged_by_id": item.staged_by_id,
+        "staged_at": item.staged_at,
+        "reviewed_by_id": item.reviewed_by_id,
+        "reviewed_at": item.reviewed_at,
+    }
 
 
 def _comparison_data(comparison):
@@ -57,8 +98,11 @@ def _comparison_data(comparison):
 
 def shadow_cycle_evidence(cycle):
     comparisons = [_comparison_data(item) for item in cycle.comparisons.order_by("comparison_level", "control_code", "pk")]
+    source_versions = [
+        _source_version_data(item) for item in cycle.source_versions.order_by("version", "pk")
+    ]
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "cycle_public_id": str(cycle.public_id),
         "code": cycle.code,
         "title": cycle.title,
@@ -73,6 +117,7 @@ def shadow_cycle_evidence(cycle):
         "planned_start": cycle.planned_start,
         "planned_end": cycle.planned_end,
         "predecessor_public_id": str(cycle.predecessor.public_id) if cycle.predecessor_id else "",
+        "source_versions": source_versions,
         "comparisons": comparisons,
     }
     encoded = json.dumps(payload, cls=DjangoJSONEncoder, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -95,6 +140,171 @@ def _event(cycle, actor, action, reason="", snapshot=None):
     )
 
 
+def _schema_comparison(cycle, schema_signature, current=None):
+    reference = cycle.predecessor.source_schema_signature if cycle.predecessor_id else ""
+    if not reference and current:
+        reference = current.schema_signature
+    if not reference:
+        return FinanceShadowSourceVersion.BASELINE, ""
+    if reference == schema_signature:
+        return FinanceShadowSourceVersion.MATCHED, reference
+    return FinanceShadowSourceVersion.DRIFT, reference
+
+
+def _next_source_version(cycle):
+    current = cycle.source_versions.filter(is_current=True).order_by("-version").first()
+    return current, (cycle.source_versions.order_by("-version").values_list("version", flat=True).first() or 0) + 1
+
+
+def _validate_replacement_reason(current, change_reason):
+    if current and not str(change_reason or "").strip():
+        raise ValidationError("Explain why the previously staged source is being replaced.")
+
+
+@transaction.atomic
+def stage_shadow_source_csv(cycle, actor, uploaded_file, *, redaction_confirmed, redaction_note, change_reason=""):
+    cycle = FinanceShadowCycle.objects.select_for_update().select_related("department", "predecessor").get(pk=cycle.pk)
+    if not can_manage_shadow_operation(actor, cycle.department):
+        raise PermissionDenied
+    if cycle.status != FinanceShadowCycle.DRAFT:
+        raise ValidationError("A source can be staged only while the shadow cycle is still a draft.")
+    if not redaction_confirmed or not str(redaction_note or "").strip():
+        raise ValidationError("Confirm redaction and describe what was removed, masked, or intentionally retained.")
+    filename = str(getattr(uploaded_file, "name", "shadow-source.csv"))
+    if not filename.lower().endswith(".csv"):
+        raise ValidationError("Choose a CSV file. GRAND does not execute spreadsheet or database files here.")
+    raw = uploaded_file.read(SHADOW_SOURCE_MAX_BYTES + 1)
+    if len(raw) > SHADOW_SOURCE_MAX_BYTES:
+        raise ValidationError("The redacted source CSV exceeds the 5 MB staging limit.")
+    try:
+        decoded = raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValidationError("Save the redacted source as a UTF-8 CSV file.") from exc
+    if "\x00" in decoded:
+        raise ValidationError("The CSV contains binary/null content. Export a plain UTF-8 CSV comparison copy.")
+    rows = csv.reader(io.StringIO(decoded, newline=""))
+    try:
+        raw_headers = next(rows)
+    except StopIteration as exc:
+        raise ValidationError("The CSV is empty. Include a header row and at least one redacted data row.") from exc
+    headers = [_normalized_header(value) for value in raw_headers]
+    if not headers or any(not value for value in headers):
+        raise ValidationError("Every CSV column needs a readable heading.")
+    if len(headers) != len(set(headers)):
+        raise ValidationError("CSV column headings must remain unique after spacing and punctuation are normalized.")
+    row_count = 0
+    for row_number, row in enumerate(rows, start=2):
+        if not any(str(value or "").strip() for value in row):
+            continue
+        if len(row) != len(headers):
+            raise ValidationError(f"Row {row_number} has {len(row)} columns; the header defines {len(headers)}.")
+        row_count += 1
+    if not row_count:
+        raise ValidationError("The CSV contains no redacted data rows.")
+    schema_signature = hashlib.sha256(
+        json.dumps(headers, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    checksum = hashlib.sha256(raw).hexdigest()
+    current, version = _next_source_version(cycle)
+    _validate_replacement_reason(current, change_reason)
+    comparison, predecessor_signature = _schema_comparison(cycle, schema_signature, current)
+    warnings = sorted({
+        header for header in headers
+        if any(term in header for term in SENSITIVE_HEADER_TERMS)
+    })
+    if current:
+        current.is_current = False
+        current.save(update_fields=("is_current",))
+    item = FinanceShadowSourceVersion(
+        cycle=cycle,
+        version=version,
+        intake_kind=FinanceShadowSourceVersion.UPLOADED_CSV,
+        original_filename=filename[:255],
+        file_size=len(raw),
+        source_checksum=checksum,
+        normalized_headers=headers,
+        row_count=row_count,
+        schema_signature=schema_signature,
+        predecessor_schema_signature=predecessor_signature,
+        schema_comparison=comparison,
+        sensitive_header_warnings=warnings,
+        redaction_confirmed=True,
+        redaction_note=str(redaction_note).strip(),
+        change_reason=str(change_reason or "").strip(),
+        review_status=(
+            FinanceShadowSourceVersion.PENDING
+            if comparison == FinanceShadowSourceVersion.DRIFT
+            else FinanceShadowSourceVersion.NOT_REQUIRED
+        ),
+        staged_by=actor,
+    )
+    item.source_file = ContentFile(raw, name=filename.split("/")[-1].split("\\")[-1])
+    item.save()
+    cycle.source_checksum = checksum
+    cycle.source_schema_signature = schema_signature
+    cycle.save(update_fields=("source_checksum", "source_schema_signature", "updated_at"))
+    _event(cycle, actor, "shadow_source_staged", reason=item.change_reason, snapshot=_source_version_data(item))
+    return item
+
+
+@transaction.atomic
+def stage_shadow_external_lock(cycle, actor, *, source_checksum, schema_signature, redaction_confirmed, redaction_note, change_reason=""):
+    cycle = FinanceShadowCycle.objects.select_for_update().select_related("department", "predecessor").get(pk=cycle.pk)
+    if not can_manage_shadow_operation(actor, cycle.department):
+        raise PermissionDenied
+    if cycle.status != FinanceShadowCycle.DRAFT:
+        raise ValidationError("A source lock can be recorded only while the shadow cycle is still a draft.")
+    current, version = _next_source_version(cycle)
+    _validate_replacement_reason(current, change_reason)
+    checksum = str(source_checksum or "").strip().lower()
+    signature = str(schema_signature or "").strip().lower()
+    comparison, predecessor_signature = _schema_comparison(cycle, signature, current)
+    if current:
+        current.is_current = False
+        current.save(update_fields=("is_current",))
+    item = FinanceShadowSourceVersion(
+        cycle=cycle, version=version, intake_kind=FinanceShadowSourceVersion.EXTERNAL_LOCK,
+        source_checksum=checksum, schema_signature=signature,
+        predecessor_schema_signature=predecessor_signature, schema_comparison=comparison,
+        redaction_confirmed=bool(redaction_confirmed), redaction_note=str(redaction_note or "").strip(),
+        change_reason=str(change_reason or "").strip(),
+        review_status=(FinanceShadowSourceVersion.PENDING if comparison == FinanceShadowSourceVersion.DRIFT else FinanceShadowSourceVersion.NOT_REQUIRED),
+        staged_by=actor,
+    )
+    item.save()
+    cycle.source_checksum = checksum
+    cycle.source_schema_signature = signature
+    cycle.save(update_fields=("source_checksum", "source_schema_signature", "updated_at"))
+    _event(cycle, actor, "shadow_external_source_lock_recorded", reason=item.change_reason, snapshot=_source_version_data(item))
+    return item
+
+
+@transaction.atomic
+def review_shadow_source_drift(source_version, actor, *, accept, reason):
+    item = FinanceShadowSourceVersion.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=source_version.pk)
+    if not can_review_shadow_reconciliation(actor, item.cycle.department):
+        raise PermissionDenied
+    if item.cycle.status != FinanceShadowCycle.DRAFT or not item.is_current:
+        raise ValidationError("Only the current draft source version can receive a schema-drift decision.")
+    if item.schema_comparison != FinanceShadowSourceVersion.DRIFT or item.review_status != FinanceShadowSourceVersion.PENDING:
+        raise ValidationError("This source version is not awaiting schema-drift review.")
+    if actor.pk == item.staged_by_id:
+        raise ValidationError("The person who staged the source cannot review its schema drift.")
+    if not str(reason or "").strip():
+        raise ValidationError("Explain what columns changed and why the mapping remains safe, or why it is rejected.")
+    item.review_status = FinanceShadowSourceVersion.ACCEPTED if accept else FinanceShadowSourceVersion.REJECTED
+    item.review_note = str(reason).strip()
+    item.reviewed_by = actor
+    item.reviewed_at = timezone.now()
+    item.save(update_fields=("review_status", "review_note", "reviewed_by", "reviewed_at"))
+    _event(
+        item.cycle, actor,
+        "shadow_source_drift_accepted" if accept else "shadow_source_drift_rejected",
+        reason=item.review_note, snapshot=_source_version_data(item),
+    )
+    return item
+
+
 @transaction.atomic
 def start_shadow_cycle(cycle, actor):
     cycle = FinanceShadowCycle.objects.select_for_update().get(pk=cycle.pk)
@@ -102,6 +312,16 @@ def start_shadow_cycle(cycle, actor):
         raise PermissionDenied
     if cycle.status != FinanceShadowCycle.DRAFT:
         raise ValidationError("Only a draft shadow-cycle plan can be started.")
+    if not cycle.source_checksum or not cycle.source_schema_signature:
+        raise ValidationError("Stage a redacted CSV or record an external source lock before starting.")
+    current = cycle.source_versions.filter(is_current=True).first()
+    if current:
+        if current.source_checksum != cycle.source_checksum or current.schema_signature != cycle.source_schema_signature:
+            raise ValidationError("The cycle source lock no longer matches its current retained source version.")
+        if current.review_status == FinanceShadowSourceVersion.PENDING:
+            raise ValidationError("Obtain an independent review of the changed column layout before starting.")
+        if current.review_status == FinanceShadowSourceVersion.REJECTED:
+            raise ValidationError("The current source layout was rejected. Stage a corrected version before starting.")
     cycle.full_clean()
     cycle.status = FinanceShadowCycle.RUNNING
     cycle.save(update_fields=("status", "updated_at"))
@@ -338,7 +558,7 @@ def build_cutover_evidence_package(cycle, actor):
         decision = None
     payload = {
         "format": "GRAND Finance shadow/cutover evidence",
-        "schema_version": 1,
+        "schema_version": 2,
         "notice": "Portable evidence copy. Authority exists only when the included decision status is authorized for its exact scope and date.",
         "cycle": cycle_payload,
         "stored_cycle_evidence_checksum": cycle.evidence_checksum,

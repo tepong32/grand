@@ -15,18 +15,20 @@ from .access import (
 from .cutover_services import (
     build_cutover_evidence_package, cutover_readiness, decide_cutover,
     decide_stakeholder_acceptance, record_cutover_rollback, review_shadow_cycle,
+    review_shadow_source_drift, stage_shadow_external_lock, stage_shadow_source_csv,
     start_shadow_cycle, submit_cutover_decision, submit_shadow_cycle,
 )
 from .forms import (
     FinanceCutoverDecisionForm,
     FinanceDocumentRuleForm, FinanceItemForm, FinanceNumberingSequenceForm, FinanceReleaseForm,
     FinancePartyClaimantForm, FinancePartyForm, FinancePostingRuleForm, FinancePostingRuleLineForm,
-    FinanceShadowComparisonForm, FinanceShadowCycleForm, FinanceSignatoryForm,
+    FinanceShadowComparisonForm, FinanceShadowCycleForm, FinanceShadowDriftReviewForm,
+    FinanceShadowExternalLockForm, FinanceShadowSourceUploadForm, FinanceSignatoryForm,
     FinanceStakeholderAcceptanceForm, FinanceStakeholderDecisionForm,
     FinanceTemplateForm, FinanceStarterTemplateForm, FinanceTransactionVariantForm,
 )
 from .models import (
-    FinanceConfigurationRelease, FinanceCutoverDecision, FinanceParty, FinanceShadowCycle,
+    FinanceConfigurationRelease, FinanceCutoverDecision, FinanceParty, FinanceShadowCycle, FinanceShadowSourceVersion,
     FinanceStakeholderAcceptance, FinanceTemplateVersion, FinanceTransactionVariant,
 )
 from .services import (
@@ -408,7 +410,7 @@ def shadow_cycle_create(request):
         return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
     return render(request, "finance/cutover_form.html", {
         "form": form, "title": "Plan a shadow or parallel cycle",
-        "guidance": "Use a redacted/read-only source reference and exact SHA-256 values. State the limited scope plainly; this record does not make GRAND authoritative.",
+        "guidance": "State the limited scope and where the official/redacted comparison source is retained. After saving, GRAND can calculate the file and column-layout locks from a redacted CSV; this record does not make GRAND authoritative.",
     })
 
 
@@ -422,6 +424,7 @@ def shadow_cycle_detail(request, pk):
     department = cycle.department
     return render(request, "finance/shadow_cycle_detail.html", {
         "cycle": cycle,
+        "source_versions": cycle.source_versions.select_related("staged_by", "reviewed_by"),
         "comparisons": cycle.comparisons.select_related("defect_owner", "created_by"),
         "acceptances": cycle.stakeholder_acceptances.select_related("office", "assigned_reviewer", "decided_by"),
         "decision": decision,
@@ -431,6 +434,84 @@ def shadow_cycle_detail(request, pk):
         "can_authorize": can_authorize_finance_cutover(request.user, department),
         "is_assigned_reviewer": cycle.stakeholder_acceptances.filter(assigned_reviewer=request.user, decision=FinanceStakeholderAcceptance.PENDING).exists(),
     })
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def shadow_source_upload(request, cycle_pk):
+    department = department_for_user(request.user)
+    cycle = get_object_or_404(FinanceShadowCycle, pk=cycle_pk, department=department)
+    form = FinanceShadowSourceUploadForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            stage_shadow_source_csv(
+                cycle, request.user, form.cleaned_data["source_file"],
+                redaction_confirmed=form.cleaned_data["redaction_confirmed"],
+                redaction_note=form.cleaned_data["redaction_note"],
+                change_reason=form.cleaned_data["change_reason"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Redacted source version retained. GRAND calculated its file lock, column-layout lock, and row count.")
+            return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Stage redacted source — {cycle.code}", "cycle": cycle,
+        "guidance": "Use a comparison copy only. GRAND retains prior versions and flags changed headings for an independent decision before the pilot can start.",
+        "multipart": True,
+    })
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def shadow_external_lock(request, cycle_pk):
+    department = department_for_user(request.user)
+    cycle = get_object_or_404(FinanceShadowCycle, pk=cycle_pk, department=department)
+    form = FinanceShadowExternalLockForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            stage_shadow_external_lock(
+                cycle, request.user,
+                source_checksum=form.cleaned_data["source_checksum"],
+                schema_signature=form.cleaned_data["schema_signature"],
+                redaction_confirmed=form.cleaned_data["redaction_confirmed"],
+                redaction_note=form.cleaned_data["redaction_note"],
+                change_reason=form.cleaned_data["change_reason"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "External source lock retained as a versioned record.")
+            return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Record external source lock — {cycle.code}", "cycle": cycle,
+        "guidance": "Use this advanced path only when an approved external custody process calculates both locks. No source file is uploaded to GRAND.",
+    })
+
+
+@shadow_access_required
+def shadow_source_drift_review(request, pk):
+    source = get_object_or_404(
+        FinanceShadowSourceVersion.objects.select_related("cycle", "cycle__department", "staged_by"), pk=pk,
+    )
+    if not can_view_shadow_cycle(request.user, source.cycle):
+        raise PermissionDenied
+    if not can_review_shadow_reconciliation(request.user, source.cycle.department):
+        raise PermissionDenied
+    form = FinanceShadowDriftReviewForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        decision = request.POST.get("decision")
+        if decision not in {"accept", "reject"}:
+            form.add_error(None, "Choose accept or reject.")
+        else:
+            try:
+                review_shadow_source_drift(
+                    source, request.user, accept=decision == "accept", reason=form.cleaned_data["reason"],
+                )
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, "The independent column-layout decision is retained in the cycle history.")
+                return redirect("finance:shadow_cycle_detail", pk=source.cycle_id)
+    return render(request, "finance/source_drift_review.html", {"form": form, "source": source, "cycle": source.cycle})
 
 
 @finance_permission_required(can_manage_shadow_operation)

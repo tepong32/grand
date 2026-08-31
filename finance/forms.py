@@ -261,8 +261,7 @@ class FinanceShadowCycleForm(forms.ModelForm):
         model = FinanceShadowCycle
         fields = (
             "code", "title", "fiscal_year", "run_kind", "enabled_scope", "source_system_label",
-            "source_extract_reference", "source_checksum", "source_schema_signature",
-            "planned_start", "planned_end", "predecessor",
+            "source_extract_reference", "planned_start", "planned_end", "predecessor",
         )
         widgets = {
             "enabled_scope": forms.Textarea(attrs={"rows": 4}),
@@ -277,6 +276,54 @@ class FinanceShadowCycleForm(forms.ModelForm):
             self.fields["predecessor"].queryset = FinanceShadowCycle.objects.filter(
                 department=department,
             ).exclude(status=FinanceShadowCycle.DRAFT)
+
+
+class FinanceShadowSourceUploadForm(forms.Form):
+    source_file = forms.FileField(
+        label="Redacted source CSV",
+        help_text="UTF-8 CSV, up to 5 MB. GRAND reads headings and row count only; it does not import the rows into transactions.",
+        widget=forms.ClearableFileInput(attrs={"accept": ".csv,text/csv", "class": "form-control-file"}),
+    )
+    redaction_confirmed = forms.BooleanField(
+        label="I checked this copy for sensitive information",
+        help_text="Upload only the minimum redacted/read-only comparison copy—not a live database or unrestricted production export.",
+    )
+    redaction_note = forms.CharField(
+        label="What was removed, masked, or intentionally retained?",
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Use plain language, for example: payee names replaced by case IDs; bank account kept to last four digits.",
+    )
+    change_reason = forms.CharField(
+        required=False, label="Why is the prior version being replaced?",
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Required from version 2 onward. Earlier versions remain in the audit trail.",
+    )
+
+
+class FinanceShadowExternalLockForm(forms.Form):
+    source_checksum = forms.RegexField(
+        regex=r"^[0-9a-fA-F]{64}$", label="Source file SHA-256",
+        help_text="Advanced option: paste the 64-character checksum calculated by the approved external custody process.",
+    )
+    schema_signature = forms.RegexField(
+        regex=r"^[0-9a-fA-F]{64}$", label="Reviewed column-layout SHA-256",
+        help_text="Paste the signature for the exact reviewed column order and naming contract.",
+    )
+    redaction_confirmed = forms.BooleanField(label="The externally retained source is redacted/read-only")
+    redaction_note = forms.CharField(
+        label="Redaction and custody note", widget=forms.Textarea(attrs={"rows": 3}),
+    )
+    change_reason = forms.CharField(
+        required=False, label="Why is the prior lock being replaced?", widget=forms.Textarea(attrs={"rows": 2}),
+    )
+
+
+class FinanceShadowDriftReviewForm(forms.Form):
+    reason = forms.CharField(
+        label="Column change and safe mapping basis",
+        widget=forms.Textarea(attrs={"rows": 4}),
+        help_text="Name the added, removed, or renamed headings and the mapping/control evidence checked. This does not change official authority.",
+    )
 
 
 class FinanceShadowComparisonForm(forms.ModelForm):
