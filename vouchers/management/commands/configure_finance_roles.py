@@ -7,6 +7,7 @@ from django.db import transaction
 
 from vouchers.roles import FINANCE_ROLE_PERMISSIONS, FINANCE_UAT_VIEWER_GROUP
 from departments.services.internal_howto_seed import seed_finance_internal_howtos
+from reporting.presets import seed_finance_presets
 
 
 class Command(BaseCommand):
@@ -75,5 +76,10 @@ class Command(BaseCommand):
             f"Internal How-Tos: {guide_counts['guides_created']} created; "
             f"{guide_counts['guides_retired']} superseded; "
             f"{guide_counts['guides_preserved']} published guide(s) preserved."
+        )
+        report_results = seed_finance_presets()
+        report_created = sum(1 for _definition, changed in report_results if changed)
+        self.stdout.write(
+            f"Finance reporting starters: {len(report_results)} ready; {report_created} newly configured."
         )
 

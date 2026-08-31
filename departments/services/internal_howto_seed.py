@@ -7,6 +7,23 @@ from ..models import Department, InternalHowTo, InternalHowToStep
 
 ACCOUNTING_GUIDES = (
     {
+        "slug": "finance-accountability-reporting-accounting",
+        "version": 1,
+        "title": "Prepare and review Accounting reports",
+        "summary": "Generate a posted trial balance from governed journals, explain every control total, compare the local layout, and retain portable reproduction evidence.",
+        "permission": "reporting.view_reporting_workspace",
+        "patterns": ["reporting:*", "accounting:trial_balance", "accounting:entry_*"],
+        "order": 60,
+        "steps": (
+            ("Open the report starter", "Open Reports and choose Posted Trial Balance. Confirm the covered period and use the approved native or mapped template version.", "The run pins the exact definition, template, period, and output format.", "The starter follows COA trial-balance guidance but is not automatically the LGU's accepted signed form.", "Open Reports", "reporting:workspace"),
+            ("Check local applicability", "Read the authority/reference and applicability badge. Keep the definition as Local confirmation pending until the Municipal Accountant or named owner confirms the exact form, signatories, routing, and retained comparison evidence.", "Official-form claims remain separate from a technically correct report.", "Do not mark a public recommendation as locally accepted without actual confirmation.", "", ""),
+            ("Generate and reconcile", "Generate the covered period. Confirm total posted debit equals total posted credit and that the control status reads reconciled.", "The report stores immutable row, control, freshness, and checksum evidence.", "A control exception cannot enter official review; correct the posted source through normal Accounting routes, then generate a successor.", "Open Trial Balance", "accounting:trial_balance"),
+            ("Drill through the total", "Use Source drill-through to open retained posted JEVs and compare fund, account, source reference, description, debit, credit, and posting evidence.", "Every reported control total is explainable from permission-checked source entries.", "Never edit a posted JEV to make a report agree; use a governed adjustment or reversal.", "", ""),
+            ("Review and approve independently", "A different authorized reviewer checks the control evidence, source entries, exact local template, and applicability record before review and approval.", "The approval is attributable and the prior run remains retained if superseded.", "Pilot layouts and pending local applicability stay unavailable for official approval.", "", ""),
+            ("Export and safeguard", "Download the output, control-evidence CSV, and reproduction receipt when required. Copy or synchronize the complete GRAND export root so each artifact remains beside its manifest.", "TraceSync-ready department/user/category folders retain checksums and reproduction keys without user re-filing.", "Keep the complete export folder rather than isolated files without manifests.", "", ""),
+        ),
+    },
+    {
         "slug": "finance-bank-advice-review",
         "version": 1,
         "title": "Review bank advice and record the bank response",
@@ -302,6 +319,23 @@ REQUESTING_GUIDES = (
 
 
 BUDGET_GUIDES = (
+    {
+        "slug": "finance-accountability-reporting-budget",
+        "version": 1,
+        "title": "Prepare the quarterly Budget accountability schedule",
+        "summary": "Generate cumulative appropriation, allotment, hold, obligation, and remaining-balance controls while keeping the LBAc-equivalent starter distinct from the locally accepted official form.",
+        "permission": "reporting.view_reporting_workspace",
+        "patterns": ["reporting:*", "budget:authorization_*", "budget:allotment_*", "budget:obligation_*"],
+        "order": 60,
+        "steps": (
+            ("Open the quarterly starter", "Open Reports and choose Quarterly Budget Accountability Schedule. Select the quarter start and end covered by the review.", "The report calculates cumulative authority and posted movements through the selected period end.", "The native starter is LBAc Form No. 2-equivalent working material; it is not automatically the current locally accepted DBM/COA form.", "Open Reports", "reporting:workspace"),
+            ("Confirm authority and local use", "Read the DBM recommendation basis and Local confirmation pending badge. Ask the named Budget owner to confirm the actual form, deadlines, signatories, copies, recipients, and retained signed comparison.", "The definition becomes Locally confirmed only with a specific authority and acceptance note.", "Do not infer current local applicability from a generic circular or manual alone.", "", ""),
+            ("Generate and read the equation", "Generate the run and review appropriation, released allotment, reserve/deferral, executable allotment, obligation, unreleased appropriation, and unobligated allotment.", "No cumulative balance is negative or exceeds its controlling authority.", "A control exception blocks review; correct the authoritative Budget transaction through its governed successor route.", "Open Budget Accountability", "budget:obligation_workspace"),
+            ("Drill through movements", "Open the appropriation, allotment order, or certified obligation from Source drill-through and compare the retained numbers, dates, checksums, classifications, and evidence references.", "Each total traces to immutable posted Budget movements.", "Do not create a balancing movement merely to force a report total.", "", ""),
+            ("Compare the editable layout", "Create a new template version when the LGU supplies its blank XLSX/PDF. Map and preflight it, compare against a redacted signed sample, and record fidelity validation separately.", "A non-developer can adapt the controlled layout while prior versions remain reproducible.", "Never overwrite an approved template version.", "", ""),
+            ("Review, export, and safeguard", "Have a different authorized user review the controls. Export the output, source evidence, and reproduction receipt, then copy or synchronize the complete GRAND export root.", "The report and its TraceSync manifests remain portable and explainable.", "Pending local applicability or pilot fidelity remains unavailable for official approval.", "", ""),
+        ),
+    },
     {
         "slug": "finance-obligation-certification",
         "title": "Certify obligations and reconcile RAAO balances",

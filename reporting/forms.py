@@ -18,8 +18,16 @@ class ReportDefinitionForm(forms.ModelForm):
 
     class Meta:
         model = ReportDefinition
-        fields = ("name", "description", "dataset_key", "selected_fields", "group_by", "totals", "sort_by", "default_format", "is_active")
-        widgets = {"description": forms.Textarea(attrs={"rows": 3})}
+        fields = (
+            "name", "description", "dataset_key", "selected_fields", "group_by", "totals",
+            "sort_by", "default_format", "applicability_status", "authority_reference",
+            "local_acceptance_note", "is_active",
+        )
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "authority_reference": forms.Textarea(attrs={"rows": 3}),
+            "local_acceptance_note": forms.Textarea(attrs={"rows": 3}),
+        }
 
     def __init__(self, *args, department=None, user=None, **kwargs):
         self.department = department
@@ -35,7 +43,9 @@ class ReportDefinitionForm(forms.ModelForm):
         field_choices = [(column.key, column.label) for column in columns]
         self.fields["selected_fields"].choices = field_choices
         self.fields["group_by"].choices = field_choices
-        self.fields["totals"].choices = [(column.key, column.label) for column in columns if column.kind == "integer"]
+        self.fields["totals"].choices = [
+            (column.key, column.label) for column in columns if column.kind in ("integer", "decimal")
+        ]
         self.fields["sort_by"].choices = [(column.key, f"{column.label} - ascending") for column in columns] + [(f"-{column.key}", f"{column.label} - descending") for column in columns]
         self.fields["filter_field"].choices = [("", "No additional filter")] + field_choices
         if self.instance.pk and self.instance.filters:

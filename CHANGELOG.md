@@ -1,5 +1,14 @@
 # Changelog
 
+## F9.1 Finance accountability reporting and reproducibility
+
+- Added Finance-native Budget accountability and posted-trial-balance datasets with cumulative authority/usage equations, exact debit/credit controls, freshness, and permission-aware drill-through to retained source records.
+- Added immutable report data/control snapshots, independent SHA-256 evidence, source identities, reproduction keys, exception gates, and deterministic control CSV and reproduction-receipt JSON exports.
+- Added explicit departmental/candidate/locally-confirmed applicability positions so COA/DBM-informed starters cannot be approved as official until their authority and local acceptance decision are recorded.
+- Added conservative, human-editable Budget and Accounting starter definitions/templates, Finance role permissions, and department-specific floating `?` guides without changing the familiar reporting workflow.
+- Archived outputs and report evidence through the existing department/user/category/year/month TraceSync hierarchy with adjacent checksum manifests for whole-folder safekeeping.
+- Added synthetic tests for Budget equations, balanced and broken trial balances, immutable evidence, candidate/confirmed approval behavior, source drill-through, and reproducible portable exports while preserving the legacy reporting contract.
+
 ## F8.5 Bank-reconciliation carry-forward and later clearance
 
 - Added one-action carry-forward of the latest unresolved timing item from an earlier independently reconciled statement for the same bank account and fund.

@@ -19,6 +19,8 @@ urlpatterns = [
     path("schedules/new/", views.schedule_create, name="schedule_create"),
     path("runs/<uuid:public_id>/", views.run_detail, name="run_detail"),
     path("runs/<uuid:public_id>/download/", views.run_download, name="run_download"),
+    path("runs/<uuid:public_id>/control-evidence/", views.run_control_export, name="run_control_export"),
+    path("runs/<uuid:public_id>/reproduction-receipt/", views.run_reproduction_receipt, name="run_reproduction_receipt"),
     path("runs/<uuid:public_id>/print/", views.run_print_preview, name="run_print_preview"),
     path("runs/<uuid:public_id>/<str:action>/", views.run_transition, name="run_transition"),
 ]

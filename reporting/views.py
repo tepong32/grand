@@ -1,6 +1,10 @@
+import csv
+import json
+
 from django.contrib import messages
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Count, Q
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
@@ -233,7 +237,13 @@ def run_detail(request, public_id):
             content_type=content_type, object_id=run.pk, role="official_source"
         ).select_related("record").first()
         official_record = association.record if association else None
-    return render(request, "reporting/run_detail.html", {"run": run, "can_review": can_review_reports(request.user), "can_approve": can_approve_reports(request.user), "can_download": can_download, "can_print": can_download and run.is_printable, "official_record": official_record})
+    return render(request, "reporting/run_detail.html", {
+        "run": run, "can_review": can_review_reports(request.user),
+        "can_approve": can_approve_reports(request.user), "can_download": can_download,
+        "can_print": can_download and run.is_printable, "official_record": official_record,
+        "source_records": run.source_records.all()[:100],
+        "definition_applicability_snapshot": run.parameters.get("_definition_snapshot", {}).get("applicability_status", "departmental"),
+    })
 
 
 @reporting_access_required
@@ -279,6 +289,9 @@ def run_download(request, public_id):
                 "parameters": run.parameters,
                 "status": run.status,
                 "output_checksum": run.checksum,
+                "dataset_checksum": run.dataset_checksum,
+                "control_checksum": run.control_checksum,
+                "reproduction_key": run.reproduction_key,
                 "official_output": run.is_official_output,
             },
         )
@@ -291,6 +304,121 @@ def run_download(request, public_id):
         action="exported",
         from_status=run.status,
         to_status=run.status,
+        note=f"Archived {archived['relative_path']} with SHA-256 {archived['sha256']}.",
+    )
+    return response
+
+
+def _require_downloadable_run(request, public_id):
+    if not can_download_reports(request.user):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    return get_object_or_404(_runs_visible_to(request.user), public_id=public_id)
+
+
+@reporting_access_required
+def run_control_export(request, public_id):
+    run = _require_downloadable_run(request, public_id)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    writer = csv.writer(response)
+    writer.writerow((
+        "record_kind", "run_public_id", "definition", "period_start", "period_end",
+        "control_status", "dataset_checksum", "control_checksum", "reproduction_key",
+        "source_app", "source_model", "source_pk", "source_public_id", "source_reference",
+        "source_date", "control_group", "amount", "source_checksum", "source_url", "source_snapshot",
+    ))
+    writer.writerow((
+        "report_control", run.public_id, run.definition.slug, run.period_start, run.period_end,
+        run.control_status, run.dataset_checksum, run.control_checksum, run.reproduction_key,
+        "", "", "", "", "", "", "", "", "", "", "", json.dumps(run.control_totals, sort_keys=True),
+    ))
+    for source in run.source_records.all():
+        writer.writerow((
+            "source_record", run.public_id, run.definition.slug, run.period_start, run.period_end,
+            run.control_status, run.dataset_checksum, run.control_checksum, run.reproduction_key,
+            source.source_app, source.source_model, source.source_pk, source.source_public_id,
+            source.source_reference, source.source_date, source.control_group, source.amount,
+            source.source_checksum, source.source_url, json.dumps(source.snapshot, sort_keys=True),
+        ))
+    filename = f"{run.definition.slug}_{str(run.public_id)[:8]}_control-evidence.csv"
+    archived = archive_export(
+        content=response.content, department=run.definition.department, user=request.user,
+        category="finance-report-evidence", filename=filename,
+        metadata={
+            "kind": "report_control_evidence", "run_public_id": str(run.public_id),
+            "dataset_checksum": run.dataset_checksum, "control_checksum": run.control_checksum,
+            "reproduction_key": run.reproduction_key, "source_record_count": run.source_record_count,
+        },
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    ReportRunEvent.objects.create(
+        run=run, actor=request.user, action="control_evidence_exported",
+        from_status=run.status, to_status=run.status,
+        note=f"Archived {archived['relative_path']} with SHA-256 {archived['sha256']}.",
+    )
+    return response
+
+
+@reporting_access_required
+def run_reproduction_receipt(request, public_id):
+    run = _require_downloadable_run(request, public_id)
+    receipt = {
+        "format": "GRAND report reproduction receipt",
+        "version": 1,
+        "run_public_id": str(run.public_id),
+        "definition": run.parameters.get("_definition_snapshot", {}),
+        "template": run.parameters.get("_template_snapshot", {}),
+        "period_start": run.period_start,
+        "period_end": run.period_end,
+        "output_format": run.output_format,
+        "status": run.status,
+        "row_count": run.row_count,
+        "source_record_count": run.source_record_count,
+        "source_freshness_at": run.source_freshness_at,
+        "dataset_snapshot": run.dataset_snapshot,
+        "control_totals": run.control_totals,
+        "control_status": run.control_status,
+        "control_message": run.control_message,
+        "checksums": {
+            "output_sha256": run.checksum,
+            "dataset_sha256": run.dataset_checksum,
+            "control_sha256": run.control_checksum,
+            "reproduction_key": run.reproduction_key,
+        },
+        "sources": [
+            {
+                "app": source.source_app, "model": source.source_model,
+                "pk": source.source_pk, "public_id": source.source_public_id,
+                "reference": source.source_reference, "date": source.source_date,
+                "control_group": source.control_group, "amount": source.amount,
+                "source_checksum": source.source_checksum, "source_url": source.source_url,
+                "snapshot": source.snapshot,
+            }
+            for source in run.source_records.all()
+        ],
+    }
+    content = json.dumps(
+        receipt, cls=DjangoJSONEncoder, indent=2, sort_keys=True, ensure_ascii=False,
+    ).encode("utf-8") + b"\n"
+    filename = f"{run.definition.slug}_{str(run.public_id)[:8]}_reproduction-receipt.json"
+    archived = archive_export(
+        content=content, department=run.definition.department, user=request.user,
+        category="finance-report-evidence", filename=filename,
+        metadata={
+            "kind": "report_reproduction_receipt", "run_public_id": str(run.public_id),
+            "output_checksum": run.checksum, "dataset_checksum": run.dataset_checksum,
+            "control_checksum": run.control_checksum, "reproduction_key": run.reproduction_key,
+        },
+    )
+    response = HttpResponse(content, content_type="application/json; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    ReportRunEvent.objects.create(
+        run=run, actor=request.user, action="reproduction_receipt_exported",
+        from_status=run.status, to_status=run.status,
         note=f"Archived {archived['relative_path']} with SHA-256 {archived['sha256']}.",
     )
     return response

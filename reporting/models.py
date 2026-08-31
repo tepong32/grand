@@ -32,6 +32,14 @@ class ReportDefinition(models.Model):
     FORMAT_XLSX = "xlsx"
     FORMAT_CSV = "csv"
     FORMAT_CHOICES = ((FORMAT_PDF, "PDF"), (FORMAT_XLSX, "Excel workbook"), (FORMAT_CSV, "CSV"))
+    APPLICABILITY_DEPARTMENTAL = "departmental"
+    APPLICABILITY_CANDIDATE = "candidate"
+    APPLICABILITY_CONFIRMED = "confirmed"
+    APPLICABILITY_CHOICES = (
+        (APPLICABILITY_DEPARTMENTAL, "Departmental / management output"),
+        (APPLICABILITY_CANDIDATE, "Controlled official-form candidate — local confirmation pending"),
+        (APPLICABILITY_CONFIRMED, "Locally confirmed official requirement"),
+    )
 
     department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="report_definitions")
     name = models.CharField(max_length=180)
@@ -44,6 +52,17 @@ class ReportDefinition(models.Model):
     totals = models.JSONField(default=list, blank=True)
     sort_by = models.JSONField(default=list, blank=True)
     default_format = models.CharField(max_length=8, choices=FORMAT_CHOICES, default=FORMAT_PDF)
+    applicability_status = models.CharField(
+        max_length=16, choices=APPLICABILITY_CHOICES, default=APPLICABILITY_DEPARTMENTAL,
+    )
+    authority_reference = models.TextField(
+        blank=True,
+        help_text="Plain-language COA, DBM, BIR, ordinance, memorandum, or local-procedure basis. Do not paste secrets or credentials.",
+    )
+    local_acceptance_note = models.TextField(
+        blank=True,
+        help_text="Record who confirmed local applicability, the accepted form/schedule, and where the retained evidence can be checked.",
+    )
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_report_definitions")
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="updated_report_definitions")
@@ -120,6 +139,11 @@ class ReportDefinition(models.Model):
             raise ValidationError({"totals": "Totaled fields must also be included in the report."})
         if self.group_by and set(selected) - set(self.group_by) - set(self.totals):
             raise ValidationError({"group_by": "When grouping is enabled, every included field must be either a grouping field or a numeric total."})
+        if self.applicability_status == self.APPLICABILITY_CONFIRMED:
+            if not self.authority_reference.strip():
+                raise ValidationError({"authority_reference": "A locally confirmed requirement needs its reviewed authority reference."})
+            if not self.local_acceptance_note.strip():
+                raise ValidationError({"local_acceptance_note": "Record the local acceptance and retained evidence before marking this requirement confirmed."})
 
 
 class ReportTemplateVersion(models.Model):
@@ -380,6 +404,16 @@ class ReportRun(models.Model):
     FAILED = "failed"
     SUPERSEDED = "superseded"
     STATUS_CHOICES = ((DRAFT, "Draft"), (GENERATED, "Generated"), (REVIEWED, "Reviewed"), (APPROVED, "Approved"), (FAILED, "Failed"), (SUPERSEDED, "Superseded"))
+    CONTROL_NOT_APPLICABLE = "not_applicable"
+    CONTROL_RECONCILED = "reconciled"
+    CONTROL_EXCEPTION = "exception"
+    CONTROL_UNAVAILABLE = "unavailable"
+    CONTROL_STATUS_CHOICES = (
+        (CONTROL_NOT_APPLICABLE, "Not applicable"),
+        (CONTROL_RECONCILED, "Control totals reconciled"),
+        (CONTROL_EXCEPTION, "Control exception"),
+        (CONTROL_UNAVAILABLE, "Control evidence unavailable"),
+    )
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     definition = models.ForeignKey(ReportDefinition, on_delete=models.PROTECT, related_name="runs")
@@ -395,6 +429,18 @@ class ReportRun(models.Model):
     output_file = models.FileField(upload_to=report_output_path, max_length=500, blank=True)
     checksum = models.CharField(max_length=64, blank=True)
     row_count = models.PositiveIntegerField(default=0)
+    dataset_snapshot = models.JSONField(default=dict, blank=True)
+    dataset_checksum = models.CharField(max_length=64, blank=True)
+    control_totals = models.JSONField(default=dict, blank=True)
+    control_checksum = models.CharField(max_length=64, blank=True)
+    control_status = models.CharField(
+        max_length=20, choices=CONTROL_STATUS_CHOICES, default=CONTROL_NOT_APPLICABLE,
+    )
+    control_message = models.TextField(blank=True)
+    control_gate_required = models.BooleanField(default=False)
+    source_record_count = models.PositiveIntegerField(default=0)
+    source_freshness_at = models.DateTimeField(null=True, blank=True)
+    reproduction_key = models.CharField(max_length=64, blank=True)
     error_message = models.TextField(blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_report_runs")
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="reviewed_report_runs")
@@ -429,6 +475,53 @@ class ReportRun(models.Model):
             raise ValidationError({"template_version": "The template must belong to this report definition."})
         if self.template_version_id and not self.template_version.supports_format(self.output_format):
             raise ValidationError({"output_format": "This output format is not supported by the selected template mapper."})
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.generated_at:
+                evidence_fields = (
+                    "dataset_snapshot", "dataset_checksum", "control_totals", "control_checksum",
+                    "control_status", "control_message", "control_gate_required", "source_record_count",
+                    "source_freshness_at", "reproduction_key", "checksum", "row_count", "output_file",
+                    "definition_id", "template_version_id", "output_format", "period_start", "period_end",
+                    "parameters", "generated_at",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in evidence_fields):
+                    raise ValidationError("Generated report evidence is immutable. Generate a successor run instead.")
+
+
+class ReportRunSource(models.Model):
+    """Cross-database-safe source snapshot supporting report-total drill-through."""
+
+    run = models.ForeignKey(ReportRun, on_delete=models.CASCADE, related_name="source_records")
+    source_app = models.CharField(max_length=40)
+    source_model = models.CharField(max_length=80)
+    source_pk = models.CharField(max_length=80)
+    source_public_id = models.CharField(max_length=80, blank=True)
+    source_reference = models.CharField(max_length=180)
+    source_date = models.DateField(null=True, blank=True)
+    control_group = models.CharField(max_length=80)
+    amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    source_checksum = models.CharField(max_length=64, blank=True)
+    source_url = models.CharField(max_length=500, blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("source_date", "source_app", "source_model", "source_reference", "pk")
+        indexes = (
+            models.Index(fields=("run", "control_group"), name="report_source_control_idx"),
+        )
+
+    def __str__(self):
+        return f"{self.run_id}: {self.source_reference}"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Report source evidence is immutable. Generate a successor run instead.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Report source evidence cannot be deleted independently from its retained run.")
 
 
 class ReportRunEvent(models.Model):
