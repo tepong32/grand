@@ -313,7 +313,7 @@ class StatementNotesAndReferenceComparisonTests(TestCase):
         self.assertIn("reporting.review_reference_comparisons", reviewer)
         self.assertNotIn("reporting.prepare_statement_notes", reviewer)
         guide = next(item for item in ACCOUNTING_GUIDES if item["slug"] == "finance-accountability-reporting-accounting")
-        self.assertEqual(guide["version"], 7)
+        self.assertEqual(guide["version"], 8)
         self.assertIn("Prepare the statement notes", {step[0] for step in guide["steps"]})
         self.assertIn("Compare a signed reference safely", {step[0] for step in guide["steps"]})
         self.assertIn("Promote a checked layout", {step[0] for step in guide["steps"]})

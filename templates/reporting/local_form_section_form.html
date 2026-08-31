@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title_ext %} - {{ mode }} local form section{% endblock %}
+{% block content %}
+<div class="container pb-4"><a href="{{ item.get_absolute_url }}" class="small">&larr; {{ item.name }}</a><h1 class="h3 mt-2">{{ mode }} recognizable form section</h1>
+  <p class="text-muted">Describe sections in the words employees see on the form. Optional and conditional sections need a clear applicability decision; repeating rows need their continuation behavior.</p>
+  <form method="post" class="card"><div class="card-body">{% csrf_token %}{{ form.non_field_errors }}{% for field in form %}<div class="form-group"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>{% endfor %}</div><div class="card-footer"><button class="btn btn-primary">Save section</button></div></form>
+</div>
+{% endblock %}

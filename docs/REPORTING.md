@@ -31,6 +31,12 @@ DOCX and image files remain intake evidence. GRAND does not depend on desktop Wo
 
 Use the [department template-intake checklist](REPORT_TEMPLATE_INTAKE.md) to inventory actual forms. Any coordinate, reserved range, or source-file change invalidates preflight; approved versions are immutable and must be replaced with a new version.
 
+### Local Finance form acceptance
+
+Budget, Accounting, Treasury, and Finance configuration roles can open **Local form acceptance** from the reporting workspace. Preparers record the familiar form fields and dynamic required/optional/conditional/repeating sections, link one exact activated report template or active preflighted Finance workbook, and upload only a blank or safely redacted reference. Seven practical test categories cover data, layout, signatory/custody route, overflow, accessibility/download, printer/form stock, and rollback/recovery.
+
+A different witness decides each immutable test attempt, and a different reviewer accepts or returns the locked form submission. Failed attempts remain in history. Accepted changes use a reasoned successor and repeat all tests; no financial transaction is edited by this workflow. Accepted and superseded evidence packets are archived in the TraceSync-ready `finance-local-form-acceptance` category. See [Finance local-form inventory and acceptance](FINANCE_LOCAL_FORM_ACCEPTANCE.md).
+
 ## Approved datasets
 
 `reporting.datasets.dataset_registry` is the allowlist. Each adapter exposes named columns and builds rows through Django ORM queries. A report definition can select exposed fields, controlled exact/contains/list filters, date periods, grouping, numeric totals, and sorting. Invalid dataset keys, fields, filter operators, or ambiguous grouped columns fail model validation.
@@ -63,6 +69,10 @@ Permissions are independently assignable for workspace access, definition manage
 | `prepare_accountability_packages` | Assemble exact-period packages and reasoned successors |
 | `review_accountability_packages` | Independently approve or return assembled packages |
 | `export_accountability_packages` | Export approved or historically superseded package manifests |
+| `manage_local_form_acceptance` | Inventory and prepare local Finance forms and reasoned successors |
+| `witness_local_form_tests` | Independently decide practical form-test attempts |
+| `review_local_form_acceptance` | Independently accept or return locked local-form evidence |
+| `export_local_form_acceptance` | Export accepted or historically superseded form evidence |
 
 Assign permissions through Django groups or individual user permissions. Prefer role-based groups in production so access reviews remain understandable.
 

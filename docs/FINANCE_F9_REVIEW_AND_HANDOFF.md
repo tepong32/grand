@@ -33,11 +33,11 @@ The repository contains an end-to-end **synthetic control framework** for F9. It
 
 ## Recommended next delivery phase
 
-Proceed with an **F10 local-form acceptance and exact-output campaign**, then an **F11 field-replay and cutover campaign**:
+F10.2 now implements the governed software workspace for this handoff: a plain-language inventory, dynamic sections, exact F10.1/Finance-workbook source locks, independently witnessed tests, separate acceptance, reasoned retested successors, and TraceSync evidence. Proceed with the **actual F10 local-form acceptance and exact-output campaign**, then the **F11 field-replay and cutover campaign**:
 
 1. Inventory the actual Budget, Accounting, Treasury, BIR, bank, register, statement, note, and package forms used by the LGU; retain blank/redacted references, authority, owners, signatories, copies, deadlines, paper, and printer details.
-2. Map each accepted form through the existing F10 template promotion controls, adding optional-block/repeating-row behavior only where an actual form proves the need.
-3. Run synthetic golden comparisons, overflow/page-break tests, accessibility/download checks, physical printer/form-stock trials, and rollback drills.
+2. Map each form through F10.1 promotion, then record it in F10.2; add optional/conditional/repeating behavior only where the actual form and retained local decision prove the need.
+3. Record and independently witness the seven F10.2 practical test categories using actual supported devices, output samples, printer/form stock where applicable, and rollback drills.
 4. Build the locally accepted F9.7 package profiles from that catalog and reproduce at least one complete redacted signed/acknowledged package from accepted opening balances and pilot transactions.
 5. Execute F11 role exercises and consecutive shadow cycles for every enabled transaction type; reconcile defects and retain named stakeholder decisions.
 6. Authorize production scope only when the exact forms, data, people, devices, paper routes, recovery controls, and seven-party decisions pass. Keep eGAPS historical access read-only and optional.

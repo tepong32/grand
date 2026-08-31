@@ -115,6 +115,22 @@ def can_export_accountability_packages(user, department=None):
     return _authorized(user, "reporting.export_accountability_packages", department)
 
 
+def can_manage_local_form_acceptance(user, department=None):
+    return _authorized(user, "reporting.manage_local_form_acceptance", department)
+
+
+def can_witness_local_form_tests(user, department=None):
+    return _authorized(user, "reporting.witness_local_form_tests", department)
+
+
+def can_review_local_form_acceptance(user, department=None):
+    return _authorized(user, "reporting.review_local_form_acceptance", department)
+
+
+def can_export_local_form_acceptance(user, department=None):
+    return _authorized(user, "reporting.export_local_form_acceptance", department)
+
+
 def reporting_access_required(view_func):
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):

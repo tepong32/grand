@@ -3,17 +3,184 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from accounting.models import LedgerAccount
+from finance.models import FinanceTemplateVersion
 
 from .datasets import DATASETS, available_datasets, dataset_registry
 from .models import (
     FinanceAccountabilityPackage, FinanceAccountabilityPackageProfile,
     FinanceAccountabilityPackageRequirement,
+    FinanceLocalFormAcceptance, FinanceLocalFormSection, FinanceLocalFormTestAttempt,
     FinanceStatementLine, FinanceStatementMapping, FinanceStatementNote,
     FinanceStatementNoteSet, ReportDefinition, ReportReferenceComparison, ReportRun,
     ReportSchedule, ReportTemplateMappingField, ReportTemplatePromotion, ReportTemplateVersion,
 )
 from .accountability_services import create_package, source_choices
+from .form_acceptance_services import record_test_attempt
 from .statement_services import comparison_controls, create_note_set
+
+
+class FinanceLocalFormAcceptanceForm(forms.ModelForm):
+    code = forms.SlugField(
+        required=False, label="Stable form code",
+        help_text="A short familiar name such as disbursement-voucher or quarterly-accountability.",
+    )
+
+    class Meta:
+        model = FinanceLocalFormAcceptance
+        fields = (
+            "name", "code", "form_number", "purpose", "source_type",
+            "report_template", "finance_template", "authority_reference",
+            "local_acceptance_note", "reference_kind", "reference_file",
+            "delivery_mode", "signatory_instructions", "default_copy_count",
+            "recipient_instructions", "deadline_instructions", "retention_instructions",
+            "paper_size", "orientation", "form_stock", "printer_instructions",
+            "pagination_instructions", "overflow_instructions", "accessibility_instructions",
+        )
+        widgets = {
+            "purpose": forms.Textarea(attrs={"rows": 3}),
+            "authority_reference": forms.Textarea(attrs={"rows": 3}),
+            "local_acceptance_note": forms.Textarea(attrs={"rows": 3}),
+            "reference_file": forms.ClearableFileInput(
+                attrs={"accept": ".pdf,.xlsx,.xls,.docx,.png,.jpg,.jpeg"},
+            ),
+            "signatory_instructions": forms.Textarea(attrs={"rows": 3}),
+            "recipient_instructions": forms.Textarea(attrs={"rows": 3}),
+            "deadline_instructions": forms.Textarea(attrs={"rows": 3}),
+            "retention_instructions": forms.Textarea(attrs={"rows": 3}),
+            "form_stock": forms.Textarea(attrs={"rows": 2}),
+            "printer_instructions": forms.Textarea(attrs={"rows": 3}),
+            "pagination_instructions": forms.Textarea(attrs={"rows": 3}),
+            "overflow_instructions": forms.Textarea(attrs={"rows": 3}),
+            "accessibility_instructions": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, department=None, user=None, **kwargs):
+        self.department, self.user = department, user
+        super().__init__(*args, **kwargs)
+        self.fields["report_template"].queryset = ReportTemplateVersion.objects.filter(
+            definition__department=department,
+        ).select_related("definition").order_by("definition__name", "-version")
+        self.fields["report_template"].label_from_instance = lambda item: (
+            f"{item.definition.name} · template v{item.version} · {item.get_fidelity_status_display()}"
+        )
+        self.fields["finance_template"].queryset = FinanceTemplateVersion.objects.filter(
+            department=department,
+        ).select_related("release").order_by("document_type", "-version")
+        self.fields["finance_template"].label_from_instance = lambda item: (
+            f"{item.get_document_type_display()} · v{item.version} · {item.get_form_status_display()}"
+        )
+        if self.instance.pk:
+            self.fields["code"].disabled = True
+
+    def clean_code(self):
+        value = slugify(self.cleaned_data.get("code") or self.cleaned_data.get("name") or "")
+        if not value:
+            raise forms.ValidationError("Enter a form name or stable form code.")
+        if not self.instance.pk and FinanceLocalFormAcceptance.objects.filter(
+            department=self.department, code=value,
+            status__in=(
+                FinanceLocalFormAcceptance.DRAFT, FinanceLocalFormAcceptance.RETURNED,
+                FinanceLocalFormAcceptance.SUBMITTED, FinanceLocalFormAcceptance.ACCEPTED,
+            ),
+        ).exists():
+            raise forms.ValidationError(
+                "This form code already has a current version. Open it and use its successor action."
+            )
+        return value
+
+    def save(self, commit=True):
+        item = super().save(commit=False)
+        if not item.pk:
+            latest = FinanceLocalFormAcceptance.objects.filter(
+                department=self.department, code=item.code,
+            ).order_by("-version").first()
+            item.department = self.department
+            item.created_by = self.user
+            item.version = (latest.version if latest else 0) + 1
+        if commit:
+            item.full_clean()
+            item.save()
+        return item
+
+
+class FinanceLocalFormSectionForm(forms.ModelForm):
+    class Meta:
+        model = FinanceLocalFormSection
+        fields = (
+            "position", "code", "label", "requirement_type",
+            "applicability_instructions", "row_instructions",
+        )
+        labels = {"position": "Order", "code": "Stable section code"}
+        widgets = {
+            "applicability_instructions": forms.Textarea(attrs={"rows": 3}),
+            "row_instructions": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, local_form=None, **kwargs):
+        self.local_form = local_form
+        super().__init__(*args, **kwargs)
+
+    def clean_code(self):
+        return slugify(self.cleaned_data["code"])
+
+    def save(self, commit=True):
+        section = super().save(commit=False)
+        section.form = self.local_form
+        if commit:
+            section.save()
+        return section
+
+
+class FinanceLocalFormTestAttemptForm(forms.Form):
+    category = forms.ChoiceField(choices=FinanceLocalFormTestAttempt.CATEGORY_CHOICES)
+    test_steps = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 4}),
+        label="What was actually tested",
+    )
+    expected_result = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    observed_result = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    environment = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="Device, file, printer, paper, and settings",
+    )
+    evidence_reference = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Point to the retained redacted output, comparison sheet, screenshot, print sample, or drill record.",
+    )
+    evidence_checksum = forms.RegexField(
+        regex=r"^[0-9a-fA-F]{64}$", max_length=64,
+        label="Retained evidence SHA-256",
+        help_text="Copy the 64-character SHA-256 of the retained evidence file.",
+    )
+    change_reason = forms.CharField(
+        required=False, widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Required when this category already has an earlier attempt.",
+    )
+
+    def __init__(self, *args, local_form=None, user=None, **kwargs):
+        self.local_form, self.user = local_form, user
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned = super().clean()
+        category = cleaned.get("category")
+        if category and self.local_form.test_attempts.filter(category=category).exists():
+            if not (cleaned.get("change_reason") or "").strip():
+                self.add_error("change_reason", "Explain why this successor test attempt is needed.")
+        return cleaned
+
+    def save(self):
+        return record_test_attempt(
+            self.local_form, self.user,
+            category=self.cleaned_data["category"],
+            test_steps=self.cleaned_data["test_steps"],
+            expected_result=self.cleaned_data["expected_result"],
+            observed_result=self.cleaned_data["observed_result"],
+            environment=self.cleaned_data["environment"],
+            evidence_reference=self.cleaned_data["evidence_reference"],
+            evidence_checksum=self.cleaned_data["evidence_checksum"],
+            change_reason=self.cleaned_data.get("change_reason", ""),
+        )
 
 
 class FinanceAccountabilityPackageProfileForm(forms.ModelForm):
