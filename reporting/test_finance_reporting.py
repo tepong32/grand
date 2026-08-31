@@ -29,9 +29,13 @@ from vouchers.models import (
 )
 
 from .datasets import build_dataset_with_evidence
-from .models import ReportDefinition, ReportRun, ReportTemplateVersion
+from .models import (
+    FinanceStatementLine, FinanceStatementMapping, ReportDefinition, ReportRun,
+    ReportTemplateVersion,
+)
 from .presets import seed_finance_presets
 from .services import create_manual_run, transition_run
+from .statement_services import review_statement_mapping, submit_statement_mapping
 
 
 FINANCE_REPORT_MEDIA_ROOT = tempfile.mkdtemp(prefix="grand-finance-report-tests-")
@@ -49,6 +53,7 @@ class FinanceAccountabilityReportingTests(TestCase):
         cls.accounting_preparer = cls.employee(
             cls.accounting, "f9.accounting.preparer",
             "view_reporting_workspace", "generate_reports", "download_reports",
+            "manage_report_definitions",
         )
         cls.accounting_reviewer = cls.employee(
             cls.accounting, "f9.accounting.reviewer",
@@ -215,6 +220,129 @@ class FinanceAccountabilityReportingTests(TestCase):
         source.amount = Decimal("1.00")
         with self.assertRaisesMessage(ValidationError, "immutable"):
             source.save()
+
+    def test_governed_statement_starters_generate_balanced_explained_statements(self):
+        position_mapping = FinanceStatementMapping.objects.get(
+            department=self.accounting, statement_type=FinanceStatementMapping.POSITION,
+        )
+        performance_mapping = FinanceStatementMapping.objects.get(
+            department=self.accounting, statement_type=FinanceStatementMapping.PERFORMANCE,
+        )
+        self.assertEqual(position_mapping.status, FinanceStatementMapping.STARTER)
+        self.assertEqual(performance_mapping.status, FinanceStatementMapping.STARTER)
+        self.assertEqual(position_mapping.lines.count(), 3)
+        self.assertEqual(performance_mapping.lines.count(), 2)
+
+        position_definition = ReportDefinition.objects.get(
+            department=self.accounting, dataset_key="finance_statement_position",
+        )
+        position = create_manual_run(
+            position_definition, position_definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer,
+        )
+        self.assertEqual(position.control_status, ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(position.control_totals["assets"], "1250.00")
+        self.assertEqual(position.control_totals["liabilities"], "0.00")
+        self.assertEqual(position.control_totals["equity"], "0.00")
+        self.assertEqual(position.control_totals["unclosed_operating_result"], "1250.00")
+        self.assertEqual(position.control_totals["equation_difference"], "0.00")
+        self.assertEqual(position.parameters["_statement_mapping_snapshot"]["version"], 1)
+        self.assertEqual(position.parameters["_statement_mapping_checksum"], position_mapping.snapshot_checksum)
+        self.assertEqual(position.source_records.get().source_reference, self.entry.reference)
+
+        performance_definition = ReportDefinition.objects.get(
+            department=self.accounting, dataset_key="finance_statement_performance",
+        )
+        performance = create_manual_run(
+            performance_definition, performance_definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer,
+        )
+        self.assertEqual(performance.control_status, ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(performance.control_totals["revenue"], "1250.00")
+        self.assertEqual(performance.control_totals["expense"], "0.00")
+        self.assertEqual(performance.control_totals["operating_result"], "1250.00")
+        self.client.force_login(self.accounting_preparer)
+        detail = self.client.get(position_mapping.get_absolute_url())
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, "How to maintain a statement mapping")
+        self.assertContains(detail, "Coverage passes")
+        self.client.force_login(self.budget_preparer)
+        self.assertEqual(
+            self.client.get(reverse("reporting:statement_mapping_list")).status_code, 403,
+        )
+
+    def test_statement_mapping_requires_independent_activation_and_is_immutable(self):
+        starter = FinanceStatementMapping.objects.get(
+            department=self.accounting, statement_type=FinanceStatementMapping.POSITION,
+        )
+        successor = FinanceStatementMapping.objects.create(
+            department=self.accounting, statement_type=FinanceStatementMapping.POSITION,
+            version=2, title="Locally reviewed position mapping", status=FinanceStatementMapping.DRAFT,
+            supersedes=starter, authority_reference="Synthetic reviewed COA/GAM statement authority",
+            local_acceptance_note="Compared to the signed synthetic local position statement.",
+            created_by=self.accounting_preparer,
+        )
+        FinanceStatementLine.objects.create(
+            mapping=successor, position=10, section_code="assets", section_title="Assets",
+            line_code="cash", line_title="Cash and cash equivalents",
+            selector_type=FinanceStatementLine.ACCOUNT_CODES, account_codes=[self.cash.code],
+        )
+        submit_statement_mapping(successor, self.accounting_preparer)
+        successor.refresh_from_db()
+        with self.assertRaisesMessage(ValidationError, "preparer or submitter"):
+            review_statement_mapping(successor, self.accounting_preparer, approve=True)
+        review_statement_mapping(
+            successor, self.accounting_reviewer, approve=True,
+            note="Synthetic independent account coverage and signed-reference comparison passed.",
+        )
+        successor.refresh_from_db()
+        starter.refresh_from_db()
+        self.assertEqual(successor.status, FinanceStatementMapping.ACTIVE)
+        self.assertEqual(starter.status, FinanceStatementMapping.STARTER)
+        self.assertEqual(len(successor.snapshot_checksum), 64)
+        successor.title = "Silent rewrite"
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            successor.save()
+
+        owner = {"department_id": self.accounting.pk, "department_label": self.accounting.name}
+        receivable = LedgerAccount.objects.create(
+            **owner, code="10301010", title="Receivable", account_type="asset", normal_balance="debit",
+        )
+        entry = JournalEntry.objects.create(
+            **owner, reference="JEV-F9-NEW-ASSET", entry_date=date(2027, 2, 20),
+            period=self.period, fund=self.fund, source_type="manual", description="New unmapped asset",
+            status=JournalEntry.DRAFT, created_by_id=self.accounting_preparer.pk,
+            created_by_label=self.accounting_preparer.username, posted_by_id=self.accounting_reviewer.pk,
+            posted_by_label=self.accounting_reviewer.username, posted_at=timezone.now(),
+        )
+        JournalLine.objects.create(entry=entry, sequence=1, account=receivable, debit=Decimal("25.00"))
+        JournalLine.objects.create(entry=entry, sequence=2, account=self.revenue, credit=Decimal("25.00"))
+        JournalEntry.objects.filter(pk=entry.pk).update(status=JournalEntry.POSTED)
+        definition = ReportDefinition.objects.get(
+            department=self.accounting, dataset_key="finance_statement_position",
+        )
+        run = create_manual_run(
+            definition, definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer,
+        )
+        self.assertEqual(run.parameters["_statement_mapping_snapshot"]["version"], 2)
+        self.assertEqual(run.control_status, ReportRun.CONTROL_EXCEPTION)
+        self.assertEqual(run.control_totals["unmapped_account_codes"], [receivable.code])
+
+    def test_reporting_workspace_explains_latest_statement_measures(self):
+        definition = ReportDefinition.objects.get(
+            department=self.accounting, dataset_key="finance_statement_position",
+        )
+        run = create_manual_run(
+            definition, definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer,
+        )
+        self.client.force_login(self.accounting_preparer)
+        response = self.client.get(reverse("reporting:workspace"))
+        self.assertContains(response, "Explained Finance measures")
+        self.assertContains(response, "Assets")
+        self.assertContains(response, "Source freshness")
+        self.assertContains(response, str(run.period_end.year))
 
     def test_budget_accountability_uses_cumulative_authority_and_posted_movements(self):
         adapter, rows, totals, evidence = build_dataset_with_evidence(

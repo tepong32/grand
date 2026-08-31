@@ -361,6 +361,220 @@ class ReportTemplateMappingField(models.Model):
         return result
 
 
+class FinanceStatementMapping(models.Model):
+    POSITION = "position"
+    PERFORMANCE = "performance"
+    STATEMENT_CHOICES = (
+        (POSITION, "Management statement of financial position"),
+        (PERFORMANCE, "Management statement of financial performance"),
+    )
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    RETURNED = "returned"
+    STARTER = "starter"
+    ACTIVE = "active"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (DRAFT, "Editable draft"), (SUBMITTED, "For independent review"),
+        (RETURNED, "Returned for correction"),
+        (STARTER, "Controlled management starter"),
+        (ACTIVE, "Locally accepted active mapping"),
+        (SUPERSEDED, "Superseded mapping"),
+    )
+    LOCKED_STATUSES = {STARTER, ACTIVE, SUPERSEDED}
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, related_name="finance_statement_mappings",
+    )
+    statement_type = models.CharField(max_length=16, choices=STATEMENT_CHOICES)
+    version = models.PositiveIntegerField()
+    title = models.CharField(max_length=180)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    supersedes = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successors",
+    )
+    authority_reference = models.TextField(blank=True)
+    local_acceptance_note = models.TextField(blank=True)
+    snapshot_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_finance_statement_mappings",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_statement_mappings",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_finance_statement_mappings",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("statement_type", "-version")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("department", "statement_type", "version"),
+                name="unique_finance_statement_mapping_version",
+            ),
+            models.UniqueConstraint(
+                fields=("department", "statement_type"),
+                condition=models.Q(status="active"),
+                name="one_active_finance_statement_mapping",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.get_statement_type_display()} · v{self.version}"
+
+    def get_absolute_url(self):
+        return reverse("reporting:statement_mapping_detail", kwargs={"public_id": self.public_id})
+
+    @property
+    def is_editable(self):
+        return self.status in (self.DRAFT, self.RETURNED)
+
+    def clean(self):
+        if self.supersedes_id:
+            if self.supersedes_id == self.pk:
+                raise ValidationError({"supersedes": "A mapping cannot supersede itself."})
+            if (
+                self.supersedes.department_id != self.department_id
+                or self.supersedes.statement_type != self.statement_type
+                or self.version <= self.supersedes.version
+            ):
+                raise ValidationError({
+                    "supersedes": "Choose an earlier version of the same department statement mapping.",
+                })
+        if self.status == self.ACTIVE:
+            if not self.authority_reference.strip() or not self.local_acceptance_note.strip():
+                raise ValidationError(
+                    "An active statement mapping requires its reviewed authority and local acceptance evidence."
+                )
+            if not self.snapshot_checksum or not self.reviewed_at or not self.reviewed_by_id:
+                raise ValidationError("An active statement mapping requires immutable review evidence.")
+            if self.created_by_id == self.reviewed_by_id:
+                raise ValidationError("The statement mapping preparer cannot approve the same version.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "department_id", "statement_type", "version", "title", "description",
+                "supersedes_id", "authority_reference", "local_acceptance_note", "created_by_id",
+            )
+            if prior.status in self.LOCKED_STATUSES and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Locked statement mappings are immutable. Create a successor version.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status in self.LOCKED_STATUSES or self.events.exists():
+            raise ValidationError("Statement mapping history cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceStatementLine(models.Model):
+    ACCOUNT_TYPE = "account_type"
+    ACCOUNT_CODES = "account_codes"
+    SELECTOR_CHOICES = (
+        (ACCOUNT_TYPE, "All accounts of one type"),
+        (ACCOUNT_CODES, "Selected account codes"),
+    )
+    ACCOUNT_TYPE_CHOICES = (
+        ("", "Choose when using account type"),
+        ("asset", "Asset"), ("liability", "Liability"), ("equity", "Equity"),
+        ("revenue", "Revenue"), ("expense", "Expense"),
+    )
+
+    mapping = models.ForeignKey(
+        FinanceStatementMapping, on_delete=models.CASCADE, related_name="lines",
+    )
+    position = models.PositiveSmallIntegerField()
+    section_code = models.SlugField(max_length=60)
+    section_title = models.CharField(max_length=160)
+    line_code = models.SlugField(max_length=60)
+    line_title = models.CharField(max_length=180)
+    selector_type = models.CharField(max_length=20, choices=SELECTOR_CHOICES)
+    account_type = models.CharField(max_length=16, choices=ACCOUNT_TYPE_CHOICES, blank=True)
+    account_codes = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ("position", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("mapping", "position"), name="unique_statement_line_position"),
+            models.UniqueConstraint(fields=("mapping", "line_code"), name="unique_statement_line_code"),
+        )
+
+    def __str__(self):
+        return f"{self.mapping} · {self.line_title}"
+
+    def clean(self):
+        if self.selector_type == self.ACCOUNT_TYPE:
+            if not self.account_type:
+                raise ValidationError({"account_type": "Choose the account type for this statement line."})
+            if self.account_codes:
+                raise ValidationError({"account_codes": "Account-type lines cannot also select individual codes."})
+        elif self.selector_type == self.ACCOUNT_CODES:
+            if self.account_type:
+                raise ValidationError({"account_type": "Selected-code lines do not also use an account type."})
+            if not isinstance(self.account_codes, list) or not self.account_codes:
+                raise ValidationError({"account_codes": "Choose at least one governed ledger account."})
+            if any(not isinstance(code, str) or not code.strip() for code in self.account_codes):
+                raise ValidationError({"account_codes": "Account codes must be a non-empty controlled list."})
+        if self.mapping_id:
+            allowed = (
+                {"asset", "liability", "equity"}
+                if self.mapping.statement_type == FinanceStatementMapping.POSITION
+                else {"revenue", "expense"}
+            )
+            if self.account_type and self.account_type not in allowed:
+                raise ValidationError({"account_type": "This account type does not belong in the selected statement."})
+
+    def save(self, *args, **kwargs):
+        if self.mapping_id and not self.mapping.is_editable:
+            raise ValidationError("Locked statement mapping lines are immutable. Create a successor version.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if not self.mapping.is_editable:
+            raise ValidationError("Locked statement mapping lines cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceStatementMappingEvent(models.Model):
+    mapping = models.ForeignKey(
+        FinanceStatementMapping, on_delete=models.PROTECT, related_name="events",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="finance_statement_mapping_events",
+    )
+    action = models.CharField(max_length=60)
+    reason = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Statement mapping events are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Statement mapping events cannot be deleted.")
+
+
 class ReportSchedule(models.Model):
     DAILY = "daily"
     WEEKLY = "weekly"

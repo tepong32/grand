@@ -2,8 +2,83 @@ from django import forms
 from django.utils import timezone
 from django.utils.text import slugify
 
+from accounting.models import LedgerAccount
+
 from .datasets import DATASETS, available_datasets, dataset_registry
-from .models import ReportDefinition, ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion
+from .models import (
+    FinanceStatementLine, FinanceStatementMapping, ReportDefinition, ReportSchedule,
+    ReportTemplateMappingField, ReportTemplateVersion,
+)
+
+
+class FinanceStatementMappingForm(forms.ModelForm):
+    class Meta:
+        model = FinanceStatementMapping
+        fields = (
+            "statement_type", "title", "description", "authority_reference", "local_acceptance_note",
+        )
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "authority_reference": forms.Textarea(attrs={"rows": 3}),
+            "local_acceptance_note": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, department=None, user=None, **kwargs):
+        self.department, self.user = department, user
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["statement_type"].disabled = True
+
+    def save(self, commit=True):
+        mapping = super().save(commit=False)
+        if not mapping.pk:
+            mapping.department = self.department
+            mapping.created_by = self.user
+            mapping.version = (
+                FinanceStatementMapping.objects.filter(
+                    department=self.department, statement_type=mapping.statement_type,
+                ).order_by("-version").values_list("version", flat=True).first() or 0
+            ) + 1
+            mapping.supersedes = FinanceStatementMapping.objects.filter(
+                department=self.department, statement_type=mapping.statement_type,
+                status__in=(FinanceStatementMapping.ACTIVE, FinanceStatementMapping.STARTER),
+            ).order_by("-version").first()
+        if commit:
+            mapping.full_clean()
+            mapping.save()
+        return mapping
+
+
+class FinanceStatementLineForm(forms.ModelForm):
+    account_codes = forms.MultipleChoiceField(
+        choices=(), required=False, widget=forms.CheckboxSelectMultiple,
+        help_text="Used only when ‘Selected account codes’ is chosen.",
+    )
+
+    class Meta:
+        model = FinanceStatementLine
+        fields = (
+            "position", "section_code", "section_title", "line_code", "line_title",
+            "selector_type", "account_type", "account_codes",
+        )
+
+    def __init__(self, *args, mapping=None, **kwargs):
+        self.mapping = mapping
+        super().__init__(*args, **kwargs)
+        accounts = LedgerAccount.objects.filter(
+            department_id=mapping.department_id, is_active=True, allow_posting=True,
+        ).order_by("code")
+        self.fields["account_codes"].choices = [
+            (account.code, f"{account.code} — {account.title}") for account in accounts
+        ]
+
+    def save(self, commit=True):
+        line = super().save(commit=False)
+        line.mapping = self.mapping
+        line.account_codes = list(self.cleaned_data.get("account_codes") or [])
+        if commit:
+            line.save()
+        return line
 
 
 class ReportDefinitionForm(forms.ModelForm):

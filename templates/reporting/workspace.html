@@ -9,10 +9,15 @@
       <p class="text-muted mb-0">Generate familiar reports from approved {{ department.name }} datasets, then review and approve them before external use.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
+      {% if statement_mappings_enabled %}<a href="{% url 'reporting:statement_mapping_list' %}" class="btn btn-outline-info"><i class="fas fa-project-diagram mr-1"></i> Statement mappings</a>{% endif %}
       {% if can_schedule_reports %}<a href="{% url 'reporting:schedule_create' %}" class="btn btn-outline-primary"><i class="fas fa-clock mr-1"></i> New schedule</a>{% endif %}
       {% if can_manage_definitions %}<a href="{% url 'reporting:definition_create' %}" class="btn btn-primary"><i class="fas fa-plus mr-1"></i> New report definition</a>{% endif %}
     </div>
   </div>
+
+  {% if explained_measures %}<section class="card card-outline card-info"><div class="card-header border-0"><h2 class="card-title font-weight-bold">Explained Finance measures</h2></div><div class="card-body"><p class="text-muted small">Each amount comes from the latest retained statement run and shows its definition, covered period, source freshness, and control result.</p><div class="row">
+    {% for measure in explained_measures %}<div class="col-md-6 col-xl-4 mb-3"><a href="{{ measure.run.get_absolute_url }}" class="card h-100 text-decoration-none text-dark"><div class="card-body"><span class="small text-muted">{{ measure.label }}</span><div class="h4 mb-2">{{ measure.value }}</div><div class="small"><strong>{{ measure.definition.name }}</strong><br>{{ measure.period_start|date:"M j, Y" }} to {{ measure.period_end|date:"M j, Y" }}<br>Source freshness: {{ measure.freshness_at|date:"M j, Y g:i A"|default:"No posted source timestamp" }}<br><span class="badge {% if measure.control_ok %}badge-success{% else %}badge-danger{% endif %}">{{ measure.control_status }}</span></div></div></a></div>{% endfor %}
+  </div></div></section>{% endif %}
 
   <div class="row">
     <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-info"><i class="fas fa-file-alt"></i></span><div><span>Available reports</span><strong>{{ definitions|length }}</strong></div></div></div>

@@ -63,6 +63,17 @@ def definition_snapshot(definition):
 def run_parameters(definition, runtime_parameters=None, template_version=None):
     parameters = dict(runtime_parameters or {})
     parameters["_definition_snapshot"] = definition_snapshot(definition)
+    statement_types = {
+        "finance_statement_position": "position",
+        "finance_statement_performance": "performance",
+    }
+    statement_type = statement_types.get(definition.dataset_key)
+    if statement_type:
+        from .statement_services import current_statement_mapping, statement_mapping_snapshot
+        mapping = current_statement_mapping(definition.department, statement_type)
+        if mapping:
+            parameters["_statement_mapping_snapshot"] = statement_mapping_snapshot(mapping)
+            parameters["_statement_mapping_checksum"] = mapping.snapshot_checksum
     if template_version:
         parameters["_template_snapshot"] = {
             "version": template_version.version,

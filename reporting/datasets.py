@@ -897,12 +897,230 @@ class PaymentInstrumentRegisterDataset(ApprovedDataset):
         )
 
 
+class GovernedStatementDataset(ApprovedDataset):
+    statement_type = ""
+    department_slugs = ()
+    columns = (
+        Column("section_title", "Statement section"), Column("line_code", "Line code"),
+        Column("line_title", "Statement line"), Column("amount", "Amount", "decimal"),
+        Column("source_account_count", "Source accounts", "integer"),
+        Column("mapping_basis", "Mapping basis"),
+    )
+
+    def supports_department(self, department):
+        identity = _department_identity(department)
+        return any(term in identity for term in ("accounting", "acctg", "finance"))
+
+    def _mapping_snapshot(self, department, parameters):
+        snapshot = (parameters or {}).get("_statement_mapping_snapshot")
+        if snapshot:
+            return snapshot
+        from .statement_services import current_statement_mapping, statement_mapping_snapshot
+        mapping = current_statement_mapping(department, self.statement_type)
+        return statement_mapping_snapshot(mapping) if mapping else {}
+
+    def _source_payload(self, lines):
+        entries = {}
+        for line in lines:
+            item = entries.setdefault(line.entry_id, {
+                "entry": line.entry, "debit": Decimal("0.00"),
+                "credit": Decimal("0.00"), "lines": [],
+            })
+            item["debit"] += line.debit
+            item["credit"] += line.credit
+            item["lines"].append({
+                "sequence": line.sequence, "account": line.account.code,
+                "debit": str(line.debit), "credit": str(line.credit), "memo": line.memo,
+            })
+        sources = []
+        for item in entries.values():
+            entry = item["entry"]
+            snapshot = {
+                "reference": entry.reference, "entry_date": entry.entry_date,
+                "fund": entry.fund.code, "source_type": entry.source_type,
+                "source_reference": entry.source_reference or "", "description": entry.description,
+                "debit": str(item["debit"]), "credit": str(item["credit"]),
+                "posted_by": entry.posted_by_label, "posted_at": entry.posted_at,
+                "lines": item["lines"],
+            }
+            sources.append({
+                "source_app": "accounting", "source_model": "JournalEntry",
+                "source_pk": str(entry.pk), "source_public_id": str(entry.public_id),
+                "source_reference": entry.reference, "source_date": entry.entry_date,
+                "control_group": "governed management statement", "amount": item["debit"],
+                "source_checksum": _snapshot_checksum(snapshot),
+                "source_url": reverse("accounting:entry_detail", kwargs={"public_id": entry.public_id}),
+                "snapshot": snapshot,
+            })
+        freshness = _latest_datetime([
+            item["entry"].posted_at or item["entry"].updated_at for item in entries.values()
+        ])
+        return sources, freshness
+
+    def _statement_payload(self, department, period_start, period_end, parameters, *, as_of):
+        from accounting.models import JournalEntry, JournalLine
+
+        mapping = self._mapping_snapshot(department, parameters)
+        if not mapping:
+            return DatasetPayload(
+                rows=[], control_totals={"mapping_missing": 1}, control_status="exception",
+                control_message="No governed statement mapping is available for this Accounting office.",
+                control_gate_required=True,
+            )
+        date_filter = {"entry__entry_date__lte": period_end} if as_of else {
+            "entry__entry_date__range": (period_start, period_end),
+        }
+        lines = list(JournalLine.objects.filter(
+            entry__department_id=department.pk, entry__status=JournalEntry.POSTED, **date_filter,
+        ).select_related("entry", "entry__fund", "account").order_by(
+            "entry__entry_date", "entry__reference", "sequence",
+        ))
+        balances = {}
+        accounts = {}
+        for line in lines:
+            accounts[line.account.code] = line.account
+            natural = (
+                line.debit - line.credit
+                if line.account.normal_balance == "debit"
+                else line.credit - line.debit
+            )
+            balances[line.account.code] = balances.get(line.account.code, Decimal("0.00")) + natural
+
+        assignments = {}
+        rows = []
+        duplicates = set()
+        for configured in mapping.get("lines", []):
+            if configured.get("selector_type") == "account_type":
+                codes = [
+                    code for code, account in accounts.items()
+                    if account.account_type == configured.get("account_type")
+                ]
+                basis = f"All {configured.get('account_type', '')} posting accounts"
+            else:
+                codes = list(configured.get("account_codes") or [])
+                basis = "Selected governed account codes"
+            for code in codes:
+                if code in assignments:
+                    duplicates.add(code)
+                assignments[code] = configured.get("line_code", "")
+            rows.append({
+                "section_title": configured.get("section_title", ""),
+                "line_code": configured.get("line_code", ""),
+                "line_title": configured.get("line_title", ""),
+                "amount": sum((balances.get(code, Decimal("0.00")) for code in codes), Decimal("0.00")),
+                "source_account_count": len([code for code in codes if code in accounts]),
+                "mapping_basis": basis,
+            })
+        allowed = (
+            {"asset", "liability", "equity"}
+            if self.statement_type == "position" else {"revenue", "expense"}
+        )
+        nonzero_codes = {
+            code for code, amount in balances.items()
+            if amount != 0 and accounts[code].account_type in allowed
+        }
+        unmapped = sorted(nonzero_codes - set(assignments))
+        sources, freshness = self._source_payload(lines)
+        return self._finalize(rows, balances, accounts, mapping, unmapped, sorted(duplicates), sources, freshness)
+
+
+class StatementOfFinancialPositionDataset(GovernedStatementDataset):
+    key = "finance_statement_position"
+    label = "Management statement of financial position with governed account mapping"
+    statement_type = "position"
+
+    def payload(self, department, period_start, period_end, parameters):
+        return self._statement_payload(department, period_start, period_end, parameters, as_of=True)
+
+    def _finalize(self, rows, balances, accounts, mapping, unmapped, duplicates, sources, freshness):
+        by_type = {
+            account_type: sum((
+                amount for code, amount in balances.items()
+                if accounts[code].account_type == account_type
+            ), Decimal("0.00"))
+            for account_type in ("asset", "liability", "equity", "revenue", "expense")
+        }
+        operating_result = by_type["revenue"] - by_type["expense"]
+        difference = by_type["asset"] - by_type["liability"] - by_type["equity"] - operating_result
+        rows.append({
+            "section_title": "Equity", "line_code": "unclosed-operating-result",
+            "line_title": "Unclosed operating result (revenue less expense)",
+            "amount": operating_result,
+            "source_account_count": len([
+                account for account in accounts.values() if account.account_type in ("revenue", "expense")
+            ]),
+            "mapping_basis": "System-derived; visible until governed closing entries are posted",
+        })
+        controls = {
+            "assets": by_type["asset"], "liabilities": by_type["liability"],
+            "equity": by_type["equity"], "unclosed_operating_result": operating_result,
+            "equation_difference": difference, "unmapped_nonzero_account_count": len(unmapped),
+            "duplicate_account_count": len(duplicates), "unmapped_account_codes": unmapped,
+            "duplicate_account_codes": duplicates, "mapping_version": mapping.get("version"),
+            "mapping_status": mapping.get("status"),
+        }
+        reconciled = difference == 0 and not unmapped and not duplicates
+        return DatasetPayload(
+            rows=rows, sources=sources, control_totals=controls,
+            control_status="reconciled" if reconciled else "exception",
+            control_message=(
+                "Assets equal liabilities plus equity and the visible unclosed operating result; every non-zero account is mapped once."
+                if reconciled else
+                "The ledger equation or exact non-zero account coverage failed. Review the drill-through and governed mapping."
+            ),
+            control_gate_required=True, freshness_at=freshness,
+        )
+
+
+class StatementOfFinancialPerformanceDataset(GovernedStatementDataset):
+    key = "finance_statement_performance"
+    label = "Management statement of financial performance with governed account mapping"
+    statement_type = "performance"
+
+    def payload(self, department, period_start, period_end, parameters):
+        return self._statement_payload(department, period_start, period_end, parameters, as_of=False)
+
+    def _finalize(self, rows, balances, accounts, mapping, unmapped, duplicates, sources, freshness):
+        revenue = sum((
+            amount for code, amount in balances.items() if accounts[code].account_type == "revenue"
+        ), Decimal("0.00"))
+        expense = sum((
+            amount for code, amount in balances.items() if accounts[code].account_type == "expense"
+        ), Decimal("0.00"))
+        result = revenue - expense
+        rows.append({
+            "section_title": "Result", "line_code": "operating-result",
+            "line_title": "Surplus / (deficit) for the period", "amount": result,
+            "source_account_count": len(accounts),
+            "mapping_basis": "System-derived revenue less expense",
+        })
+        controls = {
+            "revenue": revenue, "expense": expense, "operating_result": result,
+            "unmapped_nonzero_account_count": len(unmapped),
+            "duplicate_account_count": len(duplicates), "unmapped_account_codes": unmapped,
+            "duplicate_account_codes": duplicates, "mapping_version": mapping.get("version"),
+            "mapping_status": mapping.get("status"),
+        }
+        reconciled = not unmapped and not duplicates
+        return DatasetPayload(
+            rows=rows, sources=sources, control_totals=controls,
+            control_status="reconciled" if reconciled else "exception",
+            control_message=(
+                "Revenue less expense is derived from posted entries and every non-zero performance account is mapped once."
+                if reconciled else
+                "One or more non-zero performance accounts are unmapped or duplicated in the governed mapping."
+            ),
+            control_gate_required=True, freshness_at=freshness,
+        )
+
+
 DATASETS = (
     AssistanceVolumeDataset(), ProgramAccomplishmentDataset(), AttendanceReachDataset(),
     ActivityScheduleDataset(), DepartmentWorkloadDataset(), BudgetAccountabilityDataset(),
     PostedTrialBalanceDataset(), PostedGeneralLedgerDataset(), PostedPayableScheduleDataset(),
     PostedWithholdingScheduleDataset(), BudgetVersusPostedActualDataset(),
-    PaymentInstrumentRegisterDataset(),
+    PaymentInstrumentRegisterDataset(), StatementOfFinancialPositionDataset(),
+    StatementOfFinancialPerformanceDataset(),
 )
 dataset_registry = {dataset.key: dataset for dataset in DATASETS}
 

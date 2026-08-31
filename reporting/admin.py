@@ -1,9 +1,37 @@
 from django.contrib import admin
 
 from .models import (
+    FinanceStatementLine, FinanceStatementMapping, FinanceStatementMappingEvent,
     ReportDefinition, ReportRun, ReportRunEvent, ReportRunSource, ReportSchedule,
     ReportTemplateMappingField, ReportTemplateVersion,
 )
+
+
+class FinanceStatementLineInline(admin.TabularInline):
+    model = FinanceStatementLine
+    extra = 0
+    readonly_fields = ("position", "section_code", "section_title", "line_code", "line_title", "selector_type", "account_type", "account_codes")
+    can_delete = False
+
+
+@admin.register(FinanceStatementMapping)
+class FinanceStatementMappingAdmin(admin.ModelAdmin):
+    list_display = ("title", "department", "statement_type", "version", "status", "reviewed_at")
+    list_filter = ("department", "statement_type", "status")
+    readonly_fields = ("public_id", "snapshot_checksum", "created_at", "submitted_at", "reviewed_at", "updated_at")
+    inlines = (FinanceStatementLineInline,)
+
+
+@admin.register(FinanceStatementMappingEvent)
+class FinanceStatementMappingEventAdmin(admin.ModelAdmin):
+    list_display = ("mapping", "action", "actor", "created_at")
+    readonly_fields = ("mapping", "actor", "action", "reason", "snapshot", "created_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 class ReportTemplateInline(admin.TabularInline):

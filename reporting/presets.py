@@ -175,6 +175,54 @@ FINANCE_PRESETS = {
                 {"role": "Reviewed by", "name": "Municipal Accountant / authorized reviewer"},
             ],
         },
+        {
+            "name": "Management Statement of Financial Position",
+            "slug": "management-statement-financial-position",
+            "dataset_key": "finance_statement_position",
+            "description": (
+                "Posted as-of balances composed through a versioned statement mapping, with exact account "
+                "coverage and the visible equation Assets = Liabilities + Equity + unclosed operating result."
+            ),
+            "fields": [
+                "section_title", "line_code", "line_title", "amount",
+                "source_account_count", "mapping_basis",
+            ],
+            "totals": [],
+            "authority_reference": (
+                "COA Government Accounting Manual financial-statement preparation guidance; the broad GRAND "
+                "starter remains a management comparison until the current signed local statement and account mapping are accepted."
+            ),
+            "header": "Municipal Accounting Office",
+            "prefix": "ACCTG-SFP",
+            "signatories": [
+                {"role": "Prepared by", "name": "Accounting statement preparer"},
+                {"role": "Reviewed by", "name": "Municipal Accountant / authorized reviewer"},
+            ],
+        },
+        {
+            "name": "Management Statement of Financial Performance",
+            "slug": "management-statement-financial-performance",
+            "dataset_key": "finance_statement_performance",
+            "description": (
+                "Posted revenue, expense, and derived surplus or deficit for the covered period, composed "
+                "through a versioned mapping with exact non-zero account coverage."
+            ),
+            "fields": [
+                "section_title", "line_code", "line_title", "amount",
+                "source_account_count", "mapping_basis",
+            ],
+            "totals": [],
+            "authority_reference": (
+                "COA Government Accounting Manual financial-performance guidance; the broad GRAND starter "
+                "remains a management comparison until the current signed local statement and account mapping are accepted."
+            ),
+            "header": "Municipal Accounting Office",
+            "prefix": "ACCTG-SFPERF",
+            "signatories": [
+                {"role": "Prepared by", "name": "Accounting statement preparer"},
+                {"role": "Reviewed by", "name": "Municipal Accountant / authorized reviewer"},
+            ],
+        },
     ),
     "treasury": (
         {
@@ -297,6 +345,9 @@ def seed_finance_presets(actor=None):
         accountable_actor = _accountable_actor(department, actor) if presets else None
         if presets and accountable_actor:
             results.extend(_seed_presets(department, presets, accountable_actor))
+            if kind == "accounting":
+                from .statement_services import seed_statement_starters
+                seed_statement_starters(department, accountable_actor)
     return results
 
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## F9.3 Finance statement composition and explained measures
+
+- Added versioned, department-owned financial-statement mappings with readable account-type or selected-code rules.
+- Added exact active-account coverage checks, immutable mapping history, checksummed snapshots, and maker–checker submission/return/activation.
+- Added controlled broad starters for financial position and financial performance without claiming local official-form acceptance.
+- Added posted-ledger financial-position and performance datasets with retained JEV drill-through and pinned mapping snapshots.
+- Added the visible equation `Assets = Liabilities + Equity + unclosed operating result`, period surplus/deficit, and unmapped/duplicate-account exception gates.
+- Added explained reporting-workspace measures that show the definition, covered period, source freshness, control result, and retained run.
+- Added statement-mapping screens, a floating contextual `?` guide, and Accounting Internal How-To version 3.
+- Added F9.3 regression coverage and documented the remaining signed-reference, notes, tax, exact-form, and acceptance boundaries.
+
 ## F9.2 Finance operational report catalog
 
 - Added fiscal-year-to-date Budget-versus-posted-actual reporting that maps only exact fiscal-year/fund/responsibility-center/account keys and blocks review for unmatched, ambiguous, or missing Accounting classifications instead of silently allocating expenses.

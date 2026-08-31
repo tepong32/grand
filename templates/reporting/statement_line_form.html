@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title_ext %} - Add statement line{% endblock %}
+{% block content %}
+<div class="container py-3"><a href="{{ mapping.get_absolute_url }}" class="small">&larr; {{ mapping.title }}</a>
+  <div class="card card-outline card-primary mt-3"><div class="card-header"><h1 class="h4 mb-0">{% if line %}Edit{% else %}Add{% endif %} a statement line</h1></div><div class="card-body">
+    <p class="text-muted">Use “all accounts of one type” for a durable starter. Use selected codes only when the accepted local statement requires a narrower, explicitly reviewed grouping.</p>
+    <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">{% if line %}Save line{% else %}Add line{% endif %}</button></form>
+  </div></div>
+</div>
+{% endblock %}

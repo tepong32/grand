@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title_ext %} - Statement mappings{% endblock %}
+{% block content %}
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div><a href="{% url 'reporting:workspace' %}" class="small">&larr; Reporting workspace</a><h1 class="h3 mt-2 mb-1">Financial statement mappings</h1><p class="text-muted mb-0">Human-maintained account-to-line rules for {{ department.name }}. Controlled starters are management aids; only an independently reviewed successor becomes locally active.</p></div>
+    {% if can_manage %}<a href="{% url 'reporting:statement_mapping_create' %}" class="btn btn-primary">Create successor mapping</a>{% endif %}
+  </div>
+  <div class="card"><div class="table-responsive"><table class="table table-hover mb-0">
+    <thead><tr><th>Statement</th><th>Version</th><th>Status</th><th>Lines</th><th>Authority / acceptance</th></tr></thead>
+    <tbody>{% for mapping in mappings %}<tr>
+      <td><a href="{{ mapping.get_absolute_url }}" class="font-weight-bold">{{ mapping.title }}</a></td><td>v{{ mapping.version }}</td><td>{{ mapping.get_status_display }}</td><td>{{ mapping.lines.count }}</td><td>{% if mapping.authority_reference and mapping.local_acceptance_note %}Recorded{% else %}<span class="text-warning">Pending</span>{% endif %}</td>
+    </tr>{% empty %}<tr><td colspan="5" class="text-center text-muted py-4">No statement mapping is configured yet. Re-run Finance preset seeding or create an editable mapping.</td></tr>{% endfor %}</tbody>
+  </table></div></div>
+</div>
+{% endblock %}

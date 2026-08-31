@@ -2,6 +2,7 @@ import csv
 import json
 
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Count, Q
 from django.http import FileResponse, HttpResponse
@@ -16,14 +17,33 @@ from .access import (
     can_manage_templates, can_review_reports, can_schedule_reports, department_for_user,
     can_view_department_reports, reporting_access_required, reporting_permission_required,
 )
-from .forms import ManualReportForm, ReportDefinitionForm, ReportScheduleForm, ReportTemplateMappingFieldForm, ReportTemplateVersionForm
+from .forms import (
+    FinanceStatementLineForm, FinanceStatementMappingForm, ManualReportForm,
+    ReportDefinitionForm, ReportScheduleForm, ReportTemplateMappingFieldForm,
+    ReportTemplateVersionForm,
+)
 from .mappers import TemplateMappingError, preflight_template
-from .models import ReportDefinition, ReportRun, ReportRunEvent, ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion
+from .models import (
+    FinanceStatementLine, FinanceStatementMapping, ReportDefinition, ReportRun,
+    ReportRunEvent, ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion,
+)
 from .services import create_manual_run, transition_run
+from .statement_services import mapping_coverage, review_statement_mapping, submit_statement_mapping
 
 
 def _department_object(queryset, user, **lookup):
     return get_object_or_404(queryset, department=department_for_user(user), **lookup)
+
+
+def _statement_department(user):
+    from django.core.exceptions import PermissionDenied
+    department = department_for_user(user)
+    if not ReportDefinition.objects.filter(
+        department=department,
+        dataset_key__in=("finance_statement_position", "finance_statement_performance"),
+    ).exists():
+        raise PermissionDenied("Statement mappings are available only to the configured Accounting reporting office.")
+    return department
 
 
 def _runs_visible_to(user):
@@ -31,6 +51,38 @@ def _runs_visible_to(user):
     if not can_view_department_reports(user):
         queryset = queryset.filter(created_by=user)
     return queryset
+
+
+def _explained_finance_measures(runs):
+    configured = {
+        "finance_statement_position": (
+            ("assets", "Assets"), ("liabilities", "Liabilities"),
+            ("equity", "Equity"), ("unclosed_operating_result", "Unclosed operating result"),
+            ("equation_difference", "Equation difference"),
+        ),
+        "finance_statement_performance": (
+            ("revenue", "Revenue"), ("expense", "Expense"),
+            ("operating_result", "Surplus / (deficit)"),
+        ),
+    }
+    measures = []
+    seen = set()
+    for run in runs.filter(generated_at__isnull=False).select_related("definition").order_by("-generated_at"):
+        dataset_key = run.parameters.get("_definition_snapshot", {}).get("dataset_key", run.definition.dataset_key)
+        if dataset_key in seen or dataset_key not in configured:
+            continue
+        seen.add(dataset_key)
+        for key, label in configured[dataset_key]:
+            if key not in run.control_totals:
+                continue
+            measures.append({
+                "label": label, "value": run.control_totals[key], "run": run,
+                "definition": run.definition, "period_start": run.period_start,
+                "period_end": run.period_end, "freshness_at": run.source_freshness_at,
+                "control_status": run.get_control_status_display(),
+                "control_ok": run.control_status == ReportRun.CONTROL_RECONCILED,
+            })
+    return measures
 
 
 @reporting_access_required
@@ -49,7 +101,151 @@ def workspace(request):
         "recent_approved": visible_runs.filter(status=ReportRun.APPROVED, template_version__fidelity_status=ReportTemplateVersion.OFFICIAL, template_version__fidelity_validated_at__isnull=False).select_related("definition")[:5],
         "can_manage_definitions": can_manage_definitions(request.user), "can_schedule_reports": can_schedule_reports(request.user),
         "can_download": can_download_reports(request.user),
+        "explained_measures": _explained_finance_measures(visible_runs),
+        "statement_mappings_enabled": definitions.filter(
+            dataset_key__in=("finance_statement_position", "finance_statement_performance"),
+        ).exists(),
     })
+
+
+@reporting_access_required
+def statement_mapping_list(request):
+    department = _statement_department(request.user)
+    mappings = FinanceStatementMapping.objects.filter(department=department).select_related(
+        "created_by", "reviewed_by",
+    ).prefetch_related("lines")
+    return render(request, "reporting/statement_mapping_list.html", {
+        "mappings": mappings, "department": department,
+        "can_manage": can_manage_definitions(request.user),
+    })
+
+
+@reporting_permission_required(can_manage_definitions)
+@require_http_methods(["GET", "POST"])
+def statement_mapping_create(request):
+    department = _statement_department(request.user)
+    form = FinanceStatementMappingForm(
+        request.POST or None, department=department, user=request.user,
+    )
+    if request.method == "POST" and form.is_valid():
+        mapping = form.save()
+        messages.success(request, "Editable statement mapping created. Add its governed account lines, then submit it for independent review.")
+        return redirect(mapping)
+    return render(request, "reporting/statement_mapping_form.html", {"form": form, "mode": "Create"})
+
+
+@reporting_access_required
+def statement_mapping_detail(request, public_id):
+    _statement_department(request.user)
+    mapping = _department_object(
+        FinanceStatementMapping.objects.select_related(
+            "created_by", "submitted_by", "reviewed_by", "supersedes",
+        ).prefetch_related("lines", "events__actor"), request.user, public_id=public_id,
+    )
+    return render(request, "reporting/statement_mapping_detail.html", {
+        "mapping": mapping, "coverage": mapping_coverage(mapping),
+        "can_manage": can_manage_definitions(request.user),
+        "can_approve": can_approve_reports(request.user),
+    })
+
+
+@reporting_permission_required(can_manage_definitions)
+@require_http_methods(["GET", "POST"])
+def statement_mapping_update(request, public_id):
+    _statement_department(request.user)
+    mapping = _department_object(FinanceStatementMapping.objects.all(), request.user, public_id=public_id)
+    if not mapping.is_editable:
+        messages.error(request, "Locked mappings are immutable. Create a successor version instead.")
+        return redirect(mapping)
+    form = FinanceStatementMappingForm(
+        request.POST or None, instance=mapping, department=mapping.department, user=request.user,
+    )
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Statement mapping details saved.")
+        return redirect(mapping)
+    return render(request, "reporting/statement_mapping_form.html", {"form": form, "mode": "Update", "mapping": mapping})
+
+
+@reporting_permission_required(can_manage_definitions)
+@require_http_methods(["GET", "POST"])
+def statement_line_create(request, public_id):
+    _statement_department(request.user)
+    mapping = _department_object(FinanceStatementMapping.objects.all(), request.user, public_id=public_id)
+    if not mapping.is_editable:
+        messages.error(request, "Locked mapping lines cannot be changed. Create a successor version instead.")
+        return redirect(mapping)
+    form = FinanceStatementLineForm(request.POST or None, mapping=mapping)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Statement line added. The coverage check has been refreshed.")
+        return redirect(mapping)
+    return render(request, "reporting/statement_line_form.html", {"form": form, "mapping": mapping})
+
+
+@reporting_permission_required(can_manage_definitions)
+@require_http_methods(["GET", "POST"])
+def statement_line_update(request, public_id, pk):
+    _statement_department(request.user)
+    mapping = _department_object(FinanceStatementMapping.objects.all(), request.user, public_id=public_id)
+    line = get_object_or_404(FinanceStatementLine, pk=pk, mapping=mapping)
+    if not mapping.is_editable:
+        messages.error(request, "Locked mapping lines cannot be changed. Create a successor version instead.")
+        return redirect(mapping)
+    form = FinanceStatementLineForm(request.POST or None, instance=line, mapping=mapping)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Statement line updated. The coverage check has been refreshed.")
+        return redirect(mapping)
+    return render(request, "reporting/statement_line_form.html", {"form": form, "mapping": mapping, "line": line})
+
+
+@reporting_permission_required(can_manage_definitions)
+@require_POST
+def statement_line_delete(request, public_id, pk):
+    _statement_department(request.user)
+    mapping = _department_object(FinanceStatementMapping.objects.all(), request.user, public_id=public_id)
+    line = get_object_or_404(FinanceStatementLine, pk=pk, mapping=mapping)
+    try:
+        line.delete()
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(request, "Statement line removed.")
+    return redirect(mapping)
+
+
+@reporting_permission_required(can_manage_definitions)
+@require_POST
+def statement_mapping_submit(request, public_id):
+    _statement_department(request.user)
+    mapping = _department_object(FinanceStatementMapping.objects.all(), request.user, public_id=public_id)
+    try:
+        submit_statement_mapping(mapping, request.user)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(request, "Statement mapping submitted for independent review.")
+    return redirect(mapping)
+
+
+@reporting_permission_required(can_approve_reports)
+@require_POST
+def statement_mapping_review(request, public_id, action):
+    _statement_department(request.user)
+    if action not in ("approve", "return"):
+        from django.http import Http404
+        raise Http404
+    mapping = _department_object(FinanceStatementMapping.objects.all(), request.user, public_id=public_id)
+    try:
+        review_statement_mapping(
+            mapping, request.user, approve=action == "approve", note=request.POST.get("review_note", ""),
+        )
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(request, "Statement mapping activated." if action == "approve" else "Statement mapping returned for correction.")
+    return redirect(mapping)
 
 
 @reporting_access_required
