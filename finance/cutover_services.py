@@ -24,6 +24,8 @@ from .access import (
 from .models import (
     FinanceAuditEvent,
     FinanceCutoverDecision,
+    FinanceCutoverQualificationEvidence,
+    FinanceCutoverQualificationPlan,
     FinanceCutoverReadinessExercise,
     FinanceCutoverReadinessPlan,
     FinanceShadowComparison,
@@ -217,6 +219,45 @@ def _readiness_exercise_data(item):
         "reviewed_at": item.reviewed_at,
         "review_note": item.review_note,
         "created_by_id": item.created_by_id,
+    }
+
+
+def _qualification_plan_data(plan):
+    return {
+        "plan_id": plan.pk,
+        "minimum_consecutive_cycles": plan.minimum_consecutive_cycles,
+        "require_parallel_cycle": plan.require_parallel_cycle,
+        "local_authority_reference": plan.local_authority_reference,
+        "accepted_rules_forms_reference": plan.accepted_rules_forms_reference,
+        "field_evidence_basis": plan.field_evidence_basis,
+        "status": plan.status,
+        "evidence_checksum": plan.evidence_checksum,
+        "created_by_id": plan.created_by_id,
+        "submitted_by_id": plan.submitted_by_id,
+        "submitted_at": plan.submitted_at,
+        "approved_by_id": plan.approved_by_id,
+        "approved_at": plan.approved_at,
+        "review_note": plan.review_note,
+    }
+
+
+def _qualification_evidence_data(item):
+    return {
+        "evidence_id": item.pk,
+        "cycle_id": item.cycle_id,
+        "cycle_code": item.cycle.code,
+        "cycle_run_kind": item.cycle.run_kind,
+        "sequence": item.sequence,
+        "field_execution_reference": item.field_execution_reference,
+        "rules_forms_reference": item.rules_forms_reference,
+        "status": item.status,
+        "evidence_checksum": item.evidence_checksum,
+        "prepared_by_id": item.prepared_by_id,
+        "submitted_by_id": item.submitted_by_id,
+        "submitted_at": item.submitted_at,
+        "reviewed_by_id": item.reviewed_by_id,
+        "reviewed_at": item.reviewed_at,
+        "review_note": item.review_note,
     }
 
 
@@ -603,6 +644,158 @@ def review_cutover_readiness_plan(plan, actor, *, approve, reason):
         reason=reason, snapshot=_readiness_plan_data(plan),
     )
     return plan
+
+
+@transaction.atomic
+def submit_cutover_qualification_plan(plan, actor):
+    plan = FinanceCutoverQualificationPlan.objects.select_for_update().select_related(
+        "cycle", "cycle__department",
+    ).get(pk=plan.pk)
+    if not can_manage_shadow_operation(actor, plan.cycle.department):
+        raise PermissionDenied
+    if plan.status not in {FinanceCutoverQualificationPlan.DRAFT, FinanceCutoverQualificationPlan.RETURNED}:
+        raise ValidationError("Only a draft or returned field-qualification plan can be submitted.")
+    plan.status = FinanceCutoverQualificationPlan.DRAFT
+    plan.evidence_checksum = ""
+    plan.submitted_by = None
+    plan.submitted_at = None
+    plan.approved_by = None
+    plan.approved_at = None
+    plan.review_note = ""
+    plan.full_clean()
+    snapshot = _qualification_plan_data(plan)
+    snapshot.pop("evidence_checksum", None)
+    plan.evidence_checksum = _checksum_payload(snapshot)
+    plan.status = FinanceCutoverQualificationPlan.SUBMITTED
+    plan.submitted_by = actor
+    plan.submitted_at = timezone.now()
+    plan.save(update_fields=(
+        "status", "evidence_checksum", "submitted_by", "submitted_at",
+        "approved_by", "approved_at", "review_note", "updated_at",
+    ))
+    _event(plan.cycle, actor, "cutover_qualification_plan_submitted", snapshot=_qualification_plan_data(plan))
+    return plan
+
+
+@transaction.atomic
+def review_cutover_qualification_plan(plan, actor, *, approve, reason):
+    plan = FinanceCutoverQualificationPlan.objects.select_for_update().select_related(
+        "cycle", "cycle__department",
+    ).get(pk=plan.pk)
+    if not can_review_shadow_reconciliation(actor, plan.cycle.department):
+        raise PermissionDenied
+    if plan.status != FinanceCutoverQualificationPlan.SUBMITTED:
+        raise ValidationError("This field-qualification plan is not awaiting review.")
+    if actor.pk in {plan.created_by_id, plan.submitted_by_id}:
+        raise ValidationError("The qualification-plan preparer or submitter cannot approve the same plan.")
+    if not str(reason or "").strip():
+        raise ValidationError("Record the local review basis or the exact correction required.")
+    snapshot = _qualification_plan_data(plan)
+    stored = snapshot.pop("evidence_checksum", "")
+    snapshot.update({
+        "status": FinanceCutoverQualificationPlan.DRAFT,
+        "submitted_by_id": None,
+        "submitted_at": None,
+        "approved_by_id": None,
+        "approved_at": None,
+        "review_note": "",
+    })
+    if _checksum_payload(snapshot) != stored:
+        raise ValidationError("The qualification plan changed after submission. Return it rather than approving altered controls.")
+    plan.status = FinanceCutoverQualificationPlan.APPROVED if approve else FinanceCutoverQualificationPlan.RETURNED
+    plan.review_note = str(reason).strip()
+    if approve:
+        plan.approved_by = actor
+        plan.approved_at = timezone.now()
+    else:
+        plan.evidence_checksum = ""
+        plan.approved_by = None
+        plan.approved_at = None
+    plan.save(update_fields=(
+        "status", "review_note", "evidence_checksum", "approved_by", "approved_at", "updated_at",
+    ))
+    _event(
+        plan.cycle, actor,
+        "cutover_qualification_plan_approved" if approve else "cutover_qualification_plan_returned",
+        reason=reason, snapshot=_qualification_plan_data(plan),
+    )
+    return plan
+
+
+@transaction.atomic
+def submit_cutover_qualification_evidence(item, actor):
+    item = FinanceCutoverQualificationEvidence.objects.select_for_update().select_related(
+        "plan", "plan__cycle", "plan__cycle__department", "cycle",
+    ).get(pk=item.pk)
+    if not can_manage_shadow_operation(actor, item.plan.cycle.department):
+        raise PermissionDenied
+    if item.status not in {FinanceCutoverQualificationEvidence.DRAFT, FinanceCutoverQualificationEvidence.RETURNED}:
+        raise ValidationError("Only draft or returned field-cycle evidence can be submitted.")
+    item.status = FinanceCutoverQualificationEvidence.DRAFT
+    item.evidence_checksum = ""
+    item.submitted_by = None
+    item.submitted_at = None
+    item.reviewed_by = None
+    item.reviewed_at = None
+    item.review_note = ""
+    item.full_clean()
+    snapshot = _qualification_evidence_data(item)
+    snapshot.pop("evidence_checksum", None)
+    item.evidence_checksum = _checksum_payload(snapshot)
+    item.status = FinanceCutoverQualificationEvidence.SUBMITTED
+    item.submitted_by = actor
+    item.submitted_at = timezone.now()
+    item.save(update_fields=(
+        "status", "evidence_checksum", "submitted_by", "submitted_at",
+        "reviewed_by", "reviewed_at", "review_note", "updated_at",
+    ))
+    _event(item.plan.cycle, actor, "cutover_qualification_evidence_submitted", snapshot=_qualification_evidence_data(item))
+    return item
+
+
+@transaction.atomic
+def review_cutover_qualification_evidence(item, actor, *, accept, reason):
+    item = FinanceCutoverQualificationEvidence.objects.select_for_update().select_related(
+        "plan", "plan__cycle", "plan__cycle__department", "cycle",
+    ).get(pk=item.pk)
+    if not can_review_shadow_reconciliation(actor, item.plan.cycle.department):
+        raise PermissionDenied
+    if item.status != FinanceCutoverQualificationEvidence.SUBMITTED:
+        raise ValidationError("This field-cycle evidence is not awaiting review.")
+    if actor.pk in {item.prepared_by_id, item.submitted_by_id}:
+        raise ValidationError("The evidence preparer or submitter cannot accept the same field cycle.")
+    if not str(reason or "").strip():
+        raise ValidationError("Record the independent review basis or the exact correction/rerun required.")
+    snapshot = _qualification_evidence_data(item)
+    stored = snapshot.pop("evidence_checksum", "")
+    snapshot.update({
+        "status": FinanceCutoverQualificationEvidence.DRAFT,
+        "submitted_by_id": None,
+        "submitted_at": None,
+        "reviewed_by_id": None,
+        "reviewed_at": None,
+        "review_note": "",
+    })
+    if _checksum_payload(snapshot) != stored:
+        raise ValidationError("The field-cycle evidence changed after submission. Return it instead of accepting altered evidence.")
+    item.status = FinanceCutoverQualificationEvidence.ACCEPTED if accept else FinanceCutoverQualificationEvidence.RETURNED
+    item.review_note = str(reason).strip()
+    if accept:
+        item.reviewed_by = actor
+        item.reviewed_at = timezone.now()
+    else:
+        item.evidence_checksum = ""
+        item.reviewed_by = None
+        item.reviewed_at = None
+    item.save(update_fields=(
+        "status", "review_note", "evidence_checksum", "reviewed_by", "reviewed_at", "updated_at",
+    ))
+    _event(
+        item.plan.cycle, actor,
+        "cutover_qualification_evidence_accepted" if accept else "cutover_qualification_evidence_returned",
+        reason=reason, snapshot=_qualification_evidence_data(item),
+    )
+    return item
 
 
 @transaction.atomic
@@ -1059,7 +1252,10 @@ def review_shadow_cycle(cycle, actor, *, accept, reason):
 
 
 @transaction.atomic
-def decide_stakeholder_acceptance(acceptance, actor, *, decision, training_reference, uat_reference, reason=""):
+def decide_stakeholder_acceptance(
+    acceptance, actor, *, decision, training_reference, uat_reference,
+    signed_decision_reference, signed_decision_checksum, reason="",
+):
     acceptance = FinanceStakeholderAcceptance.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=acceptance.pk)
     if acceptance.assigned_reviewer_id != actor.pk:
         raise PermissionDenied("Only the named stakeholder reviewer can record this decision.")
@@ -1071,6 +1267,11 @@ def decide_stakeholder_acceptance(acceptance, actor, *, decision, training_refer
         raise ValidationError("Choose accepted, conditional, or not accepted.")
     if not training_reference.strip() or not uat_reference.strip():
         raise ValidationError("Reference both role-specific training evidence and the exact UAT scenarios reviewed.")
+    if not str(signed_decision_reference or "").strip():
+        raise ValidationError("Reference the retained signed or attributable stakeholder decision record.")
+    checksum = str(signed_decision_checksum or "").strip().lower()
+    if len(checksum) != 64 or any(character not in "0123456789abcdef" for character in checksum):
+        raise ValidationError("Enter the 64-character SHA-256 of the retained stakeholder decision copy.")
     if decision == FinanceStakeholderAcceptance.ACCEPTED:
         readiness_plan = FinanceCutoverReadinessPlan.objects.filter(cycle=acceptance.cycle).first()
         if not readiness_plan:
@@ -1089,13 +1290,16 @@ def decide_stakeholder_acceptance(acceptance, actor, *, decision, training_refer
         raise ValidationError("State each condition or the reason the scope is not accepted.")
     acceptance.training_evidence_reference = training_reference.strip()
     acceptance.uat_evidence_reference = uat_reference.strip()
+    acceptance.signed_decision_reference = str(signed_decision_reference).strip()
+    acceptance.signed_decision_checksum = checksum
     acceptance.decision = decision
     acceptance.conditions_or_reason = reason.strip()
     acceptance.decided_by = actor
     acceptance.decided_at = timezone.now()
     acceptance.full_clean()
     acceptance.save(update_fields=(
-        "training_evidence_reference", "uat_evidence_reference", "decision",
+        "training_evidence_reference", "uat_evidence_reference", "signed_decision_reference",
+        "signed_decision_checksum", "decision",
         "conditions_or_reason", "decided_by", "decided_at",
     ))
     _event(
@@ -1109,6 +1313,8 @@ def decide_stakeholder_acceptance(acceptance, actor, *, decision, training_refer
             "decision": acceptance.decision,
             "training_evidence_reference": acceptance.training_evidence_reference,
             "uat_evidence_reference": acceptance.uat_evidence_reference,
+            "signed_decision_reference": acceptance.signed_decision_reference,
+            "signed_decision_checksum": acceptance.signed_decision_checksum,
         },
     )
     return acceptance
@@ -1142,6 +1348,44 @@ def cutover_readiness(cycle):
     unfinished_exercises = [
         item for item in exercises if item.status != FinanceCutoverReadinessExercise.PASSED
     ]
+    qualification_plan = FinanceCutoverQualificationPlan.objects.filter(cycle=cycle).first()
+    qualification_evidence = list(
+        qualification_plan.cycle_evidence.select_related("cycle").order_by("sequence", "pk")
+    ) if qualification_plan else []
+    accepted_qualification = [
+        item for item in qualification_evidence
+        if item.status == FinanceCutoverQualificationEvidence.ACCEPTED
+    ]
+    expected_sequences = list(range(1, len(accepted_qualification) + 1))
+    actual_sequences = [item.sequence for item in accepted_qualification]
+    qualification_chain_valid = bool(accepted_qualification) and actual_sequences == expected_sequences
+    if qualification_chain_valid:
+        qualification_chain_valid = accepted_qualification[-1].cycle_id == cycle.pk
+    if qualification_chain_valid:
+        qualification_chain_valid = all(
+            current.cycle.predecessor_id == prior.cycle_id
+            for prior, current in zip(accepted_qualification, accepted_qualification[1:])
+        )
+    minimum_cycles_met = bool(
+        qualification_plan
+        and len(accepted_qualification) >= qualification_plan.minimum_consecutive_cycles
+    )
+    parallel_cycle_met = bool(
+        qualification_plan
+        and (
+            not qualification_plan.require_parallel_cycle
+            or any(item.cycle.run_kind == FinanceShadowCycle.PARALLEL for item in accepted_qualification)
+        )
+    )
+    unfinished_qualification = [
+        item for item in qualification_evidence
+        if item.status != FinanceCutoverQualificationEvidence.ACCEPTED
+    ]
+    unsigned_stakeholders = [
+        row.pk for row in rows
+        if row.decision == FinanceStakeholderAcceptance.ACCEPTED
+        and (not row.signed_decision_reference.strip() or len(row.signed_decision_checksum) != 64)
+    ]
     checks = [
         {
             "code": "shadow_reconciled",
@@ -1157,6 +1401,45 @@ def cutover_readiness(cycle):
             "code": "stakeholders_accepted",
             "passed": bool(rows) and not blocking,
             "message": "Every required stakeholder accepted the exact enabled scope." if rows and not blocking else "Pending, conditional, or rejected stakeholder decisions still block cutover.",
+        },
+        {
+            "code": "stakeholder_decisions_retained",
+            "passed": bool(rows) and not unsigned_stakeholders,
+            "message": (
+                "Every accepted stakeholder decision has a retained signed/attributable record reference and SHA-256."
+                if rows and not unsigned_stakeholders
+                else "One or more accepted stakeholder decisions lacks a retained decision reference or SHA-256."
+            ),
+        },
+        {
+            "code": "qualification_plan_approved",
+            "passed": bool(
+                qualification_plan
+                and qualification_plan.status == FinanceCutoverQualificationPlan.APPROVED
+            ),
+            "message": (
+                "The locally editable field-cycle qualification plan is independently approved."
+                if qualification_plan and qualification_plan.status == FinanceCutoverQualificationPlan.APPROVED
+                else "The field-cycle qualification plan is missing or not independently approved."
+            ),
+        },
+        {
+            "code": "consecutive_field_cycles_accepted",
+            "passed": bool(minimum_cycles_met and qualification_chain_valid and not unfinished_qualification),
+            "message": (
+                "The required consecutive predecessor chain ends at this candidate cycle, and every recorded field cycle is independently accepted."
+                if minimum_cycles_met and qualification_chain_valid and not unfinished_qualification
+                else "The accepted field evidence does not yet meet the local minimum, form one uninterrupted predecessor chain ending here, or still has open rows."
+            ),
+        },
+        {
+            "code": "parallel_field_cycle_accepted",
+            "passed": parallel_cycle_met,
+            "message": (
+                "The local parallel-run requirement is satisfied."
+                if parallel_cycle_met
+                else "The approved plan requires at least one accepted controlled parallel cycle."
+            ),
         },
         {
             "code": "readiness_plan_approved",
@@ -1203,6 +1486,10 @@ def cutover_readiness(cycle):
         "missing_exercises": missing_exercises,
         "role_training_missing": role_training_missing,
         "unfinished_exercise_ids": [item.pk for item in unfinished_exercises],
+        "unsigned_stakeholder_ids": unsigned_stakeholders,
+        "qualification_plan_status": qualification_plan.status if qualification_plan else "missing",
+        "accepted_qualification_cycle_ids": [item.cycle_id for item in accepted_qualification],
+        "unfinished_qualification_evidence_ids": [item.pk for item in unfinished_qualification],
     }
 
 
@@ -1213,9 +1500,16 @@ def submit_cutover_decision(decision, actor):
         raise PermissionDenied
     if decision.status != FinanceCutoverDecision.DRAFT:
         raise ValidationError("Only a draft cutover record can be submitted.")
+    if not decision.signed_authority_reference.strip() or not decision.signature_custody_reference.strip():
+        raise ValidationError("Reference the retained signed authority record and its local custodian before submission.")
+    if len(decision.signed_authority_checksum) != 64:
+        raise ValidationError("Enter the 64-character SHA-256 of the retained signed authority record before submission.")
     readiness = cutover_readiness(decision.cycle)
     if not readiness["ready"]:
-        raise ValidationError("Cutover submission is blocked until shadow reconciliation and every required stakeholder acceptance pass.")
+        raise ValidationError(
+            "Cutover submission is blocked until field-cycle qualification, readiness exercises, "
+            "shadow reconciliation, and every required stakeholder acceptance pass."
+        )
     decision.full_clean()
     decision.status = FinanceCutoverDecision.SUBMITTED
     decision.submitted_by = actor
@@ -1236,6 +1530,9 @@ def _decision_data(decision):
         "rollback_criteria": decision.rollback_criteria,
         "legacy_read_only_retention_plan": decision.legacy_read_only_retention_plan,
         "backup_recovery_evidence": decision.backup_recovery_evidence,
+        "signed_authority_reference": decision.signed_authority_reference,
+        "signed_authority_checksum": decision.signed_authority_checksum,
+        "signature_custody_reference": decision.signature_custody_reference,
         "prepared_by_id": decision.prepared_by_id,
         "submitted_by_id": decision.submitted_by_id,
         "decided_by_id": decision.decided_by_id,
@@ -1257,6 +1554,12 @@ def decide_cutover(decision, actor, *, authorize, reason):
         raise ValidationError("Record the authority's decision basis.")
     if authorize and not cutover_readiness(decision.cycle)["ready"]:
         raise ValidationError("The acceptance evidence no longer satisfies the cutover gate.")
+    if authorize and (
+        not decision.signed_authority_reference.strip()
+        or not decision.signature_custody_reference.strip()
+        or len(decision.signed_authority_checksum) != 64
+    ):
+        raise ValidationError("Authorization requires a retained signed authority reference, custody location, and SHA-256.")
     decision.status = FinanceCutoverDecision.AUTHORIZED if authorize else FinanceCutoverDecision.DECLINED
     decision.decided_by = actor
     decision.decided_at = timezone.now()
@@ -1298,6 +1601,8 @@ def build_cutover_evidence_package(cycle, actor):
             "enabled_scope": row.enabled_scope,
             "training_evidence_reference": row.training_evidence_reference,
             "uat_evidence_reference": row.uat_evidence_reference,
+            "signed_decision_reference": row.signed_decision_reference,
+            "signed_decision_checksum": row.signed_decision_checksum,
             "decision": row.decision,
             "conditions_or_reason": row.conditions_or_reason,
             "decided_by_id": row.decided_by_id,
@@ -1314,9 +1619,17 @@ def build_cutover_evidence_package(cycle, actor):
         _readiness_exercise_data(item)
         for item in cycle.cutover_readiness_exercises.order_by("kind", "scheduled_for", "code")
     ]
+    qualification_plan = FinanceCutoverQualificationPlan.objects.filter(cycle=cycle).first()
+    qualification_evidence = [
+        _qualification_evidence_data(item)
+        for item in (
+            qualification_plan.cycle_evidence.select_related("cycle").order_by("sequence", "pk")
+            if qualification_plan else []
+        )
+    ]
     payload = {
         "format": "GRAND Finance shadow/cutover evidence",
-        "schema_version": 4,
+        "schema_version": 5,
         "notice": "Portable evidence copy. Authority exists only when the included decision status is authorized for its exact scope and date.",
         "cycle": cycle_payload,
         "stored_cycle_evidence_checksum": cycle.evidence_checksum,
@@ -1324,6 +1637,8 @@ def build_cutover_evidence_package(cycle, actor):
         "stakeholder_acceptances": acceptances,
         "cutover_readiness_plan": _readiness_plan_data(readiness_plan) if readiness_plan else None,
         "cutover_readiness_exercises": readiness_exercises,
+        "cutover_qualification_plan": _qualification_plan_data(qualification_plan) if qualification_plan else None,
+        "cutover_qualification_evidence": qualification_evidence,
         "cutover_readiness": {key: value for key, value in cutover_readiness(cycle).items() if key != "blocking"},
         "cutover_decision": _decision_data(decision) if decision else None,
         "exported_at": timezone.now(),

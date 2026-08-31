@@ -1,15 +1,16 @@
 # Finance shadow operation, UAT acceptance, and controlled cutover
 
-Status: F11.1 governed transition control, F11.2 versioned redacted source staging, F11.3 scheduled reconciliation/defect control, and F11.4 governed curricula/support and readiness-exercise control implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate or any local production cutover has occurred.
+Status: F11.1 governed transition control, F11.2 versioned redacted source staging, F11.3 scheduled reconciliation/defect control, F11.4 governed curricula/support and readiness exercises, and F11.5 consecutive field-cycle/signed-reference control implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate or any local production cutover has occurred.
 
 ## Purpose and authority boundary
 
-The Shadow operation & cutover workspace turns the last Finance roadmap gate into an explicit, attributable process. It keeps four decisions separate:
+The Shadow operation & cutover workspace turns the last Finance roadmap gate into an explicit, attributable process. It keeps five decisions separate:
 
 1. Finance defines and runs a limited shadow or parallel cycle.
 2. A different authorized reviewer reconciles the exact comparison evidence.
-3. Each named requesting-office, Budget, Accounting, Treasury, IT, management, and audit reviewer accepts or rejects the same enabled scope using their own training and UAT evidence.
-4. A separate cutover authority records go/no-go for the exact scope and effective date.
+3. Finance records an approved local field-qualification rule and a different reviewer accepts the actual retained evidence for each consecutive cycle.
+4. Each named requesting-office, Budget, Accounting, Treasury, IT, management, and audit reviewer accepts or rejects the same enabled scope using their own training, UAT, and retained decision-record evidence.
+5. A separate cutover authority records go/no-go for the exact scope and effective date.
 
 A draft, running, submitted, or reconciled cycle does not make GRAND authoritative. Configuration activation, successful screens, balanced reports, a completed tutorial, or an exported package also do not imply cutover. `FinanceCutoverDecision.status = authorized` is the implemented authority marker, limited to its recorded scope and time. A recorded rollback removes current authority without erasing the earlier decision.
 
@@ -98,7 +99,25 @@ Finance assigns a separate row for each required stakeholder kind and, for a req
 
 Accepted is blocked until that named reviewer owns an independently witnessed Passed role exercise under the approved readiness plan. Conditional or Not accepted remains available so a reviewer can record missing readiness or a failed scenario honestly. Conditional, rejected, or pending decisions block cutover. The stakeholder scope must exactly equal the reconciled cycle scope. Requesting-office reviewers must currently belong to the named office.
 
+The stakeholder also references the retained wet-signed or otherwise locally accepted attributable decision record and enters that copy's SHA-256. GRAND stores the reference and file lock, not a signature image, and does not claim to create or validate a legal digital signature.
+
 The floating `?` Internal How-To supports learning on the current page. Its checkmarks are private resume aids only. They are never exposed as supervisor attendance, employee performance, training readiness, or UAT acceptance. Formal training/UAT evidence is entered explicitly in the stakeholder record.
+
+## Consecutive field-cycle qualification
+
+For the candidate cutover cycle, Finance prepares a locally editable qualification plan containing:
+
+- the minimum consecutive reconciled cycles, with two shown only as an editable planning starter;
+- whether at least one controlled parallel run is mandatory;
+- the retained local authority for that threshold;
+- the accepted local rules, forms, reports, print layouts, and instructions used; and
+- the retained-record basis that distinguishes actual field execution from synthetic UAT.
+
+A different reconciliation reviewer approves or returns the checksum-backed plan. GRAND does not present its starter count or parallel-run setting as COA, DBM, BIR, audit, or local policy.
+
+After approval, Finance adds each reconciled field cycle from oldest to newest. Each row references its retained field-execution packet and the accepted rules/forms actually used. A different reviewer accepts the checksum-backed row or returns it for correction/rerun. The cutover gate requires at least the approved minimum, sequence numbers starting at 1 without gaps, an explicit predecessor link between each adjacent cycle, the candidate as the last cycle, exact Finance office/fiscal year/scope equality, no open evidence row, and a controlled parallel cycle when the plan requires one. Accepted field evidence is immutable; changed scope or execution evidence belongs to a successor cycle.
+
+These controls cannot create the field evidence. Synthetic tests may demonstrate the software gate, but only retained actual local execution records can satisfy the operational entry fields honestly.
 
 ## Cutover record and rollback
 
@@ -110,9 +129,10 @@ After independent reconciliation, Finance prepares a human-readable decision rec
 - opening and in-flight transaction reconciliation reference;
 - objective rollback criteria;
 - historical eGAPS/current-process read-only retention plan; and
-- backup, restore, recovery, and continuity exercise evidence.
+- backup, restore, recovery, and continuity exercise evidence; and
+- the retained signed authority record reference, its SHA-256, and its named records/TracePoint custodian.
 
-Submission is blocked until the readiness plan is approved, all eight nonfunctional categories and every named role exercise are Passed, no scheduled exercise remains planned/submitted/returned, all seven stakeholder kinds exist, and every row is Accepted. A different user with cutover authority records authorization or decline and its basis. The normal seeded roles separate preparation (`Finance Configuration Manager`) from reconciliation/authority (`Finance Configuration Approver`), and service checks still reject self-review or self-authorization if permissions were combined exceptionally.
+Submission is blocked until the field-cycle plan and consecutive-cycle chain pass, the readiness plan is approved, all eight nonfunctional categories and every named role exercise are Passed, no scheduled exercise remains planned/submitted/returned, all seven stakeholder kinds exist, every row is Accepted, and every accepted stakeholder has a retained decision reference and SHA-256. A different user with cutover authority records authorization or decline and its basis. The normal seeded roles separate preparation (`Finance Configuration Manager`) from reconciliation/authority (`Finance Configuration Approver`), and service checks still reject self-review or self-authorization if permissions were combined exceptionally.
 
 When a recorded rollback criterion is triggered, the authority records the incident and immediate operating direction. The status becomes Rolled back; the original authorization, actor, time, reason, comparisons, and stakeholder decisions remain reconstructible.
 
@@ -125,9 +145,10 @@ The editable window is deliberately narrow:
 - pending stakeholder assignments can be corrected before a decision;
 - a draft/returned readiness plan can be corrected before approval;
 - a planned or witness-returned exercise can receive a corrected/rerun actual result and evidence reference;
+- a draft/returned field-qualification plan can be corrected before approval, and draft/returned field evidence can be corrected before independent acceptance;
 - a draft cutover record can be corrected before submission.
 
-Submitted cycle evidence, approved readiness plans, passed exercise evidence, recorded stakeholder decisions, and submitted authority fields are immutable. A returned comparison requires a successor cycle. A changed stakeholder scope or concluded decision requires a successor cycle and fresh evidence. An authorized cutover is never edited into a different scope or date; use decline before authorization or recorded rollback afterward.
+Submitted cycle evidence, approved readiness/qualification plans, accepted field-cycle evidence, passed exercise evidence, recorded stakeholder decisions, and submitted authority fields are immutable. A returned comparison requires a successor cycle. A changed stakeholder scope or concluded decision requires a successor cycle and fresh evidence. An authorized cutover is never edited into a different scope or date; use decline before authorization or recorded rollback afterward.
 
 This transition allowance does not reopen issued vouchers/checks or bypass their existing guided correction, cancellation/replacement, adjustment, reversal, close/reopen, or returned-payment rules.
 
@@ -135,7 +156,7 @@ This transition allowance does not reopen issued vouchers/checks or bypass their
 
 Department-bounded Finance permissions control cycle preparation, independent reconciliation, and cutover authority. A named cross-office stakeholder can read only the assigned cycle and record only their pending decision; assignment does not grant Finance preparation or authority actions. Finance UAT viewers remain read-only within their office boundary.
 
-Every visible cycle can produce a schema-v4 JSON evidence package containing each source version's checksum, headings, row count, drift/review metadata; the approved local cadence and escalation matrix; every scheduled run snapshot/checksum; defect intake, resolution, and escalation evidence; the approved curriculum/support plan; every role and nonfunctional exercise with result/checksum/witness evidence; comparisons; stakeholder decisions; readiness checks; and the current cutover decision. Source row values, retained CSV bytes, and private Internal How-To progress are deliberately excluded from the portable JSON. The downloaded bytes are also archived atomically under:
+Every visible cycle can produce a schema-v5 JSON evidence package containing each source version's checksum, headings, row count, drift/review metadata; the approved local cadence and escalation matrix; every scheduled run snapshot/checksum; defect intake, resolution, and escalation evidence; the approved curriculum/support plan; every role and nonfunctional exercise with result/checksum/witness evidence; the qualification plan and field-cycle chain; stakeholder decision references/checksums; readiness checks; and the current cutover decision and signed-authority reference/checksum/custody. Source row values, retained CSV bytes, signature images, and private Internal How-To progress are deliberately excluded from the portable JSON. The downloaded bytes are also archived atomically under:
 
 `department/user/finance-shadow-cutover/year/month`
 
@@ -149,7 +170,7 @@ Before claiming the parent exit gate, the LGU still must confirm and execute:
 - actual locally accepted cadence/severity/escalation values, named support ownership, and enabled transaction-type field sign-off using the implemented controls;
 - locally completed curriculum/quick-guide/supervisor/support content and actual witnessed role-exercise evidence entered through the implemented F11.4 controls;
 - actual named security, privacy, accessibility, performance, print/form-stock, backup/restore, continuity, and incident exercise execution using locally accepted pass conditions;
-- consecutive limited shadow and controlled parallel cycles using accepted local rules/forms; and
-- actual signatures/decisions from Budget, Accounting, Treasury, every enabled requesting office, IT, management, and audit stakeholders.
+- actual consecutive limited shadow and controlled parallel execution entered through the implemented F11.5 plan/evidence controls using locally accepted rules/forms; and
+- actual signatures/decisions from Budget, Accounting, Treasury, every enabled requesting office, IT, management, and audit stakeholders entered through the implemented retained-reference/checksum fields.
 
 Until those field-evidence steps and the recorded authorization exist, the roadmap's shadow/UAT label remains in force.

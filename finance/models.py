@@ -1731,6 +1731,201 @@ class FinanceCutoverReadinessExercise(models.Model):
         return super().delete(*args, **kwargs)
 
 
+class FinanceCutoverQualificationPlan(models.Model):
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    APPROVED = "approved"
+    RETURNED = "returned"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft qualification plan"),
+        (SUBMITTED, "Awaiting independent review"),
+        (APPROVED, "Approved for field qualification"),
+        (RETURNED, "Returned for correction"),
+    )
+
+    cycle = models.OneToOneField(
+        FinanceShadowCycle, on_delete=models.PROTECT, related_name="cutover_qualification_plan",
+    )
+    minimum_consecutive_cycles = models.PositiveSmallIntegerField(
+        default=2,
+        help_text="Editable local threshold. Count the candidate cycle and its explicit predecessors; use at least two.",
+    )
+    require_parallel_cycle = models.BooleanField(
+        default=True,
+        help_text="Keep selected when local acceptance requires at least one controlled parallel run in the qualifying chain.",
+    )
+    local_authority_reference = models.TextField(
+        help_text="Reference the locally approved pilot/parallel-run direction. Do not treat the starter threshold as a COA or DBM rule.",
+    )
+    accepted_rules_forms_reference = models.TextField(
+        help_text="Reference the locally accepted rules, forms, print layouts, and instructions used across the qualifying cycles.",
+    )
+    field_evidence_basis = models.TextField(
+        help_text="State what counts as actual field execution and which retained records prove it.",
+    )
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    evidence_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_finance_cutover_qualification_plans",
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_cutover_qualification_plans",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="approved_finance_cutover_qualification_plans",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-cycle__fiscal_year", "cycle__code")
+
+    def __str__(self):
+        return f"{self.cycle.code} field-cycle qualification plan"
+
+    def clean(self):
+        if self.minimum_consecutive_cycles < 2:
+            raise ValidationError({"minimum_consecutive_cycles": "Use at least two consecutive cycles; record the actual local threshold in the authority reference."})
+        if self.evidence_checksum and (
+            len(self.evidence_checksum) != 64
+            or any(character not in "0123456789abcdef" for character in self.evidence_checksum.lower())
+        ):
+            raise ValidationError({"evidence_checksum": "The qualification-plan checksum must be a 64-character SHA-256 value."})
+        if self.cycle_id:
+            try:
+                cutover_status = self.cycle.cutover_decision.status
+            except FinanceCutoverDecision.DoesNotExist:
+                cutover_status = ""
+            if cutover_status and cutover_status != FinanceCutoverDecision.DRAFT and not self.pk:
+                raise ValidationError("Field qualification cannot be added after the cutover record is submitted.")
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.status == self.APPROVED:
+                governed = (
+                    "cycle_id", "minimum_consecutive_cycles", "require_parallel_cycle",
+                    "local_authority_reference", "accepted_rules_forms_reference", "field_evidence_basis",
+                    "evidence_checksum", "approved_by_id", "approved_at",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError("An approved field-qualification plan is immutable. Use a successor cycle for changed requirements.")
+
+    def delete(self, *args, **kwargs):
+        if self.status in {self.SUBMITTED, self.APPROVED}:
+            raise ValidationError("A submitted field-qualification plan cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class FinanceCutoverQualificationEvidence(models.Model):
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    ACCEPTED = "accepted"
+    RETURNED = "returned"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft field evidence"),
+        (SUBMITTED, "Awaiting independent review"),
+        (ACCEPTED, "Accepted qualifying cycle"),
+        (RETURNED, "Returned for correction / rerun"),
+    )
+
+    plan = models.ForeignKey(
+        FinanceCutoverQualificationPlan, on_delete=models.PROTECT, related_name="cycle_evidence",
+    )
+    cycle = models.ForeignKey(
+        FinanceShadowCycle, on_delete=models.PROTECT, related_name="cutover_qualification_evidence",
+    )
+    sequence = models.PositiveSmallIntegerField(
+        help_text="Oldest qualifying cycle is 1; the candidate cutover cycle is the final number.",
+    )
+    field_execution_reference = models.TextField(
+        help_text="Reference retained records proving this was an actual limited shadow or controlled parallel field cycle.",
+    )
+    rules_forms_reference = models.TextField(
+        help_text="Reference the accepted local rules, forms, reports, and print layouts actually used in this cycle.",
+    )
+    evidence_checksum = models.CharField(max_length=64, blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    prepared_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="prepared_finance_cutover_qualification_evidence",
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_cutover_qualification_evidence",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_finance_cutover_qualification_evidence",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("sequence", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("plan", "cycle"), name="unique_cutover_qualification_cycle"),
+            models.UniqueConstraint(fields=("plan", "sequence"), name="unique_cutover_qualification_sequence"),
+        )
+
+    def __str__(self):
+        return f"{self.plan.cycle.code} qualification {self.sequence}: {self.cycle.code}"
+
+    def clean(self):
+        if self.sequence < 1:
+            raise ValidationError({"sequence": "Sequence starts at 1 for the oldest qualifying cycle."})
+        if self.plan_id and self.plan.status != FinanceCutoverQualificationPlan.APPROVED:
+            raise ValidationError({"plan": "Approve the local field-qualification plan before recording cycle evidence."})
+        if self.cycle_id and self.cycle.status != FinanceShadowCycle.RECONCILED:
+            raise ValidationError({"cycle": "Only an independently reconciled cycle can be field-qualified."})
+        if self.plan_id and self.cycle_id:
+            candidate = self.plan.cycle
+            if self.cycle.department_id != candidate.department_id:
+                raise ValidationError({"cycle": "Choose a cycle owned by the same Finance office."})
+            if self.cycle.fiscal_year != candidate.fiscal_year:
+                raise ValidationError({"cycle": "Choose a qualifying cycle from the same fiscal year."})
+            if self.cycle.enabled_scope.strip() != candidate.enabled_scope.strip():
+                raise ValidationError({"cycle": "The qualifying cycle must have the exact candidate scope."})
+            try:
+                cutover_status = candidate.cutover_decision.status
+            except FinanceCutoverDecision.DoesNotExist:
+                cutover_status = ""
+            if cutover_status and cutover_status != FinanceCutoverDecision.DRAFT and not self.pk:
+                raise ValidationError("Qualification evidence cannot be added after the cutover record is submitted.")
+        if self.evidence_checksum and (
+            len(self.evidence_checksum) != 64
+            or any(character not in "0123456789abcdef" for character in self.evidence_checksum.lower())
+        ):
+            raise ValidationError({"evidence_checksum": "The evidence checksum must be a 64-character SHA-256 value."})
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.status == self.ACCEPTED:
+                governed = (
+                    "plan_id", "cycle_id", "sequence", "field_execution_reference",
+                    "rules_forms_reference", "evidence_checksum", "reviewed_by_id", "reviewed_at",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError("Accepted field evidence is immutable. Correct or rerun it through a successor cycle.")
+
+    def delete(self, *args, **kwargs):
+        if self.status in {self.SUBMITTED, self.ACCEPTED}:
+            raise ValidationError("Submitted field evidence cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
 class FinanceStakeholderAcceptance(models.Model):
     REQUESTING_OFFICE = "requesting_office"
     BUDGET = "budget"
@@ -1766,6 +1961,14 @@ class FinanceStakeholderAcceptance(models.Model):
     enabled_scope = models.TextField()
     training_evidence_reference = models.TextField(blank=True)
     uat_evidence_reference = models.TextField(blank=True)
+    signed_decision_reference = models.TextField(
+        blank=True,
+        help_text="Reference the retained wet-signed or otherwise locally accepted attributable decision record; do not upload signature images here.",
+    )
+    signed_decision_checksum = models.CharField(
+        max_length=64, blank=True,
+        help_text="SHA-256 of the retained signed/attributed decision copy.",
+    )
     decision = models.CharField(max_length=16, choices=DECISION_CHOICES, default=PENDING)
     conditions_or_reason = models.TextField(blank=True)
     decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="decided_finance_shadow_acceptances")
@@ -1797,6 +2000,12 @@ class FinanceStakeholderAcceptance(models.Model):
             )
             if assigned_department_id != self.office_id:
                 raise ValidationError({"assigned_reviewer": "The requesting-office reviewer must currently belong to the named office."})
+        if self.decision != self.PENDING:
+            if not self.signed_decision_reference.strip():
+                raise ValidationError({"signed_decision_reference": "Reference the retained signed or attributable stakeholder decision record."})
+            checksum = self.signed_decision_checksum.lower()
+            if len(checksum) != 64 or any(character not in "0123456789abcdef" for character in checksum):
+                raise ValidationError({"signed_decision_checksum": "Enter the 64-character SHA-256 of the retained stakeholder decision copy."})
         duplicate = type(self).objects.filter(
             cycle_id=self.cycle_id, stakeholder_kind=self.stakeholder_kind, office_id=self.office_id,
         ).exclude(pk=self.pk)
@@ -1807,7 +2016,8 @@ class FinanceStakeholderAcceptance(models.Model):
             if prior and prior.decision != self.PENDING:
                 governed = (
                     "cycle_id", "stakeholder_kind", "office_id", "assigned_reviewer_id", "enabled_scope",
-                    "training_evidence_reference", "uat_evidence_reference", "decision",
+                    "training_evidence_reference", "uat_evidence_reference", "signed_decision_reference",
+                    "signed_decision_checksum", "decision",
                     "conditions_or_reason", "decided_by_id", "decided_at",
                 )
                 if any(getattr(prior, field) != getattr(self, field) for field in governed):
@@ -1845,6 +2055,17 @@ class FinanceCutoverDecision(models.Model):
     rollback_criteria = models.TextField()
     legacy_read_only_retention_plan = models.TextField()
     backup_recovery_evidence = models.TextField()
+    signed_authority_reference = models.TextField(
+        blank=True, default="",
+        help_text="Reference the retained signed authority record for this exact scope and planned cutover date.",
+    )
+    signed_authority_checksum = models.CharField(
+        max_length=64, blank=True, default="", help_text="SHA-256 of the retained signed authority record copy.",
+    )
+    signature_custody_reference = models.TextField(
+        blank=True, default="",
+        help_text="State the TracePoint, records folder, custodian, or other local location of the signed original/copy.",
+    )
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
     prepared_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="prepared_finance_cutover_decisions")
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="submitted_finance_cutover_decisions")
@@ -1865,6 +2086,14 @@ class FinanceCutoverDecision(models.Model):
             raise ValidationError({"cycle": "Prepare a cutover decision only after independent shadow-cycle reconciliation."})
         if self.cycle_id and self.enabled_scope.strip() != self.cycle.enabled_scope.strip():
             raise ValidationError({"enabled_scope": "The cutover scope must exactly match the independently reconciled shadow-cycle scope."})
+        if not self.pk or self.signed_authority_reference or self.signed_authority_checksum or self.signature_custody_reference:
+            if not self.signed_authority_reference.strip():
+                raise ValidationError({"signed_authority_reference": "Reference the retained signed authority record."})
+            if not self.signature_custody_reference.strip():
+                raise ValidationError({"signature_custody_reference": "State the local custodian or records location."})
+            checksum = self.signed_authority_checksum.lower()
+            if len(checksum) != 64 or any(character not in "0123456789abcdef" for character in checksum):
+                raise ValidationError({"signed_authority_checksum": "Enter the 64-character SHA-256 of the retained signed authority record."})
         if self.pk:
             prior = type(self).objects.filter(pk=self.pk).first()
             if prior and prior.status != self.DRAFT:
@@ -1872,6 +2101,7 @@ class FinanceCutoverDecision(models.Model):
                     "cycle_id", "authority_matrix_reference", "enabled_scope", "cutover_at",
                     "opening_reconciliation_reference", "rollback_criteria",
                     "legacy_read_only_retention_plan", "backup_recovery_evidence",
+                    "signed_authority_reference", "signed_authority_checksum", "signature_custody_reference",
                 )
                 if any(getattr(prior, field) != getattr(self, field) for field in governed):
                     raise ValidationError("A submitted cutover record is immutable. Record a decline or rollback; do not rewrite its scope or evidence.")

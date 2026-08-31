@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from .models import (
     FinanceCutoverDecision,
+    FinanceCutoverQualificationEvidence, FinanceCutoverQualificationPlan,
     FinanceCutoverReadinessExercise, FinanceCutoverReadinessPlan,
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule, FinanceNumberingSequence,
     FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
@@ -530,6 +531,14 @@ class FinanceStakeholderDecisionForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 3}),
         help_text="Reference the exact synthetic/redacted scenarios and results reviewed for this scope.",
     )
+    signed_decision_reference = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Reference the retained wet-signed or locally accepted attributable decision record. GRAND stores the reference, not a signature image.",
+    )
+    signed_decision_checksum = forms.CharField(
+        min_length=64, max_length=64,
+        help_text="Enter the SHA-256 of the retained decision copy so later changes are detectable.",
+    )
     conditions_or_reason = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
 
     def clean(self):
@@ -539,6 +548,44 @@ class FinanceStakeholderDecisionForm(forms.Form):
         return cleaned
 
 
+class FinanceCutoverQualificationPlanForm(forms.ModelForm):
+    class Meta:
+        model = FinanceCutoverQualificationPlan
+        fields = (
+            "minimum_consecutive_cycles", "require_parallel_cycle", "local_authority_reference",
+            "accepted_rules_forms_reference", "field_evidence_basis",
+        )
+        widgets = {
+            "local_authority_reference": forms.Textarea(attrs={"rows": 3}),
+            "accepted_rules_forms_reference": forms.Textarea(attrs={"rows": 4}),
+            "field_evidence_basis": forms.Textarea(attrs={"rows": 4}),
+        }
+
+
+class FinanceCutoverQualificationEvidenceForm(forms.ModelForm):
+    class Meta:
+        model = FinanceCutoverQualificationEvidence
+        fields = ("cycle", "sequence", "field_execution_reference", "rules_forms_reference")
+        widgets = {
+            "field_execution_reference": forms.Textarea(attrs={"rows": 4}),
+            "rules_forms_reference": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def __init__(self, *args, candidate_cycle=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if candidate_cycle:
+            self.fields["cycle"].queryset = FinanceShadowCycle.objects.filter(
+                department=candidate_cycle.department,
+                fiscal_year=candidate_cycle.fiscal_year,
+                enabled_scope=candidate_cycle.enabled_scope,
+                status=FinanceShadowCycle.RECONCILED,
+            ).order_by("planned_start", "code")
+            self.fields["cycle"].help_text = (
+                "Choose from reconciled cycles with this exact Finance office, fiscal year, and enabled scope. "
+                "Sequence 1 is oldest; the candidate cycle must be last."
+            )
+
+
 class FinanceCutoverDecisionForm(forms.ModelForm):
     class Meta:
         model = FinanceCutoverDecision
@@ -546,6 +593,7 @@ class FinanceCutoverDecisionForm(forms.ModelForm):
             "authority_matrix_reference", "enabled_scope", "cutover_at",
             "opening_reconciliation_reference", "rollback_criteria",
             "legacy_read_only_retention_plan", "backup_recovery_evidence",
+            "signed_authority_reference", "signed_authority_checksum", "signature_custody_reference",
         )
         widgets = {
             "authority_matrix_reference": forms.Textarea(attrs={"rows": 3}),
@@ -555,4 +603,11 @@ class FinanceCutoverDecisionForm(forms.ModelForm):
             "rollback_criteria": forms.Textarea(attrs={"rows": 4}),
             "legacy_read_only_retention_plan": forms.Textarea(attrs={"rows": 4}),
             "backup_recovery_evidence": forms.Textarea(attrs={"rows": 3}),
+            "signed_authority_reference": forms.Textarea(attrs={"rows": 3}),
+            "signature_custody_reference": forms.Textarea(attrs={"rows": 3}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in ("signed_authority_reference", "signed_authority_checksum", "signature_custody_reference"):
+            self.fields[field_name].required = True

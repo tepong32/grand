@@ -1,5 +1,14 @@
 # Changelog
 
+## F11.5 Consecutive field-cycle qualification and signed decision references
+
+- Added a human-editable, maker–checker field-qualification plan for the local minimum consecutive cycles, optional mandatory parallel run, retained local authority, accepted rules/forms, and actual field-evidence basis; the two-cycle starter is explicitly not represented as a COA, DBM, or local rule.
+- Added independently reviewed, checksum-backed field-cycle evidence rows with exact Finance office/fiscal year/scope validation, retained execution and rules/forms references, return/correction history, and immutable acceptance.
+- Required an uninterrupted explicit predecessor chain ending at the cutover candidate, the approved minimum accepted cycles, no open field-evidence rows, and a parallel run when the approved plan requires one.
+- Added retained signed/attributable stakeholder decision references and SHA-256 locks, plus signed cutover-authority reference/checksum/custody fields, without storing signature images or claiming to create digital signatures.
+- Extended the conservative shadow/cutover workspace, stakeholder guide version 3, cutover-manager guide version 4, append-only audit history, readiness checks, and TraceSync JSON package to schema v5.
+- Left actual local field execution, accepted rules/forms, signatures/attributed decisions, and optional production adapters outside the implementation claim; GRAND now enforces how those records are entered and reviewed but does not fabricate them.
+
 ## F11.4 Governed curricula, support, and witnessed readiness exercises
 
 - Added a human-editable curriculum/support plan for role curricula, floating/desk quick guides, supervisor observation/rerun instructions, named support ownership, channels/hours, escalation procedure, local acceptance evidence, and an explicit learning-privacy boundary.

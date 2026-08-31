@@ -25,6 +25,8 @@ from .cutover_services import (
     record_shadow_defect_escalation,
     review_cutover_readiness_exercise,
     review_cutover_readiness_plan,
+    review_cutover_qualification_evidence,
+    review_cutover_qualification_plan,
     review_shadow_cycle,
     review_reconciliation_plan,
     review_reconciliation_run,
@@ -38,6 +40,8 @@ from .cutover_services import (
     submit_cutover_decision,
     submit_cutover_readiness_exercise,
     submit_cutover_readiness_plan,
+    submit_cutover_qualification_evidence,
+    submit_cutover_qualification_plan,
     submit_reconciliation_plan,
     submit_reconciliation_run,
     submit_shadow_cycle,
@@ -46,6 +50,8 @@ from .cutover_services import (
 from .models import (
     FinanceAuditEvent,
     FinanceCutoverDecision,
+    FinanceCutoverQualificationEvidence,
+    FinanceCutoverQualificationPlan,
     FinanceCutoverReadinessExercise,
     FinanceCutoverReadinessPlan,
     FinanceShadowComparison,
@@ -95,10 +101,10 @@ class FinanceShadowCutoverTests(TestCase):
     def _grant(cls, user, *codenames):
         user.user_permissions.add(*Permission.objects.filter(content_type__app_label="finance", codename__in=codenames))
 
-    def _cycle(self):
+    def _cycle(self, *, code="fy-2027-dv-pilot", predecessor=None, run_kind=FinanceShadowCycle.SHADOW):
         cycle = FinanceShadowCycle.objects.create(
             department=self.accounting,
-            code="fy-2027-dv-pilot",
+            code=code,
             title="FY 2027 ordinary DV shadow pilot",
             fiscal_year=2027,
             enabled_scope="Engineering ordinary supplier DVs · General Fund · January 2027",
@@ -106,8 +112,10 @@ class FinanceShadowCutoverTests(TestCase):
             source_extract_reference="Records packet SHADOW-001; redacted extract retained outside GRAND",
             source_checksum="a" * 64,
             source_schema_signature="b" * 64,
-            planned_start=date(2027, 1, 4),
-            planned_end=date(2027, 1, 29),
+            run_kind=run_kind,
+            planned_start=date(2027, 1, 4) if predecessor is None else date(2027, 2, 1),
+            planned_end=date(2027, 1, 29) if predecessor is None else date(2027, 2, 26),
+            predecessor=predecessor,
             created_by=self.manager,
         )
         self._approve_plan(cycle)
@@ -183,8 +191,8 @@ class FinanceShadowCutoverTests(TestCase):
         comparison.full_clean(); comparison.save()
         return comparison
 
-    def _reconciled_cycle(self):
-        cycle = self._cycle()
+    def _reconciled_cycle(self, *, code="fy-2027-dv-pilot", predecessor=None, run_kind=FinanceShadowCycle.SHADOW):
+        cycle = self._cycle(code=code, predecessor=predecessor, run_kind=run_kind)
         start_shadow_cycle(cycle, self.manager)
         cycle.refresh_from_db()
         self._matched_comparison(cycle)
@@ -194,6 +202,36 @@ class FinanceShadowCutoverTests(TestCase):
         review_shadow_cycle(cycle, self.reconciler, accept=True, reason="Exact total/count and retained reference independently reviewed.")
         cycle.refresh_from_db()
         return cycle
+
+    def _approve_qualification(self, candidate, cycles):
+        plan = FinanceCutoverQualificationPlan.objects.create(
+            cycle=candidate,
+            minimum_consecutive_cycles=2,
+            require_parallel_cycle=True,
+            local_authority_reference="Synthetic local field-qualification direction QUAL-PLAN-001.",
+            accepted_rules_forms_reference="Locally accepted synthetic rules/forms register QUAL-FORMS-001.",
+            field_evidence_basis="Retained field observation sheets, reconciled registers, and signed local attestations.",
+            created_by=self.manager,
+        )
+        submit_cutover_qualification_plan(plan, self.manager)
+        review_cutover_qualification_plan(
+            plan, self.reconciler, approve=True,
+            reason="Reviewed the editable threshold, parallel-run condition, accepted rules/forms, and evidence basis.",
+        )
+        plan.refresh_from_db()
+        for sequence, cycle in enumerate(cycles, 1):
+            item = FinanceCutoverQualificationEvidence.objects.create(
+                plan=plan, cycle=cycle, sequence=sequence,
+                field_execution_reference=f"Synthetic retained field packet FIELD-{sequence:03d}",
+                rules_forms_reference="Accepted synthetic rules/forms register QUAL-FORMS-001",
+                prepared_by=self.manager,
+            )
+            submit_cutover_qualification_evidence(item, self.manager)
+            review_cutover_qualification_evidence(
+                item, self.reconciler, accept=True,
+                reason="Independently reviewed the retained field packet against the approved qualification basis.",
+            )
+        return plan
 
     def _accepted_stakeholders(self, cycle):
         self._approve_readiness_plan(cycle)
@@ -219,6 +257,8 @@ class FinanceShadowCutoverTests(TestCase):
                 decision=FinanceStakeholderAcceptance.ACCEPTED,
                 training_reference=f"{kind} role guide and supervisor exercise TRN-001",
                 uat_reference=f"{kind} synthetic/redacted scenario UAT-001",
+                signed_decision_reference=f"Retained attributed stakeholder decision DEC-{kind}",
+                signed_decision_checksum="d" * 64,
             )
         for kind in sorted(REQUIRED_NONFUNCTIONAL_EXERCISES):
             self._pass_readiness_exercise(
@@ -367,7 +407,7 @@ class FinanceShadowCutoverTests(TestCase):
         )
         content, _filename, _receipt = build_cutover_evidence_package(cycle, self.manager)
         payload = json.loads(content)
-        self.assertEqual(payload["schema_version"], 4)
+        self.assertEqual(payload["schema_version"], 5)
         self.assertEqual(payload["cycle"]["schema_version"], 3)
         self.assertEqual(payload["cycle"]["reconciliation_plan"]["status"], "approved")
         self.assertEqual(payload["cycle"]["source_versions"][0]["row_count"], 1)
@@ -504,12 +544,14 @@ class FinanceShadowCutoverTests(TestCase):
             decide_stakeholder_acceptance(
                 acceptance, self.manager, decision=FinanceStakeholderAcceptance.ACCEPTED,
                 training_reference="Training evidence", uat_reference="UAT evidence",
+                signed_decision_reference="Retained decision DEC-WRONG", signed_decision_checksum="d" * 64,
             )
         with self.assertRaisesMessage(ValidationError, "independently witness"):
             decide_stakeholder_acceptance(
                 acceptance, self.requesting_reviewer,
                 decision=FinanceStakeholderAcceptance.ACCEPTED,
                 training_reference="Private tutorial progress", uat_reference="UAT evidence",
+                signed_decision_reference="Retained decision DEC-PRE", signed_decision_checksum="d" * 64,
             )
         exercise = self._pass_readiness_exercise(
             cycle, kind=FinanceCutoverReadinessExercise.ROLE_TRAINING,
@@ -521,6 +563,8 @@ class FinanceShadowCutoverTests(TestCase):
             decision=FinanceStakeholderAcceptance.ACCEPTED,
             training_reference="Supervisor-observed role exercise TRN-ENG-01",
             uat_reference="Redacted ordinary-DV scripts UAT-ENG-01 through 04",
+            signed_decision_reference="Wet-signed stakeholder sheet DEC-ENG-01",
+            signed_decision_checksum="d" * 64,
         )
         acceptance.refresh_from_db()
         self.assertEqual(acceptance.decided_by, self.requesting_reviewer)
@@ -531,6 +575,7 @@ class FinanceShadowCutoverTests(TestCase):
                 acceptance, self.requesting_reviewer,
                 decision=FinanceStakeholderAcceptance.REJECTED,
                 training_reference="Changed", uat_reference="Changed", reason="Overwrite attempt",
+                signed_decision_reference="Changed", signed_decision_checksum="e" * 64,
             )
 
     def test_readiness_plan_and_exercise_require_independent_witness_and_retain_rerun_history(self):
@@ -615,19 +660,24 @@ class FinanceShadowCutoverTests(TestCase):
             decision=FinanceStakeholderAcceptance.ACCEPTED,
             training_reference="Passed witnessed role exercise ROLE-RERUN-001",
             uat_reference="Synthetic/redacted ordinary-DV scenario UAT-RERUN-001",
+            signed_decision_reference="Retained stakeholder decision DEC-RERUN-001",
+            signed_decision_checksum="d" * 64,
         )
         readiness = cutover_readiness(cycle)
         self.assertFalse(readiness["ready"])
         self.assertIn(FinanceCutoverReadinessExercise.PRIVACY, readiness["missing_exercises"])
         content, _filename, _receipt = build_cutover_evidence_package(cycle, self.requesting_reviewer)
         payload = json.loads(content)
-        self.assertEqual(payload["schema_version"], 4)
+        self.assertEqual(payload["schema_version"], 5)
         self.assertEqual(payload["cutover_readiness_plan"]["status"], "approved")
         self.assertEqual(payload["cutover_readiness_exercises"][0]["status"], "passed")
         self.assertNotIn("progress_percent", content.decode("utf-8"))
 
     def test_cutover_requires_all_seven_acceptances_and_separate_authority_then_can_roll_back(self):
-        cycle = self._reconciled_cycle()
+        predecessor = self._reconciled_cycle(code="fy-2027-dv-field-01")
+        cycle = self._reconciled_cycle(
+            code="fy-2027-dv-field-02", predecessor=predecessor, run_kind=FinanceShadowCycle.PARALLEL,
+        )
         decision = FinanceCutoverDecision.objects.create(
             cycle=cycle,
             authority_matrix_reference="Signed authority matrix AUTH-001",
@@ -637,11 +687,15 @@ class FinanceShadowCutoverTests(TestCase):
             rollback_criteria="Rollback on unexplained ledger difference, critical outage, or failed recovery test.",
             legacy_read_only_retention_plan="Keep historical eGAPS/current-process records read-only under Records plan RET-001.",
             backup_recovery_evidence="Restore and continuity exercise BCP-001",
+            signed_authority_reference="Wet-signed cutover authority record AUTH-SIGNED-001",
+            signed_authority_checksum="a" * 64,
+            signature_custody_reference="TracePoint records packet CUTOVER-001 held by the Records custodian",
             prepared_by=self.manager,
         )
         with self.assertRaisesMessage(ValidationError, "every required stakeholder"):
             submit_cutover_decision(decision, self.manager)
         self._accepted_stakeholders(cycle)
+        self._approve_qualification(cycle, [predecessor, cycle])
         self.assertTrue(cutover_readiness(cycle)["ready"])
         submit_cutover_decision(decision, self.manager)
         decision.refresh_from_db()
@@ -665,6 +719,49 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertFalse(decision.makes_grand_authoritative)
         self.assertTrue(FinanceAuditEvent.objects.filter(action="finance_cutover_authorized").exists())
         self.assertTrue(FinanceAuditEvent.objects.filter(action="finance_cutover_rolled_back").exists())
+
+    def test_field_qualification_rejects_short_or_misordered_chain_and_locks_accepted_evidence(self):
+        predecessor = self._reconciled_cycle(code="fy-2027-chain-01")
+        candidate = self._reconciled_cycle(
+            code="fy-2027-chain-02", predecessor=predecessor, run_kind=FinanceShadowCycle.PARALLEL,
+        )
+        plan = FinanceCutoverQualificationPlan.objects.create(
+            cycle=candidate, minimum_consecutive_cycles=2, require_parallel_cycle=True,
+            local_authority_reference="Synthetic qualification direction QUAL-CHAIN-001",
+            accepted_rules_forms_reference="Synthetic accepted local form register QUAL-FORMS-CHAIN-001",
+            field_evidence_basis="Retained observation sheet plus independently reconciled cycle packet.",
+            created_by=self.manager,
+        )
+        submit_cutover_qualification_plan(plan, self.manager)
+        with self.assertRaisesMessage(ValidationError, "preparer or submitter"):
+            review_cutover_qualification_plan(plan, self.manager, approve=True, reason="Self approval")
+        review_cutover_qualification_plan(
+            plan, self.reconciler, approve=True, reason="Reviewed local threshold and retained evidence basis.",
+        )
+        plan.refresh_from_db()
+        plan.minimum_consecutive_cycles = 3
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            plan.save()
+        plan.refresh_from_db()
+
+        item = FinanceCutoverQualificationEvidence.objects.create(
+            plan=plan, cycle=candidate, sequence=1,
+            field_execution_reference="Synthetic field packet FIELD-CHAIN-002",
+            rules_forms_reference="Synthetic accepted local form register QUAL-FORMS-CHAIN-001",
+            prepared_by=self.manager,
+        )
+        submit_cutover_qualification_evidence(item, self.manager)
+        review_cutover_qualification_evidence(
+            item, self.reconciler, accept=True, reason="Reviewed retained synthetic field packet.",
+        )
+        item.refresh_from_db()
+        item.field_execution_reference = "Attempted rewrite"
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            item.save()
+        readiness = cutover_readiness(candidate)
+        chain_check = next(check for check in readiness["checks"] if check["code"] == "consecutive_field_cycles_accepted")
+        self.assertFalse(chain_check["passed"])
+        self.assertEqual(readiness["accepted_qualification_cycle_ids"], [candidate.pk])
 
     def test_assigned_cross_office_reviewer_gets_read_only_cycle_access_and_export_is_archived(self):
         cycle = self._reconciled_cycle()
