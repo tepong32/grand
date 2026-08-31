@@ -1,6 +1,6 @@
 import json
 import tempfile
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -21,18 +21,30 @@ from .cutover_services import (
     decide_cutover,
     decide_stakeholder_acceptance,
     record_cutover_rollback,
+    record_shadow_defect_escalation,
     review_shadow_cycle,
+    review_reconciliation_plan,
+    review_reconciliation_run,
+    review_shadow_defect_resolution,
     review_shadow_source_drift,
+    register_shadow_defect,
+    open_next_reconciliation_run,
     stage_shadow_source_csv,
     start_shadow_cycle,
     submit_cutover_decision,
+    submit_reconciliation_plan,
+    submit_reconciliation_run,
     submit_shadow_cycle,
+    submit_shadow_defect_resolution,
 )
 from .models import (
     FinanceAuditEvent,
     FinanceCutoverDecision,
     FinanceShadowComparison,
     FinanceShadowCycle,
+    FinanceShadowDefect,
+    FinanceShadowReconciliationPlan,
+    FinanceShadowReconciliationRun,
     FinanceShadowSourceVersion,
     FinanceStakeholderAcceptance,
 )
@@ -76,7 +88,7 @@ class FinanceShadowCutoverTests(TestCase):
         user.user_permissions.add(*Permission.objects.filter(content_type__app_label="finance", codename__in=codenames))
 
     def _cycle(self):
-        return FinanceShadowCycle.objects.create(
+        cycle = FinanceShadowCycle.objects.create(
             department=self.accounting,
             code="fy-2027-dv-pilot",
             title="FY 2027 ordinary DV shadow pilot",
@@ -90,9 +102,11 @@ class FinanceShadowCutoverTests(TestCase):
             planned_end=date(2027, 1, 29),
             created_by=self.manager,
         )
+        self._approve_plan(cycle)
+        return cycle
 
     def _unlocked_cycle(self, *, code="fy-2027-source-pilot", predecessor=None):
-        return FinanceShadowCycle.objects.create(
+        cycle = FinanceShadowCycle.objects.create(
             department=self.accounting,
             code=code,
             title="FY 2027 source staging pilot",
@@ -105,6 +119,38 @@ class FinanceShadowCutoverTests(TestCase):
             predecessor=predecessor,
             created_by=self.manager,
         )
+        self._approve_plan(cycle)
+        return cycle
+
+    def _approve_plan(self, cycle, *, minimum_runs=1, cadence=FinanceShadowReconciliationPlan.CALENDAR_DAILY):
+        first_due = timezone.make_aware(datetime.combine(cycle.planned_start, time(17, 0)))
+        plan = FinanceShadowReconciliationPlan.objects.create(
+            cycle=cycle, cadence=cadence, first_due_at=first_due, grace_minutes=60,
+            minimum_reviewed_runs=minimum_runs,
+            enabled_transaction_types="Ordinary supplier DV controls in the cycle's written scope",
+            local_authority_reference="Retained pilot direction PILOT-PLAN-001",
+            local_acceptance_note="Accounting, Budget, and Treasury workshop accepted the synthetic cadence for UAT only.",
+            critical_resolution_hours=4, critical_escalation_route="Finance process owner and municipal management",
+            high_resolution_hours=8, high_escalation_route="Accounting reviewer and affected office head",
+            medium_resolution_hours=24, medium_escalation_route="Finance configuration manager",
+            low_resolution_hours=72, low_escalation_route="Assigned defect owner and team lead",
+            created_by=self.manager,
+        )
+        submit_reconciliation_plan(plan, self.manager)
+        review_reconciliation_plan(
+            plan, self.reconciler, approve=True,
+            reason="Reviewed synthetic cadence, minimum runs, correction targets, and named local escalation routes.",
+        )
+        return FinanceShadowReconciliationPlan.objects.get(pk=plan.pk)
+
+    def _review_current_run(self, cycle):
+        run = open_next_reconciliation_run(cycle, self.manager)
+        submit_reconciliation_run(run, self.manager)
+        review_reconciliation_run(
+            run, self.reconciler, accept=True,
+            reason="Compared current exact controls and registered exceptions against the retained run snapshot.",
+        )
+        return FinanceShadowReconciliationRun.objects.get(pk=run.pk)
 
     @staticmethod
     def _csv(name="source.csv", headings="case_id,amount,status", row="DV-001,1250.00,approved"):
@@ -134,6 +180,7 @@ class FinanceShadowCutoverTests(TestCase):
         start_shadow_cycle(cycle, self.manager)
         cycle.refresh_from_db()
         self._matched_comparison(cycle)
+        self._review_current_run(cycle)
         submit_shadow_cycle(cycle, self.manager)
         cycle.refresh_from_db()
         review_shadow_cycle(cycle, self.reconciler, accept=True, reason="Exact total/count and retained reference independently reviewed.")
@@ -259,17 +306,112 @@ class FinanceShadowCutoverTests(TestCase):
         )
         content, _filename, _receipt = build_cutover_evidence_package(cycle, self.manager)
         payload = json.loads(content)
-        self.assertEqual(payload["schema_version"], 2)
-        self.assertEqual(payload["cycle"]["schema_version"], 2)
+        self.assertEqual(payload["schema_version"], 3)
+        self.assertEqual(payload["cycle"]["schema_version"], 3)
+        self.assertEqual(payload["cycle"]["reconciliation_plan"]["status"], "approved")
         self.assertEqual(payload["cycle"]["source_versions"][0]["row_count"], 1)
         self.assertEqual(payload["cycle"]["source_versions"][0]["normalized_headers"], ["case_id", "amount", "status"])
         self.assertNotIn("SECRET-ROW-VALUE", content.decode("utf-8"))
+
+    def test_scheduled_run_retains_exception_then_independent_defect_resolution_opens_final_gate(self):
+        cycle = self._cycle()
+        start_shadow_cycle(cycle, self.manager)
+        cycle.refresh_from_db()
+        comparison = FinanceShadowComparison.objects.create(
+            cycle=cycle, comparison_level=FinanceShadowComparison.CASE,
+            control_code="case-rounding-001", label="Case amount and centavo precision",
+            source_reference="Redacted source case SRC-ROUND-001", grand_reference="GRAND case GRAND-ROUND-001",
+            source_amount=Decimal("100.00"), grand_amount=Decimal("99.99"),
+            outcome=FinanceShadowComparison.OPEN_DEFECT,
+            explanation="One-centavo difference in the synthetic source mapping.",
+            evidence_reference="Comparison worksheet CMP-ROUND-001", defect_owner=self.manager,
+            created_by=self.manager,
+        )
+        run = open_next_reconciliation_run(cycle, self.manager)
+        defect = register_shadow_defect(
+            comparison, self.manager, code="rounding-001", severity=FinanceShadowDefect.HIGH,
+            summary="Centavo mapping difference", impact="The case and register totals disagree by one centavo.",
+            owner=self.manager,
+        )
+        self.assertEqual(defect.escalation_route_snapshot, "Accounting reviewer and affected office head")
+        self.assertGreater(defect.correction_due_at, timezone.now())
+        record_shadow_defect_escalation(
+            defect, self.manager,
+            note="Accounting reviewer notified through retained UAT issue log ESC-001; correction requested before next run.",
+        )
+        submit_reconciliation_run(run, self.manager)
+        review_reconciliation_run(
+            run, self.reconciler, accept=True,
+            reason="The exact difference and attributed open defect agree with retained worksheet CMP-ROUND-001.",
+        )
+        run.refresh_from_db()
+        self.assertEqual(run.status, FinanceShadowReconciliationRun.REVIEWED_WITH_EXCEPTIONS)
+        self.assertEqual(run.open_defect_count, 1)
+        run.review_note = "Attempted rewrite"
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            run.save()
+        with self.assertRaisesMessage(ValidationError, "open defect"):
+            submit_shadow_cycle(cycle, self.manager)
+
+        submit_shadow_defect_resolution(
+            defect, self.manager,
+            note="Corrected the synthetic centavo mapping and reran the exact case control.",
+            evidence_reference="Corrected rerun and worksheet CMP-ROUND-002",
+        )
+        with self.assertRaisesMessage(ValidationError, "submitter"):
+            review_shadow_defect_resolution(defect, self.manager, accept=True, reason="Self-review attempt")
+        review_shadow_defect_resolution(
+            defect, self.reconciler, accept=True,
+            reason="Verified corrected mapping, rerun evidence, and exact downstream register total.",
+        )
+        defect.refresh_from_db(); comparison.refresh_from_db()
+        self.assertEqual(defect.status, FinanceShadowDefect.RESOLVED)
+        self.assertEqual(comparison.outcome, FinanceShadowComparison.EXPLAINED)
+        defect.resolution_note = "Attempted rewrite"
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            defect.save()
+        submit_shadow_cycle(cycle, self.manager)
+
+    def test_cycle_cannot_start_without_independently_approved_local_cadence(self):
+        cycle = FinanceShadowCycle.objects.create(
+            department=self.accounting, code="missing-local-plan", title="Missing local reconciliation plan",
+            fiscal_year=2027, enabled_scope="Synthetic ordinary-DV scope",
+            source_extract_reference="Redacted packet PLAN-GAP-001",
+            source_checksum="c" * 64, source_schema_signature="d" * 64,
+            planned_start=date(2027, 3, 1), planned_end=date(2027, 3, 5), created_by=self.manager,
+        )
+        with self.assertRaisesMessage(ValidationError, "independently approve"):
+            start_shadow_cycle(cycle, self.manager)
+
+    def test_working_day_schedule_skips_weekend_and_minimum_run_gate_is_enforced(self):
+        cycle = FinanceShadowCycle.objects.create(
+            department=self.accounting, code="working-day-cadence", title="Working-day cadence pilot",
+            fiscal_year=2027, enabled_scope="Synthetic working-day reconciliation scope",
+            source_extract_reference="Redacted packet CADENCE-001",
+            source_checksum="e" * 64, source_schema_signature="f" * 64,
+            planned_start=date(2027, 1, 8), planned_end=date(2027, 1, 11), created_by=self.manager,
+        )
+        self._approve_plan(
+            cycle, minimum_runs=2, cadence=FinanceShadowReconciliationPlan.BUSINESS_DAILY,
+        )
+        start_shadow_cycle(cycle, self.manager)
+        comparison = self._matched_comparison(cycle)
+        first = self._review_current_run(cycle)
+        self.assertEqual(timezone.localtime(first.scheduled_for).date(), date(2027, 1, 8))
+        with self.assertRaisesMessage(ValidationError, "at least 2"):
+            submit_shadow_cycle(cycle, self.manager)
+        second = self._review_current_run(cycle)
+        self.assertEqual(timezone.localtime(second.scheduled_for).date(), date(2027, 1, 11))
+        submit_shadow_cycle(cycle, self.manager)
+        comparison.refresh_from_db()
+        self.assertEqual(comparison.outcome, FinanceShadowComparison.MATCHED)
 
     def test_submission_locks_checksum_and_requires_an_independent_reconciler(self):
         cycle = self._cycle()
         start_shadow_cycle(cycle, self.manager)
         cycle.refresh_from_db()
         comparison = self._matched_comparison(cycle)
+        self._review_current_run(cycle)
         submit_shadow_cycle(cycle, self.manager)
         cycle.refresh_from_db()
         self.assertEqual(cycle.status, FinanceShadowCycle.RECONCILIATION_REVIEW)

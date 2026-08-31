@@ -1,6 +1,6 @@
 # Finance shadow operation, UAT acceptance, and controlled cutover
 
-Status: F11.1 governed transition control and F11.2 versioned redacted source staging implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate or any local production cutover has occurred.
+Status: F11.1 governed transition control, F11.2 versioned redacted source staging, and F11.3 scheduled reconciliation/defect control implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate or any local production cutover has occurred.
 
 ## Purpose and authority boundary
 
@@ -42,7 +42,31 @@ During a running cycle, Finance can add case, batch, period, register, ledger, a
 
 Submission recomputes each row, rejects open defects, serializes the complete evidence payload, and stores its SHA-256 checksum. The independent reviewer cannot be the submitter and cannot accept changed evidence. A returned submitted cycle stays retained; corrections are made in a successor rather than rewriting the reviewed snapshot.
 
-F11.1 supplies governed comparison rows and a cycle dashboard. Automatic source adapters, scheduled daily ingestion/reconciliation, richer defect queues and service-level escalation remain parent-F11 work after local source formats and operating procedures are confirmed.
+F11.1 supplies governed comparison rows and the cycle dashboard. F11.3 adds the scheduled evidence and defect lifecycle described below. Automatic production-source ingestion remains separate and optional after local source formats and operating procedures are confirmed.
+
+## Local cadence, scheduled runs, and defect triage
+
+Before a cycle can start, Finance prepares a human-readable local reconciliation plan containing:
+
+- calendar-day or Monday–Friday cadence, the first due time, and a visible grace period;
+- the minimum independently reviewed run count required before final cycle submission;
+- the exact transaction types covered by each run;
+- retained local authority and acceptance references; and
+- editable Critical, High, Medium, and Low correction hours plus a named person, role, or office escalation route for each level.
+
+The displayed starter numbers are planning defaults only. They are not represented as COA, DBM, audit, or local requirements. A different reconciliation reviewer must approve the checksum-backed plan, and the preparer/submitter cannot self-approve it. Returned controls can be corrected before cycle start; an approved plan is immutable for that cycle.
+
+During a running cycle, Finance opens the next scheduled run. Calendar-day plans advance daily; working-day plans skip Saturday and Sunday. GRAND prevents a second run from opening while the current one is open, returned, or awaiting review. Each submitted run snapshots the current comparison rows and complete defect register into JSON-safe evidence, calculates exact matched/explained/open counts, and locks the snapshot with SHA-256.
+
+The independent reviewer may:
+
+- mark a zero-open-defect snapshot Independently reconciled;
+- mark a snapshot Reviewed with open exceptions, keeping every defect visible; or
+- return the run for a specific correction and resubmission.
+
+An accepted exception run is evidence that the reviewer saw the defect—not evidence that the defect is resolved. The cycle cannot reach final reconciliation review until the approved plan's minimum run count is met, every opened run has an independent decision, every current comparison has no open-defect outcome, and every registered defect is independently resolved.
+
+Each open comparison receives a separate triage record with stable code, severity, impact, owner, calculated correction due time, and the approved escalation route pinned as a snapshot. The owner or Finance manager submits a correction note and retained evidence reference. A different reconciliation reviewer accepts the resolution or reopens it. Acceptance preserves the original exception run and defect history while changing the current comparison to Explained. Escalation records who was contacted, when, and the requested action; due/overdue state is visible and no intake or escalation history can be deleted.
 
 ## Training and stakeholder acceptance
 
@@ -91,7 +115,7 @@ This transition allowance does not reopen issued vouchers/checks or bypass their
 
 Department-bounded Finance permissions control cycle preparation, independent reconciliation, and cutover authority. A named cross-office stakeholder can read only the assigned cycle and record only their pending decision; assignment does not grant Finance preparation or authority actions. Finance UAT viewers remain read-only within their office boundary.
 
-Every visible cycle can produce a JSON evidence package containing each source version's checksum, headings, row count, drift/review metadata, comparisons, stored/computed evidence checksums, stakeholder decisions, readiness checks, and current cutover decision. Source row values and the retained CSV bytes are deliberately excluded from the portable JSON. The downloaded bytes are also archived atomically under:
+Every visible cycle can produce a JSON evidence package containing each source version's checksum, headings, row count, drift/review metadata; the approved local cadence and escalation matrix; every scheduled run snapshot/checksum; defect intake, resolution, and escalation evidence; comparisons; stakeholder decisions; readiness checks; and the current cutover decision. Source row values and the retained CSV bytes are deliberately excluded from the portable JSON. The downloaded bytes are also archived atomically under:
 
 `department/user/finance-shadow-cutover/year/month`
 
@@ -102,7 +126,7 @@ inside the single `GRAND_EXPORT_ROOT`, beside a SHA-256 manifest for TraceSync w
 Before claiming the parent exit gate, the LGU still must confirm and execute:
 
 - current locally accepted redacted source layouts and, if useful, a separately reviewed read-only adapter beyond the implemented file-staging boundary;
-- daily reconciliation cadence, defect severity/escalation rules, and enabled transaction-type sign-off;
+- actual locally accepted cadence/severity/escalation values, named support ownership, and enabled transaction-type field sign-off using the implemented controls;
 - complete role curricula, quick guides, supervisor/support runbooks, and actual attendance/exercise evidence;
 - named security, privacy, accessibility, performance, print/form-stock, backup/restore, continuity, and incident exercises;
 - consecutive limited shadow and controlled parallel cycles using accepted local rules/forms; and

@@ -7,7 +7,8 @@ from .models import (
     FinanceCutoverDecision,
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule, FinanceNumberingSequence,
     FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
-    FinanceShadowComparison, FinanceShadowCycle, FinanceSignatory, FinanceStakeholderAcceptance,
+    FinanceShadowComparison, FinanceShadowCycle, FinanceShadowDefect,
+    FinanceShadowReconciliationPlan, FinanceSignatory, FinanceStakeholderAcceptance,
     FinanceTemplateVersion, FinanceTransactionVariant,
 )
 
@@ -346,6 +347,63 @@ class FinanceShadowComparisonForm(forms.ModelForm):
         self.fields["defect_owner"].queryset = get_user_model().objects.filter(
             is_active=True, employeeprofile__assigned_department__isnull=False,
         ).order_by("last_name", "first_name", "username")
+
+
+class FinanceShadowReconciliationPlanForm(forms.ModelForm):
+    class Meta:
+        model = FinanceShadowReconciliationPlan
+        fields = (
+            "cadence", "first_due_at", "grace_minutes", "minimum_reviewed_runs",
+            "enabled_transaction_types", "local_authority_reference", "local_acceptance_note",
+            "critical_resolution_hours", "critical_escalation_route",
+            "high_resolution_hours", "high_escalation_route",
+            "medium_resolution_hours", "medium_escalation_route",
+            "low_resolution_hours", "low_escalation_route",
+        )
+        widgets = {
+            "first_due_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "enabled_transaction_types": forms.Textarea(attrs={"rows": 3}),
+            "local_authority_reference": forms.Textarea(attrs={"rows": 2}),
+            "local_acceptance_note": forms.Textarea(attrs={"rows": 3}),
+        }
+        help_texts = {
+            "grace_minutes": "Minutes after each scheduled comparison time before an unfinished run is shown overdue.",
+            "minimum_reviewed_runs": "The locally accepted minimum number of independently reviewed runs required before final cycle submission.",
+            "local_authority_reference": "Reference the approved pilot/UAT direction, procedure, meeting decision, or other retained authority.",
+            "local_acceptance_note": "State who confirmed the cadence, severity targets, and escalation routes and where that evidence is retained.",
+        }
+
+
+class FinanceShadowDefectForm(forms.Form):
+    comparison = forms.ModelChoiceField(queryset=FinanceShadowComparison.objects.none())
+    code = forms.SlugField(max_length=80, help_text="Use a short stable reference such as DV-AMOUNT-001.")
+    severity = forms.ChoiceField(choices=FinanceShadowDefect.SEVERITY_CHOICES)
+    summary = forms.CharField(max_length=200)
+    impact = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Describe the affected transaction, control, report, office, or decision without exposing unnecessary personal data.",
+    )
+    owner = forms.ModelChoiceField(queryset=get_user_model().objects.none())
+
+    def __init__(self, *args, cycle, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["comparison"].queryset = cycle.comparisons.filter(
+            outcome=FinanceShadowComparison.OPEN_DEFECT,
+        ).exclude(defects__status__in=(FinanceShadowDefect.OPEN, FinanceShadowDefect.RESOLUTION_REVIEW))
+        self.fields["owner"].queryset = get_user_model().objects.filter(
+            is_active=True, employeeprofile__assigned_department__isnull=False,
+        ).order_by("last_name", "first_name", "username")
+
+
+class FinanceShadowDefectResolutionForm(forms.Form):
+    resolution_note = forms.CharField(
+        label="Correction completed", widget=forms.Textarea(attrs={"rows": 4}),
+        help_text="Explain the corrected mapping, data, workflow, output, or procedure and its resulting control value.",
+    )
+    evidence_reference = forms.CharField(
+        label="Verification evidence reference", widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Reference the retained redacted case, rerun, worksheet, output, test, or reviewer evidence.",
+    )
 
 
 class FinanceStakeholderAcceptanceForm(forms.ModelForm):

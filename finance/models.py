@@ -1117,6 +1117,351 @@ class FinanceShadowComparison(models.Model):
         return super().delete(*args, **kwargs)
 
 
+class FinanceShadowReconciliationPlan(models.Model):
+    CALENDAR_DAILY = "calendar_daily"
+    BUSINESS_DAILY = "business_daily"
+    CADENCE_CHOICES = (
+        (CALENDAR_DAILY, "Every calendar day"),
+        (BUSINESS_DAILY, "Every working day (Monday–Friday)"),
+    )
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    APPROVED = "approved"
+    RETURNED = "returned"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft local plan"),
+        (SUBMITTED, "Awaiting independent approval"),
+        (APPROVED, "Approved for this cycle"),
+        (RETURNED, "Returned for correction"),
+    )
+
+    cycle = models.OneToOneField(
+        FinanceShadowCycle, on_delete=models.PROTECT, related_name="reconciliation_plan",
+    )
+    cadence = models.CharField(max_length=20, choices=CADENCE_CHOICES)
+    first_due_at = models.DateTimeField()
+    grace_minutes = models.PositiveIntegerField(default=60)
+    minimum_reviewed_runs = models.PositiveIntegerField(default=1)
+    enabled_transaction_types = models.TextField(
+        help_text="Name the transaction types covered by each scheduled comparison run.",
+    )
+    local_authority_reference = models.TextField()
+    local_acceptance_note = models.TextField()
+    critical_resolution_hours = models.PositiveIntegerField(default=4)
+    critical_escalation_route = models.CharField(max_length=200)
+    high_resolution_hours = models.PositiveIntegerField(default=8)
+    high_escalation_route = models.CharField(max_length=200)
+    medium_resolution_hours = models.PositiveIntegerField(default=24)
+    medium_escalation_route = models.CharField(max_length=200)
+    low_resolution_hours = models.PositiveIntegerField(default=72)
+    low_escalation_route = models.CharField(max_length=200)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    evidence_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_finance_shadow_reconciliation_plans",
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_shadow_reconciliation_plans",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="approved_finance_shadow_reconciliation_plans",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def __str__(self):
+        return f"{self.cycle.code} reconciliation plan"
+
+    def clean(self):
+        if self.cycle_id and self.cycle.status != FinanceShadowCycle.DRAFT:
+            raise ValidationError("The reconciliation plan must be approved before the cycle starts.")
+        if self.first_due_at and self.cycle_id:
+            local_due = timezone.localtime(self.first_due_at).date()
+            if not self.cycle.planned_start <= local_due <= self.cycle.planned_end:
+                raise ValidationError({"first_due_at": "The first due time must fall inside the planned cycle dates."})
+        if self.grace_minutes > 7 * 24 * 60:
+            raise ValidationError({"grace_minutes": "The review grace period cannot exceed seven days."})
+        if not 1 <= self.minimum_reviewed_runs <= 366:
+            raise ValidationError({"minimum_reviewed_runs": "Enter between 1 and 366 required reviewed runs."})
+        for severity in ("critical", "high", "medium", "low"):
+            hours = getattr(self, f"{severity}_resolution_hours")
+            route = getattr(self, f"{severity}_escalation_route", "")
+            if not 1 <= hours <= 24 * 90:
+                raise ValidationError({f"{severity}_resolution_hours": "Enter a target from 1 hour through 90 days."})
+            if not route.strip():
+                raise ValidationError({f"{severity}_escalation_route": "Name the locally accepted person, role, or office escalation route."})
+        if self.status in {self.SUBMITTED, self.APPROVED} and not self.evidence_checksum:
+            raise ValidationError("Submitted reconciliation plans require a checksum-backed snapshot.")
+        if self.status == self.APPROVED:
+            if not self.approved_by_id or not self.approved_at or not self.review_note.strip():
+                raise ValidationError("Approved plans require an independent reviewer, time, and basis.")
+            if self.approved_by_id in {self.created_by_id, self.submitted_by_id}:
+                raise ValidationError("The plan preparer or submitter cannot approve the same local plan.")
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "cycle_id", "cadence", "first_due_at", "grace_minutes", "minimum_reviewed_runs",
+                "enabled_transaction_types", "local_authority_reference", "local_acceptance_note",
+                "critical_resolution_hours", "critical_escalation_route", "high_resolution_hours",
+                "high_escalation_route", "medium_resolution_hours", "medium_escalation_route",
+                "low_resolution_hours", "low_escalation_route", "created_by_id",
+            )
+            if prior.status in {self.SUBMITTED, self.APPROVED} and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Submitted plan controls are immutable. Return the plan before correction.")
+            if prior.status == self.APPROVED:
+                locked = governed + (
+                    "status", "evidence_checksum", "submitted_by_id", "submitted_at",
+                    "approved_by_id", "approved_at", "review_note",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in locked):
+                    raise ValidationError("An approved reconciliation plan is immutable for this cycle.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status != self.DRAFT:
+            raise ValidationError("A submitted reconciliation plan cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceShadowReconciliationRun(models.Model):
+    OPEN = "open"
+    SUBMITTED = "submitted"
+    RECONCILED = "reconciled"
+    REVIEWED_WITH_EXCEPTIONS = "reviewed_exceptions"
+    RETURNED = "returned"
+    STATUS_CHOICES = (
+        (OPEN, "Open comparison run"),
+        (SUBMITTED, "Awaiting independent review"),
+        (RECONCILED, "Independently reconciled"),
+        (REVIEWED_WITH_EXCEPTIONS, "Reviewed with open exceptions"),
+        (RETURNED, "Returned for correction"),
+    )
+
+    cycle = models.ForeignKey(
+        FinanceShadowCycle, on_delete=models.PROTECT, related_name="reconciliation_runs",
+    )
+    plan = models.ForeignKey(
+        FinanceShadowReconciliationPlan, on_delete=models.PROTECT, related_name="runs",
+    )
+    sequence = models.PositiveIntegerField()
+    scheduled_for = models.DateTimeField()
+    due_at = models.DateTimeField()
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=OPEN)
+    comparison_snapshot = models.JSONField(default=list, blank=True)
+    defect_snapshot = models.JSONField(default=list, blank=True)
+    comparison_count = models.PositiveIntegerField(default=0)
+    matched_count = models.PositiveIntegerField(default=0)
+    explained_count = models.PositiveIntegerField(default=0)
+    open_defect_count = models.PositiveIntegerField(default=0)
+    evidence_checksum = models.CharField(max_length=64, blank=True)
+    prepared_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="prepared_finance_shadow_reconciliation_runs",
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_shadow_reconciliation_runs",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_finance_shadow_reconciliation_runs",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("sequence", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("cycle", "sequence"), name="unique_shadow_reconciliation_sequence"),
+            models.UniqueConstraint(fields=("cycle", "scheduled_for"), name="unique_shadow_reconciliation_schedule"),
+        )
+
+    def __str__(self):
+        return f"{self.cycle.code} reconciliation #{self.sequence}"
+
+    @property
+    def is_overdue(self):
+        return self.status in {self.OPEN, self.RETURNED} and timezone.now() > self.due_at
+
+    def clean(self):
+        if self.cycle_id and self.plan_id and self.plan.cycle_id != self.cycle_id:
+            raise ValidationError({"plan": "Use the reconciliation plan approved for this cycle."})
+        if self.due_at and self.scheduled_for and self.due_at < self.scheduled_for:
+            raise ValidationError({"due_at": "The due time cannot precede the scheduled run time."})
+        if not isinstance(self.comparison_snapshot, list) or not isinstance(self.defect_snapshot, list):
+            raise ValidationError("Reconciliation evidence snapshots must be lists.")
+        if self.status in {self.SUBMITTED, self.RECONCILED, self.REVIEWED_WITH_EXCEPTIONS}:
+            if not self.evidence_checksum or not self.submitted_by_id or not self.submitted_at:
+                raise ValidationError("Submitted runs require checksum-backed evidence and an attributed submitter.")
+        if self.status in {self.RECONCILED, self.REVIEWED_WITH_EXCEPTIONS}:
+            if not self.reviewed_by_id or not self.reviewed_at or not self.review_note.strip():
+                raise ValidationError("Reviewed runs require an independent reviewer and basis.")
+            if self.reviewed_by_id == self.submitted_by_id:
+                raise ValidationError("The run submitter cannot independently review the same evidence.")
+        if self.status == self.RECONCILED and self.open_defect_count:
+            raise ValidationError("A run with open defects must be recorded as reviewed with exceptions.")
+        if self.status == self.REVIEWED_WITH_EXCEPTIONS and not self.open_defect_count:
+            raise ValidationError("Use independently reconciled when the run has no open defects.")
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            evidence_fields = (
+                "cycle_id", "plan_id", "sequence", "scheduled_for", "due_at",
+                "comparison_snapshot", "defect_snapshot", "comparison_count", "matched_count",
+                "explained_count", "open_defect_count", "evidence_checksum", "prepared_by_id",
+            )
+            if prior.status in {self.SUBMITTED, self.RECONCILED, self.REVIEWED_WITH_EXCEPTIONS} and any(
+                getattr(prior, field) != getattr(self, field) for field in evidence_fields
+            ):
+                raise ValidationError("Submitted run evidence is immutable. Return before correction or open the next scheduled run.")
+            if prior.status in {self.RECONCILED, self.REVIEWED_WITH_EXCEPTIONS}:
+                locked = evidence_fields + (
+                    "status", "submitted_by_id", "submitted_at", "reviewed_by_id",
+                    "reviewed_at", "review_note",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in locked):
+                    raise ValidationError("An independently reviewed run is immutable. Open the next scheduled run.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Scheduled reconciliation history cannot be deleted.")
+
+
+class FinanceShadowDefect(models.Model):
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+    SEVERITY_CHOICES = (
+        (CRITICAL, "Critical"), (HIGH, "High"), (MEDIUM, "Medium"), (LOW, "Low"),
+    )
+    OPEN = "open"
+    RESOLUTION_REVIEW = "resolution_review"
+    RESOLVED = "resolved"
+    STATUS_CHOICES = (
+        (OPEN, "Open / being corrected"),
+        (RESOLUTION_REVIEW, "Resolution awaiting independent review"),
+        (RESOLVED, "Resolution independently accepted"),
+    )
+
+    cycle = models.ForeignKey(FinanceShadowCycle, on_delete=models.PROTECT, related_name="defects")
+    first_seen_run = models.ForeignKey(
+        FinanceShadowReconciliationRun, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="first_seen_defects",
+    )
+    comparison = models.ForeignKey(
+        FinanceShadowComparison, on_delete=models.PROTECT, related_name="defects",
+    )
+    code = models.SlugField(max_length=80)
+    severity = models.CharField(max_length=12, choices=SEVERITY_CHOICES)
+    summary = models.CharField(max_length=200)
+    impact = models.TextField()
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="assigned_finance_shadow_defects",
+    )
+    correction_due_at = models.DateTimeField()
+    escalation_route_snapshot = models.CharField(max_length=200)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=OPEN)
+    resolution_note = models.TextField(blank=True)
+    resolution_evidence_reference = models.TextField(blank=True)
+    resolution_submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_shadow_defect_resolutions",
+    )
+    resolution_submitted_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="resolved_finance_shadow_defects",
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    last_escalation_note = models.TextField(blank=True)
+    last_escalation_at = models.DateTimeField(null=True, blank=True)
+    last_escalated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="escalated_finance_shadow_defects",
+    )
+    escalation_count = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_finance_shadow_defects",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("status", "correction_due_at", "-severity", "code")
+        constraints = (
+            models.UniqueConstraint(fields=("cycle", "code"), name="unique_shadow_defect_code"),
+        )
+
+    def __str__(self):
+        return f"{self.code} — {self.summary}"
+
+    @property
+    def is_overdue(self):
+        return self.status != self.RESOLVED and timezone.now() > self.correction_due_at
+
+    def clean(self):
+        if self.comparison_id and self.cycle_id and self.comparison.cycle_id != self.cycle_id:
+            raise ValidationError({"comparison": "The defect comparison must belong to this cycle."})
+        if self.first_seen_run_id and self.first_seen_run.cycle_id != self.cycle_id:
+            raise ValidationError({"first_seen_run": "The first-seen run must belong to this cycle."})
+        if self.owner_id and self.comparison_id and self.comparison.defect_owner_id not in {None, self.owner_id}:
+            raise ValidationError({"owner": "Use the owner already assigned on the open comparison, or correct the comparison first."})
+        if self.status in {self.RESOLUTION_REVIEW, self.RESOLVED}:
+            if not self.resolution_note.strip() or not self.resolution_evidence_reference.strip():
+                raise ValidationError("A proposed resolution requires both a plain-language correction note and retained evidence reference.")
+            if not self.resolution_submitted_by_id or not self.resolution_submitted_at:
+                raise ValidationError("A proposed resolution requires an attributed submitter and time.")
+        if self.status == self.RESOLVED:
+            if not self.resolved_by_id or not self.resolved_at:
+                raise ValidationError("A resolved defect requires an independent reviewer and time.")
+            if self.resolved_by_id == self.resolution_submitted_by_id:
+                raise ValidationError("The resolution submitter cannot independently accept the same correction.")
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            immutable = (
+                "cycle_id", "first_seen_run_id", "comparison_id", "code", "severity", "summary",
+                "impact", "owner_id", "correction_due_at", "escalation_route_snapshot", "created_by_id",
+            )
+            if any(getattr(prior, field) != getattr(self, field) for field in immutable):
+                raise ValidationError("Defect intake evidence is immutable. Use resolution and escalation actions.")
+            if prior.status == self.RESOLVED:
+                locked = immutable + (
+                    "status", "resolution_note", "resolution_evidence_reference",
+                    "resolution_submitted_by_id", "resolution_submitted_at", "resolved_by_id",
+                    "resolved_at", "last_escalation_note", "last_escalation_at",
+                    "last_escalated_by_id", "escalation_count",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in locked):
+                    raise ValidationError("An independently resolved defect is immutable.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Defect history cannot be deleted.")
+
+
 class FinanceStakeholderAcceptance(models.Model):
     REQUESTING_OFFICE = "requesting_office"
     BUDGET = "budget"

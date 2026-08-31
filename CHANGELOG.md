@@ -1,5 +1,15 @@
 # Changelog
 
+## F11.3 Scheduled reconciliation and governed defect resolution
+
+- Added human-editable calendar-day or working-day reconciliation plans with first due time, grace period, minimum reviewed runs, enabled transaction types, retained local authority/acceptance evidence, and editable Critical/High/Medium/Low correction targets and escalation routes.
+- Added checksum-backed maker–checker plan submission, return, and approval; cycles cannot start without the independently approved local plan.
+- Added ordered scheduled runs that prevent overlap, retain current comparison and defect snapshots, calculate exact outcome counts, flag due/overdue work, and receive independent Reconciled, Reviewed with exceptions, or Returned decisions.
+- Added stable defect intake with severity, impact, owner, calculated correction deadline, pinned escalation route, actual escalation history, owner correction evidence, and independent accept/reopen review.
+- Kept reviewed exceptions distinct from resolution and blocked final cycle review until the local minimum run count is met, every opened run is reviewed, and every current defect is independently resolved.
+- Extended the conservative Finance workspace, Accounting floating Internal How-To version 3, append-only audit evidence, and TraceSync JSON schema v3 with cadence, run, defect, resolution, and escalation metadata.
+- Left actual local plan values, production adapters, accepted support/curricula, non-functional exercises, consecutive field cycles, and stakeholder/cutover signatures outside the implementation claim.
+
 ## F11.2 Versioned redacted source staging and schema-drift review
 
 - Replaced required hand-calculated hashes in the ordinary cycle form with a guided UTF-8 redacted CSV path that calculates the exact file checksum, normalized headings, row count, and ordered layout signature.

@@ -16,19 +16,26 @@ from .cutover_services import (
     build_cutover_evidence_package, cutover_readiness, decide_cutover,
     decide_stakeholder_acceptance, record_cutover_rollback, review_shadow_cycle,
     review_shadow_source_drift, stage_shadow_external_lock, stage_shadow_source_csv,
-    start_shadow_cycle, submit_cutover_decision, submit_shadow_cycle,
+    open_next_reconciliation_run, record_shadow_defect_escalation,
+    register_shadow_defect, review_reconciliation_plan, review_reconciliation_run,
+    review_shadow_defect_resolution, start_shadow_cycle, submit_cutover_decision,
+    submit_reconciliation_plan, submit_reconciliation_run, submit_shadow_cycle,
+    submit_shadow_defect_resolution,
 )
 from .forms import (
     FinanceCutoverDecisionForm,
     FinanceDocumentRuleForm, FinanceItemForm, FinanceNumberingSequenceForm, FinanceReleaseForm,
     FinancePartyClaimantForm, FinancePartyForm, FinancePostingRuleForm, FinancePostingRuleLineForm,
     FinanceShadowComparisonForm, FinanceShadowCycleForm, FinanceShadowDriftReviewForm,
-    FinanceShadowExternalLockForm, FinanceShadowSourceUploadForm, FinanceSignatoryForm,
+    FinanceShadowDefectForm, FinanceShadowDefectResolutionForm, FinanceShadowExternalLockForm,
+    FinanceShadowReconciliationPlanForm, FinanceShadowSourceUploadForm, FinanceSignatoryForm,
     FinanceStakeholderAcceptanceForm, FinanceStakeholderDecisionForm,
     FinanceTemplateForm, FinanceStarterTemplateForm, FinanceTransactionVariantForm,
 )
 from .models import (
-    FinanceConfigurationRelease, FinanceCutoverDecision, FinanceParty, FinanceShadowCycle, FinanceShadowSourceVersion,
+    FinanceConfigurationRelease, FinanceCutoverDecision, FinanceParty, FinanceShadowCycle,
+    FinanceShadowDefect, FinanceShadowReconciliationPlan, FinanceShadowReconciliationRun,
+    FinanceShadowSourceVersion,
     FinanceStakeholderAcceptance, FinanceTemplateVersion, FinanceTransactionVariant,
 )
 from .services import (
@@ -421,10 +428,17 @@ def shadow_cycle_detail(request, pk):
         decision = cycle.cutover_decision
     except FinanceCutoverDecision.DoesNotExist:
         decision = None
+    try:
+        plan = cycle.reconciliation_plan
+    except FinanceShadowReconciliationPlan.DoesNotExist:
+        plan = None
     department = cycle.department
     return render(request, "finance/shadow_cycle_detail.html", {
         "cycle": cycle,
         "source_versions": cycle.source_versions.select_related("staged_by", "reviewed_by"),
+        "reconciliation_plan": plan,
+        "reconciliation_runs": cycle.reconciliation_runs.select_related("prepared_by", "submitted_by", "reviewed_by"),
+        "defects": cycle.defects.select_related("comparison", "owner", "resolution_submitted_by", "resolved_by"),
         "comparisons": cycle.comparisons.select_related("defect_owner", "created_by"),
         "acceptances": cycle.stakeholder_acceptances.select_related("office", "assigned_reviewer", "decided_by"),
         "decision": decision,
@@ -434,6 +448,171 @@ def shadow_cycle_detail(request, pk):
         "can_authorize": can_authorize_finance_cutover(request.user, department),
         "is_assigned_reviewer": cycle.stakeholder_acceptances.filter(assigned_reviewer=request.user, decision=FinanceStakeholderAcceptance.PENDING).exists(),
     })
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def shadow_reconciliation_plan(request, cycle_pk):
+    department = department_for_user(request.user)
+    cycle = get_object_or_404(FinanceShadowCycle, pk=cycle_pk, department=department)
+    try:
+        plan = cycle.reconciliation_plan
+    except FinanceShadowReconciliationPlan.DoesNotExist:
+        plan = None
+    if plan and plan.status not in {FinanceShadowReconciliationPlan.DRAFT, FinanceShadowReconciliationPlan.RETURNED}:
+        return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    form = FinanceShadowReconciliationPlanForm(request.POST or None, instance=plan)
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.cycle = cycle
+        if not item.pk:
+            item.created_by = request.user
+        try:
+            item.save()
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Draft local cadence and escalation plan saved. Submit it for independent review before starting the cycle.")
+            return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Local reconciliation plan — {cycle.code}", "cycle": cycle,
+        "guidance": "Enter the actual locally accepted cadence, minimum run count, correction targets, and named escalation routes. The suggested numbers are editable planning defaults—not COA, DBM, or local requirements.",
+    })
+
+
+@shadow_access_required
+def shadow_reconciliation_plan_action(request, pk, action):
+    if request.method != "POST":
+        raise Http404
+    plan = get_object_or_404(FinanceShadowReconciliationPlan.objects.select_related("cycle", "cycle__department"), pk=pk)
+    if not can_view_shadow_cycle(request.user, plan.cycle):
+        raise PermissionDenied
+    reason = request.POST.get("reason", "")
+    try:
+        if action == "submit":
+            submit_reconciliation_plan(plan, request.user)
+        elif action == "approve":
+            review_reconciliation_plan(plan, request.user, approve=True, reason=reason)
+        elif action == "return":
+            review_reconciliation_plan(plan, request.user, approve=False, reason=reason)
+        else:
+            raise Http404
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(request, "The reconciliation-plan action is retained in Finance audit history.")
+    return redirect("finance:shadow_cycle_detail", pk=plan.cycle_id)
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def shadow_reconciliation_run_open(request, cycle_pk):
+    if request.method != "POST":
+        raise Http404
+    department = department_for_user(request.user)
+    cycle = get_object_or_404(FinanceShadowCycle, pk=cycle_pk, department=department)
+    try:
+        open_next_reconciliation_run(cycle, request.user)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(request, "The next scheduled reconciliation run is open against the current controls.")
+    return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+
+
+@shadow_access_required
+def shadow_reconciliation_run_action(request, pk, action):
+    if request.method != "POST":
+        raise Http404
+    run = get_object_or_404(FinanceShadowReconciliationRun.objects.select_related("cycle", "cycle__department"), pk=pk)
+    if not can_view_shadow_cycle(request.user, run.cycle):
+        raise PermissionDenied
+    reason = request.POST.get("reason", "")
+    try:
+        if action == "submit":
+            submit_reconciliation_run(run, request.user)
+        elif action == "accept":
+            review_reconciliation_run(run, request.user, accept=True, reason=reason)
+        elif action == "return":
+            review_reconciliation_run(run, request.user, accept=False, reason=reason)
+        else:
+            raise Http404
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(request, "The scheduled reconciliation action is checksummed and retained.")
+    return redirect("finance:shadow_cycle_detail", pk=run.cycle_id)
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def shadow_defect_create(request, cycle_pk):
+    department = department_for_user(request.user)
+    cycle = get_object_or_404(FinanceShadowCycle, pk=cycle_pk, department=department)
+    form = FinanceShadowDefectForm(request.POST or None, cycle=cycle)
+    if request.method == "POST" and form.is_valid():
+        try:
+            register_shadow_defect(
+                form.cleaned_data["comparison"], request.user,
+                code=form.cleaned_data["code"], severity=form.cleaned_data["severity"],
+                summary=form.cleaned_data["summary"], impact=form.cleaned_data["impact"],
+                owner=form.cleaned_data["owner"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Defect triage recorded with the approved local target and escalation route.")
+            return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Register comparison defect — {cycle.code}", "cycle": cycle,
+        "guidance": "Classify the control impact independently of appearance. GRAND calculates the correction due time and pins the escalation route from the approved local plan.",
+    })
+
+
+@shadow_access_required
+def shadow_defect_resolution(request, pk):
+    defect = get_object_or_404(FinanceShadowDefect.objects.select_related("cycle", "cycle__department", "owner"), pk=pk)
+    if not can_view_shadow_cycle(request.user, defect.cycle):
+        raise PermissionDenied
+    if request.user.pk != defect.owner_id and not can_manage_shadow_operation(request.user, defect.cycle.department):
+        raise PermissionDenied
+    form = FinanceShadowDefectResolutionForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            submit_shadow_defect_resolution(
+                defect, request.user, note=form.cleaned_data["resolution_note"],
+                evidence_reference=form.cleaned_data["evidence_reference"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Correction submitted for independent verification; the defect remains open until accepted.")
+            return redirect("finance:shadow_cycle_detail", pk=defect.cycle_id)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Submit correction — {defect.code}", "cycle": defect.cycle,
+        "guidance": "Describe the completed correction and point to retained verification evidence. Submission alone does not close the defect.",
+    })
+
+
+@shadow_access_required
+def shadow_defect_action(request, pk, action):
+    if request.method != "POST":
+        raise Http404
+    defect = get_object_or_404(FinanceShadowDefect.objects.select_related("cycle", "cycle__department"), pk=pk)
+    if not can_view_shadow_cycle(request.user, defect.cycle):
+        raise PermissionDenied
+    reason = request.POST.get("reason", "")
+    try:
+        if action == "accept":
+            review_shadow_defect_resolution(defect, request.user, accept=True, reason=reason)
+        elif action == "return":
+            review_shadow_defect_resolution(defect, request.user, accept=False, reason=reason)
+        elif action == "escalate":
+            record_shadow_defect_escalation(defect, request.user, note=reason)
+        else:
+            raise Http404
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(request, "The defect action is retained without rewriting its intake evidence.")
+    return redirect("finance:shadow_cycle_detail", pk=defect.cycle_id)
 
 
 @finance_permission_required(can_manage_shadow_operation)

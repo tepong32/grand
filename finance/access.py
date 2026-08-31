@@ -69,6 +69,8 @@ def can_view_shadow_cycle(user, cycle):
         return False
     if cycle.stakeholder_acceptances.filter(assigned_reviewer=user).exists():
         return True
+    if cycle.defects.filter(owner=user).exists():
+        return True
     if not _in_department(user, cycle.department):
         return False
     return bool(

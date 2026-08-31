@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import re
+from datetime import timedelta
 
 from django.core.files.base import ContentFile
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -23,7 +24,11 @@ from .access import (
 from .models import (
     FinanceAuditEvent,
     FinanceCutoverDecision,
+    FinanceShadowComparison,
     FinanceShadowCycle,
+    FinanceShadowDefect,
+    FinanceShadowReconciliationPlan,
+    FinanceShadowReconciliationRun,
     FinanceShadowSourceVersion,
     FinanceStakeholderAcceptance,
 )
@@ -76,6 +81,82 @@ def _source_version_data(item):
     }
 
 
+def _plan_data(plan):
+    return {
+        "plan_id": plan.pk,
+        "cadence": plan.cadence,
+        "first_due_at": plan.first_due_at,
+        "grace_minutes": plan.grace_minutes,
+        "minimum_reviewed_runs": plan.minimum_reviewed_runs,
+        "enabled_transaction_types": plan.enabled_transaction_types,
+        "local_authority_reference": plan.local_authority_reference,
+        "local_acceptance_note": plan.local_acceptance_note,
+        "severity_rules": {
+            severity: {
+                "resolution_hours": getattr(plan, f"{severity}_resolution_hours"),
+                "escalation_route": getattr(plan, f"{severity}_escalation_route"),
+            }
+            for severity in ("critical", "high", "medium", "low")
+        },
+        "status": plan.status,
+        "evidence_checksum": plan.evidence_checksum,
+        "created_by_id": plan.created_by_id,
+        "submitted_by_id": plan.submitted_by_id,
+        "submitted_at": plan.submitted_at,
+        "approved_by_id": plan.approved_by_id,
+        "approved_at": plan.approved_at,
+        "review_note": plan.review_note,
+    }
+
+
+def _defect_data(item):
+    return {
+        "defect_id": item.pk,
+        "code": item.code,
+        "comparison_id": item.comparison_id,
+        "severity": item.severity,
+        "summary": item.summary,
+        "impact": item.impact,
+        "owner_id": item.owner_id,
+        "correction_due_at": item.correction_due_at,
+        "escalation_route_snapshot": item.escalation_route_snapshot,
+        "status": item.status,
+        "resolution_note": item.resolution_note,
+        "resolution_evidence_reference": item.resolution_evidence_reference,
+        "resolution_submitted_by_id": item.resolution_submitted_by_id,
+        "resolution_submitted_at": item.resolution_submitted_at,
+        "resolved_by_id": item.resolved_by_id,
+        "resolved_at": item.resolved_at,
+        "last_escalation_note": item.last_escalation_note,
+        "last_escalation_at": item.last_escalation_at,
+        "last_escalated_by_id": item.last_escalated_by_id,
+        "escalation_count": item.escalation_count,
+    }
+
+
+def _run_data(item):
+    return {
+        "run_id": item.pk,
+        "sequence": item.sequence,
+        "scheduled_for": item.scheduled_for,
+        "due_at": item.due_at,
+        "status": item.status,
+        "comparison_snapshot": item.comparison_snapshot,
+        "defect_snapshot": item.defect_snapshot,
+        "comparison_count": item.comparison_count,
+        "matched_count": item.matched_count,
+        "explained_count": item.explained_count,
+        "open_defect_count": item.open_defect_count,
+        "evidence_checksum": item.evidence_checksum,
+        "prepared_by_id": item.prepared_by_id,
+        "submitted_by_id": item.submitted_by_id,
+        "submitted_at": item.submitted_at,
+        "reviewed_by_id": item.reviewed_by_id,
+        "reviewed_at": item.reviewed_at,
+        "review_note": item.review_note,
+    }
+
+
 def _comparison_data(comparison):
     return {
         "level": comparison.comparison_level,
@@ -101,8 +182,11 @@ def shadow_cycle_evidence(cycle):
     source_versions = [
         _source_version_data(item) for item in cycle.source_versions.order_by("version", "pk")
     ]
+    plan = FinanceShadowReconciliationPlan.objects.filter(cycle=cycle).first()
+    runs = [_run_data(item) for item in cycle.reconciliation_runs.order_by("sequence", "pk")]
+    defects = [_defect_data(item) for item in cycle.defects.order_by("created_at", "pk")]
     payload = {
-        "schema_version": 2,
+        "schema_version": 3,
         "cycle_public_id": str(cycle.public_id),
         "code": cycle.code,
         "title": cycle.title,
@@ -118,6 +202,9 @@ def shadow_cycle_evidence(cycle):
         "planned_end": cycle.planned_end,
         "predecessor_public_id": str(cycle.predecessor.public_id) if cycle.predecessor_id else "",
         "source_versions": source_versions,
+        "reconciliation_plan": _plan_data(plan) if plan else None,
+        "reconciliation_runs": runs,
+        "defects": defects,
         "comparisons": comparisons,
     }
     encoded = json.dumps(payload, cls=DjangoJSONEncoder, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -305,6 +392,324 @@ def review_shadow_source_drift(source_version, actor, *, accept, reason):
     return item
 
 
+def _checksum_payload(payload):
+    encoded = json.dumps(payload, cls=DjangoJSONEncoder, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+@transaction.atomic
+def submit_reconciliation_plan(plan, actor):
+    plan = FinanceShadowReconciliationPlan.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=plan.pk)
+    if not can_manage_shadow_operation(actor, plan.cycle.department):
+        raise PermissionDenied
+    if plan.status not in {FinanceShadowReconciliationPlan.DRAFT, FinanceShadowReconciliationPlan.RETURNED}:
+        raise ValidationError("Only a draft or returned reconciliation plan can be submitted.")
+    plan.status = FinanceShadowReconciliationPlan.DRAFT
+    plan.evidence_checksum = ""
+    plan.submitted_by = None
+    plan.submitted_at = None
+    plan.approved_by = None
+    plan.approved_at = None
+    plan.review_note = ""
+    plan.full_clean()
+    snapshot = _plan_data(plan)
+    snapshot.pop("evidence_checksum", None)
+    plan.evidence_checksum = _checksum_payload(snapshot)
+    plan.status = FinanceShadowReconciliationPlan.SUBMITTED
+    plan.submitted_by = actor
+    plan.submitted_at = timezone.now()
+    plan.approved_by = None
+    plan.approved_at = None
+    plan.review_note = ""
+    plan.save(update_fields=(
+        "status", "evidence_checksum", "submitted_by", "submitted_at",
+        "approved_by", "approved_at", "review_note", "updated_at",
+    ))
+    _event(plan.cycle, actor, "shadow_reconciliation_plan_submitted", snapshot=_plan_data(plan))
+    return plan
+
+
+@transaction.atomic
+def review_reconciliation_plan(plan, actor, *, approve, reason):
+    plan = FinanceShadowReconciliationPlan.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=plan.pk)
+    if not can_review_shadow_reconciliation(actor, plan.cycle.department):
+        raise PermissionDenied
+    if plan.status != FinanceShadowReconciliationPlan.SUBMITTED:
+        raise ValidationError("This reconciliation plan is not awaiting review.")
+    if actor.pk == plan.submitted_by_id or actor.pk == plan.created_by_id:
+        raise ValidationError("The plan preparer or submitter cannot approve the same local plan.")
+    if not str(reason or "").strip():
+        raise ValidationError("Record the local review basis or the exact correction required.")
+    snapshot = _plan_data(plan)
+    stored = snapshot.pop("evidence_checksum", "")
+    snapshot["status"] = FinanceShadowReconciliationPlan.DRAFT
+    snapshot["submitted_by_id"] = None
+    snapshot["submitted_at"] = None
+    snapshot["approved_by_id"] = None
+    snapshot["approved_at"] = None
+    snapshot["review_note"] = ""
+    if _checksum_payload(snapshot) != stored:
+        raise ValidationError("The local plan changed after submission. Return it rather than approving altered controls.")
+    plan.status = FinanceShadowReconciliationPlan.APPROVED if approve else FinanceShadowReconciliationPlan.RETURNED
+    plan.review_note = str(reason).strip()
+    if approve:
+        plan.approved_by = actor
+        plan.approved_at = timezone.now()
+    else:
+        plan.evidence_checksum = ""
+        plan.approved_by = None
+        plan.approved_at = None
+    plan.save(update_fields=("status", "review_note", "evidence_checksum", "approved_by", "approved_at", "updated_at"))
+    _event(
+        plan.cycle, actor,
+        "shadow_reconciliation_plan_approved" if approve else "shadow_reconciliation_plan_returned",
+        reason=reason, snapshot=_plan_data(plan),
+    )
+    return plan
+
+
+def _next_scheduled_for(plan, prior=None):
+    scheduled = plan.first_due_at if prior is None else prior.scheduled_for + timedelta(days=1)
+    if plan.cadence == FinanceShadowReconciliationPlan.BUSINESS_DAILY:
+        while timezone.localtime(scheduled).weekday() >= 5:
+            scheduled += timedelta(days=1)
+    return scheduled
+
+
+@transaction.atomic
+def open_next_reconciliation_run(cycle, actor):
+    cycle = FinanceShadowCycle.objects.select_for_update().select_related("department").get(pk=cycle.pk)
+    if not can_manage_shadow_operation(actor, cycle.department):
+        raise PermissionDenied
+    if cycle.status != FinanceShadowCycle.RUNNING:
+        raise ValidationError("Scheduled reconciliation runs open only while the shadow cycle is running.")
+    try:
+        plan = cycle.reconciliation_plan
+    except FinanceShadowReconciliationPlan.DoesNotExist as exc:
+        raise ValidationError("Approve a local reconciliation plan before opening runs.") from exc
+    if plan.status != FinanceShadowReconciliationPlan.APPROVED:
+        raise ValidationError("The local reconciliation plan is not independently approved.")
+    prior = cycle.reconciliation_runs.order_by("-sequence").first()
+    if prior and prior.status in {FinanceShadowReconciliationRun.OPEN, FinanceShadowReconciliationRun.RETURNED, FinanceShadowReconciliationRun.SUBMITTED}:
+        raise ValidationError("Finish or independently review the current scheduled run before opening the next one.")
+    scheduled_for = _next_scheduled_for(plan, prior)
+    if timezone.localtime(scheduled_for).date() > cycle.planned_end:
+        raise ValidationError("The next scheduled run falls after the cycle's planned end date.")
+    run = FinanceShadowReconciliationRun.objects.create(
+        cycle=cycle, plan=plan, sequence=(prior.sequence + 1 if prior else 1),
+        scheduled_for=scheduled_for, due_at=scheduled_for + timedelta(minutes=plan.grace_minutes),
+        prepared_by=actor,
+    )
+    _event(cycle, actor, "shadow_reconciliation_run_opened", snapshot=_run_data(run))
+    return run
+
+
+@transaction.atomic
+def register_shadow_defect(comparison, actor, *, code, severity, summary, impact, owner):
+    comparison = FinanceShadowComparison.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=comparison.pk)
+    cycle = comparison.cycle
+    if not can_manage_shadow_operation(actor, cycle.department):
+        raise PermissionDenied
+    if cycle.status != FinanceShadowCycle.RUNNING or comparison.outcome != FinanceShadowComparison.OPEN_DEFECT:
+        raise ValidationError("Register triage only for an open difference in a running shadow cycle.")
+    if comparison.defects.exclude(status=FinanceShadowDefect.RESOLVED).exists():
+        raise ValidationError("This comparison already has an unresolved defect record.")
+    try:
+        plan = cycle.reconciliation_plan
+    except FinanceShadowReconciliationPlan.DoesNotExist as exc:
+        raise ValidationError("Approve the local reconciliation plan before triaging defects.") from exc
+    if plan.status != FinanceShadowReconciliationPlan.APPROVED:
+        raise ValidationError("The local reconciliation plan is not independently approved.")
+    if severity not in dict(FinanceShadowDefect.SEVERITY_CHOICES):
+        raise ValidationError("Choose Critical, High, Medium, or Low using the approved local plan.")
+    if comparison.defect_owner_id and comparison.defect_owner_id != owner.pk:
+        raise ValidationError("Use the owner already assigned on the comparison or correct that comparison first.")
+    hours = getattr(plan, f"{severity}_resolution_hours")
+    route = getattr(plan, f"{severity}_escalation_route")
+    latest_run = cycle.reconciliation_runs.order_by("-sequence").first()
+    defect = FinanceShadowDefect.objects.create(
+        cycle=cycle, first_seen_run=latest_run, comparison=comparison, code=code,
+        severity=severity, summary=summary, impact=impact, owner=owner,
+        correction_due_at=timezone.now() + timedelta(hours=hours),
+        escalation_route_snapshot=route, created_by=actor,
+    )
+    _event(cycle, actor, "shadow_defect_registered", snapshot=_defect_data(defect))
+    return defect
+
+
+@transaction.atomic
+def submit_shadow_defect_resolution(defect, actor, *, note, evidence_reference):
+    defect = FinanceShadowDefect.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=defect.pk)
+    if actor.pk != defect.owner_id and not can_manage_shadow_operation(actor, defect.cycle.department):
+        raise PermissionDenied
+    if defect.cycle.status != FinanceShadowCycle.RUNNING or defect.status != FinanceShadowDefect.OPEN:
+        raise ValidationError("Only an open defect in a running cycle can be submitted as corrected.")
+    if not str(note or "").strip() or not str(evidence_reference or "").strip():
+        raise ValidationError("Describe the correction and reference the retained verification evidence.")
+    defect.status = FinanceShadowDefect.RESOLUTION_REVIEW
+    defect.resolution_note = str(note).strip()
+    defect.resolution_evidence_reference = str(evidence_reference).strip()
+    defect.resolution_submitted_by = actor
+    defect.resolution_submitted_at = timezone.now()
+    defect.save(update_fields=(
+        "status", "resolution_note", "resolution_evidence_reference", "resolution_submitted_by",
+        "resolution_submitted_at", "updated_at",
+    ))
+    _event(defect.cycle, actor, "shadow_defect_resolution_submitted", snapshot=_defect_data(defect))
+    return defect
+
+
+@transaction.atomic
+def review_shadow_defect_resolution(defect, actor, *, accept, reason):
+    defect = FinanceShadowDefect.objects.select_for_update().select_related(
+        "cycle", "cycle__department", "comparison",
+    ).get(pk=defect.pk)
+    if not can_review_shadow_reconciliation(actor, defect.cycle.department):
+        raise PermissionDenied
+    if defect.status != FinanceShadowDefect.RESOLUTION_REVIEW:
+        raise ValidationError("This defect resolution is not awaiting independent review.")
+    if actor.pk == defect.resolution_submitted_by_id:
+        raise ValidationError("The resolution submitter cannot independently accept the same correction.")
+    if not str(reason or "").strip():
+        raise ValidationError("Record the verification basis or the exact reason for reopening the defect.")
+    if accept:
+        defect.status = FinanceShadowDefect.RESOLVED
+        defect.resolved_by = actor
+        defect.resolved_at = timezone.now()
+        comparison = defect.comparison
+        comparison.outcome = FinanceShadowComparison.EXPLAINED
+        comparison.explanation = (
+            f"{comparison.explanation.strip()}\n\nResolved defect {defect.code}: {defect.resolution_note}"
+        ).strip()
+        comparison.save(update_fields=("outcome", "explanation", "amount_difference", "count_difference"))
+    else:
+        defect.status = FinanceShadowDefect.OPEN
+        defect.resolved_by = None
+        defect.resolved_at = None
+    defect.save(update_fields=("status", "resolved_by", "resolved_at", "updated_at"))
+    _event(
+        defect.cycle, actor,
+        "shadow_defect_resolution_accepted" if accept else "shadow_defect_resolution_returned",
+        reason=reason, snapshot=_defect_data(defect),
+    )
+    return defect
+
+
+@transaction.atomic
+def record_shadow_defect_escalation(defect, actor, *, note):
+    defect = FinanceShadowDefect.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=defect.pk)
+    if not can_manage_shadow_operation(actor, defect.cycle.department):
+        raise PermissionDenied
+    if defect.status == FinanceShadowDefect.RESOLVED:
+        raise ValidationError("A resolved defect does not accept a new escalation.")
+    if not str(note or "").strip():
+        raise ValidationError("Record who was notified, when, and the requested action.")
+    defect.last_escalation_note = str(note).strip()
+    defect.last_escalation_at = timezone.now()
+    defect.last_escalated_by = actor
+    defect.escalation_count += 1
+    defect.save(update_fields=(
+        "last_escalation_note", "last_escalation_at", "last_escalated_by", "escalation_count", "updated_at",
+    ))
+    _event(defect.cycle, actor, "shadow_defect_escalated", reason=note, snapshot=_defect_data(defect))
+    return defect
+
+
+@transaction.atomic
+def submit_reconciliation_run(run, actor):
+    run = FinanceShadowReconciliationRun.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=run.pk)
+    if not can_manage_shadow_operation(actor, run.cycle.department):
+        raise PermissionDenied
+    if run.status not in {FinanceShadowReconciliationRun.OPEN, FinanceShadowReconciliationRun.RETURNED}:
+        raise ValidationError("Only an open or returned scheduled run can be submitted.")
+    comparisons = list(run.cycle.comparisons.select_related("defect_owner").order_by("comparison_level", "control_code", "pk"))
+    if not comparisons:
+        raise ValidationError("Add the current case, batch, period, register, ledger, or report controls before submitting this run.")
+    for comparison in comparisons:
+        comparison.full_clean()
+        if comparison.outcome == FinanceShadowComparison.OPEN_DEFECT and not comparison.defects.exclude(status=FinanceShadowDefect.RESOLVED).exists():
+            raise ValidationError(f"Register severity, owner, due time, and escalation route for open control {comparison.control_code}.")
+    defects = list(run.cycle.defects.select_related("owner").order_by("created_at", "pk"))
+    comparison_snapshot = json.loads(json.dumps(
+        [_comparison_data(item) for item in comparisons], cls=DjangoJSONEncoder,
+    ))
+    defect_snapshot = json.loads(json.dumps(
+        [_defect_data(item) for item in defects], cls=DjangoJSONEncoder,
+    ))
+    open_defect_count = sum(item.status != FinanceShadowDefect.RESOLVED for item in defects)
+    run.comparison_snapshot = comparison_snapshot
+    run.defect_snapshot = defect_snapshot
+    run.comparison_count = len(comparisons)
+    run.matched_count = sum(item.outcome == FinanceShadowComparison.MATCHED for item in comparisons)
+    run.explained_count = sum(item.outcome == FinanceShadowComparison.EXPLAINED for item in comparisons)
+    run.open_defect_count = open_defect_count
+    run.submitted_by = None
+    run.submitted_at = None
+    run.reviewed_by = None
+    run.reviewed_at = None
+    run.review_note = ""
+    payload = _run_data(run)
+    payload["status"] = FinanceShadowReconciliationRun.OPEN
+    payload["evidence_checksum"] = ""
+    run.evidence_checksum = _checksum_payload(payload)
+    run.status = FinanceShadowReconciliationRun.SUBMITTED
+    run.submitted_by = actor
+    run.submitted_at = timezone.now()
+    run.reviewed_by = None
+    run.reviewed_at = None
+    run.review_note = ""
+    run.save(update_fields=(
+        "comparison_snapshot", "defect_snapshot", "comparison_count", "matched_count",
+        "explained_count", "open_defect_count", "evidence_checksum", "status", "submitted_by",
+        "submitted_at", "reviewed_by", "reviewed_at", "review_note", "updated_at",
+    ))
+    _event(run.cycle, actor, "shadow_reconciliation_run_submitted", snapshot=_run_data(run))
+    return run
+
+
+@transaction.atomic
+def review_reconciliation_run(run, actor, *, accept, reason):
+    run = FinanceShadowReconciliationRun.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=run.pk)
+    if not can_review_shadow_reconciliation(actor, run.cycle.department):
+        raise PermissionDenied
+    if run.status != FinanceShadowReconciliationRun.SUBMITTED:
+        raise ValidationError("This scheduled run is not awaiting review.")
+    if actor.pk == run.submitted_by_id:
+        raise ValidationError("The run submitter cannot independently review the same evidence.")
+    if not str(reason or "").strip():
+        raise ValidationError("Record the exact comparison review basis or correction required.")
+    payload = _run_data(run)
+    stored = payload["evidence_checksum"]
+    payload["status"] = FinanceShadowReconciliationRun.OPEN
+    payload["evidence_checksum"] = ""
+    payload["submitted_by_id"] = None
+    payload["submitted_at"] = None
+    payload["reviewed_by_id"] = None
+    payload["reviewed_at"] = None
+    payload["review_note"] = ""
+    if _checksum_payload(payload) != stored:
+        raise ValidationError("The scheduled-run evidence changed after submission. Return it rather than accepting altered evidence.")
+    if accept:
+        run.status = (
+            FinanceShadowReconciliationRun.REVIEWED_WITH_EXCEPTIONS
+            if run.open_defect_count else FinanceShadowReconciliationRun.RECONCILED
+        )
+        run.reviewed_by = actor
+        run.reviewed_at = timezone.now()
+    else:
+        run.status = FinanceShadowReconciliationRun.RETURNED
+        run.reviewed_by = None
+        run.reviewed_at = None
+    run.review_note = str(reason).strip()
+    run.save(update_fields=("status", "reviewed_by", "reviewed_at", "review_note", "updated_at"))
+    _event(
+        run.cycle, actor,
+        "shadow_reconciliation_run_reviewed" if accept else "shadow_reconciliation_run_returned",
+        reason=reason, snapshot=_run_data(run),
+    )
+    return run
+
+
 @transaction.atomic
 def start_shadow_cycle(cycle, actor):
     cycle = FinanceShadowCycle.objects.select_for_update().get(pk=cycle.pk)
@@ -322,6 +727,12 @@ def start_shadow_cycle(cycle, actor):
             raise ValidationError("Obtain an independent review of the changed column layout before starting.")
         if current.review_status == FinanceShadowSourceVersion.REJECTED:
             raise ValidationError("The current source layout was rejected. Stage a corrected version before starting.")
+    try:
+        plan = cycle.reconciliation_plan
+    except FinanceShadowReconciliationPlan.DoesNotExist as exc:
+        raise ValidationError("Prepare and independently approve the local reconciliation cadence and escalation plan before starting.") from exc
+    if plan.status != FinanceShadowReconciliationPlan.APPROVED:
+        raise ValidationError("The local reconciliation cadence and escalation plan is not independently approved.")
     cycle.full_clean()
     cycle.status = FinanceShadowCycle.RUNNING
     cycle.save(update_fields=("status", "updated_at"))
@@ -344,6 +755,21 @@ def submit_shadow_cycle(cycle, actor):
     open_defects = [item.control_code for item in comparisons if item.outcome == item.OPEN_DEFECT]
     if open_defects:
         raise ValidationError("Resolve or carry into a successor cycle every open defect before reconciliation review: " + ", ".join(open_defects))
+    try:
+        plan = cycle.reconciliation_plan
+    except FinanceShadowReconciliationPlan.DoesNotExist as exc:
+        raise ValidationError("The cycle has no approved reconciliation plan.") from exc
+    reviewed_statuses = {
+        FinanceShadowReconciliationRun.RECONCILED,
+        FinanceShadowReconciliationRun.REVIEWED_WITH_EXCEPTIONS,
+    }
+    runs = list(cycle.reconciliation_runs.all())
+    if len([item for item in runs if item.status in reviewed_statuses]) < plan.minimum_reviewed_runs:
+        raise ValidationError(f"Complete at least {plan.minimum_reviewed_runs} independently reviewed scheduled reconciliation run(s).")
+    if any(item.status not in reviewed_statuses for item in runs):
+        raise ValidationError("Finish or independently review every opened scheduled reconciliation run before cycle submission.")
+    if cycle.defects.exclude(status=FinanceShadowDefect.RESOLVED).exists():
+        raise ValidationError("Independently resolve every registered defect before final cycle reconciliation review.")
     payload, checksum = shadow_cycle_evidence(cycle)
     cycle.status = FinanceShadowCycle.RECONCILIATION_REVIEW
     cycle.evidence_checksum = checksum
@@ -558,7 +984,7 @@ def build_cutover_evidence_package(cycle, actor):
         decision = None
     payload = {
         "format": "GRAND Finance shadow/cutover evidence",
-        "schema_version": 2,
+        "schema_version": 3,
         "notice": "Portable evidence copy. Authority exists only when the included decision status is authorized for its exact scope and date.",
         "cycle": cycle_payload,
         "stored_cycle_evidence_checksum": cycle.evidence_checksum,
