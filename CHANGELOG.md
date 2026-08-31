@@ -1,5 +1,15 @@
 # Changelog
 
+## F11.1 Governed shadow operation and controlled cutover
+
+- Added limited shadow/parallel cycle plans with exact enabled scope, redacted/read-only source references, SHA-256 source locks, and schema signatures for drift review.
+- Added case, batch, period, register, ledger, and report amount/count comparisons with calculated differences, plain-language explanations, owned blocking defects, and immutable evidence checksums.
+- Added independent reconciliation, successor-cycle correction boundaries, and append-only actor/reason/evidence events.
+- Added named requesting-office, Budget, Accounting, Treasury, IT, management, and audit acceptance rows with separate role-training/UAT references; conditional, rejected, or pending decisions block cutover.
+- Added exact-scope/date authority records covering opening reconciliation, authority matrix, rollback criteria, legacy read-only retention, and recovery/continuity evidence, with separate authorization and retained rollback.
+- Added conservative Finance screens, cross-office assigned-reviewer access, department-specific floating Internal How-Tos that keep personal progress non-evaluative, and TraceSync-ready JSON evidence packages with manifests.
+- Left automatic source adapters/daily reconciliation, locally accepted curricula/runbooks/escalations, named non-functional exercises, consecutive field cycles, and actual seven-party sign-off open under the parent F11 gate.
+
 ## F10.1 Governed visual template promotion and rollback
 
 - Replaced direct free-text fidelity activation with retained preview, comparison, independent approval, and separate activation records.

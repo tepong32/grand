@@ -1,21 +1,34 @@
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.text import slugify
 
 from .access import (
+    can_authorize_finance_cutover, can_manage_shadow_operation, can_review_shadow_reconciliation,
     can_approve_finance_configuration, can_manage_finance_configuration,
-    can_manage_finance_templates, department_for_user, finance_access_required,
-    finance_permission_required,
+    can_manage_finance_templates, can_view_shadow_cycle, department_for_user, finance_access_required,
+    finance_permission_required, shadow_access_required,
+)
+from .cutover_services import (
+    build_cutover_evidence_package, cutover_readiness, decide_cutover,
+    decide_stakeholder_acceptance, record_cutover_rollback, review_shadow_cycle,
+    start_shadow_cycle, submit_cutover_decision, submit_shadow_cycle,
 )
 from .forms import (
+    FinanceCutoverDecisionForm,
     FinanceDocumentRuleForm, FinanceItemForm, FinanceNumberingSequenceForm, FinanceReleaseForm,
     FinancePartyClaimantForm, FinancePartyForm, FinancePostingRuleForm, FinancePostingRuleLineForm,
-    FinanceSignatoryForm, FinanceTemplateForm, FinanceStarterTemplateForm, FinanceTransactionVariantForm,
+    FinanceShadowComparisonForm, FinanceShadowCycleForm, FinanceSignatoryForm,
+    FinanceStakeholderAcceptanceForm, FinanceStakeholderDecisionForm,
+    FinanceTemplateForm, FinanceStarterTemplateForm, FinanceTransactionVariantForm,
 )
-from .models import FinanceConfigurationRelease, FinanceParty, FinanceTemplateVersion, FinanceTransactionVariant
+from .models import (
+    FinanceConfigurationRelease, FinanceCutoverDecision, FinanceParty, FinanceShadowCycle,
+    FinanceStakeholderAcceptance, FinanceTemplateVersion, FinanceTransactionVariant,
+)
 from .services import (
     FinanceTemplateError, build_finance_starter_workbook, create_payment_event_posting_starters,
     create_recognition_posting_starter, evaluate_readiness, preflight_finance_template,
@@ -348,3 +361,230 @@ def release_action(request, pk, action):
     else:
         messages.success(request, f"Release {action} recorded in the immutable finance audit history.")
     return redirect("finance:release_detail", pk=release.pk)
+
+
+def _visible_shadow_cycles(user):
+    department = department_for_user(user)
+    query = Q(stakeholder_acceptances__assigned_reviewer=user)
+    if department:
+        query |= Q(department=department)
+    return FinanceShadowCycle.objects.filter(query).select_related(
+        "department", "created_by", "submitted_by", "reconciled_by",
+    ).prefetch_related("stakeholder_acceptances").distinct()
+
+
+def _shadow_cycle_for_user(user, pk):
+    cycle = get_object_or_404(_visible_shadow_cycles(user), pk=pk)
+    if not can_view_shadow_cycle(user, cycle):
+        raise PermissionDenied
+    return cycle
+
+
+@shadow_access_required
+def shadow_workspace(request):
+    department = department_for_user(request.user)
+    cycles = _visible_shadow_cycles(request.user)
+    return render(request, "finance/shadow_workspace.html", {
+        "cycles": cycles,
+        "department": department,
+        "can_manage": can_manage_shadow_operation(request.user, department),
+    })
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def shadow_cycle_create(request):
+    department = department_for_user(request.user)
+    form = FinanceShadowCycleForm(request.POST or None, department=department)
+    if request.method == "POST" and form.is_valid():
+        cycle = form.save(False)
+        cycle.department, cycle.created_by = department, request.user
+        cycle.full_clean(); cycle.save()
+        FinanceAuditEvent.objects.create(
+            department=department, target_type="financeshadowcycle", target_id=str(cycle.pk),
+            action="shadow_cycle_created", actor=request.user,
+            snapshot={"cycle_public_id": str(cycle.public_id), "status": cycle.status, "enabled_scope": cycle.enabled_scope},
+        )
+        messages.success(request, "Draft shadow-cycle plan created. No official authority changed.")
+        return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": "Plan a shadow or parallel cycle",
+        "guidance": "Use a redacted/read-only source reference and exact SHA-256 values. State the limited scope plainly; this record does not make GRAND authoritative.",
+    })
+
+
+@shadow_access_required
+def shadow_cycle_detail(request, pk):
+    cycle = _shadow_cycle_for_user(request.user, pk)
+    try:
+        decision = cycle.cutover_decision
+    except FinanceCutoverDecision.DoesNotExist:
+        decision = None
+    department = cycle.department
+    return render(request, "finance/shadow_cycle_detail.html", {
+        "cycle": cycle,
+        "comparisons": cycle.comparisons.select_related("defect_owner", "created_by"),
+        "acceptances": cycle.stakeholder_acceptances.select_related("office", "assigned_reviewer", "decided_by"),
+        "decision": decision,
+        "readiness": cutover_readiness(cycle),
+        "can_manage": can_manage_shadow_operation(request.user, department),
+        "can_review": can_review_shadow_reconciliation(request.user, department),
+        "can_authorize": can_authorize_finance_cutover(request.user, department),
+        "is_assigned_reviewer": cycle.stakeholder_acceptances.filter(assigned_reviewer=request.user, decision=FinanceStakeholderAcceptance.PENDING).exists(),
+    })
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def shadow_comparison_create(request, cycle_pk):
+    department = department_for_user(request.user)
+    cycle = get_object_or_404(FinanceShadowCycle, pk=cycle_pk, department=department)
+    form = FinanceShadowComparisonForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        comparison = form.save(False)
+        comparison.cycle, comparison.created_by = cycle, request.user
+        try:
+            comparison.full_clean(); comparison.save()
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Comparison control added with its exact difference and evidence reference.")
+            return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Add comparison — {cycle.code}",
+        "guidance": "Compare the same case, batch, period, register, ledger, or report on both sides. Zero differences may be marked matched; every non-zero difference needs a visible explanation or defect owner.",
+        "cycle": cycle,
+    })
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def stakeholder_acceptance_create(request, cycle_pk):
+    department = department_for_user(request.user)
+    cycle = get_object_or_404(FinanceShadowCycle, pk=cycle_pk, department=department)
+    form = FinanceStakeholderAcceptanceForm(request.POST or None, initial={"enabled_scope": cycle.enabled_scope})
+    if request.method == "POST" and form.is_valid():
+        acceptance = form.save(False)
+        acceptance.cycle, acceptance.created_by = cycle, request.user
+        try:
+            acceptance.full_clean(); acceptance.save()
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Named stakeholder acceptance assigned. Only that reviewer can record the decision.")
+            return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Assign stakeholder acceptance — {cycle.code}",
+        "guidance": "Name the actual reviewer and repeat the exact enabled scope. Training completion and UAT acceptance remain separate evidence.",
+        "cycle": cycle,
+    })
+
+
+@shadow_access_required
+def stakeholder_acceptance_decide(request, pk):
+    acceptance = get_object_or_404(
+        FinanceStakeholderAcceptance.objects.select_related("cycle", "cycle__department"),
+        pk=pk, assigned_reviewer=request.user,
+    )
+    form = FinanceStakeholderDecisionForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            decide_stakeholder_acceptance(
+                acceptance, request.user,
+                decision=form.cleaned_data["decision"],
+                training_reference=form.cleaned_data["training_evidence_reference"],
+                uat_reference=form.cleaned_data["uat_evidence_reference"],
+                reason=form.cleaned_data["conditions_or_reason"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Your stakeholder decision is recorded and cannot be overwritten.")
+            return redirect("finance:shadow_cycle_detail", pk=acceptance.cycle_id)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Record {acceptance.get_stakeholder_kind_display()} decision",
+        "guidance": "Review only the stated scope. Personal Internal How-To progress is private learning support—not proof of readiness or acceptance.",
+        "cycle": acceptance.cycle,
+    })
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def cutover_decision_create(request, cycle_pk):
+    department = department_for_user(request.user)
+    cycle = get_object_or_404(FinanceShadowCycle, pk=cycle_pk, department=department)
+    if hasattr(cycle, "cutover_decision"):
+        return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    form = FinanceCutoverDecisionForm(request.POST or None, initial={"enabled_scope": cycle.enabled_scope})
+    if request.method == "POST" and form.is_valid():
+        decision = form.save(False)
+        decision.cycle, decision.prepared_by = cycle, request.user
+        try:
+            decision.full_clean(); decision.save()
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Draft cutover decision record created. GRAND remains non-authoritative until separate authorization.")
+            return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Prepare cutover decision — {cycle.code}",
+        "guidance": "Record the exact authority matrix, opening reconciliation, rollback criteria, continuity evidence, and legacy read-only retention plan for the already reconciled scope.",
+        "cycle": cycle,
+    })
+
+
+@shadow_access_required
+def shadow_cycle_action(request, pk, action):
+    if request.method != "POST":
+        raise Http404
+    cycle = _shadow_cycle_for_user(request.user, pk)
+    reason = request.POST.get("reason", "")
+    try:
+        if action == "start":
+            start_shadow_cycle(cycle, request.user)
+        elif action == "submit":
+            submit_shadow_cycle(cycle, request.user)
+        elif action == "reconcile":
+            review_shadow_cycle(cycle, request.user, accept=True, reason=reason)
+        elif action == "return":
+            review_shadow_cycle(cycle, request.user, accept=False, reason=reason)
+        else:
+            raise Http404
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(request, f"Shadow-cycle action '{action}' recorded in append-only history.")
+    return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+
+
+@shadow_access_required
+def cutover_decision_action(request, pk, action):
+    if request.method != "POST":
+        raise Http404
+    decision = get_object_or_404(FinanceCutoverDecision.objects.select_related("cycle", "cycle__department"), pk=pk)
+    if not can_view_shadow_cycle(request.user, decision.cycle):
+        raise PermissionDenied
+    reason = request.POST.get("reason", "")
+    try:
+        if action == "submit":
+            submit_cutover_decision(decision, request.user)
+        elif action == "authorize":
+            decide_cutover(decision, request.user, authorize=True, reason=reason)
+        elif action == "decline":
+            decide_cutover(decision, request.user, authorize=False, reason=reason)
+        elif action == "rollback":
+            record_cutover_rollback(decision, request.user, reason=reason)
+        else:
+            raise Http404
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(request, f"Cutover action '{action}' recorded without rewriting prior evidence.")
+    return redirect("finance:shadow_cycle_detail", pk=decision.cycle_id)
+
+
+@shadow_access_required
+def shadow_cycle_export(request, pk):
+    cycle = _shadow_cycle_for_user(request.user, pk)
+    content, filename, receipt = build_cutover_evidence_package(cycle, request.user)
+    response = HttpResponse(content, content_type="application/json")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Archive-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Archive-Path"] = receipt["relative_path"]
+    return response

@@ -178,6 +178,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "finance.manage_finance_configuration",
         "finance.manage_finance_templates",
         "finance.manage_finance_providers",
+        "finance.manage_shadow_operation",
         "accounting.view_accounting_workspace",
         "accounting.manage_accounting_setup",
         "accounting.prepare_opening_balances",
@@ -196,6 +197,8 @@ FINANCE_ROLE_PERMISSIONS = {
     "Finance Configuration Approver": (
         "finance.view_finance_setup",
         "finance.approve_finance_configuration",
+        "finance.review_shadow_reconciliation",
+        "finance.authorize_finance_cutover",
         "accounting.view_accounting_workspace",
         "accounting.approve_fiscal_readiness",
         "accounting.approve_opening_balances",

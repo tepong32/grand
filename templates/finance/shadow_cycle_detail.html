@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title_ext %} · {{ cycle.title }}{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div><a class="small" href="{% url 'finance:shadow_workspace' %}">&larr; Shadow operation &amp; cutover</a><h1 class="h3 mt-1 mb-1">{{ cycle.title }}</h1><p class="text-muted mb-0">{{ cycle.code }} · FY {{ cycle.fiscal_year }} · {{ cycle.get_run_kind_display }}</p></div>
+    <a class="btn btn-outline-primary mt-2" href="{% url 'finance:shadow_cycle_export' cycle.pk %}"><i class="fas fa-download mr-1"></i> Export evidence</a>
+  </div>
+
+  {% if decision and decision.status == 'authorized' %}
+    <div class="alert alert-success"><strong>Recorded authority:</strong> GRAND is authorized only for the scope below from {{ decision.cutover_at|date:'M j, Y, g:i a' }}. The rollback criteria remain in force.</div>
+  {% elif decision and decision.status == 'rolled_back' %}
+    <div class="alert alert-danger"><strong>Rollback recorded.</strong> This cutover no longer provides current operating authority. Follow the retained rollback direction and incident record.</div>
+  {% else %}
+    <div class="alert alert-warning"><strong>Not authoritative.</strong> This {{ cycle.get_status_display|lower }} record does not replace the current official process.</div>
+  {% endif %}
+
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Cycle scope and source lock</h2></div><div class="card-body">
+        <dl class="row mb-0"><dt class="col-sm-3">Enabled scope</dt><dd class="col-sm-9" style="white-space:pre-wrap">{{ cycle.enabled_scope }}</dd><dt class="col-sm-3">Current source</dt><dd class="col-sm-9">{{ cycle.source_system_label }}<div class="small text-muted" style="white-space:pre-wrap">{{ cycle.source_extract_reference }}</div></dd><dt class="col-sm-3">Source checksum</dt><dd class="col-sm-9"><code>{{ cycle.source_checksum }}</code></dd><dt class="col-sm-3">Schema signature</dt><dd class="col-sm-9"><code>{{ cycle.source_schema_signature }}</code></dd>{% if cycle.evidence_checksum %}<dt class="col-sm-3">Cycle evidence</dt><dd class="col-sm-9"><code>{{ cycle.evidence_checksum }}</code></dd>{% endif %}</dl>
+      </div></div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card card-outline {% if readiness.ready %}card-success{% else %}card-warning{% endif %}"><div class="card-header"><h2 class="card-title font-weight-bold">Cutover gate</h2></div><div class="card-body">
+        {% for check in readiness.checks %}<div class="d-flex mb-2"><i class="fas {% if check.passed %}fa-check-circle text-success{% else %}fa-exclamation-circle text-warning{% endif %} mt-1 mr-2"></i><span class="small">{{ check.message }}</span></div>{% endfor %}
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card"><div class="card-header d-flex align-items-center"><h2 class="card-title font-weight-bold mb-0">Comparison controls</h2>{% if can_manage and cycle.status == 'running' %}<a class="btn btn-sm btn-primary ml-auto" href="{% url 'finance:shadow_comparison_create' cycle.pk %}">Add comparison</a>{% endif %}</div><div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-sm mb-0"><thead><tr><th>Level / control</th><th>Current source</th><th>GRAND</th><th>Difference</th><th>Outcome</th></tr></thead><tbody>
+    {% for item in comparisons %}<tr><td><strong>{{ item.get_comparison_level_display }}</strong><div class="small text-muted">{{ item.control_code }} · {{ item.label }}</div></td><td>{% if item.source_amount != None %}₱ {{ item.source_amount }}{% endif %}{% if item.source_count != None %}<div class="small">{{ item.source_count }} item{{ item.source_count|pluralize }}</div>{% endif %}<div class="small text-muted">{{ item.source_reference }}</div></td><td>{% if item.grand_amount != None %}₱ {{ item.grand_amount }}{% endif %}{% if item.grand_count != None %}<div class="small">{{ item.grand_count }} item{{ item.grand_count|pluralize }}</div>{% endif %}<div class="small text-muted">{{ item.grand_reference }}</div></td><td>{% if item.amount_difference != None %}₱ {{ item.amount_difference }}{% endif %}{% if item.count_difference != None %}<div class="small">{{ item.count_difference }} item(s)</div>{% endif %}</td><td><span class="badge badge-{% if item.outcome == 'matched' %}success{% elif item.outcome == 'explained' %}warning{% else %}danger{% endif %}">{{ item.get_outcome_display }}</span>{% if item.explanation %}<div class="small mt-1">{{ item.explanation }}</div>{% endif %}<div class="small text-muted">Evidence: {{ item.evidence_reference }}</div></td></tr>
+    {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">No comparison evidence recorded yet.</td></tr>{% endfor %}
+    </tbody></table>
+  </div></div></div>
+
+  <div class="card"><div class="card-header d-flex align-items-center"><h2 class="card-title font-weight-bold mb-0">Role training and UAT acceptance</h2>{% if can_manage %}<a class="btn btn-sm btn-outline-primary ml-auto" href="{% url 'finance:stakeholder_acceptance_create' cycle.pk %}">Assign stakeholder</a>{% endif %}</div><div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-sm mb-0"><thead><tr><th>Stakeholder</th><th>Named reviewer</th><th>Scope</th><th>Evidence / decision</th></tr></thead><tbody>
+    {% for item in acceptances %}<tr><td><strong>{{ item.get_stakeholder_kind_display }}</strong>{% if item.office %}<div class="small text-muted">{{ item.office.name }}</div>{% endif %}</td><td>{{ item.assigned_reviewer.get_full_name|default:item.assigned_reviewer.username }}</td><td class="small">{{ item.enabled_scope }}</td><td><span class="badge badge-{% if item.decision == 'accepted' %}success{% elif item.decision == 'pending' %}secondary{% elif item.decision == 'conditional' %}warning{% else %}danger{% endif %}">{{ item.get_decision_display }}</span>{% if item.assigned_reviewer_id == request.user.id and item.decision == 'pending' %}<div><a class="btn btn-sm btn-primary mt-2" href="{% url 'finance:stakeholder_acceptance_decide' item.pk %}">Record my decision</a></div>{% endif %}{% if item.training_evidence_reference %}<div class="small mt-1"><strong>Training:</strong> {{ item.training_evidence_reference }}</div><div class="small"><strong>UAT:</strong> {{ item.uat_evidence_reference }}</div>{% endif %}{% if item.conditions_or_reason %}<div class="small text-danger">{{ item.conditions_or_reason }}</div>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="4" class="text-center text-muted py-4">No named stakeholder acceptance rows yet.</td></tr>{% endfor %}
+    </tbody></table>
+  </div></div></div>
+
+  <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Cutover decision</h2></div><div class="card-body">
+    {% if decision %}
+      <p><span class="badge badge-{% if decision.status == 'authorized' %}success{% elif decision.status == 'declined' or decision.status == 'rolled_back' %}danger{% elif decision.status == 'submitted' %}info{% else %}secondary{% endif %}">{{ decision.get_status_display }}</span></p>
+      <dl class="row"><dt class="col-sm-3">Authority matrix</dt><dd class="col-sm-9">{{ decision.authority_matrix_reference }}</dd><dt class="col-sm-3">Exact scope</dt><dd class="col-sm-9">{{ decision.enabled_scope }}</dd><dt class="col-sm-3">Cutover date</dt><dd class="col-sm-9">{{ decision.cutover_at|date:'M j, Y, g:i a' }}</dd><dt class="col-sm-3">Opening reconciliation</dt><dd class="col-sm-9">{{ decision.opening_reconciliation_reference }}</dd><dt class="col-sm-3">Recovery / continuity</dt><dd class="col-sm-9">{{ decision.backup_recovery_evidence }}</dd><dt class="col-sm-3">Rollback criteria</dt><dd class="col-sm-9">{{ decision.rollback_criteria }}</dd><dt class="col-sm-3">Legacy retention</dt><dd class="col-sm-9">{{ decision.legacy_read_only_retention_plan }}</dd>{% if decision.decision_reason %}<dt class="col-sm-3">Decision / rollback basis</dt><dd class="col-sm-9" style="white-space:pre-wrap">{{ decision.decision_reason }}</dd>{% endif %}</dl>
+      {% if decision.status == 'draft' and can_manage %}<form method="post" action="{% url 'finance:cutover_decision_action' decision.pk 'submit' %}">{% csrf_token %}<button class="btn btn-primary">Submit authority record</button></form>{% endif %}
+      {% if decision.status == 'submitted' and can_authorize %}<form method="post" action="{% url 'finance:cutover_decision_action' decision.pk 'authorize' %}" class="mt-2">{% csrf_token %}<label for="authority-reason"><strong>Authority basis</strong></label><textarea id="authority-reason" class="form-control mb-2" name="reason" rows="3" required></textarea><button class="btn btn-success">Authorize exact scope/date</button> <button class="btn btn-outline-danger" formaction="{% url 'finance:cutover_decision_action' decision.pk 'decline' %}">Do not authorize</button></form>{% endif %}
+      {% if decision.status == 'authorized' and can_authorize %}<form method="post" action="{% url 'finance:cutover_decision_action' decision.pk 'rollback' %}" class="mt-2">{% csrf_token %}<label for="rollback-reason"><strong>Invoke recorded rollback</strong></label><textarea id="rollback-reason" class="form-control mb-2" name="reason" rows="3" required placeholder="State the triggered criterion, incident, and immediate operating direction."></textarea><button class="btn btn-outline-danger">Record rollback</button></form>{% endif %}
+    {% elif can_manage and cycle.status == 'reconciled' %}<a class="btn btn-primary" href="{% url 'finance:cutover_decision_create' cycle.pk %}">Prepare cutover decision record</a>{% else %}<p class="text-muted mb-0">The decision record opens only after independent reconciliation. It does not authorize itself.</p>{% endif %}
+  </div></div>
+
+  <div class="card card-outline card-secondary"><div class="card-header"><h2 class="card-title font-weight-bold">Cycle actions</h2></div><div class="card-body">
+    {% if cycle.status == 'draft' and can_manage %}<form method="post" action="{% url 'finance:shadow_cycle_action' cycle.pk 'start' %}">{% csrf_token %}<button class="btn btn-primary">Start limited run</button></form>{% endif %}
+    {% if cycle.status == 'running' and can_manage %}<form method="post" action="{% url 'finance:shadow_cycle_action' cycle.pk 'submit' %}">{% csrf_token %}<button class="btn btn-primary">Lock evidence and submit reconciliation</button></form>{% endif %}
+    {% if cycle.status == 'reconciliation_review' and can_review %}<form method="post" action="{% url 'finance:shadow_cycle_action' cycle.pk 'reconcile' %}">{% csrf_token %}<label for="review-reason"><strong>Independent review basis or return reason</strong></label><textarea id="review-reason" class="form-control mb-2" name="reason" rows="3" required></textarea><button class="btn btn-success">Accept reconciliation</button> <button class="btn btn-outline-danger" formaction="{% url 'finance:shadow_cycle_action' cycle.pk 'return' %}">Return; require successor cycle</button></form>{% endif %}
+    {% if cycle.status == 'returned' %}<p class="mb-0 text-danger">This submitted evidence remains retained. Create a successor cycle to correct and rerun it.</p>{% endif %}
+  </div></div>
+</div>
+{% endblock %}

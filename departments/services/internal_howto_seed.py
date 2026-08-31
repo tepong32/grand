@@ -527,6 +527,47 @@ TREASURY_GUIDES = (
 )
 
 
+REQUESTING_GUIDES = REQUESTING_GUIDES + (
+    {
+        "slug": "finance-shadow-stakeholder-acceptance",
+        "version": 1,
+        "title": "Review and accept your office's shadow/UAT scope",
+        "summary": "Use the floating guide while reviewing the exact enabled scope, role exercise, and comparison evidence assigned to you.",
+        "permission": "",
+        "patterns": ["finance:shadow_*", "finance:stakeholder_*"],
+        "order": 90,
+        "steps": (
+            ("Open your assigned cycle", "Open Shadow operation & cutover and choose the cycle assigned to you. Read the office, transaction, fund, and date scope before reviewing results.", "You can see the shared cycle without receiving Finance preparation or cutover authority.", "Do not accept work outside the written scope or assume another office's acceptance covers yours.", "Open Shadow operation", "finance:shadow_workspace"),
+            ("Complete the role exercise", "Follow the department procedure with synthetic or properly redacted cases, including normal work, a return/correction, and the applicable exception route.", "You can complete your role without borrowed permissions or hidden manual steps.", "The personal checkmarks in this guide help you resume learning; supervisors do not use them as attendance, performance, or acceptance evidence.", "", ""),
+            ("Compare expected and actual results", "Review the retained UAT script, control totals, outputs, printing/custody steps, and unresolved limitations for your exact scope.", "Each result is traceable to a named exercise and retained evidence reference.", "A technically successful screen is not proof that the business process, form, or local authority is accepted.", "", ""),
+            ("Record your own decision", "Choose Accepted, Accepted with conditions, or Not accepted. Reference both role-training evidence and the exact UAT scenarios you reviewed; state every condition or rejection reason.", "Your attributed decision is retained and cannot be overwritten.", "Only the named reviewer can decide this row. Conditional or rejected decisions block cutover.", "", ""),
+            ("Export when evidence is requested", "Download the cycle evidence package when authorized. Preserve the complete TraceSync-ready GRAND export root so the JSON remains beside its checksum manifest.", "The portable copy contains comparisons, acceptance decisions, and the cutover state visible at export time.", "An exported file is evidence, not an authority decision by itself.", "", ""),
+        ),
+    },
+)
+
+
+ACCOUNTING_GUIDES = ACCOUNTING_GUIDES + (
+    {
+        "slug": "finance-shadow-cutover-manager",
+        "version": 1,
+        "title": "Run shadow reconciliation and prepare cutover evidence",
+        "summary": "Plan a limited cycle, lock exact comparisons, collect separate office decisions, and keep authority and rollback explicit.",
+        "permission": "finance.manage_shadow_operation",
+        "patterns": ["finance:shadow_*", "finance:cutover_*"],
+        "order": 89,
+        "steps": (
+            ("Define a limited cycle", "Name the exact offices, funds, transaction types, and dates. Reference the read-only/redacted current-process source, its SHA-256 checksum, and its reviewed schema signature.", "A draft plan identifies what is and is not being compared without importing a production database.", "Public COA/DBM material or an eGAPS export does not prove local applicability by itself.", "Open Shadow operation", "finance:shadow_workspace"),
+            ("Run and compare controls", "Add case, batch, period, register, ledger, and report controls as applicable. GRAND calculates entered amount and count differences.", "Zero controls read Matched; every difference is explained or remains an owned blocking defect.", "Do not hide an open defect inside a narrative explanation merely to advance the gate.", "", ""),
+            ("Lock for independent reconciliation", "Submit only after resolving open defects. GRAND pins the comparison payload and checksum; a different authorized reviewer accepts it or requires a successor cycle.", "The exact reviewed evidence is immutable and attributable.", "A returned submitted cycle is not reopened for editing; make the correction in a successor.", "", ""),
+            ("Assign each stakeholder", "Create separate rows for requesting offices, Budget, Accounting, Treasury, IT, management, and audit. Name the person who will decide each exact scope.", "Each stakeholder records their own training/UAT references and decision.", "Personal Internal How-To progress stays private and never substitutes for training or UAT evidence.", "", ""),
+            ("Prepare authority last", "After all seven stakeholder kinds accept, record the authority matrix, exact cutover date/scope, opening reconciliation, continuity evidence, rollback criteria, and legacy read-only retention plan.", "A different authorized user can record go/no-go; GRAND becomes authoritative only for an authorized exact scope/date.", "Do not treat configuration activation, pilot reconciliation, or report agreement as implicit cutover.", "", ""),
+            ("Rollback without erasing", "If a recorded criterion is triggered, the authorized role records the incident and operating direction against the same decision.", "The decision reads Rolled back while the original authorization and evidence remain reconstructible.", "Do not delete the pilot, stakeholder decisions, or original authority record.", "", ""),
+        ),
+    },
+)
+
+
 def _department_kind(department):
     identity = f"{department.slug or ''} {department.name or ''}".lower()
     if "budget" in identity:

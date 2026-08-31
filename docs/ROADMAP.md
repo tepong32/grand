@@ -88,7 +88,7 @@ The vertical slice proves that one shared Budget–Accounting–Treasury case ca
 
 ## Planned - GRAND Finance complete cycle
 
-The [GRAND Finance complete-cycle roadmap](FINANCE_ROADMAP.md) is the canonical plan for the long-term Finance sub-application. It replaces the earlier assumption that the next material step is only an ordinary-supplier voucher pilot. The implemented F10.1 control is documented in [Finance visual template promotion and rollback](FINANCE_TEMPLATE_PROMOTION.md).
+The [GRAND Finance complete-cycle roadmap](FINANCE_ROADMAP.md) is the canonical plan for the long-term Finance sub-application. It replaces the earlier assumption that the next material step is only an ordinary-supplier voucher pilot. The implemented F10.1 control is documented in [Finance visual template promotion and rollback](FINANCE_TEMPLATE_PROMOTION.md), and the F11.1 transition control is documented in [Finance shadow operation, UAT acceptance, and controlled cutover](FINANCE_SHADOW_CUTOVER.md).
 
 The essential delivery order is:
 
@@ -105,6 +105,8 @@ The essential delivery order is:
 Existing Finance Setup, Accounting, Voucher Workbench, Reporting, Records, and TracePoint features are foundations to extend, not separate replacement systems. Historical eGAPS migration remains optional and cannot block standalone GRAND operation.
 
 F9.3 adds versioned maker–checker financial-statement mappings, exact non-zero account coverage, visible position/performance equations, pinned JEV drill-through, explained measures, and contextual Accounting guidance. F9.4 adds governed statement-note packages and exact checksummed signed/redacted-reference control comparison. Exact forms/layouts, current accepted tax outputs, complete signed-package replay, and named-office acceptance remain open.
+
+F11.1 adds checksum-locked shadow/parallel cycles, exact comparison and owned-defect controls, independent reconciliation, named seven-party training/UAT decisions, exact-scope cutover authority, retained rollback, contextual guidance, and portable evidence. Actual local source adapters, daily cadence, complete curricula/runbooks, non-functional exercises, consecutive field cycles, and signed stakeholder/cutover acceptance remain open; no implicit production authority is claimed.
 
 F7.4 closes the earlier period-control dependency with human-modifiable Observe/Enforce policies, pinned close evidence, independent approval, source-drift detection, ordered governed reopen, contextual Accounting guidance, and TraceSync-ready exports. Exact locally accepted close calendars, adjusting/closing-entry procedures, supporting schedules, signed outputs, and named-office replay remain open.
 

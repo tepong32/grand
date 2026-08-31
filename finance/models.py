@@ -819,3 +819,334 @@ class FinanceAuditEvent(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Finance audit events cannot be deleted.")
+
+
+class FinanceShadowCycle(models.Model):
+    DRAFT = "draft"
+    RUNNING = "running"
+    RECONCILIATION_REVIEW = "reconciliation_review"
+    RECONCILED = "reconciled"
+    RETURNED = "returned"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft plan"),
+        (RUNNING, "Shadow / parallel run in progress"),
+        (RECONCILIATION_REVIEW, "Awaiting independent reconciliation"),
+        (RECONCILED, "Independently reconciled"),
+        (RETURNED, "Returned for another cycle"),
+    )
+    SHADOW = "shadow"
+    PARALLEL = "parallel"
+    RUN_KIND_CHOICES = (
+        (SHADOW, "Limited shadow pilot"),
+        (PARALLEL, "Controlled parallel run"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="finance_shadow_cycles")
+    code = models.SlugField(max_length=80)
+    title = models.CharField(max_length=180)
+    fiscal_year = models.PositiveSmallIntegerField()
+    run_kind = models.CharField(max_length=16, choices=RUN_KIND_CHOICES, default=SHADOW)
+    enabled_scope = models.TextField(help_text="State the offices, funds, transaction types, and dates included in this cycle.")
+    source_system_label = models.CharField(max_length=120, default="Current locally authoritative process")
+    source_extract_reference = models.TextField(help_text="Reference the redacted/read-only source extract or retained register; do not upload production data here.")
+    source_checksum = models.CharField(max_length=64, help_text="SHA-256 checksum of the exact redacted/read-only source used for comparison.")
+    source_schema_signature = models.CharField(max_length=64, help_text="SHA-256 signature of the reviewed column/schema contract used to detect drift.")
+    planned_start = models.DateField()
+    planned_end = models.DateField()
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=DRAFT)
+    evidence_checksum = models.CharField(max_length=64, blank=True)
+    predecessor = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor_cycles")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_finance_shadow_cycles")
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="submitted_finance_shadow_cycles")
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reconciled_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="reconciled_finance_shadow_cycles")
+    reconciled_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-fiscal_year", "-planned_start", "code")
+        constraints = (
+            models.UniqueConstraint(fields=("department", "code"), name="unique_finance_shadow_cycle_code"),
+        )
+        permissions = (
+            ("manage_shadow_operation", "Can prepare finance shadow operation evidence"),
+            ("review_shadow_reconciliation", "Can independently reconcile finance shadow operation"),
+            ("authorize_finance_cutover", "Can authorize or decline finance cutover"),
+        )
+
+    def __str__(self):
+        return f"{self.title} ({self.code})"
+
+    def clean(self):
+        if self.planned_end < self.planned_start:
+            raise ValidationError({"planned_end": "The end date cannot be before the start date."})
+        for field in ("source_checksum", "source_schema_signature"):
+            value = getattr(self, field, "").lower()
+            if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+                raise ValidationError({field: "Enter the 64-character SHA-256 value for the reviewed source."})
+        if self.predecessor_id:
+            if self.predecessor_id == self.pk or self.predecessor.department_id != self.department_id:
+                raise ValidationError({"predecessor": "A predecessor must be an earlier cycle owned by the same Finance office."})
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.status in {self.RECONCILIATION_REVIEW, self.RECONCILED}:
+                governed = (
+                    "department_id", "code", "title", "fiscal_year", "run_kind", "enabled_scope",
+                    "source_system_label", "source_extract_reference", "source_checksum",
+                    "source_schema_signature", "planned_start", "planned_end", "predecessor_id",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError("Submitted shadow-cycle evidence is immutable. Record corrections in a successor cycle.")
+
+    def delete(self, *args, **kwargs):
+        if self.status != self.DRAFT:
+            raise ValidationError("A started shadow cycle cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class FinanceShadowComparison(models.Model):
+    CASE = "case"
+    BATCH = "batch"
+    PERIOD = "period"
+    REGISTER = "register"
+    LEDGER = "ledger"
+    REPORT = "report"
+    LEVEL_CHOICES = (
+        (CASE, "Case / transaction"),
+        (BATCH, "Batch"),
+        (PERIOD, "Period control"),
+        (REGISTER, "Register"),
+        (LEDGER, "Ledger"),
+        (REPORT, "Report / statement"),
+    )
+    MATCHED = "matched"
+    EXPLAINED = "explained"
+    OPEN_DEFECT = "open_defect"
+    OUTCOME_CHOICES = (
+        (MATCHED, "Matched exactly"),
+        (EXPLAINED, "Difference explained and accepted for review"),
+        (OPEN_DEFECT, "Open defect / unresolved difference"),
+    )
+
+    cycle = models.ForeignKey(FinanceShadowCycle, on_delete=models.PROTECT, related_name="comparisons")
+    comparison_level = models.CharField(max_length=16, choices=LEVEL_CHOICES)
+    control_code = models.SlugField(max_length=80)
+    label = models.CharField(max_length=180)
+    source_reference = models.TextField()
+    grand_reference = models.TextField()
+    source_amount = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    grand_amount = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    source_count = models.PositiveIntegerField(null=True, blank=True)
+    grand_count = models.PositiveIntegerField(null=True, blank=True)
+    amount_difference = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True, editable=False)
+    count_difference = models.IntegerField(null=True, blank=True, editable=False)
+    outcome = models.CharField(max_length=16, choices=OUTCOME_CHOICES)
+    explanation = models.TextField(blank=True)
+    evidence_reference = models.TextField()
+    defect_owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="owned_finance_shadow_defects")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_finance_shadow_comparisons")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("comparison_level", "control_code", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("cycle", "comparison_level", "control_code"), name="unique_shadow_comparison_control"),
+        )
+
+    def __str__(self):
+        return f"{self.cycle.code}: {self.label}"
+
+    def clean(self):
+        if self.cycle_id and self.cycle.status not in {FinanceShadowCycle.DRAFT, FinanceShadowCycle.RUNNING}:
+            raise ValidationError("Comparisons can be changed only while the shadow cycle is being prepared or run.")
+        if (self.source_amount is None) != (self.grand_amount is None):
+            raise ValidationError("Enter both source and GRAND amounts, or leave both blank for a count-only control.")
+        if (self.source_count is None) != (self.grand_count is None):
+            raise ValidationError("Enter both source and GRAND counts, or leave both blank for an amount-only control.")
+        if self.source_amount is None and self.source_count is None:
+            raise ValidationError("Compare an amount, an item count, or both.")
+        amount_difference = None if self.source_amount is None else self.grand_amount - self.source_amount
+        count_difference = None if self.source_count is None else self.grand_count - self.source_count
+        differs = (amount_difference not in (None, 0)) or (count_difference not in (None, 0))
+        if self.outcome == self.MATCHED and differs:
+            raise ValidationError({"outcome": "Matched exactly is available only when every entered amount and count difference is zero."})
+        if self.outcome in {self.EXPLAINED, self.OPEN_DEFECT} and not self.explanation.strip():
+            raise ValidationError({"explanation": "Explain the difference or defect in ordinary office language."})
+        if self.outcome == self.OPEN_DEFECT and not self.defect_owner_id:
+            raise ValidationError({"defect_owner": "Assign an owner for an unresolved difference."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        self.amount_difference = None if self.source_amount is None else self.grand_amount - self.source_amount
+        self.count_difference = None if self.source_count is None else self.grand_count - self.source_count
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.cycle.status not in {FinanceShadowCycle.DRAFT, FinanceShadowCycle.RUNNING}:
+            raise ValidationError("Submitted comparison evidence cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceStakeholderAcceptance(models.Model):
+    REQUESTING_OFFICE = "requesting_office"
+    BUDGET = "budget"
+    ACCOUNTING = "accounting"
+    TREASURY = "treasury"
+    IT = "it"
+    MANAGEMENT = "management"
+    AUDIT = "audit"
+    STAKEHOLDER_CHOICES = (
+        (REQUESTING_OFFICE, "Requesting office"),
+        (BUDGET, "Budget"),
+        (ACCOUNTING, "Accounting"),
+        (TREASURY, "Treasury"),
+        (IT, "IT / system administration"),
+        (MANAGEMENT, "Management / cutover authority"),
+        (AUDIT, "Audit stakeholder"),
+    )
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    CONDITIONAL = "conditional"
+    REJECTED = "rejected"
+    DECISION_CHOICES = (
+        (PENDING, "Pending"),
+        (ACCEPTED, "Accepted for stated scope"),
+        (CONDITIONAL, "Accepted with conditions"),
+        (REJECTED, "Not accepted"),
+    )
+
+    cycle = models.ForeignKey(FinanceShadowCycle, on_delete=models.PROTECT, related_name="stakeholder_acceptances")
+    stakeholder_kind = models.CharField(max_length=24, choices=STAKEHOLDER_CHOICES)
+    office = models.ForeignKey(Department, on_delete=models.PROTECT, null=True, blank=True, related_name="finance_shadow_acceptances")
+    assigned_reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="assigned_finance_shadow_acceptances")
+    enabled_scope = models.TextField()
+    training_evidence_reference = models.TextField(blank=True)
+    uat_evidence_reference = models.TextField(blank=True)
+    decision = models.CharField(max_length=16, choices=DECISION_CHOICES, default=PENDING)
+    conditions_or_reason = models.TextField(blank=True)
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="decided_finance_shadow_acceptances")
+    decided_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_finance_shadow_acceptances")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("stakeholder_kind", "office__name", "pk")
+
+    def __str__(self):
+        return f"{self.get_stakeholder_kind_display()} — {self.assigned_reviewer}"
+
+    def clean(self):
+        if self.cycle_id and self.enabled_scope.strip() != self.cycle.enabled_scope.strip():
+            raise ValidationError({"enabled_scope": "The stakeholder scope must exactly match the shadow cycle being accepted."})
+        if self.cycle_id:
+            try:
+                cutover_status = self.cycle.cutover_decision.status
+            except FinanceCutoverDecision.DoesNotExist:
+                cutover_status = ""
+            if cutover_status and cutover_status != FinanceCutoverDecision.DRAFT:
+                raise ValidationError("Stakeholder assignments and decisions are locked after the cutover record is submitted.")
+        if self.stakeholder_kind == self.REQUESTING_OFFICE and not self.office_id:
+            raise ValidationError({"office": "Choose the requesting office whose enabled scope is being accepted."})
+        if self.stakeholder_kind == self.REQUESTING_OFFICE and self.office_id and self.assigned_reviewer_id:
+            assigned_department_id = getattr(
+                getattr(self.assigned_reviewer, "employeeprofile", None), "assigned_department_id", None,
+            )
+            if assigned_department_id != self.office_id:
+                raise ValidationError({"assigned_reviewer": "The requesting-office reviewer must currently belong to the named office."})
+        duplicate = type(self).objects.filter(
+            cycle_id=self.cycle_id, stakeholder_kind=self.stakeholder_kind, office_id=self.office_id,
+        ).exclude(pk=self.pk)
+        if self.cycle_id and duplicate.exists():
+            raise ValidationError("This stakeholder/office already has an acceptance row for the cycle.")
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.decision != self.PENDING:
+                governed = (
+                    "cycle_id", "stakeholder_kind", "office_id", "assigned_reviewer_id", "enabled_scope",
+                    "training_evidence_reference", "uat_evidence_reference", "decision",
+                    "conditions_or_reason", "decided_by_id", "decided_at",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError("A recorded stakeholder decision is immutable. Add a successor shadow cycle for changed scope.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.decision != self.PENDING:
+            raise ValidationError("A recorded stakeholder decision cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceCutoverDecision(models.Model):
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    AUTHORIZED = "authorized"
+    DECLINED = "declined"
+    ROLLED_BACK = "rolled_back"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft decision record"),
+        (SUBMITTED, "Awaiting cutover authority"),
+        (AUTHORIZED, "Cutover authorized for stated scope/date"),
+        (DECLINED, "Cutover not authorized"),
+        (ROLLED_BACK, "Recorded rollback invoked"),
+    )
+
+    cycle = models.OneToOneField(FinanceShadowCycle, on_delete=models.PROTECT, related_name="cutover_decision")
+    authority_matrix_reference = models.TextField()
+    enabled_scope = models.TextField()
+    cutover_at = models.DateTimeField()
+    opening_reconciliation_reference = models.TextField()
+    rollback_criteria = models.TextField()
+    legacy_read_only_retention_plan = models.TextField()
+    backup_recovery_evidence = models.TextField()
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    prepared_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="prepared_finance_cutover_decisions")
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="submitted_finance_cutover_decisions")
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="authorized_finance_cutover_decisions")
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-cutover_at", "-pk")
+
+    def __str__(self):
+        return f"Cutover decision — {self.cycle.code}"
+
+    def clean(self):
+        if self.cycle_id and self.cycle.status != FinanceShadowCycle.RECONCILED:
+            raise ValidationError({"cycle": "Prepare a cutover decision only after independent shadow-cycle reconciliation."})
+        if self.cycle_id and self.enabled_scope.strip() != self.cycle.enabled_scope.strip():
+            raise ValidationError({"enabled_scope": "The cutover scope must exactly match the independently reconciled shadow-cycle scope."})
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.status != self.DRAFT:
+                governed = (
+                    "cycle_id", "authority_matrix_reference", "enabled_scope", "cutover_at",
+                    "opening_reconciliation_reference", "rollback_criteria",
+                    "legacy_read_only_retention_plan", "backup_recovery_evidence",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError("A submitted cutover record is immutable. Record a decline or rollback; do not rewrite its scope or evidence.")
+
+    @property
+    def makes_grand_authoritative(self):
+        return self.status == self.AUTHORIZED
+
+    def delete(self, *args, **kwargs):
+        if self.status != self.DRAFT:
+            raise ValidationError("A submitted cutover record cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)

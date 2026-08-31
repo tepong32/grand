@@ -18,6 +18,7 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 - Department-bounded records with source-in-place links, checksum-backed uploads, confidentiality controls, review and approval, audited downloads, retention, legal holds, supersession, archival, and disposition.
 - TracePoint physical-paper custody with stable packet labels, revocable daily employee QR codes, individual voucher manifests, split/rebundle lineage, repeatable office checkpoints, explicit terminal receipt, immutable handoff history, and separate delivery/completion states.
 - Finance Setup Center with effective-dated releases, versioned master data and rules, separate preparation/approval, signatory and numbering governance, safe macro-free Excel intake, synthetic previews, and structured readiness blockers.
+- Governed Finance shadow/parallel cycles with source and schema checksums, exact case-to-report comparisons, owned defect gates, independent reconciliation, named seven-party training/UAT acceptance, exact-scope cutover authority, retained rollback, and TraceSync-ready evidence packages.
 - Standalone Accounting with its own finance database, guided fiscal setup, controlled opening-balance staging/reconciliation/export, transaction-specific posting-rule snapshots, balanced journal preparation, independent posting, immutable payable/withholding subsidiary detail and control reconciliation, general ledger, trial balance, and TraceSync-ready evidence exports—without an eGAPS runtime dependency.
 - Annual Budget preparation with reviewed calls and ceilings, classified department proposals and targets, resource estimates, traceable consolidation, version comparison, and portable exports; approved proposals remain non-spendable until authorization.
 - Allotment release control against immutable operational appropriations, with initial/later releases, reserves, deferrals, adjustments, returns/cancellations, exact signed totals, independent posting, live balances, correction lineage, and TraceSync-ready exports.
@@ -39,7 +40,7 @@ GRAND keeps operational modules separate: an employee's dashboard summarizes wor
 | Reports | `reporting` | Controlled datasets, layouts, generation, schedules, approvals, and archives |
 | Records | `records` | Official department registry, source links, files, review, retention, and controlled retrieval |
 | Physical custody | `tracepoint` | QR-tagged paper packets, daily employee codes, confirmed handoffs, exceptions, and completion |
-| Finance setup | `finance` | Approved master data, rules, signatories, numbering policies, voucher workbook versions, and readiness |
+| Finance setup and cutover | `finance` | Approved master data, rules, signatories, numbering/templates, shadow reconciliation, stakeholder acceptance, and explicit cutover authority |
 | Accounting | `accounting` | Separate-database fiscal/opening controls, chart, journals, posting, ledger, and trial balance |
 | Budget, allotment, and obligations | `budget` | Annual calls/proposals, operational appropriation authorization, posted allotment control, requesting-office obligation certification, and RAAO-equivalent registry |
 | Voucher operations | `vouchers` | Cross-office OBR, DV, signature, Accounting, check, advice, and release workflow |
@@ -102,6 +103,7 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 - [Finance controlled DV printing and custody](docs/FINANCE_CONTROLLED_PRINT_CUSTODY.md)
 - [Finance cash position and instrument ageing](docs/FINANCE_CASH_POSITION.md)
 - [Finance bank advice and returned instruments](docs/FINANCE_BANK_ADVICE.md)
+- [Finance shadow operation, UAT acceptance, and controlled cutover](docs/FINANCE_SHADOW_CUTOVER.md)
 - [GRAND Finance complete-cycle roadmap](docs/FINANCE_ROADMAP.md)
 - [Finance process discovery protocol](docs/FINANCE_PROCESS_DISCOVERY.md)
 - [Finance evidence register and interview kit](docs/finance-discovery/README.md)
