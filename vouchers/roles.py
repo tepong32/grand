@@ -53,6 +53,8 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.manage_report_templates",
         "reporting.prepare_template_promotions",
         "reporting.activate_template_promotions",
+        "reporting.manage_local_form_acceptance",
+        "reporting.export_local_form_acceptance",
         "reporting.schedule_reports",
         "reporting.generate_reports",
         "reporting.review_reports",
@@ -69,6 +71,9 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.view_reporting_workspace",
         "reporting.approve_reports",
         "reporting.approve_template_promotions",
+        "reporting.witness_local_form_tests",
+        "reporting.review_local_form_acceptance",
+        "reporting.export_local_form_acceptance",
         "reporting.download_reports",
         "reporting.view_department_reports",
     ),
@@ -114,6 +119,8 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.export_statement_packages",
         "reporting.prepare_accountability_packages",
         "reporting.export_accountability_packages",
+        "reporting.manage_local_form_acceptance",
+        "reporting.export_local_form_acceptance",
     ),
     "Accounting Reviewer": (
         "finance.view_finance_setup",
@@ -155,6 +162,9 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.export_statement_packages",
         "reporting.review_accountability_packages",
         "reporting.export_accountability_packages",
+        "reporting.witness_local_form_tests",
+        "reporting.review_local_form_acceptance",
+        "reporting.export_local_form_acceptance",
     ),
     "Treasury Disbursement Officer": (
         "vouchers.view_voucher_workbench",
@@ -176,6 +186,8 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.view_reporting_workspace",
         "reporting.generate_reports",
         "reporting.download_reports",
+        "reporting.manage_local_form_acceptance",
+        "reporting.export_local_form_acceptance",
     ),
     "Finance Configuration Manager": (
         "finance.view_finance_setup",
@@ -198,6 +210,8 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.prepare_reference_comparisons",
         "reporting.export_statement_packages",
         "reporting.manage_accountability_package_profiles",
+        "reporting.manage_local_form_acceptance",
+        "reporting.export_local_form_acceptance",
     ),
     "Finance Configuration Approver": (
         "finance.view_finance_setup",
@@ -217,6 +231,9 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.review_reference_comparisons",
         "reporting.export_statement_packages",
         "reporting.approve_accountability_package_profiles",
+        "reporting.witness_local_form_tests",
+        "reporting.review_local_form_acceptance",
+        "reporting.export_local_form_acceptance",
     ),
 }
 

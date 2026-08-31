@@ -26,6 +26,7 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 - Voucher and Disbursement Workbench shadow vertical slice with one shared Budget–Accounting–Treasury case, governed supplier/payee selectors, authoritative F4.2 obligation/payable intake, typed transaction variants, authority-backed documentary checklists, one-to-many/many-to-one/partial/progress/final relationship controls, recognition/adjustment decisions, independent Accounting readiness review, portable transaction exports, pilot DV numbering, wet-signature rounds, JEV references, multi-check controls, versioned multi-case bank advice and bank acknowledgement, release, returned-payment Accounting/reissue, remittance, bank reconciliation with prior-item carry/clearance lineage, reconciliation-backed cash positions, issue reservations, instrument ageing, correction history, and checksum-backed outputs. Legacy cases retain their pilot OBR history; F5 relationships version authoritative obligation UUID/checksum allocations and do not post a second Budget balance.
 - Governed tax evidence from plain-language Finance Setup rules through DV capture, Accounting subsidiary posting/reversal, reconciled source schedules, tax-aware Treasury remittance, and independently reviewed external filing/payment references with amendment lineage and TraceSync-ready exports; GRAND does not perform e-filing or invent current local deadlines/forms.
 - Governed Finance accountability packages built from approved cross-office reports, statement notes, signed-reference comparisons, and verified tax-filing evidence, using locally editable package recipes, maker–checker approval, reasoned correction successors, checksum traceback, and TraceSync-ready manifests.
+- Governed local Finance form acceptance with human-readable inventories, dynamic required/optional/conditional/repeating sections, independently witnessed data/layout/signatory/overflow/accessibility/print/recovery tests, reasoned successors, and TraceSync-ready evidence.
 - Public and internal announcements, employee/citizen profiles, department records, and organization views.
 
 GRAND keeps operational modules separate: an employee's dashboard summarizes work and links to specialized workspaces instead of embedding full processing screens in the landing page.
@@ -113,6 +114,7 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 - [Finance opening balances and control-total intake](docs/FINANCE_OPENING_BALANCES.md)
 - [Finance process-fidelity baseline](docs/FINANCE_PROCESS_FIDELITY_BASELINE.md)
 - [Finance visual template promotion and rollback](docs/FINANCE_TEMPLATE_PROMOTION.md)
+- [Finance local-form inventory and acceptance](docs/FINANCE_LOCAL_FORM_ACCEPTANCE.md)
 - [Finance accountability-package profiles and assembly](docs/FINANCE_ACCOUNTABILITY_PACKAGES.md)
 - [F9 comprehensive review and implementation handoff](docs/FINANCE_F9_REVIEW_AND_HANDOFF.md)
 - [Product roadmap](docs/ROADMAP.md)

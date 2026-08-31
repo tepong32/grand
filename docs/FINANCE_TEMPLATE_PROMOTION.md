@@ -1,6 +1,6 @@
 # Finance visual template promotion and rollback
 
-Status: **F10.1 implemented synthetic control; exact local form, printer, form-stock, overflow, and named-office acceptance remain required**.
+Status: **F10.1 implemented synthetic control; F10.2 now provides the governed local-form inventory and acceptance workflow; actual local evidence remains required**.
 
 This slice turns the existing native, mapped-XLSX, and exact-PDF renderers into a controlled non-developer promotion workflow. It does not declare a public COA, DBM, BIR, or another LGU's form to be locally accepted.
 
@@ -43,6 +43,8 @@ A first official version has no earlier layout to restore. Correct it by creatin
 
 The promotion receipt exports as deterministic JSON under the shared `GRAND_EXPORT_ROOT` department/user/category/year/month structure, in the `finance-report-template-promotions` category. Its adjacent manifest retains the promotion identity, status, template checksum, submission checksum, and export checksum for TraceSync copying and offline safekeeping.
 
-## Acceptance still required
+## F10.2 acceptance handoff
 
-F10.1 supplies the application control, not field acceptance. Before an official production form is enabled, the named office must still provide and accept the exact current blank form and redacted signed sample; current authority and local-use decision; required and optional blocks; signatories; copies and recipients; page geometry and print area; row overflow behavior; form stock; printer alignment; and at least one accepted golden output. The parent F10 exit gate remains open until an authorized non-developer completes that exercise on the actual local form and the responsible offices sign off.
+F10.1 supplies technical promotion, not field acceptance. F10.2 now gives each office a plain-language register for the exact blank/redacted reference, authority and local decision, required/optional/conditional/repeating sections, signatory/copy/custody rules, pagination/overflow, accessibility, physical print settings, and seven independently witnessed practical tests. Accepted changes use reasoned successors and repeat all tests; the prior form stays historically reproducible. See [Finance local-form inventory and acceptance](FINANCE_LOCAL_FORM_ACCEPTANCE.md).
+
+The workflow is available, but the parent F10 exit gate remains open until authorized non-developers populate it with the LGU's actual forms, devices, paper/form stock, accepted golden outputs, retained evidence, and named-office decisions.

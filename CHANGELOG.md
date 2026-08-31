@@ -1,5 +1,15 @@
 # Changelog
 
+## F10.2 Governed local-form inventory and acceptance
+
+- Added a department-bounded, plain-language Finance form register for verified form identity, authority/local decision, exact blank or safely redacted reference, delivery mode, signatories, copies, recipients, deadlines, retention, accessibility, pagination/overflow, paper, form stock, and printer instructions.
+- Added human-modifiable required, optional, conditional, and repeating section rows with explicit applicability and continuation behavior instead of executable template logic.
+- Linked acceptance only to an exact activated F10.1 report template or an active, locally accepted, preflighted Finance workbook whose live bytes, mapping, release, and checksums still verify; inventory-only records cannot be accepted.
+- Added seven independently witnessed practical test categories for data/control totals, layout/fields, signatory/custody route, overflow/pagination, accessibility/download, printer/form stock, and rollback/recovery; failed attempts remain immutable and reasoned retries retain lineage.
+- Added separate form submission and maker–checker acceptance, source/reference/submission SHA-256 locks, immutable accepted evidence, and reasoned successors that copy readable form/section fields but require every test to be performed again.
+- Added conservative department screens, Finance role separation, Accounting/Budget/Treasury floating Internal How-To updates, and deterministic TraceSync-ready acceptance packets that preserve history without copying confidential form bodies or signature images.
+- Added migration, report-template and Finance-workbook lifecycle tests, department-boundary and permission checks, source-drift and historical-reproduction coverage, documentation, and explicit field-acceptance boundaries. Actual LGU forms, devices, samples, trials, and named-office decisions remain open under the parent F10 gate.
+
 ## F9.7 Governed Finance accountability-package assembly
 
 - Added human-editable, versioned package profiles with plain-language requirement rows for approved GRAND reports, accepted statement notes, reconciled signed-reference comparisons, and verified tax-filing evidence from named source offices.

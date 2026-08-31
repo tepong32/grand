@@ -1,6 +1,6 @@
 # Department report-template intake
 
-Use this checklist before treating a GRAND-generated report as an official departmental form. A technical template approval permits controlled preview generation; official activation requires the retained promotion, golden comparison, independent approval, and impact record described in [Finance visual template promotion and rollback](FINANCE_TEMPLATE_PROMOTION.md).
+Use this checklist before treating a GRAND-generated report as an official departmental form. A technical template approval permits controlled preview generation; official activation requires the retained promotion, golden comparison, independent approval, and impact record described in [Finance visual template promotion and rollback](FINANCE_TEMPLATE_PROMOTION.md). Local acceptance is separately recorded through the [Finance local-form inventory and acceptance](FINANCE_LOCAL_FORM_ACCEPTANCE.md) workflow.
 
 ## Template pack
 
@@ -36,8 +36,10 @@ Uploaded documents and images remain non-executable references. Mapped XLSX and 
 4. Record every mismatch and resolve it in a new template version when print geometry or mappings change.
 5. Prepare the promotion record with the accepted prior run, human comparison, printer/form-stock checks, and schedule-impact choice.
 6. Have a different authorized reviewer approve the locked evidence, then let an authorized manager activate it separately.
+7. Open **Local form acceptance** in the reporting workspace and inventory the familiar form, exact blank/redacted reference, authority, local decision, sections, signatures, copies, custody, deadlines, accessibility, overflow, and print settings.
+8. Perform all seven practical tests, have a different witness decide each attempt, and submit the exact form version to a different acceptance reviewer. Do not copy test results into a successor.
 
-Preview outputs may be printed or downloaded by authorized employees for comparison, but GRAND blocks official use until promotion and activation are complete.
+Preview outputs may be printed or downloaded by authorized employees for comparison, but GRAND blocks local-form acceptance until promotion/activation and independently witnessed form evidence are complete.
 
 ## Print and download behavior
 
@@ -51,3 +53,5 @@ Preview outputs may be printed or downloaded by authorized employees for compari
 ## Versioning rule
 
 An approved template's header, footer, logos, page geometry, border, reference file, mapping notes, and document-control behavior are immutable. A change creates a new version. Existing archived output files do not change when the institution later updates its portal identity or report layouts.
+
+An accepted local-form record follows the same history-preserving rule. Start a reasoned successor, edit its familiar fields and sections, repeat the practical tests, and obtain independent acceptance. The prior accepted record remains effective until the successor is accepted, then remains exportable as superseded evidence.

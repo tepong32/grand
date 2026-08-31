@@ -1,12 +1,69 @@
 from django.contrib import admin
 
 from .models import (
+    FinanceLocalFormAcceptance, FinanceLocalFormEvent, FinanceLocalFormSection,
+    FinanceLocalFormTestAttempt,
     FinanceStatementLine, FinanceStatementMapping, FinanceStatementMappingEvent,
     FinanceStatementNote, FinanceStatementNoteEvent, FinanceStatementNoteSet,
     ReportDefinition, ReportReferenceComparison, ReportReferenceComparisonEvent,
     ReportRun, ReportRunEvent, ReportRunSource, ReportSchedule, ReportTemplateMappingField,
     ReportTemplatePromotion, ReportTemplatePromotionEvent, ReportTemplateVersion,
 )
+
+
+class FinanceLocalFormSectionInline(admin.TabularInline):
+    model = FinanceLocalFormSection
+    extra = 0
+    readonly_fields = (
+        "position", "code", "label", "requirement_type",
+        "applicability_instructions", "row_instructions",
+    )
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class FinanceLocalFormTestInline(admin.TabularInline):
+    model = FinanceLocalFormTestAttempt
+    extra = 0
+    readonly_fields = (
+        "category", "attempt", "supersedes", "change_reason", "test_steps",
+        "expected_result", "observed_result", "environment", "evidence_reference",
+        "evidence_checksum", "basis_snapshot", "basis_checksum", "status",
+        "created_by", "created_at", "reviewed_by",
+        "reviewed_at", "review_note",
+    )
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(FinanceLocalFormAcceptance)
+class FinanceLocalFormAcceptanceAdmin(admin.ModelAdmin):
+    list_display = ("name", "department", "code", "version", "source_type", "delivery_mode", "status")
+    list_filter = ("department", "source_type", "delivery_mode", "status")
+    readonly_fields = tuple(field.name for field in FinanceLocalFormAcceptance._meta.fields)
+    inlines = (FinanceLocalFormSectionInline, FinanceLocalFormTestInline)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(FinanceLocalFormEvent)
+class FinanceLocalFormEventAdmin(admin.ModelAdmin):
+    list_display = ("form", "action", "actor", "created_at")
+    readonly_fields = ("form", "actor", "action", "reason", "snapshot", "created_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 class FinanceStatementLineInline(admin.TabularInline):

@@ -34,6 +34,13 @@ def statement_reference_path(instance, filename):
     )
 
 
+def local_form_reference_path(instance, filename):
+    return (
+        f"reporting/local-form-references/{instance.department.slug}/"
+        f"{instance.code}/v{instance.version}/{filename}"
+    )
+
+
 class ReportDefinition(models.Model):
     FORMAT_PDF = "pdf"
     FORMAT_XLSX = "xlsx"
@@ -473,6 +480,14 @@ class FinanceStatementMapping(models.Model):
                 raise ValidationError("The statement mapping preparer cannot approve the same version.")
 
     def save(self, *args, **kwargs):
+        if self.status in (self.SUBMITTED, self.ACCEPTED, self.SUPERSEDED) and (
+            not self.submission_checksum or not self.submitted_by_id or not self.submitted_at
+        ):
+            raise ValidationError("Locked local-form states require a pinned, attributable submission.")
+        if self.status in (self.ACCEPTED, self.SUPERSEDED) and (
+            not self.reviewed_by_id or not self.reviewed_at
+        ):
+            raise ValidationError("Accepted local-form history requires an independent reviewer and decision time.")
         if self.pk:
             prior = type(self).objects.get(pk=self.pk)
             governed = (
@@ -1840,3 +1855,457 @@ class ReportTemplatePromotionEvent(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Template-promotion events cannot be deleted.")
+
+
+class FinanceLocalFormAcceptance(models.Model):
+    """Human-readable, evidence-backed acceptance record for one exact local form version."""
+
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    RETURNED = "returned"
+    ACCEPTED = "accepted"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (DRAFT, "Editable local-form record"),
+        (SUBMITTED, "For independent acceptance review"),
+        (RETURNED, "Returned for correction"),
+        (ACCEPTED, "Locally accepted form"),
+        (SUPERSEDED, "Superseded local form"),
+    )
+    LOCKED_STATUSES = {SUBMITTED, ACCEPTED, SUPERSEDED}
+
+    SOURCE_UNMAPPED = "unmapped"
+    SOURCE_REPORT = "report_template"
+    SOURCE_FINANCE = "finance_workbook"
+    SOURCE_CHOICES = (
+        (SOURCE_UNMAPPED, "Inventory only — GRAND mapping still required"),
+        (SOURCE_REPORT, "Governed report template"),
+        (SOURCE_FINANCE, "Governed Finance workbook"),
+    )
+    DELIVERY_DIGITAL = "digital"
+    DELIVERY_PRINT = "print"
+    DELIVERY_BOTH = "both"
+    DELIVERY_CHOICES = (
+        (DELIVERY_DIGITAL, "Digital file only"),
+        (DELIVERY_PRINT, "Printed or pre-printed form"),
+        (DELIVERY_BOTH, "Digital file and printed copy"),
+    )
+    REFERENCE_CHOICES = (
+        ("pdf", "PDF blank or redacted sample"),
+        ("xlsx", "Macro-free Excel blank or redacted sample"),
+        ("docx", "Word blank or redacted sample"),
+        ("image", "Scanned/image reference"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, related_name="finance_local_form_acceptances",
+    )
+    code = models.SlugField(max_length=80)
+    version = models.PositiveSmallIntegerField(default=1)
+    name = models.CharField(max_length=180)
+    form_number = models.CharField(
+        max_length=120, blank=True,
+        help_text="Use the familiar official or local form number only when the office has verified it.",
+    )
+    purpose = models.TextField()
+    source_type = models.CharField(max_length=24, choices=SOURCE_CHOICES, default=SOURCE_UNMAPPED)
+    report_template = models.ForeignKey(
+        ReportTemplateVersion, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="local_form_acceptance_records",
+    )
+    finance_template = models.ForeignKey(
+        "finance.FinanceTemplateVersion", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="local_form_acceptance_records",
+    )
+    supersedes = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="successor_forms",
+    )
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    authority_reference = models.TextField(
+        blank=True,
+        help_text="Current COA, DBM, BIR, bank, ordinance, memorandum, or accepted local-procedure basis.",
+    )
+    local_acceptance_note = models.TextField(
+        blank=True,
+        help_text="Name the accepting office/person and the retained decision or comparison record.",
+    )
+    reference_kind = models.CharField(max_length=12, choices=REFERENCE_CHOICES, default="pdf")
+    reference_file = models.FileField(
+        upload_to=local_form_reference_path, max_length=500,
+        validators=[FileExtensionValidator(REFERENCE_EXTENSIONS)],
+        help_text="Upload only a blank or safely redacted reference up to 10 MB.",
+    )
+    reference_checksum = models.CharField(max_length=64, blank=True)
+    delivery_mode = models.CharField(max_length=12, choices=DELIVERY_CHOICES, default=DELIVERY_BOTH)
+    signatory_instructions = models.TextField(
+        help_text="List the required signatory roles, order, acting/delegation rule, and wet/digital signature treatment.",
+    )
+    default_copy_count = models.PositiveSmallIntegerField(
+        default=1, validators=[MinValueValidator(1), MaxValueValidator(50)],
+    )
+    recipient_instructions = models.TextField(
+        help_text="State who receives each copy or digital file and how acknowledgement is retained.",
+    )
+    deadline_instructions = models.TextField(
+        help_text="State the locally confirmed preparation, submission, filing, or distribution deadline basis.",
+    )
+    retention_instructions = models.TextField(
+        help_text="State the records folder, custodian, retention rule, and confidential-copy handling.",
+    )
+    paper_size = models.CharField(
+        max_length=20, blank=True,
+        help_text="For example A4, Letter, Legal, or the exact pre-printed stock description.",
+    )
+    orientation = models.CharField(
+        max_length=20, blank=True,
+        help_text="For example Portrait or Landscape.",
+    )
+    form_stock = models.TextField(blank=True)
+    printer_instructions = models.TextField(blank=True)
+    pagination_instructions = models.TextField(
+        help_text="Describe page numbering, repeating headings, annexes, and continuation-page treatment.",
+    )
+    overflow_instructions = models.TextField(
+        help_text="Describe what happens when rows, particulars, notes, or signatures do not fit.",
+    )
+    accessibility_instructions = models.TextField(
+        help_text="Describe readable labels/order, download format, scaling, and any accessibility accommodation.",
+    )
+    source_snapshot = models.JSONField(default=dict, blank=True)
+    source_checksum = models.CharField(max_length=64, blank=True)
+    submission_snapshot = models.JSONField(default=dict, blank=True)
+    submission_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_finance_local_form_acceptances",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_local_form_acceptances",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_finance_local_form_acceptances",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("code", "-version")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("department", "code", "version"), name="unique_local_form_acceptance_version",
+            ),
+            models.UniqueConstraint(
+                fields=("department", "code"), condition=models.Q(status="accepted"),
+                name="one_accepted_local_form_version",
+            ),
+        )
+        permissions = (
+            ("manage_local_form_acceptance", "Can prepare local Finance form acceptance records"),
+            ("witness_local_form_tests", "Can independently witness local Finance form tests"),
+            ("review_local_form_acceptance", "Can independently accept local Finance forms"),
+            ("export_local_form_acceptance", "Can export accepted local Finance form evidence"),
+        )
+
+    def __str__(self):
+        return f"{self.name} v{self.version}"
+
+    def get_absolute_url(self):
+        return reverse("reporting:local_form_detail", kwargs={"public_id": self.public_id})
+
+    @property
+    def is_editable(self):
+        return self.status in (self.DRAFT, self.RETURNED)
+
+    def clean(self):
+        if self.reference_file and getattr(self.reference_file, "size", 0) > 10 * 1024 * 1024:
+            raise ValidationError({"reference_file": "Local-form references must be 10 MB or smaller."})
+        if self.reference_file:
+            extension = self.reference_file.name.rsplit(".", 1)[-1].lower()
+            allowed_by_kind = {
+                "pdf": {"pdf"},
+                "xlsx": {"xlsx", "xls"},
+                "docx": {"docx"},
+                "image": set(IMAGE_EXTENSIONS),
+            }
+            if extension not in allowed_by_kind.get(self.reference_kind, set()):
+                raise ValidationError({
+                    "reference_file":
+                        f"The uploaded file must match the selected {self.get_reference_kind_display()} type."
+                })
+        if self.source_type == self.SOURCE_REPORT:
+            if not self.report_template_id or self.finance_template_id:
+                raise ValidationError("A governed report form must link only its exact report template version.")
+            if self.report_template.definition.department_id != self.department_id:
+                raise ValidationError({"report_template": "Choose a report template owned by this office."})
+        elif self.source_type == self.SOURCE_FINANCE:
+            if not self.finance_template_id or self.report_template_id:
+                raise ValidationError("A governed Finance workbook must link only its exact workbook version.")
+            if self.finance_template.department_id != self.department_id:
+                raise ValidationError({"finance_template": "Choose a Finance workbook owned by this office."})
+        elif self.report_template_id or self.finance_template_id:
+            raise ValidationError("An inventory-only form cannot point to a runtime template until its mapping type is chosen.")
+        if self.delivery_mode in (self.DELIVERY_PRINT, self.DELIVERY_BOTH):
+            if not self.paper_size.strip() or not self.form_stock.strip() or not self.printer_instructions.strip():
+                raise ValidationError("Printed forms require paper/stock and printer instructions.")
+        if self.supersedes_id:
+            if self.supersedes_id == self.pk:
+                raise ValidationError({"supersedes": "A local form cannot supersede itself."})
+            if (
+                self.supersedes.department_id != self.department_id
+                or self.supersedes.code != self.code
+                or self.version <= self.supersedes.version
+            ):
+                raise ValidationError({"supersedes": "Choose an earlier version of this office's same local form."})
+        if self.status == self.ACCEPTED:
+            if not self.submission_checksum or not self.reviewed_by_id or not self.reviewed_at:
+                raise ValidationError("Accepted forms require a pinned submission and independent review.")
+            if self.reviewed_by_id in (self.created_by_id, self.submitted_by_id):
+                raise ValidationError("The form preparer or submitter cannot accept the same form.")
+        if self.status in (self.SUBMITTED, self.ACCEPTED, self.SUPERSEDED):
+            if not self.submission_checksum or not self.submitted_by_id or not self.submitted_at:
+                raise ValidationError("Locked local-form states require a pinned, attributable submission.")
+        if self.status == self.SUPERSEDED and (
+            not self.reviewed_by_id or not self.reviewed_at
+        ):
+            raise ValidationError("Superseded forms must retain their original independent acceptance.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            allowed_transitions = {
+                self.DRAFT: {self.SUBMITTED},
+                self.RETURNED: {self.SUBMITTED},
+                self.SUBMITTED: {self.RETURNED, self.ACCEPTED},
+                self.ACCEPTED: {self.SUPERSEDED},
+                self.SUPERSEDED: set(),
+            }
+            if (
+                prior.status != self.status
+                and self.status not in allowed_transitions.get(prior.status, set())
+            ):
+                raise ValidationError(
+                    f"Local-form status cannot move from {prior.status} to {self.status}; use the governed action."
+                )
+            governed = (
+                "department_id", "code", "version", "name", "form_number", "purpose",
+                "source_type", "report_template_id", "finance_template_id", "supersedes_id",
+                "authority_reference", "local_acceptance_note", "reference_kind",
+                "reference_checksum", "delivery_mode", "signatory_instructions",
+                "default_copy_count", "recipient_instructions", "deadline_instructions",
+                "retention_instructions", "paper_size", "orientation", "form_stock",
+                "printer_instructions", "pagination_instructions", "overflow_instructions",
+                "accessibility_instructions", "source_snapshot", "source_checksum",
+                "submission_snapshot", "submission_checksum", "created_by_id",
+            )
+            changed = any(getattr(prior, field) != getattr(self, field) for field in governed)
+            changed = changed or prior.reference_file.name != self.reference_file.name
+            if prior.status in self.LOCKED_STATUSES and changed:
+                raise ValidationError("Submitted local-form evidence is immutable. Return it or create a successor.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status in self.LOCKED_STATUSES or self.events.exists() or self.test_attempts.exists():
+            raise ValidationError("Local-form acceptance history cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceLocalFormSection(models.Model):
+    REQUIRED = "required"
+    OPTIONAL = "optional"
+    CONDITIONAL = "conditional"
+    REPEATING = "repeating"
+    SECTION_CHOICES = (
+        (REQUIRED, "Required section"),
+        (OPTIONAL, "Optional section"),
+        (CONDITIONAL, "Conditional section"),
+        (REPEATING, "Repeating rows or continuation section"),
+    )
+
+    form = models.ForeignKey(
+        FinanceLocalFormAcceptance, on_delete=models.PROTECT, related_name="sections",
+    )
+    position = models.PositiveSmallIntegerField()
+    code = models.SlugField(max_length=80)
+    label = models.CharField(max_length=180)
+    requirement_type = models.CharField(max_length=16, choices=SECTION_CHOICES, default=REQUIRED)
+    applicability_instructions = models.TextField(
+        blank=True,
+        help_text="For optional or conditional sections, state who decides and what retained fact makes the section apply.",
+    )
+    row_instructions = models.TextField(
+        blank=True,
+        help_text="For repeating content, state the minimum/maximum rows and continuation-page behavior.",
+    )
+
+    class Meta:
+        ordering = ("position", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("form", "position"), name="unique_local_form_section_position"),
+            models.UniqueConstraint(fields=("form", "code"), name="unique_local_form_section_code"),
+        )
+
+    def __str__(self):
+        return f"{self.form}: {self.label}"
+
+    def clean(self):
+        if self.requirement_type in (self.OPTIONAL, self.CONDITIONAL) and not self.applicability_instructions.strip():
+            raise ValidationError({"applicability_instructions": "Explain when this non-required section applies and who decides."})
+        if self.requirement_type == self.REPEATING and not self.row_instructions.strip():
+            raise ValidationError({"row_instructions": "Explain the repeating-row and continuation-page behavior."})
+
+    def save(self, *args, **kwargs):
+        if self.form_id and not self.form.is_editable:
+            raise ValidationError("Locked local-form sections are immutable. Create a successor form.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if not self.form.is_editable:
+            raise ValidationError("Locked local-form sections cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceLocalFormTestAttempt(models.Model):
+    DATA_CONTROL = "data_control"
+    LAYOUT_FIELDS = "layout_fields"
+    SIGNATORY_ROUTE = "signatory_route"
+    OVERFLOW_PAGINATION = "overflow_pagination"
+    ACCESS_DOWNLOAD = "access_download"
+    PRINTER_STOCK = "printer_stock"
+    ROLLBACK_RECOVERY = "rollback_recovery"
+    CATEGORY_CHOICES = (
+        (DATA_CONTROL, "Data and control totals"),
+        (LAYOUT_FIELDS, "Labels, fields, and visual comparison"),
+        (SIGNATORY_ROUTE, "Signatories, copies, recipients, and custody route"),
+        (OVERFLOW_PAGINATION, "Overflow, pagination, and continuation pages"),
+        (ACCESS_DOWNLOAD, "Accessibility, download, and readable output"),
+        (PRINTER_STOCK, "Physical printer and form-stock trial"),
+        (ROLLBACK_RECOVERY, "Rollback and recoverable prior-version drill"),
+    )
+    REQUIRED_CATEGORIES = tuple(value for value, _label in CATEGORY_CHOICES)
+
+    SUBMITTED = "submitted"
+    PASSED = "passed"
+    FAILED = "failed"
+    NOT_APPLICABLE = "not_applicable"
+    STATUS_CHOICES = (
+        (SUBMITTED, "Awaiting independent witness"),
+        (PASSED, "Witnessed pass"),
+        (FAILED, "Witnessed failure — new attempt required"),
+        (NOT_APPLICABLE, "Witnessed not applicable"),
+    )
+
+    form = models.ForeignKey(
+        FinanceLocalFormAcceptance, on_delete=models.PROTECT, related_name="test_attempts",
+    )
+    category = models.CharField(max_length=24, choices=CATEGORY_CHOICES)
+    attempt = models.PositiveSmallIntegerField(default=1)
+    supersedes = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="successor_attempt",
+    )
+    change_reason = models.TextField(blank=True)
+    test_steps = models.TextField()
+    expected_result = models.TextField()
+    observed_result = models.TextField()
+    environment = models.TextField(
+        help_text="Name the browser/device, output format, printer/paper when applicable, and useful settings.",
+    )
+    evidence_reference = models.TextField(
+        help_text="Reference the retained redacted output, comparison sheet, print sample, screenshot, or drill record.",
+    )
+    evidence_checksum = models.CharField(max_length=64)
+    basis_snapshot = models.JSONField(default=dict)
+    basis_checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=SUBMITTED)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_finance_local_form_tests",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_finance_local_form_tests",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("category", "-attempt")
+        constraints = (
+            models.UniqueConstraint(fields=("form", "category", "attempt"), name="unique_local_form_test_attempt"),
+        )
+
+    def __str__(self):
+        return f"{self.form}: {self.get_category_display()} attempt {self.attempt}"
+
+    def clean(self):
+        if self.supersedes_id:
+            if (
+                self.supersedes.form_id != self.form_id
+                or self.supersedes.category != self.category
+                or self.attempt <= self.supersedes.attempt
+            ):
+                raise ValidationError({"supersedes": "Choose an earlier attempt for this same form and test category."})
+            if not self.change_reason.strip():
+                raise ValidationError({"change_reason": "Explain why another test attempt is required."})
+        if self.status != self.SUBMITTED:
+            if not self.reviewed_by_id or not self.reviewed_at or not self.review_note.strip():
+                raise ValidationError("A witnessed test result requires reviewer, time, and decision note.")
+            if self.reviewed_by_id == self.created_by_id:
+                raise ValidationError("The person who performed the test cannot witness the same attempt.")
+        if self.status == self.NOT_APPLICABLE and (
+            self.category != self.PRINTER_STOCK or self.form.delivery_mode != FinanceLocalFormAcceptance.DELIVERY_DIGITAL
+        ):
+            raise ValidationError("Only a printer/form-stock test for a digital-only form may be marked not applicable.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "form_id", "category", "attempt", "supersedes_id", "change_reason",
+                "test_steps", "expected_result", "observed_result", "environment",
+                "evidence_reference", "evidence_checksum", "basis_snapshot",
+                "basis_checksum", "created_by_id", "created_at",
+            )
+            if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                raise ValidationError("Local-form test attempts are immutable. Record a reasoned successor attempt.")
+            if prior.status != self.SUBMITTED or self.status not in (self.PASSED, self.FAILED, self.NOT_APPLICABLE):
+                raise ValidationError("A test attempt may move only once from submitted to a witnessed result.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Local-form test-attempt history cannot be deleted.")
+
+
+class FinanceLocalFormEvent(models.Model):
+    form = models.ForeignKey(
+        FinanceLocalFormAcceptance, on_delete=models.PROTECT, related_name="events",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="finance_local_form_events",
+    )
+    action = models.CharField(max_length=60)
+    reason = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Local-form acceptance events are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Local-form acceptance events cannot be deleted.")

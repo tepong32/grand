@@ -19,6 +19,8 @@ from .access import (
     can_manage_accountability_profiles, can_prepare_accountability_packages,
     can_manage_templates, can_review_reports, can_schedule_reports, department_for_user,
     can_review_accountability_packages,
+    can_export_local_form_acceptance, can_manage_local_form_acceptance,
+    can_review_local_form_acceptance, can_witness_local_form_tests,
     can_prepare_template_promotions,
     can_view_department_reports, can_prepare_reference_comparisons, can_prepare_statement_notes,
     can_review_reference_comparisons, can_review_statement_notes, can_export_statement_packages,
@@ -27,6 +29,8 @@ from .access import (
 from .forms import (
     FinanceAccountabilityPackageForm, FinanceAccountabilityPackageProfileForm,
     FinanceAccountabilityPackageRequirementForm, FinanceAccountabilityPackageSelectionForm,
+    FinanceLocalFormAcceptanceForm, FinanceLocalFormSectionForm,
+    FinanceLocalFormTestAttemptForm,
     FinanceStatementLineForm, FinanceStatementMappingForm, FinanceStatementNoteForm,
     FinanceStatementNoteSetForm, ManualReportForm, ReportDefinitionForm,
     ReportReferenceComparisonForm, ReportScheduleForm, ReportTemplateMappingFieldForm,
@@ -36,11 +40,17 @@ from .mappers import TemplateMappingError, preflight_template
 from .models import (
     FinanceAccountabilityPackage, FinanceAccountabilityPackageEvent,
     FinanceAccountabilityPackageProfile, FinanceAccountabilityPackageRequirement,
+    FinanceLocalFormAcceptance, FinanceLocalFormEvent, FinanceLocalFormSection,
+    FinanceLocalFormTestAttempt,
     FinanceStatementLine, FinanceStatementMapping, FinanceStatementNote,
     FinanceStatementNoteEvent, FinanceStatementNoteSet, ReportDefinition,
     ReportReferenceComparison, ReportReferenceComparisonEvent, ReportRun, ReportRunEvent,
     ReportSchedule, ReportTemplateMappingField, ReportTemplatePromotion,
     ReportTemplatePromotionEvent, ReportTemplateVersion,
+)
+from .form_acceptance_services import (
+    create_local_form_successor, latest_test_attempts, local_form_export_manifest,
+    review_local_form, review_test_attempt, submit_local_form, validate_local_form,
 )
 from .accountability_services import (
     create_package_successor, create_profile_successor, package_export_manifest, review_package, review_profile,
@@ -149,7 +159,304 @@ def workspace(request):
             or can_review_accountability_packages(request.user)
             or can_export_accountability_packages(request.user)
         ),
+        "local_form_acceptance_enabled": bool(
+            FinanceLocalFormAcceptance.objects.filter(department=department).exists()
+            or can_manage_local_form_acceptance(request.user)
+            or can_witness_local_form_tests(request.user)
+            or can_review_local_form_acceptance(request.user)
+            or can_export_local_form_acceptance(request.user)
+        ),
     })
+
+
+def _local_form_for_user(user, public_id):
+    return get_object_or_404(
+        FinanceLocalFormAcceptance.objects.filter(
+            department=department_for_user(user),
+        ).select_related(
+            "department", "report_template__definition", "finance_template__release",
+            "created_by", "submitted_by", "reviewed_by", "supersedes",
+        ).prefetch_related(
+            "sections", "test_attempts__created_by", "test_attempts__reviewed_by",
+            "events__actor",
+        ),
+        public_id=public_id,
+    )
+
+
+def _local_form_validation(item):
+    if item.status in (FinanceLocalFormAcceptance.ACCEPTED, FinanceLocalFormAcceptance.SUPERSEDED):
+        try:
+            local_form_export_manifest(item)
+        except ValidationError as exc:
+            return {"valid": False, "errors": exc.messages, "latest_tests": latest_test_attempts(item)}
+        return {"valid": True, "errors": [], "latest_tests": latest_test_attempts(item)}
+    return validate_local_form(item)
+
+
+@reporting_access_required
+def local_form_workspace(request):
+    department = department_for_user(request.user)
+    records = FinanceLocalFormAcceptance.objects.filter(department=department).select_related(
+        "report_template__definition", "finance_template", "created_by", "reviewed_by", "supersedes",
+    ).prefetch_related("sections", "test_attempts")
+    return render(request, "reporting/local_form_workspace.html", {
+        "department": department,
+        "records": records,
+        "can_manage": can_manage_local_form_acceptance(request.user),
+        "can_witness": can_witness_local_form_tests(request.user),
+        "can_review": can_review_local_form_acceptance(request.user),
+        "can_export": can_export_local_form_acceptance(request.user),
+    })
+
+
+@reporting_permission_required(can_manage_local_form_acceptance)
+@require_http_methods(["GET", "POST"])
+def local_form_create(request):
+    department = department_for_user(request.user)
+    form = FinanceLocalFormAcceptanceForm(
+        request.POST or None, request.FILES or None,
+        department=department, user=request.user,
+    )
+    if request.method == "POST" and form.is_valid():
+        item = form.save()
+        messages.success(
+            request,
+            "Editable local-form record created. Add its recognizable sections and witnessed test evidence.",
+        )
+        return redirect(item)
+    return render(request, "reporting/local_form_form.html", {"form": form, "mode": "Create"})
+
+
+@reporting_access_required
+def local_form_detail(request, public_id):
+    item = _local_form_for_user(request.user, public_id)
+    validation = _local_form_validation(item)
+    latest = validation.get("latest_tests") or latest_test_attempts(item)
+    categories = [
+        {"code": code, "label": label, "attempt": latest.get(code)}
+        for code, label in FinanceLocalFormTestAttempt.CATEGORY_CHOICES
+    ]
+    return render(request, "reporting/local_form_detail.html", {
+        "item": item, "validation": validation, "categories": categories,
+        "can_manage": can_manage_local_form_acceptance(request.user),
+        "can_witness": can_witness_local_form_tests(request.user),
+        "can_review": can_review_local_form_acceptance(request.user),
+        "can_export": can_export_local_form_acceptance(request.user),
+    })
+
+
+@reporting_permission_required(can_manage_local_form_acceptance)
+@require_http_methods(["GET", "POST"])
+def local_form_update(request, public_id):
+    item = _local_form_for_user(request.user, public_id)
+    if not item.is_editable:
+        messages.error(request, "Submitted or accepted forms are immutable. Return it or create a successor.")
+        return redirect(item)
+    form = FinanceLocalFormAcceptanceForm(
+        request.POST or None, request.FILES or None, instance=item,
+        department=item.department, user=request.user,
+    )
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Local-form details saved. Prior witnessed test evidence remains attributable.")
+        return redirect(item)
+    return render(request, "reporting/local_form_form.html", {
+        "form": form, "mode": "Update", "item": item,
+    })
+
+
+@reporting_permission_required(can_manage_local_form_acceptance)
+@require_http_methods(["GET", "POST"])
+def local_form_section_create(request, public_id):
+    item = _local_form_for_user(request.user, public_id)
+    if not item.is_editable:
+        messages.error(request, "Locked form sections are immutable. Create a successor form.")
+        return redirect(item)
+    form = FinanceLocalFormSectionForm(request.POST or None, local_form=item)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Recognizable form section added.")
+        return redirect(item)
+    return render(request, "reporting/local_form_section_form.html", {
+        "form": form, "item": item, "mode": "Add",
+    })
+
+
+@reporting_permission_required(can_manage_local_form_acceptance)
+@require_http_methods(["GET", "POST"])
+def local_form_section_update(request, public_id, pk):
+    item = _local_form_for_user(request.user, public_id)
+    section = get_object_or_404(FinanceLocalFormSection, form=item, pk=pk)
+    if not item.is_editable:
+        messages.error(request, "Locked form sections are immutable. Create a successor form.")
+        return redirect(item)
+    form = FinanceLocalFormSectionForm(
+        request.POST or None, instance=section, local_form=item,
+    )
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Form section saved.")
+        return redirect(item)
+    return render(request, "reporting/local_form_section_form.html", {
+        "form": form, "item": item, "section": section, "mode": "Update",
+    })
+
+
+@reporting_permission_required(can_manage_local_form_acceptance)
+@require_POST
+def local_form_section_delete(request, public_id, pk):
+    item = _local_form_for_user(request.user, public_id)
+    section = get_object_or_404(FinanceLocalFormSection, form=item, pk=pk)
+    try:
+        section.delete()
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(request, "Section removed from this editable form version.")
+    return redirect(item)
+
+
+@reporting_permission_required(can_manage_local_form_acceptance)
+@require_http_methods(["GET", "POST"])
+def local_form_test_create(request, public_id):
+    item = _local_form_for_user(request.user, public_id)
+    if not item.is_editable:
+        messages.error(request, "Tests cannot be added after form submission. Return it or create a successor.")
+        return redirect(item)
+    form = FinanceLocalFormTestAttemptForm(
+        request.POST or None, local_form=item, user=request.user,
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            form.save()
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Test attempt submitted to a different witness. It does not pass automatically.")
+            return redirect(item)
+    return render(request, "reporting/local_form_test_form.html", {"form": form, "item": item})
+
+
+@reporting_permission_required(can_witness_local_form_tests)
+@require_POST
+def local_form_test_review(request, public_id, pk, action):
+    if action not in ("pass", "fail", "not-applicable"):
+        from django.http import Http404
+        raise Http404
+    item = _local_form_for_user(request.user, public_id)
+    attempt = get_object_or_404(FinanceLocalFormTestAttempt, form=item, pk=pk)
+    try:
+        review_test_attempt(
+            attempt, request.user, action=action,
+            note=request.POST.get("review_note", ""),
+        )
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(request, f"Test attempt recorded as {action.replace('-', ' ')}.")
+    return redirect(item)
+
+
+@reporting_permission_required(can_manage_local_form_acceptance)
+@require_POST
+def local_form_submit(request, public_id):
+    item = _local_form_for_user(request.user, public_id)
+    try:
+        submit_local_form(item, request.user)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(request, "Local-form evidence submitted and frozen for independent acceptance.")
+    return redirect(item)
+
+
+@reporting_permission_required(can_review_local_form_acceptance)
+@require_POST
+def local_form_review(request, public_id, action):
+    if action not in ("accept", "return"):
+        from django.http import Http404
+        raise Http404
+    item = _local_form_for_user(request.user, public_id)
+    try:
+        review_local_form(
+            item, request.user, approve=action == "accept",
+            note=request.POST.get("review_note", ""),
+        )
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(
+            request,
+            "Local form independently accepted." if action == "accept" else "Local form returned for correction.",
+        )
+    return redirect(item)
+
+
+@reporting_permission_required(can_manage_local_form_acceptance)
+@require_POST
+def local_form_successor(request, public_id):
+    item = _local_form_for_user(request.user, public_id)
+    try:
+        successor = create_local_form_successor(
+            item, request.user, reason=request.POST.get("change_reason", ""),
+        )
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+        return redirect(item)
+    messages.success(
+        request,
+        "Editable successor created. Form sections were copied; practical tests must be performed and witnessed again.",
+    )
+    return redirect(successor)
+
+
+@reporting_access_required
+def local_form_reference_download(request, public_id):
+    item = _local_form_for_user(request.user, public_id)
+    if not item.reference_file:
+        from django.http import Http404
+        raise Http404
+    return FileResponse(
+        item.reference_file.open("rb"), as_attachment=True,
+        filename=item.reference_file.name.rsplit("/", 1)[-1],
+    )
+
+
+@reporting_permission_required(can_export_local_form_acceptance)
+def local_form_export(request, public_id):
+    item = _local_form_for_user(request.user, public_id)
+    try:
+        manifest = local_form_export_manifest(item)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+        return redirect(item)
+    content = json.dumps(
+        manifest, cls=DjangoJSONEncoder, indent=2, sort_keys=True,
+        ensure_ascii=False,
+    ).encode("utf-8") + b"\n"
+    filename = f"local-form_{item.code}_v{item.version}_{str(item.public_id)[:8]}.json"
+    archived = archive_export(
+        content=content, department=item.department, user=request.user,
+        category="finance-local-form-acceptance", filename=filename,
+        metadata={
+            "kind": "finance_local_form_acceptance", "form_public_id": str(item.public_id),
+            "code": item.code, "version": item.version, "status": item.status,
+            "reference_checksum": item.reference_checksum,
+            "source_checksum": item.source_checksum,
+            "submission_checksum": item.submission_checksum,
+        },
+    )
+    FinanceLocalFormEvent.objects.create(
+        form=item, actor=request.user, action="acceptance_packet_exported",
+        reason=f"Archived {archived['relative_path']} with SHA-256 {archived['sha256']}.",
+        snapshot={"relative_path": archived["relative_path"], "sha256": archived["sha256"]},
+    )
+    response = HttpResponse(content, content_type="application/json; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    return response
 
 
 def _accountability_profile_for_user(user, public_id):
