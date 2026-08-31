@@ -231,7 +231,7 @@ def tax_filing_create(request, public_id):
         else:
             messages.success(request, "Tax filing evidence saved as a checksum-backed draft.")
             return redirect(batch)
-    return render(request, "vouchers/remittances/form.html", {
+    return render(request, "vouchers/remittances/tax_filing_form.html", {
         "form": form, "title": f"Record tax filing evidence · {batch.reference_code}",
         "cancel_object": batch,
     })
@@ -252,7 +252,7 @@ def tax_filing_edit(request, public_id, evidence_id):
         else:
             messages.success(request, "Filing evidence correction saved; the prior audit events remain retained.")
             return redirect(evidence.batch)
-    return render(request, "vouchers/remittances/form.html", {
+    return render(request, "vouchers/remittances/tax_filing_form.html", {
         "form": form, "title": f"Correct tax filing evidence v{evidence.version}",
         "cancel_object": evidence.batch,
     })

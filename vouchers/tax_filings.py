@@ -2,12 +2,15 @@ import csv
 import hashlib
 import io
 import json
+from decimal import Decimal
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.utils import timezone
 
+from reporting.models import ReportDefinition, ReportRun, ReportTemplateVersion
+from reporting.template_services import template_snapshot
 from src.export_archive import archive_export
 
 from .access import department_for_user, has_explicit_permission
@@ -16,6 +19,9 @@ from .models import RemittanceEvent, TaxFilingEvidence, TreasuryRemittanceBatch,
 
 class TaxFilingWorkflowError(ValidationError):
     pass
+
+
+TAX_RETURN_SUMMARY_DATASET = "finance_governed_tax_return_summary"
 
 
 def _require(actor, permission):
@@ -75,9 +81,83 @@ def tax_scope(batch):
     return snapshot, _digest(snapshot)
 
 
+def eligible_source_runs(batch):
+    """Official, reconciled GRAND tax summaries offered to ordinary preparers."""
+    mapping_ready = (
+        Q(template_version__render_mode=ReportTemplateVersion.RENDER_NATIVE)
+        | Q(
+            template_version__mapping_checksum__regex=r"^[0-9a-fA-F]{64}$",
+            template_version__mapping_validated_at__isnull=False,
+        )
+    )
+    return ReportRun.objects.filter(mapping_ready,
+        definition__department_id=batch.finance_department_id,
+        definition__dataset_key=TAX_RETURN_SUMMARY_DATASET,
+        definition__applicability_status=ReportDefinition.APPLICABILITY_CONFIRMED,
+        status=ReportRun.APPROVED, control_status=ReportRun.CONTROL_RECONCILED,
+        control_gate_required=True, approved_at__isnull=False,
+        checksum__regex=r"^[0-9a-fA-F]{64}$",
+        dataset_checksum__regex=r"^[0-9a-fA-F]{64}$",
+        control_checksum__regex=r"^[0-9a-fA-F]{64}$",
+        reproduction_key__regex=r"^[0-9a-fA-F]{64}$",
+        template_version__fidelity_status=ReportTemplateVersion.OFFICIAL,
+        template_version__approved_at__isnull=False,
+        template_version__fidelity_validated_at__isnull=False,
+    ).select_related("definition", "template_version").order_by("-period_end", "-created_at")
+
+
+def _validated_report_source(*, run, batch, period_start, period_end, return_form_code):
+    current = eligible_source_runs(batch).filter(pk=run.pk).first() if run else None
+    if current is None:
+        raise TaxFilingWorkflowError(
+            "Select an approved, control-reconciled GRAND tax return/remittance summary using a department-validated official template."
+        )
+    if not current.template_version.is_official_ready:
+        raise TaxFilingWorkflowError("The selected GRAND report's template is no longer complete official evidence.")
+    if not current.definition.authority_reference.strip() or not current.definition.local_acceptance_note.strip():
+        raise TaxFilingWorkflowError("The selected GRAND report is missing its locally reviewed authority or acceptance basis.")
+    if current.period_start != period_start or current.period_end != period_end:
+        raise TaxFilingWorkflowError("The selected GRAND report must use the exact tax period recorded in this filing evidence.")
+    rows = (current.dataset_snapshot or {}).get("rows") or []
+    forms = {str(row.get("return_form_code") or "").strip().upper() for row in rows}
+    if forms != {return_form_code}:
+        raise TaxFilingWorkflowError(
+            f"Generate and approve a {return_form_code}-only tax return/remittance summary for this exact period."
+        )
+    try:
+        reported_total = sum((Decimal(str(row.get("tax_withheld") or "0")) for row in rows), Decimal("0.00"))
+    except (ArithmeticError, ValueError):
+        raise TaxFilingWorkflowError("The selected GRAND tax report has an unreadable withholding control total.")
+    if reported_total != batch.total_amount:
+        raise TaxFilingWorkflowError(
+            f"The selected report total {reported_total:,.2f} must equal this remittance total {batch.total_amount:,.2f}."
+        )
+    template = template_snapshot(current.template_version)
+    snapshot = {
+        "schema_version": 1, "run_public_id": str(current.public_id),
+        "definition_slug": current.definition.slug, "definition_name": current.definition.name,
+        "dataset_key": current.definition.dataset_key,
+        "definition_applicability": current.definition.applicability_status,
+        "period_start": current.period_start.isoformat(), "period_end": current.period_end.isoformat(),
+        "output_format": current.output_format, "output_checksum": current.checksum,
+        "dataset_checksum": current.dataset_checksum, "control_checksum": current.control_checksum,
+        "control_status": current.control_status, "control_totals": current.control_totals,
+        "control_message": current.control_message,
+        "control_gate_required": current.control_gate_required,
+        "reproduction_key": current.reproduction_key,
+        "row_count": current.row_count, "source_record_count": current.source_record_count,
+        "reported_tax_withheld": str(reported_total),
+        "template_version": current.template_version.version,
+        "template_snapshot": template, "template_checksum": _digest(template),
+        "approved_at": current.approved_at.isoformat() if current.approved_at else "",
+    }
+    return current, snapshot
+
+
 def _evidence_payload(item):
-    return {
-        "schema_version": 1, "batch_public_id": str(item.batch.public_id),
+    payload = {
+        "schema_version": item.evidence_schema_version,
+        "batch_public_id": str(item.batch.public_id),
         "version": item.version, "supersedes": str(item.supersedes.public_id) if item.supersedes_id else "",
         "filing_type": item.filing_type, "return_form_code": item.return_form_code,
         "tax_period_start": item.tax_period_start.isoformat(),
@@ -88,6 +168,16 @@ def _evidence_payload(item):
         "source_schedule_checksum": item.source_schedule_checksum,
         "evidence_reference": item.evidence_reference, "tax_scope_snapshot": item.tax_scope_snapshot,
     }
+    if item.evidence_schema_version >= item.CURRENT_EVIDENCE_SCHEMA:
+        payload.update({
+            "source_mode": item.source_mode,
+            "source_report_run_public_id": (
+                str(item.source_report_run_public_id) if item.source_report_run_public_id else ""
+            ),
+            "source_report_snapshot": item.source_report_snapshot,
+            "external_source_basis": item.external_source_basis,
+        })
+    return payload
 
 
 def _refresh_checksum(item):
@@ -99,7 +189,9 @@ def _event(item, actor, action, previous, reason=""):
         batch=item.batch, action=action, actor=actor, actor_department=department_for_user(actor),
         from_status=previous, to_status=item.status, reason=reason.strip(),
         metadata={"tax_filing_evidence": str(item.public_id), "version": item.version,
-                  "evidence_checksum": item.evidence_checksum},
+                  "evidence_schema_version": item.evidence_schema_version,
+                  "evidence_checksum": item.evidence_checksum, "source_mode": item.source_mode,
+                  "source_report_run": str(item.source_report_run_public_id or "")},
         state_version=item.batch.state_version,
     )
 
@@ -124,6 +216,7 @@ def save_draft(*, batch, actor, evidence=None, **values):
         if evidence.status not in {evidence.DRAFT, evidence.RETURNED}:
             raise TaxFilingWorkflowError("Only draft or returned filing evidence can be modified.")
         previous = evidence.status
+    source_report_run = values.pop("source_report_run", None)
     for field, value in values.items():
         setattr(evidence, field, value.strip() if isinstance(value, str) else value)
     evidence.return_form_code = evidence.return_form_code.strip().upper()
@@ -132,6 +225,23 @@ def save_draft(*, batch, actor, evidence=None, **values):
             f"Use the governed return/remittance form {scope['return_form_code']} for this remittance."
         )
     evidence.tax_scope_snapshot = scope
+    if evidence.source_mode == evidence.GRAND_REPORT:
+        run, report_snapshot = _validated_report_source(
+            run=source_report_run, batch=locked_batch,
+            period_start=evidence.tax_period_start, period_end=evidence.tax_period_end,
+            return_form_code=evidence.return_form_code,
+        )
+        evidence.source_report_run_public_id = run.public_id
+        evidence.source_report_snapshot = report_snapshot
+        evidence.source_schedule_reference = f"GRAND {run.definition.slug} · {run.public_id}"
+        evidence.source_schedule_checksum = run.checksum.lower()
+        evidence.external_source_basis = ""
+    elif evidence.source_mode == evidence.EXTERNAL_SCHEDULE:
+        evidence.source_report_run_public_id = None
+        evidence.source_report_snapshot = {}
+    else:
+        raise TaxFilingWorkflowError("Choose the approved GRAND report or advanced external-schedule source path.")
+    evidence.evidence_schema_version = evidence.CURRENT_EVIDENCE_SCHEMA
     evidence.status = evidence.DRAFT
     evidence.review_reason = ""
     evidence.reviewed_by = None
@@ -150,6 +260,14 @@ def submit_evidence(*, evidence, actor):
     if item.status not in {item.DRAFT, item.RETURNED}:
         raise TaxFilingWorkflowError("Only draft or returned filing evidence can be submitted.")
     scope, _checksum = tax_scope(item.batch)
+    if item.source_mode == item.GRAND_REPORT:
+        run = ReportRun.objects.filter(public_id=item.source_report_run_public_id).first()
+        _run, current_report_snapshot = _validated_report_source(
+            run=run, batch=item.batch, period_start=item.tax_period_start,
+            period_end=item.tax_period_end, return_form_code=item.return_form_code,
+        )
+        if current_report_snapshot != item.source_report_snapshot:
+            raise TaxFilingWorkflowError("The selected GRAND tax report evidence changed. Save this draft again.")
     if scope != item.tax_scope_snapshot or _digest(_evidence_payload(item)) != item.evidence_checksum:
         raise TaxFilingWorkflowError("The filing evidence or its pinned tax/remittance scope changed. Save it again.")
     previous = item.status
@@ -193,9 +311,14 @@ def create_amendment(*, evidence, actor, reason):
         tax_period_end=prior.tax_period_end, filing_date=prior.filing_date,
         submission_channel=prior.submission_channel, filing_reference=prior.filing_reference,
         payment_confirmation_reference=prior.payment_confirmation_reference,
+        source_mode=prior.source_mode, source_report_run_public_id=prior.source_report_run_public_id,
+        source_report_snapshot=prior.source_report_snapshot,
         source_schedule_reference=prior.source_schedule_reference,
-        source_schedule_checksum=prior.source_schedule_checksum, evidence_reference=prior.evidence_reference,
-        tax_scope_snapshot=prior.tax_scope_snapshot, status=TaxFilingEvidence.DRAFT,
+        source_schedule_checksum=prior.source_schedule_checksum,
+        external_source_basis=prior.external_source_basis, evidence_reference=prior.evidence_reference,
+        tax_scope_snapshot=prior.tax_scope_snapshot,
+        evidence_schema_version=TaxFilingEvidence.CURRENT_EVIDENCE_SCHEMA,
+        status=TaxFilingEvidence.DRAFT,
         state_version=1, created_by=actor,
     )
     _refresh_checksum(successor); successor.full_clean(); successor.save()
@@ -211,6 +334,8 @@ def export_evidence_csv(*, evidence, actor):
         "remittance_reference", "evidence_version", "status", "filing_type", "return_form_code",
         "period_start", "period_end", "filing_date", "submission_channel", "filing_reference",
         "payment_confirmation_reference", "source_schedule_reference", "source_schedule_sha256",
+        "source_mode", "grand_report_run", "grand_definition", "grand_template_version",
+        "external_source_basis", "evidence_schema_version",
         "remittance_total", "evidence_sha256",
     ])
     writer.writerow([
@@ -219,7 +344,12 @@ def export_evidence_csv(*, evidence, actor):
         evidence.tax_period_start.isoformat(), evidence.tax_period_end.isoformat(),
         evidence.filing_date.isoformat(), evidence.submission_channel, evidence.filing_reference,
         evidence.payment_confirmation_reference, evidence.source_schedule_reference,
-        evidence.source_schedule_checksum, str(evidence.batch.total_amount), evidence.evidence_checksum,
+        evidence.source_schedule_checksum, evidence.get_source_mode_display(),
+        str(evidence.source_report_run_public_id or ""),
+        evidence.source_report_snapshot.get("definition_slug", ""),
+        evidence.source_report_snapshot.get("template_version", ""),
+        evidence.external_source_basis, evidence.evidence_schema_version,
+        str(evidence.batch.total_amount), evidence.evidence_checksum,
     ])
     content = output.getvalue().encode("utf-8-sig")
     return content, archive_export(

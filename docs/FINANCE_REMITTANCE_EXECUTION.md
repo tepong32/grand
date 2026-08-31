@@ -15,7 +15,7 @@ This slice turns posted GRAND withholding subsidiary balances into a controlled,
 7. Treasury records actual bank/payment release and optional acknowledgement/official-receipt evidence once. GRAND then creates an immutable posting request with a controlled JEV number.
 8. Accounting materializes the JEV from the pinned rule. The supported starter debits each actual withholding liability account and credits the mapped bank account for the exact control total.
 9. A separate poster submits/posts under the normal journal control. Only successful posting completes the remittance and reduces the subsidiary balance.
-10. For a homogeneous governed tax remittance, Treasury may then record external filing/payment references and a reviewed source-schedule SHA-256 for independent Accounting verification under the [F9.6 tax remittance and filing-evidence route](FINANCE_TAX_REMITTANCE_EVIDENCE.md).
+10. For a homogeneous governed tax remittance, Treasury may then record external filing/payment references and select the approved, reconciled GRAND tax summary for automatic evidence locking. A reasoned, manually checksummed external-schedule fallback remains available under the [F9.6 tax remittance and filing-evidence route](FINANCE_TAX_REMITTANCE_EVIDENCE.md).
 
 ## Modification and correction boundaries
 

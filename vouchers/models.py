@@ -1680,6 +1680,14 @@ class TaxFilingEvidence(models.Model):
     ORIGINAL = "original"
     AMENDED = "amended"
     FILING_TYPE_CHOICES = ((ORIGINAL, "Original filing"), (AMENDED, "Amended filing"))
+    GRAND_REPORT = "grand_report"
+    EXTERNAL_SCHEDULE = "external_schedule"
+    SOURCE_MODE_CHOICES = (
+        (GRAND_REPORT, "Approved GRAND tax report"),
+        (EXTERNAL_SCHEDULE, "Advanced: external reviewed schedule"),
+    )
+    LEGACY_EVIDENCE_SCHEMA = 1
+    CURRENT_EVIDENCE_SCHEMA = 2
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     batch = models.ForeignKey(
@@ -1697,10 +1705,15 @@ class TaxFilingEvidence(models.Model):
     submission_channel = models.CharField(max_length=120)
     filing_reference = models.CharField(max_length=160)
     payment_confirmation_reference = models.CharField(max_length=160)
-    source_schedule_reference = models.CharField(max_length=220)
-    source_schedule_checksum = models.CharField(max_length=64)
+    source_mode = models.CharField(max_length=24, choices=SOURCE_MODE_CHOICES, default=GRAND_REPORT)
+    source_report_run_public_id = models.UUIDField(null=True, blank=True)
+    source_report_snapshot = models.JSONField(default=dict, blank=True)
+    source_schedule_reference = models.CharField(max_length=220, blank=True)
+    source_schedule_checksum = models.CharField(max_length=64, blank=True)
+    external_source_basis = models.TextField(blank=True)
     evidence_reference = models.TextField()
     tax_scope_snapshot = models.JSONField(default=dict)
+    evidence_schema_version = models.PositiveSmallIntegerField(default=CURRENT_EVIDENCE_SCHEMA)
     evidence_checksum = models.CharField(max_length=64)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT, db_index=True)
     state_version = models.PositiveIntegerField(default=0)
@@ -1739,10 +1752,24 @@ class TaxFilingEvidence(models.Model):
             raise ValidationError({"tax_period_end": "The tax period end cannot precede its start."})
         if self.filing_date and self.tax_period_end and self.filing_date < self.tax_period_start:
             raise ValidationError({"filing_date": "The filing date cannot precede the tax period start."})
-        if len(self.source_schedule_checksum) != 64 or any(
+        if self.evidence_schema_version not in {self.LEGACY_EVIDENCE_SCHEMA, self.CURRENT_EVIDENCE_SCHEMA}:
+            raise ValidationError({"evidence_schema_version": "Unsupported filing-evidence checksum schema."})
+        if self.evidence_checksum and (len(self.source_schedule_checksum) != 64 or any(
             character.lower() not in "0123456789abcdef" for character in self.source_schedule_checksum
-        ):
+        )):
             raise ValidationError({"source_schedule_checksum": "Enter the 64-character SHA-256 of the reviewed source schedule."})
+        if self.evidence_checksum and self.source_mode == self.GRAND_REPORT:
+            if not self.source_report_run_public_id or not self.source_report_snapshot:
+                raise ValidationError("Select an approved, reconciled GRAND tax report.")
+            if self.external_source_basis.strip():
+                raise ValidationError({"external_source_basis": "The external-source basis is only used for an external schedule."})
+        elif self.evidence_checksum and self.source_mode == self.EXTERNAL_SCHEDULE:
+            if self.source_report_run_public_id or self.source_report_snapshot:
+                raise ValidationError("An external schedule cannot also claim a GRAND report-run identity.")
+            if not self.source_schedule_reference.strip():
+                raise ValidationError({"source_schedule_reference": "Enter the reviewed external schedule reference."})
+            if not self.external_source_basis.strip():
+                raise ValidationError({"external_source_basis": "Explain why an external schedule is the reviewed source instead of an approved GRAND report."})
 
     def save(self, *args, **kwargs):
         if self.pk:
@@ -1751,8 +1778,9 @@ class TaxFilingEvidence(models.Model):
                 "batch_id", "version", "supersedes_id", "filing_type", "return_form_code",
                 "tax_period_start", "tax_period_end", "filing_date", "submission_channel",
                 "filing_reference", "payment_confirmation_reference", "source_schedule_reference",
-                "source_schedule_checksum", "evidence_reference", "tax_scope_snapshot",
-                "evidence_checksum", "created_by_id", "created_at",
+                "source_mode", "source_report_run_public_id", "source_report_snapshot",
+                "source_schedule_checksum", "external_source_basis", "evidence_reference", "tax_scope_snapshot",
+                "evidence_schema_version", "evidence_checksum", "created_by_id", "created_at",
             )
             if prior.status not in {self.DRAFT, self.RETURNED} and any(
                 getattr(prior, field) != getattr(self, field) for field in evidence_fields

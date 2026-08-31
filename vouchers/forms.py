@@ -16,6 +16,7 @@ from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceParty, FinancePartyClaimant, FinanceSignatory,
     FinanceTransactionVariant, normalized_tax_rule_configuration,
 )
+from reporting.models import ReportRun
 
 from .models import (
     BankAdviceBatch, PayableDocumentEvidence, PayableIntake, PaymentInstrument, ReturnedInstrumentReview, VoucherCase,
@@ -260,12 +261,19 @@ class RemittanceReleaseForm(forms.Form):
 
 
 class TaxFilingEvidenceForm(forms.ModelForm):
+    source_report_run = forms.ModelChoiceField(
+        queryset=ReportRun.objects.none(), required=False,
+        label="Approved GRAND tax return/remittance summary",
+        help_text="Recommended: choose the already approved, reconciled report for the exact form and tax period. GRAND fills its reference and SHA-256.",
+    )
+
     class Meta:
         model = TaxFilingEvidence
         fields = (
             "return_form_code", "tax_period_start", "tax_period_end", "filing_date",
             "submission_channel", "filing_reference", "payment_confirmation_reference",
-            "source_schedule_reference", "source_schedule_checksum", "evidence_reference",
+            "source_mode", "source_report_run", "source_schedule_reference",
+            "source_schedule_checksum", "external_source_basis", "evidence_reference",
         )
         widgets = {
             "tax_period_start": DateInput(), "tax_period_end": DateInput(), "filing_date": DateInput(),
@@ -279,12 +287,14 @@ class TaxFilingEvidenceForm(forms.ModelForm):
             "payment_confirmation_reference": "Payment confirmation / receipt reference",
             "source_schedule_reference": "Reviewed source-schedule reference",
             "source_schedule_checksum": "Source-schedule SHA-256",
+            "external_source_basis": "Why is an external schedule required?",
             "evidence_reference": "Evidence location / custody reference",
         }
         help_texts = {
             "return_form_code": "This must match the governed tax rule pinned to the remittance.",
             "submission_channel": "For example, the locally accepted portal, authorized agent bank, or manual channel actually used.",
-            "source_schedule_checksum": "Paste the 64-character SHA-256 from the reviewed GRAND tax source schedule.",
+            "source_schedule_checksum": "Paste the 64-character SHA-256 of the reviewed schedule retained outside GRAND.",
+            "external_source_basis": "Advanced path only: identify the locally accepted source and why an approved GRAND tax summary is not used.",
             "evidence_reference": "Reference the retained acknowledgement/receipt packet without copying passwords or unnecessary taxpayer data.",
         }
 
@@ -292,12 +302,56 @@ class TaxFilingEvidenceForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["filing_date"].initial = timezone.localdate()
         if batch:
-            from .tax_filings import tax_scope
+            from .tax_filings import eligible_source_runs, tax_scope
             try:
                 scope, _checksum = tax_scope(batch)
             except ValidationError:
                 scope = {}
             self.fields["return_form_code"].initial = scope.get("return_form_code", "")
+            self.fields["source_report_run"].queryset = eligible_source_runs(batch)
+            def source_label(run):
+                rows = (run.dataset_snapshot or {}).get("rows") or []
+                forms = sorted({
+                    str(row.get("return_form_code") or "").strip().upper()
+                    for row in rows if row.get("return_form_code")
+                })
+                try:
+                    total = sum(
+                        (Decimal(str(row.get("tax_withheld") or "0")) for row in rows),
+                        Decimal("0.00"),
+                    )
+                    amount = f"{total:,.2f}"
+                except (ArithmeticError, ValueError):
+                    amount = "review total"
+                return (
+                    f"{run.definition.name} · {', '.join(forms) or 'form not identified'} · "
+                    f"{run.period_start} to {run.period_end} · {amount} · "
+                    f"{run.output_format.upper()} · {run.checksum[:12]}…"
+                )
+            self.fields["source_report_run"].label_from_instance = source_label
+        self.fields["source_schedule_reference"].required = False
+        self.fields["source_schedule_checksum"].required = False
+        self.fields["external_source_basis"].required = False
+        if self.instance and self.instance.pk and self.instance.source_report_run_public_id:
+            self.fields["source_report_run"].initial = ReportRun.objects.filter(
+                public_id=self.instance.source_report_run_public_id,
+            ).first()
+
+    def clean(self):
+        cleaned = super().clean()
+        mode = cleaned.get("source_mode")
+        if mode == TaxFilingEvidence.GRAND_REPORT:
+            if not cleaned.get("source_report_run"):
+                self.add_error("source_report_run", "Choose the approved GRAND tax summary for this filing.")
+        elif mode == TaxFilingEvidence.EXTERNAL_SCHEDULE:
+            for field, message in (
+                ("source_schedule_reference", "Enter the reviewed external schedule reference."),
+                ("source_schedule_checksum", "Enter the external schedule's 64-character SHA-256."),
+                ("external_source_basis", "Explain why this advanced external-source path is required."),
+            ):
+                if not str(cleaned.get(field) or "").strip():
+                    self.add_error(field, message)
+        return cleaned
 
 
 class TaxFilingEvidenceReviewForm(forms.Form):

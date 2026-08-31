@@ -2,6 +2,9 @@
 
 ## F9.6 Governed tax remittance and filing evidence
 
+- Replaced ordinary manual source-schedule hash entry with guided selection of an exact-period, one-form, approved and control-reconciled GRAND tax summary using a department-validated official template; GRAND now pins immutable run, definition, template, dataset, control, output, and reproduction evidence automatically.
+- Retained a clearly labeled advanced external-schedule route requiring its own reviewed reference, SHA-256, and plain-language exception basis; migrated existing F9.6 evidence to that truthful legacy classification while preserving its original checksum schema.
+- Updated the in-page filing form, remittance evidence summary, Accounting/Treasury floating guides, CSV lineage fields, documentation, and lifecycle coverage without changing actual e-filing or official-form acceptance boundaries.
 - Preserved governed tax family, return/remittance form, ATC, rule checksum, and source-balance checksum on Treasury remittance allocations, posting payloads, liability-reducing subsidiary movements, UI rows, and portable registers while keeping generic deductions compatible.
 - Added a post-release filing-evidence package for actual period, channel, filing acknowledgement, payment confirmation, checksummed source schedule, and restricted custody references without implementing e-filing or deadline calculation.
 - Added maker-checker Accounting verification, returned-draft corrections, immutable verified evidence, explicit amended successors, append-only remittance events, and checksum validation.

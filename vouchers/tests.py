@@ -30,6 +30,7 @@ from finance.services import preflight_finance_template
 from openpyxl import Workbook
 from openpyxl.workbook.defined_name import DefinedName
 from records.services import RecordWorkflowError, source_department
+from reporting.models import ReportDefinition, ReportRun, ReportTemplateVersion
 from tracepoint.models import PacketItem, TrackedPacket
 
 from .access import can_view_workbench
@@ -712,16 +713,85 @@ class VoucherWorkflowTests(TestCase):
             batch=batch, actor=self.treasury_user, release_reference="BANK-TAX-001",
             acknowledgement_reference="PAYMENT-ACK-001",
         )
+        approved_at = timezone.now()
+        definition = ReportDefinition.objects.create(
+            department=self.accounting, name="Governed tax return/remittance summary",
+            slug="tax-remittance-summary-evidence",
+            dataset_key="finance_governed_tax_return_summary",
+            selected_fields=["return_form_code", "tax_withheld"], totals=["tax_withheld"],
+            default_format=ReportDefinition.FORMAT_CSV,
+            applicability_status=ReportDefinition.APPLICABILITY_CONFIRMED,
+            authority_reference="Synthetic locally reviewed return/remittance reporting basis",
+            local_acceptance_note="Synthetic Accounting acceptance retained for workflow testing",
+            created_by=self.validator, updated_by=self.validator,
+        )
+        template = ReportTemplateVersion.objects.create(
+            definition=definition, version=1, title="Governed tax return/remittance summary",
+            fidelity_status=ReportTemplateVersion.OFFICIAL,
+            fidelity_notes="Synthetic department comparison for guided-source testing",
+            fidelity_validated_by=self.validator, fidelity_validated_at=approved_at,
+            created_by=self.validator, approved_by=self.validator, approved_at=approved_at,
+        )
+        report_run = ReportRun.objects.create(
+            definition=definition, template_version=template,
+            idempotency_key="tax-remittance-summary-evidence:2026-q3",
+            status=ReportRun.APPROVED, output_format=ReportDefinition.FORMAT_CSV,
+            period_start=date(2026, 7, 1), period_end=date(2026, 9, 30),
+            checksum="b" * 64, dataset_snapshot={
+                "rows": [{"return_form_code": "1601-EQ", "tax_withheld": "10.00"}],
+            },
+            dataset_checksum="c" * 64, control_totals={"tax_withheld": "10.00"},
+            control_checksum="d" * 64, control_status=ReportRun.CONTROL_RECONCILED,
+            control_gate_required=True, row_count=1, source_record_count=1,
+            reproduction_key="e" * 64, created_by=self.preparer,
+            reviewed_by=self.validator, approved_by=self.validator,
+            generated_at=approved_at, reviewed_at=approved_at, approved_at=approved_at,
+        )
+        wrong_total_run = ReportRun.objects.create(
+            definition=definition, template_version=template,
+            idempotency_key="tax-remittance-summary-evidence:wrong-total",
+            status=ReportRun.APPROVED, output_format=ReportDefinition.FORMAT_CSV,
+            period_start=date(2026, 7, 1), period_end=date(2026, 9, 30),
+            checksum="1" * 64, dataset_snapshot={
+                "rows": [{"return_form_code": "1601-EQ", "tax_withheld": "9.99"}],
+            },
+            dataset_checksum="2" * 64, control_totals={"tax_withheld": "9.99"},
+            control_checksum="3" * 64, control_status=ReportRun.CONTROL_RECONCILED,
+            control_gate_required=True, row_count=1, source_record_count=1,
+            reproduction_key="4" * 64, created_by=self.preparer,
+            reviewed_by=self.validator, approved_by=self.validator,
+            generated_at=approved_at, reviewed_at=approved_at, approved_at=approved_at,
+        )
+        with self.assertRaisesMessage(ValidationError, "must equal this remittance total"):
+            save_draft(
+                batch=batch, actor=self.treasury_user, return_form_code="1601-EQ",
+                tax_period_start=date(2026, 7, 1), tax_period_end=date(2026, 9, 30),
+                filing_date=date(2026, 8, 31), submission_channel="Synthetic accepted portal",
+                filing_reference="FILE-ACK-BLOCKED", payment_confirmation_reference="PAYMENT-ACK-001",
+                source_mode=TaxFilingEvidence.GRAND_REPORT, source_report_run=wrong_total_run,
+                source_schedule_reference="", source_schedule_checksum="", external_source_basis="",
+                evidence_reference="Synthetic restricted evidence packet shelf A",
+            )
+        self.client.force_login(self.treasury_user)
+        response = self.client.get(reverse("vouchers:tax_filing_create", args=(batch.public_id,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Recommended source")
+        self.assertContains(response, report_run.checksum[:12])
+        self.assertContains(response, "Advanced fallback")
         evidence = save_draft(
             batch=batch, actor=self.treasury_user, return_form_code="1601-EQ",
             tax_period_start=date(2026, 7, 1), tax_period_end=date(2026, 9, 30),
             filing_date=date(2026, 8, 31), submission_channel="Synthetic accepted portal",
             filing_reference="FILE-ACK-001", payment_confirmation_reference="PAYMENT-ACK-001",
-            source_schedule_reference="GRAND-TAX-SOURCE-001",
-            source_schedule_checksum="a" * 64,
+            source_mode=TaxFilingEvidence.GRAND_REPORT, source_report_run=report_run,
+            source_schedule_reference="", source_schedule_checksum="", external_source_basis="",
             evidence_reference="Synthetic restricted evidence packet shelf A",
         )
         self.assertEqual(evidence.tax_scope_snapshot["return_form_code"], "1601-EQ")
+        self.assertEqual(evidence.source_report_run_public_id, report_run.public_id)
+        self.assertEqual(evidence.source_schedule_checksum, report_run.checksum)
+        self.assertEqual(evidence.source_report_snapshot["template_version"], 1)
+        self.assertEqual(evidence.evidence_schema_version, TaxFilingEvidence.CURRENT_EVIDENCE_SCHEMA)
         self.assertEqual(len(evidence.evidence_checksum), 64)
         remittance_entry, _created = materialize_remittance_journal(posting, self.preparer)
         subsidiary = remittance_entry.subsidiary_lines.get()
@@ -741,6 +811,7 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(evidence.status, TaxFilingEvidence.VERIFIED)
         content, archived = export_evidence_csv(evidence=evidence, actor=self.treasury_user)
         self.assertIn(b"FILE-ACK-001", content)
+        self.assertIn(str(report_run.public_id).encode(), content)
         self.assertIn("finance-tax-filings", archived["relative_path"])
         successor = create_amendment(
             evidence=evidence, actor=self.treasury_user,
@@ -749,6 +820,26 @@ class VoucherWorkflowTests(TestCase):
         evidence.refresh_from_db()
         self.assertEqual(evidence.status, TaxFilingEvidence.SUPERSEDED)
         self.assertEqual((successor.version, successor.filing_type), (2, TaxFilingEvidence.AMENDED))
+        successor = save_draft(
+            batch=batch, evidence=successor, actor=self.treasury_user,
+            return_form_code="1601-EQ", tax_period_start=date(2026, 7, 1),
+            tax_period_end=date(2026, 9, 30), filing_date=date(2026, 8, 31),
+            submission_channel="Synthetic accepted portal", filing_reference="FILE-ACK-002",
+            payment_confirmation_reference="PAYMENT-ACK-001",
+            source_mode=TaxFilingEvidence.EXTERNAL_SCHEDULE, source_report_run=None,
+            source_schedule_reference="REVIEWED-EXTERNAL-SCHEDULE-002",
+            source_schedule_checksum="f" * 64,
+            external_source_basis="The corrected source was accepted outside GRAND and retained by Accounting.",
+            evidence_reference="Synthetic restricted evidence packet shelf A",
+        )
+        self.assertIsNone(successor.source_report_run_public_id)
+        self.assertEqual(successor.source_report_snapshot, {})
+        self.assertEqual(successor.evidence_schema_version, TaxFilingEvidence.CURRENT_EVIDENCE_SCHEMA)
+        self.assertIn("accepted outside GRAND", successor.external_source_basis)
+        successor_content, _successor_archive = export_evidence_csv(
+            evidence=successor, actor=self.treasury_user,
+        )
+        self.assertIn(b"accepted outside GRAND", successor_content)
 
     def test_complete_supplier_disbursement_route_uses_one_shared_case(self):
         case = self.ready_for_treasury()
