@@ -13,8 +13,10 @@ from django.views.decorators.http import require_http_methods, require_POST
 from src.export_archive import archive_export
 
 from .access import (
+    can_activate_template_promotions, can_approve_template_promotions,
     can_approve_reports, can_download_reports, can_generate_reports, can_manage_definitions,
     can_manage_templates, can_review_reports, can_schedule_reports, department_for_user,
+    can_prepare_template_promotions,
     can_view_department_reports, can_prepare_reference_comparisons, can_prepare_statement_notes,
     can_review_reference_comparisons, can_review_statement_notes, can_export_statement_packages,
     reporting_access_required, reporting_permission_required,
@@ -23,16 +25,21 @@ from .forms import (
     FinanceStatementLineForm, FinanceStatementMappingForm, FinanceStatementNoteForm,
     FinanceStatementNoteSetForm, ManualReportForm, ReportDefinitionForm,
     ReportReferenceComparisonForm, ReportScheduleForm, ReportTemplateMappingFieldForm,
-    ReportTemplateVersionForm,
+    ReportTemplatePromotionForm, ReportTemplateVersionForm,
 )
 from .mappers import TemplateMappingError, preflight_template
 from .models import (
     FinanceStatementLine, FinanceStatementMapping, FinanceStatementNote,
     FinanceStatementNoteEvent, FinanceStatementNoteSet, ReportDefinition,
     ReportReferenceComparison, ReportReferenceComparisonEvent, ReportRun, ReportRunEvent,
-    ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion,
+    ReportSchedule, ReportTemplateMappingField, ReportTemplatePromotion,
+    ReportTemplatePromotionEvent, ReportTemplateVersion,
 )
 from .services import create_manual_run, transition_run
+from .template_services import (
+    activate_template_promotion, create_template_promotion, promotion_receipt,
+    review_template_promotion, rollback_template_promotion, submit_template_promotion,
+)
 from .statement_services import (
     comparison_controls, comparison_snapshot, mapping_coverage, note_set_snapshot,
     review_note_set, review_reference_comparison, review_statement_mapping,
@@ -683,7 +690,19 @@ def definition_detail(request, pk):
                 messages.success(request, f"Report generated as a {scope}. Review is required before further use.")
                 return redirect(run)
     runs = _runs_visible_to(request.user).filter(definition=definition).select_related("created_by")[:15]
-    return render(request, "reporting/definition_detail.html", {"definition": definition, "form": form, "runs": runs, "templates": definition.template_versions.all(), "can_generate": can_generate_reports(request.user), "can_manage_templates": can_manage_templates(request.user), "can_manage_definitions": can_manage_definitions(request.user), "can_approve_templates": can_approve_reports(request.user)})
+    return render(request, "reporting/definition_detail.html", {
+        "definition": definition, "form": form, "runs": runs,
+        "templates": definition.template_versions.select_related(
+            "created_by", "approved_by", "fidelity_validated_by",
+        ).all(),
+        "can_generate": can_generate_reports(request.user),
+        "can_manage_templates": can_manage_templates(request.user),
+        "can_manage_definitions": can_manage_definitions(request.user),
+        "can_approve_templates": can_approve_reports(request.user),
+        "can_prepare_promotions": can_prepare_template_promotions(request.user),
+        "can_approve_promotions": can_approve_template_promotions(request.user),
+        "can_activate_promotions": can_activate_template_promotions(request.user),
+    })
 
 
 @reporting_permission_required(can_manage_definitions)
@@ -721,6 +740,7 @@ def template_create(request, pk):
         template.definition = definition
         template.version = (definition.template_versions.order_by("-version").values_list("version", flat=True).first() or 0) + 1
         template.created_by = request.user
+        template.is_active = False
         template.full_clean()
         template.save()
         messages.success(request, f"Template version {template.version} saved for controlled review.")
@@ -737,6 +757,9 @@ def template_approve(request, pk):
     if not template.is_mapping_ready:
         messages.error(request, "Run template preflight successfully before approval.")
         return redirect("reporting:template_mapping", pk=template.pk)
+    if template.created_by_id == request.user.pk:
+        messages.error(request, "The template preparer cannot approve the same pilot version.")
+        return redirect(template.definition)
     if template.render_mode != ReportTemplateVersion.RENDER_NATIVE:
         try:
             preflight_template(template, request.user)
@@ -746,9 +769,10 @@ def template_approve(request, pk):
         template.refresh_from_db()
     template.approved_by = request.user
     template.approved_at = timezone.now()
+    template.is_active = False
     template.full_clean()
-    template.save(update_fields=("approved_by", "approved_at"))
-    messages.success(request, f"Template version {template.version} is approved for controlled pilot generation. Department fidelity validation is still required before official use.")
+    template.save(update_fields=("approved_by", "approved_at", "is_active"))
+    messages.success(request, f"Template version {template.version} is approved for controlled preview generation. Prepare a promotion request before official activation.")
     return redirect(template.definition)
 
 
@@ -815,24 +839,177 @@ def template_reference_download(request, pk):
 @require_POST
 def template_validate_fidelity(request, pk):
     template = get_object_or_404(ReportTemplateVersion, pk=pk, definition__department=department_for_user(request.user))
-    if template.is_official_ready:
-        messages.info(request, "This template version already has immutable department fidelity validation.")
-        return redirect(template.definition)
-    if not template.approved_at:
-        messages.error(request, "Approve the controlled template before recording department fidelity validation.")
-        return redirect(template.definition)
-    note = request.POST.get("fidelity_notes", "").strip()
-    if not note:
-        messages.error(request, "Record what departmental form and comparison were used for validation.")
-        return redirect(template.definition)
-    template.fidelity_status = ReportTemplateVersion.OFFICIAL
-    template.fidelity_notes = note
-    template.fidelity_validated_by = request.user
-    template.fidelity_validated_at = timezone.now()
-    template.full_clean()
-    template.save(update_fields=("fidelity_status", "fidelity_notes", "fidelity_validated_by", "fidelity_validated_at"))
-    messages.success(request, f"Template version {template.version} is department-validated for official outputs.")
-    return redirect(template.definition)
+    promotion = getattr(template, "promotion_request", None)
+    messages.info(
+        request,
+        "Direct fidelity validation has been retired. Use the preview, comparison, approval, and activation record.",
+    )
+    if promotion:
+        return redirect(promotion)
+    return redirect("reporting:template_promotion_create", pk=template.pk)
+
+
+def _promotion_for_user(user, public_id):
+    return get_object_or_404(
+        ReportTemplatePromotion.objects.select_related(
+            "candidate_template__definition__department", "baseline_template",
+            "preview_run", "baseline_run", "created_by", "submitted_by", "reviewed_by",
+            "activated_by", "rolled_back_by",
+        ),
+        public_id=public_id,
+        candidate_template__definition__department=department_for_user(user),
+    )
+
+
+@reporting_permission_required(can_prepare_template_promotions)
+@require_http_methods(["GET", "POST"])
+def template_promotion_create(request, pk):
+    template = get_object_or_404(
+        ReportTemplateVersion.objects.select_related("definition__department"),
+        pk=pk, definition__department=department_for_user(request.user),
+    )
+    existing = getattr(template, "promotion_request", None)
+    if existing:
+        messages.info(request, "This template version already has a retained promotion request.")
+        return redirect(existing)
+    form = ReportTemplatePromotionForm(request.POST or None, template=template)
+    if request.method == "POST" and form.is_valid():
+        try:
+            promotion = create_template_promotion(
+                template=template,
+                actor=request.user,
+                period_start=form.cleaned_data["period_start"],
+                period_end=form.cleaned_data["period_end"],
+                output_format=form.cleaned_data["output_format"],
+                change_reason=form.cleaned_data["change_reason"],
+                comparison_note=form.cleaned_data["comparison_note"],
+                baseline_run=form.cleaned_data.get("baseline_run"),
+                update_compatible_schedules=form.cleaned_data["update_compatible_schedules"],
+            )
+        except (ValueError, ValidationError, TemplateMappingError) as exc:
+            form.add_error(None, str(exc))
+        else:
+            messages.success(
+                request,
+                "Controlled preview created. Review the automatic checks and impact before submission.",
+            )
+            return redirect(promotion)
+    return render(request, "reporting/template_promotion_form.html", {
+        "template": template, "form": form,
+    })
+
+
+@reporting_access_required
+def template_promotion_detail(request, public_id):
+    promotion = _promotion_for_user(request.user, public_id)
+    return render(request, "reporting/template_promotion_detail.html", {
+        "promotion": promotion,
+        "can_submit": can_prepare_template_promotions(request.user) and promotion.is_editable,
+        "can_review": can_approve_template_promotions(request.user),
+        "can_activate": can_activate_template_promotions(request.user),
+        "can_export": can_download_reports(request.user),
+    })
+
+
+@reporting_permission_required(can_prepare_template_promotions)
+@require_POST
+def template_promotion_submit(request, public_id):
+    promotion = _promotion_for_user(request.user, public_id)
+    try:
+        submit_template_promotion(promotion, request.user)
+    except (ValueError, ValidationError) as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, "Template promotion submitted for independent approval.")
+    return redirect(promotion)
+
+
+@reporting_permission_required(can_approve_template_promotions)
+@require_POST
+def template_promotion_review(request, public_id, action):
+    promotion = _promotion_for_user(request.user, public_id)
+    try:
+        review_template_promotion(
+            promotion, request.user, action, request.POST.get("review_note", ""),
+        )
+    except (ValueError, ValidationError) as exc:
+        messages.error(request, str(exc))
+    else:
+        verb = "approved and locked for activation" if action == "approve" else "returned"
+        messages.success(request, f"Template promotion {verb}.")
+    return redirect(promotion)
+
+
+@reporting_permission_required(can_activate_template_promotions)
+@require_POST
+def template_promotion_activate(request, public_id):
+    promotion = _promotion_for_user(request.user, public_id)
+    try:
+        activate_template_promotion(promotion, request.user)
+    except (ValueError, ValidationError) as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(
+            request,
+            f"Template version {promotion.candidate_template.version} is now the active official layout.",
+        )
+    return redirect(promotion)
+
+
+@reporting_permission_required(can_activate_template_promotions)
+@require_POST
+def template_promotion_rollback(request, public_id):
+    promotion = _promotion_for_user(request.user, public_id)
+    try:
+        rollback_template_promotion(
+            promotion, request.user, request.POST.get("rollback_reason", ""),
+        )
+    except (ValueError, ValidationError) as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(
+            request,
+            f"The prior official template version {promotion.baseline_template.version} has been restored.",
+        )
+    return redirect(promotion)
+
+
+@reporting_access_required
+def template_promotion_export(request, public_id):
+    from django.core.exceptions import PermissionDenied
+
+    promotion = _promotion_for_user(request.user, public_id)
+    if not can_download_reports(request.user):
+        raise PermissionDenied
+    content = json.dumps(
+        promotion_receipt(promotion), cls=DjangoJSONEncoder,
+        indent=2, sort_keys=True, ensure_ascii=False,
+    ).encode("utf-8") + b"\n"
+    filename = (
+        f"{promotion.candidate_template.definition.slug}_template-v"
+        f"{promotion.candidate_template.version}_promotion.json"
+    )
+    archived = archive_export(
+        content=content, department=promotion.department, user=request.user,
+        category="finance-report-template-promotions", filename=filename,
+        metadata={
+            "kind": "report_template_promotion_receipt",
+            "promotion_public_id": str(promotion.public_id),
+            "template_checksum": promotion.template_checksum,
+            "submission_checksum": promotion.submission_checksum,
+            "status": promotion.status,
+        },
+    )
+    ReportTemplatePromotionEvent.objects.create(
+        promotion=promotion, actor=request.user, action="receipt_exported",
+        reason=f"Archived {archived['relative_path']} with SHA-256 {archived['sha256']}.",
+        snapshot={"relative_path": archived["relative_path"], "sha256": archived["sha256"]},
+    )
+    response = HttpResponse(content, content_type="application/json; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    return response
 
 
 @reporting_access_required

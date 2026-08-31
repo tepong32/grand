@@ -8,7 +8,7 @@ from .datasets import DATASETS, available_datasets, dataset_registry
 from .models import (
     FinanceStatementLine, FinanceStatementMapping, FinanceStatementNote,
     FinanceStatementNoteSet, ReportDefinition, ReportReferenceComparison, ReportRun,
-    ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion,
+    ReportSchedule, ReportTemplateMappingField, ReportTemplatePromotion, ReportTemplateVersion,
 )
 from .statement_services import comparison_controls, create_note_set
 
@@ -367,6 +367,86 @@ class ReportTemplateVersionForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class ReportTemplatePromotionForm(forms.Form):
+    period_start = forms.DateField(
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="Use the exact period covered by the signed sample or accepted golden output.",
+    )
+    period_end = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    output_format = forms.ChoiceField(choices=ReportDefinition.FORMAT_CHOICES)
+    baseline_run = forms.ModelChoiceField(
+        queryset=ReportRun.objects.none(), required=False,
+        label="Accepted prior output for automatic comparison",
+        help_text="Required when this report already has an active official template. Choose the same period and file format.",
+    )
+    change_reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="Why this layout version is needed",
+    )
+    comparison_note = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 5}),
+        label="Department comparison and practical checks",
+        help_text=(
+            "Describe the blank/redacted form used, side-by-side fields and totals, signatories, page count, "
+            "overflow, form stock or printer alignment, and who can inspect the retained evidence."
+        ),
+    )
+    update_compatible_schedules = forms.BooleanField(
+        required=False,
+        label="Move compatible active schedules to this version when it is activated",
+    )
+
+    def __init__(self, *args, template=None, **kwargs):
+        self.template = template
+        super().__init__(*args, **kwargs)
+        today = timezone.localdate()
+        self.fields["period_start"].initial = today.replace(day=1)
+        self.fields["period_end"].initial = today
+        self.fields["output_format"].choices = [
+            choice for choice in ReportDefinition.FORMAT_CHOICES
+            if template.supports_format(choice[0])
+        ]
+        self.fields["output_format"].initial = template.definition.default_format
+        self.fields["baseline_run"].queryset = ReportRun.objects.filter(
+            definition=template.definition,
+            status=ReportRun.APPROVED,
+            template_version__is_active=True,
+            template_version__fidelity_status=ReportTemplateVersion.OFFICIAL,
+            template_version__fidelity_validated_at__isnull=False,
+        ).exclude(template_version=template).select_related("template_version")
+        self.fields["baseline_run"].label_from_instance = lambda run: (
+            f"{run.period_start} to {run.period_end} · {run.output_format.upper()} · "
+            f"template v{run.template_version.version} · {str(run.public_id)[:8]}"
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get("period_start"), cleaned.get("period_end")
+        if start and end and end < start:
+            self.add_error("period_end", "The comparison period cannot end before it starts.")
+        baseline = cleaned.get("baseline_run")
+        if baseline and start and end:
+            if (baseline.period_start, baseline.period_end, baseline.output_format) != (
+                start, end, cleaned.get("output_format"),
+            ):
+                self.add_error(
+                    "baseline_run",
+                    "Choose an accepted output with the same period and file format as this preview.",
+                )
+        active = self.template.definition.template_versions.filter(
+            is_active=True,
+            approved_at__isnull=False,
+            fidelity_status=ReportTemplateVersion.OFFICIAL,
+            fidelity_validated_at__isnull=False,
+        ).exclude(pk=self.template.pk).first()
+        if active and not baseline:
+            self.add_error(
+                "baseline_run",
+                "This report already has an active official layout. Choose its accepted output for the golden comparison.",
+            )
+        return cleaned
 
 
 class ManualReportForm(forms.Form):

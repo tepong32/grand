@@ -1,6 +1,6 @@
 # Department report-template intake
 
-Use this checklist before treating a GRAND-generated report as an official departmental form. A technical template approval permits controlled pilot generation; department fidelity validation is a separate decision backed by side-by-side evidence.
+Use this checklist before treating a GRAND-generated report as an official departmental form. A technical template approval permits controlled preview generation; official activation requires the retained promotion, golden comparison, independent approval, and impact record described in [Finance visual template promotion and rollback](FINANCE_TEMPLATE_PROMOTION.md).
 
 ## Template pack
 
@@ -34,10 +34,10 @@ Uploaded documents and images remain non-executable references. Mapped XLSX and 
 2. Generate the same covered period through the existing process and GRAND.
 3. Compare totals, labels, row ordering, rounding, page breaks, logos, borders, repeating headings, footers, signatories, annexes, and print output.
 4. Record every mismatch and resolve it in a new template version when print geometry or mappings change.
-5. Have an authorized reviewer record what form and sample were compared and who accepted the result.
-6. Mark the template department-validated only after the comparison is complete.
+5. Prepare the promotion record with the accepted prior run, human comparison, printer/form-stock checks, and schedule-impact choice.
+6. Have a different authorized reviewer approve the locked evidence, then let an authorized manager activate it separately.
 
-Pilot outputs may be printed or downloaded by authorized employees for comparison, but GRAND blocks their transition to official approval.
+Preview outputs may be printed or downloaded by authorized employees for comparison, but GRAND blocks official use until promotion and activation are complete.
 
 ## Print and download behavior
 

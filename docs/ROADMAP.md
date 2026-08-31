@@ -88,7 +88,7 @@ The vertical slice proves that one shared Budget–Accounting–Treasury case ca
 
 ## Planned - GRAND Finance complete cycle
 
-The [GRAND Finance complete-cycle roadmap](FINANCE_ROADMAP.md) is the canonical plan for the long-term Finance sub-application. It replaces the earlier assumption that the next material step is only an ordinary-supplier voucher pilot.
+The [GRAND Finance complete-cycle roadmap](FINANCE_ROADMAP.md) is the canonical plan for the long-term Finance sub-application. It replaces the earlier assumption that the next material step is only an ordinary-supplier voucher pilot. The implemented F10.1 control is documented in [Finance visual template promotion and rollback](FINANCE_TEMPLATE_PROMOTION.md).
 
 The essential delivery order is:
 

@@ -91,6 +91,9 @@ class ReportDefinition(models.Model):
             ("approve_reports", "Can approve official reports"),
             ("download_reports", "Can download generated reports"),
             ("view_department_reports", "Can view all reports in the assigned department"),
+            ("prepare_template_promotions", "Can prepare report template promotion requests"),
+            ("approve_template_promotions", "Can independently approve report template promotions"),
+            ("activate_template_promotions", "Can activate or roll back approved report templates"),
         )
 
     def __str__(self):
@@ -1185,3 +1188,197 @@ class ReportRunEvent(models.Model):
 
     def __str__(self):
         return f"{self.run_id}: {self.action}"
+
+
+class ReportTemplatePromotion(models.Model):
+    """Deployment-independent evidence and approval for an official layout change."""
+
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    RETURNED = "returned"
+    APPROVED = "approved"
+    ACTIVATED = "activated"
+    ROLLED_BACK = "rolled_back"
+    STATUS_CHOICES = (
+        (DRAFT, "Editable promotion request"),
+        (SUBMITTED, "For independent approval"),
+        (RETURNED, "Returned for correction"),
+        (APPROVED, "Approved, awaiting activation"),
+        (ACTIVATED, "Active official template"),
+        (ROLLED_BACK, "Rolled back to prior template"),
+    )
+    GOLDEN_PENDING = "pending"
+    GOLDEN_MATCHED = "matched"
+    GOLDEN_REFERENCE = "reference_review"
+    GOLDEN_EXCEPTION = "exception"
+    GOLDEN_CHOICES = (
+        (GOLDEN_PENDING, "Preview not compared"),
+        (GOLDEN_MATCHED, "Golden run data and controls match"),
+        (GOLDEN_REFERENCE, "First-layout reference review required"),
+        (GOLDEN_EXCEPTION, "Preview comparison has differences"),
+    )
+    LOCKED_STATUSES = {SUBMITTED, APPROVED, ACTIVATED, ROLLED_BACK}
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    candidate_template = models.OneToOneField(
+        ReportTemplateVersion, on_delete=models.PROTECT, related_name="promotion_request",
+    )
+    baseline_template = models.ForeignKey(
+        ReportTemplateVersion, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="successor_promotion_requests",
+    )
+    preview_run = models.OneToOneField(
+        ReportRun, on_delete=models.PROTECT, related_name="template_promotion_preview",
+    )
+    baseline_run = models.ForeignKey(
+        ReportRun, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="template_promotion_baselines",
+    )
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    change_reason = models.TextField()
+    comparison_note = models.TextField(
+        help_text="Plain-language side-by-side check, retained form, signatory, printer, and overflow evidence.",
+    )
+    update_compatible_schedules = models.BooleanField(default=False)
+    template_snapshot = models.JSONField(default=dict)
+    template_checksum = models.CharField(max_length=64)
+    mapping_diff = models.JSONField(default=list)
+    impact_snapshot = models.JSONField(default=dict)
+    golden_result = models.CharField(max_length=20, choices=GOLDEN_CHOICES, default=GOLDEN_PENDING)
+    golden_snapshot = models.JSONField(default=dict)
+    submission_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_report_template_promotions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_report_template_promotions",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_report_template_promotions",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    activated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="activated_report_template_promotions",
+    )
+    activated_at = models.DateTimeField(null=True, blank=True)
+    rolled_back_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="rolled_back_report_template_promotions",
+    )
+    rolled_back_at = models.DateTimeField(null=True, blank=True)
+    rollback_reason = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.candidate_template} promotion"
+
+    def get_absolute_url(self):
+        return reverse("reporting:template_promotion_detail", kwargs={"public_id": self.public_id})
+
+    @property
+    def department(self):
+        return self.candidate_template.definition.department
+
+    @property
+    def is_editable(self):
+        return self.status in (self.DRAFT, self.RETURNED)
+
+    def clean(self):
+        candidate = self.candidate_template
+        if self.baseline_template_id and self.baseline_template.definition_id != candidate.definition_id:
+            raise ValidationError({"baseline_template": "The prior template must belong to the same report."})
+        if self.baseline_template_id and self.baseline_template_id == self.candidate_template_id:
+            raise ValidationError({"baseline_template": "A candidate cannot be its own prior template."})
+        if self.preview_run.definition_id != candidate.definition_id or self.preview_run.template_version_id != candidate.pk:
+            raise ValidationError({"preview_run": "The preview must use this candidate template and report definition."})
+        if self.baseline_run_id:
+            baseline = self.baseline_run
+            if not self.baseline_template_id or baseline.template_version_id != self.baseline_template_id:
+                raise ValidationError({"baseline_run": "The golden run must use the selected prior template."})
+            if baseline.definition_id != candidate.definition_id:
+                raise ValidationError({"baseline_run": "The golden run must belong to the same report."})
+            if (baseline.period_start, baseline.period_end, baseline.output_format) != (
+                self.preview_run.period_start, self.preview_run.period_end, self.preview_run.output_format,
+            ):
+                raise ValidationError({"baseline_run": "The golden run and preview must cover the same period and format."})
+        for field in ("template_snapshot", "impact_snapshot", "golden_snapshot"):
+            if not isinstance(getattr(self, field), dict):
+                raise ValidationError({field: "Promotion evidence must be a controlled key/value mapping."})
+        if not isinstance(self.mapping_diff, list):
+            raise ValidationError({"mapping_diff": "Template differences must be a controlled list."})
+        if self.status in self.LOCKED_STATUSES:
+            if not self.submission_checksum or not self.submitted_at or not self.submitted_by_id:
+                raise ValidationError("Submitted promotion requests require immutable evidence and a checksum.")
+            if self.golden_result not in (self.GOLDEN_MATCHED, self.GOLDEN_REFERENCE):
+                raise ValidationError("Resolve preview comparison differences before submitting this promotion.")
+        if self.status in (self.APPROVED, self.ACTIVATED, self.ROLLED_BACK):
+            if not self.reviewed_at or not self.reviewed_by_id:
+                raise ValidationError("Approved promotions require independent review evidence.")
+            if self.reviewed_by_id in (self.created_by_id, self.submitted_by_id):
+                raise ValidationError("The preparer or submitter cannot approve the same template promotion.")
+        if self.status == self.ACTIVATED and (not self.activated_at or not self.activated_by_id):
+            raise ValidationError("Active promotions require recorded activation evidence.")
+        if self.status == self.ACTIVATED and not candidate.is_active:
+            raise ValidationError("The activated candidate must be the active report template.")
+        if self.status == self.ROLLED_BACK:
+            if not self.baseline_template_id:
+                raise ValidationError("A first official template has no earlier version to restore.")
+            if not self.rolled_back_at or not self.rolled_back_by_id or not self.rollback_reason.strip():
+                raise ValidationError("Rollback requires an actor, time, and reason.")
+            if candidate.is_active or not self.baseline_template.is_active:
+                raise ValidationError("Rollback must restore the prior template and deactivate the candidate.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "candidate_template_id", "baseline_template_id", "preview_run_id", "baseline_run_id",
+                "change_reason", "comparison_note", "update_compatible_schedules", "template_snapshot",
+                "template_checksum", "mapping_diff", "impact_snapshot", "golden_result",
+                "golden_snapshot", "submission_checksum", "created_by_id",
+            )
+            if prior.status in self.LOCKED_STATUSES and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Submitted promotion evidence is immutable. Return it or create a new template version.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status in self.LOCKED_STATUSES or self.events.exists():
+            raise ValidationError("Template-promotion history cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class ReportTemplatePromotionEvent(models.Model):
+    promotion = models.ForeignKey(
+        ReportTemplatePromotion, on_delete=models.PROTECT, related_name="events",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="report_template_promotion_events",
+    )
+    action = models.CharField(max_length=60)
+    reason = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Template-promotion events are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Template-promotion events cannot be deleted.")

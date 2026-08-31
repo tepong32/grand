@@ -197,22 +197,20 @@ class ReportingPlatformTests(TestCase):
         run.refresh_from_db()
         self.assertEqual(run.status, ReportRun.REVIEWED)
 
-    def test_department_fidelity_validation_requires_evidence_and_unlocks_official_use(self):
+    def test_direct_fidelity_shortcut_is_retired_in_favor_of_promotion_record(self):
         pilot = ReportTemplateVersion.objects.create(
             definition=self.definition, version=2, title="Validated office form",
             created_by=self.head, approved_by=self.head, approved_at=timezone.now(),
         )
         self.client.force_login(self.reviewer)
         url = reverse("reporting:template_validate_fidelity", args=(pilot.pk,))
-        response = self.client.post(url, {"fidelity_notes": ""})
-        self.assertRedirects(response, self.definition.get_absolute_url())
+        response = self.client.post(url, {"fidelity_notes": "A free-text note is no longer enough."})
+        self.assertRedirects(
+            response, reverse("reporting:template_promotion_create", args=(pilot.pk,)),
+            fetch_redirect_response=False,
+        )
         pilot.refresh_from_db()
         self.assertFalse(pilot.is_official_ready)
-        response = self.client.post(url, {"fidelity_notes": "Compared side by side with the current signed MSWD form on 2026-08-15."})
-        self.assertRedirects(response, self.definition.get_absolute_url())
-        pilot.refresh_from_db()
-        self.assertTrue(pilot.is_official_ready)
-        self.assertEqual(pilot.fidelity_validated_by, self.reviewer)
 
     def test_legacy_approval_without_fidelity_is_not_presented_as_current_official_output(self):
         pilot = ReportTemplateVersion.objects.create(

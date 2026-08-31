@@ -1,5 +1,14 @@
 # Changelog
 
+## F10.1 Governed visual template promotion and rollback
+
+- Replaced direct free-text fidelity activation with retained preview, comparison, independent approval, and separate activation records.
+- Added automatic same-period golden checks across dataset/control checksums, row/source counts, and control status, with blocking differences.
+- Added human-readable layout diffs and practical checks for headings, totals, signatories, pagination, overflow, form stock, and printer alignment.
+- Added schedule-impact review, optional compatible-schedule reassignment, deployment-free activation, and reasoned restoration of the prior official version.
+- Added immutable template/submission checksums, append-only events, department-bounded roles and screens, updated Accounting/Budget floating guidance, and TraceSync-ready JSON receipts.
+- Kept actual local forms, accepted golden outputs, printer/form-stock trials, optional-block behavior, and named-office acceptance open under the parent F10 gate.
+
 ## F9.4 Statement notes and signed-reference comparison
 
 - Added versioned, human-editable financial-statement note packages pinned to exact control-reconciled position and performance runs for the same period.

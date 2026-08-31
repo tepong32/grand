@@ -83,6 +83,18 @@ def can_export_statement_packages(user, department=None):
     return _authorized(user, "reporting.export_statement_packages", department)
 
 
+def can_prepare_template_promotions(user, department=None):
+    return _authorized(user, "reporting.prepare_template_promotions", department)
+
+
+def can_approve_template_promotions(user, department=None):
+    return _authorized(user, "reporting.approve_template_promotions", department)
+
+
+def can_activate_template_promotions(user, department=None):
+    return _authorized(user, "reporting.activate_template_promotions", department)
+
+
 def reporting_access_required(view_func):
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):

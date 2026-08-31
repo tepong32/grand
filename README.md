@@ -108,6 +108,7 @@ Repeated invocations for the same scheduled period do not create duplicate outpu
 - [Complete-cycle Finance information architecture and prototype](docs/finance-ia/README.md)
 - [Finance opening balances and control-total intake](docs/FINANCE_OPENING_BALANCES.md)
 - [Finance process-fidelity baseline](docs/FINANCE_PROCESS_FIDELITY_BASELINE.md)
+- [Finance visual template promotion and rollback](docs/FINANCE_TEMPLATE_PROMOTION.md)
 - [Product roadmap](docs/ROADMAP.md)
 - [Security maintenance](SECURITY.md)
 - [Synthetic portfolio screenshots](output/playwright/grand-portfolio/README.md)
