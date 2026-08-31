@@ -871,6 +871,242 @@ class ControlAccountReconciliation(DepartmentOwnedModel):
         raise ValidationError("Control-account reconciliation evidence cannot be deleted.")
 
 
+class PeriodClosePolicy(DepartmentOwnedModel):
+    OBSERVE = "observe"
+    ENFORCE = "enforce"
+    MODE_CHOICES = (
+        (OBSERVE, "Observe and explain exceptions"),
+        (ENFORCE, "Enforce accepted close gates"),
+    )
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    RETURNED = "returned"
+    STARTER = "starter"
+    ACTIVE = "active"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (DRAFT, "Editable draft"), (SUBMITTED, "For independent review"),
+        (RETURNED, "Returned for correction"), (STARTER, "Controlled starter"),
+        (ACTIVE, "Locally accepted active policy"), (SUPERSEDED, "Superseded"),
+    )
+    LOCKED_STATUSES = {STARTER, ACTIVE, SUPERSEDED}
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    version = models.PositiveSmallIntegerField()
+    title = models.CharField(max_length=180)
+    description = models.TextField(blank=True)
+    mode = models.CharField(max_length=12, choices=MODE_CHOICES, default=OBSERVE)
+    require_control_reconciliation = models.BooleanField(default=True)
+    require_bank_reconciliation = models.BooleanField(default=True)
+    require_statement_reports = models.BooleanField(default=True)
+    require_handoff_clearance = models.BooleanField(default=True)
+    require_year_end_closing_entries = models.BooleanField(default=True)
+    authority_reference = models.TextField(blank=True)
+    local_acceptance_note = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    supersedes = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successors",
+    )
+    snapshot_checksum = models.CharField(max_length=64, blank=True)
+    created_by_id = models.PositiveBigIntegerField()
+    created_by_label = models.CharField(max_length=160)
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    submitted_by_label = models.CharField(max_length=160, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reviewed_by_label = models.CharField(max_length=160, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-version", "-pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("department_id", "version"), name="unique_period_close_policy_version",
+            ),
+            models.UniqueConstraint(
+                fields=("department_id",), condition=models.Q(status="active"),
+                name="one_active_period_close_policy",
+            ),
+        )
+        permissions = (
+            ("manage_period_close_policies", "Can prepare period-close policies"),
+            ("approve_period_close_policies", "Can independently approve period-close policies"),
+        )
+
+    def __str__(self):
+        return f"{self.title} · v{self.version}"
+
+    @property
+    def is_editable(self):
+        return self.status in (self.DRAFT, self.RETURNED)
+
+    def clean(self):
+        if self.supersedes_id and (
+            self.supersedes.department_id != self.department_id
+            or self.version <= self.supersedes.version
+        ):
+            raise ValidationError({"supersedes": "Choose an earlier policy for this Accounting office."})
+        if self.status == self.ACTIVE:
+            if not self.authority_reference.strip() or not self.local_acceptance_note.strip():
+                raise ValidationError("An active close policy requires reviewed authority and local acceptance evidence.")
+            if not self.snapshot_checksum or not self.reviewed_at or not self.reviewed_by_id:
+                raise ValidationError("An active close policy requires immutable independent-review evidence.")
+            if self.created_by_id == self.reviewed_by_id:
+                raise ValidationError("The close-policy preparer cannot approve the same version.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "department_id", "department_label", "version", "title", "description", "mode",
+                "require_control_reconciliation", "require_bank_reconciliation",
+                "require_statement_reports", "require_handoff_clearance", "authority_reference",
+                "require_year_end_closing_entries", "local_acceptance_note", "supersedes_id",
+                "created_by_id", "created_by_label",
+            )
+            if prior.status in self.LOCKED_STATUSES and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Locked close policies are immutable. Create a successor version.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status in self.LOCKED_STATUSES or self.close_runs.exists():
+            raise ValidationError("Period-close policy history cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class PeriodCloseRun(DepartmentOwnedModel):
+    DRAFT = "draft"
+    RETURNED = "returned"
+    SUBMITTED = "submitted"
+    CLOSED = "closed"
+    REOPEN_REQUESTED = "reopen_requested"
+    REOPENED = "reopened"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft checklist"), (RETURNED, "Returned for correction"),
+        (SUBMITTED, "For independent close review"), (CLOSED, "Period closed"),
+        (REOPEN_REQUESTED, "Reopen requested"), (REOPENED, "Period reopened"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    period = models.ForeignKey(AccountingPeriod, on_delete=models.PROTECT, related_name="close_runs")
+    version = models.PositiveSmallIntegerField()
+    supersedes = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successors",
+    )
+    policy = models.ForeignKey(PeriodClosePolicy, on_delete=models.PROTECT, related_name="close_runs")
+    policy_snapshot = models.JSONField(default=dict)
+    policy_checksum = models.CharField(max_length=64)
+    checklist_snapshot = models.JSONField(default=dict)
+    checklist_checksum = models.CharField(max_length=64)
+    adjustment_review_note = models.TextField()
+    evidence_reference = models.TextField()
+    preparer_note = models.TextField(blank=True)
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=DRAFT)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_by_label = models.CharField(max_length=160)
+    prepared_at = models.DateTimeField(auto_now_add=True)
+    submitted_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    submitted_by_label = models.CharField(max_length=160, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    decided_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    decided_by_label = models.CharField(max_length=160, blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    reopen_requested_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reopen_requested_by_label = models.CharField(max_length=160, blank=True)
+    reopen_requested_at = models.DateTimeField(null=True, blank=True)
+    reopen_reason = models.TextField(blank=True)
+    reopen_authority_reference = models.TextField(blank=True)
+    reopened_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reopened_by_label = models.CharField(max_length=160, blank=True)
+    reopened_at = models.DateTimeField(null=True, blank=True)
+    reopen_review_note = models.TextField(blank=True)
+    state_version = models.PositiveIntegerField(default=1)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-period__fiscal_year", "-period__period_number", "-version")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("period", "version"), name="unique_period_close_run_version",
+            ),
+        )
+        permissions = (
+            ("prepare_period_close", "Can prepare and submit period close checklists"),
+            ("approve_period_close", "Can independently approve period close"),
+            ("reopen_period", "Can independently decide period reopen requests"),
+            ("export_period_close", "Can export period close evidence"),
+        )
+
+    def __str__(self):
+        return f"{self.period} · close v{self.version}"
+
+    @property
+    def is_editable(self):
+        return self.status in (self.DRAFT, self.RETURNED)
+
+    def clean(self):
+        if self.period_id and self.period.department_id != self.department_id:
+            raise ValidationError({"period": "The close run must belong to the same Accounting office."})
+        if self.policy_id and self.policy.department_id != self.department_id:
+            raise ValidationError({"policy": "The close policy must belong to the same Accounting office."})
+        if self.supersedes_id and (
+            self.supersedes.period_id != self.period_id or self.version <= self.supersedes.version
+        ):
+            raise ValidationError({"supersedes": "Choose an earlier close run for this same period."})
+        if self.status in (self.SUBMITTED, self.CLOSED, self.REOPEN_REQUESTED, self.REOPENED):
+            if not self.adjustment_review_note.strip() or not self.evidence_reference.strip():
+                raise ValidationError("Submitted close evidence requires the adjustment review and retained evidence reference.")
+            if not self.checklist_checksum or not self.policy_checksum:
+                raise ValidationError("Submitted close evidence requires checksummed policy and checklist snapshots.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "department_id", "department_label", "period_id", "version", "supersedes_id",
+                "policy_id", "policy_snapshot", "policy_checksum", "checklist_snapshot",
+                "checklist_checksum", "adjustment_review_note", "evidence_reference", "preparer_note",
+                "prepared_by_id", "prepared_by_label", "prepared_at",
+            )
+            if prior.status not in (self.DRAFT, self.RETURNED) and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Submitted period-close evidence is immutable. Return it or create a successor close run.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.events.exists() or self.status not in (self.DRAFT, self.RETURNED):
+            raise ValidationError("Period-close history cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class PeriodCloseEvent(DepartmentOwnedModel):
+    run = models.ForeignKey(PeriodCloseRun, on_delete=models.PROTECT, related_name="events")
+    action = models.CharField(max_length=60)
+    actor_id = models.PositiveBigIntegerField()
+    actor_label = models.CharField(max_length=160)
+    reason = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Period-close events are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Period-close events cannot be deleted.")
+
+
 class BankStatementBatch(DepartmentOwnedModel):
     DRAFT = "draft"
     VALIDATED = "validated"

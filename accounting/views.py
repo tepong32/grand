@@ -23,6 +23,8 @@ from .access import (
     can_post_opening_balances, can_prepare_journals, can_prepare_opening_balances,
     can_reconcile_controls, can_view_bank_reconciliation, can_view_ledger, department_for_user,
     can_export_bank_reconciliation, can_prepare_bank_reconciliation,
+    can_approve_period_close, can_approve_period_close_policies, can_export_period_close,
+    can_manage_period_close_policies, can_prepare_period_close, can_reopen_period,
 )
 from .forms import (
     AccountingPeriodForm, FiscalYearForm, FundForm, FundingSourceForm, JournalEntryForm, JournalLineForm,
@@ -31,6 +33,7 @@ from .forms import (
     LedgerAccountForm, OpeningBalanceBatchCorrectionForm, OpeningBalanceBatchForm, OpeningBalanceImportForm,
     OpeningBalanceRowCorrectionForm, PostingMappingForm, ProgramActivityProjectForm,
     ResponsibilityCenterForm, ReversalForm,
+    PeriodCloseDecisionForm, PeriodClosePolicyForm, PeriodCloseRunForm, PeriodReopenRequestForm,
 )
 from .models import (
     AccountingAuditEvent, AccountingPeriod, ControlAccountReconciliation, FiscalYear,
@@ -38,6 +41,7 @@ from .models import (
     FiscalYearReadinessApproval, Fund, FundingSource, JournalEntry, JournalLine,
     JournalSubsidiaryLine, LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow,
     PostingMapping, ProgramActivityProject, ResponsibilityCenter,
+    PeriodCloseEvent, PeriodClosePolicy, PeriodCloseRun,
 )
 from .services import (
     adopt_configuration_release, begin_foundation_amendment, close_period, create_reversal,
@@ -50,6 +54,12 @@ from .services import (
     run_control_reconciliation, subsidiary_schedule_rows, submit_entry, submit_opening_batch,
     record_bank_reconciliation_event, stage_bank_statement_csv, submit_bank_reconciliation, transition_fiscal_year,
     unclassify_bank_outstanding, unmatch_bank_statement_row, validate_bank_statement, validate_opening_batch, control_reconciliation_snapshot,
+    actor_label,
+)
+from .close_services import (
+    create_period_close_run, current_period_close_policy, decide_period_close_policy,
+    decide_period_close_run, decide_period_reopen, refresh_period_close_run,
+    request_period_reopen, submit_period_close_policy, submit_period_close_run,
 )
 
 
@@ -123,6 +133,10 @@ def workspace(request):
         "can_approve_opening": can_approve_opening_balances(request.user),
         "can_post_opening": can_post_opening_balances(request.user),
         "can_view_bank_reconciliation": can_view_bank_reconciliation(request.user),
+        "can_view_period_close": any((
+            can_prepare_period_close(request.user), can_approve_period_close(request.user),
+            can_reopen_period(request.user), can_export_period_close(request.user),
+        )),
         "source_requests": source_requests, "remittance_requests": remittance_requests,
     })
 
@@ -310,9 +324,321 @@ def period_close(request, pk):
         close_period(period, request.user)
     except ValidationError as exc:
         messages.error(request, " ".join(exc.messages))
+    return redirect("accounting:period_close_workspace")
+
+
+def _close_run_for_department(request, public_id):
+    department = department_for_user(request.user)
+    return get_object_or_404(
+        PeriodCloseRun.objects.select_related("period", "policy", "supersedes"),
+        public_id=public_id, department_id=department.pk,
+    )
+
+
+def _close_policy_for_department(request, public_id):
+    department = department_for_user(request.user)
+    return get_object_or_404(
+        PeriodClosePolicy.objects.select_related("supersedes"),
+        public_id=public_id, department_id=department.pk,
+    )
+
+
+@require_GET
+@accounting_access_required
+def period_close_workspace(request):
+    department = department_for_user(request.user)
+    runs = PeriodCloseRun.objects.filter(department_id=department.pk).select_related("period", "policy")
+    periods = AccountingPeriod.objects.filter(department_id=department.pk).order_by(
+        "-fiscal_year", "-period_number",
+    )
+    policies = PeriodClosePolicy.objects.filter(department_id=department.pk)
+    return render(request, "accounting/period_close_workspace.html", {
+        "runs": runs[:100], "periods": periods, "policies": policies,
+        "current_policy": current_period_close_policy(department.pk),
+        "can_prepare_close": can_prepare_period_close(request.user),
+        "can_approve_close": can_approve_period_close(request.user),
+        "can_reopen": can_reopen_period(request.user),
+        "can_export_close": can_export_period_close(request.user),
+        "can_manage_policies": can_manage_period_close_policies(request.user),
+        "can_approve_policies": can_approve_period_close_policies(request.user),
+    })
+
+
+@require_http_methods(["GET", "POST"])
+@accounting_permission_required(can_prepare_period_close)
+def period_close_create(request):
+    department = department_for_user(request.user)
+    form = PeriodCloseRunForm(request.POST or None, department=department)
+    if request.method == "POST" and form.is_valid():
+        try:
+            run = create_period_close_run(
+                form.cleaned_data["period"], department, request.user,
+                adjustment_review_note=form.cleaned_data["adjustment_review_note"],
+                evidence_reference=form.cleaned_data["evidence_reference"],
+                preparer_note=form.cleaned_data["preparer_note"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, " ".join(exc.messages))
+        else:
+            messages.success(request, "Period-close checklist prepared with pinned evidence checksums.")
+            return redirect("accounting:period_close_detail", public_id=run.public_id)
+    return render(request, "accounting/period_close_form.html", {"form": form, "run": None})
+
+
+@require_http_methods(["GET", "POST"])
+@accounting_permission_required(can_prepare_period_close)
+def period_close_edit(request, public_id):
+    department = department_for_user(request.user)
+    run = _close_run_for_department(request, public_id)
+    if not run.is_editable:
+        messages.error(request, "Submitted close evidence cannot be edited.")
+        return redirect("accounting:period_close_detail", public_id=run.public_id)
+    form = PeriodCloseRunForm(request.POST or None, department=department, instance=run)
+    if request.method == "POST" and form.is_valid():
+        try:
+            run = refresh_period_close_run(
+                run, request.user,
+                adjustment_review_note=form.cleaned_data["adjustment_review_note"],
+                evidence_reference=form.cleaned_data["evidence_reference"],
+                preparer_note=form.cleaned_data["preparer_note"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, " ".join(exc.messages))
+        else:
+            messages.success(request, "Checklist refreshed from current ledger and retained evidence.")
+            return redirect("accounting:period_close_detail", public_id=run.public_id)
+    return render(request, "accounting/period_close_form.html", {"form": form, "run": run})
+
+
+@require_GET
+@accounting_access_required
+def period_close_detail(request, public_id):
+    run = _close_run_for_department(request, public_id)
+    return render(request, "accounting/period_close_detail.html", {
+        "run": run, "checks": run.checklist_snapshot.get("checks", []),
+        "events": run.events.all(), "decision_form": PeriodCloseDecisionForm(),
+        "reopen_form": PeriodReopenRequestForm(),
+        "can_prepare_close": can_prepare_period_close(request.user),
+        "can_approve_close": can_approve_period_close(request.user),
+        "can_reopen": can_reopen_period(request.user),
+        "can_export_close": can_export_period_close(request.user),
+    })
+
+
+@require_POST
+@accounting_permission_required(can_prepare_period_close)
+def period_close_submit(request, public_id):
+    run = _close_run_for_department(request, public_id)
+    try:
+        submit_period_close_run(run, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
     else:
-        messages.success(request, "Accounting period closed. New postings to it are blocked.")
-    return redirect("accounting:setup")
+        messages.success(request, "Checklist submitted for independent close review.")
+    return redirect("accounting:period_close_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_approve_period_close)
+def period_close_decide(request, public_id, decision):
+    if decision not in ("approve", "return"):
+        raise Http404
+    run = _close_run_for_department(request, public_id)
+    form = PeriodCloseDecisionForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Record the independent review basis.")
+    else:
+        try:
+            decided = decide_period_close_run(
+                run, request.user, approve=decision == "approve", note=form.cleaned_data["note"],
+            )
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        else:
+            if decided.status == PeriodCloseRun.CLOSED:
+                messages.success(request, "Period closed. New postings are blocked; evidence remains exportable.")
+            else:
+                messages.warning(request, "Checklist returned for controlled correction and resubmission.")
+    return redirect("accounting:period_close_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_prepare_period_close)
+def period_close_reopen_request(request, public_id):
+    run = _close_run_for_department(request, public_id)
+    form = PeriodReopenRequestForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Record both the correction reason and retained authority.")
+    else:
+        try:
+            request_period_reopen(
+                run, request.user, reason=form.cleaned_data["reason"],
+                authority_reference=form.cleaned_data["authority_reference"],
+            )
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        else:
+            messages.success(request, "Reopen request submitted for independent decision.")
+    return redirect("accounting:period_close_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_reopen_period)
+def period_close_reopen_decide(request, public_id, decision):
+    if decision not in ("approve", "return"):
+        raise Http404
+    run = _close_run_for_department(request, public_id)
+    form = PeriodCloseDecisionForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Record the independent reopen decision basis.")
+    else:
+        try:
+            decided = decide_period_reopen(
+                run, request.user, approve=decision == "approve", note=form.cleaned_data["note"],
+            )
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        else:
+            if decided.status == PeriodCloseRun.REOPENED:
+                messages.warning(request, "Period reopened. Post governed corrections, then prepare a successor close checklist.")
+            else:
+                messages.info(request, "Reopen request returned; the period remains closed.")
+    return redirect("accounting:period_close_detail", public_id=public_id)
+
+
+@require_http_methods(["GET", "POST"])
+@accounting_permission_required(can_manage_period_close_policies)
+def period_close_policy_create(request):
+    department = department_for_user(request.user)
+    form = PeriodClosePolicyForm(request.POST or None, department=department)
+    if request.method == "POST" and form.is_valid():
+        latest = PeriodClosePolicy.objects.filter(department_id=department.pk).order_by("-version").first()
+        policy = form.save(commit=False)
+        policy.department_id = department.pk
+        policy.department_label = department.name
+        policy.version = (latest.version if latest else 0) + 1
+        policy.supersedes = latest
+        policy.created_by_id = request.user.pk
+        policy.created_by_label = actor_label(request.user)
+        try:
+            policy.full_clean()
+            policy.save()
+        except ValidationError as exc:
+            form.add_error(None, " ".join(exc.messages))
+        else:
+            messages.success(request, "Editable close-policy successor created.")
+            return redirect("accounting:period_close_policy_detail", public_id=policy.public_id)
+    return render(request, "accounting/period_close_policy_form.html", {"form": form, "policy": None})
+
+
+@require_http_methods(["GET", "POST"])
+@accounting_permission_required(can_manage_period_close_policies)
+def period_close_policy_edit(request, public_id):
+    department = department_for_user(request.user)
+    policy = _close_policy_for_department(request, public_id)
+    if not policy.is_editable:
+        messages.error(request, "Locked policy evidence is immutable; create a successor version.")
+        return redirect("accounting:period_close_policy_detail", public_id=public_id)
+    form = PeriodClosePolicyForm(request.POST or None, instance=policy, department=department)
+    if request.method == "POST" and form.is_valid():
+        try:
+            policy = form.save()
+        except ValidationError as exc:
+            form.add_error(None, " ".join(exc.messages))
+        else:
+            messages.success(request, "Close-policy draft updated.")
+            return redirect("accounting:period_close_policy_detail", public_id=policy.public_id)
+    return render(request, "accounting/period_close_policy_form.html", {"form": form, "policy": policy})
+
+
+@require_GET
+@accounting_access_required
+def period_close_policy_detail(request, public_id):
+    policy = _close_policy_for_department(request, public_id)
+    return render(request, "accounting/period_close_policy_detail.html", {
+        "policy": policy, "decision_form": PeriodCloseDecisionForm(),
+        "can_manage_policies": can_manage_period_close_policies(request.user),
+        "can_approve_policies": can_approve_period_close_policies(request.user),
+    })
+
+
+@require_POST
+@accounting_permission_required(can_manage_period_close_policies)
+def period_close_policy_submit(request, public_id):
+    policy = _close_policy_for_department(request, public_id)
+    try:
+        submit_period_close_policy(policy, request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, "Close policy submitted for independent review.")
+    return redirect("accounting:period_close_policy_detail", public_id=public_id)
+
+
+@require_POST
+@accounting_permission_required(can_approve_period_close_policies)
+def period_close_policy_decide(request, public_id, decision):
+    if decision not in ("approve", "return"):
+        raise Http404
+    policy = _close_policy_for_department(request, public_id)
+    form = PeriodCloseDecisionForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Record the independent policy review basis.")
+    else:
+        try:
+            decide_period_close_policy(
+                policy, request.user, approve=decision == "approve", note=form.cleaned_data["note"],
+            )
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        else:
+            messages.success(request, "Close policy activated." if decision == "approve" else "Close policy returned.")
+    return redirect("accounting:period_close_policy_detail", public_id=public_id)
+
+
+@require_GET
+@accounting_permission_required(can_export_period_close)
+def period_close_export(request, public_id):
+    department = department_for_user(request.user)
+    run = _close_run_for_department(request, public_id)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    filename = f"period-close-{run.period.fiscal_year}-{run.period.period_number:02d}-v{run.version}.csv"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    writer = csv.writer(response)
+    writer.writerow(("record_kind", "code", "label", "status", "required", "message", "evidence"))
+    writer.writerow((
+        "close_run", str(run.public_id), str(run.period), run.status, "",
+        run.evidence_reference, json.dumps(run.policy_snapshot, sort_keys=True),
+    ))
+    for check in run.checklist_snapshot.get("checks", []):
+        writer.writerow((
+            "check", check.get("code"), check.get("label"), check.get("status"),
+            check.get("required"), check.get("message"),
+            json.dumps(check.get("evidence", {}), sort_keys=True),
+        ))
+    for event in run.events.order_by("created_at", "pk"):
+        writer.writerow((
+            "event", event.action, event.actor_label, event.created_at.isoformat(), "",
+            event.reason, json.dumps(event.snapshot, sort_keys=True),
+        ))
+    archived = archive_export(
+        content=response.content, department=department, user=request.user,
+        category="finance-period-close", filename=filename,
+        metadata={
+            "kind": "period_close_evidence", "close_run_public_id": str(run.public_id),
+            "period": str(run.period), "status": run.status,
+            "policy_checksum": run.policy_checksum, "checklist_checksum": run.checklist_checksum,
+        },
+    )
+    PeriodCloseEvent.objects.create(
+        department_id=run.department_id, department_label=run.department_label, run=run,
+        action="exported", actor_id=request.user.pk, actor_label=actor_label(request.user),
+        snapshot={"relative_path": archived["relative_path"], "sha256": archived["sha256"]},
+    )
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    return response
 
 
 @require_GET

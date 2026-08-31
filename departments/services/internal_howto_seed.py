@@ -7,6 +7,24 @@ from ..models import Department, InternalHowTo, InternalHowToStep
 
 ACCOUNTING_GUIDES = (
     {
+        "slug": "finance-accounting-period-close",
+        "version": 1,
+        "title": "Close and, when authorized, reopen an Accounting period",
+        "summary": "Finish period work, prepare checksummed close evidence, obtain an independent decision, and retain the ordered reopen trail without leaving the current page.",
+        "permission": "accounting.view_accounting_workspace",
+        "patterns": ["accounting:period_close_*", "accounting:workspace", "accounting:setup"],
+        "order": 58,
+        "steps": (
+            ("Resolve period work", "Finish each JEV by posting it or using its governed return, discard, or reversal route. Close earlier periods first.", "The target period has no unresolved JEV and its posted debit and credit agree.", "Do not edit posted evidence or close a later period ahead of an earlier open one.", "Open Accounting", "accounting:workspace"),
+            ("Review adjustments", "Review adjusting JEVs and, for the fiscal-year end, applicable closing JEVs. Record what was checked and why no entry is required when that is the result.", "The close checklist carries a readable adjustment and closing-entry review basis.", "The system does not invent an adjustment or treat a blank note as evidence.", "Open Trial Balance", "accounting:trial_balance"),
+            ("Prepare the checklist", "Choose the open period and record the retained packet, schedule, folder, or records reference. GRAND pins the current policy and reads current reconciliation, reporting, handoff, and ledger evidence.", "Required failures are red; locally unconfirmed starter recommendations remain visible as yellow warnings.", "A warning under observe mode is not proof that the LGU accepted an official local rule.", "Open Period Close", "accounting:period_close_workspace"),
+            ("Submit independently", "Refresh after correcting sources, then submit the ready checklist to a different authorized reviewer.", "Submission locks the policy and checklist snapshots and their checksums.", "The preparer or submitter cannot approve the same close evidence.", "Open Period Close", "accounting:period_close_workspace"),
+            ("Review and close", "Compare the retained references, checks, warnings, policy, and checksum. Approve only when the evidence is unchanged and sufficient; otherwise return it with a specific note.", "Approval closes the period and blocks new posting while preserving an append-only decision trail.", "Closing a period is not the same as certifying an official signed financial statement.", "Open Period Close", "accounting:period_close_workspace"),
+            ("Reopen in order", "If a discovered error requires a posting, record the correction reason and retained authority. A different authorized reviewer decides the request. Reopen later closed periods first.", "The earlier close remains immutable; corrections require a successor close checklist and another independent approval.", "Never reopen merely to overwrite prior evidence or bypass a governed reversal or adjustment.", "Open Period Close", "accounting:period_close_workspace"),
+            ("Export retained evidence", "Download the close evidence when the records packet or reviewer requires it. GRAND also archives the exact file and manifest under the single TraceSync-ready export root.", "The CSV contains the policy, every check, event history, and checksums in the department/user/category folder structure.", "Copy or synchronize the whole export root so manifests remain beside their artifacts.", "Open Period Close", "accounting:period_close_workspace"),
+        ),
+    },
+    {
         "slug": "finance-accountability-reporting-accounting",
         "version": 3,
         "title": "Prepare, map, and review Accounting reports",

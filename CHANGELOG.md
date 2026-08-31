@@ -1,5 +1,14 @@
 # Changelog
 
+## F7.4 Governed period close and controlled reopen
+
+- Replaced the direct one-click Accounting close action with a checksummed checklist and independent close approval.
+- Added human-readable Observe/Enforce close policies, controlled starters, authority/local-acceptance evidence, maker–checker activation, and immutable successor history.
+- Added ordered-period, unresolved-JEV, posted trial-balance, adjustment-review, subsidiary-control, mapped-bank, reconciled-statement, source-handoff, and year-end nominal-balance checks.
+- Added evidence-drift protection between submission and approval, append-only close events, posting blocks after close, and reason/authority-required ordered reopen with successor re-close evidence.
+- Added conservative close workspaces, a floating `?` guide, department-specific Internal How-To, Finance role ownership, and TraceSync-ready CSV evidence with adjacent manifests.
+- Added F7.4 regression coverage and documented the public COA context, local-confirmation boundary, and remaining parent-F7 acceptance work.
+
 ## F9.3 Finance statement composition and explained measures
 
 - Added versioned, department-owned financial-statement mappings with readable account-type or selected-code rules.

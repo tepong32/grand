@@ -4,7 +4,7 @@ from .models import (
     AccountingPeriod, FiscalYear, Fund, FundingSource, JournalEntry, JournalLine,
     BankStatementBatch,
     LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow, PostingMapping,
-    ProgramActivityProject, ResponsibilityCenter,
+    PeriodClosePolicy, PeriodCloseRun, ProgramActivityProject, ResponsibilityCenter,
 )
 
 
@@ -18,6 +18,74 @@ class StyledModelForm(forms.ModelForm):
         for field in self.fields.values():
             css_class = "form-check-input" if isinstance(field.widget, forms.CheckboxInput) else "form-control"
             field.widget.attrs.setdefault("class", css_class)
+
+
+class PeriodClosePolicyForm(StyledModelForm):
+    class Meta:
+        model = PeriodClosePolicy
+        fields = (
+            "title", "description", "mode", "require_control_reconciliation",
+            "require_bank_reconciliation", "require_statement_reports",
+            "require_handoff_clearance", "require_year_end_closing_entries",
+            "authority_reference", "local_acceptance_note",
+        )
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "authority_reference": forms.Textarea(attrs={"rows": 3}),
+            "local_acceptance_note": forms.Textarea(attrs={"rows": 3}),
+        }
+        help_texts = {
+            "mode": "Observe explains missing local evidence without blocking close. Enforce blocks the accepted gates.",
+            "authority_reference": "Record the reviewed circular, manual, memo, resolution, office order, or local close calendar.",
+            "local_acceptance_note": "Record who accepted this version, when, and where the signed or approved evidence is retained.",
+        }
+
+
+class PeriodCloseRunForm(forms.Form):
+    period = forms.ModelChoiceField(queryset=AccountingPeriod.objects.none())
+    adjustment_review_note = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 4}),
+        help_text="Explain adjusting JEVs, closing JEVs when applicable, or why no entry is required.",
+    )
+    evidence_reference = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Give a human-readable retained-folder, packet, schedule, or records reference.",
+    )
+    preparer_note = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
+
+    def __init__(self, *args, department, instance=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.instance = instance
+        periods = AccountingPeriod.objects.filter(
+            department_id=department.pk, status=AccountingPeriod.OPEN,
+        ).order_by("fiscal_year", "period_number")
+        if instance:
+            periods = AccountingPeriod.objects.filter(pk=instance.period_id)
+            self.fields["period"].disabled = True
+            self.initial.update({
+                "period": instance.period_id,
+                "adjustment_review_note": instance.adjustment_review_note,
+                "evidence_reference": instance.evidence_reference,
+                "preparer_note": instance.preparer_note,
+            })
+        self.fields["period"].queryset = periods
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+
+
+class PeriodReopenRequestForm(forms.Form):
+    reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+        help_text="Describe the discovered error and the correction that requires postings to reopen.",
+    )
+    authority_reference = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
+        help_text="Record the approved memo, instruction, finding, or other retained authority.",
+    )
+
+
+class PeriodCloseDecisionForm(forms.Form):
+    note = forms.CharField(widget=forms.Textarea(attrs={"rows": 3, "class": "form-control"}))
 
 
 class AccountingPeriodForm(StyledModelForm):

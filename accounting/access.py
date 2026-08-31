@@ -19,6 +19,12 @@ ACCOUNTING_PERMISSIONS = (
     "accounting.prepare_bank_reconciliation",
     "accounting.approve_bank_reconciliation",
     "accounting.export_bank_reconciliation",
+    "accounting.manage_period_close_policies",
+    "accounting.approve_period_close_policies",
+    "accounting.prepare_period_close",
+    "accounting.approve_period_close",
+    "accounting.reopen_period",
+    "accounting.export_period_close",
 )
 
 
@@ -102,6 +108,30 @@ def can_approve_bank_reconciliation(user):
 
 def can_export_bank_reconciliation(user):
     return has_explicit_permission(user, "accounting.export_bank_reconciliation")
+
+
+def can_manage_period_close_policies(user):
+    return has_explicit_permission(user, "accounting.manage_period_close_policies")
+
+
+def can_approve_period_close_policies(user):
+    return has_explicit_permission(user, "accounting.approve_period_close_policies")
+
+
+def can_prepare_period_close(user):
+    return has_explicit_permission(user, "accounting.prepare_period_close")
+
+
+def can_approve_period_close(user):
+    return has_explicit_permission(user, "accounting.approve_period_close")
+
+
+def can_reopen_period(user):
+    return has_explicit_permission(user, "accounting.reopen_period")
+
+
+def can_export_period_close(user):
+    return has_explicit_permission(user, "accounting.export_period_close")
 
 
 def accounting_access_required(view):

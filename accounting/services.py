@@ -1355,13 +1355,21 @@ def run_control_reconciliation(department, actor, as_of_date):
 
 
 @transaction.atomic(using=FINANCE_DB)
-def close_period(period, actor):
+def close_period(period, actor, *, approved_run=None):
     locked = AccountingPeriod.objects.select_for_update().get(pk=period.pk)
     if locked.status != AccountingPeriod.OPEN:
         raise ValidationError("This accounting period is already closed.")
     unposted = locked.journal_entries.exclude(status__in=(JournalEntry.POSTED, JournalEntry.VOIDED)).count()
     if unposted:
         raise ValidationError(f"Close or discard {unposted} unposted journal entry/entries before closing this period.")
+    if (
+        approved_run is None
+        or approved_run.period_id != locked.pk
+        or approved_run.status != approved_run.SUBMITTED
+    ):
+        raise ValidationError(
+            "Use the governed period-close checklist and independent approval before closing this period."
+        )
     locked.status = AccountingPeriod.CLOSED
     locked.closed_by_id = actor.pk
     locked.closed_by_label = actor_label(actor)
@@ -1373,7 +1381,13 @@ def close_period(period, actor):
         action="period_closed",
         actor_id=actor.pk,
         actor_label=actor_label(actor),
-        snapshot={"fiscal_year": locked.fiscal_year, "period_number": locked.period_number},
+        snapshot={
+            "fiscal_year": locked.fiscal_year,
+            "period_number": locked.period_number,
+            "close_run_public_id": str(approved_run.public_id),
+            "checklist_checksum": approved_run.checklist_checksum,
+            "policy_checksum": approved_run.policy_checksum,
+        },
     )
     return locked
 
