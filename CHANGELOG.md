@@ -1,5 +1,15 @@
 # Changelog
 
+## F9.5 Governed tax withholding capture and reporting
+
+- Added plain-language, versioned Finance Setup tax rules for tax family, ATC, rate, base, form codes, reporting date, rounding, TIN requirement, authority, effectivity, and local acceptance without requiring users to edit JSON.
+- Kept researched starters as Candidate and blocked reporting-enabled candidates from entering an approved setup release until actual local applicability is recorded.
+- Replaced the single DV deduction pair with a guided multi-line deduction editor that validates unique governed rules, payee/TIN requirements, base-times-rate formula, cent rounding, and the pre-issue modification boundary.
+- Pinned immutable rule, payee, tax-base, form, rule-checksum, and contextual evidence-checksum snapshots into voucher deductions, Accounting subsidiary postings, governed reversals, case display, and requesting-office transaction exports while withholding the full TIN from the latter.
+- Added Accounting-only governed tax detail/certificate-source and return/remittance-summary datasets with reporting-basis selection, posted-JEV drill-through, reversal treatment, formula/rule/evidence/ledger/TIN control gates, editable candidate starters, and TraceSync-ready report evidence.
+- Updated department-specific floating `?` guides for setup, DV preparation/correction, and Accounting reporting, and documented the official BIR source context without claiming filing, issued certificates, current deadlines, exact forms, or local acceptance.
+- Added the schema migration and focused Finance Setup, Voucher, Accounting evidence, report reconciliation, reversal, export, and tamper-detection regression coverage.
+
 ## F11.5 Consecutive field-cycle qualification and signed decision references
 
 - Added a human-editable, maker–checker field-qualification plan for the local minimum consecutive cycles, optional mandatory parallel run, retained local authority, accepted rules/forms, and actual field-evidence basis; the two-cycle starter is explicitly not represented as a COA, DBM, or local rule.

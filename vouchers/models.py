@@ -4,7 +4,7 @@ import hashlib
 import json
 import uuid
 import os
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_HALF_UP, ROUND_UP
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -14,12 +14,27 @@ from django.urls import reverse
 
 from departments.models import Department
 from finance.models import (
-    FinanceConfigurationRelease, FinanceDocumentRule, FinanceParty, FinancePartyClaimant,
+    FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule, FinanceParty, FinancePartyClaimant,
     FinanceNumberingSequence, FinancePostingRule, FinanceTemplateVersion, FinanceTransactionVariant,
 )
 
 
 MONEY = {"max_digits": 18, "decimal_places": 2, "default": Decimal("0.00")}
+
+
+def voucher_tax_evidence_checksum(*, voucher, tax_rule_checksum, tax_base, amount, payee_name, payee_tax_identifier):
+    payload = {
+        "voucher_number": voucher.dv_number,
+        "voucher_date": voucher.voucher_date.isoformat(),
+        "tax_rule_checksum": tax_rule_checksum,
+        "tax_base": str(Decimal(tax_base).quantize(Decimal("0.01"))),
+        "amount": str(Decimal(amount).quantize(Decimal("0.01"))),
+        "payee_name": payee_name,
+        "payee_tax_identifier": payee_tax_identifier,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
 
 def voucher_output_path(instance, filename):
@@ -353,6 +368,88 @@ class VoucherDeduction(models.Model):
     code = models.CharField(max_length=80)
     description = models.CharField(max_length=180)
     amount = models.DecimalField(**MONEY, validators=[MinValueValidator(Decimal("0.01"))])
+    tax_rule_item = models.ForeignKey(
+        FinanceConfigurationItem, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="voucher_deduction_snapshots",
+    )
+    tax_base = models.DecimalField(
+        max_digits=18, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    tax_rule_snapshot = models.JSONField(default=dict, blank=True)
+    tax_rule_checksum = models.CharField(max_length=64, blank=True)
+    tax_evidence_checksum = models.CharField(max_length=64, blank=True)
+    payee_name_snapshot = models.CharField(max_length=220, blank=True)
+    payee_tax_identifier_snapshot = models.CharField(max_length=40, blank=True)
+
+    class Meta:
+        constraints = (
+            models.UniqueConstraint(
+                fields=("voucher", "tax_rule_item"),
+                condition=models.Q(tax_rule_item__isnull=False),
+                name="unique_voucher_tax_rule",
+            ),
+        )
+
+    def clean(self):
+        governed = bool(
+            self.tax_rule_item_id or self.tax_rule_snapshot or self.tax_rule_checksum
+            or self.tax_evidence_checksum
+        )
+        if not governed:
+            if self.tax_base is not None or self.payee_tax_identifier_snapshot or self.payee_name_snapshot:
+                raise ValidationError("Tax evidence must be pinned to a governed Finance Setup tax rule.")
+            return
+        if not all((
+            self.tax_rule_item_id, self.tax_rule_snapshot, self.tax_rule_checksum,
+            self.tax_evidence_checksum, self.tax_base,
+        )):
+            raise ValidationError("A governed tax deduction requires its rule, base, snapshot, and checksum together.")
+        if self.tax_rule_item.category != "tax_rule":
+            raise ValidationError({"tax_rule_item": "Choose a Finance Setup tax or deduction rule."})
+        if self.tax_rule_item.release_id != self.voucher.case.configuration_release_id:
+            raise ValidationError({"tax_rule_item": "Use a tax rule from the voucher's pinned Finance Setup release."})
+        encoded = json.dumps(self.tax_rule_snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        if hashlib.sha256(encoded).hexdigest() != self.tax_rule_checksum:
+            raise ValidationError("The immutable tax-rule checksum does not match its snapshot.")
+        if self.tax_rule_snapshot.get("item_public_id") != str(self.tax_rule_item.public_id):
+            raise ValidationError("The pinned tax-rule identity does not match its snapshot.")
+        from finance.models import finance_tax_rule_snapshot
+        live_snapshot, live_checksum = finance_tax_rule_snapshot(self.tax_rule_item)
+        if self.tax_rule_snapshot != live_snapshot or self.tax_rule_checksum != live_checksum:
+            raise ValidationError("The pinned tax rule no longer matches its approved Finance Setup source.")
+        try:
+            rate = Decimal(str(self.tax_rule_snapshot["rate_percent"]))
+        except (InvalidOperation, KeyError, TypeError, ValueError):
+            raise ValidationError("The pinned tax rule has no valid percentage rate.")
+        rounding = {
+            "half_up": ROUND_HALF_UP, "down": ROUND_DOWN, "up": ROUND_UP,
+        }.get(self.tax_rule_snapshot.get("rounding_mode"))
+        if not rounding:
+            raise ValidationError("The pinned tax rule has no supported cent-rounding instruction.")
+        expected = (self.tax_base * rate / Decimal("100")).quantize(
+            Decimal("0.01"), rounding=rounding,
+        )
+        if self.amount != expected:
+            raise ValidationError({"amount": f"The deduction must equal the reviewed base × rate: {expected:.2f}."})
+        if not self.payee_name_snapshot.strip():
+            raise ValidationError("A governed tax deduction requires the payee name snapshot.")
+        if self.tax_rule_snapshot.get("requires_tax_identifier") and not self.payee_tax_identifier_snapshot.strip():
+            raise ValidationError("The selected tax rule requires the payee's governed tax identifier.")
+        expected_evidence_checksum = voucher_tax_evidence_checksum(
+            voucher=self.voucher, tax_rule_checksum=self.tax_rule_checksum,
+            tax_base=self.tax_base, amount=self.amount,
+            payee_name=self.payee_name_snapshot,
+            payee_tax_identifier=self.payee_tax_identifier_snapshot,
+        )
+        if self.tax_evidence_checksum != expected_evidence_checksum:
+            raise ValidationError("The immutable voucher tax-evidence checksum does not match its facts.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Voucher deduction evidence is immutable. Return the pre-check case and recreate the DV evidence.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
 
 class VoucherDocumentCheck(models.Model):

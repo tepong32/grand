@@ -10,6 +10,7 @@ urlpatterns = [
     path("releases/<int:pk>/", views.release_detail, name="release_detail"),
     path("releases/<int:pk>/<slug:action>/", views.release_action, name="release_action"),
     path("items/new/", views.item_create, name="item_create"),
+    path("tax-rules/new/", views.tax_rule_create, name="tax_rule_create"),
     path("variants/new/", views.variant_create, name="variant_create"),
     path("document-rules/new/", views.document_rule_create, name="document_rule_create"),
     path("posting-rules/new/", views.posting_rule_create, name="posting_rule_create"),

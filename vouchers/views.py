@@ -13,7 +13,8 @@ from .access import can_view_workbench, has_explicit_permission, voucher_access_
 from .forms import (
     AccountingValidationForm, BankAdviceForm, BudgetCertificationForm, PayableIntakeForm,
     CancelCheckForm, CheckIssueForm, CheckReleaseForm, ReturnCaseForm,
-    NonFinancialAmendmentForm, SignatureReturnForm, SubmitChecksForm, VoucherPreparationForm,
+    NonFinancialAmendmentForm, SignatureReturnForm, SubmitChecksForm,
+    VoucherDeductionFormSet, VoucherPreparationForm,
     TracePointLinkForm, PayableEvidenceForm, PayableReviewForm, PayableSubmitForm,
     PayableAllocationAddForm, PayableAllocationRevisionForm, PayableClaimControlForm,
     ControlledPrintPrepareForm, FinancePacketAssemblyForm, PrintEvidenceForm,
@@ -173,6 +174,16 @@ def _case(public_id):
     )
 
 
+def _voucher_deduction_formset(case, data=None):
+    initial = []
+    if data is None and hasattr(case, "disbursement_voucher"):
+        initial = [
+            {"tax_rule": item.tax_rule_item_id, "tax_base": item.tax_base, "amount": item.amount}
+            for item in case.disbursement_voucher.deductions.select_related("tax_rule_item").order_by("pk")
+        ]
+    return VoucherDeductionFormSet(data, prefix="deductions", case=case, initial=initial)
+
+
 @voucher_access_required
 def case_detail(request, public_id):
     case = _case(public_id)
@@ -198,6 +209,7 @@ def case_detail(request, public_id):
         "case_ready_for_user": case.current_stage in actionable_stages,
         "budget_form": BudgetCertificationForm(case=case),
         "voucher_form": VoucherPreparationForm(case=case),
+        "voucher_deduction_formset": _voucher_deduction_formset(case),
         "signature_form": SignatureReturnForm(case=case),
         "validation_form": AccountingValidationForm(case=case),
         "check_form": CheckIssueForm(case=case),
@@ -262,8 +274,20 @@ def case_action(request, public_id, action):
     if not form_class:
         raise Http404
     form = form_class(request.POST, case=case)
-    if not form.is_valid():
-        messages.error(request, "Correct the action form: " + "; ".join(f"{field}: {', '.join(errors)}" for field, errors in form.errors.items()))
+    deduction_formset = _voucher_deduction_formset(case, request.POST) if action == "prepare-dv" else None
+    form_valid = form.is_valid()
+    deductions_valid = deduction_formset.is_valid() if deduction_formset is not None else True
+    if not form_valid or not deductions_valid:
+        errors = [f"{field}: {', '.join(values)}" for field, values in form.errors.items()]
+        if deduction_formset is not None:
+            for index, row in enumerate(deduction_formset.errors, start=1):
+                if row:
+                    errors.append(
+                        f"deduction row {index}: "
+                        + "; ".join(f"{field}: {', '.join(values)}" for field, values in row.items())
+                    )
+            errors.extend(str(value) for value in deduction_formset.non_form_errors())
+        messages.error(request, "Correct the action form: " + "; ".join(errors))
         return redirect(case)
     data = form.cleaned_data
     common = {"case": case, "actor": request.user, "expected_version": data["state_version"], "idempotency_key": data["idempotency_key"]}
@@ -307,9 +331,17 @@ def case_action(request, public_id, action):
                 **common, claim_amount=data["claim_amount"], reason=data["reason"],
             )
         elif action == "prepare-dv":
-            deductions = []
-            if data.get("deduction_code"):
-                deductions.append({"code": data["deduction_code"], "description": dict(form.fields["deduction_code"].choices)[data["deduction_code"]], "amount": data["deduction_amount"]})
+            deductions = [
+                {
+                    "tax_rule_item": row.cleaned_data["tax_rule"],
+                    "code": row.cleaned_data["tax_rule"].code,
+                    "description": row.cleaned_data["tax_rule"].label,
+                    "tax_base": row.cleaned_data.get("tax_base"),
+                    "amount": row.cleaned_data["amount"],
+                }
+                for row in deduction_formset.forms
+                if row.cleaned_data.get("tax_rule") and not row.cleaned_data.get("DELETE")
+            ]
             prepare_voucher(
                 **common, voucher_date=data["voucher_date"], gross_amount=data["gross_amount"], deductions=deductions,
                 line_description=data["line_description"], line_account_code=data["line_account_code"], document_codes=data["document_codes"],
@@ -406,6 +438,8 @@ def transaction_export(request, public_id):
         "allocation_version", "recognition_decision", "recognition_basis",
         "obligation_adjustment_decision", "obligation_adjustment_basis", "evidence_code",
         "evidence_status", "evidence_reference", "authority_reference",
+        "deduction_code", "deduction_amount", "tax_base", "tax_atc", "tax_rate_percent",
+        "tax_return_form", "tax_certificate_form", "tax_rule_checksum", "tax_evidence_checksum",
     ))
     intake = getattr(case, "payable_intake", None)
     base = (
@@ -424,6 +458,7 @@ def transaction_export(request, public_id):
             intake.recognition_decision if intake else "", intake.recognition_basis if intake else "",
             intake.obligation_adjustment_decision if intake else "",
             intake.obligation_adjustment_basis if intake else "", "", "", "", "",
+            "", "", "", "", "", "", "", "", "",
         ))
     if intake:
         for evidence in case.payable_document_evidence.all():
@@ -434,6 +469,22 @@ def transaction_export(request, public_id):
                 intake.obligation_adjustment_decision, intake.obligation_adjustment_basis,
                 evidence.requirement_code, evidence.status, evidence.evidence_reference,
                 evidence.authority_reference,
+                "", "", "", "", "", "", "", "", "",
+            ))
+    if hasattr(case, "disbursement_voucher"):
+        for deduction in case.disbursement_voucher.deductions.order_by("pk"):
+            tax = deduction.tax_rule_snapshot or {}
+            writer.writerow((
+                "deduction_tax_evidence", *base,
+                "", "", "", "", "", "", "",
+                intake.recognition_decision if intake else "", intake.recognition_basis if intake else "",
+                intake.obligation_adjustment_decision if intake else "",
+                intake.obligation_adjustment_basis if intake else "",
+                "", "", "", tax.get("authority_reference", ""),
+                deduction.code, deduction.amount, deduction.tax_base or "", tax.get("atc", ""),
+                tax.get("rate_percent", ""), tax.get("return_form_code", ""),
+                tax.get("certificate_form_code", ""), deduction.tax_rule_checksum,
+                deduction.tax_evidence_checksum,
             ))
     filename = f"{slugify(case.reference_code)}-payable-transaction.csv"
     archived = archive_export(

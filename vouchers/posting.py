@@ -193,6 +193,7 @@ def materialize_voucher_journal(posting_request, actor):
                                 "reference_key": str(item["code"]),
                                 "reference_label": str(item.get("description") or item["code"]),
                                 "source_code": str(item["code"]),
+                                "tax_reporting": item.get("tax_reporting") or {},
                             },
                         })
                 else:
@@ -296,6 +297,7 @@ def materialize_voucher_journal(posting_request, actor):
                             "dv_number": payload["dv_number"],
                             "transaction_type": payload.get("transaction_type", ""),
                             "posting_rule_checksum": request.posting_rule_checksum,
+                            "tax_reporting": row["subsidiary"].get("tax_reporting") or {},
                         },
                     )
                     detail.full_clean(); detail.save()

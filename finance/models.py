@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -21,6 +24,99 @@ LIFECYCLE_CHOICES = (
     ("retired", "Retired"),
 )
 LOCKED_STATES = {"approved", "scheduled", "active", "superseded", "retired"}
+
+TAX_FAMILY_CHOICES = (
+    ("expanded_income", "Expanded / creditable income tax"),
+    ("final_income", "Final income tax"),
+    ("government_vat", "VAT withheld on government payment"),
+    ("government_percentage", "Percentage tax withheld on government payment"),
+    ("compensation", "Compensation withholding"),
+    ("other", "Other locally confirmed tax"),
+)
+TAX_REPORTING_BASIS_CHOICES = (
+    ("accounting_posting", "Posted recognition or reversal date"),
+    ("voucher_date", "Disbursement Voucher date"),
+    ("payment_release", "Actual payment-release date"),
+)
+TAX_ROUNDING_CHOICES = (
+    ("half_up", "Nearest cent; half rounds up"),
+    ("down", "Round down to the cent"),
+    ("up", "Round up to the cent"),
+)
+TAX_APPLICABILITY_CHOICES = (
+    ("candidate", "Starter / local confirmation pending"),
+    ("locally_confirmed", "Locally confirmed for the stated scope"),
+)
+
+
+def normalized_tax_rule_configuration(configuration):
+    """Return the small, stable configuration used by vouchers and reports."""
+    configuration = configuration or {}
+    if not configuration.get("reporting_enabled"):
+        raise ValidationError("This deduction is not configured for controlled tax reporting.")
+    family = str(configuration.get("tax_family") or "").strip()
+    reporting_basis = str(configuration.get("reporting_basis") or "").strip()
+    rounding_mode = str(configuration.get("rounding_mode") or "").strip()
+    applicability = str(configuration.get("applicability_status") or "").strip()
+    if family not in dict(TAX_FAMILY_CHOICES):
+        raise ValidationError("Choose a supported tax family.")
+    if reporting_basis not in dict(TAX_REPORTING_BASIS_CHOICES):
+        raise ValidationError("Choose when this tax enters its controlled report period.")
+    if rounding_mode not in dict(TAX_ROUNDING_CHOICES):
+        raise ValidationError("Choose a supported cent-rounding rule.")
+    if applicability not in dict(TAX_APPLICABILITY_CHOICES):
+        raise ValidationError("Choose whether local applicability is still pending or confirmed.")
+    try:
+        rate = Decimal(str(configuration.get("rate_percent", "")))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValidationError("Enter the reviewed tax rate as a percentage.") from exc
+    if rate <= 0 or rate > Decimal("100"):
+        raise ValidationError("The reviewed tax rate must be greater than zero and no more than 100 percent.")
+    required_text = {
+        "atc": "Enter the applicable alphanumeric tax code (ATC).",
+        "return_form_code": "Enter the reviewed return or remittance form code.",
+        "tax_base_label": "Describe the amount to which the rate applies.",
+        "authority_reference": "Record the reviewed BIR/local authority reference.",
+        "local_acceptance_note": "Record the local applicability decision and retained evidence.",
+    }
+    for key, message in required_text.items():
+        if not str(configuration.get(key) or "").strip():
+            raise ValidationError(message)
+    return {
+        "reporting_enabled": True,
+        "tax_family": family,
+        "atc": str(configuration["atc"]).strip().upper(),
+        "rate_percent": format(rate.normalize(), "f"),
+        "tax_base_label": str(configuration["tax_base_label"]).strip(),
+        "return_form_code": str(configuration["return_form_code"]).strip().upper(),
+        "certificate_form_code": str(configuration.get("certificate_form_code") or "").strip().upper(),
+        "reporting_basis": reporting_basis,
+        "rounding_mode": rounding_mode,
+        "requires_tax_identifier": bool(configuration.get("requires_tax_identifier", True)),
+        "authority_reference": str(configuration["authority_reference"]).strip(),
+        "applicability_status": applicability,
+        "local_acceptance_note": str(configuration["local_acceptance_note"]).strip(),
+    }
+
+
+def finance_tax_rule_snapshot(item):
+    if item.category != "tax_rule":
+        raise ValidationError("Choose a Finance Setup tax or deduction rule.")
+    configuration = normalized_tax_rule_configuration(item.configuration)
+    snapshot = {
+        "item_public_id": str(item.public_id),
+        "release_id": item.release_id,
+        "release_code": item.release.code,
+        "release_version": item.release.version,
+        "code": item.code,
+        "version": item.version,
+        "label": item.label,
+        **configuration,
+    }
+    checksum = hashlib.sha256(
+        json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return snapshot, checksum
 
 
 def finance_template_path(instance, filename):
@@ -130,6 +226,11 @@ class FinanceConfigurationItem(models.Model):
             raise ValidationError({"release": "The release and configuration item must belong to the same finance office."})
         if not isinstance(self.configuration, dict):
             raise ValidationError({"configuration": "Configuration values must be a controlled key/value mapping."})
+        if self.category == "tax_rule" and self.configuration.get("reporting_enabled"):
+            try:
+                normalized_tax_rule_configuration(self.configuration)
+            except ValidationError as exc:
+                raise ValidationError({"configuration": exc.messages}) from exc
         if self.effective_to and self.effective_to < self.effective_from:
             raise ValidationError({"effective_to": "The retirement date cannot be before the effective date."})
         if self.supersedes_id:

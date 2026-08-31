@@ -14,6 +14,8 @@ from .models import (
     FinanceShadowComparison, FinanceShadowCycle, FinanceShadowDefect,
     FinanceShadowReconciliationPlan, FinanceSignatory, FinanceStakeholderAcceptance,
     FinanceTemplateVersion, FinanceTransactionVariant,
+    TAX_APPLICABILITY_CHOICES, TAX_FAMILY_CHOICES, TAX_REPORTING_BASIS_CHOICES,
+    TAX_ROUNDING_CHOICES,
 )
 
 
@@ -61,6 +63,112 @@ class FinanceItemForm(forms.ModelForm):
     def save(self, commit=True):
         instance = super().save(False)
         instance.configuration = self.cleaned_data["configuration_json"]
+        if commit:
+            instance.save()
+        return instance
+
+
+class FinanceTaxRuleForm(forms.ModelForm):
+    tax_family = forms.ChoiceField(choices=TAX_FAMILY_CHOICES, label="Tax family")
+    atc = forms.CharField(max_length=24, label="Alphanumeric tax code (ATC)")
+    rate_percent = forms.DecimalField(
+        max_digits=7, decimal_places=4, min_value=0.0001, max_value=100,
+        label="Rate (%)",
+        help_text="Enter the reviewed percentage, for example 1 or 2. Do not enter 0.01 for one percent.",
+    )
+    tax_base_label = forms.CharField(
+        max_length=180, label="What amount the rate applies to",
+        help_text="Use ordinary wording such as reviewed gross income payment, excluding locally inapplicable amounts.",
+    )
+    return_form_code = forms.CharField(
+        max_length=40, label="Return / remittance form code",
+        help_text="Example only after review: 1601-EQ. Confirm the current form and scope locally.",
+    )
+    certificate_form_code = forms.CharField(
+        max_length=40, required=False, label="Certificate form code (if applicable)",
+    )
+    reporting_basis = forms.ChoiceField(
+        choices=TAX_REPORTING_BASIS_CHOICES, label="Date used to place the item in a report period",
+    )
+    rounding_mode = forms.ChoiceField(choices=TAX_ROUNDING_CHOICES, label="Cent rounding")
+    requires_tax_identifier = forms.BooleanField(
+        required=False, initial=True,
+        label="Require the payee's governed tax identifier before DV preparation",
+    )
+    authority_reference = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="Reviewed BIR / local authority reference",
+    )
+    applicability_status = forms.ChoiceField(
+        choices=TAX_APPLICABILITY_CHOICES, label="Local applicability",
+    )
+    local_acceptance_note = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="Local decision and retained evidence",
+        help_text="Name who reviewed applicability, the covered transactions, and where the accepted evidence is retained.",
+    )
+
+    class Meta:
+        model = FinanceConfigurationItem
+        fields = (
+            "release", "code", "version", "label", "description", "effective_from",
+            "effective_to", "supersedes",
+        )
+        widgets = {"effective_from": DateInput(), "effective_to": DateInput()}
+
+    def __init__(self, *args, department=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.instance.category = "tax_rule"
+        if department:
+            self.instance.department = department
+            self.fields["release"].queryset = FinanceConfigurationRelease.objects.filter(
+                department=department, status="draft",
+            )
+            self.fields["supersedes"].queryset = FinanceConfigurationItem.objects.filter(
+                department=department, category="tax_rule",
+            ).exclude(status="draft")
+        configuration = self.instance.configuration or {}
+        for key in (
+            "tax_family", "atc", "rate_percent", "tax_base_label", "return_form_code",
+            "certificate_form_code", "reporting_basis", "rounding_mode",
+            "requires_tax_identifier", "authority_reference", "applicability_status",
+            "local_acceptance_note",
+        ):
+            if key in configuration:
+                self.fields[key].initial = configuration[key]
+        self.fields["reporting_basis"].initial = configuration.get("reporting_basis", "accounting_posting")
+        self.fields["rounding_mode"].initial = configuration.get("rounding_mode", "half_up")
+        self.fields["applicability_status"].initial = configuration.get("applicability_status", "candidate")
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("applicability_status") == "locally_confirmed":
+            authority = (cleaned.get("authority_reference") or "").strip()
+            acceptance = (cleaned.get("local_acceptance_note") or "").strip()
+            if authority.upper().startswith("EDIT BEFORE"):
+                self.add_error("authority_reference", "Replace the starter warning with the reviewed authority.")
+            if acceptance.upper().startswith("EDIT BEFORE"):
+                self.add_error("local_acceptance_note", "Record the actual local applicability decision.")
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(False)
+        instance.category = "tax_rule"
+        instance.configuration = {
+            "reporting_enabled": True,
+            "tax_family": self.cleaned_data["tax_family"],
+            "atc": self.cleaned_data["atc"].strip().upper(),
+            "rate_percent": format(self.cleaned_data["rate_percent"].normalize(), "f"),
+            "tax_base_label": self.cleaned_data["tax_base_label"].strip(),
+            "return_form_code": self.cleaned_data["return_form_code"].strip().upper(),
+            "certificate_form_code": self.cleaned_data["certificate_form_code"].strip().upper(),
+            "reporting_basis": self.cleaned_data["reporting_basis"],
+            "rounding_mode": self.cleaned_data["rounding_mode"],
+            "requires_tax_identifier": self.cleaned_data["requires_tax_identifier"],
+            "authority_reference": self.cleaned_data["authority_reference"].strip(),
+            "applicability_status": self.cleaned_data["applicability_status"],
+            "local_acceptance_note": self.cleaned_data["local_acceptance_note"].strip(),
+        }
         if commit:
             instance.save()
         return instance

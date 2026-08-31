@@ -17,6 +17,7 @@ from finance.exemptions import workflow_exemption_for, workflow_exemption_snapsh
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
     FinancePostingRule, FinanceSignatory, FinanceTransactionVariant, FinanceWorkflowExemption,
+    finance_tax_rule_snapshot,
 )
 from finance.services import (
     FinanceTemplateError, _destination, inspect_finance_workbook, posting_rule_snapshot,
@@ -33,6 +34,7 @@ from .models import (
     VoucherCase, VoucherDeduction, VoucherDocumentCheck, VoucherEvent,
     VoucherLineItem, VoucherNonFinancialAmendment, VoucherNumberIssue, VoucherOutput,
     VoucherPostingRequest, VoucherPrintJob, VoucherTask, WetSignatureTask,
+    voucher_tax_evidence_checksum,
 )
 
 
@@ -145,10 +147,29 @@ def _consume_number(case, actor, document_type):
     return _consume_sequence_number(case, actor, document_type, document_type)
 
 
+def _deduction_payload(item):
+    row = {"code": item.code, "description": item.description, "amount": str(item.amount)}
+    if item.tax_rule_checksum:
+        row["tax_reporting"] = {
+            **item.tax_rule_snapshot,
+            "tax_base": str(item.tax_base),
+            "tax_withheld": str(item.amount),
+            "tax_rule_checksum": item.tax_rule_checksum,
+            "tax_evidence_checksum": item.tax_evidence_checksum,
+            "payee_name": item.payee_name_snapshot,
+            "payee_tax_identifier": item.payee_tax_identifier_snapshot,
+            "voucher_date": item.voucher.voucher_date.isoformat(),
+            "voucher_number": item.voucher.dv_number,
+            "case_reference": item.voucher.case.reference_code,
+            "case_public_id": str(item.voucher.case.public_id),
+        }
+    return row
+
+
 def _event_posting_payload(case, posting_rule, rule_checksum, *, event_amount, bank_account_code, trigger):
     voucher = case.disbursement_voucher
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "voucher_case_public_id": str(case.public_id),
         "voucher_reference": case.reference_code,
         "dv_number": voucher.dv_number,
@@ -175,7 +196,7 @@ def _event_posting_payload(case, posting_rule, rule_checksum, *, event_amount, b
             for line in case.obligation.allocation_lines.order_by("pk")
         ],
         "deductions": [
-            {"code": item.code, "description": item.description, "amount": str(item.amount)}
+            _deduction_payload(item)
             for item in voucher.deductions.order_by("pk")
         ],
     }
@@ -1266,7 +1287,33 @@ def prepare_voucher(*, case, actor, voucher_date, gross_amount, deductions, line
         voucher.full_clean(); voucher.save()
     VoucherLineItem.objects.create(voucher=voucher, description=line_description.strip(), account_code=line_account_code, amount=gross)
     for item in deductions:
-        VoucherDeduction.objects.create(voucher=voucher, code=item["code"], description=item.get("description", item["code"]), amount=Decimal(item["amount"]))
+        tax_rule_item = item.get("tax_rule_item")
+        tax_fields = {}
+        if tax_rule_item is not None and (tax_rule_item.configuration or {}).get("reporting_enabled"):
+            snapshot, checksum = finance_tax_rule_snapshot(tax_rule_item)
+            if snapshot["applicability_status"] != "locally_confirmed":
+                raise VoucherWorkflowError(
+                    f"{tax_rule_item.label} is still a starter and cannot govern a voucher tax line."
+                )
+            tax_fields = {
+                "tax_rule_item": tax_rule_item,
+                "tax_base": Decimal(item["tax_base"]),
+                "tax_rule_snapshot": snapshot,
+                "tax_rule_checksum": checksum,
+                "payee_name_snapshot": case.payee_name,
+                "payee_tax_identifier_snapshot": case.payee.tax_identifier if case.payee_id else "",
+            }
+            tax_fields["tax_evidence_checksum"] = voucher_tax_evidence_checksum(
+                voucher=voucher, tax_rule_checksum=checksum,
+                tax_base=tax_fields["tax_base"], amount=Decimal(item["amount"]),
+                payee_name=tax_fields["payee_name_snapshot"],
+                payee_tax_identifier=tax_fields["payee_tax_identifier_snapshot"],
+            )
+        VoucherDeduction.objects.create(
+            voucher=voucher, code=item["code"],
+            description=item.get("description", item["code"]), amount=Decimal(item["amount"]),
+            **tax_fields,
+        )
     for code in document_codes:
         VoucherDocumentCheck.objects.create(voucher=voucher, requirement_code=code, label=code.replace("-", " ").title(), present=True, verified_by=actor, verified_at=timezone.now())
     round_number, has_signatories = _create_signature_round(case, voucher_date)
@@ -1559,7 +1606,7 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
     )
     voucher = case.disbursement_voucher
     payload = {
-        "schema_version": 2,
+        "schema_version": 3,
         "voucher_case_public_id": str(case.public_id),
         "voucher_reference": case.reference_code,
         "dv_number": voucher.dv_number,
@@ -1587,7 +1634,7 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
             for line in case.obligation.allocation_lines.order_by("pk")
         ],
         "deductions": [
-            {"code": item.code, "description": item.description, "amount": str(item.amount)}
+            _deduction_payload(item)
             for item in voucher.deductions.order_by("pk")
         ],
     }

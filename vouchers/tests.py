@@ -37,7 +37,7 @@ from .models import (
     BankAdviceBatch, PayableIntake, PaymentInstrument, PaymentInstrumentException, ReturnedInstrumentReview, TreasuryCashPolicy,
     TreasuryCashPosition, TreasuryCashReservation, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
     RemittancePostingRequest, TreasuryRemittanceBatch, TreasuryRemittanceLine,
-    VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
+    VoucherDeduction, VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
 )
 from .posting import materialize_voucher_journal, reconcile_posted_voucher_entry
 from .advice import (
@@ -155,6 +155,23 @@ class VoucherWorkflowTests(TestCase):
                 department=cls.accounting, release=cls.release, category=category, code=code,
                 version=1, label=label, status="active", effective_from=date(2026, 1, 1), created_by=cls.preparer,
             )
+        cls.tax_rule_item = FinanceConfigurationItem.objects.get(release=cls.release, category="tax_rule", code="ewt")
+        cls.tax_rule_item.configuration = {
+            "reporting_enabled": True,
+            "tax_family": "expanded_income",
+            "atc": "WI158",
+            "rate_percent": "1",
+            "tax_base_label": "Reviewed gross income payment",
+            "return_form_code": "1601-EQ",
+            "certificate_form_code": "2307",
+            "reporting_basis": "accounting_posting",
+            "rounding_mode": "half_up",
+            "requires_tax_identifier": True,
+            "authority_reference": "Synthetic locally reviewed BIR rule",
+            "applicability_status": "locally_confirmed",
+            "local_acceptance_note": "Synthetic Accounting acceptance evidence",
+        }
+        cls.tax_rule_item.save(update_fields=("configuration", "updated_at"))
         cls.transaction_variant = FinanceTransactionVariant.objects.create(
             department=cls.accounting, release=cls.release, code="ordinary-supplier-claim",
             label="Ordinary supplier claim", kind=FinanceTransactionVariant.ORDINARY_SUPPLIER,
@@ -206,6 +223,7 @@ class VoucherWorkflowTests(TestCase):
         cls.party = FinanceParty.objects.create(
             department=cls.accounting, release=cls.release, code="synthetic-supplier", version=1,
             display_name="Synthetic Office Supply Co.", party_type=FinanceParty.SUPPLIER,
+            tax_identifier="000-000-001-000",
             effective_from=date(2026, 1, 1), status="active", created_by=cls.preparer,
         )
         cls.claimant = FinancePartyClaimant.objects.create(
@@ -479,6 +497,82 @@ class VoucherWorkflowTests(TestCase):
             ),
         ))
         return agency
+
+    def test_governed_tax_deduction_pins_rule_payee_formula_and_posting_evidence(self):
+        case = self.create_case("tax-evidence-create")
+        self.budget_certify(case, "tax-evidence-budget")
+        case.refresh_from_db()
+        prepare_voucher(
+            case=case, actor=self.preparer, voucher_date=date(2026, 8, 25),
+            gross_amount=Decimal("1000.00"),
+            deductions=[{
+                "tax_rule_item": self.tax_rule_item,
+                "code": self.tax_rule_item.code,
+                "description": self.tax_rule_item.label,
+                "tax_base": Decimal("1000.00"),
+                "amount": Decimal("10.00"),
+            }],
+            line_description="Synthetic office supplies", line_account_code="5-02-03",
+            document_codes=["invoice"], expected_version=case.state_version,
+            idempotency_key="tax-evidence-prepare",
+        )
+        deduction = VoucherDeduction.objects.get(voucher__case=case)
+        self.assertEqual(deduction.tax_rule_snapshot["atc"], "WI158")
+        self.assertEqual(deduction.tax_rule_snapshot["return_form_code"], "1601-EQ")
+        self.assertEqual(deduction.payee_tax_identifier_snapshot, "000-000-001-000")
+        self.assertEqual(len(deduction.tax_rule_checksum), 64)
+        self.assertEqual(len(deduction.tax_evidence_checksum), 64)
+        deduction.amount = Decimal("9.99")
+        with self.assertRaises(ValidationError):
+            deduction.save()
+
+        self.return_signatures(case)
+        validate_accounting(
+            case=case, actor=self.validator, jev_number="JEV-TAX-001",
+            jev_date=date(2026, 8, 25), note="Tax evidence reviewed",
+            expected_version=case.state_version, idempotency_key="tax-evidence-validate",
+        )
+        case.refresh_from_db()
+        request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
+        self.assertEqual(request.payload["deductions"][0]["tax_reporting"]["atc"], "WI158")
+        entry, _created = materialize_voucher_journal(request, self.preparer)
+        subsidiary = JournalSubsidiaryLine.objects.get(entry=entry, category="withholding")
+        self.assertEqual(subsidiary.source_snapshot["tax_reporting"]["tax_base"], "1000.00")
+        self.assertEqual(subsidiary.source_snapshot["tax_reporting"]["tax_withheld"], "10.00")
+
+    def test_governed_tax_deduction_rejects_wrong_formula_and_missing_required_tin(self):
+        case = self.create_case("tax-invalid-create")
+        self.budget_certify(case, "tax-invalid-budget")
+        case.refresh_from_db()
+        with self.assertRaises(ValidationError):
+            prepare_voucher(
+                case=case, actor=self.preparer, voucher_date=date(2026, 8, 25),
+                gross_amount=Decimal("1000.00"), deductions=[{
+                    "tax_rule_item": self.tax_rule_item, "code": "ewt",
+                    "description": "Expanded withholding tax", "tax_base": Decimal("1000.00"),
+                    "amount": Decimal("11.00"),
+                }],
+                line_description="Synthetic office supplies", line_account_code="5-02-03",
+                document_codes=["invoice"], expected_version=case.state_version,
+                idempotency_key="tax-invalid-formula",
+            )
+
+        FinanceParty.objects.filter(pk=self.party.pk).update(tax_identifier="")
+        case = self.create_case("tax-no-tin-create")
+        self.budget_certify(case, "tax-no-tin-budget")
+        case.refresh_from_db()
+        with self.assertRaises(ValidationError):
+            prepare_voucher(
+                case=case, actor=self.preparer, voucher_date=date(2026, 8, 25),
+                gross_amount=Decimal("1000.00"), deductions=[{
+                    "tax_rule_item": self.tax_rule_item, "code": "ewt",
+                    "description": "Expanded withholding tax", "tax_base": Decimal("1000.00"),
+                    "amount": Decimal("10.00"),
+                }],
+                line_description="Synthetic office supplies", line_account_code="5-02-03",
+                document_codes=["invoice"], expected_version=case.state_version,
+                idempotency_key="tax-invalid-tin",
+            )
 
     def test_remittance_batch_versions_allocations_and_completes_only_after_posting(self):
         agency = self.enable_remittance_route()

@@ -134,6 +134,43 @@ class FinanceSetupCenterTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "approval basis"):
             transition_release(self.release, "approve", self.approver, "")
 
+    def test_structured_tax_starter_requires_local_confirmation_before_release_submission(self):
+        item = FinanceConfigurationItem.objects.create(
+            department=self.accounting, release=self.release, category="tax_rule", code="ewt-starter",
+            version=1, label="Expanded withholding starter", description="Editable UAT starter",
+            configuration={
+                "reporting_enabled": True, "tax_family": "expanded_income", "atc": "WI158",
+                "rate_percent": "1", "tax_base_label": "Reviewed gross income payment",
+                "return_form_code": "1601-EQ", "certificate_form_code": "2307",
+                "reporting_basis": "accounting_posting", "rounding_mode": "half_up",
+                "requires_tax_identifier": True,
+                "authority_reference": "Official BIR source pending local applicability review",
+                "applicability_status": "candidate",
+                "local_acceptance_note": "Local confirmation pending",
+            },
+            effective_from=date(2027, 1, 1), created_by=self.manager,
+        )
+        with self.assertRaisesMessage(ValidationError, "still a tax-reporting starter"):
+            transition_release(self.release, "submit", self.manager)
+        item.configuration = {
+            **item.configuration,
+            "applicability_status": "locally_confirmed",
+            "local_acceptance_note": "Synthetic Municipal Accountant review retained in ACCTG-TAX-001",
+        }
+        item.full_clean(); item.save(update_fields=("configuration", "updated_at"))
+        transition_release(self.release, "submit", self.manager)
+        self.release.refresh_from_db()
+        self.assertEqual(self.release.status, "submitted")
+
+    def test_structured_tax_rule_form_uses_plain_fields_and_no_json(self):
+        self.client.force_login(self.manager)
+        response = self.client.get(reverse("finance:tax_rule_create"), {"release": self.release.pk})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Alphanumeric tax code")
+        self.assertContains(response, "Rate (%)")
+        self.assertContains(response, "Local decision and retained evidence")
+        self.assertNotContains(response, "configuration_json")
+
     def test_admin_policy_can_exempt_a_named_user_or_role_and_records_each_use(self):
         self._grant(self.manager, "approve_finance_configuration")
         role = Group.objects.create(name="Synthetic small-office finance role")

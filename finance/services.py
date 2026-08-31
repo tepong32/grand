@@ -20,6 +20,7 @@ from .models import (
     FinanceAuditEvent, FinanceConfigurationItem, FinanceConfigurationRelease,
     FinanceNumberingSequence, FinanceParty, FinancePostingRule, FinancePostingRuleLine,
     FinanceSignatory, FinanceTemplateVersion, FinanceTransactionVariant,
+    normalized_tax_rule_configuration,
 )
 
 
@@ -450,6 +451,15 @@ def transition_release(release, action, actor, reason=""):
             raise PermissionDenied
         if release.status != "draft":
             raise ValidationError("Only draft releases can be submitted.")
+        for tax_item in release.items.filter(category="tax_rule"):
+            if not (tax_item.configuration or {}).get("reporting_enabled"):
+                continue
+            configuration = normalized_tax_rule_configuration(tax_item.configuration)
+            if configuration["applicability_status"] != "locally_confirmed":
+                raise ValidationError(
+                    f"{tax_item.label} is still a tax-reporting starter. Confirm its current form, ATC, rate, "
+                    "reporting date, rounding, local scope, and retained authority before submission."
+                )
         for variant in release.transaction_variants.all():
             if not variant.posting_rules.exists():
                 raise ValidationError(f"{variant.label} needs at least one locally reviewed posting rule.")

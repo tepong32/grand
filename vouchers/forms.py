@@ -4,6 +4,7 @@ import uuid
 from decimal import Decimal
 
 from django import forms
+from django.forms import BaseFormSet, formset_factory
 from django.db.models import Q, Sum
 from django.utils import timezone
 
@@ -13,7 +14,7 @@ from budget.services import obligation_lineage_request_ids
 from accounting.models import Fund
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceParty, FinancePartyClaimant, FinanceSignatory,
-    FinanceTransactionVariant,
+    FinanceTransactionVariant, normalized_tax_rule_configuration,
 )
 
 from .models import (
@@ -398,26 +399,101 @@ class VoucherPreparationForm(WorkflowForm):
     gross_amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.01"))
     line_description = forms.CharField(max_length=240)
     line_account_code = forms.ChoiceField(label="Account / expenditure code")
-    deduction_code = forms.ChoiceField(required=False)
-    deduction_amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.01"), required=False)
     document_codes = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple, required=False, label="Supporting documents present")
 
     def __init__(self, *args, case=None, **kwargs):
         super().__init__(*args, case=case, **kwargs)
         release = case.configuration_release if case else None
         self.fields["line_account_code"].choices = _items(release, "account_classification")
-        self.fields["deduction_code"].choices = [("", "— No deduction —")] + _items(release, "tax_rule")
         self.fields["document_codes"].choices = _items(release, "document_requirement")
         self.fields["voucher_date"].initial = timezone.localdate()
         if case and hasattr(case, "obligation"):
             self.fields["gross_amount"].initial = case.obligation.certified_amount
             self.fields["line_description"].initial = case.particulars
 
+
+
+class VoucherDeductionLineForm(forms.Form):
+    tax_rule = forms.ModelChoiceField(
+        queryset=FinanceConfigurationItem.objects.none(), required=False,
+        label="Deduction / withholding rule",
+    )
+    tax_base = forms.DecimalField(
+        max_digits=18, decimal_places=2, min_value=Decimal("0.01"), required=False,
+        label="Reviewed tax base",
+        help_text="Required for a structured tax rule; use the amount defined by that approved rule.",
+    )
+    amount = forms.DecimalField(
+        max_digits=18, decimal_places=2, min_value=Decimal("0.01"), required=False,
+        label="Deduction amount",
+    )
+
+    def __init__(self, *args, case=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        release = case.configuration_release if case else None
+        if release:
+            self.fields["tax_rule"].queryset = FinanceConfigurationItem.objects.filter(
+                release=release, category="tax_rule", status="active",
+                effective_from__lte=timezone.localdate(),
+            ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=timezone.localdate())).order_by("label", "code")
+
     def clean(self):
         cleaned = super().clean()
-        if bool(cleaned.get("deduction_code")) != bool(cleaned.get("deduction_amount")):
-            raise forms.ValidationError("Select both a deduction rule and amount, or leave both blank.")
+        rule = cleaned.get("tax_rule")
+        amount = cleaned.get("amount")
+        tax_base = cleaned.get("tax_base")
+        if not rule and not amount and not tax_base:
+            return cleaned
+        if not rule or amount is None:
+            raise forms.ValidationError("Choose the deduction rule and enter its amount, or remove this row.")
+        if (rule.configuration or {}).get("reporting_enabled"):
+            configuration = normalized_tax_rule_configuration(rule.configuration)
+            if configuration["applicability_status"] != "locally_confirmed":
+                raise forms.ValidationError("This tax rule is still a starter and has not been confirmed for local use.")
+            if tax_base is None:
+                self.add_error("tax_base", "Enter the reviewed tax base for this governed rule.")
+            if configuration["requires_tax_identifier"] and not (
+                getattr(getattr(self, "case", None), "payee", None)
+            ):
+                self.add_error("tax_rule", "The selected rule requires a governed payee.")
+        elif tax_base is not None:
+            self.add_error("tax_base", "A generic deduction has no governed tax base. Use the structured tax-rule setup first.")
         return cleaned
+
+
+class BaseVoucherDeductionFormSet(BaseFormSet):
+    def __init__(self, *args, case=None, **kwargs):
+        self.case = case
+        kwargs["form_kwargs"] = {**kwargs.get("form_kwargs", {}), "case": case}
+        super().__init__(*args, **kwargs)
+        for form in self.forms:
+            form.case = case
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        rules = []
+        for form in self.forms:
+            if self.can_delete and form.cleaned_data.get("DELETE"):
+                continue
+            rule = form.cleaned_data.get("tax_rule")
+            if rule:
+                rules.append(rule.pk)
+                configuration = rule.configuration or {}
+                if configuration.get("reporting_enabled") and configuration.get("requires_tax_identifier", True):
+                    if not self.case.payee_id or not self.case.payee.tax_identifier.strip():
+                        raise forms.ValidationError(
+                            f"{rule.label} requires the payee's governed tax identifier in Finance Setup before DV preparation."
+                        )
+        if len(rules) != len(set(rules)):
+            raise forms.ValidationError("Use each deduction or withholding rule only once on this DV.")
+
+
+VoucherDeductionFormSet = formset_factory(
+    VoucherDeductionLineForm, formset=BaseVoucherDeductionFormSet,
+    extra=1, can_delete=True, max_num=20, validate_max=True,
+)
 
 
 class SignatureReturnForm(WorkflowForm):

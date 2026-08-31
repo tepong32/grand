@@ -3,7 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from decimal import Decimal
+from datetime import date
+from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_HALF_UP, ROUND_UP
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Count, Q, Sum
@@ -591,6 +592,239 @@ class PostedWithholdingScheduleDataset(PostedSubsidiaryScheduleDataset):
     control_group = "withholding subsidiary"
 
 
+def _tax_rule_checksum(tax):
+    contextual = {
+        "tax_base", "tax_withheld", "tax_rule_checksum", "tax_evidence_checksum", "payee_name",
+        "payee_tax_identifier", "voucher_date", "voucher_number",
+        "case_reference", "case_public_id",
+    }
+    snapshot = {key: value for key, value in tax.items() if key not in contextual}
+    return hashlib.sha256(
+        json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _tax_evidence_checksum(tax):
+    try:
+        payload = {
+            "voucher_number": str(tax.get("voucher_number") or ""),
+            "voucher_date": str(tax.get("voucher_date") or ""),
+            "tax_rule_checksum": str(tax.get("tax_rule_checksum") or ""),
+            "tax_base": str(Decimal(str(tax.get("tax_base"))).quantize(Decimal("0.01"))),
+            "amount": str(Decimal(str(tax.get("tax_withheld"))).quantize(Decimal("0.01"))),
+            "payee_name": str(tax.get("payee_name") or ""),
+            "payee_tax_identifier": str(tax.get("payee_tax_identifier") or ""),
+        }
+    except (InvalidOperation, TypeError, ValueError):
+        return ""
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _governed_tax_payload(department, period_start, period_end):
+    from accounting.models import JournalEntry, JournalSubsidiaryLine
+    from vouchers.models import PaymentInstrument
+
+    details = list(
+        JournalSubsidiaryLine.objects.filter(
+            entry__department_id=department.pk,
+            entry__status=JournalEntry.POSTED,
+            category=JournalSubsidiaryLine.WITHHOLDING,
+        ).select_related("entry", "entry__fund", "journal_line", "journal_line__account", "entry__reversal_of")
+        .order_by("entry__entry_date", "entry__reference", "journal_line__sequence")
+    )
+    tagged = [
+        (detail, (detail.source_snapshot or {}).get("tax_reporting") or {})
+        for detail in details
+        if (detail.source_snapshot or {}).get("tax_reporting")
+    ]
+    case_ids = {tax.get("case_public_id") for _detail, tax in tagged if tax.get("case_public_id")}
+    releases = {}
+    if case_ids:
+        for instrument in PaymentInstrument.objects.filter(
+            case__public_id__in=case_ids, released_at__isnull=False,
+        ).order_by("released_at", "pk"):
+            key = str(instrument.case.public_id)
+            releases.setdefault(key, instrument.released_at.date())
+
+    rows, sources = [], []
+    formula_difference = Decimal("0.00")
+    ledger_tax_movement = Decimal("0.00")
+    invalid_rule_count = 0
+    missing_tax_identifier_count = 0
+    pending_release_count = 0
+    freshness_values = []
+    rounding_modes = {"half_up": ROUND_HALF_UP, "down": ROUND_DOWN, "up": ROUND_UP}
+    for detail, tax in tagged:
+        is_reversal = bool(detail.entry.reversal_of_id)
+        basis = tax.get("reporting_basis")
+        if is_reversal or basis == "accounting_posting":
+            reporting_date = detail.entry.entry_date
+        elif basis == "voucher_date":
+            try:
+                reporting_date = date.fromisoformat(str(tax.get("voucher_date") or ""))
+            except ValueError:
+                reporting_date = None
+        elif basis == "payment_release":
+            reporting_date = releases.get(str(tax.get("case_public_id") or ""))
+            if reporting_date is None:
+                pending_release_count += 1
+                continue
+        else:
+            reporting_date = None
+        if reporting_date is None or not (period_start <= reporting_date <= period_end):
+            continue
+        sign = Decimal("-1") if is_reversal else Decimal("1")
+        try:
+            base = Decimal(str(tax.get("tax_base"))) * sign
+            withheld = Decimal(str(tax.get("tax_withheld"))) * sign
+            rate = Decimal(str(tax.get("rate_percent")))
+            rounding = rounding_modes[tax.get("rounding_mode")]
+            expected = (base * rate / Decimal("100")).quantize(Decimal("0.01"), rounding=rounding)
+        except (InvalidOperation, KeyError, TypeError, ValueError):
+            base = Decimal("0.00")
+            withheld = detail.credit - detail.debit
+            rate = Decimal("0.00")
+            expected = Decimal("0.00")
+            invalid_rule_count += 1
+        formula_difference += withheld - expected
+        ledger_amount = detail.credit - detail.debit
+        ledger_tax_movement += ledger_amount
+        checksum_ok = bool(tax.get("tax_rule_checksum")) and _tax_rule_checksum(tax) == tax.get("tax_rule_checksum")
+        evidence_checksum_ok = bool(tax.get("tax_evidence_checksum")) and _tax_evidence_checksum(tax) == tax.get("tax_evidence_checksum")
+        if not checksum_ok or not evidence_checksum_ok or ledger_amount != withheld:
+            invalid_rule_count += 1
+        if tax.get("requires_tax_identifier") and not str(tax.get("payee_tax_identifier") or "").strip():
+            missing_tax_identifier_count += 1
+        row = {
+            "reporting_date": reporting_date,
+            "event_type": "Reversal / adjustment" if is_reversal else "Posted withholding",
+            "jev_reference": detail.entry.reference,
+            "case_reference": tax.get("case_reference", ""),
+            "dv_number": tax.get("voucher_number", ""),
+            "payee_tax_identifier": tax.get("payee_tax_identifier", ""),
+            "payee_name": tax.get("payee_name", ""),
+            "tax_family": tax.get("tax_family", ""),
+            "return_form_code": tax.get("return_form_code", ""),
+            "certificate_form_code": tax.get("certificate_form_code", ""),
+            "atc": tax.get("atc", ""),
+            "tax_base": base,
+            "rate_percent": rate,
+            "tax_withheld": withheld,
+            "rule_code": tax.get("code", ""),
+            "rule_version": tax.get("version", ""),
+            "reporting_basis": basis,
+            "authority_reference": tax.get("authority_reference", ""),
+        }
+        rows.append(row)
+        source_snapshot = {
+            **row,
+            "tax_rule_checksum": tax.get("tax_rule_checksum", ""),
+            "tax_rule_checksum_ok": checksum_ok,
+            "tax_evidence_checksum": tax.get("tax_evidence_checksum", ""),
+            "tax_evidence_checksum_ok": evidence_checksum_ok,
+            "ledger_tax_movement": str(ledger_amount),
+        }
+        sources.append({
+            "source_app": "accounting", "source_model": "JournalSubsidiaryLine",
+            "source_pk": str(detail.pk), "source_public_id": str(detail.entry.public_id),
+            "source_reference": detail.entry.reference, "source_date": detail.entry.entry_date,
+            "control_group": "governed tax withholding", "amount": ledger_amount,
+            "source_checksum": _snapshot_checksum(source_snapshot),
+            "source_url": reverse("accounting:entry_detail", kwargs={"public_id": detail.entry.public_id}),
+            "snapshot": source_snapshot,
+        })
+        freshness_values.append(detail.entry.posted_at or detail.entry.updated_at)
+    reported_base = sum((row["tax_base"] for row in rows), Decimal("0.00"))
+    reported_withheld = sum((row["tax_withheld"] for row in rows), Decimal("0.00"))
+    controls = {
+        "reported_tax_base": reported_base,
+        "reported_tax_withheld": reported_withheld,
+        "ledger_tax_movement": ledger_tax_movement,
+        "ledger_difference": ledger_tax_movement - reported_withheld,
+        "formula_difference": formula_difference,
+        "tax_line_count": len(rows),
+        "invalid_rule_or_amount_count": invalid_rule_count,
+        "missing_required_tax_identifier_count": missing_tax_identifier_count,
+        "awaiting_payment_release_count": pending_release_count,
+    }
+    status = (
+        "reconciled"
+        if not invalid_rule_count and not missing_tax_identifier_count
+        and controls["ledger_difference"] == 0 and formula_difference == 0
+        else "exception"
+    )
+    message = (
+        "Every included tax line retains an approved rule snapshot and agrees with its posted withholding movement."
+        if status == "reconciled"
+        else "One or more tax lines has a missing identifier, invalid rule/checksum, formula difference, or ledger difference."
+    )
+    if pending_release_count:
+        message += f" {pending_release_count} configured payment-release item(s) are not yet reportable."
+    return DatasetPayload(
+        rows=rows, sources=sources, control_totals=controls, control_status=status,
+        control_message=message, control_gate_required=True,
+        freshness_at=_latest_datetime(freshness_values),
+    )
+
+
+class GovernedTaxWithholdingDetailDataset(ApprovedDataset):
+    key = "finance_governed_tax_withholding_detail"
+    label = "Governed tax withholding detail / certificate source"
+    columns = (
+        Column("reporting_date", "Reporting date", "date"), Column("event_type", "Event"),
+        Column("jev_reference", "JEV"), Column("case_reference", "Case"),
+        Column("dv_number", "DV number"), Column("payee_tax_identifier", "Payee TIN / tax ID"),
+        Column("payee_name", "Payee"), Column("tax_family", "Tax family"),
+        Column("return_form_code", "Return / remittance form"),
+        Column("certificate_form_code", "Certificate form"), Column("atc", "ATC"),
+        Column("tax_base", "Tax base", "decimal"), Column("rate_percent", "Rate %", "decimal"),
+        Column("tax_withheld", "Tax withheld", "decimal"), Column("rule_code", "Rule code"),
+        Column("rule_version", "Rule version", "integer"), Column("reporting_basis", "Reporting basis"),
+        Column("authority_reference", "Authority reference"),
+    )
+
+    def supports_department(self, department):
+        identity = _department_identity(department)
+        return any(term in identity for term in ("accounting", "acctg", "finance"))
+
+    def payload(self, department, period_start, period_end, parameters):
+        return _governed_tax_payload(department, period_start, period_end)
+
+
+class GovernedTaxReturnSummaryDataset(GovernedTaxWithholdingDetailDataset):
+    key = "finance_governed_tax_return_summary"
+    label = "Governed tax return / remittance summary"
+    columns = (
+        Column("return_form_code", "Return / remittance form"), Column("tax_family", "Tax family"),
+        Column("atc", "ATC"), Column("rate_percent", "Rate %", "decimal"),
+        Column("payee_count", "Payees", "integer"), Column("line_count", "Lines", "integer"),
+        Column("tax_base", "Tax base", "decimal"), Column("tax_withheld", "Tax withheld", "decimal"),
+    )
+
+    def payload(self, department, period_start, period_end, parameters):
+        payload = _governed_tax_payload(department, period_start, period_end)
+        grouped = {}
+        payees = {}
+        for row in payload.rows:
+            key = (row["return_form_code"], row["tax_family"], row["atc"], row["rate_percent"])
+            bucket = grouped.setdefault(key, {
+                "return_form_code": row["return_form_code"], "tax_family": row["tax_family"],
+                "atc": row["atc"], "rate_percent": row["rate_percent"],
+                "payee_count": 0, "line_count": 0,
+                "tax_base": Decimal("0.00"), "tax_withheld": Decimal("0.00"),
+            })
+            bucket["line_count"] += 1
+            bucket["tax_base"] += row["tax_base"]
+            bucket["tax_withheld"] += row["tax_withheld"]
+            payees.setdefault(key, set()).add(row["payee_tax_identifier"] or row["payee_name"])
+        for key, bucket in grouped.items():
+            bucket["payee_count"] = len(payees[key])
+        payload.rows = list(grouped.values())
+        return payload
+
+
 class BudgetVersusPostedActualDataset(ApprovedDataset):
     key = "finance_budget_vs_posted_actual"
     label = "Budget versus posted actual schedule"
@@ -1118,7 +1352,8 @@ DATASETS = (
     AssistanceVolumeDataset(), ProgramAccomplishmentDataset(), AttendanceReachDataset(),
     ActivityScheduleDataset(), DepartmentWorkloadDataset(), BudgetAccountabilityDataset(),
     PostedTrialBalanceDataset(), PostedGeneralLedgerDataset(), PostedPayableScheduleDataset(),
-    PostedWithholdingScheduleDataset(), BudgetVersusPostedActualDataset(),
+    PostedWithholdingScheduleDataset(), GovernedTaxWithholdingDetailDataset(),
+    GovernedTaxReturnSummaryDataset(), BudgetVersusPostedActualDataset(),
     PaymentInstrumentRegisterDataset(), StatementOfFinancialPositionDataset(),
     StatementOfFinancialPerformanceDataset(),
 )

@@ -176,6 +176,57 @@ FINANCE_PRESETS = {
             ],
         },
         {
+            "name": "Governed Tax Withholding Detail / Certificate Source",
+            "slug": "governed-tax-withholding-detail",
+            "dataset_key": "finance_governed_tax_withholding_detail",
+            "description": (
+                "Posted, rule-pinned withholding and reversal detail by payee, ATC, base, rate, return, and "
+                "certificate code. This is a controlled source schedule, not a filed BIR return or issued certificate."
+            ),
+            "fields": [
+                "reporting_date", "event_type", "jev_reference", "case_reference", "dv_number",
+                "payee_tax_identifier", "payee_name", "tax_family", "return_form_code",
+                "certificate_form_code", "atc", "tax_base", "rate_percent", "tax_withheld",
+                "rule_code", "rule_version", "reporting_basis",
+            ],
+            "totals": ["tax_base", "tax_withheld"],
+            "authority_reference": (
+                "Candidate informed by current official BIR withholding-return and certificate instructions, including "
+                "BIR Forms 1601-EQ, 1604-E, and 2307 where locally applicable. Confirm the current forms, ATCs, "
+                "filing channel, deadline, signatories, and LGU scope before use."
+            ),
+            "header": "Municipal Accounting Office",
+            "prefix": "ACCTG-TAX-DETAIL",
+            "signatories": [
+                {"role": "Prepared by", "name": "Accounting tax schedule preparer"},
+                {"role": "Reviewed by", "name": "Municipal Accountant / authorized tax reviewer"},
+            ],
+        },
+        {
+            "name": "Governed Tax Return / Remittance Summary",
+            "slug": "governed-tax-return-summary",
+            "dataset_key": "finance_governed_tax_return_summary",
+            "description": (
+                "Control summary of governed posted tax lines grouped by reviewed return/remittance form, tax "
+                "family, ATC, and rate. It supports comparison with locally accepted filing evidence and does not file electronically."
+            ),
+            "fields": [
+                "return_form_code", "tax_family", "atc", "rate_percent", "payee_count",
+                "line_count", "tax_base", "tax_withheld",
+            ],
+            "totals": ["payee_count", "line_count", "tax_base", "tax_withheld"],
+            "authority_reference": (
+                "Candidate informed by current official BIR remittance and annual information-return instructions. "
+                "Confirm each locally applicable form, ATC, period, deadline, filing channel, and accepted layout."
+            ),
+            "header": "Municipal Accounting Office",
+            "prefix": "ACCTG-TAX-SUM",
+            "signatories": [
+                {"role": "Prepared by", "name": "Accounting tax schedule preparer"},
+                {"role": "Reviewed by", "name": "Municipal Accountant / authorized tax reviewer"},
+            ],
+        },
+        {
             "name": "Management Statement of Financial Position",
             "slug": "management-statement-financial-position",
             "dataset_key": "finance_statement_position",

@@ -37,7 +37,7 @@ from .forms import (
     FinanceCutoverQualificationEvidenceForm, FinanceCutoverQualificationPlanForm,
     FinanceShadowSourceUploadForm, FinanceSignatoryForm,
     FinanceStakeholderAcceptanceForm, FinanceStakeholderDecisionForm,
-    FinanceTemplateForm, FinanceStarterTemplateForm, FinanceTransactionVariantForm,
+    FinanceTemplateForm, FinanceStarterTemplateForm, FinanceTaxRuleForm, FinanceTransactionVariantForm,
 )
 from .models import (
     FinanceConfigurationRelease, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
@@ -113,6 +113,38 @@ def item_create(request):
         messages.success(request, "Draft finance master-data version created.")
         return redirect("finance:release_detail", pk=item.release_id)
     return render(request, "finance/form.html", {"form": form, "title": "Add finance configuration", "guidance": "Use synthetic examples only until local Accounting reviews the release. Existing approved versions are never overwritten."})
+
+
+@finance_permission_required(can_manage_finance_configuration)
+def tax_rule_create(request):
+    department = department_for_user(request.user)
+    form = FinanceTaxRuleForm(
+        request.POST or None, department=department, initial={
+            "release": request.GET.get("release"),
+            "effective_from": timezone.localdate(),
+            "applicability_status": "candidate",
+            "reporting_basis": "accounting_posting",
+            "rounding_mode": "half_up",
+            "requires_tax_identifier": True,
+        },
+    )
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.department, item.created_by = department, request.user
+        item.full_clean(); item.save(); record_event(item, request.user, "tax_rule_created")
+        messages.success(
+            request,
+            "Structured tax rule added to the draft release. Confirm its current form, ATC, rate, scope, and local basis before release submission.",
+        )
+        return redirect("finance:release_detail", pk=item.release_id)
+    return render(request, "finance/form.html", {
+        "form": form,
+        "title": "Add governed tax / withholding rule",
+        "guidance": (
+            "Use the fields your Accounting staff recognize; no JSON is required. Public BIR forms and guidance are review evidence, "
+            "not proof that a rate, ATC, deadline, certificate, or filing route applies to this LGU transaction."
+        ),
+    })
 
 
 @finance_permission_required(can_manage_finance_configuration)

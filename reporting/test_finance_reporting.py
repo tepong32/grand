@@ -6,6 +6,7 @@ import tempfile
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -24,8 +25,12 @@ from budget.models import (
     ObligationRequest,
 )
 from departments.models import Department
+from finance.models import (
+    FinanceConfigurationItem, FinanceConfigurationRelease, finance_tax_rule_snapshot,
+)
 from vouchers.models import (
     BankAdviceBatch, BankAdviceItem, DisbursementVoucher, PaymentInstrument, VoucherCase,
+    voucher_tax_evidence_checksum,
 )
 
 from .datasets import build_dataset_with_evidence
@@ -201,6 +206,137 @@ class FinanceAccountabilityReportingTests(TestCase):
             self.accounting_definition, self.accounting_definition.current_template, "xlsx",
             date(2027, 1, 1), date(2027, 3, 31), {}, actor or self.accounting_preparer,
         )
+
+    def test_governed_tax_detail_and_summary_reconcile_rule_formula_ledger_and_reversal(self):
+        release = FinanceConfigurationRelease.objects.create(
+            department=self.accounting, code="f9-tax", version=1,
+            title="Synthetic governed tax setup", fiscal_year=2027,
+            status="active", effective_from=date(2027, 1, 1),
+            created_by=self.accounting_preparer, activated_by=self.accounting_reviewer,
+            activated_at=timezone.now(),
+        )
+        tax_item = FinanceConfigurationItem.objects.create(
+            department=self.accounting, release=release, category="tax_rule", code="ewt-1",
+            version=1, label="Synthetic expanded withholding", description="Synthetic UAT rule",
+            configuration={
+                "reporting_enabled": True, "tax_family": "expanded_income", "atc": "WI158",
+                "rate_percent": "1", "tax_base_label": "Reviewed gross income payment",
+                "return_form_code": "1601-EQ", "certificate_form_code": "2307",
+                "reporting_basis": "accounting_posting", "rounding_mode": "half_up",
+                "requires_tax_identifier": True,
+                "authority_reference": "Synthetic locally reviewed BIR rule",
+                "applicability_status": "locally_confirmed",
+                "local_acceptance_note": "Synthetic Accounting acceptance evidence",
+            },
+            status="active", effective_from=date(2027, 1, 1), created_by=self.accounting_preparer,
+        )
+        rule_snapshot, rule_checksum = finance_tax_rule_snapshot(tax_item)
+        tax_snapshot = {
+            **rule_snapshot, "tax_base": "1000.00", "tax_withheld": "10.00",
+            "tax_rule_checksum": rule_checksum, "payee_name": "Synthetic Supplier",
+            "payee_tax_identifier": "000-000-001-000", "voucher_date": "2027-02-15",
+            "voucher_number": "DV-TAX-001", "case_reference": "CASE-TAX-001",
+            "case_public_id": "11111111-1111-1111-1111-111111111111",
+        }
+        tax_snapshot["tax_evidence_checksum"] = voucher_tax_evidence_checksum(
+            voucher=SimpleNamespace(dv_number="DV-TAX-001", voucher_date=date(2027, 2, 15)),
+            tax_rule_checksum=rule_checksum, tax_base=Decimal("1000.00"), amount=Decimal("10.00"),
+            payee_name="Synthetic Supplier", payee_tax_identifier="000-000-001-000",
+        )
+        withholding = LedgerAccount.objects.create(
+            department_id=self.accounting.pk, department_label=self.accounting.name,
+            code="2-02-TAX-F9", title="Synthetic governed tax payable",
+            account_type="liability", normal_balance="credit",
+        )
+        tax_entry = JournalEntry.objects.create(
+            department_id=self.accounting.pk, department_label=self.accounting.name,
+            reference="JEV-TAX-F9-001", entry_date=date(2027, 2, 15), period=self.period,
+            fund=self.fund, source_type="voucher", source_reference="tax-source-1",
+            description="Synthetic governed withholding", status=JournalEntry.DRAFT,
+            created_by_id=self.accounting_preparer.pk, created_by_label=self.accounting_preparer.username,
+            posted_by_id=self.accounting_reviewer.pk, posted_by_label=self.accounting_reviewer.username,
+            posted_at=timezone.now(),
+        )
+        debit = JournalLine.objects.create(
+            entry=tax_entry, sequence=1, account=self.cash, debit=Decimal("10.00"),
+        )
+        credit = JournalLine.objects.create(
+            entry=tax_entry, sequence=2, account=withholding, credit=Decimal("10.00"),
+        )
+        tax_detail = JournalSubsidiaryLine.objects.create(
+            entry=tax_entry, journal_line=credit, category=JournalSubsidiaryLine.WITHHOLDING,
+            reference_key="ewt-1", reference_label="Synthetic expanded withholding",
+            source_code="ewt-1", source_reference="tax-source-1", credit=Decimal("10.00"),
+            source_snapshot={"tax_reporting": tax_snapshot},
+        )
+        JournalEntry.objects.filter(pk=tax_entry.pk).update(status=JournalEntry.POSTED)
+        tax_entry.refresh_from_db()
+        self.assertEqual(debit.debit, Decimal("10.00"))
+
+        detail_definition = ReportDefinition.objects.get(
+            department=self.accounting, dataset_key="finance_governed_tax_withholding_detail",
+        )
+        _adapter, rows, totals, evidence = build_dataset_with_evidence(
+            detail_definition, date(2027, 1, 1), date(2027, 3, 31), {},
+        )
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["payee_tax_identifier"], "000-000-001-000")
+        self.assertEqual(rows[0]["tax_withheld"], Decimal("10.00"))
+        self.assertEqual(evidence["control_status"], ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(evidence["control_totals"]["ledger_difference"], Decimal("0.00"))
+        self.assertEqual(totals["tax_withheld"], Decimal("10.00"))
+        run = create_manual_run(
+            detail_definition, detail_definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer,
+        )
+        self.assertEqual(run.control_status, ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(run.dataset_snapshot["rows"][0]["payee_tax_identifier"], "000-000-001-000")
+        self.assertEqual(len(run.dataset_checksum), 64)
+        self.assertTrue(run.output_file.name.endswith(".xlsx"))
+
+        reversal = JournalEntry.objects.create(
+            department_id=self.accounting.pk, department_label=self.accounting.name,
+            reference="JEV-TAX-F9-REV", entry_date=date(2027, 3, 1), period=self.period,
+            fund=self.fund, source_type="reversal", source_reference="tax-reversal-1",
+            reversal_of=tax_entry, reversal_reason="Synthetic correction",
+            description="Reverse synthetic governed withholding", status=JournalEntry.DRAFT,
+            created_by_id=self.accounting_preparer.pk, created_by_label=self.accounting_preparer.username,
+            posted_by_id=self.accounting_reviewer.pk, posted_by_label=self.accounting_reviewer.username,
+            posted_at=timezone.now(),
+        )
+        reversal_debit = JournalLine.objects.create(
+            entry=reversal, sequence=1, account=withholding, debit=Decimal("10.00"),
+        )
+        JournalLine.objects.create(entry=reversal, sequence=2, account=self.cash, credit=Decimal("10.00"))
+        JournalSubsidiaryLine.objects.create(
+            entry=reversal, journal_line=reversal_debit, category=JournalSubsidiaryLine.WITHHOLDING,
+            reference_key="ewt-1", reference_label="Synthetic expanded withholding",
+            source_code="ewt-1", source_reference="tax-reversal-1", debit=Decimal("10.00"),
+            source_snapshot={"reversal_of_subsidiary_line": tax_detail.pk, "tax_reporting": tax_snapshot},
+        )
+        JournalEntry.objects.filter(pk=reversal.pk).update(status=JournalEntry.POSTED)
+        reversal.refresh_from_db()
+        summary_definition = ReportDefinition.objects.get(
+            department=self.accounting, dataset_key="finance_governed_tax_return_summary",
+        )
+        _adapter, summary_rows, summary_totals, summary_evidence = build_dataset_with_evidence(
+            summary_definition, date(2027, 1, 1), date(2027, 3, 31), {},
+        )
+        self.assertEqual(summary_rows[0]["line_count"], 2)
+        self.assertEqual(summary_rows[0]["tax_withheld"], Decimal("0.00"))
+        self.assertEqual(summary_totals["tax_withheld"], Decimal("0.00"))
+        self.assertEqual(summary_evidence["control_status"], ReportRun.CONTROL_RECONCILED)
+
+        broken = dict(tax_snapshot)
+        broken["rate_percent"] = "2"
+        JournalSubsidiaryLine.objects.filter(pk=tax_detail.pk).update(
+            source_snapshot={"tax_reporting": broken},
+        )
+        _adapter, _rows, _totals, broken_evidence = build_dataset_with_evidence(
+            detail_definition, date(2027, 1, 1), date(2027, 3, 31), {},
+        )
+        self.assertEqual(broken_evidence["control_status"], ReportRun.CONTROL_EXCEPTION)
+        self.assertGreater(broken_evidence["control_totals"]["invalid_rule_or_amount_count"], 0)
 
     def test_trial_balance_run_pins_reconciled_controls_and_source_drillthrough(self):
         run = self.generate_accounting()
