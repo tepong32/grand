@@ -5,4 +5,3 @@ class BudgetConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "budget"
     verbose_name = "GRAND Budget"
-
