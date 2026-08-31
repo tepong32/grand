@@ -1,5 +1,16 @@
 # Changelog
 
+## F11.4 Governed curricula, support, and witnessed readiness exercises
+
+- Added a human-editable curriculum/support plan for role curricula, floating/desk quick guides, supervisor observation/rerun instructions, named support ownership, channels/hours, escalation procedure, local acceptance evidence, and an explicit learning-privacy boundary.
+- Added checksum-backed maker–checker plan submission, return, approval, and post-approval immutability.
+- Added locally written readiness exercises with exact scope, procedure, expected result, owner, different assigned witness, schedule/due time, and a pinned approved support route.
+- Required one independently passed role exercise for every named stakeholder plus passed security/access, privacy, accessibility, performance, printing/custody, backup/restore, business-continuity, and incident/support exercises before cutover submission.
+- Added owner-submitted actual results and retained redacted evidence, witness-only pass/rerun decisions, resubmission after a reasoned return, immutable passed evidence, and append-only audit events.
+- Kept private floating Internal How-To progress out of formal training, competence, performance, acceptance, and portable evidence; bumped the stakeholder guide to version 2 and cutover-manager guide to version 3.
+- Extended the conservative Finance workspace and TraceSync JSON package to schema v4 with readiness-plan, exercise, result, checksum, witness, rerun, and readiness-gate metadata.
+- Left actual locally accepted curriculum/runbook content, devices, volumes, forms, timings, pass conditions, complete field execution, consecutive cycles, and stakeholder/cutover signatures outside the implementation claim.
+
 ## F11.3 Scheduled reconciliation and governed defect resolution
 
 - Added human-editable calendar-day or working-day reconciliation plans with first due time, grace period, minimum reviewed runs, enabled transaction types, retained local authority/acceptance evidence, and editable Critical/High/Medium/Low correction targets and escalation routes.
@@ -7,7 +18,7 @@
 - Added ordered scheduled runs that prevent overlap, retain current comparison and defect snapshots, calculate exact outcome counts, flag due/overdue work, and receive independent Reconciled, Reviewed with exceptions, or Returned decisions.
 - Added stable defect intake with severity, impact, owner, calculated correction deadline, pinned escalation route, actual escalation history, owner correction evidence, and independent accept/reopen review.
 - Kept reviewed exceptions distinct from resolution and blocked final cycle review until the local minimum run count is met, every opened run is reviewed, and every current defect is independently resolved.
-- Extended the conservative Finance workspace, Accounting floating Internal How-To version 3, append-only audit evidence, and TraceSync JSON schema v3 with cadence, run, defect, resolution, and escalation metadata.
+- Extended the conservative Finance workspace, Accounting floating Internal How-To version 2, append-only audit evidence, and TraceSync JSON schema v3 with cadence, run, defect, resolution, and escalation metadata.
 - Left actual local plan values, production adapters, accepted support/curricula, non-functional exercises, consecutive field cycles, and stakeholder/cutover signatures outside the implementation claim.
 
 ## F11.2 Versioned redacted source staging and schema-drift review

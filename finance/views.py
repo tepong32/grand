@@ -17,9 +17,11 @@ from .cutover_services import (
     decide_stakeholder_acceptance, record_cutover_rollback, review_shadow_cycle,
     review_shadow_source_drift, stage_shadow_external_lock, stage_shadow_source_csv,
     open_next_reconciliation_run, record_shadow_defect_escalation,
-    register_shadow_defect, review_reconciliation_plan, review_reconciliation_run,
+    register_shadow_defect, review_cutover_readiness_exercise, review_cutover_readiness_plan,
+    review_reconciliation_plan, review_reconciliation_run,
     review_shadow_defect_resolution, start_shadow_cycle, submit_cutover_decision,
-    submit_reconciliation_plan, submit_reconciliation_run, submit_shadow_cycle,
+    schedule_cutover_readiness_exercise, submit_cutover_readiness_exercise,
+    submit_cutover_readiness_plan, submit_reconciliation_plan, submit_reconciliation_run, submit_shadow_cycle,
     submit_shadow_defect_resolution,
 )
 from .forms import (
@@ -28,12 +30,15 @@ from .forms import (
     FinancePartyClaimantForm, FinancePartyForm, FinancePostingRuleForm, FinancePostingRuleLineForm,
     FinanceShadowComparisonForm, FinanceShadowCycleForm, FinanceShadowDriftReviewForm,
     FinanceShadowDefectForm, FinanceShadowDefectResolutionForm, FinanceShadowExternalLockForm,
-    FinanceShadowReconciliationPlanForm, FinanceShadowSourceUploadForm, FinanceSignatoryForm,
+    FinanceCutoverReadinessExerciseForm, FinanceCutoverReadinessExerciseResultForm,
+    FinanceCutoverReadinessPlanForm, FinanceShadowReconciliationPlanForm,
+    FinanceShadowSourceUploadForm, FinanceSignatoryForm,
     FinanceStakeholderAcceptanceForm, FinanceStakeholderDecisionForm,
     FinanceTemplateForm, FinanceStarterTemplateForm, FinanceTransactionVariantForm,
 )
 from .models import (
-    FinanceConfigurationRelease, FinanceCutoverDecision, FinanceParty, FinanceShadowCycle,
+    FinanceConfigurationRelease, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
+    FinanceCutoverReadinessPlan, FinanceParty, FinanceShadowCycle,
     FinanceShadowDefect, FinanceShadowReconciliationPlan, FinanceShadowReconciliationRun,
     FinanceShadowSourceVersion,
     FinanceStakeholderAcceptance, FinanceTemplateVersion, FinanceTransactionVariant,
@@ -432,11 +437,20 @@ def shadow_cycle_detail(request, pk):
         plan = cycle.reconciliation_plan
     except FinanceShadowReconciliationPlan.DoesNotExist:
         plan = None
+    try:
+        readiness_plan = cycle.cutover_readiness_plan
+    except FinanceCutoverReadinessPlan.DoesNotExist:
+        readiness_plan = None
     department = cycle.department
     return render(request, "finance/shadow_cycle_detail.html", {
         "cycle": cycle,
         "source_versions": cycle.source_versions.select_related("staged_by", "reviewed_by"),
         "reconciliation_plan": plan,
+        "cutover_readiness_plan": readiness_plan,
+        "cutover_readiness_exercises": cycle.cutover_readiness_exercises.select_related(
+            "stakeholder_acceptance", "stakeholder_acceptance__office", "owner", "witness",
+            "submitted_by", "reviewed_by",
+        ),
         "reconciliation_runs": cycle.reconciliation_runs.select_related("prepared_by", "submitted_by", "reviewed_by"),
         "defects": cycle.defects.select_related("comparison", "owner", "resolution_submitted_by", "resolved_by"),
         "comparisons": cycle.comparisons.select_related("defect_owner", "created_by"),
@@ -501,6 +515,150 @@ def shadow_reconciliation_plan_action(request, pk, action):
     else:
         messages.success(request, "The reconciliation-plan action is retained in Finance audit history.")
     return redirect("finance:shadow_cycle_detail", pk=plan.cycle_id)
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def cutover_readiness_plan(request, cycle_pk):
+    department = department_for_user(request.user)
+    cycle = get_object_or_404(FinanceShadowCycle, pk=cycle_pk, department=department)
+    try:
+        plan = cycle.cutover_readiness_plan
+    except FinanceCutoverReadinessPlan.DoesNotExist:
+        plan = None
+    if plan and plan.status not in {FinanceCutoverReadinessPlan.DRAFT, FinanceCutoverReadinessPlan.RETURNED}:
+        return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    form = FinanceCutoverReadinessPlanForm(
+        request.POST or None, instance=plan, department=department,
+    )
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.cycle = cycle
+        if not item.pk:
+            item.created_by = request.user
+        try:
+            item.save()
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(
+                request,
+                "Draft curriculum, supervisor, and support plan saved. Submit it for independent review before scheduling exercises.",
+            )
+            return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Cutover readiness and support plan — {cycle.code}", "cycle": cycle,
+        "guidance": (
+            "Reference locally accepted, human-readable materials and actual support ownership. "
+            "Floating Internal How-To progress stays private and never becomes acceptance or employee-evaluation evidence."
+        ),
+    })
+
+
+@shadow_access_required
+def cutover_readiness_plan_action(request, pk, action):
+    if request.method != "POST":
+        raise Http404
+    plan = get_object_or_404(
+        FinanceCutoverReadinessPlan.objects.select_related("cycle", "cycle__department"), pk=pk,
+    )
+    if not can_view_shadow_cycle(request.user, plan.cycle):
+        raise PermissionDenied
+    reason = request.POST.get("reason", "")
+    try:
+        if action == "submit":
+            submit_cutover_readiness_plan(plan, request.user)
+        elif action == "approve":
+            review_cutover_readiness_plan(plan, request.user, approve=True, reason=reason)
+        elif action == "return":
+            review_cutover_readiness_plan(plan, request.user, approve=False, reason=reason)
+        else:
+            raise Http404
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(request, "The readiness-plan action is checksummed and retained in Finance audit history.")
+    return redirect("finance:shadow_cycle_detail", pk=plan.cycle_id)
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def cutover_readiness_exercise_create(request, cycle_pk):
+    department = department_for_user(request.user)
+    cycle = get_object_or_404(FinanceShadowCycle, pk=cycle_pk, department=department)
+    form = FinanceCutoverReadinessExerciseForm(request.POST or None, cycle=cycle)
+    if request.method == "POST" and form.is_valid():
+        try:
+            schedule_cutover_readiness_exercise(
+                cycle, request.user,
+                kind=form.cleaned_data["kind"], code=form.cleaned_data["code"],
+                title=form.cleaned_data["title"], enabled_scope=form.cleaned_data["enabled_scope"],
+                procedure=form.cleaned_data["procedure"], expected_result=form.cleaned_data["expected_result"],
+                owner=form.cleaned_data["owner"], witness=form.cleaned_data["witness"],
+                scheduled_for=form.cleaned_data["scheduled_for"], due_at=form.cleaned_data["due_at"],
+                stakeholder_acceptance=form.cleaned_data["stakeholder_acceptance"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Readiness exercise scheduled with the approved support route pinned to it.")
+            return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Schedule readiness exercise — {cycle.code}", "cycle": cycle,
+        "guidance": (
+            "Use familiar instructions and observable pass results. Role training attaches to one named stakeholder; "
+            "other exercise kinds cover the cutover's security, privacy, usability, operating, recovery, and support controls."
+        ),
+    })
+
+
+@shadow_access_required
+def cutover_readiness_exercise_result(request, pk):
+    exercise = get_object_or_404(
+        FinanceCutoverReadinessExercise.objects.select_related("cycle", "cycle__department", "owner"), pk=pk,
+    )
+    if not can_view_shadow_cycle(request.user, exercise.cycle):
+        raise PermissionDenied
+    if request.user.pk != exercise.owner_id:
+        raise PermissionDenied
+    form = FinanceCutoverReadinessExerciseResultForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            submit_cutover_readiness_exercise(
+                exercise, request.user, actual_result=form.cleaned_data["actual_result"],
+                evidence_reference=form.cleaned_data["evidence_reference"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Exercise result submitted; it does not pass until the assigned witness accepts it.")
+            return redirect("finance:shadow_cycle_detail", pk=exercise.cycle_id)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Record exercise result — {exercise.code}", "cycle": exercise.cycle,
+        "guidance": "Record observable results and retained redacted evidence. The assigned independent witness decides pass or rerun.",
+    })
+
+
+@shadow_access_required
+def cutover_readiness_exercise_action(request, pk, action):
+    if request.method != "POST":
+        raise Http404
+    exercise = get_object_or_404(
+        FinanceCutoverReadinessExercise.objects.select_related("cycle", "cycle__department"), pk=pk,
+    )
+    if not can_view_shadow_cycle(request.user, exercise.cycle):
+        raise PermissionDenied
+    reason = request.POST.get("reason", "")
+    try:
+        if action == "accept":
+            review_cutover_readiness_exercise(exercise, request.user, accept=True, reason=reason)
+        elif action == "return":
+            review_cutover_readiness_exercise(exercise, request.user, accept=False, reason=reason)
+        else:
+            raise Http404
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(request, "The witness decision and evidence checksum are retained.")
+    return redirect("finance:shadow_cycle_detail", pk=exercise.cycle_id)
 
 
 @finance_permission_required(can_manage_shadow_operation)

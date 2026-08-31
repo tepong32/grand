@@ -15,6 +15,7 @@ from departments.models import Department
 from profiles.models import EmployeeProfile
 
 from .cutover_services import (
+    REQUIRED_NONFUNCTIONAL_EXERCISES,
     REQUIRED_STAKEHOLDERS,
     build_cutover_evidence_package,
     cutover_readiness,
@@ -22,16 +23,21 @@ from .cutover_services import (
     decide_stakeholder_acceptance,
     record_cutover_rollback,
     record_shadow_defect_escalation,
+    review_cutover_readiness_exercise,
+    review_cutover_readiness_plan,
     review_shadow_cycle,
     review_reconciliation_plan,
     review_reconciliation_run,
     review_shadow_defect_resolution,
     review_shadow_source_drift,
     register_shadow_defect,
+    schedule_cutover_readiness_exercise,
     open_next_reconciliation_run,
     stage_shadow_source_csv,
     start_shadow_cycle,
     submit_cutover_decision,
+    submit_cutover_readiness_exercise,
+    submit_cutover_readiness_plan,
     submit_reconciliation_plan,
     submit_reconciliation_run,
     submit_shadow_cycle,
@@ -40,6 +46,8 @@ from .cutover_services import (
 from .models import (
     FinanceAuditEvent,
     FinanceCutoverDecision,
+    FinanceCutoverReadinessExercise,
+    FinanceCutoverReadinessPlan,
     FinanceShadowComparison,
     FinanceShadowCycle,
     FinanceShadowDefect,
@@ -188,6 +196,7 @@ class FinanceShadowCutoverTests(TestCase):
         return cycle
 
     def _accepted_stakeholders(self, cycle):
+        self._approve_readiness_plan(cycle)
         for kind in sorted(REQUIRED_STAKEHOLDERS):
             reviewer = self.requesting_reviewer if kind == FinanceStakeholderAcceptance.REQUESTING_OFFICE else self.other_reviewer
             acceptance = FinanceStakeholderAcceptance(
@@ -199,6 +208,11 @@ class FinanceShadowCutoverTests(TestCase):
                 created_by=self.manager,
             )
             acceptance.full_clean(); acceptance.save()
+            self._pass_readiness_exercise(
+                cycle, kind=FinanceCutoverReadinessExercise.ROLE_TRAINING,
+                code=f"role-{kind}", owner=reviewer, witness=self.reconciler,
+                stakeholder_acceptance=acceptance,
+            )
             decide_stakeholder_acceptance(
                 acceptance,
                 reviewer,
@@ -206,6 +220,53 @@ class FinanceShadowCutoverTests(TestCase):
                 training_reference=f"{kind} role guide and supervisor exercise TRN-001",
                 uat_reference=f"{kind} synthetic/redacted scenario UAT-001",
             )
+        for kind in sorted(REQUIRED_NONFUNCTIONAL_EXERCISES):
+            self._pass_readiness_exercise(
+                cycle, kind=kind, code=f"nfr-{kind}", owner=self.manager, witness=self.reconciler,
+            )
+
+    def _approve_readiness_plan(self, cycle):
+        existing = FinanceCutoverReadinessPlan.objects.filter(cycle=cycle).first()
+        if existing:
+            return existing
+        plan = FinanceCutoverReadinessPlan.objects.create(
+            cycle=cycle,
+            curriculum_register_reference="Role curriculum register CURR-001 with Budget, Accounting, Treasury, requesting-office, IT, management, and audit sections.",
+            quick_guides_reference="Published floating Internal How-Tos and controlled desk guides QUICK-001.",
+            supervisor_runbook_reference="Supervisor observation, rerun, and sign-off runbook SUP-001.",
+            support_owner=self.manager,
+            support_channels_and_hours="Finance support desk, weekdays 8:00–17:00; backup channel retained in SUP-001.",
+            support_escalation_procedure="Access to IT; data/control to Accounting and Budget; payment to Treasury; critical cutover issue to management.",
+            local_acceptance_note="Synthetic UAT readiness workshop decision READY-PLAN-001.",
+            created_by=self.manager,
+        )
+        submit_cutover_readiness_plan(plan, self.manager)
+        review_cutover_readiness_plan(
+            plan, self.reconciler, approve=True,
+            reason="Reviewed role curricula, supervisor observation, support ownership, hours, and escalation boundaries.",
+        )
+        return FinanceCutoverReadinessPlan.objects.get(pk=plan.pk)
+
+    def _pass_readiness_exercise(self, cycle, *, kind, code, owner, witness, stakeholder_acceptance=None):
+        scheduled_for = timezone.make_aware(datetime.combine(cycle.planned_start, time(9, 0)))
+        exercise = schedule_cutover_readiness_exercise(
+            cycle, self.manager, kind=kind, code=code, title=f"{kind} synthetic readiness exercise",
+            enabled_scope=cycle.enabled_scope,
+            procedure="Follow the retained human-readable script with synthetic/redacted inputs and record observable controls.",
+            expected_result="The named control completes without unexplained difference and the safe fallback remains usable.",
+            owner=owner, witness=witness, scheduled_for=scheduled_for,
+            due_at=scheduled_for + timedelta(hours=4), stakeholder_acceptance=stakeholder_acceptance,
+        )
+        submit_cutover_readiness_exercise(
+            exercise, owner,
+            actual_result="Completed the exact synthetic script; expected control and fallback result were observed.",
+            evidence_reference=f"Redacted exercise packet {code.upper()}-EVIDENCE",
+        )
+        review_cutover_readiness_exercise(
+            exercise, witness, accept=True,
+            reason="Independently observed the retained result and verified it against the stated pass condition.",
+        )
+        return FinanceCutoverReadinessExercise.objects.get(pk=exercise.pk)
 
     def test_comparisons_calculate_exact_differences_and_open_defects_block_submission(self):
         cycle = self._cycle()
@@ -306,11 +367,13 @@ class FinanceShadowCutoverTests(TestCase):
         )
         content, _filename, _receipt = build_cutover_evidence_package(cycle, self.manager)
         payload = json.loads(content)
-        self.assertEqual(payload["schema_version"], 3)
+        self.assertEqual(payload["schema_version"], 4)
         self.assertEqual(payload["cycle"]["schema_version"], 3)
         self.assertEqual(payload["cycle"]["reconciliation_plan"]["status"], "approved")
         self.assertEqual(payload["cycle"]["source_versions"][0]["row_count"], 1)
         self.assertEqual(payload["cycle"]["source_versions"][0]["normalized_headers"], ["case_id", "amount", "status"])
+        self.assertIsNone(payload["cutover_readiness_plan"])
+        self.assertEqual(payload["cutover_readiness_exercises"], [])
         self.assertNotIn("SECRET-ROW-VALUE", content.decode("utf-8"))
 
     def test_scheduled_run_retains_exception_then_independent_defect_resolution_opens_final_gate(self):
@@ -427,6 +490,7 @@ class FinanceShadowCutoverTests(TestCase):
 
     def test_only_named_stakeholder_can_decide_and_private_tutorial_progress_is_not_used(self):
         cycle = self._reconciled_cycle()
+        self._approve_readiness_plan(cycle)
         acceptance = FinanceStakeholderAcceptance(
             cycle=cycle,
             stakeholder_kind=FinanceStakeholderAcceptance.REQUESTING_OFFICE,
@@ -441,6 +505,17 @@ class FinanceShadowCutoverTests(TestCase):
                 acceptance, self.manager, decision=FinanceStakeholderAcceptance.ACCEPTED,
                 training_reference="Training evidence", uat_reference="UAT evidence",
             )
+        with self.assertRaisesMessage(ValidationError, "independently witness"):
+            decide_stakeholder_acceptance(
+                acceptance, self.requesting_reviewer,
+                decision=FinanceStakeholderAcceptance.ACCEPTED,
+                training_reference="Private tutorial progress", uat_reference="UAT evidence",
+            )
+        exercise = self._pass_readiness_exercise(
+            cycle, kind=FinanceCutoverReadinessExercise.ROLE_TRAINING,
+            code="role-requesting-office", owner=self.requesting_reviewer,
+            witness=self.reconciler, stakeholder_acceptance=acceptance,
+        )
         decide_stakeholder_acceptance(
             acceptance, self.requesting_reviewer,
             decision=FinanceStakeholderAcceptance.ACCEPTED,
@@ -450,12 +525,106 @@ class FinanceShadowCutoverTests(TestCase):
         acceptance.refresh_from_db()
         self.assertEqual(acceptance.decided_by, self.requesting_reviewer)
         self.assertNotIn("tutorial", acceptance.training_evidence_reference.lower())
+        self.assertEqual(exercise.status, FinanceCutoverReadinessExercise.PASSED)
         with self.assertRaisesMessage(ValidationError, "already recorded"):
             decide_stakeholder_acceptance(
                 acceptance, self.requesting_reviewer,
                 decision=FinanceStakeholderAcceptance.REJECTED,
                 training_reference="Changed", uat_reference="Changed", reason="Overwrite attempt",
             )
+
+    def test_readiness_plan_and_exercise_require_independent_witness_and_retain_rerun_history(self):
+        cycle = self._reconciled_cycle()
+        plan = FinanceCutoverReadinessPlan.objects.create(
+            cycle=cycle,
+            curriculum_register_reference="Editable role curriculum register CURR-RERUN-001.",
+            quick_guides_reference="Department floating guides and desk guide QUICK-RERUN-001.",
+            supervisor_runbook_reference="Supervisor witness and rerun runbook SUP-RERUN-001.",
+            support_owner=self.manager,
+            support_channels_and_hours="Finance help desk weekdays 8:00–17:00 with named backup.",
+            support_escalation_procedure="Access to IT; controls to Accounting; critical interruption to management.",
+            local_acceptance_note="Synthetic readiness plan retained as READY-RERUN-001.",
+            created_by=self.manager,
+        )
+        submit_cutover_readiness_plan(plan, self.manager)
+        with self.assertRaisesMessage(ValidationError, "preparer or submitter"):
+            review_cutover_readiness_plan(plan, self.manager, approve=True, reason="Self approval")
+        review_cutover_readiness_plan(
+            plan, self.reconciler, approve=True,
+            reason="Reviewed the local curricula, runbook, support ownership, and escalation route.",
+        )
+        plan.refresh_from_db()
+        plan.learning_privacy_notice = "Tutorial progress may be used for evaluation."
+        with self.assertRaisesMessage(ValidationError, "boundary cannot be changed"):
+            plan.save()
+        plan.refresh_from_db()
+        plan.quick_guides_reference = "Attempted rewrite"
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            plan.save()
+
+        acceptance = FinanceStakeholderAcceptance.objects.create(
+            cycle=cycle, stakeholder_kind=FinanceStakeholderAcceptance.REQUESTING_OFFICE,
+            office=self.requesting, assigned_reviewer=self.requesting_reviewer,
+            enabled_scope=cycle.enabled_scope, created_by=self.manager,
+        )
+        scheduled_for = timezone.make_aware(datetime.combine(cycle.planned_start, time(10, 0)))
+        exercise = schedule_cutover_readiness_exercise(
+            cycle, self.manager, kind=FinanceCutoverReadinessExercise.ROLE_TRAINING,
+            code="role-rerun-001", title="Requesting-office ordinary-DV role exercise",
+            enabled_scope=cycle.enabled_scope,
+            procedure="Follow the controlled ordinary-DV synthetic script, use the floating guide if needed, and retain the result.",
+            expected_result="The named reviewer completes the scoped case with exact control totals and knows the support route.",
+            owner=self.requesting_reviewer, witness=self.reconciler,
+            scheduled_for=scheduled_for, due_at=scheduled_for + timedelta(hours=2),
+            stakeholder_acceptance=acceptance,
+        )
+        self.client.force_login(self.requesting_reviewer)
+        response = self.client.get(reverse("finance:shadow_cycle_detail", args=(cycle.pk,)))
+        self.assertContains(response, "role-rerun-001")
+        self.assertContains(response, "Record result")
+        submit_cutover_readiness_exercise(
+            exercise, self.requesting_reviewer,
+            actual_result="First run completed but the support escalation step was not demonstrated.",
+            evidence_reference="Redacted observation sheet ROLE-RERUN-001-A",
+        )
+        self.client.force_login(self.reconciler)
+        response = self.client.get(reverse("finance:shadow_cycle_detail", args=(cycle.pk,)))
+        self.assertContains(response, "Witness pass")
+        with self.assertRaisesMessage(PermissionDenied, "assigned witness"):
+            review_cutover_readiness_exercise(exercise, self.manager, accept=True, reason="Wrong reviewer")
+        review_cutover_readiness_exercise(
+            exercise, self.reconciler, accept=False,
+            reason="Rerun the support escalation step and retain the acknowledgement evidence.",
+        )
+        submit_cutover_readiness_exercise(
+            exercise, self.requesting_reviewer,
+            actual_result="Rerun completed including the named support escalation and acknowledgement step.",
+            evidence_reference="Redacted observation sheet ROLE-RERUN-001-B and ticket acknowledgement",
+        )
+        review_cutover_readiness_exercise(
+            exercise, self.reconciler, accept=True,
+            reason="Independently observed the complete rerun and verified every stated pass condition.",
+        )
+        exercise.refresh_from_db()
+        self.assertEqual(exercise.status, FinanceCutoverReadinessExercise.PASSED)
+        exercise.actual_result = "Attempted rewrite"
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            exercise.save()
+        decide_stakeholder_acceptance(
+            acceptance, self.requesting_reviewer,
+            decision=FinanceStakeholderAcceptance.ACCEPTED,
+            training_reference="Passed witnessed role exercise ROLE-RERUN-001",
+            uat_reference="Synthetic/redacted ordinary-DV scenario UAT-RERUN-001",
+        )
+        readiness = cutover_readiness(cycle)
+        self.assertFalse(readiness["ready"])
+        self.assertIn(FinanceCutoverReadinessExercise.PRIVACY, readiness["missing_exercises"])
+        content, _filename, _receipt = build_cutover_evidence_package(cycle, self.requesting_reviewer)
+        payload = json.loads(content)
+        self.assertEqual(payload["schema_version"], 4)
+        self.assertEqual(payload["cutover_readiness_plan"]["status"], "approved")
+        self.assertEqual(payload["cutover_readiness_exercises"][0]["status"], "passed")
+        self.assertNotIn("progress_percent", content.decode("utf-8"))
 
     def test_cutover_requires_all_seven_acceptances_and_separate_authority_then_can_roll_back(self):
         cycle = self._reconciled_cycle()
@@ -481,6 +650,15 @@ class FinanceShadowCutoverTests(TestCase):
         decide_cutover(decision, self.authority, authorize=True, reason="Named authority approved the exact scope and effective date.")
         decision.refresh_from_db()
         self.assertTrue(decision.makes_grand_authoritative)
+        scheduled_for = timezone.make_aware(datetime.combine(cycle.planned_end, time(16, 0)))
+        with self.assertRaisesMessage(ValidationError, "locked after the cutover record"):
+            schedule_cutover_readiness_exercise(
+                cycle, self.manager, kind=FinanceCutoverReadinessExercise.INCIDENT_RESPONSE,
+                code="late-extra-exercise", title="Improper post-authorization exercise",
+                enabled_scope=cycle.enabled_scope, procedure="Should not be accepted.",
+                expected_result="Should not be accepted.", owner=self.manager, witness=self.reconciler,
+                scheduled_for=scheduled_for, due_at=scheduled_for + timedelta(hours=1),
+            )
         record_cutover_rollback(decision, self.authority, reason="Recovery exercise exposed the recorded critical restore criterion.")
         decision.refresh_from_db()
         self.assertEqual(decision.status, FinanceCutoverDecision.ROLLED_BACK)

@@ -1462,6 +1462,275 @@ class FinanceShadowDefect(models.Model):
         raise ValidationError("Defect history cannot be deleted.")
 
 
+class FinanceCutoverReadinessPlan(models.Model):
+    LEARNING_PRIVACY_NOTICE = (
+        "Floating Internal How-To progress is private, optional learning-state data. "
+        "It is not training acceptance, performance evidence, or an employee evaluation."
+    )
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    APPROVED = "approved"
+    RETURNED = "returned"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft readiness plan"),
+        (SUBMITTED, "Awaiting independent approval"),
+        (APPROVED, "Approved for this cycle"),
+        (RETURNED, "Returned for correction"),
+    )
+
+    cycle = models.OneToOneField(
+        FinanceShadowCycle, on_delete=models.PROTECT, related_name="cutover_readiness_plan",
+    )
+    curriculum_register_reference = models.TextField()
+    quick_guides_reference = models.TextField()
+    supervisor_runbook_reference = models.TextField()
+    support_owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="owned_finance_cutover_readiness_plans",
+    )
+    support_channels_and_hours = models.TextField()
+    support_escalation_procedure = models.TextField()
+    local_acceptance_note = models.TextField()
+    learning_privacy_notice = models.TextField(
+        default=LEARNING_PRIVACY_NOTICE, editable=False,
+    )
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    evidence_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_finance_cutover_readiness_plans",
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_cutover_readiness_plans",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="approved_finance_cutover_readiness_plans",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def __str__(self):
+        return f"{self.cycle.code} cutover readiness plan"
+
+    def clean(self):
+        if self.learning_privacy_notice != self.LEARNING_PRIVACY_NOTICE:
+            raise ValidationError("The private, non-evaluative Internal How-To progress boundary cannot be changed.")
+        if self.cycle_id:
+            try:
+                cutover_status = self.cycle.cutover_decision.status
+            except FinanceCutoverDecision.DoesNotExist:
+                cutover_status = ""
+            if cutover_status and cutover_status != FinanceCutoverDecision.DRAFT and not self.pk:
+                raise ValidationError("The readiness plan cannot be added after the cutover record is submitted.")
+        if self.status in {self.SUBMITTED, self.APPROVED} and not self.evidence_checksum:
+            raise ValidationError("Submitted readiness plans require a checksum-backed snapshot.")
+        if self.status == self.APPROVED:
+            if not self.approved_by_id or not self.approved_at or not self.review_note.strip():
+                raise ValidationError("Approved readiness plans require an independent reviewer, time, and basis.")
+            if self.approved_by_id in {self.created_by_id, self.submitted_by_id}:
+                raise ValidationError("The readiness-plan preparer or submitter cannot approve the same plan.")
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "cycle_id", "curriculum_register_reference", "quick_guides_reference",
+                "supervisor_runbook_reference", "support_owner_id", "support_channels_and_hours",
+                "support_escalation_procedure", "local_acceptance_note", "learning_privacy_notice",
+                "created_by_id",
+            )
+            if prior.status in {self.SUBMITTED, self.APPROVED} and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Submitted readiness controls are immutable. Return the plan before correction.")
+            if prior.status == self.APPROVED:
+                locked = governed + (
+                    "status", "evidence_checksum", "submitted_by_id", "submitted_at",
+                    "approved_by_id", "approved_at", "review_note",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in locked):
+                    raise ValidationError("An approved cutover readiness plan is immutable for this cycle.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status != self.DRAFT:
+            raise ValidationError("A submitted cutover readiness plan cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceCutoverReadinessExercise(models.Model):
+    ROLE_TRAINING = "role_training"
+    SECURITY_ACCESS = "security_access"
+    PRIVACY = "privacy"
+    ACCESSIBILITY = "accessibility"
+    PERFORMANCE = "performance"
+    PRINTING = "printing"
+    BACKUP_RESTORE = "backup_restore"
+    BUSINESS_CONTINUITY = "business_continuity"
+    INCIDENT_RESPONSE = "incident_response"
+    KIND_CHOICES = (
+        (ROLE_TRAINING, "Role curriculum and synthetic job exercise"),
+        (SECURITY_ACCESS, "Security and access-control exercise"),
+        (PRIVACY, "Privacy and redaction exercise"),
+        (ACCESSIBILITY, "Accessibility and assisted-use exercise"),
+        (PERFORMANCE, "Performance and operating-volume exercise"),
+        (PRINTING, "Printing, paper, and physical-custody exercise"),
+        (BACKUP_RESTORE, "Backup and restore exercise"),
+        (BUSINESS_CONTINUITY, "Business-continuity exercise"),
+        (INCIDENT_RESPONSE, "Incident and support-escalation exercise"),
+    )
+    PLANNED = "planned"
+    SUBMITTED = "submitted"
+    PASSED = "passed"
+    RETURNED = "returned"
+    STATUS_CHOICES = (
+        (PLANNED, "Planned / evidence in progress"),
+        (SUBMITTED, "Awaiting assigned witness"),
+        (PASSED, "Independently witnessed as passed"),
+        (RETURNED, "Returned for correction or rerun"),
+    )
+
+    cycle = models.ForeignKey(
+        FinanceShadowCycle, on_delete=models.PROTECT, related_name="cutover_readiness_exercises",
+    )
+    plan = models.ForeignKey(
+        FinanceCutoverReadinessPlan, on_delete=models.PROTECT, related_name="exercises",
+    )
+    stakeholder_acceptance = models.ForeignKey(
+        "FinanceStakeholderAcceptance", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="training_exercises",
+    )
+    kind = models.CharField(max_length=24, choices=KIND_CHOICES)
+    code = models.SlugField(max_length=80)
+    title = models.CharField(max_length=200)
+    enabled_scope = models.TextField()
+    procedure = models.TextField()
+    expected_result = models.TextField()
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="owned_finance_cutover_readiness_exercises",
+    )
+    witness = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="witnessed_finance_cutover_readiness_exercises",
+    )
+    support_route_snapshot = models.TextField()
+    scheduled_for = models.DateTimeField()
+    due_at = models.DateTimeField()
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=PLANNED)
+    actual_result = models.TextField(blank=True)
+    evidence_reference = models.TextField(blank=True)
+    evidence_checksum = models.CharField(max_length=64, blank=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_cutover_readiness_exercises",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_finance_cutover_readiness_exercises",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_finance_cutover_readiness_exercises",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("kind", "scheduled_for", "code")
+        constraints = (
+            models.UniqueConstraint(fields=("cycle", "code"), name="unique_cutover_readiness_exercise_code"),
+        )
+
+    def __str__(self):
+        return f"{self.code} — {self.title}"
+
+    @property
+    def is_overdue(self):
+        return self.status != self.PASSED and timezone.now() > self.due_at
+
+    def clean(self):
+        if self.cycle_id:
+            try:
+                cutover_status = self.cycle.cutover_decision.status
+            except FinanceCutoverDecision.DoesNotExist:
+                cutover_status = ""
+            if cutover_status and cutover_status != FinanceCutoverDecision.DRAFT and not self.pk:
+                raise ValidationError("Readiness exercises cannot be added after the cutover record is submitted.")
+        if self.plan_id and self.cycle_id and self.plan.cycle_id != self.cycle_id:
+            raise ValidationError({"plan": "Use the cutover readiness plan approved for this cycle."})
+        if self.plan_id and self.plan.status != FinanceCutoverReadinessPlan.APPROVED:
+            raise ValidationError({"plan": "Approve the cutover readiness plan before scheduling exercises."})
+        if self.cycle_id and self.enabled_scope.strip() != self.cycle.enabled_scope.strip():
+            raise ValidationError({"enabled_scope": "The exercise scope must exactly match the shadow cycle."})
+        if self.due_at and self.scheduled_for and self.due_at < self.scheduled_for:
+            raise ValidationError({"due_at": "The evidence due time cannot precede the scheduled exercise time."})
+        if self.owner_id and self.witness_id and self.owner_id == self.witness_id:
+            raise ValidationError({"witness": "The exercise owner cannot independently witness the same result."})
+        if self.kind == self.ROLE_TRAINING:
+            if not self.stakeholder_acceptance_id:
+                raise ValidationError({"stakeholder_acceptance": "Choose the stakeholder acceptance covered by this role exercise."})
+            if self.stakeholder_acceptance_id:
+                acceptance = self.stakeholder_acceptance
+                if acceptance.cycle_id != self.cycle_id:
+                    raise ValidationError({"stakeholder_acceptance": "The stakeholder acceptance must belong to this cycle."})
+                if self.owner_id != acceptance.assigned_reviewer_id:
+                    raise ValidationError({"owner": "The role-exercise owner must be the named stakeholder reviewer."})
+        elif self.stakeholder_acceptance_id:
+            raise ValidationError({"stakeholder_acceptance": "Only role curriculum exercises attach to a stakeholder acceptance."})
+        if self.status in {self.SUBMITTED, self.PASSED}:
+            if not self.actual_result.strip() or not self.evidence_reference.strip():
+                raise ValidationError("Submitted exercises require an actual result and retained evidence reference.")
+            if not self.evidence_checksum or not self.submitted_by_id or not self.submitted_at:
+                raise ValidationError("Submitted exercises require checksum-backed evidence and an attributed owner.")
+        if self.status == self.PASSED:
+            if not self.reviewed_by_id or not self.reviewed_at or not self.review_note.strip():
+                raise ValidationError("Passed exercises require an assigned witness, time, and review basis.")
+            if self.reviewed_by_id != self.witness_id:
+                raise ValidationError("Only the assigned witness can independently pass this exercise.")
+            if self.reviewed_by_id == self.submitted_by_id:
+                raise ValidationError("The evidence submitter cannot independently witness the same exercise.")
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            planned_fields = (
+                "cycle_id", "plan_id", "stakeholder_acceptance_id", "kind", "code", "title",
+                "enabled_scope", "procedure", "expected_result", "owner_id", "witness_id",
+                "support_route_snapshot", "scheduled_for", "due_at", "created_by_id",
+            )
+            evidence_fields = planned_fields + (
+                "actual_result", "evidence_reference", "evidence_checksum", "submitted_by_id", "submitted_at",
+            )
+            if prior.status == self.SUBMITTED and any(
+                getattr(prior, field) != getattr(self, field) for field in evidence_fields
+            ):
+                raise ValidationError("Submitted exercise evidence is immutable. The witness must return it before a rerun.")
+            if prior.status == self.PASSED:
+                locked = evidence_fields + ("status", "reviewed_by_id", "reviewed_at", "review_note")
+                if any(getattr(prior, field) != getattr(self, field) for field in locked):
+                    raise ValidationError("An independently passed readiness exercise is immutable.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status != self.PLANNED:
+            raise ValidationError("Submitted readiness exercise history cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
 class FinanceStakeholderAcceptance(models.Model):
     REQUESTING_OFFICE = "requesting_office"
     BUDGET = "budget"

@@ -71,6 +71,10 @@ def can_view_shadow_cycle(user, cycle):
         return True
     if cycle.defects.filter(owner=user).exists():
         return True
+    if cycle.cutover_readiness_exercises.filter(owner=user).exists():
+        return True
+    if cycle.cutover_readiness_exercises.filter(witness=user).exists():
+        return True
     if not _in_department(user, cycle.department):
         return False
     return bool(
@@ -86,6 +90,10 @@ def can_view_shadow_workspace(user):
     if not getattr(user, "is_authenticated", False) or not getattr(user, "is_active", False):
         return False
     if user.assigned_finance_shadow_acceptances.exists():
+        return True
+    if user.owned_finance_cutover_readiness_exercises.exists():
+        return True
+    if user.witnessed_finance_cutover_readiness_exercises.exists():
         return True
     department = department_for_user(user)
     return bool(department and any((

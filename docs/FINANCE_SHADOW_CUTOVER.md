@@ -1,6 +1,6 @@
 # Finance shadow operation, UAT acceptance, and controlled cutover
 
-Status: F11.1 governed transition control, F11.2 versioned redacted source staging, and F11.3 scheduled reconciliation/defect control implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate or any local production cutover has occurred.
+Status: F11.1 governed transition control, F11.2 versioned redacted source staging, F11.3 scheduled reconciliation/defect control, and F11.4 governed curricula/support and readiness-exercise control implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate or any local production cutover has occurred.
 
 ## Purpose and authority boundary
 
@@ -70,6 +70,24 @@ Each open comparison receives a separate triage record with stable code, severit
 
 ## Training and stakeholder acceptance
 
+Before formal stakeholder acceptance, Finance prepares a human-readable readiness plan that references the locally accepted role curriculum register, controlled quick guides, supervisor observation/rerun runbook, named support owner, actual support channels/hours, backup contact, escalation procedure, and retained local acceptance decision. A different reconciliation reviewer must approve its checksum-backed snapshot. The preparer cannot self-approve it, and an approved plan is immutable for that cycle.
+
+The plan's learning-privacy notice keeps the floating `?` Internal How-To separate from formal readiness evidence. Guide checkmarks remain private resume aids. GRAND does not expose their completion count or percentage in the cutover evidence package, and they cannot satisfy a role exercise, attendance, competence, performance, or acceptance gate.
+
+Finance then schedules locally written exercises with an exact cycle scope, human-followable procedure, observable expected result, owner, different assigned witness, schedule/due time, and the approved support route pinned as a snapshot. The categories are:
+
+- one role curriculum and synthetic job exercise for every named stakeholder acceptance row;
+- security and access control;
+- privacy and redaction;
+- accessibility and assisted use;
+- performance at the locally selected safe operating volume;
+- printing, paper/form stock, and physical custody;
+- backup and restore;
+- business continuity; and
+- incident response and support escalation.
+
+The values, devices, volumes, forms, timings, channels, and pass conditions are deliberately editable local inputs; GRAND does not invent COA, DBM, BIR, printer, infrastructure, or response-time requirements. Only the assigned owner submits the actual result and retained redacted evidence reference. Only the different assigned witness can pass it or return it with a specific correction/rerun instruction. A returned result can be resubmitted while the earlier event remains in audit history; an independently passed exercise is immutable.
+
 Finance assigns a separate row for each required stakeholder kind and, for a requesting office, the exact department. Only the named reviewer can decide that row. The reviewer records:
 
 - the exact enabled scope;
@@ -78,7 +96,7 @@ Finance assigns a separate row for each required stakeholder kind and, for a req
 - Accepted, Accepted with conditions, or Not accepted; and
 - every condition or rejection reason.
 
-Conditional, rejected, or pending decisions block cutover. The stakeholder scope must exactly equal the reconciled cycle scope. Requesting-office reviewers must currently belong to the named office.
+Accepted is blocked until that named reviewer owns an independently witnessed Passed role exercise under the approved readiness plan. Conditional or Not accepted remains available so a reviewer can record missing readiness or a failed scenario honestly. Conditional, rejected, or pending decisions block cutover. The stakeholder scope must exactly equal the reconciled cycle scope. Requesting-office reviewers must currently belong to the named office.
 
 The floating `?` Internal How-To supports learning on the current page. Its checkmarks are private resume aids only. They are never exposed as supervisor attendance, employee performance, training readiness, or UAT acceptance. Formal training/UAT evidence is entered explicitly in the stakeholder record.
 
@@ -94,7 +112,7 @@ After independent reconciliation, Finance prepares a human-readable decision rec
 - historical eGAPS/current-process read-only retention plan; and
 - backup, restore, recovery, and continuity exercise evidence.
 
-Submission is blocked until all seven stakeholder kinds exist and every row is Accepted. A different user with cutover authority records authorization or decline and its basis. The normal seeded roles separate preparation (`Finance Configuration Manager`) from reconciliation/authority (`Finance Configuration Approver`), and service checks still reject self-review or self-authorization if permissions were combined exceptionally.
+Submission is blocked until the readiness plan is approved, all eight nonfunctional categories and every named role exercise are Passed, no scheduled exercise remains planned/submitted/returned, all seven stakeholder kinds exist, and every row is Accepted. A different user with cutover authority records authorization or decline and its basis. The normal seeded roles separate preparation (`Finance Configuration Manager`) from reconciliation/authority (`Finance Configuration Approver`), and service checks still reject self-review or self-authorization if permissions were combined exceptionally.
 
 When a recorded rollback criterion is triggered, the authority records the incident and immediate operating direction. The status becomes Rolled back; the original authorization, actor, time, reason, comparisons, and stakeholder decisions remain reconstructible.
 
@@ -105,9 +123,11 @@ The editable window is deliberately narrow:
 - a draft cycle plan can be corrected before it starts;
 - comparison rows can be added or corrected only while the cycle is Draft/Running;
 - pending stakeholder assignments can be corrected before a decision;
+- a draft/returned readiness plan can be corrected before approval;
+- a planned or witness-returned exercise can receive a corrected/rerun actual result and evidence reference;
 - a draft cutover record can be corrected before submission.
 
-Submitted cycle evidence, recorded stakeholder decisions, and submitted authority fields are immutable. A returned comparison requires a successor cycle. A changed stakeholder scope or concluded decision requires a successor cycle and fresh evidence. An authorized cutover is never edited into a different scope or date; use decline before authorization or recorded rollback afterward.
+Submitted cycle evidence, approved readiness plans, passed exercise evidence, recorded stakeholder decisions, and submitted authority fields are immutable. A returned comparison requires a successor cycle. A changed stakeholder scope or concluded decision requires a successor cycle and fresh evidence. An authorized cutover is never edited into a different scope or date; use decline before authorization or recorded rollback afterward.
 
 This transition allowance does not reopen issued vouchers/checks or bypass their existing guided correction, cancellation/replacement, adjustment, reversal, close/reopen, or returned-payment rules.
 
@@ -115,7 +135,7 @@ This transition allowance does not reopen issued vouchers/checks or bypass their
 
 Department-bounded Finance permissions control cycle preparation, independent reconciliation, and cutover authority. A named cross-office stakeholder can read only the assigned cycle and record only their pending decision; assignment does not grant Finance preparation or authority actions. Finance UAT viewers remain read-only within their office boundary.
 
-Every visible cycle can produce a JSON evidence package containing each source version's checksum, headings, row count, drift/review metadata; the approved local cadence and escalation matrix; every scheduled run snapshot/checksum; defect intake, resolution, and escalation evidence; comparisons; stakeholder decisions; readiness checks; and the current cutover decision. Source row values and the retained CSV bytes are deliberately excluded from the portable JSON. The downloaded bytes are also archived atomically under:
+Every visible cycle can produce a schema-v4 JSON evidence package containing each source version's checksum, headings, row count, drift/review metadata; the approved local cadence and escalation matrix; every scheduled run snapshot/checksum; defect intake, resolution, and escalation evidence; the approved curriculum/support plan; every role and nonfunctional exercise with result/checksum/witness evidence; comparisons; stakeholder decisions; readiness checks; and the current cutover decision. Source row values, retained CSV bytes, and private Internal How-To progress are deliberately excluded from the portable JSON. The downloaded bytes are also archived atomically under:
 
 `department/user/finance-shadow-cutover/year/month`
 
@@ -127,8 +147,8 @@ Before claiming the parent exit gate, the LGU still must confirm and execute:
 
 - current locally accepted redacted source layouts and, if useful, a separately reviewed read-only adapter beyond the implemented file-staging boundary;
 - actual locally accepted cadence/severity/escalation values, named support ownership, and enabled transaction-type field sign-off using the implemented controls;
-- complete role curricula, quick guides, supervisor/support runbooks, and actual attendance/exercise evidence;
-- named security, privacy, accessibility, performance, print/form-stock, backup/restore, continuity, and incident exercises;
+- locally completed curriculum/quick-guide/supervisor/support content and actual witnessed role-exercise evidence entered through the implemented F11.4 controls;
+- actual named security, privacy, accessibility, performance, print/form-stock, backup/restore, continuity, and incident exercise execution using locally accepted pass conditions;
 - consecutive limited shadow and controlled parallel cycles using accepted local rules/forms; and
 - actual signatures/decisions from Budget, Accounting, Treasury, every enabled requesting office, IT, management, and audit stakeholders.
 

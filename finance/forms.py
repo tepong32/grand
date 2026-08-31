@@ -1,10 +1,13 @@
 import json
+from datetime import datetime, time, timedelta
 
 from django import forms
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from .models import (
     FinanceCutoverDecision,
+    FinanceCutoverReadinessExercise, FinanceCutoverReadinessPlan,
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule, FinanceNumberingSequence,
     FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
     FinanceShadowComparison, FinanceShadowCycle, FinanceShadowDefect,
@@ -372,6 +375,104 @@ class FinanceShadowReconciliationPlanForm(forms.ModelForm):
             "local_authority_reference": "Reference the approved pilot/UAT direction, procedure, meeting decision, or other retained authority.",
             "local_acceptance_note": "State who confirmed the cadence, severity targets, and escalation routes and where that evidence is retained.",
         }
+
+
+class FinanceCutoverReadinessPlanForm(forms.ModelForm):
+    class Meta:
+        model = FinanceCutoverReadinessPlan
+        fields = (
+            "curriculum_register_reference", "quick_guides_reference",
+            "supervisor_runbook_reference", "support_owner", "support_channels_and_hours",
+            "support_escalation_procedure", "local_acceptance_note",
+        )
+        widgets = {
+            "curriculum_register_reference": forms.Textarea(attrs={"rows": 3}),
+            "quick_guides_reference": forms.Textarea(attrs={"rows": 3}),
+            "supervisor_runbook_reference": forms.Textarea(attrs={"rows": 3}),
+            "support_channels_and_hours": forms.Textarea(attrs={"rows": 3}),
+            "support_escalation_procedure": forms.Textarea(attrs={"rows": 4}),
+            "local_acceptance_note": forms.Textarea(attrs={"rows": 3}),
+        }
+        help_texts = {
+            "curriculum_register_reference": "Reference the human-readable role curriculum register and its retained version.",
+            "quick_guides_reference": "List the floating Internal How-Tos, desk guides, or controlled quick guides available to each role.",
+            "supervisor_runbook_reference": "Reference the supervisor observation, rerun, and acceptance instructions.",
+            "support_channels_and_hours": "Name the actual help channel, operating hours, backup contact, and expected acknowledgement.",
+            "support_escalation_procedure": "State the locally accepted escalation route for access, data, output, outage, and control incidents.",
+            "local_acceptance_note": "State who confirmed this plan and where that decision evidence is retained.",
+        }
+
+    def __init__(self, *args, department=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        users = get_user_model().objects.filter(
+            is_active=True, employeeprofile__assigned_department__isnull=False,
+        )
+        if department:
+            users = users.filter(employeeprofile__assigned_department=department)
+        self.fields["support_owner"].queryset = users.order_by("last_name", "first_name", "username")
+
+
+class FinanceCutoverReadinessExerciseForm(forms.Form):
+    kind = forms.ChoiceField(choices=FinanceCutoverReadinessExercise.KIND_CHOICES)
+    stakeholder_acceptance = forms.ModelChoiceField(
+        queryset=FinanceStakeholderAcceptance.objects.none(), required=False,
+        help_text="Required only for a role curriculum exercise. Choose the exact named stakeholder reviewer.",
+    )
+    code = forms.SlugField(max_length=80, help_text="Use a stable reference such as PRINT-UAT-001.")
+    title = forms.CharField(max_length=200)
+    enabled_scope = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    procedure = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 5}),
+        help_text="Write the actual human-followable steps, inputs, volume, device/paper conditions, and safe fallback.",
+    )
+    expected_result = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 4}),
+        help_text="State the observable pass result, control total, response time, restored item, printed alignment, or support response.",
+    )
+    owner = forms.ModelChoiceField(queryset=get_user_model().objects.none())
+    witness = forms.ModelChoiceField(
+        queryset=get_user_model().objects.none(),
+        help_text="Choose a different person who will independently inspect the retained result.",
+    )
+    scheduled_for = forms.DateTimeField(widget=forms.DateTimeInput(attrs={"type": "datetime-local"}))
+    due_at = forms.DateTimeField(widget=forms.DateTimeInput(attrs={"type": "datetime-local"}))
+
+    def __init__(self, *args, cycle, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["stakeholder_acceptance"].queryset = cycle.stakeholder_acceptances.select_related(
+            "office", "assigned_reviewer",
+        ).order_by("stakeholder_kind", "office__name", "pk")
+        users = get_user_model().objects.filter(
+            is_active=True, employeeprofile__assigned_department__isnull=False,
+        ).order_by("last_name", "first_name", "username")
+        self.fields["owner"].queryset = users
+        self.fields["witness"].queryset = users
+        if not self.is_bound:
+            scheduled_for = timezone.make_aware(datetime.combine(cycle.planned_start, time(9, 0)))
+            self.fields["enabled_scope"].initial = cycle.enabled_scope
+            self.fields["scheduled_for"].initial = scheduled_for
+            self.fields["due_at"].initial = scheduled_for + timedelta(hours=4)
+            self.fields["procedure"].initial = (
+                "1. Prepare only the approved synthetic or redacted inputs and the named device/paper/support conditions.\n"
+                "2. Complete the ordinary work and one safe exception/fallback step.\n"
+                "3. Compare the observable result with the expected control and retain a safe evidence reference.\n"
+                "4. Contact the approved support route when the exercise calls for it."
+            )
+            self.fields["expected_result"].initial = (
+                "The named control completes within the locally accepted condition, no unexplained difference remains, "
+                "and the operator can use the documented fallback/support route without borrowed access."
+            )
+
+
+class FinanceCutoverReadinessExerciseResultForm(forms.Form):
+    actual_result = forms.CharField(
+        label="What actually happened", widget=forms.Textarea(attrs={"rows": 5}),
+        help_text="Record observable results and exceptions without unnecessary personal or production data.",
+    )
+    evidence_reference = forms.CharField(
+        label="Retained evidence reference", widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Reference the redacted script, timings, screenshot set, print sample, restore log, ticket, or signed observation sheet.",
+    )
 
 
 class FinanceShadowDefectForm(forms.Form):

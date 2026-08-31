@@ -24,6 +24,8 @@ from .access import (
 from .models import (
     FinanceAuditEvent,
     FinanceCutoverDecision,
+    FinanceCutoverReadinessExercise,
+    FinanceCutoverReadinessPlan,
     FinanceShadowComparison,
     FinanceShadowCycle,
     FinanceShadowDefect,
@@ -42,6 +44,17 @@ REQUIRED_STAKEHOLDERS = {
     FinanceStakeholderAcceptance.IT,
     FinanceStakeholderAcceptance.MANAGEMENT,
     FinanceStakeholderAcceptance.AUDIT,
+}
+
+REQUIRED_NONFUNCTIONAL_EXERCISES = {
+    FinanceCutoverReadinessExercise.SECURITY_ACCESS,
+    FinanceCutoverReadinessExercise.PRIVACY,
+    FinanceCutoverReadinessExercise.ACCESSIBILITY,
+    FinanceCutoverReadinessExercise.PERFORMANCE,
+    FinanceCutoverReadinessExercise.PRINTING,
+    FinanceCutoverReadinessExercise.BACKUP_RESTORE,
+    FinanceCutoverReadinessExercise.BUSINESS_CONTINUITY,
+    FinanceCutoverReadinessExercise.INCIDENT_RESPONSE,
 }
 
 SHADOW_SOURCE_MAX_BYTES = 5 * 1024 * 1024
@@ -154,6 +167,56 @@ def _run_data(item):
         "reviewed_by_id": item.reviewed_by_id,
         "reviewed_at": item.reviewed_at,
         "review_note": item.review_note,
+    }
+
+
+def _readiness_plan_data(plan):
+    return {
+        "plan_id": plan.pk,
+        "curriculum_register_reference": plan.curriculum_register_reference,
+        "quick_guides_reference": plan.quick_guides_reference,
+        "supervisor_runbook_reference": plan.supervisor_runbook_reference,
+        "support_owner_id": plan.support_owner_id,
+        "support_channels_and_hours": plan.support_channels_and_hours,
+        "support_escalation_procedure": plan.support_escalation_procedure,
+        "local_acceptance_note": plan.local_acceptance_note,
+        "learning_privacy_notice": plan.learning_privacy_notice,
+        "status": plan.status,
+        "evidence_checksum": plan.evidence_checksum,
+        "created_by_id": plan.created_by_id,
+        "submitted_by_id": plan.submitted_by_id,
+        "submitted_at": plan.submitted_at,
+        "approved_by_id": plan.approved_by_id,
+        "approved_at": plan.approved_at,
+        "review_note": plan.review_note,
+    }
+
+
+def _readiness_exercise_data(item):
+    return {
+        "exercise_id": item.pk,
+        "kind": item.kind,
+        "code": item.code,
+        "title": item.title,
+        "stakeholder_acceptance_id": item.stakeholder_acceptance_id,
+        "enabled_scope": item.enabled_scope,
+        "procedure": item.procedure,
+        "expected_result": item.expected_result,
+        "owner_id": item.owner_id,
+        "witness_id": item.witness_id,
+        "support_route_snapshot": item.support_route_snapshot,
+        "scheduled_for": item.scheduled_for,
+        "due_at": item.due_at,
+        "status": item.status,
+        "actual_result": item.actual_result,
+        "evidence_reference": item.evidence_reference,
+        "evidence_checksum": item.evidence_checksum,
+        "submitted_by_id": item.submitted_by_id,
+        "submitted_at": item.submitted_at,
+        "reviewed_by_id": item.reviewed_by_id,
+        "reviewed_at": item.reviewed_at,
+        "review_note": item.review_note,
+        "created_by_id": item.created_by_id,
     }
 
 
@@ -466,6 +529,192 @@ def review_reconciliation_plan(plan, actor, *, approve, reason):
         reason=reason, snapshot=_plan_data(plan),
     )
     return plan
+
+
+@transaction.atomic
+def submit_cutover_readiness_plan(plan, actor):
+    plan = FinanceCutoverReadinessPlan.objects.select_for_update().select_related(
+        "cycle", "cycle__department",
+    ).get(pk=plan.pk)
+    if not can_manage_shadow_operation(actor, plan.cycle.department):
+        raise PermissionDenied
+    if plan.status not in {FinanceCutoverReadinessPlan.DRAFT, FinanceCutoverReadinessPlan.RETURNED}:
+        raise ValidationError("Only a draft or returned cutover readiness plan can be submitted.")
+    plan.status = FinanceCutoverReadinessPlan.DRAFT
+    plan.evidence_checksum = ""
+    plan.submitted_by = None
+    plan.submitted_at = None
+    plan.approved_by = None
+    plan.approved_at = None
+    plan.review_note = ""
+    plan.full_clean()
+    snapshot = _readiness_plan_data(plan)
+    snapshot.pop("evidence_checksum", None)
+    plan.evidence_checksum = _checksum_payload(snapshot)
+    plan.status = FinanceCutoverReadinessPlan.SUBMITTED
+    plan.submitted_by = actor
+    plan.submitted_at = timezone.now()
+    plan.save(update_fields=(
+        "status", "evidence_checksum", "submitted_by", "submitted_at",
+        "approved_by", "approved_at", "review_note", "updated_at",
+    ))
+    _event(plan.cycle, actor, "cutover_readiness_plan_submitted", snapshot=_readiness_plan_data(plan))
+    return plan
+
+
+@transaction.atomic
+def review_cutover_readiness_plan(plan, actor, *, approve, reason):
+    plan = FinanceCutoverReadinessPlan.objects.select_for_update().select_related(
+        "cycle", "cycle__department",
+    ).get(pk=plan.pk)
+    if not can_review_shadow_reconciliation(actor, plan.cycle.department):
+        raise PermissionDenied
+    if plan.status != FinanceCutoverReadinessPlan.SUBMITTED:
+        raise ValidationError("This cutover readiness plan is not awaiting review.")
+    if actor.pk in {plan.created_by_id, plan.submitted_by_id}:
+        raise ValidationError("The readiness-plan preparer or submitter cannot approve the same plan.")
+    if not str(reason or "").strip():
+        raise ValidationError("Record the local review basis or the exact correction required.")
+    snapshot = _readiness_plan_data(plan)
+    stored = snapshot.pop("evidence_checksum", "")
+    snapshot["status"] = FinanceCutoverReadinessPlan.DRAFT
+    snapshot["submitted_by_id"] = None
+    snapshot["submitted_at"] = None
+    snapshot["approved_by_id"] = None
+    snapshot["approved_at"] = None
+    snapshot["review_note"] = ""
+    if _checksum_payload(snapshot) != stored:
+        raise ValidationError("The readiness plan changed after submission. Return it rather than approving altered controls.")
+    plan.status = FinanceCutoverReadinessPlan.APPROVED if approve else FinanceCutoverReadinessPlan.RETURNED
+    plan.review_note = str(reason).strip()
+    if approve:
+        plan.approved_by = actor
+        plan.approved_at = timezone.now()
+    else:
+        plan.evidence_checksum = ""
+        plan.approved_by = None
+        plan.approved_at = None
+    plan.save(update_fields=(
+        "status", "review_note", "evidence_checksum", "approved_by", "approved_at", "updated_at",
+    ))
+    _event(
+        plan.cycle, actor,
+        "cutover_readiness_plan_approved" if approve else "cutover_readiness_plan_returned",
+        reason=reason, snapshot=_readiness_plan_data(plan),
+    )
+    return plan
+
+
+@transaction.atomic
+def schedule_cutover_readiness_exercise(
+    cycle, actor, *, kind, code, title, enabled_scope, procedure, expected_result,
+    owner, witness, scheduled_for, due_at, stakeholder_acceptance=None,
+):
+    cycle = FinanceShadowCycle.objects.select_for_update().select_related("department").get(pk=cycle.pk)
+    if not can_manage_shadow_operation(actor, cycle.department):
+        raise PermissionDenied
+    try:
+        cutover_status = cycle.cutover_decision.status
+    except FinanceCutoverDecision.DoesNotExist:
+        cutover_status = ""
+    if cutover_status and cutover_status != FinanceCutoverDecision.DRAFT:
+        raise ValidationError("Readiness exercises are locked after the cutover record is submitted.")
+    plan = FinanceCutoverReadinessPlan.objects.filter(cycle=cycle).first()
+    if not plan:
+        raise ValidationError("Approve a cutover readiness plan before scheduling exercises.")
+    if plan.status != FinanceCutoverReadinessPlan.APPROVED:
+        raise ValidationError("The cutover readiness plan is not independently approved.")
+    item = FinanceCutoverReadinessExercise(
+        cycle=cycle, plan=plan, stakeholder_acceptance=stakeholder_acceptance,
+        kind=kind, code=code, title=title, enabled_scope=enabled_scope,
+        procedure=procedure, expected_result=expected_result, owner=owner, witness=witness,
+        support_route_snapshot=(
+            f"{plan.support_channels_and_hours}\nEscalation: {plan.support_escalation_procedure}"
+        ).strip(),
+        scheduled_for=scheduled_for, due_at=due_at, created_by=actor,
+    )
+    item.save()
+    _event(cycle, actor, "cutover_readiness_exercise_scheduled", snapshot=_readiness_exercise_data(item))
+    return item
+
+
+@transaction.atomic
+def submit_cutover_readiness_exercise(exercise, actor, *, actual_result, evidence_reference):
+    exercise = FinanceCutoverReadinessExercise.objects.select_for_update().select_related(
+        "cycle", "cycle__department",
+    ).get(pk=exercise.pk)
+    if actor.pk != exercise.owner_id:
+        raise PermissionDenied("Only the assigned exercise owner can submit its result.")
+    if exercise.status not in {FinanceCutoverReadinessExercise.PLANNED, FinanceCutoverReadinessExercise.RETURNED}:
+        raise ValidationError("Only a planned or returned readiness exercise can be submitted.")
+    if not str(actual_result or "").strip() or not str(evidence_reference or "").strip():
+        raise ValidationError("Record the actual result and retained evidence reference.")
+    exercise.status = FinanceCutoverReadinessExercise.PLANNED
+    exercise.actual_result = str(actual_result).strip()
+    exercise.evidence_reference = str(evidence_reference).strip()
+    exercise.evidence_checksum = ""
+    exercise.submitted_by = None
+    exercise.submitted_at = None
+    exercise.reviewed_by = None
+    exercise.reviewed_at = None
+    exercise.review_note = ""
+    exercise.full_clean()
+    snapshot = _readiness_exercise_data(exercise)
+    snapshot["evidence_checksum"] = ""
+    exercise.evidence_checksum = _checksum_payload(snapshot)
+    exercise.status = FinanceCutoverReadinessExercise.SUBMITTED
+    exercise.submitted_by = actor
+    exercise.submitted_at = timezone.now()
+    exercise.save(update_fields=(
+        "status", "actual_result", "evidence_reference", "evidence_checksum", "submitted_by",
+        "submitted_at", "reviewed_by", "reviewed_at", "review_note", "updated_at",
+    ))
+    _event(exercise.cycle, actor, "cutover_readiness_exercise_submitted", snapshot=_readiness_exercise_data(exercise))
+    return exercise
+
+
+@transaction.atomic
+def review_cutover_readiness_exercise(exercise, actor, *, accept, reason):
+    exercise = FinanceCutoverReadinessExercise.objects.select_for_update().select_related(
+        "cycle", "cycle__department",
+    ).get(pk=exercise.pk)
+    if actor.pk != exercise.witness_id:
+        raise PermissionDenied("Only the assigned witness can review this exercise.")
+    if exercise.status != FinanceCutoverReadinessExercise.SUBMITTED:
+        raise ValidationError("This readiness exercise is not awaiting witness review.")
+    if actor.pk == exercise.submitted_by_id:
+        raise ValidationError("The evidence submitter cannot independently witness the same exercise.")
+    if not str(reason or "").strip():
+        raise ValidationError("Record the witness basis or the exact correction/rerun required.")
+    snapshot = _readiness_exercise_data(exercise)
+    stored = snapshot["evidence_checksum"]
+    snapshot["status"] = FinanceCutoverReadinessExercise.PLANNED
+    snapshot["evidence_checksum"] = ""
+    snapshot["submitted_by_id"] = None
+    snapshot["submitted_at"] = None
+    snapshot["reviewed_by_id"] = None
+    snapshot["reviewed_at"] = None
+    snapshot["review_note"] = ""
+    if _checksum_payload(snapshot) != stored:
+        raise ValidationError("The exercise evidence changed after submission. Return it rather than accepting altered evidence.")
+    exercise.review_note = str(reason).strip()
+    if accept:
+        exercise.status = FinanceCutoverReadinessExercise.PASSED
+        exercise.reviewed_by = actor
+        exercise.reviewed_at = timezone.now()
+    else:
+        exercise.status = FinanceCutoverReadinessExercise.RETURNED
+        exercise.reviewed_by = None
+        exercise.reviewed_at = None
+    exercise.save(update_fields=(
+        "status", "evidence_checksum", "reviewed_by", "reviewed_at", "review_note", "updated_at",
+    ))
+    _event(
+        exercise.cycle, actor,
+        "cutover_readiness_exercise_passed" if accept else "cutover_readiness_exercise_returned",
+        reason=reason, snapshot=_readiness_exercise_data(exercise),
+    )
+    return exercise
 
 
 def _next_scheduled_for(plan, prior=None):
@@ -822,6 +1071,20 @@ def decide_stakeholder_acceptance(acceptance, actor, *, decision, training_refer
         raise ValidationError("Choose accepted, conditional, or not accepted.")
     if not training_reference.strip() or not uat_reference.strip():
         raise ValidationError("Reference both role-specific training evidence and the exact UAT scenarios reviewed.")
+    if decision == FinanceStakeholderAcceptance.ACCEPTED:
+        readiness_plan = FinanceCutoverReadinessPlan.objects.filter(cycle=acceptance.cycle).first()
+        if not readiness_plan:
+            raise ValidationError("Approve the local curriculum and support plan before accepting this scope.")
+        if readiness_plan.status != FinanceCutoverReadinessPlan.APPROVED:
+            raise ValidationError("The local curriculum and support plan is not independently approved.")
+        if not acceptance.training_exercises.filter(
+            kind=FinanceCutoverReadinessExercise.ROLE_TRAINING,
+            status=FinanceCutoverReadinessExercise.PASSED,
+        ).exists():
+            raise ValidationError(
+                "Complete and independently witness the named stakeholder's role exercise before acceptance. "
+                "Private Internal How-To progress is not acceptance evidence."
+            )
     if decision != FinanceStakeholderAcceptance.ACCEPTED and not reason.strip():
         raise ValidationError("State each condition or the reason the scope is not accepted.")
     acceptance.training_evidence_reference = training_reference.strip()
@@ -859,6 +1122,26 @@ def cutover_readiness(cycle):
         row for row in rows
         if row.decision != FinanceStakeholderAcceptance.ACCEPTED
     ]
+    readiness_plan = FinanceCutoverReadinessPlan.objects.filter(cycle=cycle).first()
+    exercises = list(cycle.cutover_readiness_exercises.all())
+    passed_nonfunctional = {
+        item.kind for item in exercises
+        if item.status == FinanceCutoverReadinessExercise.PASSED
+        and item.kind in REQUIRED_NONFUNCTIONAL_EXERCISES
+    }
+    missing_exercises = sorted(REQUIRED_NONFUNCTIONAL_EXERCISES - passed_nonfunctional)
+    role_training_missing = [
+        row.pk for row in rows
+        if not any(
+            item.kind == FinanceCutoverReadinessExercise.ROLE_TRAINING
+            and item.stakeholder_acceptance_id == row.pk
+            and item.status == FinanceCutoverReadinessExercise.PASSED
+            for item in exercises
+        )
+    ]
+    unfinished_exercises = [
+        item for item in exercises if item.status != FinanceCutoverReadinessExercise.PASSED
+    ]
     checks = [
         {
             "code": "shadow_reconciled",
@@ -875,8 +1158,52 @@ def cutover_readiness(cycle):
             "passed": bool(rows) and not blocking,
             "message": "Every required stakeholder accepted the exact enabled scope." if rows and not blocking else "Pending, conditional, or rejected stakeholder decisions still block cutover.",
         },
+        {
+            "code": "readiness_plan_approved",
+            "passed": bool(readiness_plan and readiness_plan.status == FinanceCutoverReadinessPlan.APPROVED),
+            "message": (
+                "The local curriculum, quick-guide, supervisor-runbook, and support plan is independently approved."
+                if readiness_plan and readiness_plan.status == FinanceCutoverReadinessPlan.APPROVED
+                else "The local curriculum and support plan is missing or not independently approved."
+            ),
+        },
+        {
+            "code": "role_exercises_passed",
+            "passed": bool(rows) and not role_training_missing,
+            "message": (
+                "Every named stakeholder has a passed, independently witnessed role exercise."
+                if rows and not role_training_missing
+                else "One or more named stakeholders still lack a passed role exercise. Private tutorial progress does not satisfy this gate."
+            ),
+        },
+        {
+            "code": "nonfunctional_exercises_passed",
+            "passed": not missing_exercises,
+            "message": (
+                "Security, privacy, accessibility, performance, printing, recovery, continuity, and incident exercises all passed."
+                if not missing_exercises
+                else "Missing passed nonfunctional exercise kinds: " + ", ".join(missing_exercises)
+            ),
+        },
+        {
+            "code": "all_exercises_closed",
+            "passed": bool(exercises) and not unfinished_exercises,
+            "message": (
+                "Every scheduled readiness exercise has a final passed result."
+                if exercises and not unfinished_exercises
+                else "Planned, submitted, or returned readiness exercises still block cutover."
+            ),
+        },
     ]
-    return {"ready": all(check["passed"] for check in checks), "checks": checks, "missing": missing, "blocking": blocking}
+    return {
+        "ready": all(check["passed"] for check in checks),
+        "checks": checks,
+        "missing": missing,
+        "blocking": blocking,
+        "missing_exercises": missing_exercises,
+        "role_training_missing": role_training_missing,
+        "unfinished_exercise_ids": [item.pk for item in unfinished_exercises],
+    }
 
 
 @transaction.atomic
@@ -982,14 +1309,21 @@ def build_cutover_evidence_package(cycle, actor):
         decision = cycle.cutover_decision
     except FinanceCutoverDecision.DoesNotExist:
         decision = None
+    readiness_plan = FinanceCutoverReadinessPlan.objects.filter(cycle=cycle).first()
+    readiness_exercises = [
+        _readiness_exercise_data(item)
+        for item in cycle.cutover_readiness_exercises.order_by("kind", "scheduled_for", "code")
+    ]
     payload = {
         "format": "GRAND Finance shadow/cutover evidence",
-        "schema_version": 3,
+        "schema_version": 4,
         "notice": "Portable evidence copy. Authority exists only when the included decision status is authorized for its exact scope and date.",
         "cycle": cycle_payload,
         "stored_cycle_evidence_checksum": cycle.evidence_checksum,
         "computed_cycle_evidence_checksum": computed_checksum,
         "stakeholder_acceptances": acceptances,
+        "cutover_readiness_plan": _readiness_plan_data(readiness_plan) if readiness_plan else None,
+        "cutover_readiness_exercises": readiness_exercises,
         "cutover_readiness": {key: value for key, value in cutover_readiness(cycle).items() if key != "blocking"},
         "cutover_decision": _decision_data(decision) if decision else None,
         "exported_at": timezone.now(),
