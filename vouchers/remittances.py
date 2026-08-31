@@ -26,7 +26,7 @@ from src.export_archive import archive_export
 from .access import department_for_user, has_explicit_permission
 from .models import (
     RemittanceEvent, RemittanceNumberIssue, RemittancePostingRequest,
-    TreasuryRemittanceBatch, TreasuryRemittanceLine,
+    TaxFilingEvidence, TreasuryRemittanceBatch, TreasuryRemittanceLine,
 )
 
 
@@ -78,6 +78,32 @@ def active_release(as_of=None):
     ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=as_of)).order_by("-activated_at", "-pk").first()
 
 
+def _tax_scope_for_identity(*, finance_department_id, transaction_type, as_of_date, identity):
+    """Return one governed rule scope only when every tagged source agrees."""
+    details = JournalSubsidiaryLine.objects.filter(
+        entry__department_id=finance_department_id, entry__status=JournalEntry.POSTED,
+        entry__entry_date__lte=as_of_date, category=JournalSubsidiaryLine.WITHHOLDING,
+        entry__fund__code=identity["fund_code"], journal_line__account__code=identity["account_code"],
+        reference_key=identity["reference_key"], source_code=identity["deduction_code"],
+        source_snapshot__transaction_type=transaction_type,
+    ).only("source_snapshot", "credit")
+    scopes = {}
+    for detail in details:
+        tax = (detail.source_snapshot or {}).get("tax_reporting") or {}
+        checksum = str(tax.get("tax_rule_checksum") or "")
+        if detail.credit > 0 and checksum:
+            scopes.setdefault(checksum, tax)
+    if len(scopes) != 1:
+        return {}, ""
+    checksum, tax = next(iter(scopes.items()))
+    keys = (
+        "tax_family", "atc", "rate_percent", "tax_base_label", "return_form_code",
+        "certificate_form_code", "rounding_mode", "authority_reference",
+        "local_applicability_note", "tax_rule_checksum",
+    )
+    return {key: tax.get(key, "") for key in keys}, checksum
+
+
 def withholding_availability(*, finance_department_id, transaction_type, as_of_date, include_nonpositive=False):
     """Return posted balances less live remittance reservations, with a stable row key."""
     ledger_rows = JournalSubsidiaryLine.objects.filter(
@@ -121,6 +147,12 @@ def withholding_availability(*, finance_department_id, transaction_type, as_of_d
         identity["ledger_balance"] = balance
         identity["reserved"] = held
         identity["available"] = balance - held
+        tax_snapshot, tax_checksum = _tax_scope_for_identity(
+            finance_department_id=finance_department_id, transaction_type=transaction_type,
+            as_of_date=as_of_date, identity=identity,
+        )
+        identity["tax_rule_snapshot"] = tax_snapshot
+        identity["tax_rule_checksum"] = tax_checksum
         identity["source_checksum"] = _digest({**identity, "as_of_date": as_of_date.isoformat(), "ledger_balance": str(balance), "reserved": str(held)})
         identity["choice_key"] = _digest({key: identity[key] for key in ("fund_code", "account_code", "reference_key", "deduction_code")})
         if include_nonpositive or identity["available"] > 0:
@@ -187,7 +219,9 @@ def add_line(*, batch, actor, choice_key, amount, reason):
         account_title=row["account_title"], reference_key=row["reference_key"],
         reference_label=row["reference_label"], deduction_code=row["deduction_code"],
         source_as_of_date=locked.remittance_date, available_balance_snapshot=row["available"],
-        amount=amount, source_checksum=row["source_checksum"], change_reason=reason.strip(), created_by=actor,
+        amount=amount, source_checksum=row["source_checksum"],
+        tax_rule_snapshot=row["tax_rule_snapshot"], tax_rule_checksum=row["tax_rule_checksum"],
+        change_reason=reason.strip(), created_by=actor,
     )
     line.full_clean(); line.save()
     locked.total_amount = locked.lines.filter(status=TreasuryRemittanceLine.ACTIVE).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
@@ -226,6 +260,7 @@ def revise_line(*, line, actor, amount, reason):
         reference_label=current.reference_label, deduction_code=current.deduction_code,
         source_as_of_date=batch.remittance_date, available_balance_snapshot=capacity,
         amount=amount if amount > 0 else current.amount, source_checksum=current.source_checksum,
+        tax_rule_snapshot=current.tax_rule_snapshot, tax_rule_checksum=current.tax_rule_checksum,
         change_reason=reason.strip(), created_by=actor,
     )
     successor.full_clean(); successor.save()
@@ -317,6 +352,7 @@ def _posting_payload(batch, lines):
             "account_title": line.account_title, "reference_key": line.reference_key,
             "reference_label": line.reference_label, "deduction_code": line.deduction_code,
             "amount": str(line.amount), "source_checksum": line.source_checksum,
+            "tax_rule_snapshot": line.tax_rule_snapshot, "tax_rule_checksum": line.tax_rule_checksum,
         } for line in lines],
     }
     return payload, _digest(payload)
@@ -446,7 +482,13 @@ def materialize_remittance_journal(posting_request, actor):
                         reference_key=item["reference_key"], reference_label=item["reference_label"],
                         source_code=item["deduction_code"], source_reference=str(request.public_id),
                         debit=line.debit, credit=line.credit,
-                        source_snapshot={"remittance_batch": str(request.batch.public_id), "transaction_type": payload["transaction_type"], "source_balance_checksum": item["source_checksum"]},
+                        source_snapshot={
+                            "remittance_batch": str(request.batch.public_id),
+                            "transaction_type": payload["transaction_type"],
+                            "source_balance_checksum": item["source_checksum"],
+                            "tax_remittance": item.get("tax_rule_snapshot") or {},
+                            "tax_rule_checksum": item.get("tax_rule_checksum") or "",
+                        },
                     )
                     detail.full_clean(); detail.save()
             AccountingAuditEvent.objects.create(
@@ -505,7 +547,7 @@ def export_batch_csv(*, batch, actor):
     _require(actor, "vouchers.view_remittance_workbench")
     output = io.StringIO(newline="")
     writer = csv.writer(output)
-    writer.writerow(["remittance_reference", "status", "date", "fund", "recipient", "payment_method", "bank_account", "release_reference", "acknowledgement_reference", "line_version", "line_status", "deduction_code", "reference_key", "reference_label", "liability_account", "amount", "source_balance_checksum", "jev_number", "jev_status"])
+    writer.writerow(["remittance_reference", "status", "date", "fund", "recipient", "payment_method", "bank_account", "release_reference", "acknowledgement_reference", "line_version", "line_status", "deduction_code", "reference_key", "reference_label", "liability_account", "amount", "tax_family", "return_form_code", "atc", "tax_rule_checksum", "source_balance_checksum", "jev_number", "jev_status"])
     latest_request = batch.posting_requests.order_by("-version").first()
     for line in batch.lines.order_by("lineage_key", "version"):
         writer.writerow([
@@ -513,7 +555,9 @@ def export_batch_csv(*, batch, actor):
             batch.recipient_party.display_name, batch.payment_method, batch.bank_account_code,
             batch.release_reference, batch.acknowledgement_reference, line.version, line.get_status_display(),
             line.deduction_code, line.reference_key, line.reference_label, line.account_code,
-            str(line.amount), line.source_checksum,
+            str(line.amount), line.tax_rule_snapshot.get("tax_family", ""),
+            line.tax_rule_snapshot.get("return_form_code", ""), line.tax_rule_snapshot.get("atc", ""),
+            line.tax_rule_checksum, line.source_checksum,
             latest_request.jev_number if latest_request else "", latest_request.get_status_display() if latest_request else "",
         ])
     content = output.getvalue().encode("utf-8-sig")

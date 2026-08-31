@@ -36,7 +36,7 @@ from .access import can_view_workbench
 from .models import (
     BankAdviceBatch, PayableIntake, PaymentInstrument, PaymentInstrumentException, ReturnedInstrumentReview, TreasuryCashPolicy,
     TreasuryCashPosition, TreasuryCashReservation, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
-    RemittancePostingRequest, TreasuryRemittanceBatch, TreasuryRemittanceLine,
+    RemittancePostingRequest, TaxFilingEvidence, TreasuryRemittanceBatch, TreasuryRemittanceLine,
     VoucherDeduction, VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
 )
 from .posting import materialize_voucher_journal, reconcile_posted_voucher_entry
@@ -53,6 +53,10 @@ from .remittances import (
     add_line, create_batch, export_batch_csv, materialize_remittance_journal,
     reconcile_posted_remittance_entry, release_batch, review_batch, revise_line,
     submit_batch, supersede_discarded_request, withholding_availability,
+)
+from .tax_filings import (
+    create_amendment, export_evidence_csv, review_evidence, save_draft,
+    submit_evidence,
 )
 from .services import (
     amend_nonfinancial_voucher, approve_override, cancel_check, certify_budget, create_budget_case,
@@ -655,6 +659,96 @@ class VoucherWorkflowTests(TestCase):
         response = self.client.get(reverse("vouchers:remittance_detail", args=(batch.public_id,)))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Remitted and posted")
+
+    def test_governed_tax_remittance_preserves_rule_and_verifies_external_filing_evidence(self):
+        agency = self.enable_remittance_route()
+        case = self.create_case("tax-remittance-create")
+        self.budget_certify(case, "tax-remittance-budget")
+        case.refresh_from_db()
+        prepare_voucher(
+            case=case, actor=self.preparer, voucher_date=date(2026, 8, 25),
+            gross_amount=Decimal("1000.00"), deductions=[{
+                "tax_rule_item": self.tax_rule_item, "code": self.tax_rule_item.code,
+                "description": self.tax_rule_item.label, "tax_base": Decimal("1000.00"),
+                "amount": Decimal("10.00"),
+            }], line_description="Synthetic office supplies", line_account_code="5-02-03",
+            document_codes=["invoice"], expected_version=case.state_version,
+            idempotency_key="tax-remittance-prepare",
+        )
+        self.return_signatures(case)
+        validate_accounting(
+            case=case, actor=self.validator, jev_number="JEV-TAX-REM-001",
+            jev_date=date(2026, 8, 25), note="Tax source checked",
+            expected_version=case.state_version, idempotency_key="tax-remittance-validate",
+        )
+        request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
+        entry, _created = materialize_voucher_journal(request, self.preparer)
+        submit_entry(entry, self.preparer); entry.refresh_from_db()
+        post_entry(entry, self.validator); entry.refresh_from_db()
+        reconcile_posted_voucher_entry(entry, self.validator)
+
+        availability = withholding_availability(
+            finance_department_id=self.accounting.pk,
+            transaction_type=self.transaction_variant.code, as_of_date=date(2026, 8, 31),
+        )
+        self.assertEqual(availability[0]["tax_rule_checksum"], self.tax_rule_item.voucher_deduction_snapshots.get().tax_rule_checksum)
+        self.assertEqual(availability[0]["tax_rule_snapshot"]["return_form_code"], "1601-EQ")
+        batch = create_batch(
+            actor=self.treasury_user, configuration_release=self.release,
+            transaction_variant=self.transaction_variant, recipient_party=agency,
+            fund_code="general-fund", bank_account_code="gf-lbp",
+            remittance_date=date(2026, 8, 31), payment_method="Electronic transfer",
+            authority_reference="Synthetic reviewed filing/remittance procedure",
+            evidence_reference="Synthetic governed tax source schedule",
+        )
+        line = add_line(
+            batch=batch, actor=self.treasury_user, choice_key=availability[0]["choice_key"],
+            amount=Decimal("10.00"), reason="Matches reviewed governed tax schedule",
+        )
+        self.assertEqual(line.tax_rule_snapshot["atc"], "WI158")
+        submit_batch(batch=batch, actor=self.treasury_user)
+        review_batch(batch=batch, actor=self.validator, approve=True, reason="Matched form, ATC, source, and liability")
+        posting = release_batch(
+            batch=batch, actor=self.treasury_user, release_reference="BANK-TAX-001",
+            acknowledgement_reference="PAYMENT-ACK-001",
+        )
+        evidence = save_draft(
+            batch=batch, actor=self.treasury_user, return_form_code="1601-EQ",
+            tax_period_start=date(2026, 7, 1), tax_period_end=date(2026, 9, 30),
+            filing_date=date(2026, 8, 31), submission_channel="Synthetic accepted portal",
+            filing_reference="FILE-ACK-001", payment_confirmation_reference="PAYMENT-ACK-001",
+            source_schedule_reference="GRAND-TAX-SOURCE-001",
+            source_schedule_checksum="a" * 64,
+            evidence_reference="Synthetic restricted evidence packet shelf A",
+        )
+        self.assertEqual(evidence.tax_scope_snapshot["return_form_code"], "1601-EQ")
+        self.assertEqual(len(evidence.evidence_checksum), 64)
+        remittance_entry, _created = materialize_remittance_journal(posting, self.preparer)
+        subsidiary = remittance_entry.subsidiary_lines.get()
+        self.assertEqual(subsidiary.source_snapshot["tax_remittance"]["return_form_code"], "1601-EQ")
+        submit_entry(remittance_entry, self.preparer); remittance_entry.refresh_from_db()
+        post_entry(remittance_entry, self.validator); remittance_entry.refresh_from_db()
+        reconcile_posted_remittance_entry(remittance_entry, self.validator)
+
+        submit_evidence(evidence=evidence, actor=self.treasury_user)
+        with self.assertRaisesMessage(ValidationError, "preparer cannot verify"):
+            review_evidence(evidence=evidence, actor=self.treasury_user, approve=True, reason="Self review")
+        review_evidence(
+            evidence=evidence, actor=self.validator, approve=True,
+            reason="Matched external filing acknowledgement, payment proof, and checksummed source schedule",
+        )
+        evidence.refresh_from_db()
+        self.assertEqual(evidence.status, TaxFilingEvidence.VERIFIED)
+        content, archived = export_evidence_csv(evidence=evidence, actor=self.treasury_user)
+        self.assertIn(b"FILE-ACK-001", content)
+        self.assertIn("finance-tax-filings", archived["relative_path"])
+        successor = create_amendment(
+            evidence=evidence, actor=self.treasury_user,
+            reason="External agency accepted a corrected filing reference",
+        )
+        evidence.refresh_from_db()
+        self.assertEqual(evidence.status, TaxFilingEvidence.SUPERSEDED)
+        self.assertEqual((successor.version, successor.filing_type), (2, TaxFilingEvidence.AMENDED))
 
     def test_complete_supplier_disbursement_route_uses_one_shared_case(self):
         case = self.ready_for_treasury()

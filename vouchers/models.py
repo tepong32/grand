@@ -1551,6 +1551,8 @@ class TreasuryRemittanceLine(models.Model):
     available_balance_snapshot = models.DecimalField(**MONEY)
     amount = models.DecimalField(**MONEY, validators=[MinValueValidator(Decimal("0.01"))])
     source_checksum = models.CharField(max_length=64)
+    tax_rule_snapshot = models.JSONField(default=dict, blank=True)
+    tax_rule_checksum = models.CharField(max_length=64, blank=True)
     change_reason = models.TextField()
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_remittance_lines")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1660,6 +1662,106 @@ class RemittanceEvent(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Remittance events cannot be deleted.")
+
+
+class TaxFilingEvidence(models.Model):
+    """Reviewed evidence that a governed tax remittance was filed outside GRAND."""
+
+    DRAFT = "draft"
+    RETURNED = "returned"
+    FOR_REVIEW = "for_review"
+    VERIFIED = "verified"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft evidence"), (RETURNED, "Returned for correction"),
+        (FOR_REVIEW, "For independent review"), (VERIFIED, "Evidence verified"),
+        (SUPERSEDED, "Superseded by amendment"),
+    )
+    ORIGINAL = "original"
+    AMENDED = "amended"
+    FILING_TYPE_CHOICES = ((ORIGINAL, "Original filing"), (AMENDED, "Amended filing"))
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    batch = models.ForeignKey(
+        TreasuryRemittanceBatch, on_delete=models.PROTECT, related_name="tax_filing_evidence",
+    )
+    version = models.PositiveSmallIntegerField(default=1)
+    supersedes = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor",
+    )
+    filing_type = models.CharField(max_length=12, choices=FILING_TYPE_CHOICES, default=ORIGINAL)
+    return_form_code = models.CharField(max_length=40)
+    tax_period_start = models.DateField()
+    tax_period_end = models.DateField()
+    filing_date = models.DateField()
+    submission_channel = models.CharField(max_length=120)
+    filing_reference = models.CharField(max_length=160)
+    payment_confirmation_reference = models.CharField(max_length=160)
+    source_schedule_reference = models.CharField(max_length=220)
+    source_schedule_checksum = models.CharField(max_length=64)
+    evidence_reference = models.TextField()
+    tax_scope_snapshot = models.JSONField(default=dict)
+    evidence_checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT, db_index=True)
+    state_version = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_tax_filing_evidence",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_tax_filing_evidence",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_tax_filing_evidence",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_reason = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-filing_date", "-pk")
+        constraints = (
+            models.UniqueConstraint(fields=("batch", "version"), name="unique_tax_filing_evidence_version"),
+            models.UniqueConstraint(
+                fields=("batch",), condition=models.Q(status__in=("draft", "returned", "for_review", "verified")),
+                name="unique_current_tax_filing_evidence",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.batch.reference_code} · {self.return_form_code} · v{self.version}"
+
+    def clean(self):
+        if self.tax_period_start and self.tax_period_end and self.tax_period_start > self.tax_period_end:
+            raise ValidationError({"tax_period_end": "The tax period end cannot precede its start."})
+        if self.filing_date and self.tax_period_end and self.filing_date < self.tax_period_start:
+            raise ValidationError({"filing_date": "The filing date cannot precede the tax period start."})
+        if len(self.source_schedule_checksum) != 64 or any(
+            character.lower() not in "0123456789abcdef" for character in self.source_schedule_checksum
+        ):
+            raise ValidationError({"source_schedule_checksum": "Enter the 64-character SHA-256 of the reviewed source schedule."})
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            evidence_fields = (
+                "batch_id", "version", "supersedes_id", "filing_type", "return_form_code",
+                "tax_period_start", "tax_period_end", "filing_date", "submission_channel",
+                "filing_reference", "payment_confirmation_reference", "source_schedule_reference",
+                "source_schedule_checksum", "evidence_reference", "tax_scope_snapshot",
+                "evidence_checksum", "created_by_id", "created_at",
+            )
+            if prior.status not in {self.DRAFT, self.RETURNED} and any(
+                getattr(prior, field) != getattr(self, field) for field in evidence_fields
+            ):
+                raise ValidationError("Submitted tax filing evidence is immutable. Return it or create an amended successor.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Tax filing evidence cannot be deleted. Retain it or create an amended successor.")
 
 
 class VoucherPrintJob(models.Model):

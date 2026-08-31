@@ -1,5 +1,12 @@
 # Changelog
 
+## F9.6 Governed tax remittance and filing evidence
+
+- Preserved governed tax family, return/remittance form, ATC, rule checksum, and source-balance checksum on Treasury remittance allocations, posting payloads, liability-reducing subsidiary movements, UI rows, and portable registers while keeping generic deductions compatible.
+- Added a post-release filing-evidence package for actual period, channel, filing acknowledgement, payment confirmation, checksummed source schedule, and restricted custody references without implementing e-filing or deadline calculation.
+- Added maker-checker Accounting verification, returned-draft corrections, immutable verified evidence, explicit amended successors, append-only remittance events, and checksum validation.
+- Added department-specific floating-guide updates, a conservative in-page workflow, TraceSync-ready `finance-tax-filings` exports, migration, documentation, and focused lifecycle/tamper-boundary coverage.
+
 ## F9.5 Governed tax withholding capture and reporting
 
 - Added plain-language, versioned Finance Setup tax rules for tax family, ATC, rate, base, form codes, reporting date, rounding, TIN requirement, authority, effectivity, and local acceptance without requiring users to edit JSON.

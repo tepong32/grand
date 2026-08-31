@@ -15,6 +15,7 @@ This slice turns posted GRAND withholding subsidiary balances into a controlled,
 7. Treasury records actual bank/payment release and optional acknowledgement/official-receipt evidence once. GRAND then creates an immutable posting request with a controlled JEV number.
 8. Accounting materializes the JEV from the pinned rule. The supported starter debits each actual withholding liability account and credits the mapped bank account for the exact control total.
 9. A separate poster submits/posts under the normal journal control. Only successful posting completes the remittance and reduces the subsidiary balance.
+10. For a homogeneous governed tax remittance, Treasury may then record external filing/payment references and a reviewed source-schedule SHA-256 for independent Accounting verification under the [F9.6 tax remittance and filing-evidence route](FINANCE_TAX_REMITTANCE_EVIDENCE.md).
 
 ## Modification and correction boundaries
 
@@ -39,7 +40,7 @@ Materialization stops when a current deduction mapping no longer matches the acc
 - **Accounting Reviewer** independently approves/returns the Treasury schedule and posts the resulting submitted JEV.
 - **Accounting DV Preparer** materializes and submits the checksummed JEV.
 - Department-specific floating `?` guides explain preparation, modification, review, release, posting, recovery, and post-posting correction. Tutorial progress is private learning state and is not workflow evidence.
-- The CSV register includes every allocation version, release/acknowledgement references, source-balance checksum, JEV number, and posting status. The same bytes are retained beneath `department/user/finance-remittances/year/month` in the single TraceSync-ready export root beside a SHA-256 manifest.
+- The CSV register includes every allocation version, release/acknowledgement references, governed tax family/form/ATC/rule checksum when applicable, source-balance checksum, JEV number, and posting status. The same bytes are retained beneath `department/user/finance-remittances/year/month` in the single TraceSync-ready export root beside a SHA-256 manifest. F9.6 filing-evidence exports use the sibling `finance-tax-filings` category.
 
 ## Acceptance still required
 

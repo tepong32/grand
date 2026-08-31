@@ -20,7 +20,7 @@ from finance.models import (
 from .models import (
     BankAdviceBatch, PayableDocumentEvidence, PayableIntake, PaymentInstrument, ReturnedInstrumentReview, VoucherCase,
     PaymentInstrumentException, TreasuryCashPolicy, TreasuryCashPosition,
-    TreasuryRemittanceLine, VoucherPrintJob, WetSignatureTask,
+    TaxFilingEvidence, TreasuryRemittanceLine, VoucherPrintJob, WetSignatureTask,
 )
 
 
@@ -257,6 +257,59 @@ class RemittanceReviewForm(forms.Form):
 class RemittanceReleaseForm(forms.Form):
     release_reference = forms.CharField(max_length=160, label="Bank / payment release reference")
     acknowledgement_reference = forms.CharField(max_length=160, required=False, label="Agency acknowledgement / official receipt reference")
+
+
+class TaxFilingEvidenceForm(forms.ModelForm):
+    class Meta:
+        model = TaxFilingEvidence
+        fields = (
+            "return_form_code", "tax_period_start", "tax_period_end", "filing_date",
+            "submission_channel", "filing_reference", "payment_confirmation_reference",
+            "source_schedule_reference", "source_schedule_checksum", "evidence_reference",
+        )
+        widgets = {
+            "tax_period_start": DateInput(), "tax_period_end": DateInput(), "filing_date": DateInput(),
+            "evidence_reference": forms.Textarea(attrs={"rows": 3}),
+        }
+        labels = {
+            "return_form_code": "Reviewed return / remittance form code",
+            "tax_period_start": "Tax period start", "tax_period_end": "Tax period end",
+            "submission_channel": "Actual submission channel",
+            "filing_reference": "Filing / submission reference",
+            "payment_confirmation_reference": "Payment confirmation / receipt reference",
+            "source_schedule_reference": "Reviewed source-schedule reference",
+            "source_schedule_checksum": "Source-schedule SHA-256",
+            "evidence_reference": "Evidence location / custody reference",
+        }
+        help_texts = {
+            "return_form_code": "This must match the governed tax rule pinned to the remittance.",
+            "submission_channel": "For example, the locally accepted portal, authorized agent bank, or manual channel actually used.",
+            "source_schedule_checksum": "Paste the 64-character SHA-256 from the reviewed GRAND tax source schedule.",
+            "evidence_reference": "Reference the retained acknowledgement/receipt packet without copying passwords or unnecessary taxpayer data.",
+        }
+
+    def __init__(self, *args, batch=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["filing_date"].initial = timezone.localdate()
+        if batch:
+            from .tax_filings import tax_scope
+            try:
+                scope, _checksum = tax_scope(batch)
+            except ValidationError:
+                scope = {}
+            self.fields["return_form_code"].initial = scope.get("return_form_code", "")
+
+
+class TaxFilingEvidenceReviewForm(forms.Form):
+    decision = forms.ChoiceField(choices=(("approve", "Verify evidence"), ("return", "Return for correction")))
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), label="Verification basis / correction instructions")
+
+
+class TaxFilingAmendmentForm(forms.Form):
+    reason = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="Why is an amended filing-evidence version required?",
+    )
 
 
 class PayableAllocationAddForm(WorkflowForm):
