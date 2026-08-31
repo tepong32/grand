@@ -53,4 +53,3 @@ def budget_permission_required(codename):
             return view(request, *args, **kwargs)
         return wrapper
     return decorator
-
