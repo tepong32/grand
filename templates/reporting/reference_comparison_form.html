@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title_ext %} - {{ mode }} reference comparison{% endblock %}
+{% block content %}
+<div class="container py-3"><a href="{% if comparison %}{{ comparison.get_absolute_url }}{% else %}{{ run.get_absolute_url }}{% endif %}" class="small">&larr; Statement run</a><h1 class="h3 mt-3">{{ mode }} signed-reference comparison</h1>
+  <div class="alert alert-warning"><strong>Use a safe comparison copy.</strong> Upload only a redacted PDF, macro-free XLSX, or image. Remove confidential taxpayer, payee, employee, bank, and signature-image details. GRAND compares entered control totals; it does not claim that the page layout matches automatically.</div>
+  <section class="card mb-3"><div class="card-body"><strong>{{ run.definition.name }}</strong><div class="text-muted small">{{ run.period_start|date:"M j, Y" }} to {{ run.period_end|date:"M j, Y" }} · {{ run.get_status_display }} · {{ run.get_control_status_display }}</div></div></section>
+  <form method="post" enctype="multipart/form-data" class="card"><div class="card-body">{% csrf_token %}{{ form.as_p }}</div><div class="card-footer"><button class="btn btn-primary">Save comparison</button></div></form>
+</div>
+{% endblock %}

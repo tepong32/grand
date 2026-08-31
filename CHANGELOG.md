@@ -1,5 +1,14 @@
 # Changelog
 
+## F9.4 Statement notes and signed-reference comparison
+
+- Added versioned, human-editable financial-statement note packages pinned to exact control-reconciled position and performance runs for the same period.
+- Added plain-language candidate disclosure topics, line links, reasoned not-applicable decisions, and a visible candidate-versus-locally-confirmed boundary instead of hard-coding local disclosure claims.
+- Added immutable run/mapping/output/data/control/reproduction snapshots, SHA-256 package evidence, submission drift detection, and independent return, working-note acceptance, or locally accepted approval.
+- Added signed/redacted PDF, macro-free XLSX, and image reference intake with explicit privacy confirmation, exact control-total differences, file checksums, comparison checksums, and independent zero-difference reconciliation.
+- Added department-bounded reporting screens, Finance role separation, Accounting Internal How-To version 4, conservative inline guidance, and TraceSync-ready note/comparison exports with adjacent manifests.
+- Added focused regression coverage and documented the COA/BIR public-source context while leaving current tax outputs, exact form fidelity, complete signed-package replay, and named-office acceptance open.
+
 ## F7.4 Governed period close and controlled reopen
 
 - Replaced the direct one-click Accounting close action with a checksummed checklist and independent close approval.

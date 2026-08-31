@@ -1,6 +1,6 @@
 # Finance statement composition and explained measures
 
-Status: **F9.3 implemented synthetic controls; signed local-statement comparison, notes, exact official forms, named-office acceptance, and the parent F9 exit gate remain open**.
+Status: **F9.3 implemented synthetic controls; F9.4 now supplies governed statement notes and exact signed-reference control comparison. Exact official forms, tax outputs, named-office acceptance, and the parent F9 exit gate remain open**.
 
 F9.3 turns posted Accounting entries into two reproducible management statements without treating a balanced screen as an accepted financial statement:
 
@@ -44,10 +44,10 @@ Control exceptions cannot advance through official report review. Users correct 
 
 ## Internal guidance and exports
 
-The Accounting Internal How-To is version 3 and covers statement mapping, equation review, exact coverage, source freshness, and drill-through. The mapping page also includes a `?` guide in a floating modal so users can read the procedure without leaving their current work.
+The Accounting Internal How-To is version 4 and covers statement mapping, equation review, exact coverage, source freshness, drill-through, note preparation, and signed-reference comparison. The mapping and note pages also include `?` guidance in floating modals so users can read the procedure without leaving their current work.
 
 Statement outputs, control-evidence exports, and reproduction receipts continue through the existing TraceSync-ready department/user/category archive. Copy or synchronize the complete export root, including sibling manifests, for safekeeping.
 
 ## Acceptance boundary
 
-F9.3 does not claim that period close means statement acceptance. It also does not supply statement notes, current accepted BIR/tax outputs, signed-reference reproduction, exact paper layouts, or named Budget/Accounting/Treasury acceptance. Those remain explicit F9/F10 evidence and rollout work.
+F9.3 does not claim that period close means statement acceptance. F9.4 adds [governed statement notes and signed-reference control comparison](FINANCE_STATEMENT_NOTES.md), but it does not automatically validate disclosure applicability, reproduce exact paper layouts, or generate current accepted BIR/tax outputs. Exact forms, named Budget/Accounting/Treasury acceptance, and the parent F9/F10 gates remain explicit evidence and rollout work.

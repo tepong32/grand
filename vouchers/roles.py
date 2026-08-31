@@ -106,6 +106,9 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.view_reporting_workspace",
         "reporting.generate_reports",
         "reporting.download_reports",
+        "reporting.prepare_statement_notes",
+        "reporting.prepare_reference_comparisons",
+        "reporting.export_statement_packages",
     ),
     "Accounting Reviewer": (
         "finance.view_finance_setup",
@@ -142,6 +145,9 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.approve_reports",
         "reporting.download_reports",
         "reporting.view_department_reports",
+        "reporting.review_statement_notes",
+        "reporting.review_reference_comparisons",
+        "reporting.export_statement_packages",
     ),
     "Treasury Disbursement Officer": (
         "vouchers.view_voucher_workbench",
@@ -179,6 +185,8 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.schedule_reports",
         "reporting.generate_reports",
         "reporting.download_reports",
+        "reporting.prepare_reference_comparisons",
+        "reporting.export_statement_packages",
     ),
     "Finance Configuration Approver": (
         "finance.view_finance_setup",
@@ -192,6 +200,8 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.approve_reports",
         "reporting.download_reports",
         "reporting.view_department_reports",
+        "reporting.review_reference_comparisons",
+        "reporting.export_statement_packages",
     ),
 }
 

@@ -6,9 +6,11 @@ from accounting.models import LedgerAccount
 
 from .datasets import DATASETS, available_datasets, dataset_registry
 from .models import (
-    FinanceStatementLine, FinanceStatementMapping, ReportDefinition, ReportSchedule,
-    ReportTemplateMappingField, ReportTemplateVersion,
+    FinanceStatementLine, FinanceStatementMapping, FinanceStatementNote,
+    FinanceStatementNoteSet, ReportDefinition, ReportReferenceComparison, ReportRun,
+    ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion,
 )
+from .statement_services import comparison_controls, create_note_set
 
 
 class FinanceStatementMappingForm(forms.ModelForm):
@@ -79,6 +81,175 @@ class FinanceStatementLineForm(forms.ModelForm):
         if commit:
             line.save()
         return line
+
+
+class FinanceStatementNoteSetForm(forms.ModelForm):
+    class Meta:
+        model = FinanceStatementNoteSet
+        fields = (
+            "title", "position_run", "performance_run", "applicability_status",
+            "preparation_note", "authority_reference", "local_acceptance_note",
+        )
+        widgets = {
+            "preparation_note": forms.Textarea(attrs={"rows": 3}),
+            "authority_reference": forms.Textarea(attrs={"rows": 3}),
+            "local_acceptance_note": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, department=None, user=None, **kwargs):
+        self.department, self.user = department, user
+        super().__init__(*args, **kwargs)
+        base = ReportRun.objects.filter(
+            definition__department=department,
+            status__in=(ReportRun.GENERATED, ReportRun.REVIEWED, ReportRun.APPROVED),
+            control_status=ReportRun.CONTROL_RECONCILED,
+        ).select_related("definition").order_by("-period_end", "-created_at")
+        self.fields["position_run"].queryset = base.filter(
+            definition__dataset_key="finance_statement_position",
+        )
+        self.fields["performance_run"].queryset = base.filter(
+            definition__dataset_key="finance_statement_performance",
+        )
+        self.fields["position_run"].label_from_instance = lambda run: (
+            f"{run.period_start:%b %d, %Y} to {run.period_end:%b %d, %Y} · "
+            f"{run.get_status_display()} · {str(run.public_id)[:8]}"
+        )
+        self.fields["performance_run"].label_from_instance = self.fields["position_run"].label_from_instance
+        self.fields["applicability_status"].help_text = (
+            "Keep Candidate until the current authority, exact local note package, and retained acceptance evidence are confirmed."
+        )
+        if self.instance.pk and not self.instance.is_editable:
+            for field in self.fields.values():
+                field.disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        position = cleaned.get("position_run")
+        performance = cleaned.get("performance_run")
+        if position and performance and (
+            position.period_start != performance.period_start or position.period_end != performance.period_end
+        ):
+            raise forms.ValidationError("Choose position and performance runs for the exact same period.")
+        if cleaned.get("applicability_status") == FinanceStatementNoteSet.CONFIRMED:
+            if not (cleaned.get("authority_reference") or "").strip():
+                self.add_error("authority_reference", "Record the reviewed current authority before local confirmation.")
+            if not (cleaned.get("local_acceptance_note") or "").strip():
+                self.add_error("local_acceptance_note", "Record who accepted the local note package and where evidence is retained.")
+        return cleaned
+
+    def save(self, commit=True):
+        if self.instance.pk:
+            note_set = super().save(commit=False)
+            if commit:
+                note_set.full_clean()
+                note_set.save()
+            return note_set
+        if not commit:
+            raise ValueError("New statement-note packages must be created atomically.")
+        return create_note_set(
+            department=self.department,
+            position_run=self.cleaned_data["position_run"],
+            performance_run=self.cleaned_data["performance_run"],
+            actor=self.user,
+            data=self.cleaned_data,
+        )
+
+
+class FinanceStatementNoteForm(forms.ModelForm):
+    related_line_codes = forms.MultipleChoiceField(
+        choices=(), required=False, widget=forms.CheckboxSelectMultiple,
+        help_text="Optionally link this disclosure to the exact lines pinned in the two statement runs.",
+    )
+
+    class Meta:
+        model = FinanceStatementNote
+        fields = (
+            "position", "topic_code", "title", "related_statement", "related_line_codes",
+            "disclosure_text", "source_reference", "authority_basis",
+            "is_not_applicable", "not_applicable_reason",
+        )
+        widgets = {
+            "disclosure_text": forms.Textarea(attrs={"rows": 7}),
+            "source_reference": forms.Textarea(attrs={"rows": 2}),
+            "authority_basis": forms.Textarea(attrs={"rows": 2}),
+            "not_applicable_reason": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, note_set=None, **kwargs):
+        self.note_set = note_set
+        super().__init__(*args, **kwargs)
+        choices = []
+        seen = set()
+        for label, run in (("Position", note_set.position_run), ("Performance", note_set.performance_run)):
+            snapshot = run.parameters.get("_statement_mapping_snapshot", {})
+            for item in snapshot.get("lines", []):
+                code = item.get("line_code")
+                if code and code not in seen:
+                    seen.add(code)
+                    choices.append((code, f"{label} · {item.get('line_title') or code}"))
+        self.fields["related_line_codes"].choices = choices
+        if self.instance.pk:
+            self.initial["related_line_codes"] = list(self.instance.related_line_codes or [])
+
+    def save(self, commit=True):
+        item = super().save(commit=False)
+        item.note_set = self.note_set
+        item.related_line_codes = list(self.cleaned_data.get("related_line_codes") or [])
+        if commit:
+            item.save()
+        return item
+
+
+class ReportReferenceComparisonForm(forms.ModelForm):
+    class Meta:
+        model = ReportReferenceComparison
+        fields = (
+            "reference_label", "reference_kind", "reference_file", "signed_copy",
+            "redaction_confirmed", "authority_reference", "local_acceptance_note",
+        )
+        widgets = {
+            "authority_reference": forms.Textarea(attrs={"rows": 3}),
+            "local_acceptance_note": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, run=None, user=None, **kwargs):
+        self.run, self.user = run, user
+        super().__init__(*args, **kwargs)
+        self.fields["signed_copy"].help_text = "Confirm this is the signed copy used by the office for comparison."
+        self.fields["redaction_confirmed"].help_text = (
+            "Confirm confidential taxpayer, payee, employee, bank, and signature-image details were removed before upload."
+        )
+        if self.instance.pk:
+            self.fields["reference_file"].required = False
+        for key, label in comparison_controls(run):
+            self.fields[f"control_{key}"] = forms.DecimalField(
+                label=f"Reference total — {label}", max_digits=18, decimal_places=2,
+                initial=(self.instance.reference_values or {}).get(key) if self.instance.pk else None,
+                help_text="Enter the amount shown on the retained reference copy.",
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        cleaned["reference_values"] = {
+            key: str(cleaned[f"control_{key}"]) for key, _label in comparison_controls(self.run)
+            if cleaned.get(f"control_{key}") is not None
+        }
+        return cleaned
+
+    def save(self, commit=True):
+        comparison = super().save(commit=False)
+        comparison.run = self.run
+        comparison.reference_values = self.cleaned_data["reference_values"]
+        if not comparison.pk:
+            comparison.created_by = self.user
+            comparison.version = (
+                ReportReferenceComparison.objects.filter(run=self.run).order_by("-version")
+                .values_list("version", flat=True).first() or 0
+            ) + 1
+        if commit:
+            comparison.full_clean()
+            comparison.save()
+        return comparison
 
 
 class ReportDefinitionForm(forms.ModelForm):

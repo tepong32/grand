@@ -27,6 +27,13 @@ def report_identity_path(instance, filename):
     return f"reporting/identity/{instance.definition.department.slug}/{instance.definition.slug}/v{instance.version}/{filename}"
 
 
+def statement_reference_path(instance, filename):
+    return (
+        f"reporting/statement-references/{instance.run.definition.department.slug}/"
+        f"{instance.run.definition.slug}/{instance.run.public_id}/v{instance.version}/{filename}"
+    )
+
+
 class ReportDefinition(models.Model):
     FORMAT_PDF = "pdf"
     FORMAT_XLSX = "xlsx"
@@ -575,6 +582,257 @@ class FinanceStatementMappingEvent(models.Model):
         raise ValidationError("Statement mapping events cannot be deleted.")
 
 
+class FinanceStatementNoteSet(models.Model):
+    """Versioned explanatory notes pinned to one position/performance statement pair."""
+
+    CANDIDATE = "candidate"
+    CONFIRMED = "confirmed"
+    APPLICABILITY_CHOICES = (
+        (CANDIDATE, "Controlled candidate — local acceptance pending"),
+        (CONFIRMED, "Locally confirmed statement-note package"),
+    )
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    RETURNED = "returned"
+    REVIEWED = "reviewed"
+    APPROVED = "approved"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (DRAFT, "Editable draft"),
+        (SUBMITTED, "For independent review"),
+        (RETURNED, "Returned for correction"),
+        (REVIEWED, "Controlled working notes"),
+        (APPROVED, "Locally accepted notes"),
+        (SUPERSEDED, "Superseded notes"),
+    )
+    LOCKED_STATUSES = {SUBMITTED, REVIEWED, APPROVED, SUPERSEDED}
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, related_name="finance_statement_note_sets",
+    )
+    title = models.CharField(max_length=200, default="Notes to the financial statements")
+    period_start = models.DateField()
+    period_end = models.DateField()
+    version = models.PositiveIntegerField()
+    applicability_status = models.CharField(
+        max_length=12, choices=APPLICABILITY_CHOICES, default=CANDIDATE,
+    )
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    position_run = models.ForeignKey(
+        "ReportRun", on_delete=models.PROTECT, related_name="position_note_sets",
+    )
+    performance_run = models.ForeignKey(
+        "ReportRun", on_delete=models.PROTECT, related_name="performance_note_sets",
+    )
+    supersedes = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successors",
+    )
+    preparation_note = models.TextField(blank=True)
+    authority_reference = models.TextField(blank=True)
+    local_acceptance_note = models.TextField(blank=True)
+    source_snapshot = models.JSONField(default=dict, blank=True)
+    snapshot_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_finance_statement_note_sets",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_statement_note_sets",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_finance_statement_note_sets",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-period_end", "-version")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("department", "period_start", "period_end", "version"),
+                name="unique_statement_note_set_version",
+            ),
+            models.UniqueConstraint(
+                fields=("department", "period_start", "period_end"),
+                condition=models.Q(status="approved"),
+                name="one_approved_statement_note_set",
+            ),
+        )
+        permissions = (
+            ("prepare_statement_notes", "Can prepare financial statement notes"),
+            ("review_statement_notes", "Can independently review financial statement notes"),
+            ("export_statement_packages", "Can export statement notes and comparison evidence"),
+        )
+
+    def __str__(self):
+        return f"{self.title} · {self.period_end:%Y-%m-%d} · v{self.version}"
+
+    def get_absolute_url(self):
+        return reverse("reporting:statement_note_set_detail", kwargs={"public_id": self.public_id})
+
+    @property
+    def is_editable(self):
+        return self.status in (self.DRAFT, self.RETURNED)
+
+    def clean(self):
+        if self.period_end < self.period_start:
+            raise ValidationError({"period_end": "The note period cannot end before it starts."})
+        expected = (
+            (self.position_run, "finance_statement_position", "position_run"),
+            (self.performance_run, "finance_statement_performance", "performance_run"),
+        )
+        for run, dataset_key, field in expected:
+            if run.definition.department_id != self.department_id:
+                raise ValidationError({field: "Choose a statement run from this Accounting department."})
+            actual_key = run.parameters.get("_definition_snapshot", {}).get(
+                "dataset_key", run.definition.dataset_key,
+            )
+            if actual_key != dataset_key:
+                raise ValidationError({field: "Choose the matching governed statement run."})
+            if run.period_start != self.period_start or run.period_end != self.period_end:
+                raise ValidationError({field: "Both statement runs must cover the note package period exactly."})
+            if run.control_status != run.CONTROL_RECONCILED:
+                raise ValidationError({field: "Only a control-reconciled statement run can support notes."})
+        if self.position_run_id == self.performance_run_id:
+            raise ValidationError("Use separate position and performance statement runs.")
+        if self.supersedes_id:
+            if self.supersedes_id == self.pk:
+                raise ValidationError({"supersedes": "A note package cannot supersede itself."})
+            if (
+                self.supersedes.department_id != self.department_id
+                or self.supersedes.period_start != self.period_start
+                or self.supersedes.period_end != self.period_end
+                or self.version <= self.supersedes.version
+            ):
+                raise ValidationError({"supersedes": "Choose an earlier note package for the same department and period."})
+        if self.status == self.APPROVED:
+            if self.applicability_status != self.CONFIRMED:
+                raise ValidationError("Only locally confirmed notes can be approved for official use.")
+            if not self.authority_reference.strip() or not self.local_acceptance_note.strip():
+                raise ValidationError("Approved notes require reviewed authority and local acceptance evidence.")
+            if not self.snapshot_checksum or not self.reviewed_at or not self.reviewed_by_id:
+                raise ValidationError("Approved notes require immutable independent-review evidence.")
+            if self.created_by_id == self.reviewed_by_id or self.submitted_by_id == self.reviewed_by_id:
+                raise ValidationError("The note preparer or submitter cannot approve the same package.")
+            if not self.position_run.is_official_output or not self.performance_run.is_official_output:
+                raise ValidationError("Official notes require approved official position and performance runs.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "department_id", "title", "period_start", "period_end", "version",
+                "applicability_status", "position_run_id", "performance_run_id", "supersedes_id",
+                "preparation_note", "authority_reference", "local_acceptance_note", "created_by_id",
+                "source_snapshot", "snapshot_checksum",
+            )
+            if prior.status in self.LOCKED_STATUSES and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Submitted statement notes are immutable. Return them or create a successor.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status in self.LOCKED_STATUSES or self.events.exists():
+            raise ValidationError("Statement-note history cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceStatementNote(models.Model):
+    GENERAL = "general"
+    POSITION = "position"
+    PERFORMANCE = "performance"
+    BOTH = "both"
+    RELATED_CHOICES = (
+        (GENERAL, "General disclosure"),
+        (POSITION, "Statement of financial position"),
+        (PERFORMANCE, "Statement of financial performance"),
+        (BOTH, "Both statements"),
+    )
+
+    note_set = models.ForeignKey(
+        FinanceStatementNoteSet, on_delete=models.CASCADE, related_name="notes",
+    )
+    position = models.PositiveSmallIntegerField()
+    topic_code = models.SlugField(max_length=80)
+    title = models.CharField(max_length=200)
+    related_statement = models.CharField(max_length=16, choices=RELATED_CHOICES, default=GENERAL)
+    related_line_codes = models.JSONField(default=list, blank=True)
+    disclosure_text = models.TextField(blank=True)
+    source_reference = models.TextField(blank=True)
+    authority_basis = models.TextField(blank=True)
+    is_not_applicable = models.BooleanField(default=False)
+    not_applicable_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("position", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("note_set", "position"), name="unique_statement_note_position"),
+            models.UniqueConstraint(fields=("note_set", "topic_code"), name="unique_statement_note_topic"),
+        )
+
+    def __str__(self):
+        return f"{self.note_set} · {self.title}"
+
+    def clean(self):
+        if not isinstance(self.related_line_codes, list) or any(
+            not isinstance(value, str) or not value.strip() for value in self.related_line_codes
+        ):
+            raise ValidationError({"related_line_codes": "Related line codes must be a plain controlled list."})
+        if self.is_not_applicable:
+            if not self.not_applicable_reason.strip():
+                raise ValidationError({"not_applicable_reason": "Explain why this candidate topic does not apply."})
+            if self.disclosure_text.strip():
+                raise ValidationError({"disclosure_text": "Remove disclosure text when the topic is marked not applicable."})
+        else:
+            if not self.disclosure_text.strip():
+                raise ValidationError({"disclosure_text": "Write the disclosure or mark the topic not applicable with a reason."})
+            if self.not_applicable_reason.strip():
+                raise ValidationError({"not_applicable_reason": "Use this field only when the topic is not applicable."})
+
+    def save(self, *args, **kwargs):
+        if self.note_set_id and not self.note_set.is_editable:
+            raise ValidationError("Locked statement-note topics are immutable. Create a successor package.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if not self.note_set.is_editable:
+            raise ValidationError("Locked statement-note topics cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class FinanceStatementNoteEvent(models.Model):
+    note_set = models.ForeignKey(
+        FinanceStatementNoteSet, on_delete=models.PROTECT, related_name="events",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="finance_statement_note_events",
+    )
+    action = models.CharField(max_length=60)
+    reason = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Statement-note events are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Statement-note events cannot be deleted.")
+
+
 class ReportSchedule(models.Model):
     DAILY = "daily"
     WEEKLY = "weekly"
@@ -736,6 +994,181 @@ class ReportRunSource(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Report source evidence cannot be deleted independently from its retained run.")
+
+
+class ReportReferenceComparison(models.Model):
+    """Independent exact-control comparison against a retained signed/redacted reference."""
+
+    REFERENCE_PDF = "pdf"
+    REFERENCE_XLSX = "xlsx"
+    REFERENCE_IMAGE = "image"
+    REFERENCE_CHOICES = (
+        (REFERENCE_PDF, "PDF reference"),
+        (REFERENCE_XLSX, "Excel reference"),
+        (REFERENCE_IMAGE, "Scanned or image reference"),
+    )
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    RETURNED = "returned"
+    RECONCILED = "reconciled"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (DRAFT, "Editable comparison"),
+        (SUBMITTED, "For independent review"),
+        (RETURNED, "Returned for correction"),
+        (RECONCILED, "Exact controls independently reconciled"),
+        (SUPERSEDED, "Superseded comparison"),
+    )
+    RESULT_PENDING = "pending"
+    RESULT_RECONCILED = "reconciled"
+    RESULT_EXCEPTION = "exception"
+    RESULT_CHOICES = (
+        (RESULT_PENDING, "Not calculated"),
+        (RESULT_RECONCILED, "Exact agreement"),
+        (RESULT_EXCEPTION, "Difference requires resolution"),
+    )
+    LOCKED_STATUSES = {SUBMITTED, RECONCILED, SUPERSEDED}
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    run = models.ForeignKey(ReportRun, on_delete=models.PROTECT, related_name="reference_comparisons")
+    version = models.PositiveIntegerField()
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    reference_label = models.CharField(max_length=200)
+    reference_kind = models.CharField(max_length=12, choices=REFERENCE_CHOICES)
+    reference_file = models.FileField(
+        upload_to=statement_reference_path,
+        max_length=500,
+        validators=[FileExtensionValidator(("pdf", "xlsx", "png", "jpg", "jpeg"))],
+        help_text="Upload only the approved redacted comparison copy; GRAND never executes its contents.",
+    )
+    signed_copy = models.BooleanField(default=False)
+    redaction_confirmed = models.BooleanField(default=False)
+    authority_reference = models.TextField(blank=True)
+    local_acceptance_note = models.TextField(blank=True)
+    reference_values = models.JSONField(default=dict, blank=True)
+    generated_values_snapshot = models.JSONField(default=dict, blank=True)
+    differences = models.JSONField(default=dict, blank=True)
+    comparison_result = models.CharField(
+        max_length=16, choices=RESULT_CHOICES, default=RESULT_PENDING,
+    )
+    run_evidence_snapshot = models.JSONField(default=dict, blank=True)
+    reference_file_checksum = models.CharField(max_length=64, blank=True)
+    snapshot_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_report_reference_comparisons",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_report_reference_comparisons",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_report_reference_comparisons",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = (
+            models.UniqueConstraint(fields=("run", "version"), name="unique_report_reference_comparison_version"),
+        )
+        permissions = (
+            ("prepare_reference_comparisons", "Can prepare signed report reference comparisons"),
+            ("review_reference_comparisons", "Can independently review signed report reference comparisons"),
+        )
+
+    def __str__(self):
+        return f"{self.reference_label} · {self.run.definition.name} · v{self.version}"
+
+    def get_absolute_url(self):
+        return reverse("reporting:reference_comparison_detail", kwargs={"public_id": self.public_id})
+
+    @property
+    def department(self):
+        return self.run.definition.department
+
+    @property
+    def is_editable(self):
+        return self.status in (self.DRAFT, self.RETURNED)
+
+    def clean(self):
+        actual_key = self.run.parameters.get("_definition_snapshot", {}).get(
+            "dataset_key", self.run.definition.dataset_key,
+        )
+        if actual_key not in ("finance_statement_position", "finance_statement_performance"):
+            raise ValidationError({"run": "Reference comparison is limited to governed financial statement runs."})
+        if self.reference_file and getattr(self.reference_file, "size", 0) > 15 * 1024 * 1024:
+            raise ValidationError({"reference_file": "Reference copies must be 15 MB or smaller."})
+        if self.reference_kind == self.REFERENCE_PDF and self.reference_file and not self.reference_file.name.lower().endswith(".pdf"):
+            raise ValidationError({"reference_file": "Choose a PDF file for a PDF reference."})
+        if self.reference_kind == self.REFERENCE_XLSX and self.reference_file and not self.reference_file.name.lower().endswith(".xlsx"):
+            raise ValidationError({"reference_file": "Choose a macro-free XLSX file for an Excel reference."})
+        if self.reference_kind == self.REFERENCE_IMAGE and self.reference_file and not self.reference_file.name.lower().endswith((".png", ".jpg", ".jpeg")):
+            raise ValidationError({"reference_file": "Choose a PNG or JPEG image reference."})
+        for field in ("reference_values", "generated_values_snapshot", "differences", "run_evidence_snapshot"):
+            if not isinstance(getattr(self, field), dict):
+                raise ValidationError({field: "Comparison evidence must be a controlled key/value mapping."})
+        if self.status == self.RECONCILED:
+            if self.comparison_result != self.RESULT_RECONCILED:
+                raise ValidationError("Only an exact zero-difference comparison can be reconciled.")
+            if not self.signed_copy or not self.redaction_confirmed:
+                raise ValidationError("Reconciled evidence must be a signed and confirmed-redacted comparison copy.")
+            if not self.authority_reference.strip() or not self.local_acceptance_note.strip():
+                raise ValidationError("Record the reviewed authority and local acceptance evidence.")
+            if not self.snapshot_checksum or not self.reviewed_at or not self.reviewed_by_id:
+                raise ValidationError("Reconciled comparison requires immutable review evidence.")
+            if self.created_by_id == self.reviewed_by_id or self.submitted_by_id == self.reviewed_by_id:
+                raise ValidationError("The comparison preparer or submitter cannot review the same evidence.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            governed = (
+                "run_id", "version", "reference_label", "reference_kind", "reference_file",
+                "signed_copy", "redaction_confirmed", "authority_reference", "local_acceptance_note",
+                "reference_values", "generated_values_snapshot", "differences", "comparison_result",
+                "run_evidence_snapshot", "reference_file_checksum", "snapshot_checksum", "created_by_id",
+            )
+            if prior.status in self.LOCKED_STATUSES and any(
+                getattr(prior, field) != getattr(self, field) for field in governed
+            ):
+                raise ValidationError("Submitted reference evidence is immutable. Return it or create a successor.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status in self.LOCKED_STATUSES or self.events.exists():
+            raise ValidationError("Reference-comparison history cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class ReportReferenceComparisonEvent(models.Model):
+    comparison = models.ForeignKey(
+        ReportReferenceComparison, on_delete=models.PROTECT, related_name="events",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="report_reference_comparison_events",
+    )
+    action = models.CharField(max_length=60)
+    reason = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Reference-comparison events are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Reference-comparison events cannot be deleted.")
 
 
 class ReportRunEvent(models.Model):

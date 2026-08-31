@@ -63,6 +63,26 @@ def can_view_department_reports(user, department=None):
     )
 
 
+def can_prepare_statement_notes(user, department=None):
+    return _authorized(user, "reporting.prepare_statement_notes", department)
+
+
+def can_review_statement_notes(user, department=None):
+    return _authorized(user, "reporting.review_statement_notes", department)
+
+
+def can_prepare_reference_comparisons(user, department=None):
+    return _authorized(user, "reporting.prepare_reference_comparisons", department)
+
+
+def can_review_reference_comparisons(user, department=None):
+    return _authorized(user, "reporting.review_reference_comparisons", department)
+
+
+def can_export_statement_packages(user, department=None):
+    return _authorized(user, "reporting.export_statement_packages", department)
+
+
 def reporting_access_required(view_func):
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):

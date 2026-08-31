@@ -60,4 +60,4 @@ Named Budget, Accounting, Treasury, management, records, IT, and audit-coordinat
 - current BIR forms, certificates, attachments, filing channels, deadlines, validation rules, and proof of filing—implemented later only from accepted evidence; and
 - redacted signed reference packages whose row populations, totals, layouts, and reproduction receipts agree exactly.
 
-F9 remains open for financial statements and notes, current locally accepted BIR outputs, management dashboard definitions, report supersession/catalog controls, and signed-reference reproduction. F10 remains responsible for exact official-form mapping and non-developer template promotion.
+F9.3/F9.4 now supply governed financial statements, explanatory-note packages, and exact signed/redacted-reference control comparison. F9 remains open for current locally accepted BIR outputs, complete signed-package replay, exact forms/layouts, and named-office acceptance. F10 remains responsible for exact official-form mapping and non-developer template promotion.

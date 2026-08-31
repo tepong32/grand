@@ -2,8 +2,10 @@ from django.contrib import admin
 
 from .models import (
     FinanceStatementLine, FinanceStatementMapping, FinanceStatementMappingEvent,
-    ReportDefinition, ReportRun, ReportRunEvent, ReportRunSource, ReportSchedule,
-    ReportTemplateMappingField, ReportTemplateVersion,
+    FinanceStatementNote, FinanceStatementNoteEvent, FinanceStatementNoteSet,
+    ReportDefinition, ReportReferenceComparison, ReportReferenceComparisonEvent,
+    ReportRun, ReportRunEvent, ReportRunSource, ReportSchedule, ReportTemplateMappingField,
+    ReportTemplateVersion,
 )
 
 
@@ -26,6 +28,63 @@ class FinanceStatementMappingAdmin(admin.ModelAdmin):
 class FinanceStatementMappingEventAdmin(admin.ModelAdmin):
     list_display = ("mapping", "action", "actor", "created_at")
     readonly_fields = ("mapping", "actor", "action", "reason", "snapshot", "created_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class FinanceStatementNoteInline(admin.TabularInline):
+    model = FinanceStatementNote
+    extra = 0
+    readonly_fields = (
+        "position", "topic_code", "title", "related_statement", "related_line_codes",
+        "disclosure_text", "source_reference", "authority_basis", "is_not_applicable",
+        "not_applicable_reason",
+    )
+    can_delete = False
+
+
+@admin.register(FinanceStatementNoteSet)
+class FinanceStatementNoteSetAdmin(admin.ModelAdmin):
+    list_display = ("title", "department", "period_end", "version", "applicability_status", "status")
+    list_filter = ("department", "applicability_status", "status")
+    readonly_fields = (
+        "public_id", "source_snapshot", "snapshot_checksum", "created_at", "submitted_at",
+        "reviewed_at", "updated_at",
+    )
+    inlines = (FinanceStatementNoteInline,)
+
+
+@admin.register(FinanceStatementNoteEvent)
+class FinanceStatementNoteEventAdmin(admin.ModelAdmin):
+    list_display = ("note_set", "action", "actor", "created_at")
+    readonly_fields = ("note_set", "actor", "action", "reason", "snapshot", "created_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ReportReferenceComparison)
+class ReportReferenceComparisonAdmin(admin.ModelAdmin):
+    list_display = ("reference_label", "run", "version", "comparison_result", "status", "reviewed_at")
+    list_filter = ("run__definition__department", "comparison_result", "status")
+    readonly_fields = (
+        "public_id", "reference_values", "generated_values_snapshot", "differences",
+        "run_evidence_snapshot", "reference_file_checksum", "snapshot_checksum",
+        "created_at", "submitted_at", "reviewed_at", "updated_at",
+    )
+
+
+@admin.register(ReportReferenceComparisonEvent)
+class ReportReferenceComparisonEventAdmin(admin.ModelAdmin):
+    list_display = ("comparison", "action", "actor", "created_at")
+    readonly_fields = ("comparison", "actor", "action", "reason", "snapshot", "created_at")
 
     def has_add_permission(self, request):
         return False

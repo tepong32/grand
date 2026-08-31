@@ -13,7 +13,7 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 - Internal social-welfare programs and activities for seminars, feeding programs, outreach, distributions, schedules, venues, attendance totals, and outcomes.
 - Permission-restricted citizen review with assistance usage history, duplicate-candidate indicators, review ownership, notes, and audit events.
 - Leave requests and predictable credit accrual with approval deductions.
-- Cross-department reporting definitions, native print layouts, controlled mapped-XLSX and exact-PDF compatibility, recurring schedules, checksums, fidelity validation, permission-aware print/download actions, review, approval, and supersession.
+- Cross-department reporting definitions, governed Finance statements and notes, signed/redacted reference control comparison, native print layouts, controlled mapped-XLSX and exact-PDF compatibility, recurring schedules, checksums, fidelity validation, permission-aware print/download actions, review, approval, and supersession.
 - One configurable, TraceSync-ready export root with portable department/user/category folders, atomic copies, and adjacent checksum/lineage manifests for requested reports and transaction exports.
 - Department-bounded records with source-in-place links, checksum-backed uploads, confidentiality controls, review and approval, audited downloads, retention, legal holds, supersession, archival, and disposition.
 - TracePoint physical-paper custody with stable packet labels, revocable daily employee QR codes, individual voucher manifests, split/rebundle lineage, repeatable office checkpoints, explicit terminal receipt, immutable handoff history, and separate delivery/completion states.

@@ -10,6 +10,7 @@
     </div>
     <div class="d-flex flex-wrap gap-2">
       {% if statement_mappings_enabled %}<a href="{% url 'reporting:statement_mapping_list' %}" class="btn btn-outline-info"><i class="fas fa-project-diagram mr-1"></i> Statement mappings</a>{% endif %}
+      {% if statement_mappings_enabled %}<a href="{% url 'reporting:statement_note_set_list' %}" class="btn btn-outline-info"><i class="fas fa-book-open mr-1"></i> Statement notes</a>{% endif %}
       {% if can_schedule_reports %}<a href="{% url 'reporting:schedule_create' %}" class="btn btn-outline-primary"><i class="fas fa-clock mr-1"></i> New schedule</a>{% endif %}
       {% if can_manage_definitions %}<a href="{% url 'reporting:definition_create' %}" class="btn btn-primary"><i class="fas fa-plus mr-1"></i> New report definition</a>{% endif %}
     </div>
@@ -67,6 +68,11 @@
       <section class="card card-outline card-success"><div class="card-header"><h2 class="card-title font-weight-bold">Recently approved</h2></div><div class="card-body p-0"><ul class="list-group list-group-flush">
         {% for run in recent_approved %}<li class="list-group-item"><a href="{{ run.get_absolute_url }}" class="font-weight-bold">{{ run.definition.name }}</a><div class="text-muted small">{{ run.period_start|date:"M j" }} - {{ run.period_end|date:"M j, Y" }}</div></li>{% empty %}<li class="list-group-item text-muted">No official outputs approved yet.</li>{% endfor %}
       </ul></div></section>
+      {% if statement_mappings_enabled %}<section class="card card-outline card-info"><div class="card-header"><h2 class="card-title font-weight-bold">Statement evidence</h2></div><div class="card-body p-0"><ul class="list-group list-group-flush">
+        {% for item in statement_note_sets %}<li class="list-group-item"><a href="{{ item.get_absolute_url }}" class="font-weight-bold">Notes · {{ item.period_end|date:"Y" }} · v{{ item.version }}</a><div class="text-muted small">{{ item.get_status_display }}</div></li>{% endfor %}
+        {% for item in reference_comparisons %}<li class="list-group-item"><a href="{{ item.get_absolute_url }}" class="font-weight-bold">Reference · {{ item.run.definition.name }}</a><div class="text-muted small">{{ item.get_comparison_result_display }} · {{ item.get_status_display }}</div></li>{% endfor %}
+        {% if not statement_note_sets and not reference_comparisons %}<li class="list-group-item text-muted">No statement-note or signed-reference evidence yet.</li>{% endif %}
+      </ul></div></section>{% endif %}
       <div class="alert alert-light border"><i class="fas fa-shield-alt text-primary mr-2"></i><strong>Controlled by design.</strong><div class="small text-muted mt-1">Uploaded forms are references only. GRAND never runs SQL, macros, Python, or executable template content supplied by users.</div></div>
     </div>
   </div>

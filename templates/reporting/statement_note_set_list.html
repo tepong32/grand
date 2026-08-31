@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title_ext %} - Statement notes{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div><a href="{% url 'reporting:workspace' %}" class="small">&larr; Reports</a><h1 class="h3 mt-2 mb-1">Financial statement notes</h1><p class="text-muted mb-0">Prepare explanatory notes against the exact retained position and performance statement runs.</p></div>
+    <div>{% if can_prepare %}<a href="{% url 'reporting:statement_note_set_create' %}" class="btn btn-primary"><i class="fas fa-plus mr-1"></i> New note package</a>{% endif %}<button class="btn btn-outline-info ml-1" data-toggle="modal" data-target="#notesHelp" aria-label="How to prepare statement notes"><i class="fas fa-question"></i></button></div>
+  </div>
+  <div class="alert alert-warning"><strong>Local acceptance boundary.</strong> Candidate topics are working prompts. GRAND does not treat a topic, wording, or omission as an accepted COA/local disclosure until authority and named-office acceptance are retained.</div>
+  <section class="card"><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Package</th><th>Period</th><th>Version</th><th>Applicability</th><th>Status</th><th>Prepared by</th></tr></thead><tbody>
+    {% for item in note_sets %}<tr><td><a href="{{ item.get_absolute_url }}" class="font-weight-bold">{{ item.title }}</a></td><td>{{ item.period_start|date:"M j, Y" }} to {{ item.period_end|date:"M j, Y" }}</td><td>v{{ item.version }}</td><td>{{ item.get_applicability_status_display }}</td><td>{{ item.get_status_display }}</td><td>{{ item.created_by.get_full_name|default:item.created_by.username }}</td></tr>{% empty %}<tr><td colspan="6" class="text-center text-muted py-4">No statement-note package has been prepared.</td></tr>{% endfor %}
+  </tbody></table></div></section>
+</div>
+<div class="modal fade" id="notesHelp" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg" role="document"><div class="modal-content"><div class="modal-header"><h2 class="modal-title h5">How to prepare statement notes</h2><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span>&times;</span></button></div><div class="modal-body"><ol><li>Select control-reconciled position and performance runs for the same exact period.</li><li>Complete each candidate topic using retained schedules and reviewed authority. Mark a topic not applicable only with a reason.</li><li>Link disclosures to the pinned statement lines where useful.</li><li>Submit to freeze the note text, source runs, mappings, and checksums.</li><li>A different Accounting reviewer may accept controlled working notes. Official approval remains blocked until both statements and the local note package are formally accepted.</li></ol><p class="mb-0">Keep confidential taxpayer, employee, payee, bank, and signature-image data out of general note text and exports.</p></div></div></div></div>
+{% endblock %}
