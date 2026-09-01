@@ -1,5 +1,16 @@
 # Changelog
 
+## F11.6 Exact accepted-form lineage in field qualification
+
+- Replaced narrative-only form qualification with exact selection of one or more currently Accepted F10.2 local-form versions while preserving plain-language authority and procedure references.
+- Added human-readable form-use instructions, familiar department/form/version labels, Draft/Returned add/remove controls, immutable submitted lineage, and governed audit/export visibility without widening the curated Django admin surface.
+- Revalidated each protected F10.2 acceptance packet at qualification-plan submission and review, then pinned its accepted snapshot plus reference, source, and submission SHA-256 values into the approved plan.
+- Pinned the complete exact form set and its own checksum into every field-cycle evidence submission, and blocked independent acceptance when that set changed.
+- Added cutover-readiness gates that fail when a selected form is superseded, its accepted evidence drifts, or any accepted qualifying cycle lacks the exact current form set; changed forms require a successor cycle and plan.
+- Extended the TraceSync cutover evidence package to schema v6 with exact form lineage while excluding protected reference-file bytes.
+- Added migration, service/UI lifecycle coverage, narrative-only rejection, immutable-lineage, export-lineage, supersession invalidation, documentation, and explicit field-acceptance boundaries. Actual LGU form population, acceptance, field use, and named-office decisions remain open.
+- The comprehensive checkpoint review also removed an accidentally misplaced local-form validation block from statement mappings and made payment-event test periods follow the current calendar month without changing production records or accounting-period rules.
+
 ## F10.2 Governed local-form inventory and acceptance
 
 - Added a department-bounded, plain-language Finance form register for verified form identity, authority/local decision, exact blank or safely redacted reference, delivery mode, signatories, copies, recipients, deadlines, retention, accessibility, pagination/overflow, paper, form stock, and printer instructions.

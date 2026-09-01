@@ -34,14 +34,16 @@ from .forms import (
     FinanceShadowDefectForm, FinanceShadowDefectResolutionForm, FinanceShadowExternalLockForm,
     FinanceCutoverReadinessExerciseForm, FinanceCutoverReadinessExerciseResultForm,
     FinanceCutoverReadinessPlanForm, FinanceShadowReconciliationPlanForm,
-    FinanceCutoverQualificationEvidenceForm, FinanceCutoverQualificationPlanForm,
+    FinanceCutoverQualificationEvidenceForm, FinanceCutoverQualificationFormForm,
+    FinanceCutoverQualificationPlanForm,
     FinanceShadowSourceUploadForm, FinanceSignatoryForm,
     FinanceStakeholderAcceptanceForm, FinanceStakeholderDecisionForm,
     FinanceTemplateForm, FinanceStarterTemplateForm, FinanceTaxRuleForm, FinanceTransactionVariantForm,
 )
 from .models import (
     FinanceConfigurationRelease, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
-    FinanceCutoverQualificationEvidence, FinanceCutoverQualificationPlan,
+    FinanceCutoverQualificationEvidence, FinanceCutoverQualificationForm,
+    FinanceCutoverQualificationPlan,
     FinanceCutoverReadinessPlan, FinanceParty, FinanceShadowCycle,
     FinanceShadowDefect, FinanceShadowReconciliationPlan, FinanceShadowReconciliationRun,
     FinanceShadowSourceVersion,
@@ -492,6 +494,11 @@ def shadow_cycle_detail(request, pk):
             "submitted_by", "reviewed_by",
         ),
         "cutover_qualification_plan": qualification_plan,
+        "cutover_qualification_forms": (
+            qualification_plan.accepted_forms.select_related(
+                "local_form", "local_form__department", "local_form__reviewed_by",
+            ) if qualification_plan else []
+        ),
         "cutover_qualification_evidence": (
             qualification_plan.cycle_evidence.select_related(
                 "cycle", "prepared_by", "submitted_by", "reviewed_by",
@@ -684,6 +691,57 @@ def cutover_qualification_plan_action(request, pk, action):
     else:
         messages.success(request, "The field-qualification plan action is checksummed and retained.")
     return redirect("finance:shadow_cycle_detail", pk=plan.cycle_id)
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def cutover_qualification_form_create(request, pk):
+    department = department_for_user(request.user)
+    plan = get_object_or_404(
+        FinanceCutoverQualificationPlan.objects.select_related("cycle", "cycle__department"),
+        pk=pk, cycle__department=department,
+    )
+    if plan.status not in {FinanceCutoverQualificationPlan.DRAFT, FinanceCutoverQualificationPlan.RETURNED}:
+        messages.error(request, "Accepted forms can be changed only while the qualification plan is editable.")
+        return redirect("finance:shadow_cycle_detail", pk=plan.cycle_id)
+    form = FinanceCutoverQualificationFormForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.plan = plan
+        try:
+            item.save()
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Exact accepted form added to the field-qualification plan.")
+            return redirect("finance:shadow_cycle_detail", pk=plan.cycle_id)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Add accepted form — {plan.cycle.code}", "cycle": plan.cycle,
+        "guidance": (
+            "Choose the exact currently accepted F10.2 form version and explain where staff use it. "
+            "GRAND will pin its accepted snapshot and checksums when this qualification plan is submitted."
+        ),
+    })
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def cutover_qualification_form_delete(request, pk, row_pk):
+    if request.method != "POST":
+        raise Http404
+    department = department_for_user(request.user)
+    item = get_object_or_404(
+        FinanceCutoverQualificationForm.objects.select_related(
+            "plan", "plan__cycle", "plan__cycle__department",
+        ),
+        pk=row_pk, plan_id=pk, plan__cycle__department=department,
+    )
+    cycle_id = item.plan.cycle_id
+    try:
+        item.delete()
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(request, "Accepted form removed from the editable qualification plan.")
+    return redirect("finance:shadow_cycle_detail", pk=cycle_id)
 
 
 @finance_permission_required(can_manage_shadow_operation)
