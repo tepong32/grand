@@ -13,6 +13,8 @@ from django.utils import timezone
 
 from departments.models import Department
 from profiles.models import EmployeeProfile
+from reporting.form_acceptance_services import checksum, file_checksum, form_snapshot
+from reporting.models import FinanceLocalFormAcceptance
 
 from .cutover_services import (
     REQUIRED_NONFUNCTIONAL_EXERCISES,
@@ -51,6 +53,7 @@ from .models import (
     FinanceAuditEvent,
     FinanceCutoverDecision,
     FinanceCutoverQualificationEvidence,
+    FinanceCutoverQualificationForm,
     FinanceCutoverQualificationPlan,
     FinanceCutoverReadinessExercise,
     FinanceCutoverReadinessPlan,
@@ -213,6 +216,11 @@ class FinanceShadowCutoverTests(TestCase):
             field_evidence_basis="Retained field observation sheets, reconciled registers, and signed local attestations.",
             created_by=self.manager,
         )
+        accepted_form = self._accepted_local_form()
+        FinanceCutoverQualificationForm.objects.create(
+            plan=plan, local_form=accepted_form, position=1,
+            use_instructions="Prepare, review, print, and retain this exact accepted DV control form in every qualifying cycle.",
+        )
         submit_cutover_qualification_plan(plan, self.manager)
         review_cutover_qualification_plan(
             plan, self.reconciler, approve=True,
@@ -232,6 +240,52 @@ class FinanceShadowCutoverTests(TestCase):
                 reason="Independently reviewed the retained field packet against the approved qualification basis.",
             )
         return plan
+
+    def _accepted_local_form(self, *, code="ordinary-dv-control"):
+        existing = FinanceLocalFormAcceptance.objects.filter(
+            department=self.accounting, code=code, status=FinanceLocalFormAcceptance.ACCEPTED,
+        ).first()
+        if existing:
+            return existing
+        item = FinanceLocalFormAcceptance.objects.create(
+            department=self.accounting, code=code, version=1,
+            name="Ordinary disbursement voucher control form", form_number="DV-CONTROL-01",
+            purpose="Carry the reviewed ordinary-DV controls through Budget, Accounting, and Treasury.",
+            source_type=FinanceLocalFormAcceptance.SOURCE_UNMAPPED,
+            authority_reference="Synthetic local acceptance basis FORM-AUTH-001.",
+            local_acceptance_note="Independently accepted for synthetic cutover tests.",
+            reference_kind="pdf",
+            reference_file=SimpleUploadedFile(
+                f"{code}.pdf", b"%PDF-1.4\nSynthetic blank local form\n%%EOF", content_type="application/pdf",
+            ),
+            delivery_mode=FinanceLocalFormAcceptance.DELIVERY_DIGITAL,
+            signatory_instructions="Budget certifies; Accounting reviews; Treasury acknowledges payment handling.",
+            recipient_instructions="Retain the controlled digital copy with the cycle evidence packet.",
+            deadline_instructions="Complete before the voucher moves to the next Finance office.",
+            retention_instructions="Retain under the synthetic Finance records packet.",
+            pagination_instructions="Number every page and repeat the voucher reference.",
+            overflow_instructions="Use a numbered continuation page linked to the voucher.",
+            accessibility_instructions="Use labeled fields, readable text, and a tagged digital copy when available.",
+            created_by=self.manager,
+        )
+        item.reference_checksum = file_checksum(item.reference_file)
+        item.source_snapshot = {"source_type": "unmapped", "test_fixture": True}
+        item.source_checksum = checksum(item.source_snapshot)
+        item.submission_snapshot = form_snapshot(
+            item, pinned_source=item.source_snapshot,
+            pinned_reference_checksum=item.reference_checksum,
+        )
+        item.submission_checksum = checksum(item.submission_snapshot)
+        item.status = FinanceLocalFormAcceptance.SUBMITTED
+        item.submitted_by = self.manager
+        item.submitted_at = timezone.now()
+        item.save()
+        item.status = FinanceLocalFormAcceptance.ACCEPTED
+        item.reviewed_by = self.reconciler
+        item.reviewed_at = timezone.now()
+        item.review_note = "Synthetic independent acceptance after exact form review."
+        item.save()
+        return item
 
     def _accepted_stakeholders(self, cycle):
         self._approve_readiness_plan(cycle)
@@ -407,7 +461,7 @@ class FinanceShadowCutoverTests(TestCase):
         )
         content, _filename, _receipt = build_cutover_evidence_package(cycle, self.manager)
         payload = json.loads(content)
-        self.assertEqual(payload["schema_version"], 5)
+        self.assertEqual(payload["schema_version"], 6)
         self.assertEqual(payload["cycle"]["schema_version"], 3)
         self.assertEqual(payload["cycle"]["reconciliation_plan"]["status"], "approved")
         self.assertEqual(payload["cycle"]["source_versions"][0]["row_count"], 1)
@@ -668,7 +722,7 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertIn(FinanceCutoverReadinessExercise.PRIVACY, readiness["missing_exercises"])
         content, _filename, _receipt = build_cutover_evidence_package(cycle, self.requesting_reviewer)
         payload = json.loads(content)
-        self.assertEqual(payload["schema_version"], 5)
+        self.assertEqual(payload["schema_version"], 6)
         self.assertEqual(payload["cutover_readiness_plan"]["status"], "approved")
         self.assertEqual(payload["cutover_readiness_exercises"][0]["status"], "passed")
         self.assertNotIn("progress_percent", content.decode("utf-8"))
@@ -732,6 +786,10 @@ class FinanceShadowCutoverTests(TestCase):
             field_evidence_basis="Retained observation sheet plus independently reconciled cycle packet.",
             created_by=self.manager,
         )
+        FinanceCutoverQualificationForm.objects.create(
+            plan=plan, local_form=self._accepted_local_form(code="chain-dv-control"), position=1,
+            use_instructions="Use this exact accepted control form for each cycle in the predecessor chain.",
+        )
         submit_cutover_qualification_plan(plan, self.manager)
         with self.assertRaisesMessage(ValidationError, "preparer or submitter"):
             review_cutover_qualification_plan(plan, self.manager, approve=True, reason="Self approval")
@@ -762,6 +820,83 @@ class FinanceShadowCutoverTests(TestCase):
         chain_check = next(check for check in readiness["checks"] if check["code"] == "consecutive_field_cycles_accepted")
         self.assertFalse(chain_check["passed"])
         self.assertEqual(readiness["accepted_qualification_cycle_ids"], [candidate.pk])
+
+    def test_qualification_plan_requires_exact_accepted_form_and_locks_its_lineage(self):
+        candidate = self._reconciled_cycle(code="fy-2027-form-required")
+        plan = FinanceCutoverQualificationPlan.objects.create(
+            cycle=candidate, minimum_consecutive_cycles=2, require_parallel_cycle=False,
+            local_authority_reference="Synthetic qualification direction QUAL-FORM-REQ-001",
+            accepted_rules_forms_reference="Narrative reference alone must not satisfy this test.",
+            field_evidence_basis="Retained field observation and reconciled cycle packets.",
+            created_by=self.manager,
+        )
+        with self.assertRaisesMessage(ValidationError, "Select at least one"):
+            submit_cutover_qualification_plan(plan, self.manager)
+        row = FinanceCutoverQualificationForm.objects.create(
+            plan=plan, local_form=self._accepted_local_form(code="required-dv-control"), position=1,
+            use_instructions="Use this exact version at the Budget, Accounting, and Treasury handoffs.",
+        )
+        submit_cutover_qualification_plan(plan, self.manager)
+        row.refresh_from_db()
+        self.assertEqual(row.form_submission_checksum, row.local_form.submission_checksum)
+        self.assertEqual(row.form_reference_checksum, row.local_form.reference_checksum)
+        self.assertEqual(row.form_source_checksum, row.local_form.source_checksum)
+        self.assertEqual(row.form_snapshot, row.local_form.submission_snapshot)
+        with self.assertRaisesMessage(ValidationError, "cannot be deleted"):
+            row.delete()
+
+    def test_manager_can_add_an_accepted_form_with_plain_language_use_instructions(self):
+        candidate = self._reconciled_cycle(code="fy-2027-form-ui")
+        plan = FinanceCutoverQualificationPlan.objects.create(
+            cycle=candidate, minimum_consecutive_cycles=2, require_parallel_cycle=False,
+            local_authority_reference="Synthetic qualification direction QUAL-FORM-UI-001",
+            accepted_rules_forms_reference="Retained local rules register.",
+            field_evidence_basis="Retained field observation and reconciled cycle packets.",
+            created_by=self.manager,
+        )
+        local_form = self._accepted_local_form(code="ui-dv-control")
+        self.client.force_login(self.manager)
+        url = reverse("finance:cutover_qualification_form_create", args=(plan.pk,))
+        response = self.client.get(url)
+        self.assertContains(response, local_form.name)
+        response = self.client.post(url, {
+            "local_form": local_form.pk,
+            "position": 1,
+            "use_instructions": "Budget certifies, Accounting verifies, and Treasury uses the retained copy.",
+        })
+        self.assertRedirects(response, reverse("finance:shadow_cycle_detail", args=(candidate.pk,)))
+        row = plan.accepted_forms.get()
+        self.assertEqual(row.local_form, local_form)
+        response = self.client.get(reverse("finance:shadow_cycle_detail", args=(candidate.pk,)))
+        self.assertContains(response, "Exact accepted forms used in every qualifying cycle")
+        self.assertContains(response, "Treasury uses the retained copy")
+
+    def test_superseded_accepted_form_invalidates_field_qualification_and_export_keeps_lineage(self):
+        predecessor = self._reconciled_cycle(code="fy-2027-form-lineage-01")
+        candidate = self._reconciled_cycle(
+            code="fy-2027-form-lineage-02", predecessor=predecessor,
+            run_kind=FinanceShadowCycle.PARALLEL,
+        )
+        plan = self._approve_qualification(candidate, [predecessor, candidate])
+        readiness = cutover_readiness(candidate)
+        self.assertTrue(next(
+            check for check in readiness["checks"] if check["code"] == "accepted_local_forms_current"
+        )["passed"])
+        content, _filename, _receipt = build_cutover_evidence_package(candidate, self.manager)
+        payload = json.loads(content)
+        accepted_forms = payload["cutover_qualification_plan"]["accepted_forms"]
+        self.assertEqual(len(accepted_forms), 1)
+        self.assertEqual(accepted_forms[0]["submission_checksum"], plan.accepted_forms.get().form_submission_checksum)
+        self.assertTrue(payload["cutover_qualification_evidence"][0]["accepted_forms_checksum"])
+
+        local_form = plan.accepted_forms.get().local_form
+        local_form.status = FinanceLocalFormAcceptance.SUPERSEDED
+        local_form.save()
+        readiness = cutover_readiness(candidate)
+        self.assertFalse(readiness["ready"])
+        self.assertFalse(next(
+            check for check in readiness["checks"] if check["code"] == "accepted_local_forms_current"
+        )["passed"])
 
     def test_assigned_cross_office_reviewer_gets_read_only_cycle_access_and_export_is_archived(self):
         cycle = self._reconciled_cycle()

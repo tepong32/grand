@@ -24,6 +24,7 @@ from .access import (
 from .models import (
     FinanceAuditEvent,
     FinanceCutoverDecision,
+    FinanceCutoverQualificationForm,
     FinanceCutoverQualificationEvidence,
     FinanceCutoverQualificationPlan,
     FinanceCutoverReadinessExercise,
@@ -230,6 +231,12 @@ def _qualification_plan_data(plan):
         "local_authority_reference": plan.local_authority_reference,
         "accepted_rules_forms_reference": plan.accepted_rules_forms_reference,
         "field_evidence_basis": plan.field_evidence_basis,
+        "accepted_forms": [
+            _qualification_form_data(item)
+            for item in plan.accepted_forms.select_related(
+                "local_form", "local_form__department", "local_form__reviewed_by",
+            ).order_by("position", "pk")
+        ],
         "status": plan.status,
         "evidence_checksum": plan.evidence_checksum,
         "created_by_id": plan.created_by_id,
@@ -241,6 +248,71 @@ def _qualification_plan_data(plan):
     }
 
 
+def _qualification_form_data(item):
+    form = item.local_form
+    return {
+        "lineage_id": item.pk,
+        "position": item.position,
+        "use_instructions": item.use_instructions,
+        "form_public_id": str(form.public_id),
+        "department_id": form.department_id,
+        "department_name": form.department.name,
+        "code": form.code,
+        "version": form.version,
+        "name": form.name,
+        "form_number": form.form_number,
+        "source_type": form.source_type,
+        "report_template_id": form.report_template_id,
+        "finance_template_id": form.finance_template_id,
+        "submission_checksum": item.form_submission_checksum,
+        "reference_checksum": item.form_reference_checksum,
+        "source_checksum": item.form_source_checksum,
+        "accepted_by_id": form.reviewed_by_id,
+        "accepted_at": form.reviewed_at.isoformat() if form.reviewed_at else "",
+        "accepted_form_snapshot": item.form_snapshot,
+    }
+
+
+def _validated_qualification_forms(plan, *, pin=False):
+    from reporting.form_acceptance_services import local_form_export_manifest
+    from reporting.models import FinanceLocalFormAcceptance
+
+    rows = list(plan.accepted_forms.select_related(
+        "local_form", "local_form__department", "local_form__reviewed_by",
+    ).order_by("position", "pk"))
+    if not rows:
+        raise ValidationError(
+            "Select at least one currently accepted local form before submitting the field-qualification plan."
+        )
+    for row in rows:
+        form = row.local_form
+        if form.status != FinanceLocalFormAcceptance.ACCEPTED:
+            raise ValidationError(
+                f"{form.name} v{form.version} is no longer the current accepted form. Use a successor qualification cycle."
+            )
+        try:
+            manifest = local_form_export_manifest(form)
+        except (OSError, ValueError, ValidationError) as exc:
+            raise ValidationError(
+                f"The accepted evidence for {form.name} v{form.version} is unavailable or no longer verifies: {exc}"
+            ) from exc
+        expected = {
+            "form_snapshot": manifest["form"],
+            "form_submission_checksum": form.submission_checksum,
+            "form_reference_checksum": form.reference_checksum,
+            "form_source_checksum": form.source_checksum,
+        }
+        if pin:
+            for field, value in expected.items():
+                setattr(row, field, value)
+            row.save(update_fields=(*expected.keys(), "updated_at"))
+        elif any(getattr(row, field) != value for field, value in expected.items()):
+            raise ValidationError(
+                f"The accepted evidence for {form.name} v{form.version} no longer matches the plan's pinned lineage."
+            )
+    return rows
+
+
 def _qualification_evidence_data(item):
     return {
         "evidence_id": item.pk,
@@ -250,6 +322,8 @@ def _qualification_evidence_data(item):
         "sequence": item.sequence,
         "field_execution_reference": item.field_execution_reference,
         "rules_forms_reference": item.rules_forms_reference,
+        "accepted_forms_snapshot": item.accepted_forms_snapshot,
+        "accepted_forms_checksum": item.accepted_forms_checksum,
         "status": item.status,
         "evidence_checksum": item.evidence_checksum,
         "prepared_by_id": item.prepared_by_id,
@@ -663,6 +737,7 @@ def submit_cutover_qualification_plan(plan, actor):
     plan.approved_at = None
     plan.review_note = ""
     plan.full_clean()
+    _validated_qualification_forms(plan, pin=True)
     snapshot = _qualification_plan_data(plan)
     snapshot.pop("evidence_checksum", None)
     plan.evidence_checksum = _checksum_payload(snapshot)
@@ -690,6 +765,8 @@ def review_cutover_qualification_plan(plan, actor, *, approve, reason):
         raise ValidationError("The qualification-plan preparer or submitter cannot approve the same plan.")
     if not str(reason or "").strip():
         raise ValidationError("Record the local review basis or the exact correction required.")
+    if approve:
+        _validated_qualification_forms(plan)
     snapshot = _qualification_plan_data(plan)
     stored = snapshot.pop("evidence_checksum", "")
     snapshot.update({
@@ -738,6 +815,9 @@ def submit_cutover_qualification_evidence(item, actor):
     item.reviewed_by = None
     item.reviewed_at = None
     item.review_note = ""
+    rows = _validated_qualification_forms(item.plan)
+    item.accepted_forms_snapshot = [_qualification_form_data(row) for row in rows]
+    item.accepted_forms_checksum = _checksum_payload(item.accepted_forms_snapshot)
     item.full_clean()
     snapshot = _qualification_evidence_data(item)
     snapshot.pop("evidence_checksum", None)
@@ -746,7 +826,7 @@ def submit_cutover_qualification_evidence(item, actor):
     item.submitted_by = actor
     item.submitted_at = timezone.now()
     item.save(update_fields=(
-        "status", "evidence_checksum", "submitted_by", "submitted_at",
+        "status", "accepted_forms_snapshot", "accepted_forms_checksum", "evidence_checksum", "submitted_by", "submitted_at",
         "reviewed_by", "reviewed_at", "review_note", "updated_at",
     ))
     _event(item.plan.cycle, actor, "cutover_qualification_evidence_submitted", snapshot=_qualification_evidence_data(item))
@@ -766,6 +846,16 @@ def review_cutover_qualification_evidence(item, actor, *, accept, reason):
         raise ValidationError("The evidence preparer or submitter cannot accept the same field cycle.")
     if not str(reason or "").strip():
         raise ValidationError("Record the independent review basis or the exact correction/rerun required.")
+    if accept:
+        rows = _validated_qualification_forms(item.plan)
+        current_forms = [_qualification_form_data(row) for row in rows]
+        if (
+            item.accepted_forms_snapshot != current_forms
+            or item.accepted_forms_checksum != _checksum_payload(current_forms)
+        ):
+            raise ValidationError(
+                "The exact accepted-form set changed after this field cycle was submitted. Return it and use a successor cycle."
+            )
     snapshot = _qualification_evidence_data(item)
     stored = snapshot.pop("evidence_checksum", "")
     snapshot.update({
@@ -1349,6 +1439,21 @@ def cutover_readiness(cycle):
         item for item in exercises if item.status != FinanceCutoverReadinessExercise.PASSED
     ]
     qualification_plan = FinanceCutoverQualificationPlan.objects.filter(cycle=cycle).first()
+    qualification_forms_current = False
+    qualification_form_ids = []
+    qualification_form_error = "The qualification plan has no exact current accepted-form lineage."
+    current_qualification_forms = []
+    if qualification_plan and qualification_plan.status == FinanceCutoverQualificationPlan.APPROVED:
+        try:
+            current_qualification_rows = _validated_qualification_forms(qualification_plan)
+        except ValidationError as exc:
+            qualification_form_error = "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc)
+        else:
+            current_qualification_forms = [
+                _qualification_form_data(item) for item in current_qualification_rows
+            ]
+            qualification_form_ids = [item.local_form_id for item in current_qualification_rows]
+            qualification_forms_current = True
     qualification_evidence = list(
         qualification_plan.cycle_evidence.select_related("cycle").order_by("sequence", "pk")
     ) if qualification_plan else []
@@ -1381,6 +1486,11 @@ def cutover_readiness(cycle):
         item for item in qualification_evidence
         if item.status != FinanceCutoverQualificationEvidence.ACCEPTED
     ]
+    qualification_evidence_forms_match = bool(accepted_qualification) and all(
+        item.accepted_forms_snapshot == current_qualification_forms
+        and item.accepted_forms_checksum == _checksum_payload(current_qualification_forms)
+        for item in accepted_qualification
+    )
     unsigned_stakeholders = [
         row.pk for row in rows
         if row.decision == FinanceStakeholderAcceptance.ACCEPTED
@@ -1421,6 +1531,24 @@ def cutover_readiness(cycle):
                 "The locally editable field-cycle qualification plan is independently approved."
                 if qualification_plan and qualification_plan.status == FinanceCutoverQualificationPlan.APPROVED
                 else "The field-cycle qualification plan is missing or not independently approved."
+            ),
+        },
+        {
+            "code": "accepted_local_forms_current",
+            "passed": qualification_forms_current,
+            "message": (
+                "Every qualifying cycle is governed by exact, checksum-pinned, currently accepted local form versions."
+                if qualification_forms_current
+                else qualification_form_error
+            ),
+        },
+        {
+            "code": "qualification_forms_match",
+            "passed": qualification_evidence_forms_match,
+            "message": (
+                "Every accepted qualifying cycle used the plan's exact accepted-form set."
+                if qualification_evidence_forms_match
+                else "One or more accepted field cycles does not preserve the plan's current exact accepted-form set."
             ),
         },
         {
@@ -1488,6 +1616,9 @@ def cutover_readiness(cycle):
         "unfinished_exercise_ids": [item.pk for item in unfinished_exercises],
         "unsigned_stakeholder_ids": unsigned_stakeholders,
         "qualification_plan_status": qualification_plan.status if qualification_plan else "missing",
+        "qualification_form_ids": qualification_form_ids,
+        "qualification_forms_current": qualification_forms_current,
+        "qualification_evidence_forms_match": qualification_evidence_forms_match,
         "accepted_qualification_cycle_ids": [item.cycle_id for item in accepted_qualification],
         "unfinished_qualification_evidence_ids": [item.pk for item in unfinished_qualification],
     }
@@ -1629,7 +1760,7 @@ def build_cutover_evidence_package(cycle, actor):
     ]
     payload = {
         "format": "GRAND Finance shadow/cutover evidence",
-        "schema_version": 5,
+        "schema_version": 6,
         "notice": "Portable evidence copy. Authority exists only when the included decision status is authorized for its exact scope and date.",
         "cycle": cycle_payload,
         "stored_cycle_evidence_checksum": cycle.evidence_checksum,

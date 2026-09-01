@@ -68,6 +68,10 @@ It contains the accepted form contract, exact source snapshot, blank/redacted-re
 
 The packet references separately retained blank/redacted samples, test outputs, print samples, screenshots, signed comparison sheets, and promotion receipts; it does not silently duplicate signature images, confidential form bodies, credentials, or TIN-bearing data.
 
+## F11 field-qualification handoff
+
+F11.6 consumes this acceptance record directly. An editable field-qualification plan must select the exact current Accepted form versions used during its consecutive cycles. Plan submission revalidates this protected packet and pins its accepted snapshot plus reference, source, and submission SHA-256 values; every field-cycle submission separately pins the same exact form set. If a selected form is superseded, F11 readiness fails and the changed form must be exercised under a successor cycle and qualification plan. A narrative form-register reference alone cannot satisfy that gate, and the protected blank/redacted reference file is not copied into the cutover export.
+
 ## Acceptance still required
 
 Before claiming the parent F10 gate, the LGU must populate this register with its actual enabled forms and retain:

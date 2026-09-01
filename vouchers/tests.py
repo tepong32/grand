@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 import io
+from calendar import monthrange
 from pathlib import Path
 import tempfile
 
@@ -122,6 +123,13 @@ class VoucherWorkflowTests(TestCase):
             **owner, fiscal_year=2026, period_number=8, label="August",
             starts_on=date(2026, 8, 1), ends_on=date(2026, 8, 31),
         )
+        today = timezone.localdate()
+        if not cls.accounting_period.starts_on <= today <= cls.accounting_period.ends_on:
+            cls.event_accounting_period = AccountingPeriod.objects.create(
+                **owner, fiscal_year=today.year, period_number=today.month, label=today.strftime("%B"),
+                starts_on=today.replace(day=1),
+                ends_on=today.replace(day=monthrange(today.year, today.month)[1]),
+            )
         cls.accounting_fund = Fund.objects.create(**owner, code="general-fund", name="Synthetic General Fund")
         cls.accounting_center = ResponsibilityCenter.objects.create(**owner, code="gso", name="Synthetic GSO")
         cls.expense_account = LedgerAccount.objects.create(

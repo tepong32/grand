@@ -1925,6 +1925,77 @@ class FinanceCutoverQualificationPlan(models.Model):
         return super().save(*args, **kwargs)
 
 
+class FinanceCutoverQualificationForm(models.Model):
+    """Exact locally accepted form version governed by one field-qualification plan."""
+
+    plan = models.ForeignKey(
+        FinanceCutoverQualificationPlan, on_delete=models.PROTECT, related_name="accepted_forms",
+    )
+    local_form = models.ForeignKey(
+        "reporting.FinanceLocalFormAcceptance", on_delete=models.PROTECT,
+        related_name="cutover_qualification_uses",
+    )
+    position = models.PositiveSmallIntegerField(default=1)
+    use_instructions = models.TextField(
+        help_text="Explain in familiar terms where and how staff use this exact accepted form during the qualifying cycles.",
+    )
+    form_snapshot = models.JSONField(default=dict, blank=True)
+    form_submission_checksum = models.CharField(max_length=64, blank=True)
+    form_reference_checksum = models.CharField(max_length=64, blank=True)
+    form_source_checksum = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("position", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("plan", "local_form"), name="unique_cutover_qualification_form"),
+            models.UniqueConstraint(fields=("plan", "position"), name="unique_cutover_qualification_form_position"),
+        )
+
+    def __str__(self):
+        return f"{self.plan.cycle.code}: {self.local_form}"
+
+    def clean(self):
+        if self.position < 1:
+            raise ValidationError({"position": "Position starts at 1."})
+        if self.local_form_id and self.local_form.status != self.local_form.ACCEPTED:
+            raise ValidationError({"local_form": "Choose a currently accepted local form, not a draft or superseded version."})
+        if self.plan_id:
+            try:
+                cutover_status = self.plan.cycle.cutover_decision.status
+            except FinanceCutoverDecision.DoesNotExist:
+                cutover_status = ""
+            if cutover_status and cutover_status != FinanceCutoverDecision.DRAFT and not self.pk:
+                raise ValidationError("Accepted-form lineage cannot be added after the cutover record is submitted.")
+            if not self.pk and self.plan.status not in {
+                FinanceCutoverQualificationPlan.DRAFT, FinanceCutoverQualificationPlan.RETURNED,
+            }:
+                raise ValidationError("Accepted forms can be added only while the qualification plan is editable.")
+        if self.pk:
+            prior = type(self).objects.select_related("plan").get(pk=self.pk)
+            if prior.plan.status not in {
+                FinanceCutoverQualificationPlan.DRAFT, FinanceCutoverQualificationPlan.RETURNED,
+            }:
+                governed = (
+                    "plan_id", "local_form_id", "position", "use_instructions", "form_snapshot",
+                    "form_submission_checksum", "form_reference_checksum", "form_source_checksum",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError("Accepted-form lineage is immutable after the qualification plan is submitted.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.plan.status not in {
+            FinanceCutoverQualificationPlan.DRAFT, FinanceCutoverQualificationPlan.RETURNED,
+        }:
+            raise ValidationError("Accepted-form lineage cannot be deleted after plan submission.")
+        return super().delete(*args, **kwargs)
+
+
 class FinanceCutoverQualificationEvidence(models.Model):
     DRAFT = "draft"
     SUBMITTED = "submitted"
@@ -1952,6 +2023,8 @@ class FinanceCutoverQualificationEvidence(models.Model):
     rules_forms_reference = models.TextField(
         help_text="Reference the accepted local rules, forms, reports, and print layouts actually used in this cycle.",
     )
+    accepted_forms_snapshot = models.JSONField(default=list, blank=True)
+    accepted_forms_checksum = models.CharField(max_length=64, blank=True)
     evidence_checksum = models.CharField(max_length=64, blank=True)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
     prepared_by = models.ForeignKey(
@@ -2007,12 +2080,18 @@ class FinanceCutoverQualificationEvidence(models.Model):
             or any(character not in "0123456789abcdef" for character in self.evidence_checksum.lower())
         ):
             raise ValidationError({"evidence_checksum": "The evidence checksum must be a 64-character SHA-256 value."})
+        if self.accepted_forms_checksum and (
+            len(self.accepted_forms_checksum) != 64
+            or any(character not in "0123456789abcdef" for character in self.accepted_forms_checksum.lower())
+        ):
+            raise ValidationError({"accepted_forms_checksum": "The accepted-forms checksum must be a 64-character SHA-256 value."})
         if self.pk:
             prior = type(self).objects.filter(pk=self.pk).first()
             if prior and prior.status == self.ACCEPTED:
                 governed = (
                     "plan_id", "cycle_id", "sequence", "field_execution_reference",
-                    "rules_forms_reference", "evidence_checksum", "reviewed_by_id", "reviewed_at",
+                    "rules_forms_reference", "accepted_forms_snapshot", "accepted_forms_checksum",
+                    "evidence_checksum", "reviewed_by_id", "reviewed_at",
                 )
                 if any(getattr(prior, field) != getattr(self, field) for field in governed):
                     raise ValidationError("Accepted field evidence is immutable. Correct or rerun it through a successor cycle.")

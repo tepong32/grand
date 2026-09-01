@@ -5,9 +5,11 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from reporting.models import FinanceLocalFormAcceptance
+
 from .models import (
     FinanceCutoverDecision,
-    FinanceCutoverQualificationEvidence, FinanceCutoverQualificationPlan,
+    FinanceCutoverQualificationEvidence, FinanceCutoverQualificationForm, FinanceCutoverQualificationPlan,
     FinanceCutoverReadinessExercise, FinanceCutoverReadinessPlan,
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule, FinanceNumberingSequence,
     FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
@@ -668,6 +670,26 @@ class FinanceCutoverQualificationPlanForm(forms.ModelForm):
             "accepted_rules_forms_reference": forms.Textarea(attrs={"rows": 4}),
             "field_evidence_basis": forms.Textarea(attrs={"rows": 4}),
         }
+
+
+class FinanceCutoverQualificationFormForm(forms.ModelForm):
+    class Meta:
+        model = FinanceCutoverQualificationForm
+        fields = ("local_form", "position", "use_instructions")
+        widgets = {"use_instructions": forms.Textarea(attrs={"rows": 4})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["local_form"].queryset = FinanceLocalFormAcceptance.objects.filter(
+            status=FinanceLocalFormAcceptance.ACCEPTED,
+        ).select_related("department").order_by("department__name", "code", "version")
+        self.fields["local_form"].label_from_instance = lambda item: (
+            f"{item.department.name} · {item.name}"
+            f"{f' ({item.form_number})' if item.form_number else ''} · v{item.version}"
+        )
+        self.fields["local_form"].help_text = (
+            "Only independently accepted F10.2 form versions appear here. Their protected reference files remain in the form register."
+        )
 
 
 class FinanceCutoverQualificationEvidenceForm(forms.ModelForm):

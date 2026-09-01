@@ -480,14 +480,6 @@ class FinanceStatementMapping(models.Model):
                 raise ValidationError("The statement mapping preparer cannot approve the same version.")
 
     def save(self, *args, **kwargs):
-        if self.status in (self.SUBMITTED, self.ACCEPTED, self.SUPERSEDED) and (
-            not self.submission_checksum or not self.submitted_by_id or not self.submitted_at
-        ):
-            raise ValidationError("Locked local-form states require a pinned, attributable submission.")
-        if self.status in (self.ACCEPTED, self.SUPERSEDED) and (
-            not self.reviewed_by_id or not self.reviewed_at
-        ):
-            raise ValidationError("Accepted local-form history requires an independent reviewer and decision time.")
         if self.pk:
             prior = type(self).objects.get(pk=self.pk)
             governed = (

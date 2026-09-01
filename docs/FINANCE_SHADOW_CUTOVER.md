@@ -1,6 +1,6 @@
 # Finance shadow operation, UAT acceptance, and controlled cutover
 
-Status: F11.1 governed transition control, F11.2 versioned redacted source staging, F11.3 scheduled reconciliation/defect control, F11.4 governed curricula/support and readiness exercises, and F11.5 consecutive field-cycle/signed-reference control implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate or any local production cutover has occurred.
+Status: F11.1 governed transition control, F11.2 versioned redacted source staging, F11.3 scheduled reconciliation/defect control, F11.4 governed curricula/support and readiness exercises, F11.5 consecutive field-cycle/signed-reference control, and F11.6 exact accepted-form lineage implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate or any local production cutover has occurred.
 
 ## Purpose and authority boundary
 
@@ -113,9 +113,9 @@ For the candidate cutover cycle, Finance prepares a locally editable qualificati
 - the accepted local rules, forms, reports, print layouts, and instructions used; and
 - the retained-record basis that distinguishes actual field execution from synthetic UAT.
 
-A different reconciliation reviewer approves or returns the checksum-backed plan. GRAND does not present its starter count or parallel-run setting as COA, DBM, BIR, audit, or local policy.
+A narrative rules/forms reference is retained for authorities, procedures, and material outside the form register, but it cannot satisfy the form gate by itself. While the plan is Draft or Returned, Finance must select at least one exact, currently Accepted F10.2 local-form version and explain in familiar terms where staff use it. Forms may come from the Finance offices involved in the interconnected process. Submission validates the protected acceptance packet and pins the exact accepted form snapshot, department, version, source mapping, reference checksum, source checksum, and submission checksum into the plan. A different reconciliation reviewer approves or returns that complete checksum-backed plan. GRAND does not present its starter count or parallel-run setting as COA, DBM, BIR, audit, or local policy.
 
-After approval, Finance adds each reconciled field cycle from oldest to newest. Each row references its retained field-execution packet and the accepted rules/forms actually used. A different reviewer accepts the checksum-backed row or returns it for correction/rerun. The cutover gate requires at least the approved minimum, sequence numbers starting at 1 without gaps, an explicit predecessor link between each adjacent cycle, the candidate as the last cycle, exact Finance office/fiscal year/scope equality, no open evidence row, and a controlled parallel cycle when the plan requires one. Accepted field evidence is immutable; changed scope or execution evidence belongs to a successor cycle.
+After approval, Finance adds each reconciled field cycle from oldest to newest. Each row references its retained field-execution packet and the accepted rules/forms actually used. At submission, the row receives its own snapshot and checksum of the plan's exact accepted-form set. A different reviewer can accept it only while every selected form is still the current Accepted F10.2 version and the form set still matches the submitted field evidence. The cutover gate requires at least the approved minimum, sequence numbers starting at 1 without gaps, an explicit predecessor link between each adjacent cycle, the candidate as the last cycle, exact Finance office/fiscal year/scope equality, no open evidence row, a controlled parallel cycle when the plan requires one, and exact current form lineage across every accepted cycle. Accepted field evidence is immutable; changed scope, execution evidence, or accepted form version belongs to a successor cycle and fresh qualification plan.
 
 These controls cannot create the field evidence. Synthetic tests may demonstrate the software gate, but only retained actual local execution records can satisfy the operational entry fields honestly.
 
@@ -145,7 +145,7 @@ The editable window is deliberately narrow:
 - pending stakeholder assignments can be corrected before a decision;
 - a draft/returned readiness plan can be corrected before approval;
 - a planned or witness-returned exercise can receive a corrected/rerun actual result and evidence reference;
-- a draft/returned field-qualification plan can be corrected before approval, and draft/returned field evidence can be corrected before independent acceptance;
+- a draft/returned field-qualification plan and its selected accepted-form rows can be corrected before submission/approval, and draft/returned field evidence can be corrected before independent acceptance;
 - a draft cutover record can be corrected before submission.
 
 Submitted cycle evidence, approved readiness/qualification plans, accepted field-cycle evidence, passed exercise evidence, recorded stakeholder decisions, and submitted authority fields are immutable. A returned comparison requires a successor cycle. A changed stakeholder scope or concluded decision requires a successor cycle and fresh evidence. An authorized cutover is never edited into a different scope or date; use decline before authorization or recorded rollback afterward.
@@ -156,7 +156,7 @@ This transition allowance does not reopen issued vouchers/checks or bypass their
 
 Department-bounded Finance permissions control cycle preparation, independent reconciliation, and cutover authority. A named cross-office stakeholder can read only the assigned cycle and record only their pending decision; assignment does not grant Finance preparation or authority actions. Finance UAT viewers remain read-only within their office boundary.
 
-Every visible cycle can produce a schema-v5 JSON evidence package containing each source version's checksum, headings, row count, drift/review metadata; the approved local cadence and escalation matrix; every scheduled run snapshot/checksum; defect intake, resolution, and escalation evidence; the approved curriculum/support plan; every role and nonfunctional exercise with result/checksum/witness evidence; the qualification plan and field-cycle chain; stakeholder decision references/checksums; readiness checks; and the current cutover decision and signed-authority reference/checksum/custody. Source row values, retained CSV bytes, signature images, and private Internal How-To progress are deliberately excluded from the portable JSON. The downloaded bytes are also archived atomically under:
+Every visible cycle can produce a schema-v6 JSON evidence package containing each source version's checksum, headings, row count, drift/review metadata; the approved local cadence and escalation matrix; every scheduled run snapshot/checksum; defect intake, resolution, and escalation evidence; the approved curriculum/support plan; every role and nonfunctional exercise with result/checksum/witness evidence; the qualification plan, exact accepted-form versions/checksums, and each field cycle's pinned form-set snapshot/checksum; stakeholder decision references/checksums; readiness checks; and the current cutover decision and signed-authority reference/checksum/custody. Protected form-reference bytes, source row values, retained CSV bytes, signature images, and private Internal How-To progress are deliberately excluded from the portable JSON. The downloaded bytes are also archived atomically under:
 
 `department/user/finance-shadow-cutover/year/month`
 
@@ -170,7 +170,7 @@ Before claiming the parent exit gate, the LGU still must confirm and execute:
 - actual locally accepted cadence/severity/escalation values, named support ownership, and enabled transaction-type field sign-off using the implemented controls;
 - locally completed curriculum/quick-guide/supervisor/support content and actual witnessed role-exercise evidence entered through the implemented F11.4 controls;
 - actual named security, privacy, accessibility, performance, print/form-stock, backup/restore, continuity, and incident exercise execution using locally accepted pass conditions;
-- actual consecutive limited shadow and controlled parallel execution entered through the implemented F11.5 plan/evidence controls using locally accepted rules/forms; and
+- actual consecutive limited shadow and controlled parallel execution entered through the implemented F11.5 plan/evidence controls, with every applicable current F10.2 accepted form selected through the implemented F11.6 lineage controls; and
 - actual signatures/decisions from Budget, Accounting, Treasury, every enabled requesting office, IT, management, and audit stakeholders entered through the implemented retained-reference/checksum fields.
 
 Until those field-evidence steps and the recorded authorization exist, the roadmap's shadow/UAT label remains in force.
