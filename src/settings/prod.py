@@ -38,6 +38,11 @@ ALLOWED_HOSTS = _comma_separated_environment(
 render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
 if render_hostname and render_hostname not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(render_hostname)
+# The image health probe addresses Gunicorn directly before the external TLS
+# proxy. These exact loopback hosts do not widen external Host-header access.
+for internal_health_host in ("127.0.0.1", "localhost"):
+    if internal_health_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(internal_health_host)
 CSRF_TRUSTED_ORIGINS = _comma_separated_environment("GRAND_CSRF_TRUSTED_ORIGINS")
 
 # Production traffic is served over HTTPS. Keep the initial HSTS window short so
@@ -104,6 +109,15 @@ DATABASES = {
         'OPTIONS': database_options.copy(),
     },
 }
+
+# Non-secret references to locally approved operational decisions. Presence is
+# checked by production_preflight; the command does not pretend to validate the
+# underlying signed records or replace F11 witness/cutover evidence.
+GRAND_DEPLOYMENT_APPROVAL_REFERENCE = os.getenv("GRAND_DEPLOYMENT_APPROVAL_REFERENCE", "")
+GRAND_STORAGE_CUSTODY_REFERENCE = os.getenv("GRAND_STORAGE_CUSTODY_REFERENCE", "")
+GRAND_BACKUP_POLICY_REFERENCE = os.getenv("GRAND_BACKUP_POLICY_REFERENCE", "")
+GRAND_MONITORING_REFERENCE = os.getenv("GRAND_MONITORING_REFERENCE", "")
+GRAND_ROLLBACK_PLAN_REFERENCE = os.getenv("GRAND_ROLLBACK_PLAN_REFERENCE", "")
 
 # Container logs belong on stdout/stderr. Persistent operational files are not
 # used as an application-log transport on Render.

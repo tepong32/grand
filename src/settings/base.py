@@ -150,6 +150,7 @@ GRAND_EXPORT_ROOT = Path(os.environ.get('GRAND_EXPORT_ROOT', BASE_DIR / 'exports
 GRAND_BACKUP_ROOT = Path(os.environ.get('GRAND_BACKUP_ROOT', BASE_DIR / 'backups'))
 GRAND_BACKUP_RETENTION_COUNT = int(os.environ.get('GRAND_BACKUP_RETENTION_COUNT', '0'))
 GRAND_MYSQL_DUMP_COMMAND = os.environ.get('GRAND_MYSQL_DUMP_COMMAND', 'mysqldump')
+GRAND_MYSQL_CLIENT_COMMAND = os.environ.get('GRAND_MYSQL_CLIENT_COMMAND', 'mysql')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.User'

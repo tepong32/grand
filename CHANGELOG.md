@@ -1,5 +1,13 @@
 # Changelog
 
+## Truthful production environment preflight
+
+- Added a `production_preflight` management command with human and non-secret JSON output, a static configuration scope, strict nonzero failure behavior, and a live environment scope covering both routed stores, migrations, and runtime storage.
+- Required explicit external hosts without wildcards, HTTPS security controls, a substantial non-placeholder secret, SMTP/application sender configuration, distinct complete MySQL identities, separate absolute media/export/backup/static roots, collected assets, native dump/restore clients, and five locally controlled deployment-decision references.
+- Added disposable create/fsync/atomic-rename/read-back/cleanup probes for all three runtime roots plus live queries and unapplied-migration detection for both databases; live checks are visibly deferred when configuration is invalid.
+- Kept receipts truthful with permanent `restore_tested: false` and `cutover_authorized: false` boundaries so preflight can support but never auto-pass the existing independently witnessed F11 recovery and authority workflow.
+- Admitted only `127.0.0.1` and `localhost` for the container's direct health probe, preventing the production Docker health check from being rejected by Host validation without introducing an external wildcard.
+
 ## Independent copied-backup verification
 
 - Added a strict read-only backup-set verifier and management command that rechecks GRAND identity/version/status, dated-set identity, immutable restore flag, complete-versus-partial scope, safe unique filenames, MySQL engines, gzip readability/nonempty content, recorded sizes, and artifact SHA-256 values.

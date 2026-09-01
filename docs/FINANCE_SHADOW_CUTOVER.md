@@ -132,6 +132,8 @@ After independent reconciliation, Finance prepares a human-readable decision rec
 - backup, restore, recovery, and continuity exercise evidence; and
 - the retained signed authority record reference, its SHA-256, and its named records/TracePoint custodian.
 
+The non-secret `production_preflight --json` receipt may be retained as supporting environment evidence for an actual exercise. It cannot set an exercise to Passed, prove either database was restored, replace the assigned independent witness, satisfy stakeholder acceptance, or authorize cutover; those decisions remain inside this governed workflow.
+
 Submission is blocked until the field-cycle plan and consecutive-cycle chain pass, the readiness plan is approved, all eight nonfunctional categories and every named role exercise are Passed, no scheduled exercise remains planned/submitted/returned, all seven stakeholder kinds exist, every row is Accepted, and every accepted stakeholder has a retained decision reference and SHA-256. A different user with cutover authority records authorization or decline and its basis. The normal seeded roles separate preparation (`Finance Configuration Manager`) from reconciliation/authority (`Finance Configuration Approver`), and service checks still reject self-review or self-authorization if permissions were combined exceptionally.
 
 When a recorded rollback criterion is triggered, the authority records the incident and immediate operating direction. The status becomes Rolled back; the original authorization, actor, time, reason, comparisons, and stakeholder decisions remain reconstructible.

@@ -22,6 +22,7 @@ Set these in the deployment environment, never in source control:
 | `GRAND_BACKUP_ROOT` | One persistent, access-restricted folder for completed backup sets | `<project>/backups` |
 | `GRAND_BACKUP_RETENTION_COUNT` | Number of newest completed sets retained locally; `0` performs no automatic deletion | `0` |
 | `GRAND_MYSQL_DUMP_COMMAND` | Path or command name for the deployment's compatible `mysqldump` client | `mysqldump` |
+| `GRAND_MYSQL_CLIENT_COMMAND` | Path or command name for the compatible `mysql` restore client checked by production preflight | `mysql` |
 
 The existing `DATABASES` settings supply the two connection definitions. The command creates a temporary MySQL client file with restrictive permissions so the database password is not placed in the process argument list. The file is removed after the dump attempt and is never published.
 
@@ -77,6 +78,8 @@ Before treating a copied set as retained evidence:
 3. Test gzip integrity and confirm decompressed content is nonempty.
 4. Keep the full set together. A single database artifact is not a complete GRAND recovery point.
 5. Record the copy destination, operator, time, and verification result in the approved restricted operations log.
+
+The live `production_preflight` command independently confirms that both native clients are present and that the configured backup root supports create, fsync, atomic rename, read-back, and cleanup. It does not run a backup or restore, inspect an off-host destination, or satisfy this checklist by itself.
 
 Never edit a published manifest to say a restore passed. A restore rehearsal is separate evidence tied to the immutable backup ID and checksums. Checksums prove internal integrity and, when an independently retained manifest hash is supplied, detect replacement relative to that retained value; they are not signatures and do not establish custody or authorship by themselves.
 

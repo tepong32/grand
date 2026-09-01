@@ -73,6 +73,8 @@ Production database recovery uses a separate restricted `GRAND_BACKUP_ROOT`. The
 
 The repository also includes a non-root Python 3.11 production Docker image, Gunicorn/WhiteNoise runtime, `/healthz/` probe, `.env.example`, and explicit two-store production settings. The [Docker and Render preparation guide](docs/DEPLOYMENT_RENDER.md) identifies the infrastructure choices and field checks that still block a real deployment.
 
+Before a release or cutover rehearsal, `production_preflight` produces a non-secret configuration or live-environment receipt. Live mode checks both MySQL stores, migration state, and atomic writes across the separate media, export, and backup roots. Passing it does not claim that a restore rehearsal, LGU acceptance, or cutover authorization occurred.
+
 The reporting seed command is idempotent: it creates or preserves the five MSWD pilot definitions without duplicating them. See [Reporting operations](docs/REPORTING.md) before configuring templates or scheduled runs, and [GRAND accounting operations](docs/GRAND_ACCOUNTING_OPERATIONS.md) before assigning finance roles or opening periods.
 
 ## Verification
@@ -111,6 +113,20 @@ python manage.py verify_database_backup <copied-set-directory> --expect-manifest
 ```
 
 This verifies structure, both gzip streams, sizes, and checksums. It does not claim that a database restore succeeded.
+
+Inspect only the production configuration without connecting to either database or writing storage probes:
+
+```powershell
+python manage.py production_preflight --configuration-only --settings=src.settings.prod
+```
+
+Run the full environment preflight only inside the intended release environment:
+
+```powershell
+python manage.py production_preflight --json --settings=src.settings.prod
+```
+
+The command exits nonzero for failed or deferred selected-scope checks. Its receipt always distinguishes preflight from witnessed recovery and cutover evidence.
 
 ## Documentation
 

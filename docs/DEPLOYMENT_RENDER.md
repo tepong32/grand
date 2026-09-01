@@ -61,6 +61,8 @@ Legacy `TEST_DB_NAME`, `TEST_DB_UN`, and `TEST_DB_PW` main-store variables and `
 
 Production settings fail fast when the secret key or either database identity is absent. Connections use configurable connect/read/write timeouts, connection health checks, and a finite connection age. HTTPS redirect, secure cookies, proxy SSL recognition, and an initial one-hour HSTS window are enabled. Increase HSTS and enable subdomains/preload only after every affected hostname is verified; those settings can make mistakes difficult to reverse.
 
+The container-local health check uses the exact loopback hostnames `127.0.0.1` and `localhost`; production settings admit those two names explicitly so the direct Gunicorn probe is not rejected before the external proxy. This does not add a wildcard or another external hostname.
+
 ## Persistent runtime files
 
 By default, Render filesystems are ephemeral. GRAND currently writes three materially different runtime trees:
@@ -99,6 +101,36 @@ Before scheduling reports or backups, choose and implement either an approved sh
 
 After each off-host copy, run `verify_database_backup` against the copied set with the manifest SHA-256 retained separately from the source job. Verification is read-only and still does not satisfy the witnessed restore-rehearsal gate.
 
+## Production environment preflight
+
+Populate the five non-secret local record references in `.env.example` with actual document, resolution, controlled-register, or approved ticket identifiers:
+
+- deployment approval;
+- runtime storage and custody decision;
+- backup, retention, RPO/RTO policy;
+- monitoring and escalation plan; and
+- release rollback plan.
+
+These values point to locally controlled evidence; they are not the evidence itself and must not contain passwords, keys, personal data, or signature images.
+
+Inspect the static configuration first:
+
+```text
+python manage.py production_preflight --configuration-only --json --settings=src.settings.prod
+```
+
+This checks the security posture, explicit hosts and HTTPS origins, SMTP/sender configuration, distinct non-placeholder MySQL identities, non-overlapping absolute runtime roots, both native MySQL clients, collected static assets, and the five decision references. It neither connects to a database nor writes a probe file.
+
+Inside the intended release environment, run the full check:
+
+```text
+python manage.py production_preflight --json --settings=src.settings.prod
+```
+
+Full mode additionally runs a live query and migration-plan check on both `default` and `finance`, then creates, fsyncs, atomically renames, reads back, and removes a unique probe inside each media, export, and backup root. It stops before live checks when configuration is invalid and exits nonzero for every failed or not-run selected-scope check. Messages and JSON receipts omit database identities and credentials.
+
+Even a fully passing receipt retains `restore_tested: false` and `cutover_authorized: false`. Attach the receipt to the approved restricted deployment/rehearsal log if locally required, then separately execute and witness the F11 backup/restore exercise, field cycles, stakeholder decisions, and cutover authority workflow.
+
 ## Release verification
 
 For every candidate image:
@@ -107,12 +139,13 @@ For every candidate image:
 2. run Django checks and migration-drift detection under development settings;
 3. run `collectstatic --noinput` under production settings with non-secret validation placeholders;
 4. run `python manage.py check --deploy --settings=src.settings.prod` and review the intentionally staged HSTS warnings/settings;
-5. build the Docker image from a clean context;
-6. run the container as its configured non-root user and confirm `/healthz/`;
-7. run the full automated test suite against both test stores;
-8. inspect the image/context to confirm local databases, `.env`, media, exports, and backups are absent;
-9. on an isolated release environment, migrate both stores and exercise login, department boundaries, one complete Finance lineage, static/media delivery, an export, and backup command failure/success handling;
-10. complete the witnessed restore and field-acceptance gates already recorded in the Finance roadmap.
+5. run the configuration-only production preflight and retain its non-secret receipt;
+6. build the Docker image from a clean context;
+7. run the container as its configured non-root user and confirm `/healthz/`;
+8. run the full automated test suite against both test stores;
+9. inspect the image/context to confirm local databases, `.env`, media, exports, and backups are absent;
+10. on an isolated release environment, migrate both stores, run the live production preflight, and exercise login, department boundaries, one complete Finance lineage, static/media delivery, an export, and backup command failure/success handling;
+11. complete the witnessed restore and field-acceptance gates already recorded in the Finance roadmap.
 
 ## Truthful readiness boundary
 
