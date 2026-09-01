@@ -71,6 +71,8 @@ Set `GRAND_EXPORT_ROOT` to the single local folder synchronized by TraceSync. Ev
 
 Production database recovery uses a separate restricted `GRAND_BACKUP_ROOT`. The `backup_databases` command creates one atomically published, checksum-manifested native MySQL logical backup set for both the main and Finance stores. See [database backup and recovery](docs/DATABASE_BACKUP.md); a created backup is not considered restore-tested until an isolated rehearsal and control reconciliation are recorded.
 
+The repository also includes a non-root Python 3.11 production Docker image, Gunicorn/WhiteNoise runtime, `/healthz/` probe, `.env.example`, and explicit two-store production settings. The [Docker and Render preparation guide](docs/DEPLOYMENT_RENDER.md) identifies the infrastructure choices and field checks that still block a real deployment.
+
 The reporting seed command is idempotent: it creates or preserves the five MSWD pilot definitions without duplicating them. See [Reporting operations](docs/REPORTING.md) before configuring templates or scheduled runs, and [GRAND accounting operations](docs/GRAND_ACCOUNTING_OPERATIONS.md) before assigning finance roles or opening periods.
 
 ## Verification
@@ -108,6 +110,7 @@ This command intentionally refuses local SQLite file copying; use it in the prod
 - [Reporting operations and governance](docs/REPORTING.md)
 - [Portable GRAND export archive](docs/EXPORT_ARCHIVE.md)
 - [Database backup and recovery](docs/DATABASE_BACKUP.md)
+- [Production Docker and Render preparation](docs/DEPLOYMENT_RENDER.md)
 - [Department Internal How-Tos](docs/INTERNAL_HOWTOS.md)
 - [Department report-template intake](docs/REPORT_TEMPLATE_INTAKE.md)
 - [Department records operations](docs/RECORDS.md)

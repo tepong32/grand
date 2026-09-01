@@ -1,5 +1,14 @@
 # Changelog
 
+## Production Docker and Render runtime foundation
+
+- Added a reproducible Python 3.11 slim Docker image with pinned Gunicorn/WhiteNoise dependencies, a native MySQL client, release-time static collection, non-root execution, stdout/stderr logs, Render `PORT` binding, and a container health check.
+- Added a public, minimal, non-cached `/healthz/` process probe that exposes no database or credential details.
+- Hardened production settings with fail-fast secret/two-store database identity, explicit modern database environment names plus legacy fallbacks, configurable hosts/origins, proxy handling, database timeouts/health checks, runtime media root, console logging, and staged HSTS controls.
+- Added a secret-free `.env.example` and a restrictive Docker context that excludes local databases, credentials, media, exports, backups, logs, static build output, and test/showcase artifacts.
+- Added a Render operator guide covering both migrations, static/runtime separation, persistent-disk tradeoffs, discrete management jobs, and the current platform constraint that cron jobs cannot access persistent disks; backup/report scheduling remains blocked until shared or off-host storage is approved.
+- Kept deployment claims conservative: a successful image/health probe does not replace two-store migration, backup/restore, control reconciliation, field acceptance, rollback, and named-owner approval.
+
 ## Production two-database backup foundation
 
 - Added a production-only native MySQL logical backup service and management command that captures GRAND's default and separately routed Finance stores as one recovery set while truthfully labeling explicitly requested single-store runs as partial.

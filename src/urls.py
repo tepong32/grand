@@ -9,6 +9,7 @@ from users.views import (
 )
 
 from django.contrib import messages
+from src.health import health
 
 class LoginView(auth_views.LoginView):
     def form_valid(self, form):
@@ -26,6 +27,7 @@ class LoginView(auth_views.LoginView):
 
 
 urlpatterns = [
+    path('healthz/', health, name='health'),
     path('admin/', admin.site.urls),
     path('', include('home.urls')),
     path('assistance/', include('assistance.urls', namespace="assistance")),

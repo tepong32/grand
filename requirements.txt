@@ -22,6 +22,7 @@ django-crontab==0.7.1
 django-ratelimit==4.1.0
 django-js-asset==3.0.1
 et_xmlfile==2.0.0
+gunicorn==26.2.0
 h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
@@ -47,3 +48,4 @@ tzdata==2024.1
 urllib3==2.7.0
 vine==5.1.0
 wcwidth==0.2.13
+whitenoise==6.12.0
