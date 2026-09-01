@@ -199,6 +199,8 @@ media/finance/
 media/vouchers/
 # Portable, TraceSync-ready runtime exports and per-file checksum manifests
 exports/
+# Native production database backup sets and manifests are runtime recovery data.
+backups/
 tmp/uat-backups/
 tmp/uat-build-*/
 tmp/tmp*/

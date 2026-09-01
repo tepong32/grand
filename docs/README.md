@@ -7,6 +7,7 @@ Use this page as the entry point for project and operator documentation.
 - [Project overview and local setup](../README.md) describes the product, application boundaries, development commands, and verification gates.
 - [Reporting operations](REPORTING.md) explains approved datasets, familiar-template onboarding, generation, scheduling, permissions, and audit behavior.
 - [Portable GRAND export archive](EXPORT_ARCHIVE.md) defines the one-root department/user/category layout, atomic artifacts, checksum manifests, and TraceSync operating boundary.
+- [Database backup and recovery](DATABASE_BACKUP.md) defines the separate restricted two-store backup root, native MySQL logical dumps, atomic completed sets, retention safeguards, off-host verification, and isolated restore-rehearsal gate.
 - [Department Internal How-Tos](INTERNAL_HOWTOS.md) defines the floating non-modal guidance window, live department/role visibility, private progress, succession behavior, and governed publishing.
 - [Department report-template intake](REPORT_TEMPLATE_INTAKE.md) provides the artifact checklist, compatibility decision, pilot comparison, and print/download rules used before official validation.
 - [Department records operations](RECORDS.md) explains source-in-place filing, permissions, approval, retention, legal holds, controlled downloads, and disposition.

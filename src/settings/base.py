@@ -144,6 +144,12 @@ MEDIA_URL = '/media/'
 # One portable tree for user-requested exports. Point this at the folder watched
 # by TraceSync in production; copying the whole root preserves all manifests.
 GRAND_EXPORT_ROOT = Path(os.environ.get('GRAND_EXPORT_ROOT', BASE_DIR / 'exports'))
+# Database recovery artifacts are deliberately separate from user-requested
+# exports. TraceSync (or another offline copy job) should synchronize only
+# completed backup-set directories from this root.
+GRAND_BACKUP_ROOT = Path(os.environ.get('GRAND_BACKUP_ROOT', BASE_DIR / 'backups'))
+GRAND_BACKUP_RETENTION_COUNT = int(os.environ.get('GRAND_BACKUP_RETENTION_COUNT', '0'))
+GRAND_MYSQL_DUMP_COMMAND = os.environ.get('GRAND_MYSQL_DUMP_COMMAND', 'mysqldump')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.User'

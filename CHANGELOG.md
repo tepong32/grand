@@ -1,5 +1,13 @@
 # Changelog
 
+## Production two-database backup foundation
+
+- Added a production-only native MySQL logical backup service and management command that captures GRAND's default and separately routed Finance stores as one recovery set while truthfully labeling explicitly requested single-store runs as partial.
+- Added gzip validation, nonempty-content checks, SHA-256 and byte-length manifests, application/deployment lineage, credential-free metadata, and a temporary restricted MySQL option file that keeps passwords out of process arguments and published artifacts.
+- Added an exclusive run lock, private dot-prefixed staging, whole-directory atomic publication, failure cleanup that preserves every prior completed set, and a root marker that gives TraceSync/off-host copy jobs an unambiguous completed-artifact boundary.
+- Added disabled-by-default, count-based retention that considers only validated GRAND completed-set manifests and reports cleanup trouble separately after a new recovery point has already been published.
+- Explicitly refused SQLite file copying in the production writer, added success/failure/empty/duplicate/partial/retention/checksum coverage, and documented off-host verification plus a witnessed isolated two-store restore gate without claiming that production recovery has already been proven.
+
 ## F2.1/F5 cross-store setup and issuance concurrency closure
 
 - Added one permanent transaction-store issuance-boundary record per Finance office and fiscal year, acquired with a row lock inside the default-database transaction.

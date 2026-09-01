@@ -69,6 +69,8 @@ Local development uses SQLite, the console email backend, and `src.settings.dev`
 
 Set `GRAND_EXPORT_ROOT` to the single local folder synchronized by TraceSync. Every requested export is downloaded and atomically retained there under a normalized department/user/category path with an adjacent SHA-256 manifest. See the [portable export archive guide](docs/EXPORT_ARCHIVE.md); syncing this folder complements but does not replace controlled records and tested backups.
 
+Production database recovery uses a separate restricted `GRAND_BACKUP_ROOT`. The `backup_databases` command creates one atomically published, checksum-manifested native MySQL logical backup set for both the main and Finance stores. See [database backup and recovery](docs/DATABASE_BACKUP.md); a created backup is not considered restore-tested until an isolated rehearsal and control reconciliation are recorded.
+
 The reporting seed command is idempotent: it creates or preserves the five MSWD pilot definitions without duplicating them. See [Reporting operations](docs/REPORTING.md) before configuring templates or scheduled runs, and [GRAND accounting operations](docs/GRAND_ACCOUNTING_OPERATIONS.md) before assigning finance roles or opening periods.
 
 ## Verification
@@ -92,11 +94,20 @@ python manage.py run_scheduled_reports
 
 Repeated invocations for the same scheduled period do not create duplicate outputs.
 
+Create a complete production database backup set with:
+
+```powershell
+python manage.py backup_databases --settings=src.settings.prod
+```
+
+This command intentionally refuses local SQLite file copying; use it in the production-compatible MySQL environment described in the recovery guide.
+
 ## Documentation
 
 - [Documentation map](docs/README.md)
 - [Reporting operations and governance](docs/REPORTING.md)
 - [Portable GRAND export archive](docs/EXPORT_ARCHIVE.md)
+- [Database backup and recovery](docs/DATABASE_BACKUP.md)
 - [Department Internal How-Tos](docs/INTERNAL_HOWTOS.md)
 - [Department report-template intake](docs/REPORT_TEMPLATE_INTAKE.md)
 - [Department records operations](docs/RECORDS.md)

@@ -104,6 +104,8 @@ Deliver:
 
 Exit gate: synthetic users can access only their role-shaped queues; every consequential test action is permission-checked, concurrency-safe, recoverable, and attributable.
 
+Implementation position: native MySQL logical backup creation now produces one verified, atomically published, checksum-manifested recovery set for both the default and Finance stores, with guarded retention and an operator restore runbook. Actual production scheduling, off-host copying, encryption/retention decisions, monitoring, and a witnessed two-store restore rehearsal with reconciled control totals remain F1/cutover acceptance gates; a created artifact is not represented as restore-tested.
+
 ### F2 — Governed master data and opening readiness
 
 Deliver:
