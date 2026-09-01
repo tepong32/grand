@@ -243,17 +243,17 @@ def _affected_readiness_layers(instance):
     return {code for code, _label in FiscalYearReadinessApproval.LAYER_CHOICES}
 
 
-def foundation_modification_blockers(fiscal_year):
-    """Read the core transaction store without creating a cross-database relation."""
+def foundation_modification_blockers_for_scope(*, department_id, fiscal_year, source_release_id=None):
+    """Read one exact office/year scope without creating a cross-database relation."""
     from django.db.models import Q
     from vouchers.models import VoucherCase
 
     release_scope = Q(
-        configuration_release__department_id=fiscal_year.department_id,
-        configuration_release__fiscal_year=fiscal_year.year,
+        configuration_release__department_id=department_id,
+        configuration_release__fiscal_year=fiscal_year,
     )
-    if fiscal_year.source_release_id:
-        release_scope |= Q(configuration_release_id=fiscal_year.source_release_id)
+    if source_release_id:
+        release_scope |= Q(configuration_release_id=source_release_id)
     cases = VoucherCase.objects.filter(release_scope)
     numbered_vouchers = cases.filter(
         Q(disbursement_voucher__isnull=False)
@@ -266,6 +266,16 @@ def foundation_modification_blockers(fiscal_year):
         "voucher_references": list(numbered_vouchers.values_list("reference_code", flat=True)[:5]),
         "check_references": list(issued_checks.values_list("reference_code", flat=True)[:5]),
     }
+
+
+def foundation_modification_blockers(fiscal_year):
+    """Read the core transaction store without creating a cross-database relation."""
+
+    return foundation_modification_blockers_for_scope(
+        department_id=fiscal_year.department_id,
+        fiscal_year=fiscal_year.year,
+        source_release_id=fiscal_year.source_release_id,
+    )
 
 
 def begin_foundation_amendment(instance, actor, reason):
@@ -289,20 +299,71 @@ def begin_foundation_amendment(instance, actor, reason):
         "reason": reason,
         "before": _audit_snapshot(instance),
         "fiscal_year_ids": [fiscal_year.pk for fiscal_year in fiscal_years],
+        "issuance_scopes": [
+            {"department_id": fiscal_year.department_id, "fiscal_year": fiscal_year.year}
+            for fiscal_year in fiscal_years
+        ],
         "layers": sorted(_affected_readiness_layers(instance)),
     }
+
+
+def extend_foundation_amendment_context(context, instance):
+    """Add any proposed fiscal-year scope introduced by a validated edit form."""
+
+    proposed_years = _affected_fiscal_years(instance)
+    for fiscal_year in proposed_years:
+        blockers = foundation_modification_blockers(fiscal_year)
+        if blockers["voucher_count"] or blockers["check_count"]:
+            references = sorted(set(blockers["voucher_references"] + blockers["check_references"]))
+            suffix = f" Affected cases: {', '.join(references)}." if references else ""
+            raise ValidationError(
+                "The guided modification window is closed because a disbursement voucher or check has already "
+                f"been issued for FY {fiscal_year.year}.{suffix} Use a governed successor, return, reversal, "
+                "cancellation, or replacement workflow instead."
+            )
+    context["fiscal_year_ids"] = sorted({
+        *context["fiscal_year_ids"],
+        *(fiscal_year.pk for fiscal_year in proposed_years),
+    })
+    scopes = {
+        (scope["department_id"], scope["fiscal_year"])
+        for scope in context["issuance_scopes"]
+    }
+    scopes.update((fiscal_year.department_id, fiscal_year.year) for fiscal_year in proposed_years)
+    context["issuance_scopes"] = [
+        {"department_id": department_id, "fiscal_year": fiscal_year}
+        for department_id, fiscal_year in sorted(scopes)
+    ]
+    context["layers"] = sorted({
+        *context["layers"],
+        *_affected_readiness_layers(instance),
+    })
+    return context
+
+
+def lock_foundation_amendment_boundaries(context):
+    """Hold transaction-store issuance locks across the Finance-store amendment."""
+
+    from vouchers.issuance_boundaries import lock_foundation_issuance_boundaries
+
+    return lock_foundation_issuance_boundaries(context["issuance_scopes"])
 
 
 @transaction.atomic(using=FINANCE_DB)
 def finalize_foundation_amendment(instance, actor, context):
     fiscal_years = list(FiscalYear.objects.select_for_update().filter(pk__in=context["fiscal_year_ids"]))
     readiness_before = {}
-    for fiscal_year in fiscal_years:
-        blockers = foundation_modification_blockers(fiscal_year)
+    for scope in context["issuance_scopes"]:
+        blockers = foundation_modification_blockers_for_scope(
+            department_id=scope["department_id"],
+            fiscal_year=scope["fiscal_year"],
+        )
         if blockers["voucher_count"] or blockers["check_count"]:
             raise ValidationError(
-                f"The modification was not saved because a voucher or check was issued for FY {fiscal_year.year} during review."
+                "The modification was not saved because a voucher or check was issued for "
+                f"FY {scope['fiscal_year']} during review."
             )
+    for fiscal_year in fiscal_years:
         ensure_readiness_layers(fiscal_year)
         affected = list(fiscal_year.readiness_layers.filter(layer__in=context["layers"]))
         readiness_before[str(fiscal_year.public_id)] = [
@@ -349,11 +410,13 @@ def finalize_foundation_amendment(instance, actor, context):
             "reopened_layers": context["layers"],
             "prior_readiness": readiness_before,
             "modification_boundary": "no_disbursement_voucher_or_check_issued",
+            "issuance_boundary_scopes": context["issuance_scopes"],
         },
     )
     return instance
 
 
+@transaction.atomic(using="default")
 @transaction.atomic(using=FINANCE_DB)
 def adopt_configuration_release(release, actor, *, change_reason=""):
     """Copy an approved core setup release into the isolated Finance store using snapshots only."""
@@ -361,6 +424,12 @@ def adopt_configuration_release(release, actor, *, change_reason=""):
         raise ValidationError("Only an authorized setup manager can adopt a configuration release.")
     if release.status not in {"approved", "scheduled", "active", "superseded"}:
         raise ValidationError("Only an approved configuration release can be adopted.")
+    from vouchers.issuance_boundaries import lock_foundation_issuance_boundary
+
+    lock_foundation_issuance_boundary(
+        department_id=release.department_id,
+        fiscal_year=release.fiscal_year,
+    )
     payload, checksum = _release_payload(release)
     starts_on = date(release.fiscal_year, 1, 1)
     ends_on = date(release.fiscal_year, 12, 31)

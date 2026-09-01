@@ -33,7 +33,7 @@ A configuration manager may use **Edit** to correct a governed fiscal-year/calen
 
 The current conservative gate treats any numbered DV in the fiscal-year/release scope as the end of in-place setup modification, even if the check has not yet been released. A check that was later cancelled still counts as issued. Once the gate closes, operators must use the applicable successor setup, case return, adjusting/reversing entry, voucher supersession, check cancellation/replacement, or later phase-specific correction workflow. Existing used journal masters retain their stricter no-redefinition rule.
 
-F5 voucher-lineage integration must make this cross-store issuance gate concurrency-safe at the same transaction boundary that allocates the voucher number. Until then this F2.1 guard is suitable for shadow/UAT setup control, not official concurrent cutover.
+F5 voucher-lineage integration now closes the former cross-store race with one permanent transaction-store issuance boundary per Finance office and fiscal year. Guided foundation edits and release adoption hold that row lock across the separately routed Finance-store amendment and final blocker recheck; an edit that moves a period or classification also locks and reopens both its original and proposed years. Budget certification, DV preparation, and physical-check registration take the same boundary **before** locking their voucher case; they then recheck that any adopted typed fiscal year is Active before new issuance. A concurrent DV/check issue therefore finishes first and blocks the edit, or the edit finishes first and the waiting issuance stops until independent readiness review and reactivation; it cannot slip between the final check and amendment commit. Later event-JEV numbering retains its ordinary sequence lock but does not take the setup boundary because the numbered DV has already closed in-place setup modification. The boundary is coordination evidence only—it does not authorize setup, issue a number, or replace the existing maker–checker and successor/reversal rules.
 
 Run `python manage.py configure_finance_roles` after migration to create or refresh these curated roles and their explicit permissions. Superuser status alone does not grant Finance access.
 
@@ -65,7 +65,7 @@ Use synthetic codes only and retain the screenshots/decision notes in the eviden
 4. Submit as the configuration manager. Confirm that the same person cannot approve the year.
 5. Attempt Budget readiness without a funding source/PPA and confirm it is blocked. Complete the missing records and record synthetic evidence for all five layers.
 6. Activate the year, edit one classification before any DV/check issuance, and confirm GRAND records before/after/reason evidence, returns the year to Draft, and reopens affected readiness. Reapprove it.
-7. Issue a synthetic DV, then confirm the guided modification window closes and directs the operator to successor/return/reversal/cancellation/replacement workflows.
+7. Issue a synthetic DV, then confirm the guided modification window closes and directs the operator to successor/return/reversal/cancellation/replacement workflows. Confirm the setup amendment and number issue use the same office/fiscal-year issuance-boundary record.
 8. Adopt the same approved synthetic setup release twice and confirm no duplicate dimensions are created and the checksum is unchanged.
 9. Run Accounting tests, the full test suite, `manage.py check`, and `makemigrations --check --dry-run`.
 

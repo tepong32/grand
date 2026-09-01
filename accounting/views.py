@@ -49,7 +49,9 @@ from .services import (
     carry_forward_bank_outstanding, classify_bank_outstanding,
     correct_bank_statement_batch, decide_bank_reconciliation, match_bank_statement_row,
     correct_opening_batch, correct_opening_row, decide_opening_batch, decide_readiness_layer, discard_draft,
-    ensure_readiness_layers, evaluate_fiscal_year_readiness, finalize_foundation_amendment,
+    ensure_readiness_layers, evaluate_fiscal_year_readiness, extend_foundation_amendment_context,
+    finalize_foundation_amendment,
+    lock_foundation_amendment_boundaries,
     post_entry, post_opening_batch, reconcile_opening_batch, record_opening_event, return_entry, stage_opening_csv,
     run_control_reconciliation, subsidiary_schedule_rows, submit_entry, submit_opening_batch,
     record_bank_reconciliation_event, stage_bank_statement_csv, submit_bank_reconciliation, transition_fiscal_year,
@@ -215,10 +217,15 @@ def setup_item_edit(request, kind, pk):
         form.add_error(None, amendment_error)
     if request.method == "POST" and form.is_valid() and (not requires_change_reason or amendment_context is not None):
         try:
-            with transaction.atomic(using="finance"):
-                saved = form.save()
+            if amendment_context is not None:
+                extend_foundation_amendment_context(amendment_context, form.instance)
+            with transaction.atomic(using="default"):
                 if amendment_context is not None:
-                    finalize_foundation_amendment(saved, request.user, amendment_context)
+                    lock_foundation_amendment_boundaries(amendment_context)
+                with transaction.atomic(using="finance"):
+                    saved = form.save()
+                    if amendment_context is not None:
+                        finalize_foundation_amendment(saved, request.user, amendment_context)
         except ValidationError as exc:
             form.add_error(None, " ".join(exc.messages))
         else:

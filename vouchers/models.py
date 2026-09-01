@@ -1331,6 +1331,33 @@ class VoucherTask(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
 
 
+class FinanceFoundationIssuanceBoundary(models.Model):
+    """Shared transaction-store lock for one Finance office and fiscal year."""
+
+    department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, related_name="finance_foundation_issuance_boundaries",
+    )
+    fiscal_year = models.PositiveSmallIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("department__name", "fiscal_year")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("department", "fiscal_year"),
+                name="unique_finance_foundation_issuance_boundary",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.department} · FY {self.fiscal_year} issuance boundary"
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError(
+            "Finance issuance-boundary locks are permanent coordination records."
+        )
+
+
 class VoucherNumberIssue(models.Model):
     case = models.ForeignKey(VoucherCase, on_delete=models.PROTECT, related_name="number_issues")
     sequence = models.ForeignKey("finance.FinanceNumberingSequence", on_delete=models.PROTECT, related_name="voucher_number_issues")

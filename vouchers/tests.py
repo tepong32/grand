@@ -4,6 +4,7 @@ import io
 from calendar import monthrange
 from pathlib import Path
 import tempfile
+from unittest.mock import patch
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
@@ -18,7 +19,7 @@ from django.utils import timezone
 
 from departments.models import Department
 from accounting.models import (
-    AccountingPeriod, BankStatementBatch, Fund, JournalEntry, JournalSubsidiaryLine, LedgerAccount,
+    AccountingPeriod, BankStatementBatch, FiscalYear, Fund, JournalEntry, JournalSubsidiaryLine, LedgerAccount,
     PostingMapping, ResponsibilityCenter,
 )
 from accounting.services import bank_reconciliation_snapshot, discard_draft, post_entry, submit_entry
@@ -36,7 +37,7 @@ from tracepoint.models import PacketItem, TrackedPacket
 
 from .access import can_view_workbench
 from .models import (
-    BankAdviceBatch, PayableIntake, PaymentInstrument, PaymentInstrumentException, ReturnedInstrumentReview, TreasuryCashPolicy,
+    BankAdviceBatch, FinanceFoundationIssuanceBoundary, PayableIntake, PaymentInstrument, PaymentInstrumentException, ReturnedInstrumentReview, TreasuryCashPolicy,
     TreasuryCashPosition, TreasuryCashReservation, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
     RemittancePostingRequest, TaxFilingEvidence, TreasuryRemittanceBatch, TreasuryRemittanceLine,
     VoucherDeduction, VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
@@ -66,6 +67,7 @@ from .services import (
     release_check, request_override, return_case, submit_checks_for_advice,
     validate_accounting, assemble_finance_packet, prepare_controlled_dv_print, record_dv_printed,
 )
+from .issuance_boundaries import lock_foundation_issuance_boundary
 
 
 class VoucherWorkflowTests(TestCase):
@@ -1264,6 +1266,45 @@ class VoucherWorkflowTests(TestCase):
         )
         event = case.events.get(action="dv_prepared")
         self.assertEqual(event.metadata["workflow_exemption"]["policy_id"], policy.pk)
+        self.assertTrue(FinanceFoundationIssuanceBoundary.objects.filter(
+            department=self.accounting,
+            fiscal_year=timezone.localdate().year,
+        ).exists())
+
+    def test_foundation_reapproval_blocks_new_dv_issuance_without_changing_case(self):
+        fiscal_year = FiscalYear.objects.create(
+            department_id=self.accounting.pk,
+            department_label=self.accounting.name,
+            year=self.release.fiscal_year,
+            label=f"FY {self.release.fiscal_year}",
+            starts_on=date(self.release.fiscal_year, 1, 1),
+            ends_on=date(self.release.fiscal_year, 12, 31),
+            business_date=date(self.release.fiscal_year, 8, 25),
+            status=FiscalYear.ACTIVE,
+            source_release_id=self.release.pk,
+            source_release_code=self.release.code,
+            source_release_version=self.release.version,
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.get_username(),
+        )
+        case = self.create_case("foundation-reapproval-create")
+        self.budget_certify(case, "foundation-reapproval-budget")
+        case.refresh_from_db()
+        original_stage = case.current_stage
+        original_version = case.state_version
+        FiscalYear.objects.filter(pk=fiscal_year.pk).update(status=FiscalYear.DRAFT)
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Finish the independent readiness review and reactivate it",
+        ):
+            self.accounting_prepare(case, "foundation-reapproval-dv")
+
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, original_stage)
+        self.assertEqual(case.state_version, original_version)
+        self.assertFalse(hasattr(case, "disbursement_voucher"))
+        self.assertFalse(case.number_issues.filter(document_type="disbursement-voucher").exists())
 
     def test_explicit_permissions_do_not_follow_superuser_status(self):
         self.assertFalse(can_view_workbench(self.superuser))
@@ -1294,9 +1335,17 @@ class VoucherWorkflowTests(TestCase):
 
     def test_return_and_cancel_preserve_case_and_check_history(self):
         case = self.ready_for_treasury()
-        check = issue_check(
-            case=case, actor=self.treasury_user, bank_account_code="gf-lbp", check_number="000201", amount=Decimal("900.00"),
-            expected_version=case.state_version, idempotency_key="cancel-issue",
+        with patch(
+            "vouchers.services.lock_foundation_issuance_boundary",
+            wraps=lock_foundation_issuance_boundary,
+        ) as boundary_lock:
+            check = issue_check(
+                case=case, actor=self.treasury_user, bank_account_code="gf-lbp", check_number="000201", amount=Decimal("900.00"),
+                expected_version=case.state_version, idempotency_key="cancel-issue",
+            )
+        boundary_lock.assert_any_call(
+            department_id=case.configuration_release.department_id,
+            fiscal_year=case.configuration_release.fiscal_year,
         )
         case.refresh_from_db()
         cancel_check(

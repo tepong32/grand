@@ -36,6 +36,7 @@ from .models import (
     VoucherPostingRequest, VoucherPrintJob, VoucherTask, WetSignatureTask,
     voucher_tax_evidence_checksum,
 )
+from .issuance_boundaries import lock_foundation_issuance_boundary
 
 
 class VoucherWorkflowError(ValidationError):
@@ -123,9 +124,36 @@ def _advance(case, actor, stage, action, idempotency_key, reason="", metadata=No
     return case
 
 
+def _lock_case_foundation_boundary(case):
+    """Lock the office/year amendment cutoff before locking a voucher case."""
+
+    release = case.configuration_release
+    return lock_foundation_issuance_boundary(
+        department_id=release.department_id,
+        fiscal_year=release.fiscal_year,
+    )
+
+
+def _require_active_case_foundation(case):
+    """Stop new issuance while an adopted fiscal foundation awaits reapproval."""
+
+    from accounting.models import FiscalYear
+
+    fiscal_year = FiscalYear.objects.filter(
+        department_id=case.configuration_release.department_id,
+        year=case.configuration_release.fiscal_year,
+    ).first()
+    if fiscal_year is not None and fiscal_year.status != FiscalYear.ACTIVE:
+        raise VoucherWorkflowError(
+            "Finance setup for this fiscal year is not active. Finish the independent readiness review "
+            "and reactivate it before issuing an OBR, DV, or check."
+        )
+
+
 def _consume_sequence_number(case, actor, sequence_document_type, issue_document_type):
+    fiscal_year = case.configuration_release.fiscal_year
     sequence = FinanceNumberingSequence.objects.select_for_update().filter(
-        release=case.configuration_release, fiscal_year=timezone.localdate().year,
+        release=case.configuration_release, fiscal_year=fiscal_year,
         document_type=sequence_document_type, status="active",
     ).first()
     if not sequence:
@@ -1208,9 +1236,11 @@ def review_payable_intake(
 @transaction.atomic
 def certify_budget(*, case, actor, obligation_date, budget_source_reference, allocations, expected_version, idempotency_key):
     _require(actor, "vouchers.certify_budget_obligation")
+    _lock_case_foundation_boundary(case)
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return case
+    _require_active_case_foundation(case)
     if case.current_stage != VoucherCase.BUDGET_DRAFT or hasattr(case, "obligation"):
         raise VoucherWorkflowError("Only a Budget draft without an OBR can be certified.")
     allocations = [item for item in allocations if Decimal(item["amount"]) > 0]
@@ -1235,9 +1265,11 @@ def certify_budget(*, case, actor, obligation_date, budget_source_reference, all
 @transaction.atomic
 def prepare_voucher(*, case, actor, voucher_date, gross_amount, deductions, line_description, line_account_code, document_codes, expected_version, idempotency_key):
     _require(actor, "vouchers.prepare_disbursement_voucher")
+    _lock_case_foundation_boundary(case)
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return case
+    _require_active_case_foundation(case)
     if case.current_stage != VoucherCase.ACCOUNTING_PREPARATION:
         raise VoucherWorkflowError("This case is not awaiting Accounting DV preparation.")
     if case.payable_document_evidence.exists() and case.payable_intake.status != PayableIntake.READY:
@@ -1684,9 +1716,11 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
 @transaction.atomic
 def issue_check(*, case, actor, bank_account_code, check_number, amount, expected_version, idempotency_key, replaces=None, fund_code=""):
     _require(actor, "vouchers.issue_payment_instruments")
+    _lock_case_foundation_boundary(case)
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return case.payment_instruments.get(public_id=existing.metadata["instrument_id"])
+    _require_active_case_foundation(case)
     if case.current_stage != VoucherCase.TREASURY_CHECK_PREPARATION:
         raise VoucherWorkflowError("This voucher is not ready for Treasury check preparation.")
     amount = Decimal(amount)

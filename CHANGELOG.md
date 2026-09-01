@@ -1,5 +1,15 @@
 # Changelog
 
+## F2.1/F5 cross-store setup and issuance concurrency closure
+
+- Added one permanent transaction-store issuance-boundary record per Finance office and fiscal year, acquired with a row lock inside the default-database transaction.
+- Made Budget certification, DV preparation, and physical-check registration lock that boundary before their voucher case, including check routes that create no JEV; later event-JEV numbering keeps its ordinary sequence lock after the numbered DV has already closed setup modification.
+- Made new issuance recheck that an adopted typed fiscal year is Active after the boundary and case locks, so work queued behind a guided edit stops until independent readiness review and reactivation while completed idempotent retries remain safe.
+- Made guided fiscal-foundation edits hold the same boundary across the separately routed Finance-database save, final issuance recheck, readiness reopening, and audit event; moving a period or classification locks and reopens both its original and proposed years.
+- Made configuration-release adoption follow the same default-store-then-Finance-store lock order, including initial and successor adoption.
+- Preserved the existing modification allowance: in-place correction remains available only before DV/check issuance; later correction still uses governed successor, return, reversal, cancellation, or replacement routes.
+- Added migration and regression coverage for unique/reused locks, transaction enforcement, setup audit scope, release adoption, DV/check issuance, and the post-amendment reactivation gate; local MySQL deployment still requires the normal migration before concurrent use.
+
 ## F11.6 Exact accepted-form lineage in field qualification
 
 - Replaced narrative-only form qualification with exact selection of one or more currently Accepted F10.2 local-form versions while preserving plain-language authority and procedure references.

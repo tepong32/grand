@@ -17,7 +17,9 @@ from django.utils.text import slugify
 from departments.models import Department
 from profiles.models import EmployeeProfile
 from finance.models import FinanceConfigurationItem, FinanceConfigurationRelease, FinanceWorkflowExemption
-from vouchers.models import DisbursementVoucher, PaymentInstrument, VoucherCase
+from vouchers.models import (
+    DisbursementVoucher, FinanceFoundationIssuanceBoundary, PaymentInstrument, VoucherCase,
+)
 
 from .access import can_post_journals, can_prepare_journals, can_view_accounting
 from .models import (
@@ -315,6 +317,10 @@ class StandaloneAccountingTests(TestCase):
         self.assertEqual(self.period.fiscal_year_record, fiscal_year)
         self.assertNotIn("department", [field.name for field in FiscalYear._meta.fields])
         self.assertTrue(AccountingAuditEvent.objects.filter(action="configuration_release_adopted").exists())
+        self.assertTrue(FinanceFoundationIssuanceBoundary.objects.filter(
+            department=self.accounting_department,
+            fiscal_year=release.fiscal_year,
+        ).exists())
 
     def test_successor_release_for_governed_year_requires_reason_and_reopens_readiness_before_issue(self):
         fiscal_year = self._fiscal_foundation()
@@ -434,9 +440,76 @@ class StandaloneAccountingTests(TestCase):
             fiscal_year.readiness_layers.get(layer=FiscalYearReadinessApproval.BUDGET).status,
             FiscalYearReadinessApproval.PENDING,
         )
+        self.assertTrue(FinanceFoundationIssuanceBoundary.objects.filter(
+            department=self.accounting_department,
+            fiscal_year=fiscal_year.year,
+        ).exists())
         event = AccountingAuditEvent.objects.get(action="foundation_amended")
         self.assertEqual(event.snapshot["before"]["name"], "Synthetic public service MFO")
         self.assertEqual(event.snapshot["after"]["name"], "Corrected synthetic public service MFO")
+        self.assertEqual(event.snapshot["issuance_boundary_scopes"], [{
+            "department_id": self.accounting_department.pk,
+            "fiscal_year": fiscal_year.year,
+        }])
+
+    def test_guided_period_move_locks_and_reopens_original_and_proposed_years(self):
+        original_year = self._fiscal_foundation()
+        proposed_year = FiscalYear.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            year=2028,
+            label="FY 2028",
+            starts_on=date(2028, 1, 1),
+            ends_on=date(2028, 12, 31),
+            business_date=date(2028, 1, 1),
+            status=FiscalYear.ACTIVE,
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        original_year.status = FiscalYear.ACTIVE
+        original_year.save(update_fields=("status",))
+        ensure_readiness_layers(original_year)
+        ensure_readiness_layers(proposed_year)
+        FiscalYearReadinessApproval.objects.filter(
+            fiscal_year__in=(original_year, proposed_year),
+        ).update(
+            status=FiscalYearReadinessApproval.APPROVED,
+            evidence_note="Synthetic prior approval",
+            decided_by_id=self.setup_approver.pk,
+            decided_by_label=self.setup_approver.username,
+        )
+
+        self.client.force_login(self.preparer)
+        response = self.client.post(reverse("accounting:setup_edit", args=("periods", self.period.pk)), {
+            "fiscal_year_record": proposed_year.pk,
+            "period_number": 1,
+            "label": "January 2028",
+            "starts_on": "2028-01-01",
+            "ends_on": "2028-01-31",
+            "is_adjustment_period": False,
+            "change_reason": "Move the period to the corrected fiscal year before any DV or check is issued.",
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.period.refresh_from_db()
+        original_year.refresh_from_db()
+        proposed_year.refresh_from_db()
+        self.assertEqual(self.period.fiscal_year_record, proposed_year)
+        self.assertEqual(self.period.fiscal_year, proposed_year.year)
+        self.assertEqual(original_year.status, FiscalYear.DRAFT)
+        self.assertEqual(proposed_year.status, FiscalYear.DRAFT)
+        self.assertEqual(
+            list(FinanceFoundationIssuanceBoundary.objects.filter(
+                department=self.accounting_department,
+                fiscal_year__in=(2027, 2028),
+            ).order_by("fiscal_year").values_list("fiscal_year", flat=True)),
+            [2027, 2028],
+        )
+        event = AccountingAuditEvent.objects.get(action="foundation_amended")
+        self.assertEqual(event.snapshot["issuance_boundary_scopes"], [
+            {"department_id": self.accounting_department.pk, "fiscal_year": 2027},
+            {"department_id": self.accounting_department.pk, "fiscal_year": 2028},
+        ])
 
     def test_foundation_edit_is_blocked_after_disbursement_voucher_issue(self):
         fiscal_year = self._fiscal_foundation()
