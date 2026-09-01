@@ -1,5 +1,13 @@
 # Changelog
 
+## Independent copied-backup verification
+
+- Added a strict read-only backup-set verifier and management command that rechecks GRAND identity/version/status, dated-set identity, immutable restore flag, complete-versus-partial scope, safe unique filenames, MySQL engines, gzip readability/nonempty content, recorded sizes, and artifact SHA-256 values.
+- Required a complete recovery set to contain exactly the default and Finance stores, rejected unmanifested SQL artifacts and partial sets unless explicitly allowed for diagnostics, and returned nonzero command errors for every invalid boundary.
+- Made backup creation print and return the immutable manifest SHA-256 so operators can retain it outside the copied set; verification can compare that external value to detect manifest replacement and reports honestly when only internal integrity was checked.
+- Added machine-readable verification receipts that remain `restore_tested: false`, plus tamper, replacement, unsafe-path, missing-store, false-restore-claim, partial-scope, command, and authenticity-hash coverage.
+- Corrected the scheduling guidance: Render cron jobs cannot access persistent disks, so filesystem backup publication requires an approved persistent/off-host runner rather than an ephemeral cron instance.
+
 ## Production Docker and Render runtime foundation
 
 - Added a reproducible Python 3.11 slim Docker image with pinned Gunicorn/WhiteNoise dependencies, a native MySQL client, release-time static collection, non-root execution, stdout/stderr logs, Render `PORT` binding, and a container health check.

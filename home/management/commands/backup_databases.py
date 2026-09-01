@@ -47,6 +47,7 @@ class Command(BaseCommand):
                 f"with {len(manifest['databases'])} database artifact(s): {result['path']}"
             )
         )
+        self.stdout.write(f"Manifest SHA-256: {result['manifest_sha256']}")
         if result["removed_by_retention"]:
             self.stdout.write(
                 f"Retention removed {len(result['removed_by_retention'])} older completed set(s)."

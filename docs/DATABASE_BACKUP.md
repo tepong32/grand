@@ -35,9 +35,11 @@ python manage.py backup_databases --settings=src.settings.prod
 
 The default invocation must produce both `default` and `finance`. `--database default` or `--database finance` is available for an explicitly authorized diagnostic copy, but its manifest is truthfully labeled `partial` and it is not a complete GRAND recovery point.
 
-Use `--retain N` only after the LGU approves a retention value and confirms that an off-host copy job is working. The default does not delete old backups. A scheduler such as a Render Cron Job should invoke this management command as a discrete job; GRAND does not run a cron daemon inside the web process.
+Use `--retain N` only after the LGU approves a retention value and confirms that an off-host copy job is working. The default does not delete old backups. Invoke the command only from a discrete job that can write the approved persistent/off-host backup root; Render cron jobs cannot access persistent disks and therefore must not publish filesystem backups there. GRAND does not run a cron daemon inside the web process.
 
 The command exits nonzero when configuration, native dump, compression, content validation, or publication fails. Only one run can hold the root lock. A failed run removes its staging directory and never replaces a previous completed set.
+
+On success the command prints the completed set path and the SHA-256 of its immutable `manifest.json`. Retain that manifest hash separately from the copied backup set—for example, in the restricted operations log—so later verification can detect replacement of both an artifact and its local manifest.
 
 ## Portable folder contract
 
@@ -58,15 +60,25 @@ Publication happens only after both gzip streams are readable and nonempty and e
 
 ## Check an off-host copy
 
+Run GRAND's read-only verifier against the copied dated set, not the live source directory:
+
+```text
+python manage.py verify_database_backup <copied-set-directory> --expect-manifest-sha256 <separately-retained-hash> --settings=src.settings.prod
+```
+
+Use `--json` to emit a machine-readable verification receipt for the approved restricted log. The receipt records the backup ID, verification time, computed manifest hash, every artifact hash/size, integrity result, and whether an external manifest hash was compared. It always retains `restore_tested: false` because reading gzip and checksums is not a database restore.
+
+The verifier exits nonzero for an invalid identity/version/status, a set-directory/backup-ID mismatch, unsafe or duplicate filenames, missing/extra SQL artifacts, a non-MySQL entry, invalid gzip, empty content, size/hash drift, a partial set without explicit `--allow-partial`, a complete set without exactly both stores, a changed externally retained manifest hash, or an edited claim that restore testing already passed.
+
 Before treating a copied set as retained evidence:
 
 1. Confirm the set has one manifest and both named `.sql.gz` artifacts.
-2. Calculate SHA-256 for each copied artifact and compare it to the corresponding manifest value.
+2. Run `verify_database_backup` and compare its manifest SHA-256 to the value retained outside the set.
 3. Test gzip integrity and confirm decompressed content is nonempty.
 4. Keep the full set together. A single database artifact is not a complete GRAND recovery point.
 5. Record the copy destination, operator, time, and verification result in the approved restricted operations log.
 
-Never edit a published manifest to say a restore passed. A restore rehearsal is separate evidence tied to the immutable backup ID and checksums.
+Never edit a published manifest to say a restore passed. A restore rehearsal is separate evidence tied to the immutable backup ID and checksums. Checksums prove internal integrity and, when an independently retained manifest hash is supplied, detect replacement relative to that retained value; they are not signatures and do not establish custody or authorship by themselves.
 
 ## Isolated restore rehearsal
 

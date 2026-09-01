@@ -4,6 +4,7 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -231,6 +232,164 @@ def _verify_artifact(path: Path) -> tuple[int, str]:
     return byte_length, digest.hexdigest()
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        while chunk := source.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def verify_backup_set(
+    backup_set: str | Path,
+    *,
+    allow_partial: bool = False,
+    expected_manifest_sha256: str | None = None,
+) -> dict:
+    """Read and fully verify one copied GRAND backup set without modifying it."""
+    directory = Path(backup_set).expanduser().resolve()
+    if not directory.is_dir():
+        raise BackupError(f"Backup-set directory does not exist: {directory}")
+
+    manifest_path = directory / "manifest.json"
+    if manifest_path.is_symlink() or not manifest_path.is_file():
+        raise BackupError(f"Backup set has no regular manifest.json file: {directory}")
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+        manifest = json.loads(manifest_bytes.decode("utf-8"))
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise BackupError(f"Backup manifest is unreadable or invalid JSON: {manifest_path}") from exc
+    if not isinstance(manifest, dict):
+        raise BackupError("Backup manifest must contain one JSON object.")
+
+    required_identity = {
+        "application": "GRAND",
+        "format": "GRAND database backup set",
+        "format_version": 1,
+        "status": "completed",
+    }
+    for field, expected in required_identity.items():
+        if manifest.get(field) != expected:
+            raise BackupError(f"Backup manifest has an invalid {field!r} value.")
+
+    backup_id = manifest.get("backup_id")
+    if not isinstance(backup_id, str) or backup_id != directory.name:
+        raise BackupError("Backup manifest ID does not match its set directory name.")
+    try:
+        created_at = datetime.fromisoformat(str(manifest.get("created_at") or ""))
+    except ValueError as exc:
+        raise BackupError("Backup manifest has an invalid created_at value.") from exc
+    if created_at.tzinfo is None:
+        raise BackupError("Backup manifest created_at must include a timezone.")
+    if manifest.get("restore_tested") is not False:
+        raise BackupError(
+            "A generated backup manifest must retain restore_tested=false; "
+            "record restore rehearsals in separate evidence."
+        )
+
+    scope = manifest.get("scope")
+    if scope not in {"complete", "partial"}:
+        raise BackupError("Backup manifest scope must be 'complete' or 'partial'.")
+    if scope == "partial" and not allow_partial:
+        raise BackupError("This is a partial backup set; pass --allow-partial only for authorized diagnostics.")
+
+    rows = manifest.get("databases")
+    if not isinstance(rows, list) or not rows:
+        raise BackupError("Backup manifest has no database artifacts.")
+    verified_artifacts = []
+    aliases = set()
+    filenames = set()
+    sha256_pattern = re.compile(r"^[0-9a-f]{64}$")
+    for row in rows:
+        if not isinstance(row, dict):
+            raise BackupError("Every database artifact entry must be a JSON object.")
+        alias = row.get("database_alias")
+        if not isinstance(alias, str) or not alias:
+            raise BackupError("A database artifact has no valid alias.")
+        if alias in aliases:
+            raise BackupError(f"Backup manifest repeats database alias {alias!r}.")
+        aliases.add(alias)
+
+        filename = row.get("filename")
+        if (
+            not isinstance(filename, str)
+            or not filename.endswith(".sql.gz")
+            or Path(filename).name != filename
+            or "/" in filename
+            or "\\" in filename
+        ):
+            raise BackupError(f"Database {alias!r} has an unsafe artifact filename.")
+        if filename in filenames:
+            raise BackupError(f"Backup manifest repeats artifact filename {filename!r}.")
+        filenames.add(filename)
+
+        logical_name = row.get("logical_name")
+        engine = row.get("engine")
+        recorded_length = row.get("byte_length")
+        recorded_sha256 = row.get("sha256")
+        if not isinstance(logical_name, str) or not logical_name.strip():
+            raise BackupError(f"Database {alias!r} has no logical name.")
+        if not isinstance(engine, str) or "mysql" not in engine.lower():
+            raise BackupError(f"Database {alias!r} is not recorded as a native MySQL dump.")
+        if type(recorded_length) is not int or recorded_length <= 0:
+            raise BackupError(f"Database {alias!r} has an invalid recorded byte length.")
+        if not isinstance(recorded_sha256, str) or not sha256_pattern.fullmatch(recorded_sha256):
+            raise BackupError(f"Database {alias!r} has an invalid recorded SHA-256.")
+
+        artifact_path = directory / filename
+        if artifact_path.is_symlink() or not artifact_path.is_file():
+            raise BackupError(f"Database artifact is missing or is not a regular file: {filename}")
+        actual_length, actual_sha256 = _verify_artifact(artifact_path)
+        if actual_length != recorded_length:
+            raise BackupError(f"Database artifact size does not match its manifest: {filename}")
+        if actual_sha256 != recorded_sha256:
+            raise BackupError(f"Database artifact SHA-256 does not match its manifest: {filename}")
+        verified_artifacts.append(
+            {
+                "database_alias": alias,
+                "filename": filename,
+                "byte_length": actual_length,
+                "sha256": actual_sha256,
+            }
+        )
+
+    required_aliases = {"default", "finance"}
+    if scope == "complete" and aliases != required_aliases:
+        raise BackupError("A complete GRAND backup set must contain exactly default and finance artifacts.")
+    if scope == "partial" and aliases - required_aliases:
+        raise BackupError("A partial GRAND backup set contains an unknown database alias.")
+
+    unmanifested = sorted(
+        path.name
+        for path in directory.iterdir()
+        if path.is_file() and path.name.endswith(".sql.gz") and path.name not in filenames
+    )
+    if unmanifested:
+        raise BackupError(
+            "Backup set contains unmanifested SQL artifact(s): " + ", ".join(unmanifested)
+        )
+
+    manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+    if expected_manifest_sha256 is not None:
+        expected = expected_manifest_sha256.strip().lower()
+        if not sha256_pattern.fullmatch(expected):
+            raise BackupError("Expected manifest SHA-256 must contain exactly 64 hexadecimal characters.")
+        if manifest_sha256 != expected:
+            raise BackupError("Backup manifest SHA-256 does not match the separately retained value.")
+
+    return {
+        "application": "GRAND",
+        "backup_id": backup_id,
+        "scope": scope,
+        "manifest_sha256": manifest_sha256,
+        "integrity_verified": True,
+        "authenticity_verified": expected_manifest_sha256 is not None,
+        "restore_tested": False,
+        "verified_at": timezone.now().isoformat(),
+        "artifacts": verified_artifacts,
+    }
+
+
 def _application_version() -> str:
     version_path = Path(settings.BASE_DIR) / "VERSION"
     try:
@@ -345,6 +504,7 @@ def create_backup_set(
             staging / "manifest.json",
             json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8") + b"\n",
         )
+        manifest_sha256 = _sha256_file(staging / "manifest.json")
         final.parent.mkdir(parents=True, exist_ok=True)
         os.replace(staging, final)
         published = True
@@ -360,6 +520,7 @@ def create_backup_set(
             "backup_id": backup_id,
             "path": final,
             "manifest": manifest,
+            "manifest_sha256": manifest_sha256,
             "removed_by_retention": removed,
             "retention_warning": retention_warning,
         }

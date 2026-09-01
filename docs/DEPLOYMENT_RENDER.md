@@ -97,6 +97,8 @@ Render cron jobs cannot access a persistent disk. This has important consequence
 
 Before scheduling reports or backups, choose and implement either an approved shared/object-storage backend or a dedicated worker/off-host publication design. The web service must not expose a public backup trigger or download endpoint. See [database backup and recovery](DATABASE_BACKUP.md).
 
+After each off-host copy, run `verify_database_backup` against the copied set with the manifest SHA-256 retained separately from the source job. Verification is read-only and still does not satisfy the witnessed restore-rehearsal gate.
+
 ## Release verification
 
 For every candidate image:

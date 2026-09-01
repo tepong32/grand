@@ -104,6 +104,14 @@ python manage.py backup_databases --settings=src.settings.prod
 
 This command intentionally refuses local SQLite file copying; use it in the production-compatible MySQL environment described in the recovery guide.
 
+Verify a copied set before restore with the separately retained manifest hash printed by the creation command:
+
+```powershell
+python manage.py verify_database_backup <copied-set-directory> --expect-manifest-sha256 <sha256> --settings=src.settings.prod
+```
+
+This verifies structure, both gzip streams, sizes, and checksums. It does not claim that a database restore succeeded.
+
 ## Documentation
 
 - [Documentation map](docs/README.md)

@@ -10,7 +10,7 @@ from unittest.mock import patch
 from django.core.management import CommandError, call_command
 from django.test import SimpleTestCase, override_settings
 
-from src.database_backups import BackupError, create_backup_set
+from src.database_backups import BackupError, create_backup_set, verify_backup_set
 
 
 DATABASES = {
@@ -67,6 +67,7 @@ class DatabaseBackupTests(SimpleTestCase):
         self.assertEqual(manifest["scope"], "complete")
         self.assertEqual(manifest["status"], "completed")
         self.assertFalse(manifest["restore_tested"])
+        self.assertEqual(len(result["manifest_sha256"]), 64)
         self.assertEqual(
             {item["database_alias"] for item in manifest["databases"]},
             {"default", "finance"},
@@ -139,6 +140,107 @@ class DatabaseBackupTests(SimpleTestCase):
     def test_partial_invocation_is_truthfully_labeled(self):
         result = self.create(database_aliases=("finance",))
         self.assertEqual(result["manifest"]["scope"], "partial")
+
+    def test_copied_complete_set_verifies_against_separately_retained_manifest_hash(self):
+        result = self.create()
+
+        receipt = verify_backup_set(
+            result["path"],
+            expected_manifest_sha256=result["manifest_sha256"],
+        )
+
+        self.assertTrue(receipt["integrity_verified"])
+        self.assertTrue(receipt["authenticity_verified"])
+        self.assertFalse(receipt["restore_tested"])
+        self.assertEqual(
+            {item["database_alias"] for item in receipt["artifacts"]},
+            {"default", "finance"},
+        )
+
+    def test_changed_valid_gzip_artifact_is_rejected(self):
+        result = self.create()
+        artifact = next(result["path"].glob("grand-default-*.sql.gz"))
+        with gzip.open(artifact, "wb") as output:
+            output.write(b"-- substituted SQL dump\n")
+
+        with self.assertRaisesMessage(BackupError, "size does not match"):
+            verify_backup_set(result["path"])
+
+    def test_separately_retained_manifest_hash_detects_manifest_replacement(self):
+        result = self.create()
+        manifest_path = result["path"] / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["application_version"] = "substituted"
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        with self.assertRaisesMessage(BackupError, "separately retained value"):
+            verify_backup_set(
+                result["path"],
+                expected_manifest_sha256=result["manifest_sha256"],
+            )
+
+    def test_complete_scope_requires_exactly_both_database_aliases(self):
+        result = self.create()
+        manifest_path = result["path"] / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["databases"] = [
+            item for item in manifest["databases"] if item["database_alias"] == "default"
+        ]
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        with self.assertRaisesMessage(BackupError, "exactly default and finance"):
+            verify_backup_set(result["path"])
+
+    def test_partial_set_requires_explicit_diagnostic_allowance(self):
+        result = self.create(database_aliases=("finance",))
+
+        with self.assertRaisesMessage(BackupError, "partial backup set"):
+            verify_backup_set(result["path"])
+        receipt = verify_backup_set(result["path"], allow_partial=True)
+        self.assertEqual(receipt["scope"], "partial")
+
+    def test_unsafe_manifest_artifact_path_is_rejected(self):
+        result = self.create()
+        manifest_path = result["path"] / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["databases"][0]["filename"] = "../outside.sql.gz"
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        with self.assertRaisesMessage(BackupError, "unsafe artifact filename"):
+            verify_backup_set(result["path"])
+
+    def test_manifest_cannot_be_rewritten_to_claim_restore_success(self):
+        result = self.create()
+        manifest_path = result["path"] / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["restore_tested"] = True
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        with self.assertRaisesMessage(BackupError, "separate evidence"):
+            verify_backup_set(result["path"])
+
+    def test_unmanifested_sql_artifact_is_rejected(self):
+        result = self.create()
+        write_synthetic_dump("unknown", {}, result["path"] / "unlisted.sql.gz")
+
+        with self.assertRaisesMessage(BackupError, "unmanifested SQL"):
+            verify_backup_set(result["path"])
+
+    def test_verification_command_emits_machine_readable_receipt(self):
+        result = self.create()
+        output = io.StringIO()
+
+        call_command(
+            "verify_database_backup",
+            str(result["path"]),
+            expect_manifest_sha256=result["manifest_sha256"],
+            as_json=True,
+            stdout=output,
+        )
+
+        receipt = json.loads(output.getvalue())
+        self.assertTrue(receipt["authenticity_verified"])
+        self.assertFalse(receipt["restore_tested"])
 
 
 class NativeDumpBoundaryTests(SimpleTestCase):
