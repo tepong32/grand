@@ -69,7 +69,7 @@ Local development uses SQLite, the console email backend, and `src.settings.dev`
 
 Set `GRAND_EXPORT_ROOT` to the single local folder synchronized by TraceSync. Every requested export is downloaded and atomically retained there under a normalized department/user/category path with an adjacent SHA-256 manifest. See the [portable export archive guide](docs/EXPORT_ARCHIVE.md); syncing this folder complements but does not replace controlled records and tested backups.
 
-Production database recovery uses a separate restricted `GRAND_BACKUP_ROOT`. The `backup_databases` command creates one atomically published, checksum-manifested native MySQL logical backup set for both the main and Finance stores. See [database backup and recovery](docs/DATABASE_BACKUP.md); a created backup is not considered restore-tested until an isolated rehearsal and control reconciliation are recorded.
+Production database recovery uses a separate restricted `GRAND_BACKUP_ROOT`. The `backup_databases` command creates one atomically published, checksum-manifested native MySQL logical backup set for both the main and Finance stores. See [database backup and recovery](docs/DATABASE_BACKUP.md); a created backup is not considered restore-tested until an isolated rehearsal restores both stores, reconciles controls, meets locally approved RPO/RTO, and is independently witnessed through the structured F11 record.
 
 The repository also includes a non-root Python 3.11 production Docker image, Gunicorn/WhiteNoise runtime, `/healthz/` probe, `.env.example`, and explicit two-store production settings. The [Docker and Render preparation guide](docs/DEPLOYMENT_RENDER.md) identifies the infrastructure choices and field checks that still block a real deployment.
 

@@ -27,6 +27,7 @@ from .models import (
     FinanceCutoverQualificationForm,
     FinanceCutoverQualificationEvidence,
     FinanceCutoverQualificationPlan,
+    FinanceRecoveryRehearsalEvidence,
     FinanceCutoverReadinessExercise,
     FinanceCutoverReadinessPlan,
     FinanceShadowComparison,
@@ -195,7 +196,59 @@ def _readiness_plan_data(plan):
     }
 
 
+def _recovery_rehearsal_data(item):
+    return {
+        "backup_id": item.backup_id,
+        "manifest_sha256": item.manifest_sha256,
+        "default_artifact_sha256": item.default_artifact_sha256,
+        "finance_artifact_sha256": item.finance_artifact_sha256,
+        "off_host_copy_reference": item.off_host_copy_reference,
+        "off_host_copy_verified": item.off_host_copy_verified,
+        "preflight_receipt_reference": item.preflight_receipt_reference,
+        "preflight_receipt_checksum": item.preflight_receipt_checksum,
+        "preflight_passed": item.preflight_passed,
+        "policy_reference": item.policy_reference,
+        "isolated_environment_reference": item.isolated_environment_reference,
+        "release_reference": item.release_reference,
+        "database_versions": item.database_versions,
+        "restore_log_reference": item.restore_log_reference,
+        "recovery_point_at": item.recovery_point_at,
+        "simulated_interruption_at": item.simulated_interruption_at,
+        "restored_at": item.restored_at,
+        "approved_rpo_minutes": item.approved_rpo_minutes,
+        "approved_rto_minutes": item.approved_rto_minutes,
+        "actual_rpo_minutes": item.actual_rpo_minutes,
+        "actual_rto_minutes": item.actual_rto_minutes,
+        "default_store_restored": item.default_store_restored,
+        "finance_store_restored": item.finance_store_restored,
+        "default_migrations_current": item.default_migrations_current,
+        "finance_migrations_current": item.finance_migrations_current,
+        "control_totals_reconciled": item.control_totals_reconciled,
+        "control_reconciliation_reference": item.control_reconciliation_reference,
+        "control_reconciliation_checksum": item.control_reconciliation_checksum,
+        "cross_store_case_verified": item.cross_store_case_verified,
+        "cross_store_verification_reference": item.cross_store_verification_reference,
+        "cross_store_verification_checksum": item.cross_store_verification_checksum,
+        "runtime_files_checked": item.runtime_files_checked,
+        "runtime_files_verification_reference": item.runtime_files_verification_reference,
+        "secure_disposal_completed": item.secure_disposal_completed,
+        "secure_disposal_reference": item.secure_disposal_reference,
+        "unresolved_exceptions": item.unresolved_exceptions,
+        "exceptions_and_resolution": item.exceptions_and_resolution,
+        "meets_control_objectives": item.meets_control_objectives,
+        "prepared_by_id": item.prepared_by_id,
+    }
+
+
+def _recovery_rehearsal_for_exercise(item):
+    try:
+        return item.recovery_rehearsal
+    except FinanceRecoveryRehearsalEvidence.DoesNotExist:
+        return None
+
+
 def _readiness_exercise_data(item):
+    recovery = _recovery_rehearsal_for_exercise(item)
     return {
         "exercise_id": item.pk,
         "kind": item.kind,
@@ -220,6 +273,13 @@ def _readiness_exercise_data(item):
         "reviewed_at": item.reviewed_at,
         "review_note": item.review_note,
         "created_by_id": item.created_by_id,
+        "recovery_rehearsal": (
+            {
+                **_recovery_rehearsal_data(recovery),
+                "evidence_checksum": recovery.evidence_checksum,
+            }
+            if recovery else None
+        ),
     }
 
 
@@ -575,6 +635,109 @@ def _checksum_payload(payload):
     return hashlib.sha256(encoded).hexdigest()
 
 
+RECOVERY_REHEARSAL_FIELDS = (
+    "backup_id", "manifest_sha256", "default_artifact_sha256", "finance_artifact_sha256",
+    "off_host_copy_reference", "off_host_copy_verified",
+    "preflight_receipt_reference", "preflight_receipt_checksum", "preflight_passed",
+    "policy_reference", "isolated_environment_reference", "release_reference",
+    "database_versions", "restore_log_reference", "recovery_point_at",
+    "simulated_interruption_at", "restored_at", "approved_rpo_minutes", "approved_rto_minutes",
+    "default_store_restored", "finance_store_restored", "default_migrations_current",
+    "finance_migrations_current", "control_totals_reconciled",
+    "control_reconciliation_reference", "control_reconciliation_checksum",
+    "cross_store_case_verified", "cross_store_verification_reference",
+    "cross_store_verification_checksum", "runtime_files_checked",
+    "runtime_files_verification_reference", "secure_disposal_completed",
+    "secure_disposal_reference", "unresolved_exceptions", "exceptions_and_resolution",
+)
+RECOVERY_HASH_FIELDS = {
+    "manifest_sha256", "default_artifact_sha256", "finance_artifact_sha256",
+    "preflight_receipt_checksum", "control_reconciliation_checksum",
+    "cross_store_verification_checksum",
+}
+RECOVERY_TEXT_FIELDS = {
+    "backup_id", "off_host_copy_reference", "preflight_receipt_reference", "policy_reference",
+    "isolated_environment_reference", "release_reference", "database_versions",
+    "restore_log_reference", "control_reconciliation_reference",
+    "cross_store_verification_reference", "runtime_files_verification_reference",
+    "secure_disposal_reference", "exceptions_and_resolution",
+}
+
+
+def _serializable_payload(payload):
+    return json.loads(json.dumps(payload, cls=DjangoJSONEncoder))
+
+
+def _record_recovery_rehearsal(exercise, actor, values):
+    item = FinanceRecoveryRehearsalEvidence.objects.select_for_update().filter(
+        exercise=exercise,
+    ).first()
+    if item is None:
+        item = FinanceRecoveryRehearsalEvidence(exercise=exercise, prepared_by=actor)
+    for field in RECOVERY_REHEARSAL_FIELDS:
+        value = values.get(field)
+        if field in RECOVERY_HASH_FIELDS:
+            value = str(value or "").strip().lower()
+        elif field in RECOVERY_TEXT_FIELDS:
+            value = str(value or "").strip()
+        setattr(item, field, value)
+    item.prepared_by = actor
+    item.evidence_snapshot = {}
+    item.evidence_checksum = ""
+    item.full_clean()
+    # Persist and reload first so timezone-aware values are normalized exactly as
+    # they will be read during witness review and later evidence-package checks.
+    item.save()
+    item.refresh_from_db()
+    snapshot = _recovery_rehearsal_data(item)
+    item.evidence_snapshot = _serializable_payload(snapshot)
+    item.evidence_checksum = _checksum_payload(snapshot)
+    item.save(update_fields=("evidence_snapshot", "evidence_checksum", "updated_at"))
+    exercise.recovery_rehearsal = item
+    return item
+
+
+def _validated_recovery_rehearsal(exercise, *, require_objectives=False):
+    item = _recovery_rehearsal_for_exercise(exercise)
+    if item is None:
+        raise ValidationError(
+            "A backup and restore exercise requires the structured two-store recovery rehearsal record."
+        )
+    snapshot = _recovery_rehearsal_data(item)
+    if item.evidence_snapshot != _serializable_payload(snapshot):
+        raise ValidationError("The structured recovery rehearsal changed after its checksum snapshot.")
+    if not item.evidence_checksum or _checksum_payload(snapshot) != item.evidence_checksum:
+        raise ValidationError("The structured recovery rehearsal checksum is invalid.")
+    if require_objectives and not item.meets_control_objectives:
+        failures = []
+        if item.actual_rpo_minutes > item.approved_rpo_minutes:
+            failures.append("actual RPO exceeded the approved target")
+        if item.actual_rto_minutes > item.approved_rto_minutes:
+            failures.append("actual RTO exceeded the approved target")
+        if item.unresolved_exceptions:
+            failures.append("recovery exceptions remain unresolved")
+        if not all((
+            item.off_host_copy_verified, item.preflight_passed,
+            item.default_store_restored, item.finance_store_restored,
+            item.default_migrations_current, item.finance_migrations_current,
+            item.control_totals_reconciled, item.cross_store_case_verified,
+            item.runtime_files_checked, item.secure_disposal_completed,
+        )):
+            failures.append("one or more required two-store recovery controls is not confirmed")
+        raise ValidationError(
+            "The recovery exercise cannot pass: " + "; ".join(failures or ["control objectives are incomplete"])
+        )
+    return item
+
+
+def _recovery_rehearsal_pass_ready(exercise):
+    try:
+        _validated_recovery_rehearsal(exercise, require_objectives=True)
+    except ValidationError:
+        return False
+    return True
+
+
 @transaction.atomic
 def submit_reconciliation_plan(plan, actor):
     plan = FinanceShadowReconciliationPlan.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=plan.pk)
@@ -922,7 +1085,9 @@ def schedule_cutover_readiness_exercise(
 
 
 @transaction.atomic
-def submit_cutover_readiness_exercise(exercise, actor, *, actual_result, evidence_reference):
+def submit_cutover_readiness_exercise(
+    exercise, actor, *, actual_result, evidence_reference, recovery_evidence=None,
+):
     exercise = FinanceCutoverReadinessExercise.objects.select_for_update().select_related(
         "cycle", "cycle__department",
     ).get(pk=exercise.pk)
@@ -932,6 +1097,14 @@ def submit_cutover_readiness_exercise(exercise, actor, *, actual_result, evidenc
         raise ValidationError("Only a planned or returned readiness exercise can be submitted.")
     if not str(actual_result or "").strip() or not str(evidence_reference or "").strip():
         raise ValidationError("Record the actual result and retained evidence reference.")
+    if exercise.kind == FinanceCutoverReadinessExercise.BACKUP_RESTORE:
+        if recovery_evidence is None:
+            raise ValidationError(
+                "Record the structured two-store recovery rehearsal before submitting this exercise."
+            )
+        _record_recovery_rehearsal(exercise, actor, recovery_evidence)
+    elif recovery_evidence is not None:
+        raise ValidationError("Structured recovery evidence belongs only to a backup and restore exercise.")
     exercise.status = FinanceCutoverReadinessExercise.PLANNED
     exercise.actual_result = str(actual_result).strip()
     exercise.evidence_reference = str(evidence_reference).strip()
@@ -959,7 +1132,7 @@ def submit_cutover_readiness_exercise(exercise, actor, *, actual_result, evidenc
 @transaction.atomic
 def review_cutover_readiness_exercise(exercise, actor, *, accept, reason):
     exercise = FinanceCutoverReadinessExercise.objects.select_for_update().select_related(
-        "cycle", "cycle__department",
+        "cycle", "cycle__department", "recovery_rehearsal",
     ).get(pk=exercise.pk)
     if actor.pk != exercise.witness_id:
         raise PermissionDenied("Only the assigned witness can review this exercise.")
@@ -969,6 +1142,8 @@ def review_cutover_readiness_exercise(exercise, actor, *, accept, reason):
         raise ValidationError("The evidence submitter cannot independently witness the same exercise.")
     if not str(reason or "").strip():
         raise ValidationError("Record the witness basis or the exact correction/rerun required.")
+    if accept and exercise.kind == FinanceCutoverReadinessExercise.BACKUP_RESTORE:
+        _validated_recovery_rehearsal(exercise, require_objectives=True)
     snapshot = _readiness_exercise_data(exercise)
     stored = snapshot["evidence_checksum"]
     snapshot["status"] = FinanceCutoverReadinessExercise.PLANNED
@@ -1419,11 +1594,15 @@ def cutover_readiness(cycle):
         if row.decision != FinanceStakeholderAcceptance.ACCEPTED
     ]
     readiness_plan = FinanceCutoverReadinessPlan.objects.filter(cycle=cycle).first()
-    exercises = list(cycle.cutover_readiness_exercises.all())
+    exercises = list(cycle.cutover_readiness_exercises.select_related("recovery_rehearsal"))
     passed_nonfunctional = {
         item.kind for item in exercises
         if item.status == FinanceCutoverReadinessExercise.PASSED
         and item.kind in REQUIRED_NONFUNCTIONAL_EXERCISES
+        and (
+            item.kind != FinanceCutoverReadinessExercise.BACKUP_RESTORE
+            or _recovery_rehearsal_pass_ready(item)
+        )
     }
     missing_exercises = sorted(REQUIRED_NONFUNCTIONAL_EXERCISES - passed_nonfunctional)
     role_training_missing = [
@@ -1626,7 +1805,9 @@ def cutover_readiness(cycle):
 
 @transaction.atomic
 def submit_cutover_decision(decision, actor):
-    decision = FinanceCutoverDecision.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=decision.pk)
+    decision = FinanceCutoverDecision.objects.select_for_update().select_related(
+        "cycle", "cycle__department", "recovery_rehearsal", "recovery_rehearsal__exercise",
+    ).get(pk=decision.pk)
     if not can_manage_shadow_operation(actor, decision.cycle.department):
         raise PermissionDenied
     if decision.status != FinanceCutoverDecision.DRAFT:
@@ -1641,6 +1822,13 @@ def submit_cutover_decision(decision, actor):
             "Cutover submission is blocked until field-cycle qualification, readiness exercises, "
             "shadow reconciliation, and every required stakeholder acceptance pass."
         )
+    if not decision.recovery_rehearsal_id:
+        raise ValidationError("Bind the cutover record to its independently passed structured recovery rehearsal.")
+    if decision.recovery_rehearsal.exercise.cycle_id != decision.cycle_id:
+        raise ValidationError("The bound recovery rehearsal belongs to a different cutover cycle.")
+    _validated_recovery_rehearsal(
+        decision.recovery_rehearsal.exercise, require_objectives=True,
+    )
     decision.full_clean()
     decision.status = FinanceCutoverDecision.SUBMITTED
     decision.submitted_by = actor
@@ -1661,6 +1849,13 @@ def _decision_data(decision):
         "rollback_criteria": decision.rollback_criteria,
         "legacy_read_only_retention_plan": decision.legacy_read_only_retention_plan,
         "backup_recovery_evidence": decision.backup_recovery_evidence,
+        "recovery_rehearsal_id": decision.recovery_rehearsal_id,
+        "recovery_backup_id": (
+            decision.recovery_rehearsal.backup_id if decision.recovery_rehearsal_id else ""
+        ),
+        "recovery_evidence_checksum": (
+            decision.recovery_rehearsal.evidence_checksum if decision.recovery_rehearsal_id else ""
+        ),
         "signed_authority_reference": decision.signed_authority_reference,
         "signed_authority_checksum": decision.signed_authority_checksum,
         "signature_custody_reference": decision.signature_custody_reference,
@@ -1674,7 +1869,9 @@ def _decision_data(decision):
 
 @transaction.atomic
 def decide_cutover(decision, actor, *, authorize, reason):
-    decision = FinanceCutoverDecision.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=decision.pk)
+    decision = FinanceCutoverDecision.objects.select_for_update().select_related(
+        "cycle", "cycle__department", "recovery_rehearsal", "recovery_rehearsal__exercise",
+    ).get(pk=decision.pk)
     if not can_authorize_finance_cutover(actor, decision.cycle.department):
         raise PermissionDenied
     if decision.status != FinanceCutoverDecision.SUBMITTED:
@@ -1685,6 +1882,12 @@ def decide_cutover(decision, actor, *, authorize, reason):
         raise ValidationError("Record the authority's decision basis.")
     if authorize and not cutover_readiness(decision.cycle)["ready"]:
         raise ValidationError("The acceptance evidence no longer satisfies the cutover gate.")
+    if authorize:
+        if not decision.recovery_rehearsal_id:
+            raise ValidationError("Authorization requires a bound structured recovery rehearsal.")
+        _validated_recovery_rehearsal(
+            decision.recovery_rehearsal.exercise, require_objectives=True,
+        )
     if authorize and (
         not decision.signed_authority_reference.strip()
         or not decision.signature_custody_reference.strip()
@@ -1748,7 +1951,9 @@ def build_cutover_evidence_package(cycle, actor):
     readiness_plan = FinanceCutoverReadinessPlan.objects.filter(cycle=cycle).first()
     readiness_exercises = [
         _readiness_exercise_data(item)
-        for item in cycle.cutover_readiness_exercises.order_by("kind", "scheduled_for", "code")
+        for item in cycle.cutover_readiness_exercises.select_related(
+            "recovery_rehearsal",
+        ).order_by("kind", "scheduled_for", "code")
     ]
     qualification_plan = FinanceCutoverQualificationPlan.objects.filter(cycle=cycle).first()
     qualification_evidence = [
@@ -1760,7 +1965,7 @@ def build_cutover_evidence_package(cycle, actor):
     ]
     payload = {
         "format": "GRAND Finance shadow/cutover evidence",
-        "schema_version": 6,
+        "schema_version": 7,
         "notice": "Portable evidence copy. Authority exists only when the included decision status is authorized for its exact scope and date.",
         "cycle": cycle_payload,
         "stored_cycle_evidence_checksum": cycle.evidence_checksum,

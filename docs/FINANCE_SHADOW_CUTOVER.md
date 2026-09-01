@@ -1,6 +1,6 @@
 # Finance shadow operation, UAT acceptance, and controlled cutover
 
-Status: F11.1 governed transition control, F11.2 versioned redacted source staging, F11.3 scheduled reconciliation/defect control, F11.4 governed curricula/support and readiness exercises, F11.5 consecutive field-cycle/signed-reference control, and F11.6 exact accepted-form lineage implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate or any local production cutover has occurred.
+Status: F11.1 governed transition control, F11.2 versioned redacted source staging, F11.3 scheduled reconciliation/defect control, F11.4 governed curricula/support and readiness exercises, F11.5 consecutive field-cycle/signed-reference control, F11.6 exact accepted-form lineage, and F11.7 structured two-store recovery evidence implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate, an actual LGU restore, or any local production cutover has occurred.
 
 ## Purpose and authority boundary
 
@@ -103,6 +103,20 @@ The stakeholder also references the retained wet-signed or otherwise locally acc
 
 The floating `?` Internal How-To supports learning on the current page. Its checkmarks are private resume aids only. They are never exposed as supervisor attendance, employee performance, training readiness, or UAT acceptance. Formal training/UAT evidence is entered explicitly in the stakeholder record.
 
+### Structured backup and restore evidence
+
+The backup/restore category uses the same readiness-exercise owner, witness, schedule, support route, return, and rerun lifecycle as every other F11 exercise, but it cannot pass on a narrative alone. The assigned owner must bind one exact completed GRAND backup set and record:
+
+- the backup ID, separately retained manifest SHA-256, and both compressed database-artifact SHA-256 values;
+- the verified off-host copy reference, non-secret live preflight receipt reference/checksum, approved recovery policy, release, isolated environment, database versions, and restricted restore-log reference;
+- the backup recovery point, simulated interruption, both-stores-restored time, and locally approved RPO/RTO in minutes;
+- explicit confirmation of the default and Finance restores, current migrations for both, reconciled control totals, one representative Budget–Accounting–Treasury cross-store case, required runtime-file checks, and approved secure disposal; and
+- every exception and resolution, with checksum-backed references for the control reconciliation and cross-store check.
+
+GRAND calculates actual RPO/RTO from the entered timestamps and seals the complete structured snapshot. The different assigned witness cannot pass it while either target is missed, either store/migration is incomplete, a required control is unconfirmed, or an exception remains unresolved. The witness instead records the exact rerun required; the owner can replace a Returned rehearsal with the corrected result, while the earlier return remains in cycle audit history. A Passed structured record is immutable.
+
+This record does not receive database dumps, client option files, passwords, unredacted logs, or production personal data. It stores restricted evidence references and SHA-256 values. A passing `production_preflight`, readable gzip, matching checksum, successful synthetic unit test, or generic continuity statement cannot independently satisfy the restore gate.
+
 ## Consecutive field-cycle qualification
 
 For the candidate cutover cycle, Finance prepares a locally editable qualification plan containing:
@@ -129,12 +143,13 @@ After independent reconciliation, Finance prepares a human-readable decision rec
 - opening and in-flight transaction reconciliation reference;
 - objective rollback criteria;
 - historical eGAPS/current-process read-only retention plan; and
-- backup, restore, recovery, and continuity exercise evidence; and
+- backup, restore, recovery, and continuity exercise evidence;
+- the exact independently passed same-cycle structured recovery rehearsal, including its backup ID and evidence checksum; and
 - the retained signed authority record reference, its SHA-256, and its named records/TracePoint custodian.
 
 The non-secret `production_preflight --json` receipt may be retained as supporting environment evidence for an actual exercise. It cannot set an exercise to Passed, prove either database was restored, replace the assigned independent witness, satisfy stakeholder acceptance, or authorize cutover; those decisions remain inside this governed workflow.
 
-Submission is blocked until the field-cycle plan and consecutive-cycle chain pass, the readiness plan is approved, all eight nonfunctional categories and every named role exercise are Passed, no scheduled exercise remains planned/submitted/returned, all seven stakeholder kinds exist, every row is Accepted, and every accepted stakeholder has a retained decision reference and SHA-256. A different user with cutover authority records authorization or decline and its basis. The normal seeded roles separate preparation (`Finance Configuration Manager`) from reconciliation/authority (`Finance Configuration Approver`), and service checks still reject self-review or self-authorization if permissions were combined exceptionally.
+Submission is blocked until the field-cycle plan and consecutive-cycle chain pass, the readiness plan is approved, all eight nonfunctional categories and every named role exercise are Passed, the backup/restore exercise has an intact structured record meeting every locally approved objective, no scheduled exercise remains planned/submitted/returned, all seven stakeholder kinds exist, every row is Accepted, and every accepted stakeholder has a retained decision reference and SHA-256. The draft authority record must select that exact same-cycle recovery rehearsal; submission and authorization revalidate it. A different user with cutover authority records authorization or decline and its basis. The normal seeded roles separate preparation (`Finance Configuration Manager`) from reconciliation/authority (`Finance Configuration Approver`), and service checks still reject self-review or self-authorization if permissions were combined exceptionally.
 
 When a recorded rollback criterion is triggered, the authority records the incident and immediate operating direction. The status becomes Rolled back; the original authorization, actor, time, reason, comparisons, and stakeholder decisions remain reconstructible.
 
@@ -146,11 +161,11 @@ The editable window is deliberately narrow:
 - comparison rows can be added or corrected only while the cycle is Draft/Running;
 - pending stakeholder assignments can be corrected before a decision;
 - a draft/returned readiness plan can be corrected before approval;
-- a planned or witness-returned exercise can receive a corrected/rerun actual result and evidence reference;
+- a planned or witness-returned exercise can receive a corrected/rerun actual result and evidence reference; for backup/restore, that allowance includes the complete structured two-store record;
 - a draft/returned field-qualification plan and its selected accepted-form rows can be corrected before submission/approval, and draft/returned field evidence can be corrected before independent acceptance;
 - a draft cutover record can be corrected before submission.
 
-Submitted cycle evidence, approved readiness/qualification plans, accepted field-cycle evidence, passed exercise evidence, recorded stakeholder decisions, and submitted authority fields are immutable. A returned comparison requires a successor cycle. A changed stakeholder scope or concluded decision requires a successor cycle and fresh evidence. An authorized cutover is never edited into a different scope or date; use decline before authorization or recorded rollback afterward.
+Submitted cycle evidence, approved readiness/qualification plans, accepted field-cycle evidence, passed exercise evidence and its structured recovery snapshot, recorded stakeholder decisions, and submitted authority fields are immutable. A returned comparison requires a successor cycle. A witness-returned recovery attempt can be corrected and rerun; a passed rehearsal cannot be rewritten. A changed stakeholder scope or concluded decision requires a successor cycle and fresh evidence. An authorized cutover is never edited into a different scope, date, or backup; use decline before authorization or recorded rollback afterward.
 
 This transition allowance does not reopen issued vouchers/checks or bypass their existing guided correction, cancellation/replacement, adjustment, reversal, close/reopen, or returned-payment rules.
 
@@ -158,7 +173,7 @@ This transition allowance does not reopen issued vouchers/checks or bypass their
 
 Department-bounded Finance permissions control cycle preparation, independent reconciliation, and cutover authority. A named cross-office stakeholder can read only the assigned cycle and record only their pending decision; assignment does not grant Finance preparation or authority actions. Finance UAT viewers remain read-only within their office boundary.
 
-Every visible cycle can produce a schema-v6 JSON evidence package containing each source version's checksum, headings, row count, drift/review metadata; the approved local cadence and escalation matrix; every scheduled run snapshot/checksum; defect intake, resolution, and escalation evidence; the approved curriculum/support plan; every role and nonfunctional exercise with result/checksum/witness evidence; the qualification plan, exact accepted-form versions/checksums, and each field cycle's pinned form-set snapshot/checksum; stakeholder decision references/checksums; readiness checks; and the current cutover decision and signed-authority reference/checksum/custody. Protected form-reference bytes, source row values, retained CSV bytes, signature images, and private Internal How-To progress are deliberately excluded from the portable JSON. The downloaded bytes are also archived atomically under:
+Every visible cycle can produce a schema-v7 JSON evidence package containing each source version's checksum, headings, row count, drift/review metadata; the approved local cadence and escalation matrix; every scheduled run snapshot/checksum; defect intake, resolution, and escalation evidence; the approved curriculum/support plan; every role and nonfunctional exercise with result/checksum/witness evidence; the exact backup ID, recovery objectives/outcomes, control references, structured evidence checksum, and same-cycle decision binding; the qualification plan, exact accepted-form versions/checksums, and each field cycle's pinned form-set snapshot/checksum; stakeholder decision references/checksums; readiness checks; and the current cutover decision and signed-authority reference/checksum/custody. Database artifacts, protected form-reference bytes, source row values, retained CSV bytes, credentials, signature images, and private Internal How-To progress are deliberately excluded from the portable JSON. The downloaded bytes are also archived atomically under:
 
 `department/user/finance-shadow-cutover/year/month`
 
@@ -171,7 +186,8 @@ Before claiming the parent exit gate, the LGU still must confirm and execute:
 - current locally accepted redacted source layouts and, if useful, a separately reviewed read-only adapter beyond the implemented file-staging boundary;
 - actual locally accepted cadence/severity/escalation values, named support ownership, and enabled transaction-type field sign-off using the implemented controls;
 - locally completed curriculum/quick-guide/supervisor/support content and actual witnessed role-exercise evidence entered through the implemented F11.4 controls;
-- actual named security, privacy, accessibility, performance, print/form-stock, backup/restore, continuity, and incident exercise execution using locally accepted pass conditions;
+- actual named security, privacy, accessibility, performance, print/form-stock, continuity, and incident exercise execution using locally accepted pass conditions;
+- an actual production-compatible off-host backup set restored into an isolated host, with approved RPO/RTO, both stores/migrations, reconciled control totals, a representative cross-store case, runtime-file checks, exceptions, disposal, and independent witness evidence entered through F11.7;
 - actual consecutive limited shadow and controlled parallel execution entered through the implemented F11.5 plan/evidence controls, with every applicable current F10.2 accepted form selected through the implemented F11.6 lineage controls; and
 - actual signatures/decisions from Budget, Accounting, Treasury, every enabled requesting office, IT, management, and audit stakeholders entered through the implemented retained-reference/checksum fields.
 

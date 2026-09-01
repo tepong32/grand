@@ -11,6 +11,7 @@ from .models import (
     FinanceCutoverDecision,
     FinanceCutoverQualificationEvidence, FinanceCutoverQualificationForm, FinanceCutoverQualificationPlan,
     FinanceCutoverReadinessExercise, FinanceCutoverReadinessPlan,
+    FinanceRecoveryRehearsalEvidence,
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule, FinanceNumberingSequence,
     FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
     FinanceShadowComparison, FinanceShadowCycle, FinanceShadowDefect,
@@ -586,6 +587,96 @@ class FinanceCutoverReadinessExerciseResultForm(forms.Form):
     )
 
 
+class FinanceRecoveryRehearsalResultForm(forms.ModelForm):
+    actual_result = forms.CharField(
+        label="What actually happened",
+        widget=forms.Textarea(attrs={"rows": 5}),
+        help_text="Summarize the witnessed two-store outcome and every exception without credentials or production personal data.",
+    )
+    evidence_reference = forms.CharField(
+        label="Retained recovery packet reference",
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Reference the complete restricted rehearsal packet; do not upload dumps, credentials, or sensitive logs here.",
+    )
+
+    class Meta:
+        model = FinanceRecoveryRehearsalEvidence
+        fields = (
+            "backup_id", "manifest_sha256", "default_artifact_sha256", "finance_artifact_sha256",
+            "off_host_copy_reference", "off_host_copy_verified",
+            "preflight_receipt_reference", "preflight_receipt_checksum", "preflight_passed",
+            "policy_reference", "isolated_environment_reference", "release_reference",
+            "database_versions", "restore_log_reference", "recovery_point_at",
+            "simulated_interruption_at", "restored_at", "approved_rpo_minutes", "approved_rto_minutes",
+            "default_store_restored", "finance_store_restored", "default_migrations_current",
+            "finance_migrations_current", "control_totals_reconciled",
+            "control_reconciliation_reference", "control_reconciliation_checksum",
+            "cross_store_case_verified", "cross_store_verification_reference",
+            "cross_store_verification_checksum", "runtime_files_checked",
+            "runtime_files_verification_reference", "secure_disposal_completed",
+            "secure_disposal_reference", "unresolved_exceptions", "exceptions_and_resolution",
+        )
+        widgets = {
+            "off_host_copy_reference": forms.Textarea(attrs={"rows": 2}),
+            "preflight_receipt_reference": forms.Textarea(attrs={"rows": 2}),
+            "policy_reference": forms.Textarea(attrs={"rows": 2}),
+            "isolated_environment_reference": forms.Textarea(attrs={"rows": 2}),
+            "release_reference": forms.Textarea(attrs={"rows": 2}),
+            "database_versions": forms.Textarea(attrs={"rows": 2}),
+            "restore_log_reference": forms.Textarea(attrs={"rows": 2}),
+            "recovery_point_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "simulated_interruption_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "restored_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "control_reconciliation_reference": forms.Textarea(attrs={"rows": 2}),
+            "cross_store_verification_reference": forms.Textarea(attrs={"rows": 2}),
+            "runtime_files_verification_reference": forms.Textarea(attrs={"rows": 2}),
+            "secure_disposal_reference": forms.Textarea(attrs={"rows": 2}),
+            "exceptions_and_resolution": forms.Textarea(attrs={"rows": 3}),
+        }
+        labels = {
+            "backup_id": "Exact GRAND backup-set ID",
+            "manifest_sha256": "Separately retained manifest SHA-256",
+            "default_artifact_sha256": "Default-store artifact SHA-256",
+            "finance_artifact_sha256": "Finance-store artifact SHA-256",
+            "recovery_point_at": "Backup recovery point",
+            "simulated_interruption_at": "Simulated interruption / RTO start",
+            "restored_at": "Both stores verified restored at",
+            "approved_rpo_minutes": "Approved RPO (minutes)",
+            "approved_rto_minutes": "Approved RTO (minutes)",
+            "unresolved_exceptions": "Unresolved recovery exceptions remain",
+        }
+        help_texts = {
+            "manifest_sha256": "Use the hash retained separately from the copied set.",
+            "off_host_copy_reference": "State the restricted destination/custody reference for the verified copied set.",
+            "preflight_receipt_reference": "Reference the non-secret live production_preflight receipt for this release environment.",
+            "preflight_receipt_checksum": "SHA-256 of the retained preflight receipt bytes.",
+            "isolated_environment_reference": "Identify the disposable host without recording credentials or network secrets.",
+            "release_reference": "Record the matching GRAND version/revision and release record.",
+            "database_versions": "Record the actual MySQL/MariaDB versions used for both restored stores.",
+            "restore_log_reference": "Reference the restricted command/timing log; never paste client option files or passwords.",
+            "control_reconciliation_reference": "Reference the retained opening, ledger, payable, withholding, cash, and report control comparison.",
+            "cross_store_verification_reference": "Reference a representative Budget–Accounting–Treasury case proven across both restored stores.",
+            "runtime_files_verification_reference": "Reference checks of required media/export records without treating exports as backups.",
+            "secure_disposal_reference": "Reference the approved destruction/cleanup record for the isolated restored data.",
+            "exceptions_and_resolution": "Describe every exception and its resolution, or explicitly state that none occurred.",
+        }
+
+    def __init__(self, *args, exercise, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            self.fields["actual_result"].initial = exercise.actual_result
+            self.fields["evidence_reference"].initial = exercise.evidence_reference
+        for field_name in (
+            "manifest_sha256", "default_artifact_sha256", "finance_artifact_sha256",
+            "preflight_receipt_checksum", "control_reconciliation_checksum",
+            "cross_store_verification_checksum",
+        ):
+            self.fields[field_name].widget.attrs.update({"spellcheck": "false", "autocomplete": "off"})
+
+    def recovery_values(self):
+        return {name: self.cleaned_data[name] for name in self._meta.fields}
+
+
 class FinanceShadowDefectForm(forms.Form):
     comparison = forms.ModelChoiceField(queryset=FinanceShadowComparison.objects.none())
     code = forms.SlugField(max_length=80, help_text="Use a short stable reference such as DV-AMOUNT-001.")
@@ -723,6 +814,7 @@ class FinanceCutoverDecisionForm(forms.ModelForm):
             "authority_matrix_reference", "enabled_scope", "cutover_at",
             "opening_reconciliation_reference", "rollback_criteria",
             "legacy_read_only_retention_plan", "backup_recovery_evidence",
+            "recovery_rehearsal",
             "signed_authority_reference", "signed_authority_checksum", "signature_custody_reference",
         )
         widgets = {
@@ -737,7 +829,19 @@ class FinanceCutoverDecisionForm(forms.ModelForm):
             "signature_custody_reference": forms.Textarea(attrs={"rows": 3}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, cycle=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["recovery_rehearsal"].required = True
+        self.fields["recovery_rehearsal"].queryset = FinanceRecoveryRehearsalEvidence.objects.none()
+        if cycle:
+            self.fields["recovery_rehearsal"].queryset = FinanceRecoveryRehearsalEvidence.objects.filter(
+                exercise__cycle=cycle,
+                exercise__kind=FinanceCutoverReadinessExercise.BACKUP_RESTORE,
+                exercise__status=FinanceCutoverReadinessExercise.PASSED,
+            ).select_related("exercise").order_by("-restored_at", "-pk")
+            self.fields["recovery_rehearsal"].help_text = (
+                "Choose the independently passed two-store rehearsal for this cycle. "
+                "The cutover record pins its backup ID and evidence checksum."
+            )
         for field_name in ("signed_authority_reference", "signed_authority_checksum", "signature_custody_reference"):
             self.fields[field_name].required = True

@@ -1,5 +1,14 @@
 # Changelog
 
+## F11.7 Structured two-store recovery rehearsal and cutover binding
+
+- Replaced narrative-only backup/restore pass evidence with a guided record bound to the existing F11 readiness exercise: exact GRAND backup ID and hashes, off-host verification, production-preflight receipt, approved policy and RPO/RTO, isolated host/release/database/log references, and actual recovery timestamps.
+- Required confirmation that both routed stores were restored with current migrations, control totals reconciled, a representative cross-store case worked, required runtime files were checked, isolated data was securely disposed, and every exception was resolved.
+- Calculated actual RPO/RTO from retained timestamps, blocked witness passage when a target or control failed, preserved reasoned return/rerun history, and made independently passed checksum-backed rehearsal evidence immutable.
+- Bound cutover submission and authorization to the exact same-cycle passed rehearsal, including its backup ID and evidence checksum in the authority record and TraceSync evidence package.
+- Extended the portable cutover evidence contract to schema v7, updated the conservative cycle UI and department-specific floating guide, and retained the truthful boundary that synthetic tests and preflight receipts do not prove an actual LGU restore.
+- Added migration and focused lifecycle coverage for missing structured evidence, failed-RTO rerun, witness separation, immutability, readiness, decision binding, and credential-free export evidence.
+
 ## Truthful production environment preflight
 
 - Added a `production_preflight` management command with human and non-secret JSON output, a static configuration scope, strict nonzero failure behavior, and a live environment scope covering both routed stores, migrations, and runtime storage.

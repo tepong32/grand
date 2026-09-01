@@ -57,6 +57,7 @@ from .models import (
     FinanceCutoverQualificationPlan,
     FinanceCutoverReadinessExercise,
     FinanceCutoverReadinessPlan,
+    FinanceRecoveryRehearsalEvidence,
     FinanceShadowComparison,
     FinanceShadowCycle,
     FinanceShadowDefect,
@@ -355,12 +356,58 @@ class FinanceShadowCutoverTests(TestCase):
             exercise, owner,
             actual_result="Completed the exact synthetic script; expected control and fallback result were observed.",
             evidence_reference=f"Redacted exercise packet {code.upper()}-EVIDENCE",
+            recovery_evidence=(
+                self._recovery_rehearsal_values(exercise)
+                if kind == FinanceCutoverReadinessExercise.BACKUP_RESTORE else None
+            ),
         )
         review_cutover_readiness_exercise(
             exercise, witness, accept=True,
             reason="Independently observed the retained result and verified it against the stated pass condition.",
         )
         return FinanceCutoverReadinessExercise.objects.get(pk=exercise.pk)
+
+    def _recovery_rehearsal_values(self, exercise, **overrides):
+        interruption = exercise.scheduled_for
+        values = {
+            "backup_id": "20270104T083000000000Z-deadbeef",
+            "manifest_sha256": "1" * 64,
+            "default_artifact_sha256": "2" * 64,
+            "finance_artifact_sha256": "3" * 64,
+            "off_host_copy_reference": "Restricted off-host recovery set COPY-001",
+            "off_host_copy_verified": True,
+            "preflight_receipt_reference": "Non-secret live preflight receipt PREFLIGHT-001",
+            "preflight_receipt_checksum": "4" * 64,
+            "preflight_passed": True,
+            "policy_reference": "Approved recovery, retention, RPO/RTO procedure RECOVERY-POLICY-001",
+            "isolated_environment_reference": "Disposable isolated MySQL rehearsal host ISO-001",
+            "release_reference": "GRAND test release and revision RELEASE-001",
+            "database_versions": "Default and Finance: synthetic MySQL 8 compatible test stores",
+            "restore_log_reference": "Restricted command and timing log RESTORE-LOG-001",
+            "recovery_point_at": interruption - timedelta(minutes=30),
+            "simulated_interruption_at": interruption,
+            "restored_at": interruption + timedelta(minutes=45),
+            "approved_rpo_minutes": 60,
+            "approved_rto_minutes": 60,
+            "default_store_restored": True,
+            "finance_store_restored": True,
+            "default_migrations_current": True,
+            "finance_migrations_current": True,
+            "control_totals_reconciled": True,
+            "control_reconciliation_reference": "Two-store control worksheet CONTROL-001",
+            "control_reconciliation_checksum": "5" * 64,
+            "cross_store_case_verified": True,
+            "cross_store_verification_reference": "Budget–Accounting–Treasury restored case CROSS-STORE-001",
+            "cross_store_verification_checksum": "6" * 64,
+            "runtime_files_checked": True,
+            "runtime_files_verification_reference": "Required media/export reference check RUNTIME-001",
+            "secure_disposal_completed": True,
+            "secure_disposal_reference": "Approved isolated-data cleanup record DISPOSAL-001",
+            "unresolved_exceptions": False,
+            "exceptions_and_resolution": "No exceptions occurred in the synthetic rehearsal.",
+        }
+        values.update(overrides)
+        return values
 
     def test_comparisons_calculate_exact_differences_and_open_defects_block_submission(self):
         cycle = self._cycle()
@@ -461,7 +508,7 @@ class FinanceShadowCutoverTests(TestCase):
         )
         content, _filename, _receipt = build_cutover_evidence_package(cycle, self.manager)
         payload = json.loads(content)
-        self.assertEqual(payload["schema_version"], 6)
+        self.assertEqual(payload["schema_version"], 7)
         self.assertEqual(payload["cycle"]["schema_version"], 3)
         self.assertEqual(payload["cycle"]["reconciliation_plan"]["status"], "approved")
         self.assertEqual(payload["cycle"]["source_versions"][0]["row_count"], 1)
@@ -722,10 +769,93 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertIn(FinanceCutoverReadinessExercise.PRIVACY, readiness["missing_exercises"])
         content, _filename, _receipt = build_cutover_evidence_package(cycle, self.requesting_reviewer)
         payload = json.loads(content)
-        self.assertEqual(payload["schema_version"], 6)
+        self.assertEqual(payload["schema_version"], 7)
         self.assertEqual(payload["cutover_readiness_plan"]["status"], "approved")
         self.assertEqual(payload["cutover_readiness_exercises"][0]["status"], "passed")
         self.assertNotIn("progress_percent", content.decode("utf-8"))
+
+    def test_recovery_exercise_requires_structured_two_store_evidence_and_objective_rerun(self):
+        cycle = self._reconciled_cycle(code="fy-2027-recovery-structure")
+        self._approve_readiness_plan(cycle)
+        scheduled_for = timezone.make_aware(datetime.combine(cycle.planned_start, time(11, 0)))
+        exercise = schedule_cutover_readiness_exercise(
+            cycle, self.manager, kind=FinanceCutoverReadinessExercise.BACKUP_RESTORE,
+            code="recovery-structured-001", title="Two-store isolated recovery rehearsal",
+            enabled_scope=cycle.enabled_scope,
+            procedure="Verify an off-host set, restore both stores in isolation, reconcile controls, test one cross-store case, and dispose securely.",
+            expected_result="Both stores and migrations reconcile within approved RPO/RTO with no unresolved exception.",
+            owner=self.manager, witness=self.reconciler, scheduled_for=scheduled_for,
+            due_at=scheduled_for + timedelta(hours=3),
+        )
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse("finance:cutover_readiness_exercise_result", args=(exercise.pk,)),
+        )
+        self.assertContains(response, "Exact GRAND backup-set ID")
+        self.assertContains(response, "Approved RPO")
+        with self.assertRaisesMessage(ValidationError, "structured two-store"):
+            submit_cutover_readiness_exercise(
+                exercise, self.manager,
+                actual_result="Narrative-only recovery claim.",
+                evidence_reference="Narrative packet without structured controls",
+            )
+
+        missed_rto = self._recovery_rehearsal_values(
+            exercise,
+            restored_at=scheduled_for + timedelta(minutes=90),
+            unresolved_exceptions=True,
+            exceptions_and_resolution="Restore exceeded RTO; tuning and rerun are still required.",
+        )
+        submit_cutover_readiness_exercise(
+            exercise, self.manager,
+            actual_result="Both stores restored, but the first run exceeded RTO.",
+            evidence_reference="Restricted recovery packet RECOVERY-STRUCTURED-001-A",
+            recovery_evidence=missed_rto,
+        )
+        exercise.refresh_from_db()
+        evidence = exercise.recovery_rehearsal
+        self.assertEqual(evidence.actual_rpo_minutes, 30)
+        self.assertEqual(evidence.actual_rto_minutes, 90)
+        self.assertFalse(evidence.meets_control_objectives)
+        with self.assertRaisesMessage(ValidationError, "actual RTO exceeded"):
+            review_cutover_readiness_exercise(
+                exercise, self.reconciler, accept=True,
+                reason="Attempt to pass a missed recovery objective.",
+            )
+        review_cutover_readiness_exercise(
+            exercise, self.reconciler, accept=False,
+            reason="Tune the isolated restore, resolve the timing exception, and rerun within the approved RTO.",
+        )
+        exercise.refresh_from_db()
+        submit_cutover_readiness_exercise(
+            exercise, self.manager,
+            actual_result="Rerun restored and reconciled both stores within approved RPO and RTO.",
+            evidence_reference="Restricted recovery packet RECOVERY-STRUCTURED-001-B",
+            recovery_evidence=self._recovery_rehearsal_values(exercise),
+        )
+        review_cutover_readiness_exercise(
+            exercise, self.reconciler, accept=True,
+            reason="Independently checked the exact backup hashes, both restored stores, timings, controls, case, and disposal record.",
+        )
+        exercise.refresh_from_db()
+        evidence.refresh_from_db()
+        self.assertEqual(exercise.status, FinanceCutoverReadinessExercise.PASSED)
+        self.assertTrue(evidence.meets_control_objectives)
+        self.assertEqual(len(evidence.evidence_checksum), 64)
+        readiness = cutover_readiness(cycle)
+        self.assertNotIn(FinanceCutoverReadinessExercise.BACKUP_RESTORE, readiness["missing_exercises"])
+        evidence.restore_log_reference = "Attempted rewrite after witness pass"
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            evidence.save()
+
+        content, _filename, _receipt = build_cutover_evidence_package(cycle, self.manager)
+        payload = json.loads(content)
+        recovery_payload = payload["cutover_readiness_exercises"][0]["recovery_rehearsal"]
+        self.assertEqual(payload["schema_version"], 7)
+        self.assertEqual(recovery_payload["backup_id"], "20270104T083000000000Z-deadbeef")
+        self.assertEqual(recovery_payload["actual_rto_minutes"], 45)
+        self.assertTrue(recovery_payload["meets_control_objectives"])
+        self.assertNotIn("password", content.decode("utf-8").lower())
 
     def test_cutover_requires_all_seven_acceptances_and_separate_authority_then_can_roll_back(self):
         predecessor = self._reconciled_cycle(code="fy-2027-dv-field-01")
@@ -749,6 +879,9 @@ class FinanceShadowCutoverTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "every required stakeholder"):
             submit_cutover_decision(decision, self.manager)
         self._accepted_stakeholders(cycle)
+        recovery = FinanceRecoveryRehearsalEvidence.objects.get(exercise__cycle=cycle)
+        decision.recovery_rehearsal = recovery
+        decision.save(update_fields=("recovery_rehearsal",))
         self._approve_qualification(cycle, [predecessor, cycle])
         self.assertTrue(cutover_readiness(cycle)["ready"])
         submit_cutover_decision(decision, self.manager)
@@ -758,6 +891,7 @@ class FinanceShadowCutoverTests(TestCase):
         decide_cutover(decision, self.authority, authorize=True, reason="Named authority approved the exact scope and effective date.")
         decision.refresh_from_db()
         self.assertTrue(decision.makes_grand_authoritative)
+        self.assertEqual(decision.recovery_rehearsal.backup_id, "20270104T083000000000Z-deadbeef")
         scheduled_for = timezone.make_aware(datetime.combine(cycle.planned_end, time(16, 0)))
         with self.assertRaisesMessage(ValidationError, "locked after the cutover record"):
             schedule_cutover_readiness_exercise(

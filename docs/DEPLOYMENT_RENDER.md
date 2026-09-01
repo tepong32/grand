@@ -129,7 +129,7 @@ python manage.py production_preflight --json --settings=src.settings.prod
 
 Full mode additionally runs a live query and migration-plan check on both `default` and `finance`, then creates, fsyncs, atomically renames, reads back, and removes a unique probe inside each media, export, and backup root. It stops before live checks when configuration is invalid and exits nonzero for every failed or not-run selected-scope check. Messages and JSON receipts omit database identities and credentials.
 
-Even a fully passing receipt retains `restore_tested: false` and `cutover_authorized: false`. Attach the receipt to the approved restricted deployment/rehearsal log if locally required, then separately execute and witness the F11 backup/restore exercise, field cycles, stakeholder decisions, and cutover authority workflow.
+Even a fully passing receipt retains `restore_tested: false` and `cutover_authorized: false`. Attach the receipt to the approved restricted deployment/rehearsal log if locally required, then separately execute the F11 isolated two-store restore. Record the receipt reference/checksum, exact backup set and hashes, both restored stores/migrations, actual versus approved RPO/RTO, reconciled controls, cross-store case, runtime-file checks, exceptions, and disposal in the structured rehearsal. A different assigned witness must pass it before the same evidence can be bound to cutover authority.
 
 ## Release verification
 

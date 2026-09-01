@@ -33,6 +33,7 @@ from .forms import (
     FinanceShadowComparisonForm, FinanceShadowCycleForm, FinanceShadowDriftReviewForm,
     FinanceShadowDefectForm, FinanceShadowDefectResolutionForm, FinanceShadowExternalLockForm,
     FinanceCutoverReadinessExerciseForm, FinanceCutoverReadinessExerciseResultForm,
+    FinanceRecoveryRehearsalResultForm,
     FinanceCutoverReadinessPlanForm, FinanceShadowReconciliationPlanForm,
     FinanceCutoverQualificationEvidenceForm, FinanceCutoverQualificationFormForm,
     FinanceCutoverQualificationPlanForm,
@@ -44,7 +45,7 @@ from .models import (
     FinanceConfigurationRelease, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
     FinanceCutoverQualificationEvidence, FinanceCutoverQualificationForm,
     FinanceCutoverQualificationPlan,
-    FinanceCutoverReadinessPlan, FinanceParty, FinanceShadowCycle,
+    FinanceCutoverReadinessPlan, FinanceParty, FinanceRecoveryRehearsalEvidence, FinanceShadowCycle,
     FinanceShadowDefect, FinanceShadowReconciliationPlan, FinanceShadowReconciliationRun,
     FinanceShadowSourceVersion,
     FinanceStakeholderAcceptance, FinanceTemplateVersion, FinanceTransactionVariant,
@@ -491,7 +492,7 @@ def shadow_cycle_detail(request, pk):
         "cutover_readiness_plan": readiness_plan,
         "cutover_readiness_exercises": cycle.cutover_readiness_exercises.select_related(
             "stakeholder_acceptance", "stakeholder_acceptance__office", "owner", "witness",
-            "submitted_by", "reviewed_by",
+            "submitted_by", "reviewed_by", "recovery_rehearsal",
         ),
         "cutover_qualification_plan": qualification_plan,
         "cutover_qualification_forms": (
@@ -513,6 +514,11 @@ def shadow_cycle_detail(request, pk):
         "can_manage": can_manage_shadow_operation(request.user, department),
         "can_review": can_review_shadow_reconciliation(request.user, department),
         "can_authorize": can_authorize_finance_cutover(request.user, department),
+        "has_passed_recovery_rehearsal": cycle.cutover_readiness_exercises.filter(
+            kind=FinanceCutoverReadinessExercise.BACKUP_RESTORE,
+            status=FinanceCutoverReadinessExercise.PASSED,
+            recovery_rehearsal__isnull=False,
+        ).exists(),
         "is_assigned_reviewer": cycle.stakeholder_acceptances.filter(assigned_reviewer=request.user, decision=FinanceStakeholderAcceptance.PENDING).exists(),
     })
 
@@ -833,18 +839,33 @@ def cutover_readiness_exercise_create(request, cycle_pk):
 @shadow_access_required
 def cutover_readiness_exercise_result(request, pk):
     exercise = get_object_or_404(
-        FinanceCutoverReadinessExercise.objects.select_related("cycle", "cycle__department", "owner"), pk=pk,
+        FinanceCutoverReadinessExercise.objects.select_related(
+            "cycle", "cycle__department", "owner", "recovery_rehearsal",
+        ), pk=pk,
     )
     if not can_view_shadow_cycle(request.user, exercise.cycle):
         raise PermissionDenied
     if request.user.pk != exercise.owner_id:
         raise PermissionDenied
-    form = FinanceCutoverReadinessExerciseResultForm(request.POST or None)
+    if exercise.kind == FinanceCutoverReadinessExercise.BACKUP_RESTORE:
+        try:
+            recovery = exercise.recovery_rehearsal
+        except FinanceRecoveryRehearsalEvidence.DoesNotExist:
+            recovery = None
+        form = FinanceRecoveryRehearsalResultForm(
+            request.POST or None, exercise=exercise, instance=recovery,
+        )
+    else:
+        form = FinanceCutoverReadinessExerciseResultForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:
             submit_cutover_readiness_exercise(
                 exercise, request.user, actual_result=form.cleaned_data["actual_result"],
                 evidence_reference=form.cleaned_data["evidence_reference"],
+                recovery_evidence=(
+                    form.recovery_values()
+                    if exercise.kind == FinanceCutoverReadinessExercise.BACKUP_RESTORE else None
+                ),
             )
         except ValidationError as exc:
             form.add_error(None, exc)
@@ -853,7 +874,13 @@ def cutover_readiness_exercise_result(request, pk):
             return redirect("finance:shadow_cycle_detail", pk=exercise.cycle_id)
     return render(request, "finance/cutover_form.html", {
         "form": form, "title": f"Record exercise result — {exercise.code}", "cycle": exercise.cycle,
-        "guidance": "Record observable results and retained redacted evidence. The assigned independent witness decides pass or rerun.",
+        "guidance": (
+            "Bind the exact off-host backup set, preflight receipt, both restored stores, RPO/RTO timing, "
+            "control reconciliation, cross-store case, runtime-file check, exceptions, and secure disposal. "
+            "The assigned witness can pass only a checksum-intact record meeting every approved objective."
+            if exercise.kind == FinanceCutoverReadinessExercise.BACKUP_RESTORE
+            else "Record observable results and retained redacted evidence. The assigned independent witness decides pass or rerun."
+        ),
     })
 
 
@@ -1151,7 +1178,9 @@ def cutover_decision_create(request, cycle_pk):
     cycle = get_object_or_404(FinanceShadowCycle, pk=cycle_pk, department=department)
     if hasattr(cycle, "cutover_decision"):
         return redirect("finance:shadow_cycle_detail", pk=cycle.pk)
-    form = FinanceCutoverDecisionForm(request.POST or None, initial={"enabled_scope": cycle.enabled_scope})
+    form = FinanceCutoverDecisionForm(
+        request.POST or None, cycle=cycle, initial={"enabled_scope": cycle.enabled_scope},
+    )
     if request.method == "POST" and form.is_valid():
         decision = form.save(False)
         decision.cycle, decision.prepared_by = cycle, request.user

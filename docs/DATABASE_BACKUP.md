@@ -96,6 +96,14 @@ Use a disposable, access-restricted MySQL host that cannot resolve to or overwri
 7. Record the backup ID, hashes, release, database versions, commands, timings, reconciliation totals, exceptions, witnesses, and recovery-time result in a separate signed or attributable rehearsal receipt.
 8. Destroy the isolated restored data using the LGU's approved secure-disposal process.
 
+### Record the result in GRAND
+
+The F11 backup/restore readiness exercise now requires a structured two-store rehearsal record. The assigned exercise owner enters the exact dated backup-set ID and three backup hashes, off-host verification, preflight receipt checksum, approved policy/RPO/RTO, isolated host/release/database/log references, actual recovery timestamps, both store and migration confirmations, reconciled controls, a representative cross-store case, runtime-file check, secure-disposal reference, and every exception/resolution. GRAND calculates actual RPO/RTO and seals the record with SHA-256.
+
+A different assigned witness can pass only when every required control is confirmed, no exception remains unresolved, and both actual targets are within the locally approved limits. Otherwise the witness requires a reasoned rerun. Passed evidence becomes immutable. The final cutover record must select the passed rehearsal from that exact cycle, so its backup ID and evidence checksum remain bound to the authority decision and schema-v7 portable evidence package.
+
+Only references and hashes belong in this application record. Keep dumps, credentials, client option files, and sensitive restore logs inside their approved restricted custody location.
+
 The local development databases use SQLite. The production backup writer deliberately refuses to copy SQLite files and therefore cannot give a false impression that a development file copy validates MySQL recovery.
 
 ## Failure handling

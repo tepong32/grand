@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import uuid
 from decimal import Decimal, InvalidOperation
 
@@ -1832,6 +1833,169 @@ class FinanceCutoverReadinessExercise(models.Model):
         return super().delete(*args, **kwargs)
 
 
+class FinanceRecoveryRehearsalEvidence(models.Model):
+    """Structured two-store evidence attached to the existing F11 recovery exercise."""
+
+    exercise = models.OneToOneField(
+        FinanceCutoverReadinessExercise,
+        on_delete=models.PROTECT,
+        related_name="recovery_rehearsal",
+    )
+    backup_id = models.SlugField(
+        max_length=80,
+        help_text="Exact dated GRAND backup-set directory ID used for this rehearsal.",
+    )
+    manifest_sha256 = models.CharField(max_length=64)
+    default_artifact_sha256 = models.CharField(max_length=64)
+    finance_artifact_sha256 = models.CharField(max_length=64)
+    off_host_copy_reference = models.TextField()
+    off_host_copy_verified = models.BooleanField(default=False)
+    preflight_receipt_reference = models.TextField()
+    preflight_receipt_checksum = models.CharField(max_length=64)
+    preflight_passed = models.BooleanField(default=False)
+    policy_reference = models.TextField(
+        help_text="Reference the approved backup, retention, RPO, RTO, and rehearsal procedure.",
+    )
+    isolated_environment_reference = models.TextField()
+    release_reference = models.TextField()
+    database_versions = models.TextField()
+    restore_log_reference = models.TextField()
+    recovery_point_at = models.DateTimeField()
+    simulated_interruption_at = models.DateTimeField()
+    restored_at = models.DateTimeField()
+    approved_rpo_minutes = models.PositiveIntegerField()
+    approved_rto_minutes = models.PositiveIntegerField()
+    default_store_restored = models.BooleanField(default=False)
+    finance_store_restored = models.BooleanField(default=False)
+    default_migrations_current = models.BooleanField(default=False)
+    finance_migrations_current = models.BooleanField(default=False)
+    control_totals_reconciled = models.BooleanField(default=False)
+    control_reconciliation_reference = models.TextField()
+    control_reconciliation_checksum = models.CharField(max_length=64)
+    cross_store_case_verified = models.BooleanField(default=False)
+    cross_store_verification_reference = models.TextField()
+    cross_store_verification_checksum = models.CharField(max_length=64)
+    runtime_files_checked = models.BooleanField(default=False)
+    runtime_files_verification_reference = models.TextField()
+    secure_disposal_completed = models.BooleanField(default=False)
+    secure_disposal_reference = models.TextField()
+    unresolved_exceptions = models.BooleanField(default=True)
+    exceptions_and_resolution = models.TextField(
+        help_text="Record every exception and resolution, or explicitly state that none occurred.",
+    )
+    evidence_snapshot = models.JSONField(default=dict, blank=True)
+    evidence_checksum = models.CharField(max_length=64, blank=True)
+    prepared_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="prepared_finance_recovery_rehearsals",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-restored_at", "-pk")
+
+    def __str__(self):
+        return f"{self.exercise.code} — backup {self.backup_id}"
+
+    @staticmethod
+    def _elapsed_minutes(start, end):
+        if not start or not end:
+            return None
+        seconds = max(0, (end - start).total_seconds())
+        return int((seconds + 59) // 60)
+
+    @property
+    def actual_rpo_minutes(self):
+        return self._elapsed_minutes(self.recovery_point_at, self.simulated_interruption_at)
+
+    @property
+    def actual_rto_minutes(self):
+        return self._elapsed_minutes(self.simulated_interruption_at, self.restored_at)
+
+    @property
+    def meets_control_objectives(self):
+        boolean_controls = (
+            self.off_host_copy_verified,
+            self.preflight_passed,
+            self.default_store_restored,
+            self.finance_store_restored,
+            self.default_migrations_current,
+            self.finance_migrations_current,
+            self.control_totals_reconciled,
+            self.cross_store_case_verified,
+            self.runtime_files_checked,
+            self.secure_disposal_completed,
+        )
+        return bool(
+            all(boolean_controls)
+            and not self.unresolved_exceptions
+            and self.actual_rpo_minutes is not None
+            and self.actual_rto_minutes is not None
+            and self.approved_rpo_minutes is not None
+            and self.approved_rto_minutes is not None
+            and self.actual_rpo_minutes <= self.approved_rpo_minutes
+            and self.actual_rto_minutes <= self.approved_rto_minutes
+        )
+
+    def clean(self):
+        if self.exercise_id and self.exercise.kind != FinanceCutoverReadinessExercise.BACKUP_RESTORE:
+            raise ValidationError({"exercise": "Structured recovery evidence belongs only to a backup and restore exercise."})
+        if not re.fullmatch(r"\d{8}T\d{12}Z-[0-9a-f]{8}", self.backup_id or ""):
+            raise ValidationError({"backup_id": "Enter the exact GRAND dated backup-set ID."})
+        checksum_fields = (
+            "manifest_sha256", "default_artifact_sha256", "finance_artifact_sha256",
+            "preflight_receipt_checksum", "control_reconciliation_checksum",
+            "cross_store_verification_checksum",
+        )
+        for field in checksum_fields:
+            checksum = str(getattr(self, field, "") or "")
+            if len(checksum) != 64 or any(character not in "0123456789abcdef" for character in checksum):
+                raise ValidationError({field: "Enter the lowercase 64-character SHA-256 value."})
+        if self.evidence_checksum:
+            checksum = self.evidence_checksum
+            if len(checksum) != 64 or any(character not in "0123456789abcdef" for character in checksum):
+                raise ValidationError({"evidence_checksum": "The evidence checksum must be lowercase SHA-256."})
+        if self.approved_rpo_minutes is not None and self.approved_rpo_minutes < 1:
+            raise ValidationError({"approved_rpo_minutes": "Enter an approved RPO of at least one minute."})
+        if self.approved_rto_minutes is not None and self.approved_rto_minutes < 1:
+            raise ValidationError({"approved_rto_minutes": "Enter an approved RTO of at least one minute."})
+        if (
+            self.recovery_point_at
+            and self.simulated_interruption_at
+            and self.recovery_point_at > self.simulated_interruption_at
+        ):
+            raise ValidationError({"recovery_point_at": "The selected recovery point cannot be after the simulated interruption."})
+        if (
+            self.simulated_interruption_at
+            and self.restored_at
+            and self.simulated_interruption_at > self.restored_at
+        ):
+            raise ValidationError({"restored_at": "The verified restore time cannot precede the simulated interruption."})
+        if self.pk:
+            prior = type(self).objects.select_related("exercise").get(pk=self.pk)
+            if prior.exercise.status in {
+                FinanceCutoverReadinessExercise.SUBMITTED,
+                FinanceCutoverReadinessExercise.PASSED,
+            }:
+                governed = tuple(
+                    field.name for field in self._meta.fields
+                    if field.name not in {"id", "created_at", "updated_at"}
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError(
+                        "Submitted recovery evidence is immutable. The witness must require a rerun before correction."
+                    )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Recovery rehearsal evidence is retained with its exercise history.")
+
+
 class FinanceCutoverQualificationPlan(models.Model):
     DRAFT = "draft"
     SUBMITTED = "submitted"
@@ -2235,6 +2399,14 @@ class FinanceCutoverDecision(models.Model):
     rollback_criteria = models.TextField()
     legacy_read_only_retention_plan = models.TextField()
     backup_recovery_evidence = models.TextField()
+    recovery_rehearsal = models.ForeignKey(
+        FinanceRecoveryRehearsalEvidence,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="cutover_decisions",
+        help_text="Choose the independently passed structured recovery rehearsal for this exact cycle.",
+    )
     signed_authority_reference = models.TextField(
         blank=True, default="",
         help_text="Reference the retained signed authority record for this exact scope and planned cutover date.",
@@ -2266,6 +2438,16 @@ class FinanceCutoverDecision(models.Model):
             raise ValidationError({"cycle": "Prepare a cutover decision only after independent shadow-cycle reconciliation."})
         if self.cycle_id and self.enabled_scope.strip() != self.cycle.enabled_scope.strip():
             raise ValidationError({"enabled_scope": "The cutover scope must exactly match the independently reconciled shadow-cycle scope."})
+        if self.recovery_rehearsal_id:
+            recovery = self.recovery_rehearsal
+            if recovery.exercise.cycle_id != self.cycle_id:
+                raise ValidationError({"recovery_rehearsal": "Choose recovery evidence from this exact cutover cycle."})
+            if recovery.exercise.status != FinanceCutoverReadinessExercise.PASSED:
+                raise ValidationError({"recovery_rehearsal": "The structured recovery rehearsal must be independently passed."})
+            if not recovery.meets_control_objectives or not recovery.evidence_checksum:
+                raise ValidationError({"recovery_rehearsal": "The selected recovery rehearsal does not satisfy its structured controls."})
+        elif self.status != self.DRAFT:
+            raise ValidationError({"recovery_rehearsal": "Bind the submitted cutover record to its independently passed recovery rehearsal."})
         if not self.pk or self.signed_authority_reference or self.signed_authority_checksum or self.signature_custody_reference:
             if not self.signed_authority_reference.strip():
                 raise ValidationError({"signed_authority_reference": "Reference the retained signed authority record."})
@@ -2281,6 +2463,7 @@ class FinanceCutoverDecision(models.Model):
                     "cycle_id", "authority_matrix_reference", "enabled_scope", "cutover_at",
                     "opening_reconciliation_reference", "rollback_criteria",
                     "legacy_read_only_retention_plan", "backup_recovery_evidence",
+                    "recovery_rehearsal_id",
                     "signed_authority_reference", "signed_authority_checksum", "signature_custody_reference",
                 )
                 if any(getattr(prior, field) != getattr(self, field) for field in governed):
