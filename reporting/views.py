@@ -36,6 +36,7 @@ from .forms import (
     ReportReferenceComparisonForm, ReportScheduleForm, ReportTemplateMappingFieldForm,
     ReportTemplatePromotionForm, ReportTemplateVersionForm,
 )
+from .local_form_starters import DBM_BOM_URL, DBM_FORM_STARTERS, FAMILY_LABELS
 from .mappers import TemplateMappingError, preflight_template
 from .models import (
     FinanceAccountabilityPackage, FinanceAccountabilityPackageEvent,
@@ -49,7 +50,8 @@ from .models import (
     ReportTemplatePromotionEvent, ReportTemplateVersion,
 )
 from .form_acceptance_services import (
-    create_local_form_successor, latest_test_attempts, local_form_export_manifest,
+    create_local_form_from_starter, create_local_form_successor,
+    latest_test_attempts, local_form_export_manifest,
     review_local_form, review_test_attempt, submit_local_form, validate_local_form,
 )
 from .accountability_services import (
@@ -208,6 +210,60 @@ def local_form_workspace(request):
         "can_review": can_review_local_form_acceptance(request.user),
         "can_export": can_export_local_form_acceptance(request.user),
     })
+
+
+@reporting_permission_required(can_manage_local_form_acceptance)
+def local_form_starter_catalog(request):
+    department = department_for_user(request.user)
+    current_statuses = (
+        FinanceLocalFormAcceptance.DRAFT,
+        FinanceLocalFormAcceptance.RETURNED,
+        FinanceLocalFormAcceptance.SUBMITTED,
+        FinanceLocalFormAcceptance.ACCEPTED,
+    )
+    current_by_code = {}
+    for item in FinanceLocalFormAcceptance.objects.filter(
+        department=department,
+        status__in=current_statuses,
+        code__in=[starter["key"] for starter in DBM_FORM_STARTERS],
+    ).order_by("code", "-version"):
+        current_by_code.setdefault(item.code, item)
+    groups = []
+    for family, family_label in FAMILY_LABELS.items():
+        groups.append({
+            "code": family,
+            "label": family_label,
+            "starters": [
+                {**starter, "current": current_by_code.get(starter["key"])}
+                for starter in DBM_FORM_STARTERS
+                if starter["family"] == family
+            ],
+        })
+    return render(request, "reporting/local_form_starter_catalog.html", {
+        "department": department,
+        "groups": groups,
+        "starter_count": len(DBM_FORM_STARTERS),
+        "dbm_bom_url": DBM_BOM_URL,
+    })
+
+
+@reporting_permission_required(can_manage_local_form_acceptance)
+@require_POST
+def local_form_starter_create(request, starter_key):
+    try:
+        item = create_local_form_from_starter(
+            department_for_user(request.user), request.user,
+            starter_key=starter_key,
+        )
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+        return redirect("reporting:local_form_starter_catalog")
+    messages.success(
+        request,
+        "Editable candidate created. Compare every starter section with the current local form, "
+        "then complete source mapping, delivery, reference, testing, and independent acceptance.",
+    )
+    return redirect(item)
 
 
 @reporting_permission_required(can_manage_local_form_acceptance)

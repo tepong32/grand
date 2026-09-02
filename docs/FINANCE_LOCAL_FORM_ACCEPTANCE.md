@@ -1,6 +1,6 @@
 # Finance local-form inventory and acceptance
 
-Status: **F10.2 implemented synthetic control; actual LGU forms, devices, samples, witnessed trials, and named-office decisions remain field acceptance evidence.**
+Status: **F10.2 implemented synthetic control with an in-app 31-form DBM candidate catalog; actual LGU forms, devices, samples, witnessed trials, and named-office decisions remain field acceptance evidence.**
 
 F10.1 governs how a report layout is previewed, compared, independently promoted, activated, and rolled back. Finance workbook templates separately use macro-free XLSX preflight, controlled named ranges, immutable checksums, and configuration-release activation. F10.2 adds the human and field-evidence layer needed before either technical template is represented as a locally accepted form.
 
@@ -26,9 +26,25 @@ An inventory-only record is useful while an office is collecting evidence, but i
 
 No SQL, macro, executable script, credential, arbitrary formula, or production database is accepted by this register.
 
+## Built-in DBM candidate catalog
+
+An authorized form preparer can choose **Use DBM starter** from Local form acceptance. The catalog groups all 31 LBP, LBA, LBR, LBE, and LBAc entries identified in the DBM Budget Operations Manual for LGUs, 2023 Edition and shows both the printed-manual and PDF page anchors. Its 77 section groups summarize candidate fields, likely source records, controls, owners, and print/layout behavior in ordinary office language.
+
+Creating a starter is deliberately limited. It creates:
+
+- one editable department-owned Draft;
+- an `Inventory only — GRAND mapping still required` source;
+- `Candidate starter — confirm locally` delivery;
+- no reference upload, runtime template, practical-test result, submission, or acceptance; and
+- candidate sections whose official page anchor cannot be silently replaced.
+
+GRAND blocks a second current record for the same department and starter code. Each candidate section must be compared with the current local blank or safely redacted form. The preparer records either **Starter row matched to the current local form** or **Starter row documented as not applicable**, together with the retained local form page, comparison sheet, memorandum, or decision supporting that outcome. A still-candidate row blocks submission.
+
+The catalog is application data, not a runtime spreadsheet import. The editable field-acceptance workbook remains a planning and interview aid; GRAND's database record remains the governed workflow and audit source.
+
 ## Required, optional, conditional, and repeating sections
 
-Authorized preparers describe the sections employees recognize on the actual form. A row is marked required, optional, conditional, or repeating. Optional and conditional sections must say what retained fact makes them apply and who decides. Repeating sections must state row capacity and continuation-page behavior.
+Authorized preparers describe the sections employees recognize on the actual form. A row is marked required, optional, conditional, or repeating. Optional and conditional sections must say what retained fact makes them apply and who decides. Repeating sections must state row capacity and continuation-page behavior. Candidate starters additionally separate expected fields, likely data source, reproducible controls, likely owners, and print/layout behavior so each part can be corrected without technical work.
 
 This makes the starter human-modifiable without pretending that every form has the same optional blocks. The LGU adds those rules only after the actual reference proves them.
 
@@ -64,7 +80,7 @@ Accepted and historically superseded form versions export a deterministic JSON p
 
 `department/user/finance-local-form-acceptance/year/month`
 
-It contains the accepted form contract, exact source snapshot, blank/redacted-reference checksum, current witnessed results, complete failed/superseded test history, workflow actors/times, non-export event history, and source/submission SHA-256 values. Export actions remain append-only audit events but are excluded from the packet body so downloading the same retained record does not change the next packet's bytes. The adjacent export manifest locks the downloaded bytes.
+It contains the accepted form contract, locally resolved candidate mapping where applicable, exact source snapshot, blank/redacted-reference checksum, current witnessed results, complete failed/superseded test history, workflow actors/times, non-export event history, and source/submission SHA-256 values. Schema 2 carries the candidate mapping and local-resolution fields. Historical schema-1 accepted packets remain byte-reproducible and export with their original schema version. Export actions remain append-only audit events but are excluded from the packet body so downloading the same retained record does not change the next packet's bytes. The adjacent export manifest locks the downloaded bytes.
 
 The packet references separately retained blank/redacted samples, test outputs, print samples, screenshots, signed comparison sheets, and promotion receipts; it does not silently duplicate signature images, confidential form bodies, credentials, or TIN-bearing data.
 

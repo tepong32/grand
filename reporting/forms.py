@@ -108,17 +108,33 @@ class FinanceLocalFormSectionForm(forms.ModelForm):
         model = FinanceLocalFormSection
         fields = (
             "position", "code", "label", "requirement_type",
+            "field_instructions", "source_instructions", "control_instructions",
+            "owner_instructions", "print_instructions",
             "applicability_instructions", "row_instructions",
+            "starter_reference", "confirmation_status", "local_confirmation_reference",
         )
-        labels = {"position": "Order", "code": "Stable section code"}
+        labels = {
+            "position": "Order", "code": "Stable section code",
+            "starter_reference": "Candidate starter source",
+            "confirmation_status": "Local comparison status",
+            "local_confirmation_reference": "Local comparison or decision reference",
+        }
         widgets = {
+            "field_instructions": forms.Textarea(attrs={"rows": 3}),
+            "source_instructions": forms.Textarea(attrs={"rows": 3}),
+            "control_instructions": forms.Textarea(attrs={"rows": 3}),
+            "owner_instructions": forms.Textarea(attrs={"rows": 2}),
+            "print_instructions": forms.Textarea(attrs={"rows": 2}),
             "applicability_instructions": forms.Textarea(attrs={"rows": 3}),
             "row_instructions": forms.Textarea(attrs={"rows": 3}),
+            "local_confirmation_reference": forms.Textarea(attrs={"rows": 3}),
         }
 
     def __init__(self, *args, local_form=None, **kwargs):
         self.local_form = local_form
         super().__init__(*args, **kwargs)
+        if self.instance.pk and self.instance.starter_reference:
+            self.fields["starter_reference"].disabled = True
 
     def clean_code(self):
         return slugify(self.cleaned_data["code"])

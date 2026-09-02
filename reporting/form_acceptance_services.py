@@ -8,9 +8,12 @@ from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.utils import timezone
+from django.utils.text import slugify
 
 from finance.models import FinanceTemplateVersion
 
+from .access import department_for_user
+from .local_form_starters import DBM_BOM_URL, DBM_FORM_STARTERS_BY_KEY
 from .models import (
     FinanceLocalFormAcceptance, FinanceLocalFormEvent, FinanceLocalFormSection,
     FinanceLocalFormTestAttempt, ReportTemplatePromotion,
@@ -19,6 +22,141 @@ from .template_services import template_snapshot
 
 
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+
+
+@transaction.atomic
+def create_local_form_from_starter(department, actor, *, starter_key):
+    """Create one editable, non-authoritative F10 record from a built-in DBM starter."""
+    starter = DBM_FORM_STARTERS_BY_KEY.get(starter_key)
+    if starter is None:
+        raise ValidationError("Choose a recognized DBM local-form starter.")
+    if department is None or department_for_user(actor) != department:
+        raise ValidationError("A DBM starter can be created only inside the actor's assigned department.")
+
+    current_statuses = (
+        FinanceLocalFormAcceptance.DRAFT,
+        FinanceLocalFormAcceptance.RETURNED,
+        FinanceLocalFormAcceptance.SUBMITTED,
+        FinanceLocalFormAcceptance.ACCEPTED,
+    )
+    existing = FinanceLocalFormAcceptance.objects.select_for_update().filter(
+        department=department,
+        code=starter["key"],
+        status__in=current_statuses,
+    ).order_by("-version").first()
+    if existing:
+        raise ValidationError(
+            f"{starter['form_number']} already has a current local-form record. "
+            "Open that record and use its correction or successor action."
+        )
+
+    latest = FinanceLocalFormAcceptance.objects.select_for_update().filter(
+        department=department,
+        code=starter["key"],
+    ).order_by("-version").first()
+    item = FinanceLocalFormAcceptance(
+        department=department,
+        code=starter["key"],
+        version=(latest.version if latest else 0) + 1,
+        name=starter["title"],
+        form_number=starter["form_number"],
+        purpose=starter["purpose"],
+        source_type=FinanceLocalFormAcceptance.SOURCE_UNMAPPED,
+        authority_reference=(
+            "Candidate official reference; local applicability and current issuance must still be confirmed: "
+            "DBM Budget Operations Manual for LGUs, 2023 Edition, "
+            f"manual pp. {starter['manual_pages']}, PDF pp. {starter['pdf_pages']}. {DBM_BOM_URL}"
+        ),
+        local_acceptance_note="",
+        reference_kind="pdf",
+        delivery_mode=FinanceLocalFormAcceptance.DELIVERY_UNCONFIRMED,
+        signatory_instructions=(
+            f"Candidate route to compare with the current local form: {starter['owner_note']} "
+            "Record the actual order, delegation rule, and wet/digital signature treatment before testing."
+        ),
+        default_copy_count=1,
+        recipient_instructions=(
+            "Candidate — confirm locally which office receives each original, copy, or digital file and "
+            "how receipt or acknowledgement is retained."
+        ),
+        deadline_instructions=(
+            "Candidate — confirm the applicable preparation, submission, review, filing, and distribution "
+            "dates from the current issuance and accepted local calendar."
+        ),
+        retention_instructions=(
+            "Candidate — confirm the official records series, folder, custodian, retention period, access "
+            "restriction, and signed-copy treatment."
+        ),
+        pagination_instructions=(
+            "Candidate — compare page numbering, repeated headings, annexes, and continuation pages with "
+            "the current blank or safely redacted local form."
+        ),
+        overflow_instructions=(
+            "Candidate — confirm how extra rows, particulars, notes, and signature blocks continue without "
+            "hiding data or shrinking text below a readable size."
+        ),
+        accessibility_instructions=(
+            "Candidate — confirm readable field order, labels, downloadable format, scaling, keyboard use, "
+            "and any locally required accessibility accommodation."
+        ),
+        created_by=actor,
+    )
+    item.full_clean()
+    item.save()
+
+    section_rows = []
+    used_codes = set()
+    for index, candidate in enumerate(starter["sections"], start=1):
+        base_code = slugify(candidate["label"])[:70] or f"section-{index}"
+        code = base_code
+        suffix = 2
+        while code in used_codes:
+            code = f"{base_code[:74]}-{suffix}"
+            suffix += 1
+        used_codes.add(code)
+        section_row = FinanceLocalFormSection(
+            form=item,
+            position=index * 10,
+            code=code,
+            label=candidate["label"],
+            requirement_type=candidate["requirement_type"],
+            field_instructions=candidate["field_instructions"],
+            source_instructions=candidate["source_instructions"],
+            control_instructions=candidate["control_instructions"],
+            owner_instructions=candidate["owner_instructions"],
+            print_instructions=candidate["print_instructions"],
+            applicability_instructions=candidate["applicability_instructions"],
+            row_instructions=candidate["row_instructions"],
+            starter_reference=(
+                f"DBM BOM 2023, manual pp. {starter['manual_pages']}; "
+                f"PDF pp. {starter['pdf_pages']}"
+            ),
+            confirmation_status=FinanceLocalFormSection.STARTER_CANDIDATE,
+        )
+        section_row.full_clean()
+        section_rows.append(section_row)
+    FinanceLocalFormSection.objects.bulk_create(section_rows)
+    FinanceLocalFormEvent.objects.create(
+        form=item,
+        actor=actor,
+        action="candidate_starter_created",
+        reason=(
+            "Created an editable candidate from the DBM 2023 manual. Local applicability, exact fields, "
+            "routing, source mapping, delivery, and practical acceptance remain unconfirmed."
+        ),
+        snapshot={
+            "starter_key": starter["key"],
+            "family": starter["family"],
+            "manual_pages": starter["manual_pages"],
+            "pdf_pages": starter["pdf_pages"],
+            "section_count": len(section_rows),
+            "status": FinanceLocalFormSection.STARTER_CANDIDATE,
+            "source_type": FinanceLocalFormAcceptance.SOURCE_UNMAPPED,
+            "delivery_mode": FinanceLocalFormAcceptance.DELIVERY_UNCONFIRMED,
+            "tests_created": False,
+        },
+    )
+    return item
 
 
 def checksum(payload):
@@ -137,6 +275,29 @@ def latest_test_attempts(form):
     return latest
 
 
+def _section_snapshot(item, *, include_candidate_mapping):
+    snapshot = {
+        "position": item.position,
+        "code": item.code,
+        "label": item.label,
+        "requirement_type": item.requirement_type,
+        "applicability_instructions": item.applicability_instructions,
+        "row_instructions": item.row_instructions,
+    }
+    if include_candidate_mapping:
+        snapshot.update({
+            "field_instructions": item.field_instructions,
+            "source_instructions": item.source_instructions,
+            "control_instructions": item.control_instructions,
+            "owner_instructions": item.owner_instructions,
+            "print_instructions": item.print_instructions,
+            "starter_reference": item.starter_reference,
+            "confirmation_status": item.confirmation_status,
+            "local_confirmation_reference": item.local_confirmation_reference,
+        })
+    return snapshot
+
+
 def test_basis_snapshot(form, *, pinned_source=None, pinned_reference_checksum=None):
     """Return the exact editable form/source/reference contract one practical test exercised."""
     current_source = pinned_source if pinned_source is not None else source_snapshot(form, require_current=True)
@@ -146,7 +307,7 @@ def test_basis_snapshot(form, *, pinned_source=None, pinned_reference_checksum=N
         else file_checksum(form.reference_file)
     )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "public_id": str(form.public_id),
         "department_id": form.department_id,
         "code": form.code,
@@ -178,14 +339,7 @@ def test_basis_snapshot(form, *, pinned_source=None, pinned_reference_checksum=N
         "accessibility_instructions": form.accessibility_instructions,
         "source_snapshot": current_source,
         "sections": [
-            {
-                "position": item.position,
-                "code": item.code,
-                "label": item.label,
-                "requirement_type": item.requirement_type,
-                "applicability_instructions": item.applicability_instructions,
-                "row_instructions": item.row_instructions,
-            }
+            _section_snapshot(item, include_candidate_mapping=True)
             for item in form.sections.order_by("position", "pk")
         ],
     }
@@ -216,10 +370,14 @@ def _test_snapshot(attempt):
     }
 
 
-def form_snapshot(form, *, pinned_source=None, pinned_reference_checksum=None):
+def form_snapshot(
+    form, *, pinned_source=None, pinned_reference_checksum=None, schema_version=None,
+):
     latest = latest_test_attempts(form)
+    if schema_version is None:
+        schema_version = int((form.submission_snapshot or {}).get("schema_version") or 2)
     return {
-        "schema_version": 1,
+        "schema_version": schema_version,
         "public_id": str(form.public_id),
         "department_id": form.department_id,
         "code": form.code,
@@ -251,14 +409,7 @@ def form_snapshot(form, *, pinned_source=None, pinned_reference_checksum=None):
         "accessibility_instructions": form.accessibility_instructions,
         "source_snapshot": pinned_source if pinned_source is not None else form.source_snapshot,
         "sections": [
-            {
-                "position": item.position,
-                "code": item.code,
-                "label": item.label,
-                "requirement_type": item.requirement_type,
-                "applicability_instructions": item.applicability_instructions,
-                "row_instructions": item.row_instructions,
-            }
+            _section_snapshot(item, include_candidate_mapping=schema_version >= 2)
             for item in form.sections.order_by("position", "pk")
         ],
         "latest_witnessed_tests": [
@@ -290,6 +441,8 @@ def validate_local_form(form):
     for label, value in required_text:
         if not (value or "").strip():
             errors.append(f"{label}: record the actual locally reviewed instruction or evidence.")
+    if form.delivery_mode == FinanceLocalFormAcceptance.DELIVERY_UNCONFIRMED:
+        errors.append("Delivery: confirm whether the current local form is digital, printed, or both.")
     if not form.reference_file:
         errors.append("Upload the exact blank or safely redacted local-form reference.")
         reference_hash = ""
@@ -313,6 +466,10 @@ def validate_local_form(form):
             section.full_clean()
         except ValidationError as exc:
             errors.extend(f"{section.label}: {message}" for message in exc.messages)
+        if section.confirmation_status == FinanceLocalFormSection.STARTER_CANDIDATE:
+            errors.append(
+                f"{section.label}: compare this candidate starter row with the current local form and record the outcome."
+            )
 
     latest = latest_test_attempts(form)
     current_basis = None
@@ -450,7 +607,7 @@ def submit_local_form(form, actor):
     locked.source_checksum = checksum(locked.source_snapshot)
     snapshot = form_snapshot(
         locked, pinned_source=locked.source_snapshot,
-        pinned_reference_checksum=locked.reference_checksum,
+        pinned_reference_checksum=locked.reference_checksum, schema_version=2,
     )
     locked.submission_snapshot = snapshot
     locked.submission_checksum = checksum(snapshot)
@@ -569,8 +726,16 @@ def create_local_form_successor(form, actor, *, reason):
         FinanceLocalFormSection(
             form=successor, position=item.position, code=item.code, label=item.label,
             requirement_type=item.requirement_type,
+            field_instructions=item.field_instructions,
+            source_instructions=item.source_instructions,
+            control_instructions=item.control_instructions,
+            owner_instructions=item.owner_instructions,
+            print_instructions=item.print_instructions,
             applicability_instructions=item.applicability_instructions,
             row_instructions=item.row_instructions,
+            starter_reference=item.starter_reference,
+            confirmation_status=item.confirmation_status,
+            local_confirmation_reference=item.local_confirmation_reference,
         )
         for item in prior.sections.order_by("position", "pk")
     ])
@@ -600,7 +765,7 @@ def local_form_export_manifest(form):
         raise ValidationError("The accepted local-form evidence no longer matches its retained checksum.")
     return {
         "format": "GRAND local Finance form acceptance packet",
-        "schema_version": 1,
+        "schema_version": snapshot["schema_version"],
         "form": snapshot,
         "workflow": {
             "status": form.status,

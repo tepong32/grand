@@ -19,9 +19,12 @@ from finance.services import build_finance_starter_workbook, preflight_finance_t
 from vouchers.roles import FINANCE_ROLE_PERMISSIONS
 
 from .form_acceptance_services import (
-    checksum, create_local_form_successor, local_form_export_manifest, record_test_attempt,
-    review_local_form, review_test_attempt, submit_local_form,
+    checksum, create_local_form_from_starter, create_local_form_successor,
+    file_checksum, form_snapshot, local_form_export_manifest, record_test_attempt,
+    review_local_form, review_test_attempt, source_snapshot, submit_local_form,
+    validate_local_form,
 )
+from .local_form_starters import DBM_FORM_STARTERS
 from .models import (
     FinanceLocalFormAcceptance, FinanceLocalFormSection, FinanceLocalFormTestAttempt,
     ReportDefinition, ReportRun, ReportTemplatePromotion, ReportTemplateVersion,
@@ -191,6 +194,7 @@ class FinanceLocalFormAcceptanceTests(TestCase):
             item.save()
         item.refresh_from_db()
         packet = local_form_export_manifest(item)
+        self.assertEqual(packet["schema_version"], 2)
         self.assertEqual(packet["integrity"]["submission_sha256"], item.submission_checksum)
         self.assertEqual(len(packet["form"]["latest_witnessed_tests"]), 7)
 
@@ -218,6 +222,152 @@ class FinanceLocalFormAcceptanceTests(TestCase):
         self.assertEqual(item.status, FinanceLocalFormAcceptance.SUPERSEDED)
         self.assertEqual(successor.status, FinanceLocalFormAcceptance.ACCEPTED)
         self.assertEqual(local_form_export_manifest(item)["workflow"]["status"], "superseded")
+
+    def test_dbm_starter_catalog_is_complete_and_source_anchored(self):
+        self.assertEqual(len(DBM_FORM_STARTERS), 31)
+        self.assertEqual(len({item["key"] for item in DBM_FORM_STARTERS}), 31)
+        self.assertEqual(
+            {item["family"] for item in DBM_FORM_STARTERS},
+            {"LBP", "LBA", "LBR", "LBE", "LBAc"},
+        )
+        self.assertEqual(sum(len(item["sections"]) for item in DBM_FORM_STARTERS), 77)
+        for starter in DBM_FORM_STARTERS:
+            self.assertTrue(starter["manual_pages"])
+            self.assertTrue(starter["pdf_pages"])
+            self.assertTrue(starter["sections"])
+            for section in starter["sections"]:
+                self.assertTrue(section["field_instructions"])
+                self.assertTrue(section["source_instructions"])
+                self.assertTrue(section["control_instructions"])
+                self.assertTrue(section["owner_instructions"])
+                self.assertTrue(section["print_instructions"])
+
+    def test_dbm_starter_creates_only_unmapped_unconfirmed_editable_candidate(self):
+        item = create_local_form_from_starter(
+            self.department, self.preparer, starter_key="lbp-form-4",
+        )
+        self.assertEqual(item.status, FinanceLocalFormAcceptance.DRAFT)
+        self.assertEqual(item.source_type, FinanceLocalFormAcceptance.SOURCE_UNMAPPED)
+        self.assertEqual(item.delivery_mode, FinanceLocalFormAcceptance.DELIVERY_UNCONFIRMED)
+        self.assertFalse(item.reference_file)
+        self.assertIsNone(item.report_template)
+        self.assertIsNone(item.finance_template)
+        self.assertEqual(item.sections.count(), 4)
+        self.assertEqual(item.test_attempts.count(), 0)
+        self.assertFalse(item.submission_checksum)
+        self.assertFalse(item.local_acceptance_note)
+        self.assertFalse(item.sections.exclude(
+            confirmation_status=FinanceLocalFormSection.STARTER_CANDIDATE,
+        ).exists())
+        event = item.events.get(action="candidate_starter_created")
+        self.assertEqual(event.snapshot["starter_key"], "lbp-form-4")
+        self.assertFalse(event.snapshot["tests_created"])
+
+        errors = validate_local_form(item)["errors"]
+        self.assertTrue(any("confirm whether" in message for message in errors))
+        self.assertTrue(any("inventory-only" in message for message in errors))
+        self.assertTrue(any("Upload the exact blank" in message for message in errors))
+        self.assertTrue(any("compare this candidate starter row" in message for message in errors))
+        self.assertTrue(any("record and independently witness" in message for message in errors))
+
+    def test_dbm_starter_duplicate_and_department_boundaries(self):
+        first = create_local_form_from_starter(
+            self.department, self.preparer, starter_key="lbe-form-2",
+        )
+        with self.assertRaisesMessage(ValidationError, "already has a current"):
+            create_local_form_from_starter(
+                self.department, self.preparer, starter_key="lbe-form-2",
+            )
+        self.assertEqual(FinanceLocalFormAcceptance.objects.filter(
+            department=self.department, code="lbe-form-2",
+        ).count(), 1)
+        with self.assertRaisesMessage(ValidationError, "actor's assigned department"):
+            create_local_form_from_starter(
+                self.other_department, self.preparer, starter_key="lbe-form-2",
+            )
+        other = create_local_form_from_starter(
+            self.other_department, self.outsider, starter_key="lbe-form-2",
+        )
+        self.assertNotEqual(first.department, other.department)
+        with self.assertRaisesMessage(ValidationError, "recognized DBM"):
+            create_local_form_from_starter(
+                self.department, self.preparer, starter_key="not-a-db-form",
+            )
+
+    def test_dbm_starter_catalog_views_and_permissions(self):
+        catalog_url = reverse("reporting:local_form_starter_catalog")
+        self.client.force_login(self.preparer)
+        response = self.client.get(catalog_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "31 editable candidates")
+        self.assertContains(response, "LBP Form No. 4")
+        self.assertContains(response, "Manual pp. 89")
+
+        create_url = reverse(
+            "reporting:local_form_starter_create", args=("lbac-form-1",),
+        )
+        response = self.client.post(create_url)
+        created = FinanceLocalFormAcceptance.objects.get(
+            department=self.department, code="lbac-form-1",
+        )
+        self.assertRedirects(response, created.get_absolute_url())
+        duplicate = self.client.post(create_url, follow=True)
+        self.assertContains(duplicate, "already has a current local-form record")
+
+        self.client.force_login(self.witness)
+        self.assertEqual(self.client.get(catalog_url).status_code, 403)
+        self.assertEqual(self.client.post(create_url).status_code, 403)
+
+    def test_candidate_section_requires_attributable_local_resolution(self):
+        item = create_local_form_from_starter(
+            self.department, self.preparer, starter_key="lbp-form-1",
+        )
+        section = item.sections.first()
+        section.confirmation_status = FinanceLocalFormSection.STARTER_CONFIRMED
+        with self.assertRaisesMessage(ValidationError, "Cite the retained local form"):
+            section.full_clean()
+        section.local_confirmation_reference = (
+            "Compared with retained Municipal Budget Office blank LBP Form No. 1, page 1, "
+            "comparison record MBO-2026-017."
+        )
+        section.save()
+        snapshot = form_snapshot(item)
+        self.assertEqual(snapshot["schema_version"], 2)
+        mapped = snapshot["sections"][0]
+        self.assertEqual(mapped["confirmation_status"], FinanceLocalFormSection.STARTER_CONFIRMED)
+        self.assertIn("DBM BOM 2023", mapped["starter_reference"])
+        self.assertIn("comparison record", mapped["local_confirmation_reference"])
+        self.assertTrue(mapped["field_instructions"])
+
+    def test_legacy_schema_one_acceptance_packet_remains_reproducible(self):
+        item = self.local_form("legacy-schema-one")
+        self.pass_all_tests(item)
+        pinned_source = source_snapshot(item)
+        pinned_reference = file_checksum(item.reference_file)
+        legacy_snapshot = form_snapshot(
+            item,
+            pinned_source=pinned_source,
+            pinned_reference_checksum=pinned_reference,
+            schema_version=1,
+        )
+        now = timezone.now()
+        FinanceLocalFormAcceptance.objects.filter(pk=item.pk).update(
+            status=FinanceLocalFormAcceptance.ACCEPTED,
+            reference_checksum=pinned_reference,
+            source_snapshot=pinned_source,
+            source_checksum=checksum(pinned_source),
+            submission_snapshot=legacy_snapshot,
+            submission_checksum=checksum(legacy_snapshot),
+            submitted_by=self.preparer,
+            submitted_at=now,
+            reviewed_by=self.witness,
+            reviewed_at=now,
+            review_note="Synthetic retained schema-one independent acceptance.",
+        )
+        item.refresh_from_db()
+        packet = local_form_export_manifest(item)
+        self.assertEqual(packet["schema_version"], 1)
+        self.assertNotIn("field_instructions", packet["form"]["sections"][0])
 
     def test_test_attempt_separation_failure_and_reasoned_retry(self):
         item = self.local_form("test-lineage")

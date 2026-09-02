@@ -8,6 +8,12 @@ urlpatterns = [
     path("", views.workspace, name="workspace"),
     path("local-forms/", views.local_form_workspace, name="local_form_workspace"),
     path("local-forms/new/", views.local_form_create, name="local_form_create"),
+    path("local-forms/starters/", views.local_form_starter_catalog, name="local_form_starter_catalog"),
+    path(
+        "local-forms/starters/<slug:starter_key>/create/",
+        views.local_form_starter_create,
+        name="local_form_starter_create",
+    ),
     path("local-forms/<uuid:public_id>/", views.local_form_detail, name="local_form_detail"),
     path("local-forms/<uuid:public_id>/edit/", views.local_form_update, name="local_form_update"),
     path("local-forms/<uuid:public_id>/reference/", views.local_form_reference_download, name="local_form_reference_download"),

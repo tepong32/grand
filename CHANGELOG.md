@@ -1,5 +1,16 @@
 # Changelog
 
+## In-app DBM local-form candidate catalog
+
+- Added a department-bounded **Use DBM starter** catalog covering all 31 LBP, LBA, LBR, LBE, and LBAc entries identified in the DBM Budget Operations Manual for LGUs, 2023 Edition, with verified printed-manual/PDF page anchors.
+- Added 77 plain-language candidate section groups for expected fields, likely governed source records, reproducible controls, likely owners, print/layout behavior, conditional applicability, and continuation rows.
+- Kept every created starter safely non-authoritative: Draft, source-unmapped, delivery-unconfirmed, without a reference file, runtime template, test result, submission, or acceptance.
+- Required each starter section to remain visibly candidate until an authorized preparer records a locally evidenced matched or not-applicable decision; unresolved rows block submission.
+- Prevented duplicate current records for the same department/form, retained source-page identity, recorded attributable starter-creation events, and preserved department access boundaries.
+- Extended accepted-form snapshots and TraceSync packets with candidate mapping/resolution evidence while reproducing historical schema-1 accepted packets under their original schema.
+- Updated Accounting, Budget, and Treasury Internal How-Tos plus the field-acceptance instructions and roadmap to guide non-technical local comparison without treating the public starter as an official LGU form.
+- Stabilized the F8.3 stale-check regression test by deriving its observation date from the active local date instead of an expired fixed calendar date; the replacement GitHub security/regression run passed.
+
 ## Editable LGU Finance field-acceptance starter pack
 
 - Added one conservative, macro-free workbook for Budget, Accounting, Treasury, requesting offices, reviewers, and recovery staff to prepare the actual F10/F11 field evidence without converting candidates into accepted policy.

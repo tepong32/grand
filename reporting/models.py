@@ -1877,7 +1877,9 @@ class FinanceLocalFormAcceptance(models.Model):
     DELIVERY_DIGITAL = "digital"
     DELIVERY_PRINT = "print"
     DELIVERY_BOTH = "both"
+    DELIVERY_UNCONFIRMED = "unconfirmed"
     DELIVERY_CHOICES = (
+        (DELIVERY_UNCONFIRMED, "Candidate starter — confirm locally"),
         (DELIVERY_DIGITAL, "Digital file only"),
         (DELIVERY_PRINT, "Printed or pre-printed form"),
         (DELIVERY_BOTH, "Digital file and printed copy"),
@@ -1925,9 +1927,12 @@ class FinanceLocalFormAcceptance(models.Model):
     )
     reference_kind = models.CharField(max_length=12, choices=REFERENCE_CHOICES, default="pdf")
     reference_file = models.FileField(
-        upload_to=local_form_reference_path, max_length=500,
+        upload_to=local_form_reference_path, max_length=500, blank=True,
         validators=[FileExtensionValidator(REFERENCE_EXTENSIONS)],
-        help_text="Upload only a blank or safely redacted reference up to 10 MB.",
+        help_text=(
+            "Upload only a blank or safely redacted reference up to 10 MB. "
+            "A candidate starter may remain blank while the office collects the current local copy."
+        ),
     )
     reference_checksum = models.CharField(max_length=64, blank=True)
     delivery_mode = models.CharField(max_length=12, choices=DELIVERY_CHOICES, default=DELIVERY_BOTH)
@@ -2120,6 +2125,17 @@ class FinanceLocalFormSection(models.Model):
         (REPEATING, "Repeating rows or continuation section"),
     )
 
+    STARTER_CANDIDATE = "candidate"
+    LOCAL_ENTRY = "local_entry"
+    STARTER_CONFIRMED = "confirmed"
+    STARTER_NOT_APPLICABLE = "not_applicable"
+    CONFIRMATION_CHOICES = (
+        (STARTER_CANDIDATE, "Candidate starter — confirm locally"),
+        (LOCAL_ENTRY, "Entered from the current local form"),
+        (STARTER_CONFIRMED, "Starter row matched to the current local form"),
+        (STARTER_NOT_APPLICABLE, "Starter row documented as not applicable"),
+    )
+
     form = models.ForeignKey(
         FinanceLocalFormAcceptance, on_delete=models.PROTECT, related_name="sections",
     )
@@ -2134,6 +2150,40 @@ class FinanceLocalFormSection(models.Model):
     row_instructions = models.TextField(
         blank=True,
         help_text="For repeating content, state the minimum/maximum rows and continuation-page behavior.",
+    )
+    field_instructions = models.TextField(
+        blank=True,
+        help_text="List the familiar fields or column group employees expect in this section.",
+    )
+    source_instructions = models.TextField(
+        blank=True,
+        help_text="Name the governed GRAND record or retained source that supplies this section.",
+    )
+    control_instructions = models.TextField(
+        blank=True,
+        help_text="Explain totals, cross-checks, limits, and other observable validation rules.",
+    )
+    owner_instructions = models.TextField(
+        blank=True,
+        help_text="Name the office/role that prepares, reviews, signs, or keeps this section.",
+    )
+    print_instructions = models.TextField(
+        blank=True,
+        help_text="Explain headings, page breaks, continuation, amount format, and signature space.",
+    )
+    starter_reference = models.CharField(
+        max_length=120, blank=True,
+        help_text="Official-source page anchor supplied by a built-in candidate starter.",
+    )
+    confirmation_status = models.CharField(
+        max_length=20, choices=CONFIRMATION_CHOICES, default=LOCAL_ENTRY,
+    )
+    local_confirmation_reference = models.TextField(
+        blank=True,
+        help_text=(
+            "For a built-in starter row, cite the current local form, page/section, comparison, "
+            "or decision that confirms or excludes it."
+        ),
     )
 
     class Meta:
@@ -2151,6 +2201,15 @@ class FinanceLocalFormSection(models.Model):
             raise ValidationError({"applicability_instructions": "Explain when this non-required section applies and who decides."})
         if self.requirement_type == self.REPEATING and not self.row_instructions.strip():
             raise ValidationError({"row_instructions": "Explain the repeating-row and continuation-page behavior."})
+        if (
+            self.starter_reference
+            and self.confirmation_status in (self.STARTER_CONFIRMED, self.STARTER_NOT_APPLICABLE)
+            and not self.local_confirmation_reference.strip()
+        ):
+            raise ValidationError({
+                "local_confirmation_reference":
+                    "Cite the retained local form, comparison, or decision for this starter-row outcome."
+            })
 
     def save(self, *args, **kwargs):
         if self.form_id and not self.form.is_editable:

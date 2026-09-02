@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title_ext %} - DBM form starters{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div>
+      <a href="{% url 'reporting:local_form_workspace' %}" class="small">&larr; Local form acceptance</a>
+      <h1 class="h3 mt-2 mb-1">DBM form starters</h1>
+      <p class="text-muted mb-0">{{ starter_count }} editable candidates from the DBM Budget Operations Manual for LGUs, 2023 Edition.</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'reporting:local_form_create' %}">Start from the office form instead</a>
+  </div>
+
+  <div class="alert alert-warning">
+    <strong>Starting point only.</strong> Creating one of these records does not confirm that the form applies to {{ department.name }},
+    does not install a runtime report template, and does not pass any acceptance test. Compare it with the office's current blank or safely
+    redacted form and retained local authority before using it.
+  </div>
+  <div class="alert alert-light border small">
+    Page anchors point to the
+    <a href="{{ dbm_bom_url }}" target="_blank" rel="noopener">official DBM manual PDF</a>.
+    Each candidate begins as an editable, source-unmapped draft with unconfirmed delivery and no reference file.
+  </div>
+
+  {% for group in groups %}
+    <section class="card card-outline card-primary mb-4">
+      <div class="card-header">
+        <h2 class="card-title font-weight-bold">{{ group.code }} &mdash; {{ group.label }}</h2>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th style="min-width: 170px;">Form</th>
+              <th style="min-width: 280px;">Purpose and likely owners</th>
+              <th style="min-width: 150px;">Source pages</th>
+              <th style="min-width: 150px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for starter in group.starters %}
+              <tr>
+                <td>
+                  <strong>{{ starter.form_number }}</strong>
+                  <div class="small">{{ starter.title }}</div>
+                  <div class="small text-muted">{{ starter.sections|length }} candidate section{{ starter.sections|length|pluralize }}</div>
+                </td>
+                <td>
+                  <div>{{ starter.purpose }}</div>
+                  <div class="small text-muted mt-1">{{ starter.owner_note }}</div>
+                </td>
+                <td class="small">
+                  Manual pp. {{ starter.manual_pages }}<br>
+                  PDF pp. {{ starter.pdf_pages }}
+                </td>
+                <td class="text-right">
+                  {% if starter.current %}
+                    <a class="btn btn-sm btn-outline-primary" href="{{ starter.current.get_absolute_url }}">Open {{ starter.current.get_status_display|lower }}</a>
+                    <div class="small text-muted mt-1">Version {{ starter.current.version }} already exists</div>
+                  {% else %}
+                    <form method="post" action="{% url 'reporting:local_form_starter_create' starter.key %}">
+                      {% csrf_token %}
+                      <button class="btn btn-sm btn-primary">Create editable candidate</button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endfor %}
+</div>
+{% endblock %}

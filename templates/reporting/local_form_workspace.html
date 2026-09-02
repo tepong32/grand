@@ -4,7 +4,7 @@
 <div class="container-fluid pb-4">
   <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
     <div><a href="{% url 'reporting:workspace' %}" class="small">&larr; Reports</a><h1 class="h3 mt-2 mb-1">Local form acceptance</h1><p class="text-muted mb-0">Inventory familiar LGU forms, connect them to governed GRAND templates, and retain witnessed practical acceptance.</p></div>
-    {% if can_manage %}<a class="btn btn-primary" href="{% url 'reporting:local_form_create' %}"><i class="fas fa-file-signature mr-1"></i> Add local form</a>{% endif %}
+    {% if can_manage %}<div class="btn-group"><a class="btn btn-primary" href="{% url 'reporting:local_form_starter_catalog' %}"><i class="fas fa-list-alt mr-1"></i> Use DBM starter</a><a class="btn btn-outline-primary" href="{% url 'reporting:local_form_create' %}"><i class="fas fa-file-signature mr-1"></i> Add local form manually</a></div>{% endif %}
   </div>
   <div class="alert alert-info"><strong>No automatic “official” label.</strong> An inventory item remains pending until it links an activated governed template, carries an exact blank/redacted reference, and passes independently witnessed data, layout, routing, overflow, accessibility, printing, and rollback checks.</div>
   <section class="card card-outline card-primary"><div class="card-header"><h2 class="card-title font-weight-bold">Office form register</h2></div><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Form</th><th>GRAND source</th><th>Delivery</th><th>Tests</th><th>Status</th></tr></thead><tbody>

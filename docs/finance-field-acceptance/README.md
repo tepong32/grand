@@ -30,7 +30,7 @@ Yellow cells with blue text are intended for staff input. Formula results remain
 7. Complete the role and non-functional **Exercises and Owners** plan, including accessibility, printing, support, succession, continuity, and recovery.
 8. Run the locally approved number of consecutive **Field Cycles** and reconcile source-versus-GRAND counts and amounts by case, batch, period, register, ledger, and report.
 9. Perform the **Recovery Rehearsal** in an isolated environment and retain the exact two-store backup identities, hashes, RPO/RTO timestamps, control results, cross-store case, runtime-file checks, disposal, and independent witness evidence.
-10. Resolve every item on **Decisions**, review **Acceptance Summary**, then submit the actual records through the corresponding GRAND F10/F11 screens.
+10. Resolve every item on **Decisions** and review **Acceptance Summary**. In GRAND, open **Local form acceptance → Use DBM starter** for an applicable listed form, create its editable candidate, transfer and locally confirm the compared section decisions, then complete the existing source, reference, test, and independent-acceptance gates. Submit the resulting accepted-form set and field evidence through the corresponding F10/F11 screens.
 
 ## Official-source boundary
 
@@ -46,7 +46,7 @@ An official source still requires confirmation of current amendments, local appl
 
 The workbook prepares content and evidence for existing controls; it does not duplicate them:
 
-- [Finance local-form inventory and acceptance](../FINANCE_LOCAL_FORM_ACCEPTANCE.md) remains the F10.2 register, dynamic-section, practical-test, independent-acceptance, successor, and immutable-evidence workflow.
+- [Finance local-form inventory and acceptance](../FINANCE_LOCAL_FORM_ACCEPTANCE.md) now includes an in-app catalog for all 31 source-anchored DBM candidates. Its 77 application sections are practical form groups derived from the workbook's 70 field/control mapping rows; both remain editable and locally unconfirmed until staff compare them with the actual form. GRAND remains the F10.2 register, practical-test, independent-acceptance, successor, and immutable-evidence workflow.
 - [Finance shadow operation, UAT acceptance, and controlled cutover](../FINANCE_SHADOW_CUTOVER.md) remains the F11 exercise, field-cycle, accepted-form lineage, recovery, stakeholder decision, cutover, and rollback workflow.
 - [Portable GRAND export archive](../EXPORT_ARCHIVE.md) remains the TraceSync-ready export boundary. The workbook should retain references and hashes instead of copying confidential packets or signature images into source control.
 - [Database backup and recovery](../DATABASE_BACKUP.md) remains the authoritative two-store backup, verification, and isolated-restore operating contract.
