@@ -9,7 +9,7 @@ Open the [GRAND Finance Field Acceptance Starter](../../outputs/grand-finance-fi
 The workbook gives Budget, Accounting, Treasury, requesting offices, reviewers, and recovery staff one shared working file for:
 
 - the LBP, LBA, LBR, LBE, and LBAc form families identified in the DBM Budget Operations Manual for LGUs, 2023 Edition;
-- candidate field and control-total mapping for representative preparation, allotment-release, and accountability forms;
+- verified printed-manual/PDF page anchors for all 31 listed forms and 70 candidate field/control mappings spanning every listed form;
 - transaction-specific COA documentary-rule intake without inventing unverified requirements;
 - the seven F10.2 practical-test categories;
 - office owners, different witnesses, exercises, field cycles, decisions, and evidence references;
@@ -24,7 +24,7 @@ Yellow cells with blue text are intended for staff input. Formula results remain
 1. Enter the LGU, fiscal year, preparer, reviewer, and evidence-custody context on **Start Here**.
 2. Review **Sources and Scope** and create a local decision for each applicability question.
 3. In **Official Form Register**, confirm the exact current form name, revision/effectivity, local authority, delivery mode, owner, and differences from the starter.
-4. Compare the retained blank or safely redacted local form with **Field Mapping**. Add or revise rows for every required, optional, conditional, or repeating section.
+4. Use the printed-manual/PDF anchors in **Official Form Register** to review the official source, then compare the retained blank or safely redacted local form with **Field Mapping**. Its 70 source-anchored starter rows cover all listed forms, but staff must still add or revise every locally different required, optional, conditional, or repeating section.
 5. Populate **COA Document Rules** only from the exact current circular annex/section and locally approved transaction route. Keep uncertain entries in `To be extracted/confirmed` status.
 6. Use a redacted or synthetic packet to perform all seven **Practical Tests** on the actual device, printer, paper, and form stock. The owner and witness must be different people.
 7. Complete the role and non-functional **Exercises and Owners** plan, including accessibility, printing, support, succession, continuity, and recovery.

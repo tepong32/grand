@@ -8,6 +8,8 @@
 - Added transaction-variant placeholders for exact COA documentary-rule extraction that deliberately avoid inventing unverified requirements, waivers, or exception authorities.
 - Added the seven F10.2 practical tests, role/non-functional exercise ownership, consecutive field-cycle reconciliation, local decision tracking, exact accepted-form set planning, and a structured two-store recovery worksheet with formula-driven RPO/RTO checks.
 - Added an explicit candidate/official-use boundary, source register, human-editable input legend, planning summary that starts at zero accepted items, and an operator guide linking the workbook back to GRAND's immutable F10/F11 acceptance, TraceSync export, and recovery controls.
+- Verified and recorded the printed-manual and PDF page ranges for all 31 DBM form entries, including multi-page checklists, review schedules, execution forms, instructions, and accountability reports.
+- Expanded the source-anchored field-mapping sheet from 25 representative rows to 70 candidate structures covering every listed form, with explicit source, control, ownership, print, signatory, and local-verification boundaries.
 
 ## F11.7 Structured two-store recovery rehearsal and cutover binding
 
