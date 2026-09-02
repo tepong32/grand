@@ -153,6 +153,7 @@ The command exits nonzero for failed or deferred selected-scope checks. Its rece
 - [Finance process-fidelity baseline](docs/FINANCE_PROCESS_FIDELITY_BASELINE.md)
 - [Finance visual template promotion and rollback](docs/FINANCE_TEMPLATE_PROMOTION.md)
 - [Finance local-form inventory and acceptance](docs/FINANCE_LOCAL_FORM_ACCEPTANCE.md)
+- [Finance field-acceptance starter pack](docs/finance-field-acceptance/README.md)
 - [Finance accountability-package profiles and assembly](docs/FINANCE_ACCOUNTABILITY_PACKAGES.md)
 - [F9 comprehensive review and implementation handoff](docs/FINANCE_F9_REVIEW_AND_HANDOFF.md)
 - [Product roadmap](docs/ROADMAP.md)

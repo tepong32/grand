@@ -79,6 +79,11 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# Local artifact-authoring and source-inspection scratch files
+/tmp/pdfs/
+/tmp/spreadsheets/
+/outputs/**/*.inspect.ndjson
+
 # IPython
 profile_default/
 ipython_config.py

@@ -1,5 +1,14 @@
 # Changelog
 
+## Editable LGU Finance field-acceptance starter pack
+
+- Added one conservative, macro-free workbook for Budget, Accounting, Treasury, requesting offices, reviewers, and recovery staff to prepare the actual F10/F11 field evidence without converting candidates into accepted policy.
+- Inventoried all 31 LBP/LBA/LBR/LBE/LBAc form-family entries identified in the DBM Budget Operations Manual for LGUs, 2023 Edition, with locally editable applicability, revision, delivery-mode, owner, authority-reference, and difference fields.
+- Seeded representative field, control-total, signatory/custody, overflow, and print mappings for LBP Form 4, the LBE Form 1 allotment-release family, and LBAc Forms 1–6 while keeping every mapping in a local-verification state.
+- Added transaction-variant placeholders for exact COA documentary-rule extraction that deliberately avoid inventing unverified requirements, waivers, or exception authorities.
+- Added the seven F10.2 practical tests, role/non-functional exercise ownership, consecutive field-cycle reconciliation, local decision tracking, exact accepted-form set planning, and a structured two-store recovery worksheet with formula-driven RPO/RTO checks.
+- Added an explicit candidate/official-use boundary, source register, human-editable input legend, planning summary that starts at zero accepted items, and an operator guide linking the workbook back to GRAND's immutable F10/F11 acceptance, TraceSync export, and recovery controls.
+
 ## F11.7 Structured two-store recovery rehearsal and cutover binding
 
 - Replaced narrative-only backup/restore pass evidence with a guided record bound to the existing F11 readiness exercise: exact GRAND backup ID and hashes, off-host verification, production-preflight receipt, approved policy and RPO/RTO, isolated host/release/database/log references, and actual recovery timestamps.
