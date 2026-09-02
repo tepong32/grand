@@ -2201,6 +2201,19 @@ class FinanceLocalFormSection(models.Model):
             raise ValidationError({"applicability_instructions": "Explain when this non-required section applies and who decides."})
         if self.requirement_type == self.REPEATING and not self.row_instructions.strip():
             raise ValidationError({"row_instructions": "Explain the repeating-row and continuation-page behavior."})
+        if self.starter_reference and self.confirmation_status == self.LOCAL_ENTRY:
+            raise ValidationError({
+                "confirmation_status": (
+                    "A starter row cannot be treated as a manual local entry. Keep it pending, "
+                    "or record a locally evidenced match or not-applicable decision."
+                )
+            })
+        if not self.starter_reference and self.confirmation_status != self.LOCAL_ENTRY:
+            raise ValidationError({
+                "confirmation_status": (
+                    "Only a built-in starter row can use a starter comparison status."
+                )
+            })
         if (
             self.starter_reference
             and self.confirmation_status in (self.STARTER_CONFIRMED, self.STARTER_NOT_APPLICABLE)

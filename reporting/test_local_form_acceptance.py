@@ -24,6 +24,7 @@ from .form_acceptance_services import (
     review_local_form, review_test_attempt, source_snapshot, submit_local_form,
     validate_local_form,
 )
+from .forms import FinanceLocalFormSectionForm
 from .local_form_starters import DBM_FORM_STARTERS
 from .models import (
     FinanceLocalFormAcceptance, FinanceLocalFormSection, FinanceLocalFormTestAttempt,
@@ -323,6 +324,18 @@ class FinanceLocalFormAcceptanceTests(TestCase):
             self.department, self.preparer, starter_key="lbp-form-1",
         )
         section = item.sections.first()
+        starter_form = FinanceLocalFormSectionForm(instance=section, local_form=item)
+        self.assertEqual(
+            {value for value, _label in starter_form.fields["confirmation_status"].choices},
+            {
+                FinanceLocalFormSection.STARTER_CANDIDATE,
+                FinanceLocalFormSection.STARTER_CONFIRMED,
+                FinanceLocalFormSection.STARTER_NOT_APPLICABLE,
+            },
+        )
+        section.confirmation_status = FinanceLocalFormSection.LOCAL_ENTRY
+        with self.assertRaisesMessage(ValidationError, "starter row cannot be treated as a manual local entry"):
+            section.full_clean()
         section.confirmation_status = FinanceLocalFormSection.STARTER_CONFIRMED
         with self.assertRaisesMessage(ValidationError, "Cite the retained local form"):
             section.full_clean()
@@ -338,6 +351,20 @@ class FinanceLocalFormAcceptanceTests(TestCase):
         self.assertIn("DBM BOM 2023", mapped["starter_reference"])
         self.assertIn("comparison record", mapped["local_confirmation_reference"])
         self.assertTrue(mapped["field_instructions"])
+
+        manual_form = FinanceLocalFormSectionForm(local_form=item)
+        self.assertEqual(manual_form.fields["confirmation_status"].widget.input_type, "hidden")
+        self.assertEqual(
+            list(manual_form.fields["confirmation_status"].choices),
+            [(FinanceLocalFormSection.LOCAL_ENTRY, "Entered from the current local form")],
+        )
+        self.client.force_login(self.preparer)
+        manual_response = self.client.get(reverse(
+            "reporting:local_form_section_create", args=(item.public_id,),
+        ))
+        self.assertEqual(manual_response.status_code, 200)
+        self.assertNotContains(manual_response, "Candidate starter source")
+        self.assertNotContains(manual_response, "Local comparison status")
 
     def test_legacy_schema_one_acceptance_packet_remains_reproducible(self):
         item = self.local_form("legacy-schema-one")

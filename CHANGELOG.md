@@ -6,6 +6,7 @@
 - Added 77 plain-language candidate section groups for expected fields, likely governed source records, reproducible controls, likely owners, print/layout behavior, conditional applicability, and continuation rows.
 - Kept every created starter safely non-authoritative: Draft, source-unmapped, delivery-unconfirmed, without a reference file, runtime template, test result, submission, or acceptance.
 - Required each starter section to remain visibly candidate until an authorized preparer records a locally evidenced matched or not-applicable decision; unresolved rows block submission.
+- Locked starter rows out of the manual-entry status at both the form and model layers, kept starter-only controls off manual-section screens, and browser-verified the evidence-required comparison flow.
 - Prevented duplicate current records for the same department/form, retained source-page identity, recorded attributable starter-creation events, and preserved department access boundaries.
 - Extended accepted-form snapshots and TraceSync packets with candidate mapping/resolution evidence while reproducing historical schema-1 accepted packets under their original schema.
 - Updated Accounting, Budget, and Treasury Internal How-Tos plus the field-acceptance instructions and roadmap to guide non-technical local comparison without treating the public starter as an official LGU form.

@@ -135,6 +135,18 @@ class FinanceLocalFormSectionForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.instance.pk and self.instance.starter_reference:
             self.fields["starter_reference"].disabled = True
+            self.fields["confirmation_status"].choices = tuple(
+                choice for choice in FinanceLocalFormSection.CONFIRMATION_CHOICES
+                if choice[0] != FinanceLocalFormSection.LOCAL_ENTRY
+            )
+        else:
+            self.fields["starter_reference"].widget = forms.HiddenInput()
+            self.fields["confirmation_status"].widget = forms.HiddenInput()
+            self.fields["confirmation_status"].choices = (
+                (FinanceLocalFormSection.LOCAL_ENTRY, "Entered from the current local form"),
+            )
+            self.fields["local_confirmation_reference"].widget = forms.HiddenInput()
+            self.initial["confirmation_status"] = FinanceLocalFormSection.LOCAL_ENTRY
 
     def clean_code(self):
         return slugify(self.cleaned_data["code"])
