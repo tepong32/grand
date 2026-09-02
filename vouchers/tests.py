@@ -2149,17 +2149,18 @@ class VoucherWorkflowTests(TestCase):
             local_applicability_note="Accepted for controlled UAT by the synthetic process owners.",
         )
         self.acknowledge_advice(batch)
+        observed_on = timezone.localdate()
         old_issue = timezone.now() - timedelta(days=181)
         PaymentInstrument.objects.filter(pk=instrument.pk).update(issued_at=old_issue)
         instrument.refresh_from_db()
         unclaimed = open_instrument_exception(
             instrument=instrument, actor=self.treasury_user, kind=PaymentInstrumentException.UNCLAIMED,
-            observed_on=date(2026, 8, 31), reason="Claimant has not collected the advised check.",
+            observed_on=observed_on, reason="Claimant has not collected the advised check.",
             evidence_reference="Treasury release log follow-up 1.",
         )
         stale = open_instrument_exception(
             instrument=instrument, actor=self.treasury_user, kind=PaymentInstrumentException.STALE,
-            observed_on=date(2026, 8, 31), reason="Instrument exceeded the locally reviewed validity threshold.",
+            observed_on=observed_on, reason="Instrument exceeded the locally reviewed validity threshold.",
             evidence_reference="Treasury stale-check review 1.",
         )
         unclaimed.refresh_from_db(); instrument.refresh_from_db()
