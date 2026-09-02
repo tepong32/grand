@@ -19,13 +19,22 @@ from django.utils import timezone
 
 from departments.models import Department
 from accounting.models import (
-    AccountingPeriod, BankStatementBatch, FiscalYear, Fund, JournalEntry, JournalSubsidiaryLine, LedgerAccount,
-    PostingMapping, ResponsibilityCenter,
+    AccountingPeriod, BankStatementBatch, BankStatementMatch, FiscalYear, Fund, JournalEntry,
+    JournalSubsidiaryLine, LedgerAccount, PostingMapping, ProgramActivityProject,
+    ResponsibilityCenter,
 )
-from accounting.services import bank_reconciliation_snapshot, discard_draft, post_entry, submit_entry
+from accounting.services import (
+    auto_match_bank_statement, bank_reconciliation_snapshot, decide_bank_reconciliation,
+    discard_draft, post_entry, stage_bank_statement_csv, submit_bank_reconciliation, submit_entry,
+)
+from budget.models import (
+    AllotmentOrderLine, AllotmentReleaseOrder, AppropriationAuthorization, BudgetCall,
+    BudgetCeiling, BudgetProposalLine, BudgetVersion, ObligationRequest, ObligationRequestLine,
+)
+from budget.services import transition_allotment_order, transition_authorization, transition_obligation_request
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
-    FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
+    FinanceDocumentRule, FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
     FinanceSignatory, FinanceTemplateVersion, FinanceTransactionVariant, FinanceWorkflowExemption,
 )
 from finance.services import preflight_finance_template
@@ -33,6 +42,8 @@ from openpyxl import Workbook
 from openpyxl.workbook.defined_name import DefinedName
 from records.services import RecordWorkflowError, source_department
 from reporting.models import ReportDefinition, ReportRun, ReportTemplateVersion
+from reporting.presets import seed_finance_presets
+from reporting.services import create_manual_run
 from tracepoint.models import PacketItem, TrackedPacket
 
 from .access import can_view_workbench
@@ -40,7 +51,7 @@ from .models import (
     BankAdviceBatch, FinanceFoundationIssuanceBoundary, PayableIntake, PaymentInstrument, PaymentInstrumentException, ReturnedInstrumentReview, TreasuryCashPolicy,
     TreasuryCashPosition, TreasuryCashReservation, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
     RemittancePostingRequest, TaxFilingEvidence, TreasuryRemittanceBatch, TreasuryRemittanceLine,
-    VoucherDeduction, VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
+    PayableDocumentEvidence, VoucherDeduction, VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
 )
 from .posting import materialize_voucher_journal, reconcile_posted_voucher_entry
 from .advice import (
@@ -63,9 +74,12 @@ from .tax_filings import (
 )
 from .services import (
     amend_nonfinancial_voucher, approve_override, cancel_check, certify_budget, create_budget_case,
+    create_payable_case_from_obligation,
     finalize_bank_advice, generate_shadow_dv, issue_check, link_tracepoint_item, prepare_voucher, record_signature_return,
+    record_payable_document_evidence, review_payable_intake,
     release_check, request_override, return_case, submit_checks_for_advice,
-    validate_accounting, assemble_finance_packet, prepare_controlled_dv_print, record_dv_printed,
+    submit_payable_intake, validate_accounting, assemble_finance_packet, prepare_controlled_dv_print,
+    record_dv_printed,
 )
 from .issuance_boundaries import lock_foundation_issuance_boundary
 
@@ -985,6 +999,434 @@ class VoucherWorkflowTests(TestCase):
         self.assertIn("ADV-PAYMENT-EVENT", exported)
         self.assertIn(request.jev_number, exported)
         self.assertIn("RECEIPT-PAYMENT-EVENT", exported)
+
+    def test_authoritative_budget_to_reconciled_treasury_report_replay(self):
+        """Replay one governed case across the implemented F3-F9 control boundaries."""
+        self.budget_user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="budget",
+            codename__in=(
+                "view_budget_workspace", "prepare_budget_calls", "prepare_budget_proposals",
+                "view_allotment_control", "prepare_allotment_releases",
+                "view_obligation_registry", "certify_obligations",
+            ),
+        ))
+        self.requesting_user.user_permissions.add(Permission.objects.get(
+            content_type__app_label="budget", codename="initiate_obligation_requests",
+        ))
+        budget_authorizer = self.employee("budget.authorizer.full-cycle", self.budget)
+        budget_authorizer.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="budget",
+            codename__in=(
+                "view_budget_workspace", "authorize_appropriations", "view_allotment_control",
+                "approve_allotment_releases",
+            ),
+        ))
+        self.validator.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="review_payable_intake",
+        ))
+        self.preparer.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="accounting",
+            codename__in=("view_bank_reconciliation", "prepare_bank_reconciliation"),
+        ))
+        self.validator.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="accounting",
+            codename__in=("view_bank_reconciliation", "approve_bank_reconciliation"),
+        ))
+        self.treasury_user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="reporting",
+            codename__in=("view_reporting_workspace", "generate_reports", "download_reports"),
+        ))
+
+        accounting_owner = {
+            "department_id": self.accounting.pk,
+            "department_label": self.accounting.name,
+        }
+        fiscal_year = FiscalYear.objects.create(
+            **accounting_owner,
+            year=2026,
+            label="FY 2026 full-cycle replay",
+            starts_on=date(2026, 1, 1),
+            ends_on=date(2026, 12, 31),
+            business_date=date(2026, 8, 25),
+            status=FiscalYear.ACTIVE,
+        )
+        AccountingPeriod.objects.filter(pk__in=(
+            self.accounting_period.pk,
+            getattr(self, "event_accounting_period", self.accounting_period).pk,
+        )).update(fiscal_year_record=fiscal_year)
+        program = ProgramActivityProject.objects.create(
+            **accounting_owner,
+            fiscal_year=fiscal_year,
+            code="GSO-OPS-CYCLE",
+            name="GSO full-cycle operations",
+            kind="activity",
+            responsibility_center=self.accounting_center,
+            effective_from=date(2026, 1, 1),
+        )
+        budget_owner = {
+            "department_id": self.budget.pk,
+            "department_label": self.budget.name,
+        }
+        budget_call = BudgetCall.objects.create(
+            **budget_owner,
+            fiscal_year=fiscal_year,
+            title="FY 2026 full-cycle replay budget call",
+            authority_reference="Synthetic locally reviewed annual budget call.",
+            instructions="Use the governed classification and retained synthetic support.",
+            proposal_opens_on=date(2025, 8, 1),
+            proposal_due_on=date(2025, 9, 30),
+            status=BudgetCall.PUBLISHED,
+            created_by_id=self.budget_user.pk,
+            created_by_label=self.budget_user.username,
+        )
+        BudgetCeiling.objects.create(
+            **budget_owner,
+            budget_call=budget_call,
+            requesting_department_id=self.requesting.pk,
+            requesting_department_label=self.requesting.name,
+            fund=self.accounting_fund,
+            expense_class="MOOE",
+            amount=Decimal("1000.00"),
+            basis="Synthetic reviewed ceiling schedule.",
+        )
+        budget_version = BudgetVersion.objects.create(
+            **budget_owner,
+            budget_call=budget_call,
+            fiscal_year=fiscal_year,
+            kind=BudgetVersion.FINAL,
+            version=1,
+            title="FY 2026 full-cycle authorized budget",
+            change_explanation="Synthetic final version for one end-to-end replay.",
+            status=BudgetVersion.APPROVED,
+            created_by_id=self.budget_user.pk,
+            created_by_label=self.budget_user.username,
+        )
+        BudgetProposalLine.objects.create(
+            **budget_owner,
+            version=budget_version,
+            fund=self.accounting_fund,
+            responsibility_center=self.accounting_center,
+            program=program,
+            account=self.expense_account,
+            expense_class="MOOE",
+            particulars="Synthetic office supplies for the governed replay",
+            performance_target="Complete one controlled finance cycle",
+            amount=Decimal("1000.00"),
+            change_explanation="Supported by the synthetic work plan.",
+        )
+        authorization = AppropriationAuthorization.objects.create(
+            **budget_owner,
+            version=budget_version,
+            authority_type=AppropriationAuthorization.ORDINANCE,
+            ordinance_number="SYN-ORD-2025-CYCLE",
+            ordinance_date=date(2025, 12, 15),
+            effectivity_date=date(2026, 1, 1),
+            review_status=AppropriationAuthorization.FAVORABLE,
+            review_reference="Synthetic favorable review for full-cycle replay",
+            review_date=date(2025, 12, 28),
+            evidence_reference="Synthetic retained ordinance, review, and signed schedule references.",
+            signed_control_total=Decimal("1000.00"),
+            created_by_id=self.budget_user.pk,
+            created_by_label=self.budget_user.username,
+        )
+        transition_authorization(authorization, "submit", self.budget_user)
+        authorization = transition_authorization(
+            authorization,
+            "authorize",
+            budget_authorizer,
+            "Independently matched the ordinance, review, effectivity, and signed total.",
+        )
+        allotment = AllotmentReleaseOrder.objects.create(
+            **budget_owner,
+            authorization=authorization,
+            fiscal_year=fiscal_year,
+            order_number="SYN-ARO-2026-CYCLE",
+            kind=AllotmentReleaseOrder.INITIAL,
+            release_date=date(2026, 1, 5),
+            effective_date=date(2026, 1, 5),
+            authority_reference="Synthetic reviewed allotment authority.",
+            evidence_reference="Synthetic retained signed allotment schedule.",
+            purpose="Release the one-case full-cycle operating allotment.",
+            signed_control_total=Decimal("1000.00"),
+            created_by_id=self.budget_user.pk,
+            created_by_label=self.budget_user.username,
+        )
+        AllotmentOrderLine.objects.create(
+            **budget_owner,
+            order=allotment,
+            appropriation_line=authorization.schedule_lines.get(),
+            movement_type=AllotmentOrderLine.RELEASE,
+            amount=Decimal("1000.00"),
+            remarks="Synthetic reviewed release schedule line.",
+        )
+        transition_allotment_order(allotment, "submit", self.budget_user)
+        transition_allotment_order(
+            allotment,
+            "post",
+            budget_authorizer,
+            "Independently reviewed the release against authorized appropriation.",
+        )
+        obligation = ObligationRequest.objects.create(
+            **budget_owner,
+            authorization=authorization,
+            fiscal_year=fiscal_year,
+            requesting_department_id=self.requesting.pk,
+            requesting_department_label=self.requesting.name,
+            kind=ObligationRequest.ORIGINAL,
+            form_type=ObligationRequest.OBR,
+            request_reference="GSO-CYCLE-REQ-001",
+            obligation_date=date(2026, 8, 20),
+            claimant_payee=self.party.display_name,
+            particulars="Synthetic office supply payment",
+            evidence_reference="Synthetic request, procurement, delivery, and invoice references.",
+            signed_control_total=Decimal("1000.00"),
+            created_by_id=self.requesting_user.pk,
+            created_by_label=self.requesting_user.username,
+        )
+        ObligationRequestLine.objects.create(
+            **budget_owner,
+            request=obligation,
+            appropriation_line=authorization.schedule_lines.get(),
+            movement_type=ObligationRequestLine.OBLIGATE,
+            amount=Decimal("1000.00"),
+            remarks="Synthetic certified obligation schedule line.",
+        )
+        transition_obligation_request(obligation, "submit", self.requesting_user)
+        obligation = transition_obligation_request(
+            obligation,
+            "certify",
+            self.budget_user,
+            "Matched the request to executable allotment and retained support.",
+            "OBR-2026-CYCLE-001",
+        )
+        self.assertEqual(obligation.status, ObligationRequest.CERTIFIED)
+        self.assertEqual(obligation.movements.get().obligation_effect, Decimal("1000.00"))
+
+        document_rule = FinanceDocumentRule.objects.create(
+            variant=self.transaction_variant,
+            code="full-cycle-invoice",
+            label="Invoice / billing for full-cycle replay",
+            evidence_kind=FinanceDocumentRule.INVOICE,
+            required=True,
+            waiver_allowed=False,
+            authority_reference="Synthetic locally reviewed invoice requirement.",
+            created_by=self.preparer,
+        )
+        case = create_payable_case_from_obligation(
+            actor=self.requesting_user,
+            authoritative_obligation=obligation,
+            payee=self.party,
+            transaction_type=self.transaction_variant.code,
+            claim_reference="CLAIM-2026-CYCLE-001",
+            invoice_number="INV-2026-CYCLE-001",
+            invoice_date=date(2026, 8, 21),
+            claim_amount=Decimal("1000.00"),
+            procurement_reference="PO-2026-CYCLE-001",
+            delivery_reference="DR-2026-CYCLE-001",
+            inspection_acceptance_reference="IAR-2026-CYCLE-001",
+            evidence_reference="Synthetic retained payable packet references.",
+            duplicate_review_note="",
+            idempotency_key="full-cycle-payable-create",
+        )
+        case.refresh_from_db()
+        evidence = case.payable_document_evidence.get(source_rule=document_rule)
+        record_payable_document_evidence(
+            case=case,
+            evidence=evidence,
+            actor=self.requesting_user,
+            status=PayableDocumentEvidence.PRESENT,
+            evidence_reference="Synthetic retained invoice INV-2026-CYCLE-001.",
+            decision_note="",
+            expected_version=case.state_version,
+            idempotency_key="full-cycle-invoice-present",
+        )
+        case.refresh_from_db()
+        submit_payable_intake(
+            case=case,
+            actor=self.requesting_user,
+            expected_version=case.state_version,
+            idempotency_key="full-cycle-payable-submit",
+        )
+        case.refresh_from_db()
+        review_payable_intake(
+            case=case,
+            actor=self.validator,
+            decision=PayableIntake.READY,
+            reason="Independently reviewed the obligation, claim control, and retained invoice.",
+            expected_version=case.state_version,
+            idempotency_key="full-cycle-payable-ready",
+        )
+        case.refresh_from_db()
+        prepare_voucher(
+            case=case,
+            actor=self.preparer,
+            voucher_date=date(2026, 8, 25),
+            gross_amount=Decimal("1000.00"),
+            deductions=[{
+                "code": "ewt",
+                "description": "Expanded withholding tax",
+                "amount": Decimal("100.00"),
+            }],
+            line_description="Synthetic office supplies",
+            line_account_code=self.expense_account.code,
+            document_codes=["invoice"],
+            expected_version=case.state_version,
+            idempotency_key="full-cycle-prepare-dv",
+        )
+        self.return_signatures(case)
+        validate_accounting(
+            case=case,
+            actor=self.validator,
+            jev_number="JEV-2026-CYCLE-RECOGNITION",
+            jev_date=date(2026, 8, 25),
+            note="Validated the governed full-cycle voucher.",
+            expected_version=case.state_version,
+            idempotency_key="full-cycle-accounting-validate",
+        )
+        case.refresh_from_db()
+        recognition_request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
+        recognition_entry, created = materialize_voucher_journal(recognition_request, self.preparer)
+        self.assertTrue(created)
+        submit_entry(recognition_entry, self.preparer)
+        post_entry(recognition_entry, self.validator)
+        recognition_entry.refresh_from_db()
+        reconcile_posted_voucher_entry(recognition_entry, self.validator)
+
+        payment_rule = self.enable_payment_event_rules()
+        case.refresh_from_db()
+        instrument = issue_check(
+            case=case,
+            actor=self.treasury_user,
+            bank_account_code="gf-lbp",
+            check_number="000501",
+            amount=Decimal("900.00"),
+            expected_version=case.state_version,
+            idempotency_key="full-cycle-issue-check",
+        )
+        case.refresh_from_db()
+        submit_checks_for_advice(
+            case=case,
+            actor=self.treasury_user,
+            expected_version=case.state_version,
+            idempotency_key="full-cycle-submit-advice",
+        )
+        case.refresh_from_db()
+        advice = finalize_bank_advice(
+            case=case,
+            actor=self.preparer,
+            advice_number="ADV-2026-CYCLE-001",
+            advice_date=date(2026, 8, 25),
+            expected_version=case.state_version,
+            idempotency_key="full-cycle-finalize-advice",
+            preparation_note="Prepared from the reviewed full-cycle check register.",
+            authority_reference="Synthetic locally reviewed bank-advice procedure.",
+            local_applicability_note="Synthetic Accounting, Treasury, and bank-owner UAT acceptance only.",
+        )
+        self.acknowledge_advice(advice, reference="BANK-ACK-2026-CYCLE-001")
+        case.refresh_from_db()
+        instrument.refresh_from_db()
+        release_check(
+            case=case,
+            instrument=instrument,
+            actor=self.treasury_user,
+            claimant=self.claimant,
+            receipt_reference="RCPT-2026-CYCLE-001",
+            expected_version=case.state_version,
+            idempotency_key="full-cycle-release-check",
+        )
+        case.refresh_from_db()
+        payment_request = case.posting_requests.get(kind=VoucherPostingRequest.PAYMENT)
+        self.assertEqual(payment_request.posting_rule, payment_rule)
+        payment_entry, created = materialize_voucher_journal(payment_request, self.preparer)
+        self.assertTrue(created)
+        submit_entry(payment_entry, self.preparer)
+        post_entry(payment_entry, self.validator)
+        payment_entry.refresh_from_db()
+        reconcile_posted_voucher_entry(payment_entry, self.validator)
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.COMPLETED)
+        self.assertEqual(case.authoritative_obligation_public_id, obligation.public_id)
+        self.assertEqual(case.disbursement_voucher.net_amount, instrument.amount)
+
+        payment_bank_line = payment_entry.lines.get(account__code="1-01-02")
+        statement_start = payment_entry.entry_date.replace(day=1)
+        statement_end = payment_entry.entry_date.replace(
+            day=monthrange(payment_entry.entry_date.year, payment_entry.entry_date.month)[1],
+        )
+        reconciliation = BankStatementBatch.objects.create(
+            **accounting_owner,
+            statement_reference="BRS-2026-CYCLE-001",
+            bank_account_code="gf-lbp",
+            bank_name="Synthetic Government Bank",
+            account_number_masked="••••0501",
+            fund=self.accounting_fund,
+            period_start=statement_start,
+            period_end=statement_end,
+            received_on=statement_end + timedelta(days=1),
+            opening_balance=Decimal("0.00"),
+            closing_balance=Decimal("-900.00"),
+            expected_row_count=1,
+            expected_deposits=Decimal("0.00"),
+            expected_withdrawals=Decimal("900.00"),
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        statement = (
+            "transaction_date,bank_reference,description,withdrawal,deposit,running_balance\n"
+            f"{payment_entry.entry_date.isoformat()},{payment_entry.reference},"
+            "Synthetic cleared check 000501,900.00,,-900.00\n"
+        )
+        reconciliation = stage_bank_statement_csv(
+            reconciliation,
+            self.preparer,
+            SimpleUploadedFile(
+                "full-cycle-statement.csv",
+                statement.encode("utf-8"),
+                content_type="text/csv",
+            ),
+        )
+        self.assertEqual(reconciliation.status, BankStatementBatch.VALIDATED)
+        self.assertEqual(auto_match_bank_statement(reconciliation, self.preparer), 1)
+        self.assertEqual(
+            BankStatementMatch.objects.get(batch=reconciliation).journal_line_id,
+            payment_bank_line.pk,
+        )
+        bank_snapshot, _checksum, _rows, _matches, _lines, _items = bank_reconciliation_snapshot(
+            reconciliation,
+        )
+        self.assertEqual(bank_snapshot["difference"], "0.00")
+        self.assertTrue(bank_snapshot["ready_for_review"])
+        submit_bank_reconciliation(reconciliation, self.preparer)
+        reconciliation = decide_bank_reconciliation(
+            reconciliation,
+            self.validator,
+            decision=BankStatementBatch.RECONCILED,
+            evidence_note="Independently compared the statement, payment JEV, check, and receipt evidence.",
+        )
+        self.assertEqual(reconciliation.status, BankStatementBatch.RECONCILED)
+
+        seed_finance_presets()
+        definition = ReportDefinition.objects.get(
+            department=self.treasury,
+            dataset_key="finance_payment_instrument_register",
+        )
+        report_run = create_manual_run(
+            definition,
+            definition.current_template,
+            "xlsx",
+            date(2026, 1, 1),
+            date(2026, 12, 31),
+            {},
+            self.treasury_user,
+        )
+        self.assertEqual(report_run.control_status, ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(report_run.control_totals["issued_amount"], "900.00")
+        self.assertEqual(report_run.control_totals["released_amount"], "900.00")
+        self.assertEqual(report_run.source_record_count, 1)
+        self.assertEqual(report_run.source_records.get().source_reference, instrument.check_number)
+        report_row = report_run.dataset_snapshot["rows"][0]
+        self.assertEqual(report_row["case_reference"], case.reference_code)
+        self.assertEqual(report_row["receipt_reference"], "RCPT-2026-CYCLE-001")
 
     def test_cancellation_and_replacement_record_explicit_no_entry_decisions(self):
         self.enable_payment_event_rules()
