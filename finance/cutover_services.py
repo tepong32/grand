@@ -30,6 +30,7 @@ from .models import (
     FinanceRecoveryRehearsalEvidence,
     FinanceCutoverReadinessExercise,
     FinanceCutoverReadinessPlan,
+    FinanceDiscoveryDecision,
     FinanceShadowComparison,
     FinanceShadowCycle,
     FinanceShadowDefect,
@@ -1586,6 +1587,22 @@ def decide_stakeholder_acceptance(
 
 
 def cutover_readiness(cycle):
+    discovery_decisions = list(cycle.discovery_decisions.order_by("phase", "code", "version"))
+    current_discovery_decisions = [
+        item for item in discovery_decisions
+        if item.status != FinanceDiscoveryDecision.SUPERSEDED
+    ]
+    discovery_blockers = [
+        item for item in current_discovery_decisions if item.blocks_affected_scope
+    ]
+    discovery_coverage = [
+        item for item in current_discovery_decisions
+        if item.status == FinanceDiscoveryDecision.RECORDED
+        and item.phase == "F0"
+        and item.evidence_label == FinanceDiscoveryDecision.LGU_CONFIRMED
+        and not item.blocks_affected_scope
+        and item.affected_scope.strip() == cycle.enabled_scope.strip()
+    ]
     rows = list(cycle.stakeholder_acceptances.all())
     present = {row.stakeholder_kind for row in rows}
     missing = sorted(REQUIRED_STAKEHOLDERS - present)
@@ -1676,6 +1693,19 @@ def cutover_readiness(cycle):
         and (not row.signed_decision_reference.strip() or len(row.signed_decision_checksum) != 64)
     ]
     checks = [
+        {
+            "code": "discovery_scope_accepted",
+            "passed": bool(discovery_coverage) and not discovery_blockers,
+            "message": (
+                "An independently recorded LGU-confirmed F0 decision covers this exact enabled scope, and no linked discovery finding blocks it."
+                if discovery_coverage and not discovery_blockers
+                else (
+                    "One or more current linked discovery findings still blocks its named scope."
+                    if discovery_blockers
+                    else "Record an independently reviewed, LGU-confirmed F0 decision for this exact enabled scope; absence of a finding is not acceptance evidence."
+                )
+            ),
+        },
         {
             "code": "shadow_reconciled",
             "passed": cycle.status == FinanceShadowCycle.RECONCILED,
@@ -1800,6 +1830,9 @@ def cutover_readiness(cycle):
         "qualification_evidence_forms_match": qualification_evidence_forms_match,
         "accepted_qualification_cycle_ids": [item.cycle_id for item in accepted_qualification],
         "unfinished_qualification_evidence_ids": [item.pk for item in unfinished_qualification],
+        "discovery_decision_ids": [item.pk for item in discovery_decisions],
+        "discovery_blocking_ids": [item.pk for item in discovery_blockers],
+        "discovery_coverage_ids": [item.pk for item in discovery_coverage],
     }
 
 
@@ -1963,9 +1996,39 @@ def build_cutover_evidence_package(cycle, actor):
             if qualification_plan else []
         )
     ]
+    discovery_decisions = [
+        {
+            "public_id": str(item.public_id),
+            "code": item.code,
+            "version": item.version,
+            "phase": item.phase,
+            "status": item.status,
+            "question": item.question,
+            "proposed_outcome": item.proposed_outcome,
+            "affected_scope": item.affected_scope,
+            "evidence_label": item.evidence_label,
+            "authority_evidence_reference": item.authority_evidence_reference,
+            "evidence_needed": item.evidence_needed,
+            "evidence_custody_reference": item.evidence_custody_reference,
+            "blocks_affected_scope": item.blocks_affected_scope,
+            "owner_id": item.owner_id,
+            "reviewer_id": item.reviewer_id,
+            "due_date": item.due_date,
+            "predecessor_id": item.predecessor_id,
+            "change_reason": item.change_reason,
+            "evidence_snapshot": item.evidence_snapshot,
+            "evidence_checksum": item.evidence_checksum,
+            "submitted_by_id": item.submitted_by_id,
+            "submitted_at": item.submitted_at,
+            "reviewed_by_id": item.reviewed_by_id,
+            "reviewed_at": item.reviewed_at,
+            "review_note": item.review_note,
+        }
+        for item in cycle.discovery_decisions.order_by("phase", "code", "version")
+    ]
     payload = {
         "format": "GRAND Finance shadow/cutover evidence",
-        "schema_version": 7,
+        "schema_version": 8,
         "notice": "Portable evidence copy. Authority exists only when the included decision status is authorized for its exact scope and date.",
         "cycle": cycle_payload,
         "stored_cycle_evidence_checksum": cycle.evidence_checksum,
@@ -1975,6 +2038,7 @@ def build_cutover_evidence_package(cycle, actor):
         "cutover_readiness_exercises": readiness_exercises,
         "cutover_qualification_plan": _qualification_plan_data(qualification_plan) if qualification_plan else None,
         "cutover_qualification_evidence": qualification_evidence,
+        "discovery_decisions": discovery_decisions,
         "cutover_readiness": {key: value for key, value in cutover_readiness(cycle).items() if key != "blocking"},
         "cutover_decision": _decision_data(decision) if decision else None,
         "exported_at": timezone.now(),
@@ -1993,6 +2057,7 @@ def build_cutover_evidence_package(cycle, actor):
             "cycle_status": cycle.status,
             "cutover_status": decision.status if decision else "not_prepared",
             "cycle_evidence_checksum": cycle.evidence_checksum,
+            "discovery_decision_count": len(discovery_decisions),
         },
     )
     _event(cycle, actor, "shadow_cutover_evidence_exported", snapshot={

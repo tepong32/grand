@@ -43,6 +43,8 @@
       <div class="card-footer small"><strong>Exact enabled scope:</strong> {{ cycle.enabled_scope }}</div>
     </div>
 
+    {% if board.discovery_blocking_count %}<div class="alert alert-danger"><strong>{{ board.discovery_blocking_count }} linked discovery decision{{ board.discovery_blocking_count|pluralize }} still block named parts of this cycle.</strong> Open Decisions &amp; Evidence to review each exact affected scope. Other scope is not automatically blocked.</div>{% elif board.discovery_decision_count %}<div class="alert alert-success"><strong>No linked discovery decision currently claims a scope block.</strong> This does not by itself prove that discovery is complete; confirm the register covers every enabled step, form, balance, authority, and exception.</div>{% else %}<div class="alert alert-light border"><strong>No discovery decision is linked to this cycle.</strong> That is not proof that F0/F1 field discovery is complete. Link relevant findings and unresolved questions in Decisions &amp; Evidence before relying on the field percentage.</div>{% endif %}
+
     <div class="row">
       {% for item in board.milestones %}
         <div class="col-xl-6 d-flex">

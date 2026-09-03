@@ -562,6 +562,25 @@ REQUESTING_GUIDES = REQUESTING_GUIDES + (
 
 ACCOUNTING_GUIDES = ACCOUNTING_GUIDES + (
     {
+        "slug": "finance-discovery-decision-register",
+        "version": 1,
+        "title": "Record Finance findings and unresolved decisions",
+        "summary": "Turn interviews and reviewed evidence into scoped, independently reviewed Finance decisions without silently inventing policy.",
+        "permission": "finance.manage_finance_discovery",
+        "patterns": ["finance:discovery_*", "finance:field_acceptance_*"],
+        "order": 88,
+        "steps": (
+            ("Add one focused question", "Create one stable DEC reference for a missing authority, disagreement, local procedure, form, balance, role, or exception. Choose its roadmap phase and optionally link the exact shadow cycle.", "The question is readable and narrow enough for one accountable decision.", "Do not combine unrelated offices, transaction types, years, forms, or actions into one broad block.", "Open Decisions & Evidence", "finance:discovery_workspace"),
+            ("Use the evidence label literally", "Choose Observed in eGAPS, Official reference, LGU-confirmed, GRAND-implemented, or Unresolved according to what the retained evidence actually proves.", "The label, cited reference, custody location, and evidence still needed agree with one another.", "A public memo does not prove local applicability; a system screen does not prove hidden validation or authority.", "", ""),
+            ("Name only the affected scope", "Write the exact transaction type, office, fiscal year, form, output, or action affected. Keep Block affected scope selected while an Unresolved finding remains.", "Staff can tell what must wait and what unrelated work may continue.", "Never use an unresolved question to freeze all Finance work when only a smaller scope is uncertain.", "", ""),
+            ("Assign owner and reviewer", "Name the person responsible for preparing the evidence and a different person who can independently review the decision.", "The owner can correct and submit; only the named different reviewer can record or return the locked snapshot.", "Do not assign the same person to prepare and review their own decision.", "", ""),
+            ("Submit a checksum-backed snapshot", "Review the plain-language outcome, evidence references, custody, needed proof, scope, and blocker flag, then submit it.", "GRAND locks the submitted fields with a SHA-256 and records the action in append-only Finance audit history.", "Submission is not acceptance and does not create COA, DBM, BIR, bank, ordinance, or cutover authority.", "", ""),
+            ("Review or return independently", "The named reviewer compares the cited retained evidence, then records the decision or returns it with the exact correction required.", "A recorded Unresolved decision remains visibly scope-blocking; a supported decision reflects only what its label and affected scope prove.", "A deadline or manager preference cannot convert missing evidence into a confirmed rule.", "", ""),
+            ("Correct through the right route", "Edit Draft or Returned work. For a recorded decision, create a reasoned successor, update the evidence, and repeat independent review.", "When the successor is recorded, the predecessor becomes Superseded while both snapshots and audit events remain reconstructible.", "Do not overwrite or delete a recorded decision merely because the authority, form, or local practice changed.", "", ""),
+            ("Export and safeguard", "Export the decision when a reviewer or records custodian needs it. Copy or synchronize the complete GRAND export root so the CSV remains beside its checksum manifest.", "The portable record is filed under department/user/finance-discovery-decisions/year/month.", "The export is an evidence index, not the protected source file, an official form, a backup, or cutover authority.", "", ""),
+        ),
+    },
+    {
         "slug": "finance-shadow-cutover-manager",
         "version": 5,
         "title": "Run shadow reconciliation and prepare cutover evidence",

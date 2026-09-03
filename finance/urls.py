@@ -6,6 +6,13 @@ app_name = "finance"
 
 urlpatterns = [
     path("", views.workspace, name="workspace"),
+    path("discovery/", views.discovery_workspace, name="discovery_workspace"),
+    path("discovery/new/", views.discovery_decision_create, name="discovery_decision_create"),
+    path("discovery/<uuid:public_id>/", views.discovery_decision_detail, name="discovery_decision_detail"),
+    path("discovery/<uuid:public_id>/edit/", views.discovery_decision_edit, name="discovery_decision_edit"),
+    path("discovery/<uuid:public_id>/successor/", views.discovery_decision_successor, name="discovery_decision_successor"),
+    path("discovery/<uuid:public_id>/export/", views.discovery_decision_export, name="discovery_decision_export"),
+    path("discovery/<uuid:public_id>/<slug:action>/", views.discovery_decision_action, name="discovery_decision_action"),
     path("releases/new/", views.release_create, name="release_create"),
     path("releases/<int:pk>/", views.release_detail, name="release_detail"),
     path("releases/<int:pk>/<slug:action>/", views.release_action, name="release_action"),

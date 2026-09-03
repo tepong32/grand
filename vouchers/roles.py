@@ -191,6 +191,7 @@ FINANCE_ROLE_PERMISSIONS = {
     ),
     "Finance Configuration Manager": (
         "finance.view_finance_setup",
+        "finance.manage_finance_discovery",
         "finance.manage_finance_configuration",
         "finance.manage_finance_templates",
         "finance.manage_finance_providers",

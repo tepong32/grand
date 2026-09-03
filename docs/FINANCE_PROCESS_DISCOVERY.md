@@ -4,7 +4,7 @@ Use this protocol before treating GRAND Finance as an accurate replacement for t
 
 The canonical delivery scope and acceptance gates are in the [GRAND Finance complete-cycle roadmap](FINANCE_ROADMAP.md). Discovery supplies the LGU-confirmed evidence needed to move those gates from assumption to accepted behavior.
 
-Use the repository-safe [Finance evidence register and interview kit](finance-discovery/README.md) to run this protocol. It supplies the evidence register, interview cover sheet and prompts, transaction catalog, role/signature matrix, actual-step and replay worksheets, unresolved-decision log, and redaction checklist. The templates structure fieldwork; completed entries become requirements only when their evidence and named-office acceptance support that status.
+Use the repository-safe [Finance evidence register and interview kit](finance-discovery/README.md) to run this protocol. It supplies the evidence register, interview cover sheet and prompts, transaction catalog, role/signature matrix, actual-step and replay worksheets, unresolved-decision log, and redaction checklist. Use the [in-app decisions and evidence register](FINANCE_DISCOVERY_DECISIONS.md) to assign owners and independent reviewers, retain exact-scope decisions, and link them to a cutover candidate. The templates structure fieldwork; completed or recorded entries become requirements only when their evidence and named-office acceptance support that status.
 
 ## Evidence rules
 
@@ -102,6 +102,8 @@ For every business action and physical handoff, ask:
 
 Prefer demonstration with the selected evidence over recollection. Record disagreements as Unresolved; do not silently choose one participant's account.
 
+In GRAND, a recorded Unresolved decision remains blocked for only its stated affected scope. Draft or Returned records may be corrected directly; once recorded, changing evidence or authority requires a reasoned successor and independent review. An empty register is not evidence that discovery is complete.
+
 ## Actual-step record
 
 Create a row for every authority decision, balance movement, business action, system event, print, signature, and physical handoff.
@@ -156,5 +158,7 @@ A complete-cycle scope is understood only when:
 - every actual step has an Exact, Equivalent improvement, Partial, Missing, Extra, or Unknown comparison;
 - critical/high gaps have an accepted implementation or operational decision;
 - named Budget, Accounting, Treasury, requesting-office, IT, management, and audit stakeholders accept the map for the enabled scope.
+
+Before a linked shadow/parallel cycle can pass cutover readiness, record an independently reviewed LGU-confirmed F0 decision whose affected scope exactly matches that cycle's enabled scope, and clear every current linked scope blocker through retained evidence and a reviewed successor.
 
 Do not claim full eGAPS equivalence until all enabled transaction types and period-end outputs satisfy the relevant roadmap exit gates.

@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title_ext %} · {{ title }}{% endblock %}
+{% block content %}
+<div class="container pb-4">
+  <a class="small" href="{% if item %}{% url 'finance:discovery_decision_detail' item.public_id %}{% else %}{% url 'finance:discovery_workspace' %}{% endif %}">&larr; Cancel</a>
+  <h1 class="h3 mt-2">{{ title }}</h1>
+  <div class="alert alert-light border">{{ guidance }}</div>
+  <form method="post" class="card card-body">{% csrf_token %}{{ form.as_p }}<div><button class="btn btn-primary">Save draft</button></div></form>
+</div>
+{% endblock %}

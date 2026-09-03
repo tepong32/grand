@@ -62,6 +62,60 @@ def can_authorize_finance_cutover(user, department=None):
     return _in_department(user, department) and _explicit_permission(user, "finance.authorize_finance_cutover")
 
 
+def can_manage_finance_discovery(user, department=None):
+    return _in_department(user, department) and _explicit_permission(user, "finance.manage_finance_discovery")
+
+
+def can_view_finance_discovery_decision(user, decision):
+    if not getattr(user, "is_authenticated", False) or not getattr(user, "is_active", False):
+        return False
+    if user.pk in {decision.owner_id, decision.reviewer_id}:
+        return True
+    return can_view_finance_setup(user, decision.department)
+
+
+def can_prepare_finance_discovery_decision(user, decision):
+    return bool(
+        can_manage_finance_discovery(user, decision.department)
+        or user.pk == decision.owner_id
+    )
+
+
+def can_review_finance_discovery_decision(user, decision):
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and getattr(user, "is_active", False)
+        and user.pk == decision.reviewer_id
+        and user.pk not in {decision.owner_id, decision.created_by_id, decision.submitted_by_id}
+    )
+
+
+def can_view_finance_discovery_workspace(user):
+    if not getattr(user, "is_authenticated", False) or not getattr(user, "is_active", False):
+        return False
+    if user.owned_finance_discovery_decisions.exists() or user.assigned_finance_discovery_reviews.exists():
+        return True
+    department = department_for_user(user)
+    return bool(
+        department
+        and (
+            can_view_finance_setup(user, department)
+            or can_manage_finance_discovery(user, department)
+        )
+    )
+
+
+def discovery_access_required(view):
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect_to_login(request.get_full_path())
+        if not can_view_finance_discovery_workspace(request.user):
+            raise PermissionDenied
+        return view(request, *args, **kwargs)
+    return wrapper
+
+
 def can_view_shadow_cycle(user, cycle):
     from vouchers.roles import is_finance_uat_viewer
 

@@ -76,6 +76,13 @@ def build_field_acceptance_board(cycle):
     qualification_rows = list(qualification_plan.cycle_evidence.all()) if qualification_plan else []
     stakeholders = list(cycle.stakeholder_acceptances.all())
     decision = FinanceCutoverDecision.objects.filter(cycle=cycle).first()
+    discovery_decisions = cycle.discovery_decisions.exclude(
+        status="superseded",
+    )
+    discovery_decision_count = discovery_decisions.count()
+    discovery_blocking_count = discovery_decisions.filter(
+        blocks_affected_scope=True,
+    ).count()
 
     plans_passed = bool(
         reconciliation_plan
@@ -232,6 +239,8 @@ def build_field_acceptance_board(cycle):
         "authorized": bool(decision and decision.status == FinanceCutoverDecision.AUTHORIZED),
         "decision": decision,
         "decision_status": decision.status if decision else "not_prepared",
+        "discovery_decision_count": discovery_decision_count,
+        "discovery_blocking_count": discovery_blocking_count,
     }
 
 
@@ -251,6 +260,8 @@ def export_field_acceptance_board(cycle, actor):
             "current_evidence",
             "next_action",
             "grand_authorized",
+            "linked_discovery_decisions",
+            "linked_scope_blockers",
         )
     )
     for milestone in board["milestones"]:
@@ -266,6 +277,8 @@ def export_field_acceptance_board(cycle, actor):
                 milestone["evidence"],
                 milestone["next_action"],
                 "yes" if board["authorized"] else "no",
+                board["discovery_decision_count"],
+                board["discovery_blocking_count"],
             )
         )
     content = "\ufeff".encode("utf-8") + stream.getvalue().encode("utf-8")
@@ -282,6 +295,8 @@ def export_field_acceptance_board(cycle, actor):
             "accepted_checkpoints": board["accepted_count"],
             "total_checkpoints": board["total_count"],
             "grand_authorized": board["authorized"],
+            "linked_discovery_decisions": board["discovery_decision_count"],
+            "linked_scope_blockers": board["discovery_blocking_count"],
         },
     )
     FinanceAuditEvent.objects.create(

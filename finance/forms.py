@@ -13,6 +13,7 @@ from .models import (
     FinanceCutoverReadinessExercise, FinanceCutoverReadinessPlan,
     FinanceRecoveryRehearsalEvidence,
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceDocumentRule, FinanceNumberingSequence,
+    FinanceDiscoveryDecision,
     FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
     FinanceShadowComparison, FinanceShadowCycle, FinanceShadowDefect,
     FinanceShadowReconciliationPlan, FinanceSignatory, FinanceStakeholderAcceptance,
@@ -31,6 +32,64 @@ class FinanceReleaseForm(forms.ModelForm):
         model = FinanceConfigurationRelease
         fields = ("code", "version", "title", "fiscal_year", "effective_from", "effective_to")
         widgets = {"effective_from": DateInput(), "effective_to": DateInput()}
+
+
+class FinanceDiscoveryDecisionForm(forms.ModelForm):
+    class Meta:
+        model = FinanceDiscoveryDecision
+        fields = (
+            "cycle", "code", "phase", "question", "proposed_outcome",
+            "affected_scope", "evidence_label", "authority_evidence_reference",
+            "evidence_needed", "evidence_custody_reference", "blocks_affected_scope",
+            "owner", "reviewer", "due_date", "change_reason",
+        )
+        widgets = {
+            "question": forms.Textarea(attrs={"rows": 2}),
+            "proposed_outcome": forms.Textarea(attrs={"rows": 4}),
+            "affected_scope": forms.Textarea(attrs={"rows": 3}),
+            "authority_evidence_reference": forms.Textarea(attrs={"rows": 3}),
+            "evidence_needed": forms.Textarea(attrs={"rows": 3}),
+            "evidence_custody_reference": forms.Textarea(attrs={"rows": 2}),
+            "due_date": DateInput(),
+            "change_reason": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, department=None, successor_of=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        users = get_user_model().objects.filter(
+            is_active=True, employeeprofile__assigned_department__isnull=False,
+        ).order_by("last_name", "first_name", "username")
+        self.fields["owner"].queryset = users
+        self.fields["reviewer"].queryset = users
+        if department:
+            self.fields["cycle"].queryset = FinanceShadowCycle.objects.filter(
+                department=department,
+            ).order_by("-fiscal_year", "-planned_start", "code")
+        if successor_of:
+            self.fields["cycle"].disabled = True
+            self.fields.pop("code")
+        elif not getattr(self.instance, "predecessor_id", None):
+            self.fields.pop("change_reason")
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("evidence_label") != FinanceDiscoveryDecision.UNRESOLVED:
+            if not str(cleaned.get("authority_evidence_reference") or "").strip():
+                self.add_error(
+                    "authority_evidence_reference",
+                    "Reference the reviewed evidence before applying a non-Unresolved label.",
+                )
+            if not str(cleaned.get("evidence_custody_reference") or "").strip():
+                self.add_error(
+                    "evidence_custody_reference",
+                    "State where the reviewed evidence is retained.",
+                )
+        if cleaned.get("evidence_label") == FinanceDiscoveryDecision.UNRESOLVED and not cleaned.get("blocks_affected_scope"):
+            self.add_error(
+                "blocks_affected_scope",
+                "An unresolved decision must keep its named affected scope blocked.",
+            )
+        return cleaned
 
 
 class FinanceItemForm(forms.ModelForm):

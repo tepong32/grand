@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Finance Decisions & Evidence{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div>{% if can_access_setup %}<a class="small" href="{% url 'finance:workspace' %}">&larr; Finance Setup Center</a>{% endif %}<h1 class="h3 mt-1 mb-1">Finance Decisions &amp; Evidence</h1><p class="text-muted mb-0">Keep missing authority and disagreements visible. Clear only the scope the evidence actually supports.</p></div>
+    {% if can_create %}<a class="btn btn-primary mt-2" href="{% url 'finance:discovery_decision_create' %}"><i class="fas fa-plus mr-1"></i> Add finding or decision</a>{% endif %}
+  </div>
+  <div class="alert alert-info"><strong>Five labels, five different meanings.</strong> Observed in eGAPS, Official reference, LGU-confirmed, GRAND-implemented, and Unresolved are not interchangeable. An independently recorded Unresolved row remains a blocker for only its written affected scope.</div>
+  <div class="card card-body">
+    <form method="get" class="form-row align-items-end">
+      <div class="col-md-4"><label for="phase">Phase</label><select class="form-control" id="phase" name="phase"><option value="">All phases</option>{% for value,label in phase_choices %}<option value="{{ value }}"{% if selected_phase == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div class="col-md-4 mt-2 mt-md-0"><label for="status">Workflow state</label><select class="form-control" id="status" name="status"><option value="">All states</option>{% for value,label in status_choices %}<option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div class="col-md-4 mt-2 mt-md-0"><button class="btn btn-outline-primary">Apply</button> <a class="btn btn-link" href="{% url 'finance:discovery_workspace' %}">Clear</a></div>
+    </form>
+  </div>
+  <div class="d-flex mb-2"><span class="small text-muted">{{ decisions|length }} visible record{{ decisions|length|pluralize }} · {{ blocking_count }} current affected-scope blocker{{ blocking_count|pluralize }}</span></div>
+  <div class="card"><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0">
+    <thead><tr><th>Decision</th><th>Question / affected scope</th><th>Evidence label</th><th>Owner → reviewer</th><th>Status</th></tr></thead>
+    <tbody>{% for item in decisions %}<tr>
+      <td><a class="font-weight-bold" href="{% url 'finance:discovery_decision_detail' item.public_id %}">{{ item.code }} v{{ item.version }}</a><div class="small text-muted">{{ item.phase }}{% if item.cycle %} · {{ item.cycle.code }}{% endif %}</div></td>
+      <td>{{ item.question }}<div class="small text-muted mt-1">{{ item.affected_scope }}</div>{% if item.is_current_blocker %}<div class="small text-danger"><strong>Only this scope is blocked.</strong></div>{% endif %}</td>
+      <td>{{ item.get_evidence_label_display }}</td>
+      <td class="small">{{ item.owner.get_full_name|default:item.owner.username }}<br><i class="fas fa-arrow-down text-muted"></i><br>{{ item.reviewer.get_full_name|default:item.reviewer.username }}</td>
+      <td><span class="badge badge-{% if item.status == 'recorded' %}success{% elif item.status == 'submitted' %}info{% elif item.status == 'returned' %}danger{% elif item.status == 'superseded' %}dark{% else %}secondary{% endif %}">{{ item.get_status_display }}</span>{% if item.due_date %}<div class="small text-muted mt-1">Review by {{ item.due_date|date:'M j, Y' }}</div>{% endif %}</td>
+    </tr>{% empty %}<tr><td colspan="5" class="text-center text-muted py-5">No Finance discovery decision is visible for this account and filter.</td></tr>{% endfor %}</tbody>
+  </table></div></div></div>
+</div>
+{% endblock %}

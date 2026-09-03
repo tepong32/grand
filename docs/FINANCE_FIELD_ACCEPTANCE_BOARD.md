@@ -4,7 +4,7 @@ Status: **F11.8 coordination layer implemented; actual LGU field evidence and th
 
 ## Purpose
 
-The Field Acceptance Board gives Finance and assigned office reviewers one readable view of the remaining local transition work. It does not create another approval checklist. Every status is calculated from the governed F10/F11 records already maintained in the selected shadow or parallel cycle.
+The Field Acceptance Board gives Finance and assigned office reviewers one readable view of the remaining local transition work. It does not create another approval checklist. Every status is calculated from the governed F10/F11 records already maintained in the selected shadow or parallel cycle. Linked F0.2 discovery decisions and exact-scope blockers are shown above the board without inflating the ten-checkpoint percentage.
 
 The board groups those records into ten practical checkpoints:
 
@@ -29,11 +29,13 @@ Personal Internal How-To checkmarks remain private resume aids. They do not feed
 
 GRAND is authoritative only when the selected cycle has a separately prepared, independently authorized cutover decision for its exact scope and date. A ready board without that decision remains **Shadow/UAT only**.
 
+The cutover-readiness calculation also requires a current, independently recorded LGU-confirmed F0 decision whose affected scope exactly matches the cycle's enabled scope, with no current linked blocker. No linked entry is not treated as discovery acceptance evidence.
+
 ## Access and portable export
 
 A Finance shadow-operation user sees cycles owned by their department. A requesting-office or other stakeholder sees only cycles explicitly assigned to their account. Supplying another cycle ID does not broaden access.
 
-The CSV export contains the selected cycle, exact enabled scope, each checkpoint state, current evidence summary, next action, and current authority flag. The browser download bytes are archived atomically under:
+The CSV export contains the selected cycle, exact enabled scope, linked discovery-decision/blocker counts, each checkpoint state, current evidence summary, next action, and current authority flag. The browser download bytes are archived atomically under:
 
 `department/user/finance-field-acceptance/year/month`
 

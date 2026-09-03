@@ -930,6 +930,188 @@ class FinanceAuditEvent(models.Model):
         raise ValidationError("Finance audit events cannot be deleted.")
 
 
+class FinanceDiscoveryDecision(models.Model):
+    PHASE_CHOICES = tuple((f"F{number}", f"F{number}") for number in range(12))
+    OBSERVED_EGAPS = "observed_egaps"
+    OFFICIAL_REFERENCE = "official_reference"
+    LGU_CONFIRMED = "lgu_confirmed"
+    GRAND_IMPLEMENTED = "grand_implemented"
+    UNRESOLVED = "unresolved"
+    EVIDENCE_LABEL_CHOICES = (
+        (OBSERVED_EGAPS, "Observed in eGAPS"),
+        (OFFICIAL_REFERENCE, "Official reference"),
+        (LGU_CONFIRMED, "LGU-confirmed"),
+        (GRAND_IMPLEMENTED, "GRAND-implemented"),
+        (UNRESOLVED, "Unresolved"),
+    )
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    RECORDED = "recorded"
+    RETURNED = "returned"
+    SUPERSEDED = "superseded"
+    STATUS_CHOICES = (
+        (DRAFT, "Draft finding / decision"),
+        (SUBMITTED, "Awaiting named reviewer"),
+        (RECORDED, "Independently recorded"),
+        (RETURNED, "Returned for correction"),
+        (SUPERSEDED, "Superseded by recorded successor"),
+    )
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, related_name="finance_discovery_decisions",
+    )
+    cycle = models.ForeignKey(
+        "FinanceShadowCycle", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="discovery_decisions",
+        help_text="Optional: link this decision to the exact shadow/cutover cycle it affects.",
+    )
+    code = models.CharField(max_length=40, help_text="Use a stable local reference such as DEC-001.")
+    version = models.PositiveIntegerField(default=1)
+    phase = models.CharField(max_length=4, choices=PHASE_CHOICES, default="F0")
+    question = models.CharField(max_length=240)
+    proposed_outcome = models.TextField(
+        help_text="State the proposed answer or explain why the affected scope must remain unresolved.",
+    )
+    affected_scope = models.TextField(
+        help_text="Name only the transaction type, office, year, form, output, or action affected by this decision.",
+    )
+    evidence_label = models.CharField(
+        max_length=24, choices=EVIDENCE_LABEL_CHOICES, default=UNRESOLVED,
+    )
+    authority_evidence_reference = models.TextField(
+        blank=True,
+        help_text="Reference the reviewed issuance, approved local record, observation, or implementation evidence; do not paste confidential content.",
+    )
+    evidence_needed = models.TextField(
+        help_text="Describe the exact evidence or accountable decision still needed, or state why the supplied evidence is sufficient.",
+    )
+    evidence_custody_reference = models.TextField(
+        blank=True,
+        help_text="State where the protected evidence is retained without entering credentials or a secret-bearing link.",
+    )
+    blocks_affected_scope = models.BooleanField(
+        default=True,
+        help_text="Keep selected while this decision prevents only the affected scope from proceeding.",
+    )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="owned_finance_discovery_decisions",
+    )
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="assigned_finance_discovery_reviews",
+    )
+    due_date = models.DateField(null=True, blank=True)
+    predecessor = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="successor", help_text="Recorded decision replaced by this version.",
+    )
+    change_reason = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    evidence_snapshot = models.JSONField(default=dict, blank=True)
+    evidence_checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_finance_discovery_decisions",
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="submitted_finance_discovery_decisions",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_finance_discovery_decisions",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("phase", "code", "-version")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("department", "code", "version"),
+                name="unique_finance_discovery_decision_version",
+            ),
+        )
+        permissions = (
+            ("manage_finance_discovery", "Can prepare Finance discovery findings and decisions"),
+        )
+
+    def __str__(self):
+        return f"{self.code} v{self.version}: {self.question}"
+
+    @property
+    def is_current_blocker(self):
+        return self.status != self.SUPERSEDED and self.blocks_affected_scope
+
+    def clean(self):
+        self.code = str(self.code or "").strip().upper()
+        if not self.code:
+            raise ValidationError({"code": "Enter a stable local decision reference."})
+        if self.owner_id and self.reviewer_id and self.owner_id == self.reviewer_id:
+            raise ValidationError({"reviewer": "Choose a reviewer other than the decision owner."})
+        if self.created_by_id and self.reviewer_id and self.created_by_id == self.reviewer_id:
+            raise ValidationError({"reviewer": "Choose a reviewer other than the person who created this draft."})
+        if self.owner_id and not self.owner.is_active:
+            raise ValidationError({"owner": "Choose an active decision owner."})
+        if self.reviewer_id and not self.reviewer.is_active:
+            raise ValidationError({"reviewer": "Choose an active reviewer."})
+        if self.evidence_label == self.UNRESOLVED and not self.blocks_affected_scope:
+            raise ValidationError({"blocks_affected_scope": "An unresolved decision must block only its named affected scope."})
+        if self.status in {self.SUBMITTED, self.RECORDED, self.SUPERSEDED} and self.evidence_label != self.UNRESOLVED:
+            if not self.authority_evidence_reference.strip() or not self.evidence_custody_reference.strip():
+                raise ValidationError("A non-Unresolved submitted decision requires its evidence reference and custody location.")
+        if self.cycle_id and self.department_id and self.cycle.department_id != self.department_id:
+            raise ValidationError({"cycle": "Choose a cycle owned by the same Finance department."})
+        if self.predecessor_id:
+            if self.predecessor.department_id != self.department_id:
+                raise ValidationError({"predecessor": "The predecessor must belong to the same Finance department."})
+            if self.predecessor.code != self.code or self.version != self.predecessor.version + 1:
+                raise ValidationError({"predecessor": "A successor keeps the same code and uses the next version number."})
+            if self.predecessor.status not in {self.RECORDED, self.SUPERSEDED}:
+                raise ValidationError({"predecessor": "Only an independently recorded decision can have a successor."})
+            if not self.change_reason.strip():
+                raise ValidationError({"change_reason": "Explain why the recorded decision needs a successor."})
+        if self.evidence_checksum and (
+            len(self.evidence_checksum) != 64
+            or any(character not in "0123456789abcdef" for character in self.evidence_checksum.lower())
+        ):
+            raise ValidationError({"evidence_checksum": "The evidence lock must be a 64-character SHA-256 value."})
+        if self.status in {self.RECORDED, self.SUPERSEDED}:
+            if not self.reviewed_by_id or not self.reviewed_at or not self.review_note.strip():
+                raise ValidationError("A recorded decision requires its named reviewer, date, and decision basis.")
+            if not self.evidence_snapshot or not self.evidence_checksum:
+                raise ValidationError("A recorded decision requires its submitted evidence snapshot and checksum.")
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.status in {self.SUBMITTED, self.RECORDED, self.SUPERSEDED}:
+                governed = (
+                    "department_id", "cycle_id", "code", "version", "phase", "question",
+                    "proposed_outcome", "affected_scope", "evidence_label",
+                    "authority_evidence_reference", "evidence_needed", "evidence_custody_reference",
+                    "blocks_affected_scope", "owner_id", "reviewer_id", "due_date",
+                    "predecessor_id", "change_reason", "evidence_snapshot", "evidence_checksum",
+                    "submitted_by_id", "submitted_at",
+                )
+                if any(getattr(prior, field) != getattr(self, field) for field in governed):
+                    raise ValidationError(
+                        "Submitted or recorded decision evidence is immutable. Return it before correction or create a successor."
+                    )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status != self.DRAFT:
+            raise ValidationError("Only an unsubmitted draft discovery decision can be deleted.")
+        return super().delete(*args, **kwargs)
+
+
 class FinanceShadowCycle(models.Model):
     DRAFT = "draft"
     RUNNING = "running"

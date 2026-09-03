@@ -9,7 +9,10 @@ from django.utils.text import slugify
 from .access import (
     can_authorize_finance_cutover, can_manage_shadow_operation, can_review_shadow_reconciliation,
     can_approve_finance_configuration, can_manage_finance_configuration,
-    can_manage_finance_templates, can_view_shadow_cycle, department_for_user, finance_access_required,
+    can_manage_finance_discovery, can_manage_finance_templates,
+    can_prepare_finance_discovery_decision, can_review_finance_discovery_decision,
+    can_view_finance_discovery_decision, can_view_finance_setup, can_view_shadow_cycle,
+    department_for_user, discovery_access_required, finance_access_required,
     finance_permission_required, shadow_access_required,
 )
 from .cutover_services import (
@@ -27,9 +30,13 @@ from .cutover_services import (
     submit_shadow_defect_resolution,
 )
 from .acceptance_services import build_field_acceptance_board, export_field_acceptance_board
+from .discovery_services import (
+    export_discovery_decision, review_discovery_decision, submit_discovery_decision,
+)
 from .forms import (
     FinanceCutoverDecisionForm,
-    FinanceDocumentRuleForm, FinanceItemForm, FinanceNumberingSequenceForm, FinanceReleaseForm,
+    FinanceDiscoveryDecisionForm, FinanceDocumentRuleForm, FinanceItemForm,
+    FinanceNumberingSequenceForm, FinanceReleaseForm,
     FinancePartyClaimantForm, FinancePartyForm, FinancePostingRuleForm, FinancePostingRuleLineForm,
     FinanceShadowComparisonForm, FinanceShadowCycleForm, FinanceShadowDriftReviewForm,
     FinanceShadowDefectForm, FinanceShadowDefectResolutionForm, FinanceShadowExternalLockForm,
@@ -43,10 +50,11 @@ from .forms import (
     FinanceTemplateForm, FinanceStarterTemplateForm, FinanceTaxRuleForm, FinanceTransactionVariantForm,
 )
 from .models import (
-    FinanceConfigurationRelease, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
+    FinanceAuditEvent, FinanceConfigurationRelease, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
     FinanceCutoverQualificationEvidence, FinanceCutoverQualificationForm,
     FinanceCutoverQualificationPlan,
-    FinanceCutoverReadinessPlan, FinanceParty, FinanceRecoveryRehearsalEvidence, FinanceShadowCycle,
+    FinanceCutoverReadinessPlan, FinanceDiscoveryDecision, FinanceParty,
+    FinanceRecoveryRehearsalEvidence, FinanceShadowCycle,
     FinanceShadowDefect, FinanceShadowReconciliationPlan, FinanceShadowReconciliationRun,
     FinanceShadowSourceVersion,
     FinanceStakeholderAcceptance, FinanceTemplateVersion, FinanceTransactionVariant,
@@ -883,6 +891,232 @@ def cutover_readiness_exercise_result(request, pk):
             else "Record observable results and retained redacted evidence. The assigned independent witness decides pass or rerun."
         ),
     })
+
+
+def _visible_discovery_decisions(user):
+    query = Q(owner=user) | Q(reviewer=user)
+    department = department_for_user(user)
+    if department and (
+        can_view_finance_setup(user, department)
+        or can_manage_finance_discovery(user, department)
+    ):
+        query |= Q(department=department)
+    return FinanceDiscoveryDecision.objects.filter(query).select_related(
+        "department", "cycle", "owner", "reviewer", "created_by", "submitted_by",
+        "reviewed_by", "predecessor",
+    ).distinct()
+
+
+def _discovery_decision_for_user(user, public_id):
+    item = get_object_or_404(_visible_discovery_decisions(user), public_id=public_id)
+    if not can_view_finance_discovery_decision(user, item):
+        raise PermissionDenied
+    return item
+
+
+@discovery_access_required
+def discovery_workspace(request):
+    decisions = _visible_discovery_decisions(request.user)
+    selected_phase = request.GET.get("phase", "")
+    selected_status = request.GET.get("status", "")
+    if selected_phase in dict(FinanceDiscoveryDecision.PHASE_CHOICES):
+        decisions = decisions.filter(phase=selected_phase)
+    else:
+        selected_phase = ""
+    if selected_status in dict(FinanceDiscoveryDecision.STATUS_CHOICES):
+        decisions = decisions.filter(status=selected_status)
+    else:
+        selected_status = ""
+    department = department_for_user(request.user)
+    can_create = can_manage_finance_discovery(request.user, department)
+    visible = list(decisions)
+    return render(request, "finance/discovery_workspace.html", {
+        "decisions": visible,
+        "selected_phase": selected_phase,
+        "selected_status": selected_status,
+        "phase_choices": FinanceDiscoveryDecision.PHASE_CHOICES,
+        "status_choices": FinanceDiscoveryDecision.STATUS_CHOICES,
+        "can_create": can_create,
+        "can_access_setup": bool(department and can_view_finance_setup(request.user, department)),
+        "blocking_count": sum(item.is_current_blocker for item in visible),
+    })
+
+
+@finance_permission_required(can_manage_finance_discovery)
+def discovery_decision_create(request):
+    department = department_for_user(request.user)
+    form = FinanceDiscoveryDecisionForm(request.POST or None, department=department)
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.department = department
+        item.code = item.code.strip().upper()
+        item.version = 1
+        item.created_by = request.user
+        if FinanceDiscoveryDecision.objects.filter(
+            department=department, code=item.code, version=1,
+        ).exists():
+            form.add_error("code", "This decision code already exists. Open its recorded version and create a successor.")
+        else:
+            item.save()
+            FinanceAuditEvent.objects.create(
+                department=department,
+                target_type="financediscoverydecision",
+                target_id=str(item.pk),
+                action="discovery_decision_created",
+                actor=request.user,
+                snapshot={
+                    "public_id": str(item.public_id), "code": item.code,
+                    "version": item.version, "phase": item.phase,
+                    "affected_scope": item.affected_scope,
+                    "blocks_affected_scope": item.blocks_affected_scope,
+                },
+            )
+            messages.success(request, "Draft Finance finding/decision created. It has not been independently recorded.")
+            return redirect("finance:discovery_decision_detail", public_id=item.public_id)
+    return render(request, "finance/discovery_form.html", {
+        "form": form,
+        "title": "Add Finance finding or decision",
+        "guidance": "Name only the affected scope. Public guidance, current-system observation, local confirmation, and GRAND implementation are different evidence labels; use Unresolved when authority or agreement is missing.",
+    })
+
+
+@discovery_access_required
+def discovery_decision_detail(request, public_id):
+    item = _discovery_decision_for_user(request.user, public_id)
+    return render(request, "finance/discovery_decision_detail.html", {
+        "item": item,
+        "can_prepare": can_prepare_finance_discovery_decision(request.user, item),
+        "can_review": can_review_finance_discovery_decision(request.user, item),
+    })
+
+
+@discovery_access_required
+def discovery_decision_edit(request, public_id):
+    item = _discovery_decision_for_user(request.user, public_id)
+    if not can_prepare_finance_discovery_decision(request.user, item):
+        raise PermissionDenied
+    if item.status not in {FinanceDiscoveryDecision.DRAFT, FinanceDiscoveryDecision.RETURNED}:
+        return redirect("finance:discovery_decision_detail", public_id=item.public_id)
+    form = FinanceDiscoveryDecisionForm(request.POST or None, instance=item, department=item.department)
+    if request.method == "POST" and form.is_valid():
+        item = form.save()
+        FinanceAuditEvent.objects.create(
+            department=item.department,
+            target_type="financediscoverydecision",
+            target_id=str(item.pk),
+            action="discovery_decision_draft_updated",
+            actor=request.user,
+            snapshot={
+                "code": item.code, "version": item.version, "phase": item.phase,
+                "affected_scope": item.affected_scope,
+                "blocks_affected_scope": item.blocks_affected_scope,
+            },
+        )
+        messages.success(request, "Draft decision updated. Submit it again for the named review when ready.")
+        return redirect("finance:discovery_decision_detail", public_id=item.public_id)
+    return render(request, "finance/discovery_form.html", {
+        "form": form,
+        "title": f"Edit {item.code} v{item.version}",
+        "guidance": "Corrections are allowed while Draft or Returned. Once independently recorded, use a reasoned successor instead of rewriting this evidence.",
+        "item": item,
+    })
+
+
+@discovery_access_required
+def discovery_decision_successor(request, public_id):
+    predecessor = _discovery_decision_for_user(request.user, public_id)
+    if not can_prepare_finance_discovery_decision(request.user, predecessor):
+        raise PermissionDenied
+    if predecessor.status != FinanceDiscoveryDecision.RECORDED:
+        messages.error(request, "Only the current independently recorded decision can have a successor.")
+        return redirect("finance:discovery_decision_detail", public_id=predecessor.public_id)
+    if hasattr(predecessor, "successor"):
+        return redirect("finance:discovery_decision_detail", public_id=predecessor.successor.public_id)
+    instance = FinanceDiscoveryDecision(
+        department=predecessor.department,
+        cycle=predecessor.cycle,
+        code=predecessor.code,
+        version=predecessor.version + 1,
+        phase=predecessor.phase,
+        question=predecessor.question,
+        proposed_outcome=predecessor.proposed_outcome,
+        affected_scope=predecessor.affected_scope,
+        evidence_label=predecessor.evidence_label,
+        authority_evidence_reference=predecessor.authority_evidence_reference,
+        evidence_needed=predecessor.evidence_needed,
+        evidence_custody_reference=predecessor.evidence_custody_reference,
+        blocks_affected_scope=predecessor.blocks_affected_scope,
+        owner=predecessor.owner,
+        reviewer=predecessor.reviewer,
+        due_date=predecessor.due_date,
+        predecessor=predecessor,
+        created_by=request.user,
+    )
+    form = FinanceDiscoveryDecisionForm(
+        request.POST or None, instance=instance, department=predecessor.department,
+        successor_of=predecessor,
+    )
+    if request.method == "POST" and form.is_valid():
+        item = form.save(False)
+        item.department = predecessor.department
+        item.code = predecessor.code
+        item.version = predecessor.version + 1
+        item.predecessor = predecessor
+        item.created_by = request.user
+        item.save()
+        FinanceAuditEvent.objects.create(
+            department=item.department,
+            target_type="financediscoverydecision",
+            target_id=str(item.pk),
+            action="discovery_decision_successor_created",
+            actor=request.user,
+            reason=item.change_reason,
+            snapshot={
+                "code": item.code, "version": item.version,
+                "predecessor_id": predecessor.pk,
+                "predecessor_checksum": predecessor.evidence_checksum,
+            },
+        )
+        messages.success(request, "Draft successor created. The recorded predecessor remains current until this version is independently recorded.")
+        return redirect("finance:discovery_decision_detail", public_id=item.public_id)
+    return render(request, "finance/discovery_form.html", {
+        "form": form,
+        "title": f"Create successor for {predecessor.code} v{predecessor.version}",
+        "guidance": "Explain the changed evidence, authority, or operating need. The earlier decision remains intact and current until a different named reviewer records this successor.",
+        "item": predecessor,
+    })
+
+
+@discovery_access_required
+def discovery_decision_action(request, public_id, action):
+    if request.method != "POST":
+        raise Http404
+    item = _discovery_decision_for_user(request.user, public_id)
+    try:
+        if action == "submit":
+            submit_discovery_decision(item, request.user)
+        elif action == "record":
+            review_discovery_decision(item, request.user, record=True, reason=request.POST.get("reason", ""))
+        elif action == "return":
+            review_discovery_decision(item, request.user, record=False, reason=request.POST.get("reason", ""))
+        else:
+            raise Http404
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.success(request, f"Decision action '{action}' recorded in append-only Finance audit history.")
+    return redirect("finance:discovery_decision_detail", public_id=item.public_id)
+
+
+@discovery_access_required
+def discovery_decision_export(request, public_id):
+    item = _discovery_decision_for_user(request.user, public_id)
+    content, filename, receipt = export_discovery_decision(item, request.user)
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Archive-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Archive-Path"] = receipt["relative_path"]
+    return response
 
 
 def _field_acceptance_cycle(user, raw_pk=None):

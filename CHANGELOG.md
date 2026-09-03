@@ -1,5 +1,14 @@
 # Changelog
 
+## F0.2 governed Finance decisions and evidence register
+
+- Added a plain-language, department-bounded Decisions & evidence workspace using distinct Observed in eGAPS, Official reference, LGU-confirmed, GRAND-implemented, and Unresolved labels.
+- Added named cross-office owners and independent reviewers, locked submission snapshots/checksums, reason-required record/return actions, and append-only Finance audit events.
+- Kept Draft and Returned records editable, made recorded evidence immutable, and added reasoned successor versions that preserve their predecessor until independently recorded.
+- Made recorded Unresolved findings remain blockers for only their named affected scope, and required an exact-scope recorded LGU-confirmed F0 decision with no current linked blocker before cutover readiness can pass.
+- Added role-bounded detail and CSV export, TraceSync archive manifests, linked blocker visibility on the Field Acceptance Board, an Accounting-specific floating Internal How-To, and schema-v8 cutover evidence containing decision lineage without protected evidence bytes.
+- Added lifecycle, UI, access, correction, export, and cutover-gate coverage; all 44 Finance tests and all 393 project tests passed across both routed databases, with clean system and migration-drift checks, while actual LGU evidence and parent-F0 acceptance remain open.
+
 ## Finance roadmap-wide validation and field handoff
 
 - Audited F0–F11 software evidence against every parent-phase exit gate instead of treating implemented screens or synthetic tests as local acceptance.
