@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils.text import slugify
 
 from accounting.models import FiscalYear, Fund, LedgerAccount, ProgramActivityProject, ResponsibilityCenter
 from departments.models import Department
@@ -241,6 +242,134 @@ class AnnualBudgetPreparationTests(TestCase):
             self.assertIn(b",no,", response.content)
             from pathlib import Path
             self.assertEqual(len(list(Path(directory).rglob("*.manifest.json"))), 1)
+
+    def test_annual_workspace_filters_versions_by_status_kind_and_next_action(self):
+        call = self.make_call(BudgetCall.PUBLISHED)
+        self.add_ceiling(call)
+        draft = self.make_version(call, 1)
+        review = self.make_version(call, 2)
+        review.status = BudgetVersion.FOR_REVIEW
+        review.save(update_fields=("status", "updated_at"))
+        BudgetCall.objects.create(
+            department_id=self.budget_office.pk,
+            department_label=self.budget_office.name,
+            fiscal_year=self.fiscal_year,
+            title="Second FY 2027 call",
+            authority_reference="Synthetic supplemental call basis",
+            instructions="Prove fiscal-year filtering remains unambiguous.",
+            proposal_opens_on=date(2026, 10, 1),
+            proposal_due_on=date(2026, 10, 31),
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+
+        self.client.force_login(self.reviewer)
+        response = self.client.get(reverse("budget:workspace"), {
+            "fiscal_year": self.fiscal_year.pk,
+            "kind": BudgetVersion.DEPARTMENT,
+            "attention": "awaiting_proposal_review",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, review.title)
+        self.assertNotContains(response, draft.title)
+        self.assertContains(response, "Independent reviewer: approve or return")
+        self.assertContains(response, "1 visible version")
+
+        response = self.client.get(reverse("budget:workspace"), {
+            "status": BudgetVersion.DRAFT,
+            "attention": "awaiting_proposal_review",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, draft.title)
+        self.assertNotContains(response, review.title)
+
+        other_year = FiscalYear.objects.create(
+            department_id=self.accounting_office.pk,
+            department_label=self.accounting_office.name,
+            year=2028,
+            label="FY 2028 outside Budget scope",
+            starts_on=date(2028, 1, 1),
+            ends_on=date(2028, 12, 31),
+            business_date=date(2028, 1, 1),
+            status=FiscalYear.APPROVED,
+        )
+        BudgetCall.objects.create(
+            department_id=self.other_office.pk,
+            department_label=self.other_office.name,
+            fiscal_year=other_year,
+            title="Other office FY 2028 call",
+            authority_reference="Synthetic other-office authority",
+            instructions="Not in the current Budget office.",
+            proposal_opens_on=date(2027, 8, 1),
+            proposal_due_on=date(2027, 9, 30),
+            created_by_id=self.outsider.pk,
+            created_by_label=self.outsider.username,
+        )
+        response = self.client.get(reverse("budget:workspace"), {"fiscal_year": other_year.pk})
+        self.assertEqual(response.status_code, 404)
+
+    def test_filtered_annual_register_archives_audits_and_preserves_authority_boundary(self):
+        call = self.make_call(BudgetCall.PUBLISHED)
+        self.add_ceiling(call)
+        self.make_version(call, 1)
+        version = BudgetVersion.objects.create(
+            department_id=self.budget_office.pk,
+            department_label=self.budget_office.name,
+            budget_call=call,
+            fiscal_year=self.fiscal_year,
+            kind=BudgetVersion.FINAL,
+            version=1,
+            title="=FY 2027 final awaiting authority",
+            change_explanation="Synthetic final version for filtered export.",
+            status=BudgetVersion.APPROVED,
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        self.add_line(version, "75000")
+        authorization = AppropriationAuthorization.objects.create(
+            department_id=self.budget_office.pk,
+            department_label=self.budget_office.name,
+            version=version,
+            authority_type=AppropriationAuthorization.ORDINANCE,
+            ordinance_number="Synthetic Ordinance 2026-TRIAGE",
+            ordinance_date=date(2026, 12, 15),
+            effectivity_date=date(2027, 1, 1),
+            review_status=AppropriationAuthorization.FAVORABLE,
+            review_reference="Synthetic favorable review",
+            review_date=date(2026, 12, 28),
+            evidence_reference="Synthetic signed references.",
+            signed_control_total=Decimal("75000"),
+            status=AppropriationAuthorization.FOR_REVIEW,
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+            submitted_by_id=self.preparer.pk,
+            submitted_by_label=self.preparer.username,
+        )
+
+        self.client.force_login(self.reviewer)
+        with tempfile.TemporaryDirectory() as directory, override_settings(GRAND_EXPORT_ROOT=directory):
+            response = self.client.get(reverse("budget:annual_register_export"), {
+                "fiscal_year": self.fiscal_year.pk,
+                "attention": "awaiting_authorization",
+            })
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+            exported = response.content.decode("utf-8-sig")
+            self.assertIn("'=FY 2027 final awaiting authority", exported)
+            self.assertIn("Independent authorizer: authorize or return", exported)
+            self.assertIn(authorization.ordinance_number, exported)
+            self.assertNotIn("GSO proposal v1", exported)
+            artifacts = list(Path(directory).rglob("*.csv"))
+            self.assertEqual(len(artifacts), 1)
+            self.assertIn(self.budget_office.slug, artifacts[0].parts)
+            self.assertIn(slugify(self.reviewer.username), artifacts[0].parts)
+            manifest = json.loads(Path(str(artifacts[0]) + ".manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["sha256"], response["X-GRAND-Export-SHA256"])
+            self.assertEqual(manifest["metadata"]["attention_filter"], "awaiting_authorization")
+            self.assertEqual(manifest["metadata"]["version_count"], 1)
+            event = BudgetAuditEvent.objects.get(action="annual_register_exported")
+            self.assertEqual(event.actor_id, self.reviewer.pk)
+            self.assertEqual(event.snapshot["sha256"], response["X-GRAND-Export-SHA256"])
 
     def test_final_version_requires_exact_independent_authorization_snapshot(self):
         call = self.make_call(BudgetCall.PUBLISHED)

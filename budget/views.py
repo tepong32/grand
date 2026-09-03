@@ -10,6 +10,8 @@ from django.views.decorators.http import require_GET, require_POST
 
 from src.export_archive import archive_export
 
+from accounting.models import FiscalYear
+
 from .access import budget_access_required, budget_permission_required, department_for_user, has_budget_permission
 from .forms import (
     AllotmentOrderLineForm, AllotmentReleaseOrderForm, AppropriationAuthorizationForm,
@@ -28,10 +30,20 @@ from .services import (
     transition_allotment_order, transition_authorization, transition_call, transition_version,
     transition_obligation_request,
 )
+from .annual_exports import (
+    ANNUAL_ATTENTION_CHOICES, apply_annual_filters, build_annual_register, next_annual_action,
+)
 
 
 def _message_error(request, exc):
     messages.error(request, " ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+
+
+def _csv_text(value):
+    value = str(value or "")
+    if value.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return "'" + value
+    return value
 
 
 def _obligation_scope(user):
@@ -55,9 +67,35 @@ def _require_obligation_permission(user, *codenames):
 def workspace(request):
     department = department_for_user(request.user)
     calls = BudgetCall.objects.filter(department_id=department.pk).prefetch_related("ceilings", "versions")
-    versions = BudgetVersion.objects.filter(department_id=department.pk).select_related("fiscal_year", "budget_call").prefetch_related("lines")[:40]
+    fiscal_year_id = request.GET.get("fiscal_year", "").strip()
+    fiscal_year = None
+    if fiscal_year_id:
+        fiscal_year = get_object_or_404(
+            FiscalYear.objects.filter(budget_calls__department_id=department.pk).distinct(),
+            pk=fiscal_year_id,
+        )
+    versions, selected_kind, selected_status, selected_attention = apply_annual_filters(
+        BudgetVersion.objects.filter(department_id=department.pk),
+        fiscal_year=fiscal_year,
+        kind=request.GET.get("kind", "").strip(),
+        status=request.GET.get("status", "").strip(),
+        attention=request.GET.get("attention", "").strip(),
+    )
+    versions = list(versions.select_related(
+        "fiscal_year", "budget_call", "appropriation_authorization",
+    ).prefetch_related("lines")[:100])
+    for version in versions:
+        version.next_action_label = next_annual_action(version)
     return render(request, "budget/workspace.html", {
         "department": department, "calls": calls, "versions": versions,
+        "fiscal_years": FiscalYear.objects.filter(budget_calls__department_id=department.pk).distinct().order_by("-year", "pk"),
+        "selected_fiscal_year": fiscal_year_id,
+        "selected_kind": selected_kind,
+        "selected_status": selected_status,
+        "selected_attention": selected_attention,
+        "kind_choices": BudgetVersion.KIND_CHOICES,
+        "status_choices": BudgetVersion.STATUS_CHOICES,
+        "attention_choices": ANNUAL_ATTENTION_CHOICES,
         "can_prepare_calls": has_budget_permission(request.user, "prepare_budget_calls"),
         "can_prepare_proposals": has_budget_permission(request.user, "prepare_budget_proposals"),
         "can_view_allotments": has_budget_permission(request.user, "view_allotment_control"),
@@ -65,6 +103,41 @@ def workspace(request):
             "view_obligation_registry", "initiate_obligation_requests", "certify_obligations",
         )),
     })
+
+
+@require_GET
+@budget_access_required
+def annual_register_export(request):
+    department = department_for_user(request.user)
+    fiscal_year_id = request.GET.get("fiscal_year", "").strip()
+    fiscal_year = None
+    if fiscal_year_id:
+        fiscal_year = get_object_or_404(
+            FiscalYear.objects.filter(budget_calls__department_id=department.pk).distinct(),
+            pk=fiscal_year_id,
+        )
+    versions, selected_kind, selected_status, selected_attention = apply_annual_filters(
+        BudgetVersion.objects.filter(department_id=department.pk),
+        fiscal_year=fiscal_year,
+        kind=request.GET.get("kind", "").strip(),
+        status=request.GET.get("status", "").strip(),
+        attention=request.GET.get("attention", "").strip(),
+    )
+    content, filename, receipt = build_annual_register(
+        department,
+        request.user,
+        versions,
+        fiscal_year=fiscal_year,
+        kind=selected_kind,
+        status=selected_status,
+        attention=selected_attention,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @budget_permission_required("prepare_budget_calls")
@@ -265,7 +338,7 @@ def version_export(request, public_id):
     writer = csv.writer(response)
     writer.writerow(("export_kind", "budget_office", "fiscal_year", "version_kind", "version_number", "version_status", "spendable_authority", "requesting_department", "fund", "responsibility_center", "ppa", "funding_source", "account", "expense_class", "appropriation_type", "particulars", "performance_target", "amount", "change_explanation"))
     for line in version.lines.select_related("fund", "responsibility_center", "program", "funding_source", "account"):
-        writer.writerow(("budget_proposal", version.department_label, version.fiscal_year.year, version.kind, version.version, version.status, "no" if not version.is_spendable_authority else "yes", version.requesting_department_label, line.fund.code, line.responsibility_center.code, line.program.code if line.program else "", line.funding_source.code if line.funding_source else "", line.account.code, line.expense_class, line.appropriation_type, line.particulars, line.performance_target, line.amount, line.change_explanation))
+        writer.writerow(tuple(_csv_text(value) for value in ("budget_proposal", version.department_label, version.fiscal_year.year, version.kind, version.version, version.status, "no" if not version.is_spendable_authority else "yes", version.requesting_department_label, line.fund.code, line.responsibility_center.code, line.program.code if line.program else "", line.funding_source.code if line.funding_source else "", line.account.code, line.expense_class, line.appropriation_type, line.particulars, line.performance_target, line.amount, line.change_explanation)))
     filename = f"budget-{slugify(version.title)}-v{version.version}.csv"
     archived = archive_export(content=response.content, department=department, user=request.user, category="finance-budget-proposals", filename=filename, metadata={"kind": "budget_proposal_export", "version_public_id": str(version.public_id), "status": version.status, "spendable_authority": version.is_spendable_authority, "official_status": "controlled data interchange; not automatically an official DBM/COA form"})
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
@@ -340,7 +413,7 @@ def authorization_export(request, public_id):
     writer = csv.writer(response)
     writer.writerow(("export_kind", "fiscal_year", "authority_type", "ordinance_number", "effectivity_date", "review_status", "review_reference", "snapshot_checksum", "fund", "responsibility_center", "ppa", "funding_source", "account", "expense_class", "appropriation_type", "particulars", "performance_target", "authorized_amount"))
     for line in item.schedule_lines.all():
-        writer.writerow(("authorized_appropriation_schedule", item.version.fiscal_year.year, item.authority_type, item.ordinance_number, item.effectivity_date, item.review_status, item.review_reference, item.snapshot_checksum, line.fund_code, line.responsibility_center_code, line.program_code, line.funding_source_code, line.account_code, line.expense_class, line.appropriation_type, line.particulars, line.performance_target, line.amount))
+        writer.writerow(tuple(_csv_text(value) for value in ("authorized_appropriation_schedule", item.version.fiscal_year.year, item.authority_type, item.ordinance_number, item.effectivity_date, item.review_status, item.review_reference, item.snapshot_checksum, line.fund_code, line.responsibility_center_code, line.program_code, line.funding_source_code, line.account_code, line.expense_class, line.appropriation_type, line.particulars, line.performance_target, line.amount)))
     filename = f"authorized-appropriation-{slugify(item.ordinance_number)}.csv"
     archived = archive_export(content=response.content, department=department, user=request.user, category="finance-authorized-appropriations", filename=filename, metadata={"authorization_public_id": str(item.public_id), "version_public_id": str(item.version.public_id), "snapshot_checksum": item.snapshot_checksum, "official_status": "controlled schedule export; exact official form acceptance remains required"})
     response["Content-Disposition"] = f'attachment; filename="{filename}"'

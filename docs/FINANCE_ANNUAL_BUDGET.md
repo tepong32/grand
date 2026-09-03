@@ -1,4 +1,4 @@
-# GRAND Finance annual budget preparation (F3.1)
+# GRAND Finance annual budget preparation and authorization (F3.1–F3.2)
 
 This slice introduces GRAND's first Budget-domain workspace while deliberately stopping before operational appropriation authorization. It implements annual calls, department ceilings, classified proposal and consolidation versions, performance targets, resource estimates, review evidence, comparison, and portable export.
 
@@ -23,6 +23,21 @@ This slice introduces GRAND's first Budget-domain workspace while deliberately s
 
 Draft and returned calls and proposals can be edited through guided forms. After call publication or proposal approval, governed content is immutable: the operator creates a successor version with a change explanation. This is stricter than the later voucher modification allowance because budget-version authority must remain reconstructible.
 
+## Guided proposal and authority queue
+
+The Annual Budget workspace keeps calls and ceilings in their existing register and adds filters only to the proposal/appropriation-version list. Budget staff can narrow that list by fiscal year, version kind, exact proposal status, or the next governed action:
+
+- preparation or returned correction;
+- independent proposal review;
+- approved proposal that remains nonspendable;
+- final/supplemental/reenacted version needing authority evidence;
+- authority evidence awaiting independent authorization; or
+- independently authorized operational appropriation authority ready for F4 allotment control.
+
+The visible next action is derived from the existing proposal and authorization records; it is not another workflow state. Contradictory filters correctly produce an empty list instead of silently broadening scope.
+
+`Export visible register` uses those exact filters and creates one oversight row per visible version. It includes proposal and resource totals, authorization/review references, signed control and difference, checksum, maker/reviewer lineage, and state version. Classified proposal lines remain in the existing per-version export, while immutable authorized lines remain in the authorized-appropriation export.
+
 ## Export and TraceSync
 
 Every proposal CSV downloaded through GRAND is also archived under `GRAND_EXPORT_ROOT`:
@@ -30,6 +45,8 @@ Every proposal CSV downloaded through GRAND is also archived under `GRAND_EXPORT
 `department / user / finance-budget-proposals / year / month / timestamp_checksum_filename`
 
 The sibling manifest records SHA-256, actor, department, proposal version/status, and the fact that the export is controlled data interchange—not automatically a DBM/COA form. Copy or synchronize the entire root so artifacts and manifests remain together.
+
+The filtered oversight register is archived separately under `finance-annual-budget-register` using the same department/user/year/month structure. Its manifest retains the selected filters, result count, authority boundary, and SHA-256, and an append-only Budget event retains the archive receipt. All Budget workspace viewers can export the same department-bounded evidence they can inspect; export never changes proposal or appropriation authority.
 
 ## Roles and acceptance
 

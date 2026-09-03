@@ -135,6 +135,8 @@ Deliver:
 
 Exit gate: every approved appropriation traces to an authorized budget version and review status; proposals are never mistaken for spendable authority.
 
+Implementation position: F3.1 supplies governed calls, ceilings, classified proposal/resource versions, performance targets, maker–checker review, consolidation lineage, comparisons, successors, and per-version exports. F3.2 supplies separately reviewed ordinance/effectivity/control evidence and immutable operational appropriation snapshots. The shared workspace now adds synchronized fiscal-year/kind/status/next-action triage plus an audited TraceSync oversight register that explicitly separates approved proposals from spendable authority. Actual local calendars, ordinance/review evidence, accepted schedules/forms, signatures, and replayed approved totals remain required before the parent F3 exit gate can be claimed for production.
+
 ### F4 — Allotment release and obligation control
 
 Deliver:

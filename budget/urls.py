@@ -6,6 +6,7 @@ app_name = "budget"
 
 urlpatterns = [
     path("", views.workspace, name="workspace"),
+    path("export/", views.annual_register_export, name="annual_register_export"),
     path("calls/new/", views.call_create, name="call_create"),
     path("calls/<uuid:public_id>/", views.call_detail, name="call_detail"),
     path("calls/<uuid:public_id>/ceilings/new/", views.ceiling_create, name="ceiling_create"),

@@ -1,5 +1,13 @@
 # Changelog
 
+## F3 guided annual-budget triage and portable register
+
+- Added fiscal-year, version-kind, proposal-status, and plain-language next-action filters to the existing Annual Budget workspace without changing call, proposal, or authorization states.
+- Separated approved-but-nonspendable proposals from versions needing authority evidence, versions awaiting independent authorization, and genuine operational appropriation authority.
+- Added a synchronized department-bounded CSV with proposal totals, resource estimates, authority/review controls, signed-total difference, checksums, role lineage, and state versions while retaining classified lines in per-version exports.
+- Archived exact spreadsheet-safe bytes and manifests under the TraceSync-ready `department/user/finance-annual-budget-register/year/month` tree and recorded an append-only Budget audit event.
+- Expanded the Annual Budget floating guide with filter, export, and authority-boundary instructions and added focused filter, duplicate-call year selection, department isolation, archive, audit, and formula-safety tests. The focused 22-test Budget and 45-test Budget-plus-guidance suites pass, as do all 405 project tests across both routed databases.
+
 ## F2.2 guided opening-control triage and portable register
 
 - Added fiscal-year, exact workflow-status, and plain-language next-action filters to the existing opening-balance register without adding or changing transaction states.

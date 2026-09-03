@@ -456,12 +456,14 @@ BUDGET_GUIDES = (
     },
     {
         "slug": "finance-annual-budget-preparation",
+        "version": 2,
         "title": "Prepare the annual budget call and proposals",
         "summary": "Set reviewed department ceilings, prepare classified proposal versions, and keep proposals visibly separate from spendable authority.",
         "permission": "budget.view_budget_workspace",
         "patterns": ["budget:*"],
         "order": 10,
         "steps": (
+            ("Find the next governed action", "Use Fiscal year, Version kind, Proposal status, and Next action filters in the proposal register. Export visible register when Budget reviewers need the same retained oversight list.", "Approved-but-nonspendable proposals, authority evidence, independent authorization, and operational authority remain visibly distinct.", "A register export or proposal approval does not create spending authority.", "Open Annual Budget", "budget:workspace"),
             ("Prepare the annual call", "Create the fiscal-year call with its reviewed authority, instructions, proposal window, and department/fund/expense-class ceilings.", "A draft call contains the complete ceiling controls needed for review.", "A ceiling is neither an appropriation nor an allotment release.", "Open Annual Budget", "budget:workspace"),
             ("Submit for independent publication", "Submit the call to a different authorized reviewer. The reviewer publishes it or returns a specific correction reason.", "A published call becomes the controlled basis for proposal intake.", "Published calls and ceilings are immutable; issue a successor when formally required.", "", ""),
             ("Build an explicit proposal version", "Choose the requesting office and add lines using governed fund, office, PPA, funding source, account, expense class, appropriation type, target, and amount.", "The proposal total and per-ceiling remaining amount are visible.", "Do not recreate classification codes as free text.", "New Proposal Version", "budget:version_create"),
