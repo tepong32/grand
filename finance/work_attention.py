@@ -243,17 +243,18 @@ def _accounting_groups(user, department):
         can_prepare_bank_reconciliation, can_prepare_journals, can_prepare_opening_balances,
         can_prepare_period_close, can_reopen_period,
     )
+    from accounting.journal_exports import journal_action_queryset
     from accounting.models import BankStatementBatch, JournalEntry, OpeningBalanceBatch
     from accounting.period_close_register import apply_period_close_filters, period_close_runs_for_department
 
     groups = []
     definitions = (
         (can_prepare_journals(user), "journal-preparation", "Accounting", "JEV drafts to complete or correct",
-         JournalEntry.objects.filter(department_id=department.pk, status=JournalEntry.DRAFT),
+         journal_action_queryset(user, "preparation")[0],
          _queue_url("accounting:workspace", status=JournalEntry.DRAFT),
          "Draft and returned JEV work available to an Accounting maker."),
         (can_post_journals(user), "journal-posting", "Accounting", "JEVs awaiting independent posting",
-         JournalEntry.objects.filter(department_id=department.pk, status=JournalEntry.SUBMITTED),
+         journal_action_queryset(user, "posting")[0],
          _queue_url("accounting:workspace", attention="for_posting"),
          "Balanced submitted JEVs awaiting a permitted post-or-return decision."),
         (can_prepare_opening_balances(user), "opening-preparation", "Accounting", "Opening batches to prepare or correct",

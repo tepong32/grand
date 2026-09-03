@@ -123,7 +123,7 @@ def workspace(request):
         status=request.GET.get("status", "").strip(),
         source_type=request.GET.get("source_type", "").strip(),
         period=request.GET.get("period", "").strip(), fund=request.GET.get("fund", "").strip(),
-        attention=request.GET.get("attention", "").strip(), search=request.GET.get("q", ""),
+        attention=request.GET.get("attention", "").strip(), search=request.GET.get("q", ""), actor=request.user,
     )
     metrics = JournalEntry.objects.filter(department_id=department.pk).aggregate(
         drafts=Count("pk", filter=Q(status=JournalEntry.DRAFT)),
@@ -210,7 +210,7 @@ def journal_register_export(request):
         status=request.GET.get("status", "").strip(),
         source_type=request.GET.get("source_type", "").strip(),
         period=request.GET.get("period", "").strip(), fund=request.GET.get("fund", "").strip(),
-        attention=request.GET.get("attention", "").strip(), search=request.GET.get("q", ""),
+        attention=request.GET.get("attention", "").strip(), search=request.GET.get("q", ""), actor=request.user,
     )
     content, filename, receipt = build_journal_control_register(
         actor=request.user, queryset=entries, status=status, source_type=source_type,

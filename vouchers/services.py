@@ -1559,16 +1559,38 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return case
+    _require_current_office(case, actor)
     if case.current_stage != VoucherCase.ACCOUNTING_VALIDATION:
         raise VoucherWorkflowError("This voucher is not awaiting Accounting validation.")
+    try:
+        voucher = case.disbursement_voucher
+    except DisbursementVoucher.DoesNotExist:
+        raise VoucherWorkflowError("The prepared disbursement voucher is missing; stop and repair the case evidence.")
+    try:
+        obligation = case.obligation
+    except BudgetObligation.DoesNotExist:
+        raise VoucherWorkflowError("The certified-obligation record is missing; stop and repair the case evidence.")
+    amount_difference = voucher.gross_amount - voucher.total_deductions - voucher.net_amount
+    if amount_difference != 0:
+        raise VoucherWorkflowError(
+            f"DV gross less deductions must equal net before validation; the unexplained difference is {amount_difference:.2f}."
+        )
+    if voucher.gross_amount != obligation.certified_amount:
+        raise VoucherWorkflowError("DV gross must equal the certified-obligation amount before validation.")
+    allocation_total = obligation.allocation_lines.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    if allocation_total != voucher.gross_amount:
+        raise VoucherWorkflowError(
+            f"Certified allocation lines must equal DV gross before validation; the control difference is "
+            f"{allocation_total - voucher.gross_amount:.2f}."
+        )
     if case.voucher_template_id and case.voucher_template.controlled_print_required:
-        signed_job = case.print_jobs.filter(status=VoucherPrintJob.SIGNED_PACKET_RETURNED).order_by("-version").first()
-        latest_job = case.print_jobs.order_by("-version").first()
+        signed_job = case.print_jobs.filter(status=VoucherPrintJob.SIGNED_PACKET_RETURNED).order_by("-version", "-pk").first()
+        latest_job = case.print_jobs.order_by("-version", "-pk").first()
         if not signed_job or latest_job.pk != signed_job.pk:
             raise VoucherWorkflowError("The latest controlled signing copy must return with its TracePoint-linked packet before validation.")
     workflow_exemption = None
     case_override = None
-    if actor.pk == case.disbursement_voucher.prepared_by_id:
+    if actor.pk == voucher.prepared_by_id:
         override = _approved_override(case, "accounting-self-validation", actor)
         if override:
             override.status = ControlOverride.USED
@@ -1644,7 +1666,6 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         case=case, decision=AccountingValidation.ACCEPTED, jev_number=jev_number.strip(), jev_date=jev_date,
         note=note.strip(), validated_by=actor, validated_at=timezone.now(),
     )
-    voucher = case.disbursement_voucher
     payload = {
         "schema_version": 3,
         "voucher_case_public_id": str(case.public_id),
@@ -1671,7 +1692,7 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
                 "account_code": line.account_code,
                 "amount": str(line.amount),
             }
-            for line in case.obligation.allocation_lines.order_by("pk")
+            for line in obligation.allocation_lines.order_by("pk")
         ],
         "deductions": [
             _deduction_payload(item)

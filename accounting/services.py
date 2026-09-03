@@ -5,7 +5,7 @@ import io
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.forms.models import model_to_dict
@@ -14,8 +14,9 @@ from django.utils.dateparse import parse_date
 
 from .access import (
     can_approve_bank_reconciliation, can_approve_fiscal_readiness, can_approve_opening_balances, can_manage_setup,
-    can_post_opening_balances, can_prepare_opening_balances, can_reconcile_controls,
-    can_prepare_bank_reconciliation,
+    can_post_journals, can_post_opening_balances, can_prepare_journals,
+    can_prepare_opening_balances, can_reconcile_controls, can_prepare_bank_reconciliation,
+    department_for_user,
 )
 from .models import (
     AccountingAuditEvent, AccountingPeriod, ControlAccountReconciliation, FiscalYear,
@@ -1107,6 +1108,9 @@ def validate_entry_for_submission(entry):
 @transaction.atomic(using=FINANCE_DB)
 def submit_entry(entry, actor):
     locked = JournalEntry.objects.select_for_update().get(pk=entry.pk)
+    department = department_for_user(actor)
+    if not can_prepare_journals(actor) or department is None or department.pk != locked.department_id:
+        raise PermissionDenied
     if locked.status != JournalEntry.DRAFT:
         raise ValidationError("Only a draft journal can be submitted.")
     debit, credit = validate_entry_for_submission(locked)
@@ -1122,10 +1126,13 @@ def submit_entry(entry, actor):
 @transaction.atomic(using=FINANCE_DB)
 def post_entry(entry, actor):
     locked = JournalEntry.objects.select_for_update().get(pk=entry.pk)
+    department = department_for_user(actor)
+    if not can_post_journals(actor) or department is None or department.pk != locked.department_id:
+        raise PermissionDenied
     if locked.status != JournalEntry.SUBMITTED:
         raise ValidationError("Only a submitted journal can be posted.")
     workflow_exemption = None
-    if locked.created_by_id == actor.pk:
+    if actor.pk in {locked.created_by_id, locked.submitted_by_id}:
         from finance.exemptions import workflow_exemption_for, workflow_exemption_snapshot
         from finance.models import FinanceWorkflowExemption
 
@@ -1136,7 +1143,7 @@ def post_entry(entry, actor):
         )
         if exemption is None:
             raise ValidationError(
-                "Maker-checker control: the preparer cannot post the same journal entry unless an active "
+                "Maker-checker control: the preparer or submitter cannot post the same journal entry unless an active "
                 "administrator-authorized workflow exemption applies."
             )
         workflow_exemption = workflow_exemption_snapshot(exemption)
@@ -1156,6 +1163,9 @@ def post_entry(entry, actor):
 @transaction.atomic(using=FINANCE_DB)
 def return_entry(entry, actor, reason):
     locked = JournalEntry.objects.select_for_update().get(pk=entry.pk)
+    department = department_for_user(actor)
+    if not can_post_journals(actor) or department is None or department.pk != locked.department_id:
+        raise PermissionDenied
     if locked.status != JournalEntry.SUBMITTED:
         raise ValidationError("Only a submitted journal can be returned.")
     if not reason.strip():

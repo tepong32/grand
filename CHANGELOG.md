@@ -1,5 +1,15 @@
 # Changelog
 
+## F1.5 exact Accounting validation and JEV work tasks
+
+- Added stable, source-linked My Work actions for independent signed-DV Accounting validation, JEV draft preparation/returned correction, and independent JEV posting without creating parallel workflow state.
+- Reused permission-, current-office-, UAT-, preparer-, and submitter-aware query contracts across Voucher/Accounting source filters, work-attention counts, synchronized Journal-register filters, and exact task projections.
+- Added evidence-sensitive projection checksums and hard-stop exceptions for cent-level DV equation, certified-obligation, allocation-to-gross, packet, recognition-route, posting-rule, JEV-balance, and closed-period failures.
+- Hardened Accounting validation and JEV submit/post/return services against direct cross-office or permission-bypassing calls; JEV creators and submitters cannot post the same entry without a current named administrator-authorized exemption.
+- Preserved returned correction reasons and source-generated-draft guidance, kept ledger dates distinct from deadlines, and continued to exclude Finance UAT preview accounts from personal actions.
+- Added source/task, maker-checker, one-cent accuracy, stable-identity, UAT, office-scope, and direct-service regression coverage, and updated the general, voucher-validation, and Accounting floating guides plus the My Work roadmap/audit.
+- The 164-test Finance/Voucher/Accounting/guidance gate and all 484 project tests passed across both routed databases; the full suite completed in 107.681 seconds, Django checks are clean, and no migration drift exists.
+
 ## F1.5 exact DV and controlled-custody work tasks
 
 - Added stable, source-linked My Work actions for Accounting DV preparation, controlled signing-copy creation, physical-print recording, counted packet/TracePoint assembly, and the earliest eligible wet-signature return without creating parallel workflow state.

@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+from django.core.exceptions import PermissionDenied
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -14,15 +15,21 @@ from profiles.models import EmployeeProfile
 from reporting.models import FinanceLocalFormAcceptance
 from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
 from vouchers.case_exports import (
-    apply_case_filters, dv_custody_action_queryset, dv_signature_task_queryset,
+    accounting_validation_action_queryset, apply_case_filters,
+    dv_custody_action_queryset, dv_signature_task_queryset,
     payable_action_queryset, visible_cases_for_user,
 )
 from vouchers.models import (
-    BudgetObligation, DisbursementVoucher, PayableIntake, VoucherCase,
+    BudgetAllocationLine, BudgetObligation, DisbursementVoucher, PayableIntake, VoucherCase,
     VoucherOutput, VoucherPrintJob, WetSignatureTask,
 )
+from vouchers.services import validate_accounting
 
-from accounting.models import FiscalYear
+from accounting.journal_exports import journal_action_queryset
+from accounting.models import (
+    AccountingAuditEvent, AccountingPeriod, FiscalYear, Fund, JournalEntry, JournalLine,
+    LedgerAccount, ResponsibilityCenter,
+)
 from budget.annual_exports import apply_annual_filters
 from budget.control_exports import apply_allotment_filters, apply_obligation_filters, obligation_scope_for_user
 from budget.models import (
@@ -998,10 +1005,15 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
             "task.dv.signature", cls.accounting,
             "view_voucher_workbench", "track_wet_signatures",
         )
+        cls.validator = cls._employee(
+            "task.dv.validator", cls.accounting,
+            "view_voucher_workbench", "validate_accounting_voucher",
+        )
         cls.uat = cls._employee(
             "task.dv.uat", cls.accounting,
             "view_voucher_workbench", "prepare_disbursement_voucher",
             "control_dv_printing", "track_wet_signatures", "link_tracepoint_custody",
+            "validate_accounting_voucher",
         )
         cls.uat.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
         today = timezone.localdate()
@@ -1034,6 +1046,7 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
     def _case(
         self, reference, *, stage=VoucherCase.ACCOUNTING_PREPARATION,
         current=None, certified_by=None, with_voucher=False, controlled=True,
+        dv_prepared_by=None,
     ):
         item = VoucherCase.objects.create(
             reference_code=reference, requesting_department=self.requesting,
@@ -1047,17 +1060,22 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
             obligation_binding_status=VoucherCase.BINDING_LINKED,
             current_stage=stage, created_by=self.preparer,
         )
-        BudgetObligation.objects.create(
+        obligation = BudgetObligation.objects.create(
             case=item, obr_number=f"OBR-{reference}", obligation_date=timezone.localdate(),
             budget_source_reference="Synthetic retained appropriation evidence.",
             certified_amount=Decimal("100.00"), certified_by=certified_by or self.certifier,
             certified_at=timezone.now(),
         )
+        BudgetAllocationLine.objects.create(
+            obligation=obligation, fund_code="general-fund",
+            responsibility_center_code="task-gso", account_code="5-02-03",
+            amount=Decimal("100.00"),
+        )
         if with_voucher:
             DisbursementVoucher.objects.create(
                 case=item, dv_number=f"DV-{reference}", voucher_date=timezone.localdate(),
                 gross_amount=Decimal("100.00"), total_deductions=Decimal("10.00"),
-                net_amount=Decimal("90.00"), prepared_by=self.preparer,
+                net_amount=Decimal("90.00"), prepared_by=dv_prepared_by or self.preparer,
                 prepared_at=timezone.now(),
             )
         return item
@@ -1228,3 +1246,240 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         self.assertNotIn(
             "voucher-ready", {group["key"] for group in finance_work_attention(self.uat)["groups"]},
         )
+
+    def test_accounting_validation_tasks_share_scope_and_expose_cent_level_mismatch(self):
+        ready = self._case(
+            "DV-TASK-VALIDATE", stage=VoucherCase.ACCOUNTING_VALIDATION,
+            with_voucher=True, controlled=False,
+        )
+        self._case(
+            "DV-TASK-VALIDATE-WRONG-OFFICE", stage=VoucherCase.ACCOUNTING_VALIDATION,
+            current=self.other, with_voucher=True, controlled=False,
+        )
+        self._case(
+            "DV-TASK-VALIDATE-SELF", stage=VoucherCase.ACCOUNTING_VALIDATION,
+            with_voucher=True, controlled=False, dv_prepared_by=self.validator,
+        )
+
+        source, _selected, _spec = accounting_validation_action_queryset(self.validator)
+        workspace_source, *_filters = apply_case_filters(
+            visible_cases_for_user(self.validator),
+            actionable_stages=(VoucherCase.ACCOUNTING_VALIDATION,),
+            attention="ready_for_me", actor=self.validator,
+        )
+        tasks = [
+            task for task in finance_work_tasks(self.validator)["tasks"]
+            if task["task_type"] == "finance.accounting-validation.validation.v1"
+        ]
+        self.assertEqual(set(source), {ready})
+        self.assertEqual(set(workspace_source), {ready})
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0]["case_id"], f"voucher-case:{ready.public_id}")
+        self.assertIsNone(tasks[0]["due_on"])
+
+        first_version = tasks[0]["source_version"]
+        DisbursementVoucher.objects.filter(case=ready).update(net_amount=Decimal("89.99"))
+        changed = next(
+            task for task in finance_work_tasks(self.validator)["tasks"]
+            if task["case_id"] == f"voucher-case:{ready.public_id}"
+            and task["task_type"] == "finance.accounting-validation.validation.v1"
+        )
+        self.assertEqual(changed["task_id"], tasks[0]["task_id"])
+        self.assertNotEqual(changed["source_version"], first_version)
+        self.assertIn("unexplained difference is 0.01", changed["exception"])
+
+    def test_accounting_validation_service_rejects_wrong_current_office_and_uat_gets_no_task(self):
+        wrong_office = self._case(
+            "DV-TASK-VALIDATE-SERVICE", stage=VoucherCase.ACCOUNTING_VALIDATION,
+            current=self.other, with_voucher=True, controlled=False,
+        )
+        with self.assertRaises(PermissionDenied):
+            validate_accounting(
+                case=wrong_office, actor=self.validator, jev_number="TASK-JEV-DENIED",
+                jev_date=timezone.localdate(), note="Must not cross office custody.",
+                expected_version=wrong_office.state_version, idempotency_key="task-wrong-office-validation",
+            )
+        self.assertFalse(accounting_validation_action_queryset(self.uat)[0].exists())
+        self.assertFalse(any(
+            task["task_type"].startswith("finance.accounting-validation.")
+            for task in finance_work_tasks(self.uat)["tasks"]
+        ))
+
+
+class FinanceAccountingWorkTaskContractTests(TestCase):
+    databases = {"default", "finance"}
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.accounting = Department.objects.create(
+            name="Municipal Accounting Office", slug="task-jev-accounting",
+        )
+        cls.other = Department.objects.create(
+            name="Municipal Engineering Office", slug="task-jev-other",
+        )
+        cls.preparer = cls._employee(
+            "task.jev.preparer", cls.accounting,
+            "prepare_journal_entries", "post_journal_entries",
+        )
+        cls.poster = cls._employee(
+            "task.jev.poster", cls.accounting, "post_journal_entries",
+        )
+        cls.outsider = cls._employee(
+            "task.jev.outsider", cls.other, "prepare_journal_entries", "post_journal_entries",
+        )
+        cls.uat = cls._employee(
+            "task.jev.uat", cls.accounting, "prepare_journal_entries", "post_journal_entries",
+        )
+        cls.uat.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        owner = {"department_id": cls.accounting.pk, "department_label": cls.accounting.name}
+        cls.period = AccountingPeriod.objects.create(
+            **owner, fiscal_year=2027, period_number=1, label="January 2027",
+            starts_on=date(2027, 1, 1), ends_on=date(2027, 1, 31),
+        )
+        cls.closed_period = AccountingPeriod.objects.create(
+            **owner, fiscal_year=2027, period_number=2, label="February 2027",
+            starts_on=date(2027, 2, 1), ends_on=date(2027, 2, 28),
+            status=AccountingPeriod.CLOSED,
+        )
+        cls.fund = Fund.objects.create(**owner, code="TASK-GF", name="Task General Fund")
+        cls.center = ResponsibilityCenter.objects.create(
+            **owner, code="TASK-ACCOUNTING", name="Task Accounting Office",
+        )
+        cls.cash = LedgerAccount.objects.create(
+            **owner, code="TASK-101", title="Task Cash", account_type="asset", normal_balance="debit",
+        )
+        cls.payable = LedgerAccount.objects.create(
+            **owner, code="TASK-201", title="Task Payable", account_type="liability", normal_balance="credit",
+        )
+
+    @classmethod
+    def _employee(cls, username, department, *permissions):
+        user = get_user_model().objects.create_user(
+            username=username, email=f"{username}@example.test", password="jev-task-test",
+        )
+        profile, _created = EmployeeProfile.objects.get_or_create(user=user)
+        profile.assigned_department = department
+        profile.save(update_fields=("assigned_department",))
+        user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="accounting", codename__in=permissions,
+        ))
+        return get_user_model().objects.get(pk=user.pk)
+
+    def _entry(
+        self, reference, *, status=JournalEntry.DRAFT, period=None,
+        creator=None, submitter=None, debit=Decimal("100.00"), credit=Decimal("100.00"),
+    ):
+        creator = creator or self.preparer
+        entry = JournalEntry.objects.create(
+            department_id=self.accounting.pk, department_label=self.accounting.name,
+            reference=reference,
+            entry_date=date(2027, 2, 15) if period == self.closed_period else date(2027, 1, 15),
+            period=period or self.period, fund=self.fund, source_type="manual",
+            description=f"Exact Accounting task for {reference}", status=JournalEntry.DRAFT,
+            created_by_id=creator.pk, created_by_label=creator.username,
+        )
+        JournalLine.objects.create(
+            entry=entry, sequence=1, account=self.cash, responsibility_center=self.center,
+            debit=debit, credit=Decimal("0.00"),
+        )
+        JournalLine.objects.create(
+            entry=entry, sequence=2, account=self.payable, responsibility_center=self.center,
+            debit=Decimal("0.00"), credit=credit,
+        )
+        if status != JournalEntry.DRAFT:
+            JournalEntry.objects.filter(pk=entry.pk).update(
+                status=status,
+                submitted_by_id=submitter.pk if submitter else None,
+                submitted_by_label=submitter.username if submitter else "",
+                submitted_at=timezone.now() if submitter else None,
+            )
+            entry.refresh_from_db()
+        return entry
+
+    def test_preparation_tasks_match_shared_source_and_expose_exact_control_exceptions(self):
+        ready = self._entry("TASK-JEV-READY")
+        unbalanced = self._entry("TASK-JEV-UNBALANCED", credit=Decimal("99.99"))
+        closed = self._entry("TASK-JEV-CLOSED", period=self.closed_period)
+        returned = self._entry("TASK-JEV-RETURNED")
+        AccountingAuditEvent.objects.create(
+            department_id=self.accounting.pk, department_label=self.accounting.name,
+            entry=returned, action="returned", actor_id=self.poster.pk,
+            actor_label=self.poster.username, reason="Correct the retained allotment reference.",
+        )
+
+        source, _selected = journal_action_queryset(self.preparer, "preparation")
+        tasks = [
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["task_type"] == "finance.journal-entry.preparation.v1"
+        ]
+        self.assertEqual({entry.pk for entry in source}, {ready.pk, unbalanced.pk, closed.pk, returned.pk})
+        self.assertEqual(
+            {task["case_id"] for task in tasks},
+            {f"journal-entry:{entry.public_id}" for entry in (ready, unbalanced, closed, returned)},
+        )
+        exceptions = {task["case_id"]: task["exception"] for task in tasks}
+        self.assertIn("control difference is 0.01", exceptions[f"journal-entry:{unbalanced.public_id}"])
+        self.assertIn("period is closed", exceptions[f"journal-entry:{closed.public_id}"])
+        self.assertIn("Correct the retained allotment reference", exceptions[f"journal-entry:{returned.public_id}"])
+        self.assertTrue(all(task["due_on"] is None for task in tasks))
+
+    def test_posting_source_tasks_and_attention_apply_submitter_separation(self):
+        own = self._entry(
+            "TASK-JEV-OWN-POST", status=JournalEntry.SUBMITTED,
+            creator=self.preparer, submitter=self.preparer,
+        )
+        independent = self._entry(
+            "TASK-JEV-INDEPENDENT", status=JournalEntry.SUBMITTED,
+            creator=self.preparer, submitter=self.preparer,
+        )
+        poster_source, _selected = journal_action_queryset(self.poster, "posting")
+        self.assertEqual({entry.pk for entry in poster_source}, {own.pk, independent.pk})
+        self.assertFalse(journal_action_queryset(self.preparer, "posting")[0].exists())
+        tasks = [
+            task for task in finance_work_tasks(self.poster)["tasks"]
+            if task["task_type"] == "finance.journal-entry.posting.v1"
+        ]
+        self.assertEqual(len(tasks), 2)
+        group = next(
+            group for group in finance_work_attention(self.poster)["groups"]
+            if group["key"] == "journal-posting"
+        )
+        self.assertEqual(group["count"], len(tasks))
+
+        FinanceWorkflowExemption.objects.create(
+            department=self.accounting,
+            control_code=FinanceWorkflowExemption.JOURNAL_PREPARER_SELF_POSTING,
+            subject_user=self.preparer,
+            rationale="Synthetic named staffing exception for task-source parity.",
+            created_by=self.poster,
+        )
+        self.assertEqual(journal_action_queryset(self.preparer, "posting")[0].count(), 2)
+
+    def test_task_identity_is_stable_and_revision_tracks_money_evidence(self):
+        entry = self._entry("TASK-JEV-REVISION")
+        first = next(
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["case_id"] == f"journal-entry:{entry.public_id}"
+        )
+        line = entry.lines.get(sequence=2)
+        line.credit = Decimal("99.99")
+        line.save(update_fields=("credit",))
+        second = next(
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["case_id"] == f"journal-entry:{entry.public_id}"
+        )
+        self.assertEqual(second["task_id"], first["task_id"])
+        self.assertNotEqual(second["source_version"], first["source_version"])
+        self.assertIn("control difference is 0.01", second["exception"])
+
+    def test_wrong_office_and_uat_accounts_receive_no_exact_journal_actions(self):
+        self._entry("TASK-JEV-SCOPED")
+        self.assertFalse(journal_action_queryset(self.outsider, "preparation")[0].exists())
+        self.assertFalse(any(
+            task["task_type"].startswith("finance.journal-entry.")
+            for task in finance_work_tasks(self.outsider)["tasks"]
+        ))
+        self.assertFalse(any(
+            task["task_type"].startswith("finance.journal-entry.")
+            for task in finance_work_tasks(self.uat)["tasks"]
+        ))

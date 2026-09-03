@@ -13,7 +13,7 @@ from finance.models import FinanceAuditEvent
 from src.export_archive import archive_export
 
 from .access import department_for_user, has_explicit_permission
-from .models import PayableDocumentEvidence, VoucherCase, VoucherPrintJob, WetSignatureTask
+from .models import ControlOverride, PayableDocumentEvidence, VoucherCase, VoucherPrintJob, WetSignatureTask
 from .roles import STAGE_NEXT_ACTION, finance_workspace_profile, is_finance_uat_viewer
 from .services import payable_relationship_summary
 
@@ -40,6 +40,20 @@ PAYABLE_ACTION_SPECS = {
         "definition": "Independent Accounting review of payable intakes assigned to the acting office whose preparer and submitter are not the signed-in reviewer.",
         "next_action": "Review the zero-difference relationship, evidence decisions, and recognition route; accept or return the same case.",
     },
+}
+
+ACCOUNTING_VALIDATION_ACTION_SPEC = {
+    "permission": "vouchers.validate_accounting_voucher",
+    "stage": VoucherCase.ACCOUNTING_VALIDATION,
+    "title": "Signed vouchers awaiting independent Accounting validation",
+    "definition": (
+        "Cases at Accounting validation in the acting office, with packet and money readiness shown, whose DV "
+        "preparer is not the signed-in validator unless a governed exception applies."
+    ),
+    "next_action": (
+        "Reconcile the signed DV, certified obligation, allocation total, payable decision, and posting rule; "
+        "then record the JEV reference or return the same case with a reason."
+    ),
 }
 
 DV_CUSTODY_ACTION_SPECS = {
@@ -150,6 +164,45 @@ def payable_action_queryset(user, action, queryset=None):
     else:
         base = base.filter(current_department_id=department.pk).exclude(
             Q(payable_intake__prepared_by=user) | Q(payable_intake__submitted_by=user)
+        )
+    return base.distinct(), action, spec
+
+
+def accounting_validation_action_choices_for_user(user):
+    spec = ACCOUNTING_VALIDATION_ACTION_SPEC
+    if is_finance_uat_viewer(user) or not has_explicit_permission(user, spec["permission"]):
+        return ()
+    return (("validation", spec["title"]),)
+
+
+def accounting_validation_action_queryset(user, action="validation", queryset=None):
+    spec = ACCOUNTING_VALIDATION_ACTION_SPEC if action == "validation" else None
+    base = visible_cases_for_user(user, queryset)
+    department = department_for_user(user)
+    if (
+        spec is None or department is None or is_finance_uat_viewer(user)
+        or not has_explicit_permission(user, spec["permission"])
+    ):
+        return base.none(), action if spec else "", spec
+    base = base.filter(
+        current_stage=spec["stage"], current_department_id=department.pk,
+    )
+    from finance.exemptions import workflow_exemption_for
+    from finance.models import FinanceWorkflowExemption
+
+    exemption = workflow_exemption_for(
+        actor=user,
+        control_code=FinanceWorkflowExemption.DV_PREPARER_SELF_VALIDATION,
+        department_id=department.pk,
+    )
+    if exemption is None:
+        base = base.filter(
+            ~Q(disbursement_voucher__prepared_by=user)
+            | Q(
+                control_overrides__action_code="accounting-self-validation",
+                control_overrides__requested_by=user,
+                control_overrides__status="approved",
+            )
         )
     return base.distinct(), action, spec
 
@@ -323,6 +376,31 @@ def apply_case_filters(
                     Q(current_stage=VoucherCase.AWAITING_SIGNATURES)
                     & ~Q(current_department_id=actor_department.pk)
                 )
+            if VoucherCase.ACCOUNTING_VALIDATION in actionable_stages:
+                queryset = queryset.exclude(
+                    Q(current_stage=VoucherCase.ACCOUNTING_VALIDATION)
+                    & ~Q(current_department_id=actor_department.pk)
+                )
+                from finance.exemptions import workflow_exemption_for
+                from finance.models import FinanceWorkflowExemption
+
+                exemption = workflow_exemption_for(
+                    actor=actor,
+                    control_code=FinanceWorkflowExemption.DV_PREPARER_SELF_VALIDATION,
+                    department_id=actor_department.pk,
+                )
+                if exemption is None:
+                    approved_override = ControlOverride.objects.filter(
+                        case_id=OuterRef("pk"), action_code="accounting-self-validation",
+                        requested_by=actor, status=ControlOverride.APPROVED,
+                    )
+                    queryset = queryset.annotate(
+                        control_has_self_validation_override=Exists(approved_override),
+                    ).exclude(
+                        current_stage=VoucherCase.ACCOUNTING_VALIDATION,
+                        disbursement_voucher__prepared_by=actor,
+                        control_has_self_validation_override=False,
+                    )
     elif attention == "open_elsewhere":
         queryset = queryset.filter(current_stage__in=open_stages).exclude(current_stage__in=actionable_stages)
     elif attention == "completed":

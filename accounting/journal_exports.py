@@ -14,7 +14,7 @@ from django.utils.text import slugify
 
 from src.export_archive import archive_export
 
-from .access import can_view_ledger, department_for_user
+from .access import can_post_journals, can_prepare_journals, can_view_ledger, department_for_user
 from .models import AccountingAuditEvent, AccountingPeriod, Fund, JournalEntry
 
 
@@ -56,7 +56,7 @@ def journal_controls(queryset):
 
 
 def apply_journal_filters(
-    queryset, *, status="", source_type="", period="", fund="", attention="", search="",
+    queryset, *, status="", source_type="", period="", fund="", attention="", search="", actor=None,
 ):
     queryset = journal_controls(queryset)
     if status in dict(JournalEntry.STATUS_CHOICES):
@@ -99,6 +99,23 @@ def apply_journal_filters(
         queryset = queryset.filter(status=JournalEntry.DRAFT, control_was_returned=True)
     elif attention == "for_posting":
         queryset = queryset.filter(status=JournalEntry.SUBMITTED)
+        if actor is not None:
+            department = department_for_user(actor)
+            if department is None:
+                queryset = queryset.none()
+            else:
+                from finance.exemptions import workflow_exemption_for
+                from finance.models import FinanceWorkflowExemption
+
+                exemption = workflow_exemption_for(
+                    actor=actor,
+                    control_code=FinanceWorkflowExemption.JOURNAL_PREPARER_SELF_POSTING,
+                    department_id=department.pk,
+                )
+                if exemption is None:
+                    queryset = queryset.exclude(
+                        Q(created_by_id=actor.pk) | Q(submitted_by_id=actor.pk),
+                    )
     elif attention == "posted":
         queryset = queryset.filter(status=JournalEntry.POSTED)
     elif attention == "correction_lineage":
@@ -117,6 +134,35 @@ def apply_journal_filters(
             | Q(source_reference__icontains=search),
         )
     return queryset, status, source_type, period, fund, attention, search
+
+
+def journal_action_choices_for_user(user):
+    from vouchers.roles import is_finance_uat_viewer
+
+    if is_finance_uat_viewer(user):
+        return ()
+    choices = []
+    if can_prepare_journals(user):
+        choices.append(("preparation", "JEV drafts to complete, correct, or submit"))
+    if can_post_journals(user):
+        choices.append(("posting", "JEVs awaiting independent posting"))
+    return tuple(choices)
+
+
+def journal_action_queryset(user, action, queryset=None):
+    from vouchers.roles import is_finance_uat_viewer
+
+    department = department_for_user(user)
+    base = queryset if queryset is not None else JournalEntry.objects.all()
+    if department is None or is_finance_uat_viewer(user):
+        return base.none(), action
+    base = base.filter(department_id=department.pk)
+    if action == "preparation" and can_prepare_journals(user):
+        return journal_controls(base.filter(status=JournalEntry.DRAFT)), action
+    if action == "posting" and can_post_journals(user):
+        filtered, *_filters = apply_journal_filters(base, attention="for_posting", actor=user)
+        return filtered, action
+    return base.none(), ""
 
 
 def next_journal_action(entry):

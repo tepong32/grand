@@ -962,12 +962,14 @@ class StandaloneAccountingTests(TestCase):
         self.assertFalse(AccountingAuditEvent.objects.filter(entry=entry).exists())
 
     def test_maker_checker_prevents_preparer_from_posting_own_entry(self):
+        self._grant(self.preparer, "post_journal_entries")
         entry = self._entry(reference="SYN-JEV-0003")
         submit_entry(entry, self.preparer)
-        with self.assertRaisesMessage(ValidationError, "preparer cannot post"):
+        with self.assertRaisesMessage(ValidationError, "preparer or submitter cannot post"):
             post_entry(entry, self.preparer)
 
     def test_admin_exemption_allows_self_posting_and_is_snapshotted_in_ledger_audit(self):
+        self._grant(self.preparer, "post_journal_entries")
         entry = self._entry(reference="SYN-JEV-EXEMPT")
         submit_entry(entry, self.preparer)
         policy = FinanceWorkflowExemption.objects.create(
@@ -983,6 +985,25 @@ class StandaloneAccountingTests(TestCase):
         event = entry.audit_events.get(action="posted")
         self.assertEqual(entry.status, JournalEntry.POSTED)
         self.assertEqual(event.snapshot["workflow_exemption"]["policy_id"], policy.pk)
+
+    def test_submit_post_and_return_services_enforce_permission_and_current_office(self):
+        entry = self._entry(reference="SYN-JEV-SERVICE-SCOPE")
+        self._grant(self.outsider, "prepare_journal_entries", "post_journal_entries")
+        with self.assertRaises(PermissionDenied):
+            submit_entry(entry, self.outsider)
+
+        submit_entry(entry, self.preparer)
+        with self.assertRaises(PermissionDenied):
+            post_entry(entry, self.outsider)
+        with self.assertRaises(PermissionDenied):
+            return_entry(entry, self.outsider, "Attempted cross-office return")
+
+    def test_submitter_cannot_post_same_entry_without_governed_exemption(self):
+        self._grant(self.poster, "prepare_journal_entries")
+        entry = self._entry(reference="SYN-JEV-SUBMITTER-SOD", creator=self.preparer)
+        submit_entry(entry, self.poster)
+        with self.assertRaisesMessage(ValidationError, "preparer or submitter cannot post"):
+            post_entry(entry, self.poster)
 
     def test_posted_entry_and_lines_are_immutable(self):
         entry = self._entry(reference="SYN-JEV-0004")

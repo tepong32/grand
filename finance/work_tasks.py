@@ -4,6 +4,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID, uuid5
 
 from django.urls import reverse
@@ -810,6 +811,241 @@ def _dv_custody_tasks(user, department, today):
     return tasks
 
 
+def _accounting_validation_tasks(user, department, today):
+    from finance.models import FinancePostingRule
+    from vouchers.case_exports import (
+        accounting_validation_action_choices_for_user,
+        accounting_validation_action_queryset,
+    )
+    from vouchers.models import PayableIntake, VoucherPrintJob
+
+    tasks = []
+    for action_key, _label in accounting_validation_action_choices_for_user(user):
+        queryset, _selected, spec = accounting_validation_action_queryset(user, action_key)
+        queryset = queryset.select_related(
+            "requesting_department", "current_department", "configuration_release",
+            "voucher_template", "disbursement_voucher", "obligation", "payable_intake",
+        ).prefetch_related(
+            "obligation__allocation_lines", "print_jobs", "control_overrides",
+        )
+        for item in queryset.order_by("-updated_at", "-pk"):
+            voucher = getattr(item, "disbursement_voucher", None)
+            obligation = getattr(item, "obligation", None)
+            intake = getattr(item, "payable_intake", None)
+            allocation_lines = list(obligation.allocation_lines.all()) if obligation is not None else []
+            print_jobs = list(item.print_jobs.all())
+            exceptions = []
+            if voucher is None:
+                exceptions.append("The prepared DV record is missing; stop and route this data-integrity exception for repair.")
+            if obligation is None:
+                exceptions.append("The certified-obligation record is missing; stop and route this data-integrity exception for repair.")
+            if voucher is not None:
+                amount_difference = voucher.gross_amount - voucher.total_deductions - voucher.net_amount
+                if amount_difference != 0:
+                    exceptions.append(
+                        f"DV gross less deductions does not equal net; unexplained difference is {amount_difference:.2f}. Stop before validation."
+                    )
+                if obligation is not None and voucher.gross_amount != obligation.certified_amount:
+                    exceptions.append(
+                        "DV gross does not equal the certified-obligation amount; stop and use the governed correction route."
+                    )
+                allocation_total = sum((line.amount for line in allocation_lines), start=Decimal("0.00"))
+                if allocation_total != voucher.gross_amount:
+                    exceptions.append(
+                        f"Certified allocation lines do not equal DV gross; control difference is "
+                        f"{allocation_total - voucher.gross_amount:.2f}. Stop before validation."
+                    )
+            if item.voucher_template_id and item.voucher_template.controlled_print_required:
+                latest_job = max(print_jobs, key=lambda row: (row.version, row.pk)) if print_jobs else None
+                if latest_job is None or latest_job.status != VoucherPrintJob.SIGNED_PACKET_RETURNED:
+                    exceptions.append(
+                        "The latest controlled signing copy has not returned as a signed TracePoint-linked packet."
+                    )
+            if intake is not None and intake.status != PayableIntake.READY:
+                exceptions.append("The payable intake is not Accounting-accepted and payment-ready.")
+
+            event_kind = FinancePostingRule.RECOGNITION
+            if intake is not None:
+                event_kind = {
+                    PayableIntake.RECOGNIZE_WITH_DV: FinancePostingRule.RECOGNITION,
+                    PayableIntake.LIQUIDATION_DECISION: FinancePostingRule.LIQUIDATION,
+                }.get(intake.recognition_decision)
+                if not event_kind:
+                    exceptions.append(
+                        "The payable intake has no DV-validation recognition route; use the configured earlier-accrual or settlement workflow."
+                    )
+            variant = None
+            posting_rule = None
+            if item.configuration_release_id is None:
+                exceptions.append("No governed Finance Setup release is pinned to this voucher.")
+            else:
+                variant = item.configuration_release.transaction_variants.filter(
+                    code=item.transaction_type,
+                    status__in=("approved", "scheduled", "active", "superseded"),
+                ).first()
+                if variant is None:
+                    exceptions.append("The pinned Finance Setup release has no governed variant for this transaction type.")
+                elif event_kind:
+                    posting_rule = variant.posting_rules.filter(event_kind=event_kind).first()
+                    if posting_rule is None:
+                        exceptions.append("The governed transaction variant has no posting rule for this accounting event.")
+                    elif (
+                        event_kind == FinancePostingRule.RECOGNITION
+                        and posting_rule.recognition_point != FinancePostingRule.DV_VALIDATION
+                    ):
+                        exceptions.append("The governed recognition point is not DV validation; do not post it at this stage.")
+
+            projection_revision = _projection_checksum({
+                "allocations": [
+                    [line.pk, line.fund_code, line.responsibility_center_code, line.account_code, str(line.amount)]
+                    for line in allocation_lines
+                ],
+                "case_state_version": item.state_version,
+                "dv": [
+                    voucher.dv_number, voucher.voucher_date.isoformat(), str(voucher.gross_amount),
+                    str(voucher.total_deductions), str(voucher.net_amount), voucher.prepared_by_id,
+                ] if voucher is not None else [],
+                "intake": [
+                    intake.status, intake.recognition_decision, intake.recognition_basis,
+                    intake.obligation_adjustment_decision, intake.obligation_adjustment_basis,
+                ] if intake is not None else [],
+                "obligation": [obligation.obr_number, str(obligation.certified_amount), obligation.certified_by_id]
+                if obligation is not None else [],
+                "posting_rule": [posting_rule.pk, posting_rule.created_at.isoformat()]
+                if posting_rule is not None else [],
+                "print_jobs": [
+                    [row.pk, row.version, row.status, row.output_checksum, row.packet_reference, row.tracepoint_item_id]
+                    for row in print_jobs
+                ],
+            })
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:accounting-validation:{item.public_id}:validation",
+                task_type="finance.accounting-validation.validation.v1",
+                area="Accounting",
+                case_id=f"voucher-case:{item.public_id}",
+                reference=(
+                    f"{item.reference_code} · {voucher.dv_number if voucher is not None else 'DV record missing'}"
+                ),
+                transaction_type=item.transaction_type.replace("-", " ").replace("_", " ").title(),
+                subject=f"{item.payee_name} · {item.particulars}",
+                action=spec["next_action"],
+                gate=spec["definition"],
+                owner_queue=f"Independent Accounting voucher validators · {department.name}",
+                scope=f"Requesting office: {item.requesting_department.name}; current office: {item.current_department.name}",
+                received_at=item.updated_at,
+                due_on=None,
+                due_state="No structured target",
+                calendar_basis="No Accounting-validation deadline is stored; follow the locally accepted voucher calendar.",
+                age_days=_age_days(item.updated_at, today),
+                state="Exception" if exceptions else "Ready",
+                source_state=item.get_current_stage_display(),
+                source_version=f"projection-sha256:{projection_revision}",
+                exception=" ".join(exceptions),
+                url=item.get_absolute_url(),
+            ))
+    return tasks
+
+
+def _journal_tasks(user, department, today):
+    from accounting.journal_exports import (
+        journal_action_choices_for_user, journal_action_queryset, next_journal_action,
+    )
+    from accounting.models import AccountingPeriod
+
+    tasks = []
+    queue_labels = {
+        "preparation": "Accounting JEV preparers",
+        "posting": "Independent Accounting JEV posters",
+    }
+    for action_key, _label in journal_action_choices_for_user(user):
+        queryset, _selected = journal_action_queryset(user, action_key)
+        queryset = queryset.select_related("period", "fund", "reversal_of").prefetch_related(
+            "lines__account", "lines__responsibility_center", "subsidiary_lines", "audit_events",
+        )
+        for item in queryset.order_by("-entry_date", "-pk"):
+            lines = list(item.lines.all())
+            subsidiary_lines = list(item.subsidiary_lines.all())
+            events = list(item.audit_events.all())
+            latest_return = next((event for event in events if event.action == "returned"), None)
+            total_debit = sum((line.debit for line in lines), start=Decimal("0.00"))
+            total_credit = sum((line.credit for line in lines), start=Decimal("0.00"))
+            difference = total_debit - total_credit
+            exceptions = []
+            if len(lines) < 2:
+                exceptions.append("Fewer than two journal lines are present; stop before submission or posting.")
+            if total_debit <= 0:
+                exceptions.append("Total debit is not positive; stop before submission or posting.")
+            if difference != 0:
+                exceptions.append(
+                    f"Debit and credit do not balance; control difference is {difference:.2f}. Stop before submission or posting."
+                )
+            if item.period.status != AccountingPeriod.OPEN:
+                exceptions.append("The selected Accounting period is closed; use the governed open-period correction route.")
+            if latest_return is not None:
+                exceptions.append(f"Returned correction reason: {latest_return.reason}")
+                if item.source_reference:
+                    exceptions.append(
+                        "This source-generated draft cannot be line-edited; discard it and recreate it from the corrected source evidence."
+                    )
+            projection_revision = _projection_checksum({
+                "entry": [
+                    item.reference, item.entry_date.isoformat(), item.period_id, item.period.status,
+                    item.fund_id, item.source_type, item.source_reference, item.description,
+                    item.status, item.created_by_id, item.submitted_by_id,
+                ],
+                "events": [
+                    [event.pk, event.action, event.actor_id, event.reason, event.created_at.isoformat()]
+                    for event in events
+                ],
+                "lines": [
+                    [
+                        line.pk, line.sequence, line.account_id, line.responsibility_center_id,
+                        str(line.debit), str(line.credit), line.memo,
+                    ]
+                    for line in lines
+                ],
+                "source_snapshot": item.source_snapshot,
+                "subsidiary_lines": [
+                    [
+                        row.pk, row.journal_line_id, row.category, row.reference_key,
+                        row.source_code, str(row.debit), str(row.credit), row.source_snapshot,
+                    ]
+                    for row in subsidiary_lines
+                ],
+            })
+            received_at = item.submitted_at if action_key == "posting" else item.created_at
+            if latest_return is not None and action_key == "preparation":
+                received_at = latest_return.created_at
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:journal-entry:{item.public_id}:{action_key}",
+                task_type=f"finance.journal-entry.{action_key}.v1",
+                area="Accounting",
+                case_id=f"journal-entry:{item.public_id}",
+                reference=f"{item.reference} · {item.entry_date.isoformat()}",
+                transaction_type=item.get_source_type_display(),
+                subject=item.description,
+                action=next_journal_action(item),
+                gate=(
+                    "This draft belongs to the acting Accounting office and is available to an authorized JEV preparer."
+                    if action_key == "preparation" else
+                    "This submitted JEV belongs to the acting Accounting office and excludes the preparer and submitter unless a governed exemption applies."
+                ),
+                owner_queue=f"{queue_labels[action_key]} · {department.name}",
+                scope=f"{department.name}; {item.period}; fund {item.fund.code}",
+                received_at=received_at or item.updated_at,
+                due_on=None,
+                due_state="No structured target",
+                calendar_basis="The JEV date is a ledger date, not an inferred action deadline.",
+                age_days=_age_days(received_at or item.updated_at, today),
+                state="Returned" if latest_return is not None else ("Exception" if exceptions else "Ready"),
+                source_state=item.get_status_display(),
+                source_version=f"projection-sha256:{projection_revision}",
+                exception=" ".join(exceptions),
+                url=reverse("accounting:entry_detail", kwargs={"public_id": item.public_id}),
+            ))
+    return tasks
+
+
 def _field_operation_tasks(user, department, today):
     from finance.shadow_register_exports import (
         shadow_action_choices_for_user, shadow_action_queryset,
@@ -880,6 +1116,8 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks.extend(_budget_tasks(user, department, today))
     tasks.extend(_payable_tasks(user, department, today))
     tasks.extend(_dv_custody_tasks(user, department, today))
+    tasks.extend(_accounting_validation_tasks(user, department, today))
+    tasks.extend(_journal_tasks(user, department, today))
     tasks.extend(_field_operation_tasks(user, department, today))
     tasks.extend(_local_form_tasks(user, department, today))
     tasks.sort(key=lambda task: (task.area, task.reference.lower(), task.task_type, task.task_id))
@@ -890,7 +1128,7 @@ def finance_work_tasks(user, *, display_limit=100):
         "tasks_truncated": task_count > display_limit,
         "task_coverage": (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
-            "DV preparation and controlled custody",
+            "DV preparation and controlled custody", "Accounting validation and JEV controls",
             "Field-operation cycle and nested-record gates", "Local forms",
         ),
     }
