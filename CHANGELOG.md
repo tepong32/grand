@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 setup and discovery work register
+
+- Added plain, permission-shaped attention filters to Finance Setup, separating editable draft release preparation, independent review, future scheduling, and due activation.
+- Added object-aware discovery preparation and named-reviewer queues while retaining blocker, overdue, all-submitted, and all-returned filters as oversight views rather than personal assignments.
+- Reused the same office-, owner-, reviewer-, lifecycle-, effectivity-, and UAT-aware query services for source registers, filtered discovery exports, and My Work counts.
+- Preserved the authoritative configuration release and discovery decision workflows: the new register cannot approve authority, activate setup, record a decision, clear a blocker, or rewrite locked evidence.
+- Updated Accounting/setup/discovery floating guides and Finance roadmap documentation for exact action boundaries and the remaining field/local-form adapters.
+- Added focused state separation, date eligibility, hidden-office, object-assignment, export parity, and source/My Work count-link coverage. The 33-test setup/discovery/Finance/guidance run and all 443 project tests pass across both routed databases; the full suite completed in 106.408 seconds. Authenticated desktop and 390×844 browser checks confirmed matching setup/discovery source rows and My Work counts, responsive registers, the floating guide, and zero application-route console errors.
+
 ## F1.5 returned-payment work register
 
 - Added a plain returned-payment work filter to the existing bank-advice page, separating independent Accounting decisions, Treasury clarifications, and Accounting-cleared controlled replacements.

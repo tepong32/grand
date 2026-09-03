@@ -15,7 +15,14 @@
       </div></div>
     </div>
     <div class="col-lg-8">
-      <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Configuration releases</h2></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Release</th><th>Effective period</th><th>Components</th><th>Status</th></tr></thead><tbody>
+      {% if setup_attention_choices %}<div class="card card-outline card-primary"><div class="card-body">
+        <form method="get" class="form-row align-items-end">
+          <div class="form-group col-md-9"><label for="setup-attention">What setup work needs attention?</label><select class="form-control" id="setup-attention" name="attention"><option value="">All configuration releases</option>{% for value, label in setup_attention_choices %}<option value="{{ value }}"{% if selected_setup_attention == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+          <div class="form-group col-md-3"><button class="btn btn-outline-primary" type="submit">Show setup work</button> <a class="btn btn-link px-0" href="{% url 'finance:workspace' %}">Clear</a></div>
+        </form>
+        {% if setup_work_spec %}<p class="mb-0"><strong>{{ setup_work_spec.title }}.</strong> {{ setup_work_spec.definition }} <span class="text-muted">Next: {{ setup_work_spec.next_action }}</span></p>{% else %}<p class="small text-muted mb-0">Choose an exact action to separate editable preparation, independent review, future scheduling, and activation. The register does not approve or activate a release by itself.</p>{% endif %}
+      </div></div>{% endif %}
+      <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Configuration releases</h2><span class="small text-muted float-right">{{ visible_count }} release{{ visible_count|pluralize }} visible</span></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Release</th><th>Effective period</th><th>Components</th><th>Status</th></tr></thead><tbody>
         {% for release in releases %}<tr><td><a href="{% url 'finance:release_detail' release.pk %}"><strong>{{ release.title }}</strong></a><div class="small text-muted">{{ release.code }} · v{{ release.version }} · FY {{ release.fiscal_year }}</div></td><td>{{ release.effective_from|date:'M j, Y' }}{% if release.effective_to %}<br><span class="small text-muted">through {{ release.effective_to|date:'M j, Y' }}</span>{% endif %}</td><td class="small">{{ release.items.count }} rules/master data<br>{{ release.templates.count }} workbook version{{ release.templates.count|pluralize }}</td><td><span class="badge badge-{% if release.status == 'active' %}success{% elif release.status == 'draft' %}secondary{% elif release.status == 'submitted' %}info{% else %}primary{% endif %}">{{ release.get_status_display }}</span></td></tr>
         {% empty %}<tr><td colspan="4" class="text-center text-muted py-5">No finance configuration release has been prepared for this office.</td></tr>{% endfor %}
       </tbody></table></div></div></div>

@@ -18,6 +18,7 @@ from .access import (
     can_review_finance_discovery_decision,
     can_view_finance_discovery_decision,
 )
+from .discovery_register import apply_discovery_filters
 from .models import FinanceAuditEvent, FinanceDiscoveryDecision
 
 
@@ -283,42 +284,18 @@ def export_discovery_register(
     """Export the actor's department register with the same filters as the workspace."""
     if not can_manage_finance_discovery(actor, department):
         raise PermissionDenied
-    valid_phases = dict(FinanceDiscoveryDecision.PHASE_CHOICES)
-    valid_statuses = dict(FinanceDiscoveryDecision.STATUS_CHOICES)
-    phase = phase if phase in valid_phases else ""
-    status = status if status in valid_statuses else ""
     decisions = FinanceDiscoveryDecision.objects.filter(department=department).select_related(
         "cycle", "owner", "reviewer", "created_by", "submitted_by", "reviewed_by", "predecessor",
     )
-    if phase:
-        decisions = decisions.filter(phase=phase)
-    if status:
-        decisions = decisions.filter(status=status)
-    try:
-        cycle_id = int(cycle_id)
-    except (TypeError, ValueError):
-        cycle_id = None
-    if cycle_id:
-        decisions = decisions.filter(cycle_id=cycle_id)
-    valid_attention = {"blockers", "awaiting_review", "overdue", "returned"}
-    attention = attention if attention in valid_attention else ""
-    if attention == "blockers":
-        decisions = decisions.exclude(status=FinanceDiscoveryDecision.SUPERSEDED).filter(
-            blocks_affected_scope=True,
-        )
-    elif attention == "awaiting_review":
-        decisions = decisions.filter(status=FinanceDiscoveryDecision.SUBMITTED)
-    elif attention == "overdue":
-        decisions = decisions.filter(
-            due_date__lt=timezone.localdate(),
-            status__in=(
-                FinanceDiscoveryDecision.DRAFT,
-                FinanceDiscoveryDecision.SUBMITTED,
-                FinanceDiscoveryDecision.RETURNED,
-            ),
-        )
-    elif attention == "returned":
-        decisions = decisions.filter(status=FinanceDiscoveryDecision.RETURNED)
+    decisions, phase, status, selected_cycle, attention = apply_discovery_filters(
+        decisions,
+        actor,
+        phase=phase,
+        status=status,
+        cycle_id=cycle_id,
+        attention=attention,
+    )
+    cycle_id = int(selected_cycle) if selected_cycle else None
     decisions = list(decisions)
 
     stream = io.StringIO(newline="")

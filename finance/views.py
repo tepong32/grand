@@ -35,6 +35,10 @@ from .discovery_services import (
     create_discovery_coverage_starters, export_discovery_decision, export_discovery_register,
     review_discovery_decision, submit_discovery_decision,
 )
+from .discovery_register import (
+    DISCOVERY_ACTION_SPECS, apply_discovery_filters, discovery_attention_choices_for_user,
+    visible_discovery_decisions,
+)
 from .forms import (
     FinanceCutoverDecisionForm,
     FinanceDiscoveryCoverageStarterForm, FinanceDiscoveryDecisionForm,
@@ -67,6 +71,9 @@ from .services import (
     create_recognition_posting_starter, evaluate_readiness, preflight_finance_template,
     record_event, synthetic_preview, transition_release,
 )
+from .setup_register import (
+    setup_attention_choices_for_user, setup_attention_queryset, setup_releases_for_department,
+)
 from .shadow_register_exports import (
     ATTENTION_CHOICES as SHADOW_ATTENTION_CHOICES,
     apply_shadow_cycle_filters, build_shadow_cycle_register, next_shadow_cycle_action,
@@ -76,14 +83,26 @@ from .shadow_register_exports import (
 @finance_access_required
 def workspace(request):
     department = department_for_user(request.user)
-    releases = FinanceConfigurationRelease.objects.filter(department=department).prefetch_related("items", "templates", "signatories", "numbering_sequences", "parties")
-    active = releases.filter(status="active").first()
+    all_releases = setup_releases_for_department(department)
+    active = all_releases.filter(status="active").first()
+    selected_setup_attention = request.GET.get("attention", "")
+    if selected_setup_attention:
+        releases, selected_setup_attention, setup_work_spec = setup_attention_queryset(
+            request.user, selected_setup_attention,
+        )
+    else:
+        releases = all_releases
+        setup_work_spec = None
     readiness = evaluate_readiness(active) if active else None
     return render(request, "finance/workspace.html", {
         "department": department, "releases": releases, "active_release": active, "readiness": readiness,
         "can_manage": can_manage_finance_configuration(request.user, department),
         "can_approve": can_approve_finance_configuration(request.user, department),
         "can_manage_templates": can_manage_finance_templates(request.user, department),
+        "setup_attention_choices": setup_attention_choices_for_user(request.user, department),
+        "selected_setup_attention": selected_setup_attention,
+        "setup_work_spec": setup_work_spec,
+        "visible_count": releases.count(),
     })
 
 
@@ -950,83 +969,27 @@ def cutover_readiness_exercise_result(request, pk):
     })
 
 
-def _visible_discovery_decisions(user):
-    query = Q(owner=user) | Q(reviewer=user)
-    department = department_for_user(user)
-    if department and (
-        can_view_finance_setup(user, department)
-        or can_manage_finance_discovery(user, department)
-    ):
-        query |= Q(department=department)
-    return FinanceDiscoveryDecision.objects.filter(query).select_related(
-        "department", "cycle", "owner", "reviewer", "created_by", "submitted_by",
-        "reviewed_by", "predecessor",
-    ).distinct()
-
-
 def _discovery_decision_for_user(user, public_id):
-    item = get_object_or_404(_visible_discovery_decisions(user), public_id=public_id)
+    item = get_object_or_404(visible_discovery_decisions(user), public_id=public_id)
     if not can_view_finance_discovery_decision(user, item):
         raise PermissionDenied
     return item
 
 
-DISCOVERY_ATTENTION_CHOICES = (
-    ("blockers", "Current scope blockers"),
-    ("awaiting_review", "Awaiting named reviewer"),
-    ("overdue", "Overdue open work"),
-    ("returned", "Returned for correction"),
-)
-
-
 def _filter_discovery_workspace(queryset, request):
-    selected_phase = request.GET.get("phase", "")
-    selected_status = request.GET.get("status", "")
-    selected_cycle = request.GET.get("cycle", "")
-    selected_attention = request.GET.get("attention", "")
-    try:
-        selected_cycle_id = int(selected_cycle)
-    except (TypeError, ValueError):
-        selected_cycle = ""
-    else:
-        if queryset.filter(cycle_id=selected_cycle_id).exists():
-            queryset = queryset.filter(cycle_id=selected_cycle_id)
-            selected_cycle = str(selected_cycle_id)
-        else:
-            selected_cycle = ""
-    if selected_phase in dict(FinanceDiscoveryDecision.PHASE_CHOICES):
-        queryset = queryset.filter(phase=selected_phase)
-    else:
-        selected_phase = ""
-    if selected_status in dict(FinanceDiscoveryDecision.STATUS_CHOICES):
-        queryset = queryset.filter(status=selected_status)
-    else:
-        selected_status = ""
-    if selected_attention == "blockers":
-        queryset = queryset.exclude(status=FinanceDiscoveryDecision.SUPERSEDED).filter(
-            blocks_affected_scope=True,
-        )
-    elif selected_attention == "awaiting_review":
-        queryset = queryset.filter(status=FinanceDiscoveryDecision.SUBMITTED)
-    elif selected_attention == "overdue":
-        queryset = queryset.filter(
-            due_date__lt=timezone.localdate(),
-            status__in=(
-                FinanceDiscoveryDecision.DRAFT,
-                FinanceDiscoveryDecision.SUBMITTED,
-                FinanceDiscoveryDecision.RETURNED,
-            ),
-        )
-    elif selected_attention == "returned":
-        queryset = queryset.filter(status=FinanceDiscoveryDecision.RETURNED)
-    else:
-        selected_attention = ""
-    return queryset, selected_phase, selected_status, selected_cycle, selected_attention
+    return apply_discovery_filters(
+        queryset,
+        request.user,
+        phase=request.GET.get("phase", ""),
+        status=request.GET.get("status", ""),
+        cycle_id=request.GET.get("cycle", ""),
+        attention=request.GET.get("attention", ""),
+    )
 
 
 @discovery_access_required
 def discovery_workspace(request):
-    decisions = _visible_discovery_decisions(request.user)
+    decisions = visible_discovery_decisions(request.user)
     cycle_choices = FinanceShadowCycle.objects.filter(
         pk__in=decisions.exclude(cycle=None).values("cycle_id"),
     ).order_by("-fiscal_year", "code")
@@ -1094,7 +1057,8 @@ def discovery_workspace(request):
         "phase_choices": FinanceDiscoveryDecision.PHASE_CHOICES,
         "status_choices": FinanceDiscoveryDecision.STATUS_CHOICES,
         "cycle_choices": cycle_choices,
-        "attention_choices": DISCOVERY_ATTENTION_CHOICES,
+        "attention_choices": discovery_attention_choices_for_user(request.user),
+        "discovery_work_spec": DISCOVERY_ACTION_SPECS.get(selected_attention),
         "can_create": can_create,
         "coverage_summaries": coverage_summaries,
         "can_access_setup": bool(department and can_view_finance_setup(request.user, department)),

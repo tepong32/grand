@@ -19,6 +19,60 @@ def _group(*, key, area, title, count, url, definition, scope):
     }
 
 
+def _setup_groups(user, department):
+    from finance.setup_register import (
+        setup_attention_choices_for_user, setup_attention_queryset,
+    )
+
+    keys = {
+        "needs_preparation": "setup-release-preparation",
+        "awaiting_review": "setup-release-review",
+        "ready_to_schedule": "setup-release-scheduling",
+        "ready_to_activate": "setup-release-activation",
+    }
+    groups = []
+    for attention, _label in setup_attention_choices_for_user(user, department):
+        queryset, selected_attention, spec = setup_attention_queryset(user, attention)
+        groups.append(_group(
+            key=keys[attention], area="Finance setup", title=spec["title"],
+            count=queryset.count(),
+            url=_queue_url("finance:workspace", attention=selected_attention),
+            definition=spec["definition"], scope=department.name,
+        ))
+    return groups
+
+
+def _discovery_groups(user, department):
+    from finance.access import can_manage_finance_discovery
+    from finance.discovery_register import (
+        discovery_action_choices_for_user, discovery_action_queryset,
+    )
+
+    keys = {
+        "needs_preparation": "discovery-preparation",
+        "my_reviews": "discovery-review",
+    }
+    groups = []
+    for attention, _label in discovery_action_choices_for_user(user):
+        queryset, selected_attention, spec = discovery_action_queryset(user, attention)
+        scope = (
+            (
+                f"Rows naming you as owner plus managed department: {department.name}"
+                if can_manage_finance_discovery(user, department)
+                else "Rows naming you as owner"
+            )
+            if attention == "needs_preparation"
+            else "Rows naming you as independent reviewer"
+        )
+        groups.append(_group(
+            key=keys[attention], area="Finance decisions", title=spec["title"],
+            count=queryset.count(),
+            url=_queue_url("finance:discovery_workspace", attention=selected_attention),
+            definition=spec["definition"], scope=scope,
+        ))
+    return groups
+
+
 def _voucher_groups(user, department):
     from accounting.access import can_post_journals, can_prepare_journals
     from vouchers.access import has_explicit_permission
@@ -370,6 +424,8 @@ def finance_work_attention(user):
     if department is None:
         return {"groups": [], "action_count": 0, "generated_at": generated_at, "department": None}
     groups = []
+    groups.extend(_setup_groups(user, department))
+    groups.extend(_discovery_groups(user, department))
     groups.extend(_budget_groups(user, department))
     groups.extend(_voucher_groups(user, department))
     groups.extend(_accounting_groups(user, department))

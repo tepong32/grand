@@ -319,13 +319,14 @@ ACCOUNTING_GUIDES = (
     },
     {
         "slug": "finance-configure",
-        "version": 4,
+        "version": 5,
         "title": "Prepare governed Finance setup",
         "summary": "Version master data, rules, signatories, numbering, and templates before transaction users depend on them.",
         "permission": "finance.manage_finance_configuration",
-        "patterns": ["finance:*", "accounting:setup*"],
+        "patterns": ["finance:*", "finance_operations:*", "accounting:setup*"],
         "order": 10,
         "steps": (
+            ("Find the exact setup action", "From Work needing attention, use preparation, independent review, future scheduling, or activation only when that named action matches your role. In Finance Setup, choose the same attention filter before opening a release.", "The My Work count and source register show the same office-owned release versions and lifecycle state.", "A count does not approve, schedule, activate, or make a starter locally accepted.", "Open Finance Setup", "finance:workspace"),
             ("Work in a draft release", "Create or open the correct department and fiscal-year configuration release before changing controlled setup.", "Changes are isolated from active transaction policy.", "", "Open Finance Setup", "finance:workspace"),
             ("Define transaction variants and evidence", "Add each locally enabled transaction variant, then add its ordered required or conditional documentary rules. State the exact applicability condition and whether reviewed authority permits a waiver.", "Every enabled payable route has a typed, reviewable checklist before release activation.", "Do not infer local applicability or form acceptance from a public COA/DBM source alone.", "", ""),
             ("Describe each accounting event", "For recognition, liquidation, payment, remittance, or another enabled event, choose its exact recognition point and add ordered debit/credit instructions. Start from the editable recognition recipe when useful, then replace its warning with the locally reviewed authority and wording.", "Each transaction variant has a human-readable rule that produces a balanced JEV.", "A generated starter is not accepted policy and blocks submission until its authority note is replaced.", "", ""),
@@ -635,15 +636,15 @@ REQUESTING_GUIDES = REQUESTING_GUIDES + (
 ACCOUNTING_GUIDES = ACCOUNTING_GUIDES + (
     {
         "slug": "finance-discovery-decision-register",
-        "version": 3,
+        "version": 4,
         "title": "Record Finance findings and unresolved decisions",
         "summary": "Turn interviews and reviewed evidence into scoped, independently reviewed Finance decisions without silently inventing policy.",
         "permission": "finance.manage_finance_discovery",
-        "patterns": ["finance:discovery_*", "finance:field_acceptance_*"],
+        "patterns": ["finance:discovery_*", "finance:field_acceptance_*", "finance_operations:*"],
         "order": 88,
         "steps": (
             ("Start from editable coverage prompts", "For a candidate shadow or parallel cycle, choose Add coverage starters, then assign one evidence owner, a different reviewer, and an optional review date. GRAND creates a whole-scope prompt plus step, field, balance, certification, signature, number, output, and exception prompts.", "Nine ordinary drafts make the minimum discovery areas visible without deciding their answers for the LGU; running the starter again creates only a missing current area.", "Every prompt starts Unresolved. Edit its wording and add more focused rows wherever the actual local process needs them.", "Add coverage starters", "finance:discovery_coverage_starters"),
-            ("Work the items needing attention", "Filter by candidate cycle, phase, workflow state, or Needs attention. Use Current scope blockers for work preventing the named scope, Awaiting named reviewer for queued checks, Overdue open work for missed review dates, and Returned for correction for rework.", "The list and manager's department export use the same selected filters; overdue dates are marked in the row.", "A filter is a work aid only. It does not change, accept, return, or clear any evidence.", "Open Decisions & Evidence", "finance:discovery_workspace"),
+            ("Work the items needing attention", "From My Work, use Draft or returned decisions I may prepare for rows you own or may manage, and Submitted decisions assigned to me for review only for independent decisions naming you. In the source register, use the same filter; blocker, all-awaiting-review, overdue, and all-returned choices remain oversight views.", "The personal action count, source list, and manager's filtered department export apply the same selected scope; overdue dates remain marked in the row.", "An oversight row is not automatically your assignment, and a filter does not change, accept, return, or clear evidence.", "Open Decisions & Evidence", "finance:discovery_workspace"),
             ("Add one focused question", "Create one stable DEC reference for a missing authority, disagreement, local procedure, form, balance, role, or exception. Choose its roadmap phase and optionally link the exact shadow cycle.", "The question is readable and narrow enough for one accountable decision.", "Do not combine unrelated offices, transaction types, years, forms, or actions into one broad block.", "Open Decisions & Evidence", "finance:discovery_workspace"),
             ("Use the evidence label literally", "Choose Observed in eGAPS, Official reference, LGU-confirmed, GRAND-implemented, or Unresolved according to what the retained evidence actually proves.", "The label, cited reference, custody location, and evidence still needed agree with one another.", "A public memo does not prove local applicability; a system screen does not prove hidden validation or authority.", "", ""),
             ("Name only the affected scope", "Write the exact transaction type, office, fiscal year, form, output, or action affected. Keep Block affected scope selected while an Unresolved finding remains.", "Staff can tell what must wait and what unrelated work may continue.", "Never use an unresolved question to freeze all Finance work when only a smaller scope is uncertain.", "", ""),
@@ -704,7 +705,7 @@ def _department_kind(department):
 FINANCE_MY_WORK_GUIDES = {
     "accounting": {
         "slug": "finance-my-work-accounting",
-        "version": 4,
+        "version": 5,
         "title": "Triage Accounting work needing attention",
         "summary": "Start from live Accounting and connected Finance counts, then continue in the exact governed register.",
         "permission": "accounting.view_accounting_workspace",
@@ -712,7 +713,7 @@ FINANCE_MY_WORK_GUIDES = {
         "order": 4,
         "steps": (
             ("Open work needing attention", "From Finance operations, open Work needing attention. Read the generated time and your current department before relying on a count.", "Only groups supported for your current permissions are shown.", "A count is not a new assignment, approval, or notification.", "Review My Work", "finance_operations:my_work"),
-            ("Choose the exact Accounting group", "Use the JEV, opening-balance, bank-reconciliation, period-close/reopen, bank-advice, returned-payment, cash-policy, cash-position, or reporting group that matches the action you may perform.", "Returned payments awaiting an Accounting decision are separate from Treasury clarification and replacement work; cash policy and position versions also remain separate.", "A queue count does not decide a bank return, post a reversal, establish cash availability, authorize a replacement, or release payment.", "", ""),
+            ("Choose the exact Accounting group", "Use the setup-release, discovery-decision, JEV, opening-balance, bank-reconciliation, period-close/reopen, bank-advice, returned-payment, cash-policy, cash-position, or reporting group that matches the action you may perform.", "Setup preparation/review/scheduling/activation and discovery preparation/review remain separate; returned payments, cash policy, and cash positions also keep their distinct states.", "A queue count does not accept local authority, approve or activate setup, record a discovery decision, decide a bank return, post a reversal, establish cash availability, authorize a replacement, or release payment.", "", ""),
             ("Open the source queue", "Choose Open exact queue and confirm its visible row count before opening a record.", "The source register applies the same lifecycle-state filter as the attention row.", "The linked Accounting or Reporting record remains authoritative; do not treat this overview as transaction state.", "", ""),
             ("Continue the governed action", "Open one source record, follow its next-action guidance, and use its return, reversal, or successor route if correction is needed.", "Work continues with the source record's permission, maker-checker, version, and audit controls.", "Private tutorial checkmarks only help you resume reading; they are not work-completion or competence evidence.", "", ""),
         ),
