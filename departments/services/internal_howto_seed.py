@@ -340,13 +340,14 @@ ACCOUNTING_GUIDES = (
 REQUESTING_GUIDES = (
     {
         "slug": "finance-requesting-office-obligation",
+        "version": 2,
         "title": "Prepare and submit an obligation request",
         "summary": "Initiate the locally applicable ALOBS/ORS/OBR without retyping authority, and correct it only inside the governed modification window.",
         "permission": "budget.initiate_obligation_requests",
         "patterns": ["budget:obligation_*"],
         "order": 1,
         "steps": (
-            ("Open your obligation queue", "Open Obligation control and confirm you are working under your current assigned department, not a previous employee's tutorial or transaction history.", "Only this department's requests and your private guide checkmarks are shown.", "Tutorial progress is only your private step checklist; it is not approval, work status, performance evidence, or inherited history.", "Open Obligation Control", "budget:obligation_workspace"),
+            ("Open your obligation queue", "From Work needing attention, open the exact obligation request naming your current office, or open Obligation control with Needs preparation selected. Read its Task ID, source version, zero-control warning, and office scope before editing.", "The exact task, attention count, source page, and export use the same current-office scope.", "A task is not inherited from a previous employee and does not certify the request. Tutorial progress is only your private step checklist; it is not approval, work status, performance evidence, or inherited history.", "Open Obligation Control", "budget:obligation_workspace"),
             ("Start the request once", "Choose the exact operational appropriation, locally applicable ALOBS/ORS/OBR type, unique office request reference, date, claimant/payee, particulars, evidence reference, and signed effect total.", "One traceable draft identifies the intended authority and claim.", "Do not duplicate a prior request reference or treat an approved proposal as spendable authority.", "New Obligation Request", "budget:obligation_create"),
             ("Add the exact schedule", "Select authorized lines instead of retyping fund, office, PPA, funding source, account, and expense class. Enter positive amounts; the movement supplies the sign.", "The schedule retains appropriation and allotment lineage.", "The signed control total is positive for new obligations and negative for returns/reductions.", "", ""),
             ("Use guided draft corrections", "Before submission, or after a Budget return, use Correct/Remove and the header edit. Review the zero control difference and the specific return reason.", "Every permitted change carries retained audit evidence.", "Submitted or certified rows cannot be silently edited or deleted.", "", ""),
@@ -594,7 +595,7 @@ TREASURY_GUIDES = (
 REQUESTING_GUIDES = REQUESTING_GUIDES + (
     {
         "slug": "finance-operations-entry",
-        "version": 6,
+        "version": 7,
         "title": "Find and continue your Finance work",
         "summary": "Use one permission-shaped starting page without changing the separate Budget, Accounting, Treasury, reporting, or field-control authorities.",
         "permission": "",
@@ -602,7 +603,7 @@ REQUESTING_GUIDES = REQUESTING_GUIDES + (
         "order": 5,
         "steps": (
             ("Start from Finance", "Open Finance from the top bar. Read only the cards shown for your assigned department, role, and named field work.", "You get one starting point for Finance-related work already allowed to your account.", "A visible card is access to a workspace, not authority to perform every action inside it.", "Open Finance", "finance_operations:overview"),
-            ("Read an exact work item when available", "For Finance Setup, discovery decisions, Field-operation cycle and nested actions, and Local forms, read the stable Task ID, source reference, exact action and gate, permitted queue, scope, timing basis, source version, and exception before opening the record.", "The same source and action keep the same Task ID while applicable, while separate actions on one source remain distinguishable.", "The item does not copy, assign, approve, or complete the source record. Retained effectivity and review targets are shown without inventing a legal deadline.", "Review My Work", "finance_operations:my_work"),
+            ("Read an exact work item when available", "For Finance Setup, discovery decisions, Budget versions/allotments/obligations, Field-operation cycle and nested actions, and Local forms, read the stable Task ID, source reference, exact action and gate, permitted queue, scope, timing basis, source version, and exception before opening the record.", "The same source and action keep the same Task ID while applicable, while separate actions on one source remain distinguishable.", "The item does not copy, assign, approve, or complete the source record. Budget control differences remain visible and must reconcile to zero before the governed posting step.", "Review My Work", "finance_operations:my_work"),
             ("Find the same shared case", "If your account has Voucher Workbench access, search from Finance using a case, OBR, DV, JEV, check, advice, receipt, claimant, safe purpose term, exact UUID, or exact checksum. GRAND opens the existing role-shaped case list.", "Matching and result counts happen only inside the cases your current office/role may already view.", "A zero-result search gives no hint that a hidden case exists. Do not use another employee's account or broad exports to look outside your scope.", "Open Finance", "finance_operations:overview"),
             ("Save a private case view", "In Voucher Workbench, apply the filters you need, enter a short plain name under Your private case views, and choose Save view. Open that name later to reapply the filters; use the same name to update it or Remove when it is no longer useful.", "Your repeat searches are easier to resume without changing a case or asking IT to create a report.", "The saved view belongs only to your account and is rechecked against your current role and office. It is not an assignment, alert, approval, shared record, or export authority; avoid confidential details in its name.", "Open Finance queue", "vouchers:workspace"),
             ("Follow the shared case", "Open the workspace named by your current handoff: requesting office or Budget intake, Accounting preparation and posting, Treasury issue and release, or the applicable report/control area.", "The same case, references, amounts, and history continue across offices.", "Do not create a replacement case merely because responsibility moved to another office.", "", ""),
@@ -722,7 +723,7 @@ FINANCE_MY_WORK_GUIDES = {
     },
     "budget": {
         "slug": "finance-my-work-budget",
-        "version": 1,
+        "version": 2,
         "title": "Triage Budget work needing attention",
         "summary": "Start from live proposal, allotment, obligation, voucher, and reporting counts without creating another Budget queue.",
         "permission": "budget.view_budget_workspace",
@@ -730,7 +731,7 @@ FINANCE_MY_WORK_GUIDES = {
         "order": 4,
         "steps": (
             ("Open work needing attention", "From Finance operations, open Work needing attention. Confirm the generated time and Budget department shown.", "Only action groups allowed by your current role appear.", "The overview does not grant proposal, authorization, allotment, obligation, or report authority.", "Review My Work", "finance_operations:my_work"),
-            ("Read the group definition", "Choose preparation, review, certification, voucher, or reporting work only when the row's definition matches your duty.", "Each count has a plain definition and visible scope.", "Approved proposals are not spendable authority, and a queue count does not change that boundary.", "", ""),
+            ("Read the exact Budget item", "For a proposal version, allotment order, or obligation request, read the stable Task ID, exact role gate, office scope, source version, retained Budget-call due date when applicable, and any non-zero control difference.", "Each exact item points to the same maker-checker-filtered source row; your own submitted record is excluded from your independent review queue.", "Approved proposals are not spendable authority. An allotment effective date or obligation date is not an invented action deadline, and a task does not bypass zero-control review.", "Review My Work", "finance_operations:my_work"),
             ("Open the exact register", "Choose Open exact queue and compare the filtered source rows with the attention count.", "The Budget, Voucher, or Reporting workspace carries the same lifecycle filter.", "If the source record is returned, correct the same governed record rather than making an unlinked replacement.", "", ""),
             ("Use the source workflow", "Continue from the source record's next action and retain its authority, version, and correction lineage.", "The authoritative register—not this overview—records the action and audit trail.", "Tutorial progress is private resume help, not submission, approval, UAT, or performance evidence.", "", ""),
         ),

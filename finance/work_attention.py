@@ -151,68 +151,77 @@ def _voucher_groups(user, department):
 
 def _budget_groups(user, department):
     from budget.access import has_budget_permission
-    from budget.models import AllotmentReleaseOrder, BudgetVersion, ObligationRequest
+    from budget.annual_exports import apply_annual_filters
+    from budget.control_exports import (
+        apply_allotment_filters, apply_obligation_filters, obligation_scope_for_user,
+    )
+    from budget.models import AllotmentReleaseOrder, BudgetVersion
+    from vouchers.roles import is_finance_uat_viewer
+
+    if is_finance_uat_viewer(user):
+        return []
 
     groups = []
     can_view_obligation_registry = has_budget_permission(user, "view_obligation_registry")
     can_certify_obligations = has_budget_permission(user, "certify_obligations")
     can_initiate_obligations = has_budget_permission(user, "initiate_obligation_requests")
     if has_budget_permission(user, "prepare_budget_proposals"):
-        count = BudgetVersion.objects.filter(
-            department_id=department.pk, status__in=(BudgetVersion.DRAFT, BudgetVersion.RETURNED),
-        ).count()
+        queryset, _kind, _status, _attention = apply_annual_filters(
+            BudgetVersion.objects.filter(department_id=department.pk),
+            attention="needs_preparation", actor=user,
+        )
         groups.append(_group(
             key="budget-version-preparation", area="Budget", title="Budget versions to prepare or correct",
-            count=count, url=_queue_url("budget:workspace", attention="needs_preparation"),
+            count=queryset.count(), url=_queue_url("budget:workspace", attention="needs_preparation"),
             definition="Draft or returned budget versions available to a proposal preparer.", scope=department.name,
         ))
     if has_budget_permission(user, "review_budget_proposals"):
-        count = BudgetVersion.objects.filter(department_id=department.pk, status=BudgetVersion.FOR_REVIEW).count()
+        queryset, _kind, _status, _attention = apply_annual_filters(
+            BudgetVersion.objects.filter(department_id=department.pk),
+            attention="awaiting_proposal_review", actor=user,
+        )
         groups.append(_group(
             key="budget-version-review", area="Budget", title="Budget versions for independent review",
-            count=count, url=_queue_url("budget:workspace", attention="awaiting_proposal_review"),
+            count=queryset.count(), url=_queue_url("budget:workspace", attention="awaiting_proposal_review"),
             definition="Submitted budget versions awaiting a permitted independent review.", scope=department.name,
         ))
     if has_budget_permission(user, "prepare_allotment_releases"):
-        count = AllotmentReleaseOrder.objects.filter(
-            department_id=department.pk,
-            status__in=(AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED),
-        ).count()
+        queryset, _kind, _status, _attention = apply_allotment_filters(
+            AllotmentReleaseOrder.objects.filter(department_id=department.pk),
+            attention="needs_preparation", actor=user,
+        )
         groups.append(_group(
             key="allotment-preparation", area="Budget", title="Allotment orders to prepare or correct",
-            count=count, url=_queue_url("budget:allotment_workspace", attention="needs_preparation"),
+            count=queryset.count(), url=_queue_url("budget:allotment_workspace", attention="needs_preparation"),
             definition="Draft or returned allotment orders available to a preparer.", scope=department.name,
         ))
     if has_budget_permission(user, "approve_allotment_releases"):
-        count = AllotmentReleaseOrder.objects.filter(
-            department_id=department.pk, status=AllotmentReleaseOrder.FOR_REVIEW,
-        ).count()
+        queryset, _kind, _status, _attention = apply_allotment_filters(
+            AllotmentReleaseOrder.objects.filter(department_id=department.pk),
+            attention="awaiting_review", actor=user,
+        )
         groups.append(_group(
             key="allotment-review", area="Budget", title="Allotment orders for independent review",
-            count=count, url=_queue_url("budget:allotment_workspace", attention="awaiting_review"),
+            count=queryset.count(), url=_queue_url("budget:allotment_workspace", attention="awaiting_review"),
             definition="Submitted allotment orders awaiting a permitted post-or-return decision.", scope=department.name,
         ))
     if can_initiate_obligations and not (can_view_obligation_registry or can_certify_obligations):
-        count = ObligationRequest.objects.filter(
-            requesting_department_id=department.pk,
-            status__in=(ObligationRequest.DRAFT, ObligationRequest.RETURNED),
-        ).count()
+        queryset, _kind, _form, _status, _attention = apply_obligation_filters(
+            obligation_scope_for_user(user), attention="needs_preparation", actor=user,
+        )
         groups.append(_group(
             key="obligation-preparation", area="Budget", title="Obligation requests to prepare or correct",
-            count=count, url=_queue_url("budget:obligation_workspace", attention="needs_preparation"),
+            count=queryset.count(), url=_queue_url("budget:obligation_workspace", attention="needs_preparation"),
             definition="Own-office draft or returned obligation requests available to a requesting-office maker.",
             scope=department.name,
         ))
     if can_certify_obligations:
-        obligation_scope = Q(department_id=department.pk)
-        if can_initiate_obligations:
-            obligation_scope |= Q(requesting_department_id=department.pk)
-        count = ObligationRequest.objects.filter(
-            obligation_scope, status=ObligationRequest.FOR_CERTIFICATION,
-        ).count()
+        queryset, _kind, _form, _status, _attention = apply_obligation_filters(
+            obligation_scope_for_user(user), attention="awaiting_certification", actor=user,
+        )
         groups.append(_group(
             key="obligation-certification", area="Budget", title="Obligations awaiting certification",
-            count=count, url=_queue_url("budget:obligation_workspace", attention="awaiting_certification"),
+            count=queryset.count(), url=_queue_url("budget:obligation_workspace", attention="awaiting_certification"),
             definition="Submitted obligation requests awaiting a permitted Budget certification or return.",
             scope=department.name,
         ))

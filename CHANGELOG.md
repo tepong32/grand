@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 exact Budget work tasks
+
+- Extended the stable read-only My Work contract to proposal versions, allotment release orders, and obligation requests while leaving each governed Budget register authoritative.
+- Reused actor-aware annual, allotment, and obligation filters across source pages, synchronized exports, attention counts, and exact items; proposal/allotment/obligation submitters are now excluded from their own independent decision queues.
+- Preserved requesting-office isolation and suppressed Budget action items for Finance UAT preview users even if an action permission is accidentally combined with that role.
+- Exposed the retained Budget-call proposal due date without treating allotment effectivity or obligation transaction dates as action deadlines.
+- Flagged exact non-zero allotment and obligation control differences on the work item and kept the source workflow's zero-difference gate authoritative before posting or certification.
+- Updated the general, Budget, and requesting-office floating guides and the Finance roadmap/audit. The 67-test focused Budget/Finance/guidance gate and all 465 project tests across both routed databases passed in 105.669 seconds; Django checks are clean and no migration drift exists.
+
 ## F1.5 exact Finance Setup and discovery tasks
 
 - Extended the stable read-only My Work contract to each actionable Finance configuration release and discovery decision without creating parallel task state.

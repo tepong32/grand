@@ -37,7 +37,7 @@ from .control_exports import (
     ALLOTMENT_ATTENTION_CHOICES, OBLIGATION_ATTENTION_CHOICES,
     apply_allotment_filters, apply_obligation_filters,
     build_allotment_register, build_obligation_register,
-    next_allotment_action, next_obligation_action,
+    next_allotment_action, next_obligation_action, obligation_scope_for_user,
 )
 
 
@@ -56,15 +56,7 @@ def _csv_text(value):
 
 
 def _obligation_scope(user):
-    department = department_for_user(user)
-    if not department:
-        return ObligationRequest.objects.none()
-    scope = Q(pk__in=[])
-    if has_budget_permission(user, "view_obligation_registry") or has_budget_permission(user, "certify_obligations"):
-        scope |= Q(department_id=department.pk)
-    if has_budget_permission(user, "initiate_obligation_requests"):
-        scope |= Q(requesting_department_id=department.pk)
-    return ObligationRequest.objects.filter(scope)
+    return obligation_scope_for_user(user)
 
 
 def _require_obligation_permission(user, *codenames):
@@ -89,6 +81,7 @@ def workspace(request):
         kind=request.GET.get("kind", "").strip(),
         status=request.GET.get("status", "").strip(),
         attention=request.GET.get("attention", "").strip(),
+        actor=request.user,
     )
     versions = list(versions.select_related(
         "fiscal_year", "budget_call", "appropriation_authorization",
@@ -131,6 +124,7 @@ def annual_register_export(request):
         kind=request.GET.get("kind", "").strip(),
         status=request.GET.get("status", "").strip(),
         attention=request.GET.get("attention", "").strip(),
+        actor=request.user,
     )
     content, filename, receipt = build_annual_register(
         department,
@@ -451,6 +445,7 @@ def allotment_workspace(request):
     orders, selected_kind, selected_status, selected_attention = apply_allotment_filters(
         base_orders, fiscal_year=fiscal_year, kind=request.GET.get("kind", "").strip(),
         status=request.GET.get("status", "").strip(), attention=request.GET.get("attention", "").strip(),
+        actor=request.user,
     )
     orders = list(orders.select_related("fiscal_year", "authorization", "corrects")[:100])
     for order in orders:
@@ -484,6 +479,7 @@ def allotment_register_export(request):
     orders, selected_kind, selected_status, selected_attention = apply_allotment_filters(
         base_orders, fiscal_year=fiscal_year, kind=request.GET.get("kind", "").strip(),
         status=request.GET.get("status", "").strip(), attention=request.GET.get("attention", "").strip(),
+        actor=request.user,
     )
     content, filename, receipt = build_allotment_register(
         department, request.user, orders, fiscal_year=fiscal_year, kind=selected_kind,
@@ -720,6 +716,7 @@ def obligation_workspace(request):
         base_items, fiscal_year=fiscal_year, kind=request.GET.get("kind", "").strip(),
         form_type=request.GET.get("form_type", "").strip(), status=request.GET.get("status", "").strip(),
         attention=request.GET.get("attention", "").strip(),
+        actor=request.user,
     )
     items = list(items.select_related("fiscal_year", "authorization", "corrects")[:100])
     for item in items:
@@ -759,6 +756,7 @@ def obligation_register_export(request):
         base_items, fiscal_year=fiscal_year, kind=request.GET.get("kind", "").strip(),
         form_type=request.GET.get("form_type", "").strip(), status=request.GET.get("status", "").strip(),
         attention=request.GET.get("attention", "").strip(),
+        actor=request.user,
     )
     content, filename, receipt = build_obligation_register(
         department, request.user, items, fiscal_year=fiscal_year, kind=selected_kind,

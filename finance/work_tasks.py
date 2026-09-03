@@ -369,6 +369,184 @@ def _discovery_tasks(user, department, today):
     return tasks
 
 
+def _budget_control_exception(item):
+    difference = item.control_difference
+    if difference:
+        return f"Control difference is {difference:.2f}; the source workflow must reconcile it to zero before posting."
+    if item.status == item.RETURNED:
+        return "This record was returned with a retained correction reason."
+    return ""
+
+
+def _budget_tasks(user, department, today):
+    from budget.access import has_budget_permission
+    from budget.annual_exports import apply_annual_filters, next_annual_action
+    from budget.control_exports import (
+        apply_allotment_filters, apply_obligation_filters,
+        next_allotment_action, next_obligation_action, obligation_scope_for_user,
+    )
+    from budget.models import AllotmentReleaseOrder, BudgetVersion, ObligationRequest
+    from vouchers.roles import is_finance_uat_viewer
+
+    tasks = []
+    if is_finance_uat_viewer(user):
+        return tasks
+    version_specs = (
+        (
+            has_budget_permission(user, "prepare_budget_proposals"),
+            "needs_preparation", "preparation", "Budget proposal preparers",
+            "Draft or returned budget versions available to a proposal preparer.",
+        ),
+        (
+            has_budget_permission(user, "review_budget_proposals"),
+            "awaiting_proposal_review", "review", "Independent Budget proposal reviewers",
+            "This submitted version awaits review, and the signed-in reviewer did not submit it.",
+        ),
+    )
+    for allowed, attention, action_key, queue_label, gate in version_specs:
+        if not allowed:
+            continue
+        queryset, _kind, _status, _selected = apply_annual_filters(
+            BudgetVersion.objects.filter(department_id=department.pk),
+            attention=attention, actor=user,
+        )
+        for item in queryset.select_related("fiscal_year", "budget_call").order_by(
+            "-fiscal_year__year", "kind", "-version", "pk",
+        ):
+            received_at = item.submitted_at if action_key == "review" else item.created_at
+            if item.status == BudgetVersion.RETURNED:
+                received_at = item.decided_at or item.updated_at
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:budget-version:{item.public_id}:{action_key}",
+                task_type=f"finance.budget-version.{action_key}.v1",
+                area="Budget",
+                case_id=f"budget-version:{item.public_id}",
+                reference=f"FY {item.fiscal_year.year} · {item.get_kind_display()} v{item.version}",
+                transaction_type=item.get_kind_display(),
+                subject=item.title,
+                action=next_annual_action(item),
+                gate=gate,
+                owner_queue=f"{queue_label} · {department.name}",
+                scope=(
+                    f"{department.name}; {item.requesting_department_label or 'consolidated / LGU-wide'}"
+                ),
+                received_at=received_at or item.updated_at,
+                due_on=item.budget_call.proposal_due_on,
+                due_state=_due_state(item.budget_call.proposal_due_on, today),
+                calendar_basis="Proposal due date retained on the governed Budget call; no holiday adjustment inferred.",
+                age_days=_age_days(received_at or item.updated_at, today),
+                state="Returned" if item.status == BudgetVersion.RETURNED else "Ready",
+                source_state=item.get_status_display(),
+                source_version=f"state:{item.state_version};updated:{item.updated_at.isoformat()}",
+                exception=(
+                    "This version was returned with a retained correction reason."
+                    if item.status == BudgetVersion.RETURNED else ""
+                ),
+                url=reverse("budget:version_detail", kwargs={"public_id": item.public_id}),
+            ))
+
+    allotment_specs = (
+        (
+            has_budget_permission(user, "prepare_allotment_releases"),
+            "needs_preparation", "preparation", "Allotment order preparers",
+            "This draft or returned order is editable in the acting Budget office before submission.",
+        ),
+        (
+            has_budget_permission(user, "approve_allotment_releases"),
+            "awaiting_review", "review", "Independent allotment reviewers",
+            "This submitted order awaits post-or-return review, and the signed-in reviewer did not submit it.",
+        ),
+    )
+    for allowed, attention, action_key, queue_label, gate in allotment_specs:
+        if not allowed:
+            continue
+        queryset, _kind, _status, _selected = apply_allotment_filters(
+            AllotmentReleaseOrder.objects.filter(department_id=department.pk),
+            attention=attention, actor=user,
+        )
+        for item in queryset.select_related("fiscal_year", "authorization").prefetch_related("lines").order_by(
+            "-fiscal_year__year", "-effective_date", "-created_at", "pk",
+        ):
+            received_at = item.submitted_at if action_key == "review" else item.created_at
+            if item.status == AllotmentReleaseOrder.RETURNED:
+                received_at = item.updated_at
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:allotment-order:{item.public_id}:{action_key}",
+                task_type=f"finance.allotment-order.{action_key}.v1",
+                area="Budget",
+                case_id=f"allotment-order:{item.public_id}",
+                reference=f"{item.order_number} · FY {item.fiscal_year.year}",
+                transaction_type=item.get_kind_display(),
+                subject=item.purpose,
+                action=next_allotment_action(item),
+                gate=gate,
+                owner_queue=f"{queue_label} · {department.name}",
+                scope=f"{department.name}; authority {item.authorization.ordinance_number}; effective {item.effective_date}",
+                received_at=received_at or item.updated_at,
+                due_on=None,
+                due_state="No structured target",
+                calendar_basis="The retained effective date is a ledger-control date, not an inferred action deadline.",
+                age_days=_age_days(received_at or item.updated_at, today),
+                state="Returned" if item.status == AllotmentReleaseOrder.RETURNED else "Ready",
+                source_state=item.get_status_display(),
+                source_version=f"state:{item.state_version};updated:{item.updated_at.isoformat()}",
+                exception=_budget_control_exception(item),
+                url=reverse("budget:allotment_detail", kwargs={"public_id": item.public_id}),
+            ))
+
+    can_view_registry = has_budget_permission(user, "view_obligation_registry")
+    can_certify = has_budget_permission(user, "certify_obligations")
+    can_initiate = has_budget_permission(user, "initiate_obligation_requests")
+    obligation_specs = (
+        (
+            can_initiate and not (can_view_registry or can_certify),
+            "needs_preparation", "preparation", "Requesting-office obligation preparers",
+            "This own-office draft or returned request remains editable before certification.",
+        ),
+        (
+            can_certify,
+            "awaiting_certification", "certification", "Independent Budget obligation certifiers",
+            "This submitted request awaits certification, and the signed-in certifier did not submit it.",
+        ),
+    )
+    for allowed, attention, action_key, queue_label, gate in obligation_specs:
+        if not allowed:
+            continue
+        queryset, _kind, _form, _status, _selected = apply_obligation_filters(
+            obligation_scope_for_user(user), attention=attention, actor=user,
+        )
+        for item in queryset.select_related("fiscal_year", "authorization").prefetch_related("lines").order_by(
+            "-fiscal_year__year", "-obligation_date", "-created_at", "pk",
+        ):
+            received_at = item.submitted_at if action_key == "certification" else item.created_at
+            if item.status == ObligationRequest.RETURNED:
+                received_at = item.updated_at
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:obligation-request:{item.public_id}:{action_key}",
+                task_type=f"finance.obligation-request.{action_key}.v1",
+                area="Budget",
+                case_id=f"obligation-request:{item.public_id}",
+                reference=f"{item.obligation_number or item.request_reference} · FY {item.fiscal_year.year}",
+                transaction_type=f"{item.get_form_type_display()} · {item.get_kind_display()}",
+                subject=f"{item.claimant_payee} · {item.particulars}",
+                action=next_obligation_action(item),
+                gate=gate,
+                owner_queue=f"{queue_label} · {department.name}",
+                scope=f"Budget: {item.department_label}; requesting office: {item.requesting_department_label}",
+                received_at=received_at or item.updated_at,
+                due_on=None,
+                due_state="No structured target",
+                calendar_basis="The obligation date is a transaction date, not an inferred action deadline.",
+                age_days=_age_days(received_at or item.updated_at, today),
+                state="Returned" if item.status == ObligationRequest.RETURNED else "Ready",
+                source_state=item.get_status_display(),
+                source_version=f"state:{item.state_version};updated:{item.updated_at.isoformat()}",
+                exception=_budget_control_exception(item),
+                url=reverse("budget:obligation_detail", kwargs={"public_id": item.public_id}),
+            ))
+    return tasks
+
+
 def _field_operation_tasks(user, department, today):
     from finance.shadow_register_exports import (
         shadow_action_choices_for_user, shadow_action_queryset,
@@ -436,6 +614,7 @@ def finance_work_tasks(user, *, display_limit=100):
     today = timezone.localdate()
     tasks = _setup_tasks(user, department, today)
     tasks.extend(_discovery_tasks(user, department, today))
+    tasks.extend(_budget_tasks(user, department, today))
     tasks.extend(_field_operation_tasks(user, department, today))
     tasks.extend(_local_form_tasks(user, department, today))
     tasks.sort(key=lambda task: (task.area, task.reference.lower(), task.task_type, task.task_id))
@@ -445,7 +624,7 @@ def finance_work_tasks(user, *, display_limit=100):
         "task_count": task_count,
         "tasks_truncated": task_count > display_limit,
         "task_coverage": (
-            "Finance setup releases", "Discovery decisions",
+            "Finance setup releases", "Discovery decisions", "Budget controls",
             "Field-operation cycle and nested-record gates", "Local forms",
         ),
     }

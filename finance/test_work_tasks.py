@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -13,6 +13,13 @@ from departments.models import Department
 from profiles.models import EmployeeProfile
 from reporting.models import FinanceLocalFormAcceptance
 from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+from accounting.models import FiscalYear
+from budget.annual_exports import apply_annual_filters
+from budget.control_exports import apply_allotment_filters, apply_obligation_filters, obligation_scope_for_user
+from budget.models import (
+    AllotmentReleaseOrder, AppropriationAuthorization, BudgetCall, BudgetVersion, ObligationRequest,
+)
 
 from .models import (
     FinanceConfigurationRelease, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
@@ -527,3 +534,221 @@ class FinanceWorkTaskContractTests(TestCase):
         self.assertIn("returned this decision", returned_task["exception"])
         self.assertEqual(draft_task["due_state"], "Within planned period")
         self.assertIn("blocks only its named affected scope", draft_task["exception"])
+
+
+class FinanceBudgetWorkTaskContractTests(TestCase):
+    databases = {"default", "finance"}
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.budget = Department.objects.create(name="Municipal Budget Office", slug="task-budget")
+        cls.accounting = Department.objects.create(name="Municipal Accounting Office", slug="task-budget-ledger")
+        cls.requesting = Department.objects.create(name="General Services Office", slug="task-budget-requesting")
+        cls.preparer = cls._employee(
+            "task.budget.preparer", cls.budget,
+            "view_budget_workspace", "prepare_budget_proposals",
+            "view_allotment_control", "prepare_allotment_releases",
+        )
+        cls.reviewer = cls._employee(
+            "task.budget.reviewer", cls.budget,
+            "view_budget_workspace", "review_budget_proposals",
+            "view_allotment_control", "approve_allotment_releases",
+        )
+        cls.requester = cls._employee(
+            "task.budget.requester", cls.requesting,
+            "view_budget_workspace", "initiate_obligation_requests",
+        )
+        cls.certifier = cls._employee(
+            "task.budget.certifier", cls.budget,
+            "view_budget_workspace", "view_obligation_registry", "certify_obligations",
+        )
+        cls.uat = cls._employee(
+            "task.budget.uat", cls.budget, "view_budget_workspace", "prepare_budget_proposals",
+        )
+        cls.uat.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        today = timezone.localdate()
+        cls.fiscal_year = FiscalYear.objects.create(
+            department_id=cls.accounting.pk, department_label=cls.accounting.name,
+            year=today.year, label=f"FY {today.year}",
+            starts_on=date(today.year, 1, 1), ends_on=date(today.year, 12, 31),
+            business_date=today, status=FiscalYear.APPROVED,
+        )
+        cls.call = BudgetCall.objects.create(
+            department_id=cls.budget.pk, department_label=cls.budget.name,
+            fiscal_year=cls.fiscal_year, title="Controlled annual Budget call",
+            authority_reference="Synthetic retained Budget authority.",
+            instructions="Prepare and independently review each exact version.",
+            proposal_opens_on=today - timedelta(days=10), proposal_due_on=today + timedelta(days=10),
+            status=BudgetCall.PUBLISHED, created_by_id=cls.preparer.pk,
+            created_by_label=cls.preparer.username,
+        )
+        cls.authority_version = BudgetVersion.objects.create(
+            department_id=cls.budget.pk, department_label=cls.budget.name,
+            budget_call=cls.call, fiscal_year=cls.fiscal_year, kind=BudgetVersion.FINAL,
+            version=90, title="Synthetic operational authority source",
+            change_explanation="Synthetic task-contract fixture.", status=BudgetVersion.AUTHORIZED,
+            created_by_id=cls.preparer.pk, created_by_label=cls.preparer.username,
+        )
+        cls.authority = AppropriationAuthorization.objects.create(
+            department_id=cls.budget.pk, department_label=cls.budget.name,
+            version=cls.authority_version, authority_type=AppropriationAuthorization.ORDINANCE,
+            ordinance_number="ORD-TASK-001", ordinance_date=today - timedelta(days=30),
+            effectivity_date=date(today.year, 1, 1), review_status=AppropriationAuthorization.FAVORABLE,
+            review_reference="Synthetic independent review.", review_date=today - timedelta(days=20),
+            evidence_reference="Synthetic retained signed schedule.", signed_control_total=Decimal("0.00"),
+            status=AppropriationAuthorization.AUTHORIZED,
+            created_by_id=cls.preparer.pk, created_by_label=cls.preparer.username,
+            submitted_by_id=cls.preparer.pk, submitted_by_label=cls.preparer.username,
+            authorized_by_id=cls.reviewer.pk, authorized_by_label=cls.reviewer.username,
+        )
+
+    @classmethod
+    def _employee(cls, username, department, *permissions):
+        user = get_user_model().objects.create_user(
+            username=username, email=f"{username}@example.test", password="budget-task-test",
+        )
+        profile, _created = EmployeeProfile.objects.get_or_create(user=user)
+        profile.assigned_department = department
+        profile.save(update_fields=("assigned_department",))
+        user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="budget", codename__in=permissions,
+        ))
+        return get_user_model().objects.get(pk=user.pk)
+
+    def _version(self, code, status, submitted_by=None):
+        return BudgetVersion.objects.create(
+            department_id=self.budget.pk, department_label=self.budget.name,
+            budget_call=self.call, fiscal_year=self.fiscal_year,
+            kind=BudgetVersion.DEPARTMENT, version=code,
+            title=f"Department proposal {code}", requesting_department_id=self.requesting.pk,
+            requesting_department_label=self.requesting.name,
+            change_explanation="Synthetic exact-task version.", status=status,
+            created_by_id=self.preparer.pk, created_by_label=self.preparer.username,
+            submitted_by_id=submitted_by.pk if submitted_by else None,
+            submitted_by_label=submitted_by.username if submitted_by else "",
+            submitted_at=timezone.now() if submitted_by else None,
+        )
+
+    def _allotment(self, number, status, submitted_by=None, signed_total="0.00"):
+        return AllotmentReleaseOrder.objects.create(
+            department_id=self.budget.pk, department_label=self.budget.name,
+            authorization=self.authority, fiscal_year=self.fiscal_year,
+            order_number=number, kind=AllotmentReleaseOrder.INITIAL,
+            release_date=timezone.localdate(), effective_date=timezone.localdate(),
+            authority_reference="Synthetic allotment authority.",
+            evidence_reference="Synthetic signed ARO reference.", purpose="Controlled operating release.",
+            signed_control_total=Decimal(signed_total), status=status,
+            created_by_id=self.preparer.pk, created_by_label=self.preparer.username,
+            submitted_by_id=submitted_by.pk if submitted_by else None,
+            submitted_by_label=submitted_by.username if submitted_by else "",
+            submitted_at=timezone.now() if submitted_by else None,
+        )
+
+    def _obligation(self, reference, status, submitted_by=None, signed_total="0.00"):
+        return ObligationRequest.objects.create(
+            department_id=self.budget.pk, department_label=self.budget.name,
+            authorization=self.authority, fiscal_year=self.fiscal_year,
+            requesting_department_id=self.requesting.pk, requesting_department_label=self.requesting.name,
+            kind=ObligationRequest.ORIGINAL, form_type=ObligationRequest.OBR,
+            request_reference=reference, obligation_date=timezone.localdate(),
+            claimant_payee="Synthetic claimant", particulars="Controlled obligation request.",
+            evidence_reference="Synthetic retained request evidence.",
+            signed_control_total=Decimal(signed_total), status=status,
+            created_by_id=self.requester.pk, created_by_label=self.requester.username,
+            submitted_by_id=submitted_by.pk if submitted_by else None,
+            submitted_by_label=submitted_by.username if submitted_by else "",
+            submitted_at=timezone.now() if submitted_by else None,
+        )
+
+    def test_budget_versions_have_exact_due_dates_and_independent_review_scope(self):
+        draft = self._version(1, BudgetVersion.DRAFT)
+        review = self._version(2, BudgetVersion.FOR_REVIEW, self.preparer)
+        self_review = self._version(3, BudgetVersion.FOR_REVIEW, self.reviewer)
+
+        reviewer_source, *_rest = apply_annual_filters(
+            BudgetVersion.objects.filter(department_id=self.budget.pk),
+            attention="awaiting_proposal_review", actor=self.reviewer,
+        )
+        reviewer_tasks = [
+            task for task in finance_work_tasks(self.reviewer)["tasks"]
+            if task["task_type"] == "finance.budget-version.review.v1"
+        ]
+        preparer_tasks = [
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["task_type"] == "finance.budget-version.preparation.v1"
+        ]
+
+        self.assertEqual(set(reviewer_source), {review})
+        self.assertEqual(len(reviewer_tasks), 1)
+        self.assertIn(str(review.public_id), reviewer_tasks[0]["task_id"])
+        self.assertNotIn(str(self_review.public_id), reviewer_tasks[0]["task_id"])
+        self.assertEqual(preparer_tasks[0]["due_on"], self.call.proposal_due_on)
+        self.assertEqual(preparer_tasks[0]["url"], reverse("budget:version_detail", kwargs={"public_id": draft.public_id}))
+        self.client.force_login(self.reviewer)
+        source_page = self.client.get(reverse("budget:workspace"), {"attention": "awaiting_proposal_review"})
+        self.assertEqual([item.pk for item in source_page.context["versions"]], [review.pk])
+        self.assertFalse(any(
+            task["task_type"].startswith("finance.budget-")
+            for task in finance_work_tasks(self.uat)["tasks"]
+        ))
+        self.assertNotIn(
+            "budget-version-preparation",
+            {group["key"] for group in finance_work_attention(self.uat)["groups"]},
+        )
+
+    def test_allotment_tasks_surface_nonzero_controls_and_exclude_self_review(self):
+        draft = self._allotment("ARO-TASK-DRAFT", AllotmentReleaseOrder.DRAFT, signed_total="100.00")
+        review = self._allotment("ARO-TASK-REVIEW", AllotmentReleaseOrder.FOR_REVIEW, self.preparer)
+        self_review = self._allotment("ARO-TASK-SELF", AllotmentReleaseOrder.FOR_REVIEW, self.reviewer)
+
+        reviewer_source, *_rest = apply_allotment_filters(
+            AllotmentReleaseOrder.objects.filter(department_id=self.budget.pk),
+            attention="awaiting_review", actor=self.reviewer,
+        )
+        preparer_task = next(
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if str(draft.public_id) in task["task_id"]
+        )
+        reviewer_tasks = [
+            task for task in finance_work_tasks(self.reviewer)["tasks"]
+            if task["task_type"] == "finance.allotment-order.review.v1"
+        ]
+
+        self.assertEqual(set(reviewer_source), {review})
+        self.assertEqual(len(reviewer_tasks), 1)
+        self.assertNotIn(str(self_review.public_id), reviewer_tasks[0]["task_id"])
+        self.assertIn("Control difference is 100.00", preparer_task["exception"])
+        self.assertIn("reconcile it to zero", preparer_task["exception"])
+        self.client.force_login(self.reviewer)
+        source_page = self.client.get(reverse("budget:allotment_workspace"), {"attention": "awaiting_review"})
+        self.assertEqual([item.pk for item in source_page.context["orders"]], [review.pk])
+
+    def test_obligation_tasks_keep_requesting_scope_zero_control_and_certifier_independence(self):
+        draft = self._obligation("REQ-TASK-DRAFT", ObligationRequest.DRAFT, signed_total="25.00")
+        review = self._obligation("REQ-TASK-REVIEW", ObligationRequest.FOR_CERTIFICATION, self.requester)
+        self_review = self._obligation("REQ-TASK-SELF", ObligationRequest.FOR_CERTIFICATION, self.certifier)
+
+        certifier_source, *_rest = apply_obligation_filters(
+            obligation_scope_for_user(self.certifier), attention="awaiting_certification", actor=self.certifier,
+        )
+        requester_tasks = [
+            task for task in finance_work_tasks(self.requester)["tasks"]
+            if task["task_type"] == "finance.obligation-request.preparation.v1"
+        ]
+        certifier_tasks = [
+            task for task in finance_work_tasks(self.certifier)["tasks"]
+            if task["task_type"] == "finance.obligation-request.certification.v1"
+        ]
+
+        self.assertEqual(set(certifier_source), {review})
+        self.assertEqual(len(requester_tasks), 1)
+        self.assertIn(str(draft.public_id), requester_tasks[0]["task_id"])
+        self.assertIn("Control difference is 25.00", requester_tasks[0]["exception"])
+        self.assertEqual(len(certifier_tasks), 1)
+        self.assertIn(str(review.public_id), certifier_tasks[0]["task_id"])
+        self.assertNotIn(str(self_review.public_id), certifier_tasks[0]["task_id"])
+        self.client.force_login(self.certifier)
+        source_page = self.client.get(
+            reverse("budget:obligation_workspace"), {"attention": "awaiting_certification"},
+        )
+        self.assertEqual([item.pk for item in source_page.context["requests"]], [review.pk])

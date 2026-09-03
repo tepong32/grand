@@ -56,7 +56,21 @@ def _csv_safe(value):
     return value
 
 
-def apply_allotment_filters(queryset, *, fiscal_year=None, kind="", status="", attention=""):
+def obligation_scope_for_user(user):
+    department = department_for_user(user)
+    if department is None:
+        return ObligationRequest.objects.none()
+    scope = Q(pk__in=[])
+    if has_budget_permission(user, "view_obligation_registry") or has_budget_permission(user, "certify_obligations"):
+        scope |= Q(department_id=department.pk)
+    if has_budget_permission(user, "initiate_obligation_requests"):
+        scope |= Q(requesting_department_id=department.pk)
+    return ObligationRequest.objects.filter(scope)
+
+
+def apply_allotment_filters(
+    queryset, *, fiscal_year=None, kind="", status="", attention="", actor=None,
+):
     if fiscal_year is not None:
         queryset = queryset.filter(fiscal_year=fiscal_year)
     if kind:
@@ -77,6 +91,8 @@ def apply_allotment_filters(queryset, *, fiscal_year=None, kind="", status="", a
         queryset = queryset.filter(status__in=(AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED))
     elif attention == "awaiting_review":
         queryset = queryset.filter(status=AllotmentReleaseOrder.FOR_REVIEW)
+        if actor is not None:
+            queryset = queryset.exclude(submitted_by_id=actor.pk)
     elif attention == "posted":
         queryset = queryset.filter(status=AllotmentReleaseOrder.POSTED)
     elif attention:
@@ -99,7 +115,7 @@ def next_allotment_action(order):
 
 
 def apply_obligation_filters(
-    queryset, *, fiscal_year=None, kind="", form_type="", status="", attention="",
+    queryset, *, fiscal_year=None, kind="", form_type="", status="", attention="", actor=None,
 ):
     if fiscal_year is not None:
         queryset = queryset.filter(fiscal_year=fiscal_year)
@@ -128,6 +144,8 @@ def apply_obligation_filters(
         queryset = queryset.filter(status__in=(ObligationRequest.DRAFT, ObligationRequest.RETURNED))
     elif attention == "awaiting_certification":
         queryset = queryset.filter(status=ObligationRequest.FOR_CERTIFICATION)
+        if actor is not None:
+            queryset = queryset.exclude(submitted_by_id=actor.pk)
     elif attention == "certified":
         queryset = queryset.filter(status=ObligationRequest.CERTIFIED)
     elif attention:

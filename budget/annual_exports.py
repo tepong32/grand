@@ -68,7 +68,7 @@ def _csv_safe(value):
     return value
 
 
-def apply_annual_filters(queryset, *, fiscal_year=None, kind="", status="", attention=""):
+def apply_annual_filters(queryset, *, fiscal_year=None, kind="", status="", attention="", actor=None):
     if fiscal_year is not None:
         queryset = queryset.filter(fiscal_year=fiscal_year)
     if kind in dict(BudgetVersion.KIND_CHOICES):
@@ -84,6 +84,8 @@ def apply_annual_filters(queryset, *, fiscal_year=None, kind="", status="", atte
         queryset = queryset.filter(status__in=(BudgetVersion.DRAFT, BudgetVersion.RETURNED))
     elif attention == "awaiting_proposal_review":
         queryset = queryset.filter(status=BudgetVersion.FOR_REVIEW)
+        if actor is not None:
+            queryset = queryset.exclude(submitted_by_id=actor.pk)
     elif attention == "approved_nonspendable":
         queryset = queryset.filter(status=BudgetVersion.APPROVED).exclude(kind__in=AUTHORITY_ELIGIBLE_KINDS)
     elif attention == "needs_authority_evidence":
