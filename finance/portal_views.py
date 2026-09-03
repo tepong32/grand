@@ -4,6 +4,7 @@ from django.shortcuts import render
 
 from .operations import finance_operations_access, finance_operations_areas
 from .work_attention import finance_work_attention
+from .work_tasks import finance_work_tasks
 
 
 @login_required
@@ -26,4 +27,5 @@ def my_work(request):
     if not access["allowed"]:
         raise PermissionDenied
     attention = finance_work_attention(request.user)
+    attention.update(finance_work_tasks(request.user))
     return render(request, "finance/my_work.html", attention)

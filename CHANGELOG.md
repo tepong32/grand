@@ -1,5 +1,15 @@
 # Changelog
 
+## F1.5 first item-level My Work contract
+
+- Added deterministic, versioned Task IDs for exact Field-operation cycle-gate and Local-form actions while keeping each source register authoritative and avoiding parallel task state.
+- Added plain item-level action/gate, permitted queue, office/scope, received age, explicit timing basis, source state/version, safe exception, case ID, and direct source-record links.
+- Kept separate actions on one source distinguishable, excluded Finance UAT preview users, retained office/object scoping and maker-checker filtering from the shared exact source queries, and capped page rendering at 100 deterministically ordered rows.
+- Extended the Accounting floating guide and regression coverage for stable IDs, source links, non-mutating reads, hidden-office isolation, non-invented due dates, field-plan timing, and item-contract boundaries.
+- Kept named defects, readiness exercises, stakeholder decisions, and cutover decisions group-only until GRAND can project each nested record's own identity rather than mislabeling its parent cycle.
+- Deferred other domain item adapters, Waiting/Returned/Due/Completed-by-me, and a separately authorized bounded TraceSync task-register export to later rollbackable checkpoints.
+- Passed the 81-test focused Finance/field/local-form/guidance gate and all 457 project tests across both routed databases. An authenticated isolated browser pass verified five source-linked items, stacked 390×844 mobile rows, the floating nine-step guide, and zero application-route console errors.
+
 ## F1.5 local-form work register
 
 - Added permission-shaped local-form preparation queues for missing governed mappings, current references, candidate-section decisions, and returned corrections.

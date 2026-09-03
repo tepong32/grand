@@ -1,6 +1,6 @@
 # Finance work-attention foundation
 
-Status: F1.5 foundation plus the local-form source-adapter checkpoint implemented. `/finance/my-work/` provides a live, permission-filtered overview of supported Finance setup/discovery/field operation, Budget, shared voucher, Accounting, bank-advice, returned-payment, Treasury remittance, cash-policy, cash-position, period-close/reopen, Reporting, and local-form action groups. It is a read model over existing governed registers, not yet the complete item-level My Work task contract.
+Status: F1.5 foundation plus the first item-level task-contract checkpoint implemented. `/finance/my-work/` provides a live, permission-filtered overview of supported Finance setup/discovery/field operation, Budget, shared voucher, Accounting, bank-advice, returned-payment, Treasury remittance, cash-policy, cash-position, period-close/reopen, Reporting, and local-form action groups. Field-operation cycle gates and local-form actions also expose stable read-only work items over their existing governed records; the remaining domains and nested field records are not yet represented at item level.
 
 ## What the page does
 
@@ -33,11 +33,25 @@ The first adapter set covers:
 
 The source workspace remains authoritative after the handoff. Its own permission, maker–checker, state-version, locking, correction, export, and audit controls still apply.
 
+## First item-level contract
+
+For Field-operation cycle gates and Local forms, each visible item now carries:
+
+- a deterministic `finwork:v1:<source-kind>:<source-public-id>:<action>` Task ID and a controlled versioned task type;
+- a stable case/source ID, recognizable reference, safe subject, transaction kind, and direct authoritative-record link;
+- the exact plain-language action and source-query gate;
+- the permitted role queue and office/scope statement, without claiming that the item has been assigned;
+- received age plus either the retained field-cycle plan date or an explicit statement that no structured target is available;
+- ready/returned presentation state, authoritative source state and source version token; and
+- a safe exception summary for the exact missing or returned gate where applicable.
+
+One source may correctly produce more than one Task ID when it requires separate actions. Rebuilding the page does not change those IDs or write task, source, ownership, approval, or completion state. Named defects, readiness exercises, stakeholder decisions, and cutover decisions remain group-only until their own nested record identity can be projected; GRAND does not mislabel the parent cycle as that task. The page limits its rendered item table to 100 deterministic rows and directs users to the exact source queues for the complete register.
+
 ## Deliberately deferred adapters
 
 Other remaining cross-cycle action groups are not counted until their source workspaces expose a filter that reproduces the same work item, role scope, and state. Local forms, field operation, setup, discovery, bank advice, returned payment, period close/reopen, and cash control now use shared filter services in both My Work and their source workspaces. Local-form preparation, test witnessing, and acceptance review remain separate from accepted/superseded oversight, and a user never receives independent work for that user's own test or submitted form. A field count means visible cycles containing the named action, not the number of nested defects, exercises, or decisions. Field personal actions remain distinct from oversight; setup states remain effectivity-aware; discovery owner/reviewer actions remain separate from oversight; returned-payment actions separate Accounting decision, Treasury clarification, and controlled replacement; and cash policy and position versions stay distinct. Omitting any still-unsupported number is safer than showing a plausible count that opens a different list.
 
-The broader F1 My Work contract also remains open. Later rollbackable slices must add stable task identity and type, case and authoritative record links, exact action/gate, owner or permitted queue, timing/due state, source state/version, exceptions, Waiting/Returned/Due/Completed-by-me views, assignment/following rules, and governed shared views. Notifications must remain signals over that same source contract, never a parallel queue.
+The broader F1 My Work contract remains open. Later rollbackable slices must extend the same stable contract to the other supported domains, then add Waiting/Returned/Due/Completed-by-me views, assignment/following rules, governed shared views, and a separately authorized bounded portable export. Notifications must remain signals over that same source contract, never a parallel queue.
 
 ## Internal How-To
 
@@ -58,4 +72,4 @@ This checkpoint does not prove that an LGU accepts the workflow, terminology, ro
 
 ## Regression contract
 
-Automated coverage verifies the stable route and Finance-entry link, denial for reporting-only/ordinary users, exact local-form preparation/witness/review parity, exact field lifecycle/role/object parity, setup lifecycle/effectivity and discovery owner/reviewer parity, requesting-office voucher count parity, bank-advice, returned-payment, period-close, cash-policy, and cash-position parity with their filtered source queues, hidden-office isolation, independent review exclusions, named cross-office defect/exercise/stakeholder visibility, UAT preview exclusion, permission-shaped action choices, synchronized exports, boundary copy, and publication of page-relevant department guides. The current checkpoint gate passed 37 focused local-form/Finance/guidance contract tests and all 453 project tests across both routed databases. An authenticated isolated two-store browser pass matched the one-form mapping queue to its My Work count, kept reference and section-decision counts separate, and verified the updated non-modal Accounting guide at desktop and 390×844 with zero application-route console errors. Future source adapters must continue through the same gate.
+Automated coverage verifies the stable route and Finance-entry link, denial for reporting-only/ordinary users, exact local-form preparation/witness/review parity, exact field lifecycle/role/object parity, setup lifecycle/effectivity and discovery owner/reviewer parity, requesting-office voucher count parity, bank-advice, returned-payment, period-close, cash-policy, and cash-position parity with their filtered source queues, hidden-office isolation, independent review exclusions, named cross-office defect/exercise/stakeholder visibility, UAT preview exclusion, permission-shaped action choices, synchronized exports, boundary copy, and publication of page-relevant department guides. The item-contract checkpoint adds deterministic-ID, separate-action, source-link, office-isolation, timing-basis, read-only, UAT-exclusion, and page-boundary coverage. Its focused gate passed 81 tests and the complete gate passed all 457 project tests across both routed databases in 96.742 seconds. An authenticated isolated browser pass verified five exact source-linked tasks, stacked mobile rows at 390×844, the floating nine-step guide, and zero application-route console errors. Future task adapters must continue through the same gate.

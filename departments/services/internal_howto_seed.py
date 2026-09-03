@@ -594,7 +594,7 @@ TREASURY_GUIDES = (
 REQUESTING_GUIDES = REQUESTING_GUIDES + (
     {
         "slug": "finance-operations-entry",
-        "version": 3,
+        "version": 4,
         "title": "Find and continue your Finance work",
         "summary": "Use one permission-shaped starting page without changing the separate Budget, Accounting, Treasury, reporting, or field-control authorities.",
         "permission": "",
@@ -602,6 +602,7 @@ REQUESTING_GUIDES = REQUESTING_GUIDES + (
         "order": 5,
         "steps": (
             ("Start from Finance", "Open Finance from the top bar. Read only the cards shown for your assigned department, role, and named field work.", "You get one starting point for Finance-related work already allowed to your account.", "A visible card is access to a workspace, not authority to perform every action inside it.", "Open Finance", "finance_operations:overview"),
+            ("Read an exact work item when available", "For Field-operation cycle gates and Local forms, read the stable Task ID, source reference, exact action and gate, permitted queue, scope, timing basis, source version, and exception before opening the record.", "The same source and action keep the same Task ID while applicable, while separate actions on one source remain distinguishable.", "The item does not copy, assign, approve, or complete the source record. Named nested field records remain in their exact source group until their own identities are supported.", "Review My Work", "finance_operations:my_work"),
             ("Find the same shared case", "If your account has Voucher Workbench access, search from Finance using a case, OBR, DV, JEV, check, advice, receipt, claimant, safe purpose term, exact UUID, or exact checksum. GRAND opens the existing role-shaped case list.", "Matching and result counts happen only inside the cases your current office/role may already view.", "A zero-result search gives no hint that a hidden case exists. Do not use another employee's account or broad exports to look outside your scope.", "Open Finance", "finance_operations:overview"),
             ("Save a private case view", "In Voucher Workbench, apply the filters you need, enter a short plain name under Your private case views, and choose Save view. Open that name later to reapply the filters; use the same name to update it or Remove when it is no longer useful.", "Your repeat searches are easier to resume without changing a case or asking IT to create a report.", "The saved view belongs only to your account and is rechecked against your current role and office. It is not an assignment, alert, approval, shared record, or export authority; avoid confidential details in its name.", "Open Finance queue", "vouchers:workspace"),
             ("Follow the shared case", "Open the workspace named by your current handoff: requesting office or Budget intake, Accounting preparation and posting, Treasury issue and release, or the applicable report/control area.", "The same case, references, amounts, and history continue across offices.", "Do not create a replacement case merely because responsibility moved to another office.", "", ""),
@@ -705,7 +706,7 @@ def _department_kind(department):
 FINANCE_MY_WORK_GUIDES = {
     "accounting": {
         "slug": "finance-my-work-accounting",
-        "version": 6,
+        "version": 7,
         "title": "Triage Accounting work needing attention",
         "summary": "Start from live Accounting and connected Finance counts, then continue in the exact governed register.",
         "permission": "accounting.view_accounting_workspace",
@@ -713,6 +714,7 @@ FINANCE_MY_WORK_GUIDES = {
         "order": 4,
         "steps": (
             ("Open work needing attention", "From Finance operations, open Work needing attention. Read the generated time and your current department before relying on a count.", "Only groups supported for your current permissions are shown.", "A count is not a new assignment, approval, or notification.", "Review My Work", "finance_operations:my_work"),
+            ("Read an exact work item", "For Field-operation cycle gates and Local forms, read the stable Task ID, controlled type, source reference, action, gate, permitted queue, timing basis, source version, and exception before opening the record.", "The same source and action keep the same Task ID while the action remains applicable, and separate actions on one source remain distinguishable.", "The item is a read-only pointer. Named nested field records remain in their exact source group until their own identity is supported; the parent cycle is not mislabeled as that task.", "Review My Work", "finance_operations:my_work"),
             ("Choose the exact Accounting group", "Use the setup-release, discovery-decision, field-operation, JEV, opening-balance, bank-reconciliation, period-close/reopen, bank-advice, returned-payment, cash-policy, cash-position, or reporting group that matches the action you may perform.", "Setup, discovery, and field preparation/review/authority work remain separate; named defects, exercises, witness checks, and stakeholder decisions appear only through their object assignment.", "A queue count does not accept local authority, approve or activate setup, record a discovery decision, pass a field checkpoint, authorize cutover, decide a bank return, post a reversal, establish cash availability, authorize a replacement, or release payment.", "", ""),
             ("Open the source queue", "Choose Open exact queue and confirm its visible row count before opening a record.", "The source register applies the same lifecycle-state filter as the attention row.", "The linked Accounting or Reporting record remains authoritative; do not treat this overview as transaction state.", "", ""),
             ("Continue the governed action", "Open one source record, follow its next-action guidance, and use its return, reversal, or successor route if correction is needed.", "Work continues with the source record's permission, maker-checker, version, and audit controls.", "Private tutorial checkmarks only help you resume reading; they are not work-completion or competence evidence.", "", ""),

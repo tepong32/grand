@@ -1,6 +1,19 @@
 {% extends 'base.html' %}
 {% block title_ext %} · My Finance work{% endblock %}
 {% block content %}
+<style>
+  .finance-work-table code { overflow-wrap: anywhere; }
+  @media (max-width: 767.98px) {
+    .finance-work-scroll { overflow-x: visible; }
+    .finance-work-table, .finance-work-table tbody, .finance-work-table tr, .finance-work-table td { display: block; width: 100%; }
+    .finance-work-table thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    .finance-work-table tr { padding: .55rem .75rem; border-bottom: 1px solid #dee2e6; }
+    .finance-work-table tbody tr:last-child { border-bottom: 0; }
+    .finance-work-table td { padding: .35rem 0; border: 0; text-align: left !important; }
+    .finance-work-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: .15rem; color: #6c757d; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+    .finance-work-table td:last-child .btn { width: 100%; }
+  }
+</style>
 <div class="container-fluid pb-4">
   <div class="d-md-flex justify-content-between align-items-start mb-3">
     <div>
@@ -22,19 +35,19 @@
   <section class="card card-outline card-primary">
     <div class="card-header"><h2 class="card-title font-weight-bold">{{ area.grouper }}</h2></div>
     <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
+      <div class="table-responsive finance-work-scroll">
+        <table class="table table-hover mb-0 finance-work-table">
           <thead><tr><th>Attention group</th><th class="text-right">Count</th><th>Meaning and scope</th><th></th></tr></thead>
           <tbody>
           {% for group in area.list %}
             <tr>
-              <td class="font-weight-bold">{{ group.title }}</td>
-              <td class="text-right"><span class="badge badge-{% if group.count %}warning{% else %}light{% endif %} p-2">{{ group.count }}</span></td>
-              <td class="small">
+              <td class="font-weight-bold" data-label="Attention group">{{ group.title }}</td>
+              <td class="text-right" data-label="Count"><span class="badge badge-{% if group.count %}warning{% else %}light{% endif %} p-2">{{ group.count }}</span></td>
+              <td class="small" data-label="Meaning and scope">
                 <div>{{ group.definition }}</div>
                 <div class="text-muted"><strong>Scope:</strong> {{ group.scope }}</div>
               </td>
-              <td class="text-right"><a class="btn btn-sm btn-outline-primary" href="{{ group.url }}">Open exact queue</a></td>
+              <td class="text-right" data-label="Continue"><a class="btn btn-sm btn-outline-primary" href="{{ group.url }}">Open exact queue</a></td>
             </tr>
           {% endfor %}
           </tbody>
@@ -49,10 +62,62 @@
   </div></div>
   {% endfor %}
 
+  <section class="card card-outline card-secondary">
+    <div class="card-header">
+      <h2 class="card-title font-weight-bold">Exact work items</h2>
+    </div>
+    <div class="card-body">
+      <p class="mb-1"><strong>{{ task_count }} source-linked task{{ task_count|pluralize }}</strong> in the current item-level contract.</p>
+      <p class="small text-muted mb-0">
+        Current coverage: {{ task_coverage|join:", " }}. Each Task ID identifies one action on one authoritative record; it is not a second transaction, assignment, or approval.
+      </p>
+    </div>
+    {% if tasks %}
+    <div class="table-responsive finance-work-scroll">
+      <table class="table table-hover mb-0 finance-work-table">
+        <caption class="sr-only">Exact permission-filtered Finance work items</caption>
+        <thead><tr><th>Task and source</th><th>Action and gate</th><th>Queue and timing</th><th>State</th><th></th></tr></thead>
+        <tbody>
+        {% for task in tasks %}
+          <tr>
+            <td class="small" data-label="Task and source">
+              <div class="font-weight-bold">{{ task.reference }}</div>
+              <div>{{ task.subject }}</div>
+              <div class="text-muted"><strong>Task ID:</strong> <code>{{ task.task_id }}</code></div>
+              <div class="text-muted"><strong>Type:</strong> {{ task.task_type }}</div>
+            </td>
+            <td class="small" data-label="Action and gate">
+              <div><strong>Do:</strong> {{ task.action }}</div>
+              <div class="text-muted"><strong>Gate:</strong> {{ task.gate }}</div>
+              {% if task.exception %}<div class="text-danger"><strong>Exception:</strong> {{ task.exception }}</div>{% endif %}
+            </td>
+            <td class="small" data-label="Queue and timing">
+              <div>{{ task.owner_queue }}</div>
+              <div class="text-muted"><strong>Scope:</strong> {{ task.scope }}</div>
+              <div class="text-muted"><strong>Timing:</strong> {{ task.due_state }} · age {{ task.age_days }} day{{ task.age_days|pluralize }}</div>
+              <div class="text-muted">{{ task.calendar_basis }}</div>
+            </td>
+            <td class="small" data-label="State">
+              <div><strong>{{ task.state }}</strong> · source: {{ task.source_state }}</div>
+              <div class="text-muted"><strong>Source version:</strong> {{ task.source_version }}</div>
+              <div class="text-muted"><strong>Case ID:</strong> {{ task.case_id }}</div>
+            </td>
+            <td class="text-right" data-label="Continue"><a class="btn btn-sm btn-outline-primary" href="{{ task.url }}">Open record</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if tasks_truncated %}<div class="card-footer small text-muted">Showing the first 100 items in a deterministic order. Use each exact source queue for the complete filtered register.</div>{% endif %}
+    {% else %}
+    <div class="card-body border-top"><p class="text-muted mb-0">No source record in the currently covered areas requires an action from this account.</p></div>
+    {% endif %}
+  </section>
+
   <div class="card bg-light">
     <div class="card-body small text-muted">
       <p class="mb-1"><strong>Generated:</strong> {{ generated_at|date:"Y-m-d H:i:s T" }}{% if department %} · <strong>Department:</strong> {{ department.name }}{% endif %}</p>
-      <p class="mb-0"><strong>Control boundary:</strong> This page does not create assignments, approvals, notifications, or a second status. The linked Budget, Voucher, Accounting, Treasury, and Reporting records remain authoritative. Additional queue adapters and item-level task identity will be added as separate rollbackable checkpoints.</p>
+      <p class="mb-0"><strong>Control boundary:</strong> This page does not create assignments, approvals, notifications, or a second status. The linked Budget, Voucher, Accounting, Treasury, and Reporting records remain authoritative. Item-level coverage will expand through separate rollbackable checkpoints.</p>
     </div>
   </div>
 

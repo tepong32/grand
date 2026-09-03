@@ -197,6 +197,7 @@ class FinanceOperationsEntryTests(TestCase):
         self.assertContains(response, 'id="grand-howto-toggle"')
         self.assertContains(response, "Triage your office&#x27;s Finance work")
         self.assertContains(response, "Relevant here")
+        self.assertContains(response, "Read an exact work item when available")
         self.assertContains(response, "Checkmarks are your private learning progress only")
 
     def test_my_work_permission_shapes_supported_zero_count_groups_and_exact_links(self):
