@@ -46,6 +46,7 @@ urlpatterns = [
     path("opening/<uuid:public_id>/reconcile/", views.opening_reconcile, name="opening_reconcile"),
     path("opening/<uuid:public_id>/rows/<int:pk>/edit/", views.opening_row_edit, name="opening_row_edit"),
     path("bank-reconciliation/", views.bank_reconciliation_workspace, name="bank_reconciliation_workspace"),
+    path("bank-reconciliation/export/", views.bank_reconciliation_register_export, name="bank_reconciliation_register_export"),
     path("bank-reconciliation/starter.csv", views.bank_reconciliation_starter, name="bank_reconciliation_starter"),
     path("bank-reconciliation/new/", views.bank_reconciliation_create, name="bank_reconciliation_create"),
     path("bank-reconciliation/<uuid:public_id>/", views.bank_reconciliation_detail, name="bank_reconciliation_detail"),

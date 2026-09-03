@@ -1,5 +1,14 @@
 # Changelog
 
+## F8 guided bank-reconciliation triage and portable monthly register
+
+- Added status, fund, bank-account, statement-year, plain next-action, and search filters to the monthly Accounting reconciliation register without changing the adjusted-balance workflow or approval states.
+- Added persisted-state guidance for statement staging, failed controls, returned corrections, matching/timing-item work, independent review, and reconciled evidence.
+- Added a synchronized one-row-per-statement register with declared and computed controls, current source/checksums, match and timing-item counts, adjusted bank/book difference, maker-checker actors, last event, and state version; retained the existing row-by-row statement export as the detail level.
+- Archived exact spreadsheet-safe register bytes and checksum manifests under the acting Accounting department/user `finance-bank-reconciliation-register` tree and recorded append-only Accounting audit receipts, including empty exports.
+- Published successor preparer/reviewer guides and documented the modification, detailed-evidence, signed-BRS, bank-confirmation, and local-form authority boundaries.
+- Added focused source/control/return/attention, synchronized-filter, department, archive, audit, permission, numeric-value, and formula-safety coverage. All 48 Accounting tests, all 71 Accounting-plus-guidance tests, and all 413 project tests pass across both routed databases; the full suite completed in 77.299 seconds of test execution.
+
 ## F7 guided Accounting JEV triage and portable control register
 
 - Added status, source, accounting-period, fund, plain next-action, and search filters to the Accounting journal register without changing JEV states or posting authority.

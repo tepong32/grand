@@ -2,7 +2,7 @@
 
 Audit date: 2026-09-03
 
-Code position: `codex/finance-f7-accounting-triage`, including the F0.2–F0.5 discovery controls, F2.1–F2.2 governed setup/opening registers, F3 guided annual-budget triage/export, F4 guided allotment/obligation control, F5 role-shaped payable triage, F6 controlled-paper/custody triage, and F7 Accounting JEV triage checkpoints after F11.8
+Code position: `codex/finance-f8-reconciliation-triage`, including the F0.2–F0.5 discovery controls, F2.1–F2.2 governed setup/opening registers, F3 guided annual-budget triage/export, F4 guided allotment/obligation control, F5 role-shaped payable triage, F6 controlled-paper/custody triage, F7 Accounting JEV triage, and F8 bank-reconciliation triage checkpoints after F11.8
 
 Conclusion: **the planned software-control slices are implemented and regression-clean; the complete LGU field-acceptance and production-authority outcome is not yet proven**.
 
@@ -12,9 +12,9 @@ The following repository checks passed from the project virtual environment:
 
 - `python manage.py check` — no system-check issues;
 - `python manage.py makemigrations --check --dry-run` — no model/migration drift;
-- `python manage.py test accounting --noinput --verbosity 1` — 47 Accounting tests passed;
-- `python manage.py test accounting departments --noinput --verbosity 1` — 70 Accounting and Internal How-To tests passed; and
-- `python manage.py test --noinput --verbosity 0` — 412 project tests passed across the default and separately routed Finance databases in 77.541 seconds of test execution.
+- `python manage.py test accounting --noinput --verbosity 1` — 48 Accounting tests passed;
+- `python manage.py test accounting departments --noinput --verbosity 1` — 71 Accounting and Internal How-To tests passed; and
+- `python manage.py test --noinput --verbosity 0` — 413 project tests passed across the default and separately routed Finance databases in 77.299 seconds of test execution.
 
 The full suite exercises role and department access, maker–checker decisions, immutable evidence, reversal/successor behavior, cross-store Budget–Accounting–Treasury lineage, controlled output, TraceSync archival, reconciliation, and negative access paths. It is software evidence. It is not a substitute for field observation, production-compatible recovery, or local authority.
 
@@ -30,7 +30,7 @@ The full suite exercises role and department access, maker–checker decisions, 
 | F5 payable and voucher intake | Obligation/checksum consumption, variants and documentary rules, independent readiness, relationships, recognition decisions, modification allowance, department-safe requesting-office access, role-shaped next-action/search triage, synchronized summary register, and detailed exports | Enabled transaction catalog, exact COA/local documentary requirements and exceptions, redacted completed cases, and named Accounting/requesting-office acceptance |
 | F6 DV and controlled paper | Versioned signing copies, reasoned reprint/replacement, wet-signature custody checkpoints, returned-packet gates, TracePoint linkage, guided custody-state triage, and synchronized full print-history exports | Accepted blank/completed DV packet, actual signatory/custody route, printer and form-stock trials, overflow/page behavior, and named-office acceptance |
 | F7 accounting and period control | Rule-backed balanced JEVs, payable/withholding subsidiaries, payment events, reversals, close/reopen, ledgers/trial balance, guided balance/review/correction triage, and a synchronized source/checksum/reversal-aware control register | Locally accepted posting/closing rules, broader required subsidiary schedules, signed period outputs, and consecutive redacted Accounting replay |
-| F8 Treasury and bank reconciliation | Instrument lifecycle, advice/acknowledgement, release/return/reissue, remittance, cash policy, ageing, bank intake/matching, carry/clear lineage | Actual bank terms/channels/files, check/advice/cash/BRS forms, thresholds/escalation, consecutive-month replay, and Treasury/Accounting acceptance |
+| F8 Treasury and bank reconciliation | Instrument lifecycle, advice/acknowledgement, release/return/reissue, remittance, cash policy, ageing, bank intake/matching, carry/clear lineage, guided monthly triage, and synchronized multi-statement control-register export | Actual bank terms/channels/files, check/advice/cash/BRS forms, thresholds/escalation, consecutive-month replay, and Treasury/Accounting acceptance |
 | F9 reports and accountability | Reproducible operational reports, statements/measures/notes, reference comparison, tax schedules/evidence, governed packages and exports | Current official/local layouts, accepted tax applicability/forms/deadlines/channels, signed and acknowledged reference packages, exact reproduced totals, and named-office acceptance |
 | F10 template administration | Human-editable safe templates, preflight/golden checks, promotion/rollback, 31 DBM candidate forms and 77 candidate section groups | Actual LGU references and applicability decisions, completed mappings, physical output trials, accepted golden files, current authority, and independent sign-off |
 | F11 shadow operation and cutover | Source locks/drift, cadence/runs/defects, curricula/support, witnessed exercises, exact-form field-chain qualification, structured restore, seven-party decisions, rollback, and Field Acceptance Board | Actual approved plans/pass conditions, field exercises, isolated two-store restore, uninterrupted qualifying cycles, retained attributable decisions, and final authorized exact-scope/date cutover |

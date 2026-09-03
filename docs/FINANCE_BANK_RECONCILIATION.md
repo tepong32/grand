@@ -47,9 +47,11 @@ transaction_date,bank_reference,description,withdrawal,deposit,running_balance
 
 ## Export and safekeeping
 
-The controlled evidence export contains current statement rows, matches, outstanding items, carried-from statement/checksum, age, later-cleared prior statements, adjusted-balance controls, source/version checksums, and reconciliation checksum. The same bytes are archived atomically below `department/user/finance-bank-reconciliation/year/month` inside `GRAND_EXPORT_ROOT`, beside a manifest suitable for whole-folder TraceSync copying.
+The monthly workspace can be filtered by status, fund, bank account, statement year, plain next action, and search. Its synchronized summary export contains one row per matching statement with declared and computed controls, source/checksums, match/timing-item counts, adjusted-bank/book difference, actors, last event, and state version. Invalid controlled filter values fail closed and an append-only receipt is retained even for a zero-row export.
 
-The export is controlled working/evidence data, not automatically an official BRS. Keep the approved signed BRS and attachments under the locally accepted records procedure.
+The existing detailed evidence export remains available inside each statement. It contains current statement rows, matches, outstanding items, carried-from statement/checksum, age, later-cleared prior statements, adjusted-balance controls, source/version checksums, and reconciliation checksum. The same bytes are archived atomically below the respective `department/user/finance-bank-reconciliation-register/year/month` and `department/user/finance-bank-reconciliation/year/month` categories inside `GRAND_EXPORT_ROOT`, beside manifests suitable for whole-folder TraceSync copying.
+
+Both exports are controlled working/evidence data, not automatically an official BRS or bank confirmation. Keep the approved signed BRS and attachments under the locally accepted records procedure.
 
 ## Acceptance still required
 

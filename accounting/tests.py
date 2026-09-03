@@ -1369,6 +1369,97 @@ class StandaloneAccountingTests(TestCase):
             self.assertTrue((Path(export_root) / "GRAND_EXPORT_ROOT.json").exists())
         self.assertEqual(AccountingAuditEvent.objects.filter(action="report_exported").count(), 2)
 
+    def test_bank_reconciliation_triage_and_register_are_synchronized_and_department_scoped(self):
+        owner = {
+            "department_id": self.accounting_department.pk,
+            "department_label": self.accounting_department.name,
+        }
+
+        def statement(reference, *, status=BankStatementBatch.DRAFT, source_version=0):
+            return BankStatementBatch.objects.create(
+                **owner, statement_reference=reference, bank_account_code="SYN-BANK-CONTROL",
+                bank_name="=Synthetic Municipal Bank", account_number_masked="***1234", fund=self.fund,
+                period_start=date(2027, 1, 1), period_end=date(2027, 1, 31), received_on=date(2027, 2, 1),
+                opening_balance=Decimal("1000.00"), closing_balance=Decimal("1100.00"),
+                expected_row_count=2, expected_deposits=Decimal("200.00"),
+                expected_withdrawals=Decimal("100.00"), status=status, source_version=source_version,
+                source_filename="statement.csv" if source_version else "",
+                source_checksum="source-checksum" if source_version else "",
+                validation_summary={"valid": False, "errors": ["=Correct the declared total"]} if source_version else {},
+                created_by_id=self.preparer.pk, created_by_label=self.preparer.username,
+            )
+
+        needs_source = statement("SYN-BRS-NEEDS-SOURCE")
+        needs_control = statement("SYN-BRS-NEEDS-CONTROL", source_version=1)
+        returned = statement("SYN-BRS-RETURNED", status=BankStatementBatch.RETURNED, source_version=1)
+        other_fund = Fund.objects.create(
+            department_id=self.other_department.pk, department_label=self.other_department.name,
+            code="OTHER-GF", name="Other department fund",
+        )
+        BankStatementBatch.objects.create(
+            department_id=self.other_department.pk, department_label=self.other_department.name,
+            statement_reference="OTHER-BRS-HIDDEN", bank_account_code="OTHER-BANK",
+            bank_name="Other Bank", account_number_masked="***9999", fund=other_fund,
+            period_start=date(2027, 1, 1), period_end=date(2027, 1, 31), received_on=date(2027, 2, 1),
+            opening_balance=Decimal("0.00"), closing_balance=Decimal("0.00"), expected_row_count=0,
+            created_by_id=self.outsider.pk, created_by_label=self.outsider.username,
+        )
+
+        self.client.force_login(self.preparer)
+        source_view = self.client.get(
+            reverse("accounting:bank_reconciliation_workspace"), {"attention": "needs_statement"},
+        )
+        self.assertContains(source_view, needs_source.statement_reference)
+        self.assertContains(source_view, "Stage the current bank statement CSV")
+        self.assertNotContains(source_view, needs_control.statement_reference)
+        returned_view = self.client.get(
+            reverse("accounting:bank_reconciliation_workspace"), {"attention": "returned_correction"},
+        )
+        self.assertContains(returned_view, returned.statement_reference)
+
+        filters = {
+            "attention": "needs_control_correction", "fund": str(self.fund.pk),
+            "bank_account": "SYN-BANK-CONTROL", "period_year": "2027", "q": "NEEDS-CONTROL",
+        }
+        workspace = self.client.get(reverse("accounting:bank_reconciliation_workspace"), filters)
+        self.assertContains(workspace, needs_control.statement_reference)
+        self.assertContains(workspace, "Correct the declared controls")
+        self.assertEqual(workspace.context["visible_count"], 1)
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            exported = self.client.get(reverse("accounting:bank_reconciliation_register_export"), filters)
+            self.assertEqual(exported.status_code, 200)
+            rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["statement_reference"], needs_control.statement_reference)
+            self.assertEqual(rows[0]["bank_name"], "'=Synthetic Municipal Bank")
+            self.assertEqual(rows[0]["validation_errors"], "'=Correct the declared total")
+            self.assertEqual(rows[0]["opening_balance"], "1000.00")
+            self.assertEqual(rows[0]["source_checksum"], "source-checksum")
+            self.assertTrue(rows[0]["snapshot_error"])
+            self.assertIn(
+                "accounting/ledgerpreparer/finance-bank-reconciliation-register",
+                exported["X-GRAND-Export-Relative-Path"],
+            )
+            artifact = Path(export_root) / exported["X-GRAND-Export-Relative-Path"]
+            self.assertTrue(artifact.exists())
+            self.assertTrue(Path(str(artifact) + ".manifest.json").exists())
+            all_visible = self.client.get(reverse("accounting:bank_reconciliation_register_export"))
+            self.assertNotIn("OTHER-BRS-HIDDEN", all_visible.content.decode("utf-8-sig"))
+        event = AccountingAuditEvent.objects.get(
+            action="bank_register_exported", snapshot__attention_filter="needs_control_correction",
+        )
+        self.assertEqual(event.snapshot["batch_count"], 1)
+        self.assertEqual(event.snapshot["bank_account_filter"], "SYN-BANK-CONTROL")
+
+        invalid = self.client.get(
+            reverse("accounting:bank_reconciliation_register_export"), {"attention": "not-real"},
+        )
+        self.assertEqual(len(invalid.content.decode("utf-8-sig").strip().splitlines()), 1)
+        self.client.force_login(self.setup_approver)
+        self.assertEqual(
+            self.client.get(reverse("accounting:bank_reconciliation_register_export")).status_code, 403,
+        )
+
     def test_bank_reconciliation_uses_governed_opening_jev_as_book_baseline(self):
         PostingMapping.objects.create(
             department_id=self.accounting_department.pk,

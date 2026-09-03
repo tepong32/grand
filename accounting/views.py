@@ -64,6 +64,10 @@ from .close_services import (
     decide_period_close_run, decide_period_reopen, refresh_period_close_run,
     request_period_reopen, submit_period_close_policy, submit_period_close_run,
 )
+from .bank_register_exports import (
+    ATTENTION_CHOICES as BANK_ATTENTION_CHOICES,
+    apply_bank_register_filters, build_bank_control_register, next_bank_action,
+)
 from .foundation_exports import build_foundation_register
 from .journal_exports import (
     ATTENTION_CHOICES as JOURNAL_ATTENTION_CHOICES,
@@ -1110,18 +1114,63 @@ def opening_reconcile(request, public_id):
 @accounting_permission_required(can_view_bank_reconciliation)
 def bank_reconciliation_workspace(request):
     department = department_for_user(request.user)
-    batches = BankStatementBatch.objects.filter(department_id=department.pk).select_related("fund")
-    metrics = batches.aggregate(
+    department_batches = BankStatementBatch.objects.filter(department_id=department.pk).select_related("fund")
+    metrics = department_batches.aggregate(
         drafts=Count("pk", filter=Q(status__in=(BankStatementBatch.DRAFT, BankStatementBatch.RETURNED))),
         validated=Count("pk", filter=Q(status=BankStatementBatch.VALIDATED)),
         review=Count("pk", filter=Q(status=BankStatementBatch.FOR_REVIEW)),
         reconciled=Count("pk", filter=Q(status=BankStatementBatch.RECONCILED)),
     )
+    bank_accounts = list(department_batches.order_by("bank_account_code").values_list(
+        "bank_account_code", flat=True,
+    ).distinct())
+    period_years = sorted({value.year for value in department_batches.values_list("period_end", flat=True)}, reverse=True)
+    batches, status, fund, bank_account, period_year, attention, search = apply_bank_register_filters(
+        department_batches, status=request.GET.get("status", "").strip(),
+        fund=request.GET.get("fund", "").strip(), bank_account=request.GET.get("bank_account", "").strip(),
+        period_year=request.GET.get("period_year", "").strip(),
+        attention=request.GET.get("attention", "").strip(), search=request.GET.get("q", ""),
+    )
+    visible_count = batches.count()
+    display_batches = list(batches[:100])
+    for batch in display_batches:
+        batch.next_action_label = next_bank_action(batch)
     return render(request, "accounting/bank_reconciliation_workspace.html", {
-        "batches": batches[:100],
-        "metrics": metrics,
+        "batches": display_batches, "metrics": metrics, "visible_count": visible_count,
+        "status_choices": BankStatementBatch.STATUS_CHOICES, "attention_choices": BANK_ATTENTION_CHOICES,
+        "fund_choices": Fund.objects.filter(department_id=department.pk).order_by("code"),
+        "bank_account_choices": bank_accounts, "period_year_choices": period_years,
+        "filters": {
+            "status": status, "fund": fund, "bank_account": bank_account,
+            "period_year": period_year, "attention": attention, "q": search,
+        },
         "can_prepare_bank": can_prepare_bank_reconciliation(request.user),
+        "can_export_bank": can_export_bank_reconciliation(request.user),
     })
+
+
+@require_GET
+@accounting_permission_required(can_export_bank_reconciliation)
+def bank_reconciliation_register_export(request):
+    department = department_for_user(request.user)
+    batches, status, fund, bank_account, period_year, attention, search = apply_bank_register_filters(
+        BankStatementBatch.objects.filter(department_id=department.pk),
+        status=request.GET.get("status", "").strip(), fund=request.GET.get("fund", "").strip(),
+        bank_account=request.GET.get("bank_account", "").strip(),
+        period_year=request.GET.get("period_year", "").strip(),
+        attention=request.GET.get("attention", "").strip(), search=request.GET.get("q", ""),
+    )
+    content, filename, receipt = build_bank_control_register(
+        actor=request.user, queryset=batches, status=status, fund=fund,
+        bank_account=bank_account, period_year=period_year, attention=attention, search=search,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Export-Relative-Path"] = receipt["relative_path"]
+    return response
 
 
 @require_GET
