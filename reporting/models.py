@@ -896,6 +896,13 @@ class ReportRun(models.Model):
         (CONTROL_EXCEPTION, "Control exception"),
         (CONTROL_UNAVAILABLE, "Control evidence unavailable"),
     )
+    EVIDENCE_FIELDS = (
+        "dataset_snapshot", "dataset_checksum", "control_totals", "control_checksum",
+        "control_status", "control_message", "control_gate_required", "source_record_count",
+        "source_freshness_at", "reproduction_key", "checksum", "row_count", "output_file",
+        "definition_id", "template_version_id", "output_format", "period_start", "period_end",
+        "parameters", "generated_at",
+    )
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     definition = models.ForeignKey(ReportDefinition, on_delete=models.PROTECT, related_name="runs")
@@ -959,16 +966,19 @@ class ReportRun(models.Model):
             raise ValidationError({"output_format": "This output format is not supported by the selected template mapper."})
         if self.pk:
             prior = type(self).objects.filter(pk=self.pk).first()
-            if prior and prior.generated_at:
-                evidence_fields = (
-                    "dataset_snapshot", "dataset_checksum", "control_totals", "control_checksum",
-                    "control_status", "control_message", "control_gate_required", "source_record_count",
-                    "source_freshness_at", "reproduction_key", "checksum", "row_count", "output_file",
-                    "definition_id", "template_version_id", "output_format", "period_start", "period_end",
-                    "parameters", "generated_at",
-                )
-                if any(getattr(prior, field) != getattr(self, field) for field in evidence_fields):
-                    raise ValidationError("Generated report evidence is immutable. Generate a successor run instead.")
+            if prior and prior.generated_at and any(
+                getattr(prior, field) != getattr(self, field) for field in self.EVIDENCE_FIELDS
+            ):
+                raise ValidationError("Generated report evidence is immutable. Generate a successor run instead.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.filter(pk=self.pk).first()
+            if prior and prior.generated_at and any(
+                getattr(prior, field) != getattr(self, field) for field in self.EVIDENCE_FIELDS
+            ):
+                raise ValidationError("Generated report evidence is immutable. Generate a successor run instead.")
+        return super().save(*args, **kwargs)
 
 
 class ReportRunSource(models.Model):

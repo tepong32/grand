@@ -54,7 +54,8 @@ class ReportTemplatePromotionTests(TestCase):
             "view_reporting_workspace", "prepare_template_promotions", "download_reports",
         )))
         cls.reviewer.user_permissions.add(*Permission.objects.filter(codename__in=(
-            "view_reporting_workspace", "approve_template_promotions", "approve_reports",
+            "view_reporting_workspace", "approve_template_promotions", "review_reports",
+            "approve_reports",
         )))
         cls.outsider.user_permissions.add(Permission.objects.get(codename="view_reporting_workspace"))
 
@@ -259,8 +260,8 @@ class ReportTemplatePromotionTests(TestCase):
         self.assertIn("reporting.approve_template_promotions", config_approver)
         accounting = next(item for item in ACCOUNTING_GUIDES if item["slug"] == "finance-accountability-reporting-accounting")
         budget = next(item for item in BUDGET_GUIDES if item["slug"] == "finance-accountability-reporting-budget")
-        self.assertEqual(accounting["version"], 12)
-        self.assertEqual(budget["version"], 8)
+        self.assertEqual(accounting["version"], 13)
+        self.assertEqual(budget["version"], 9)
         self.assertIn("Promote a checked layout", {step[0] for step in accounting["steps"]})
         self.assertIn("Compare and promote the editable layout", {step[0] for step in budget["steps"]})
         self.assertIn("Accept the actual local form", {step[0] for step in accounting["steps"]})

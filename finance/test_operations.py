@@ -224,7 +224,7 @@ class FinanceOperationsEntryTests(TestCase):
             groups["bank-matching"]["url"],
             "/finance/accounting/bank-reconciliation/?attention=needs_matching",
         )
-        self.assertEqual(groups["report-generation"]["url"], "/reports/?status=draft")
+        self.assertEqual(groups["report-generation"]["url"], "/reports/?attention=generation")
         self.assertEqual(groups["report-rerun"]["url"], "/reports/?attention=generation_failed")
         self.assertEqual(
             groups["remittance-preparation"]["url"],

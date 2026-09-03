@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 exact Reporting work tasks
+
+- Added stable, source-linked My Work items for report generation, failed reruns, control-blocked successor preparation, independent review, and official approval.
+- Reused one permission-, department-, own-run-, lifecycle-, control-gate-, and creator-exclusion query across Reporting source filters, exports, attention counts, and exact tasks.
+- Recomputed retained dataset/row, source/count, control, reproduction, and actual output-file SHA-256 evidence for active review/approval work; checksum drift is a visible stop, not a warning.
+- Re-locked report decisions in the service layer, denied cross-department and creator review/approval, serialized same-period supersession, and enforced generated-evidence immutability on ordinary model saves.
+- Kept failed and non-reconciling runs as retained evidence and guides users to fix governed sources or mappings and generate a successor instead of editing output history.
+- Expanded Accounting, Budget, Treasury, and general floating guides plus source/task/access/integrity regression coverage. The final focused gate passed 257 tests in 57.474 seconds and the full cross-module gate passed all 502 project tests across both routed databases in 117.325 seconds; Django checks and the migration-drift gate are clean.
+
 ## F1.5 exact Treasury remittance and cash-control work tasks
 
 - Added stable, source-linked My Work items for remittance preparation, returned correction, independent review, actual release, cash-policy preparation/review, and cash-position preparation/review.

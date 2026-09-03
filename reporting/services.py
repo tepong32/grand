@@ -8,6 +8,7 @@ import uuid
 from datetime import date, timedelta
 
 from dateutil.relativedelta import relativedelta
+from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
@@ -106,6 +107,72 @@ def _checksum_json(value):
         _json_safe(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False,
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def report_run_integrity_errors(run, *, verify_output=True):
+    """Recompute retained report evidence without consulting mutable live source rows."""
+
+    errors = []
+    if not run.generated_at:
+        return ["The report has no completed-generation timestamp or retained evidence."]
+    rows = run.dataset_snapshot.get("rows", []) if isinstance(run.dataset_snapshot, dict) else []
+    if run.dataset_checksum != _checksum_json(run.dataset_snapshot):
+        errors.append("The retained dataset snapshot no longer matches its SHA-256 checksum.")
+    if run.row_count != len(rows):
+        errors.append("The retained dataset row count no longer matches the snapshot.")
+    sources = list(run.source_records.order_by("pk"))
+    if run.source_record_count != len(sources):
+        errors.append("The retained source-record count no longer matches the source evidence.")
+    source_snapshots = [
+        {
+            "source_app": item.source_app,
+            "source_model": item.source_model,
+            "source_pk": item.source_pk,
+            "source_public_id": item.source_public_id,
+            "source_reference": item.source_reference,
+            "source_date": item.source_date,
+            "control_group": item.control_group,
+            "amount": item.amount,
+            "source_checksum": item.source_checksum,
+            "source_url": item.source_url,
+            "snapshot": item.snapshot,
+        }
+        for item in sources
+    ]
+    expected_control = _checksum_json({
+        "control_totals": run.control_totals,
+        "sources": source_snapshots,
+        "status": run.control_status,
+    })
+    if run.control_checksum != expected_control:
+        errors.append("The retained control totals and source evidence no longer match their SHA-256 checksum.")
+    if run.control_gate_required and run.control_status != ReportRun.CONTROL_RECONCILED:
+        errors.append("The required report control is not reconciled exactly.")
+    expected_reproduction = _checksum_json({
+        "run_public_id": str(run.public_id),
+        "period_start": run.period_start,
+        "period_end": run.period_end,
+        "parameters": run.parameters,
+        "dataset_checksum": run.dataset_checksum,
+        "control_checksum": run.control_checksum,
+        "output_checksum": run.checksum,
+    })
+    if run.reproduction_key != expected_reproduction:
+        errors.append("The retained report identity no longer matches its reproduction key.")
+    if not run.output_file:
+        errors.append("The generated report output file is missing.")
+    elif verify_output:
+        digest = hashlib.sha256()
+        try:
+            with run.output_file.open("rb") as output:
+                for chunk in iter(lambda: output.read(1024 * 1024), b""):
+                    digest.update(chunk)
+        except (OSError, ValueError):
+            errors.append("The generated report output file cannot be read for checksum verification.")
+        else:
+            if digest.hexdigest() != run.checksum:
+                errors.append("The generated report output no longer matches its SHA-256 checksum.")
+    return errors
 
 
 def _selected_fields(run):
@@ -444,35 +511,64 @@ def create_manual_run(definition, template_version, output_format, period_start,
 
 @transaction.atomic
 def transition_run(run, action, actor, note=""):
-    previous = run.status
+    from .access import can_approve_reports, can_review_reports, department_for_user
+
+    locked = ReportRun.objects.select_for_update().select_related(
+        "definition__department", "template_version",
+    ).get(pk=run.pk)
+    actor_department = department_for_user(actor)
+    if actor_department is None or locked.definition.department_id != actor_department.pk:
+        raise PermissionDenied("Report decisions are limited to the acting user's department.")
+    if action == "review":
+        if not can_review_reports(actor) or locked.created_by_id == actor.pk:
+            raise PermissionDenied("A report creator cannot independently review the same output.")
+    elif action in ("approve", "supersede"):
+        if not can_approve_reports(actor) or locked.created_by_id == actor.pk:
+            raise PermissionDenied("A report creator cannot approve or supersede the same output.")
+    else:
+        raise ValueError("That report cannot make the requested status transition.")
+    previous = locked.status
     now = timezone.now()
-    if action == "review" and run.status == ReportRun.GENERATED:
-        if run.control_gate_required and run.control_status != ReportRun.CONTROL_RECONCILED:
+    if action == "review" and locked.status == ReportRun.GENERATED:
+        if locked.control_gate_required and locked.control_status != ReportRun.CONTROL_RECONCILED:
             raise ValueError("Finance control totals must reconcile before this run can enter official review.")
-        run.status, run.reviewed_by, run.reviewed_at = ReportRun.REVIEWED, actor, now
-    elif action == "approve" and run.status == ReportRun.REVIEWED:
-        if not run.template_version.is_official_ready:
+        errors = report_run_integrity_errors(locked)
+        if errors:
+            raise ValueError("Report evidence verification failed: " + " ".join(errors))
+        locked.status, locked.reviewed_by, locked.reviewed_at = ReportRun.REVIEWED, actor, now
+    elif action == "approve" and locked.status == ReportRun.REVIEWED:
+        if not locked.template_version.is_official_ready:
             raise ValueError("This output uses a pilot layout. Validate the template against the department's current form before approving it as official.")
-        definition_snapshot = run.parameters.get("_definition_snapshot", {})
+        definition_snapshot = locked.parameters.get("_definition_snapshot", {})
         if definition_snapshot.get("applicability_status") == ReportDefinition.APPLICABILITY_CANDIDATE:
             raise ValueError(
                 "This definition was generated while local applicability was still pending. "
                 "Confirm the accepted local form and authority, then generate a successor run."
             )
-        if run.control_gate_required and run.control_status != ReportRun.CONTROL_RECONCILED:
+        if locked.control_gate_required and locked.control_status != ReportRun.CONTROL_RECONCILED:
             raise ValueError("Finance control totals must reconcile before official approval.")
-        previous_approved = list(ReportRun.objects.filter(definition=run.definition, period_start=run.period_start, period_end=run.period_end, status=ReportRun.APPROVED).exclude(pk=run.pk))
+        errors = report_run_integrity_errors(locked)
+        if errors:
+            raise ValueError("Report evidence verification failed: " + " ".join(errors))
+        previous_approved = list(ReportRun.objects.select_for_update().filter(
+            definition=locked.definition, period_start=locked.period_start,
+            period_end=locked.period_end, status=ReportRun.APPROVED,
+        ).exclude(pk=locked.pk))
         for prior in previous_approved:
             prior.status = ReportRun.SUPERSEDED
             prior.save(update_fields=("status", "updated_at"))
-            ReportRunEvent.objects.create(run=prior, actor=actor, action="superseded_by_new_approval", from_status=ReportRun.APPROVED, to_status=ReportRun.SUPERSEDED, note=f"Superseded by report run {run.public_id}.")
-        run.status, run.approved_by, run.approved_at = ReportRun.APPROVED, actor, now
-    elif action == "supersede" and run.status == ReportRun.APPROVED:
-        run.status = ReportRun.SUPERSEDED
+            ReportRunEvent.objects.create(run=prior, actor=actor, action="superseded_by_new_approval", from_status=ReportRun.APPROVED, to_status=ReportRun.SUPERSEDED, note=f"Superseded by report run {locked.public_id}.")
+        locked.status, locked.approved_by, locked.approved_at = ReportRun.APPROVED, actor, now
+    elif action == "supersede" and locked.status == ReportRun.APPROVED:
+        locked.status = ReportRun.SUPERSEDED
     else:
         raise ValueError("That report cannot make the requested status transition.")
-    run.save()
-    ReportRunEvent.objects.create(run=run, actor=actor, action=action, from_status=previous, to_status=run.status, note=note)
+    locked.save()
+    ReportRunEvent.objects.create(
+        run=locked, actor=actor, action=action,
+        from_status=previous, to_status=locked.status, note=str(note or "").strip(),
+    )
+    run.refresh_from_db()
     return run
 
 

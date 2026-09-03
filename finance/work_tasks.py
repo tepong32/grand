@@ -1581,6 +1581,128 @@ def _cash_control_tasks(user, department, today):
     return tasks
 
 
+def _reporting_tasks(user, department, today):
+    from reporting.models import ReportDefinition
+    from reporting.run_register_exports import (
+        report_action_choices_for_user, report_action_queryset,
+    )
+    from reporting.services import report_run_integrity_errors
+
+    queue_labels = {
+        "generation": "Report generators",
+        "generation_failed": "Report generators",
+        "control_blocked": "Report generators and source owners",
+        "needs_review": "Independent report reviewers",
+        "needs_approval": "Report approvers",
+    }
+    tasks = []
+    for action_key, _label in report_action_choices_for_user(user):
+        queryset, _selected, spec = report_action_queryset(user, action_key)
+        queryset = queryset.select_related(
+            "definition", "definition__department", "template_version", "schedule",
+            "created_by", "reviewed_by", "approved_by",
+        ).prefetch_related("source_records", "events")
+        for item in queryset.order_by("-created_at", "-pk"):
+            exceptions = []
+            template = item.template_version
+            definition_snapshot = item.parameters.get("_definition_snapshot", {})
+            if not item.definition.is_active:
+                exceptions.append("The pinned report definition is no longer active; prepare a successor under the current definition.")
+            if template.definition_id != item.definition_id or not template.supports_format(item.output_format):
+                exceptions.append("The pinned template does not support this report definition and output format.")
+            if not template.is_mapping_ready:
+                exceptions.append("The pinned template mapping has not passed controlled preflight.")
+            if action_key == "generation_failed":
+                exceptions.append(item.error_message.strip() or "The prior generation failed without a retained error message.")
+            if action_key == "control_blocked":
+                exceptions.append(item.control_message.strip() or "Required control evidence does not reconcile exactly.")
+            if action_key in ("control_blocked", "needs_review", "needs_approval"):
+                exceptions.extend(report_run_integrity_errors(item))
+            if action_key == "needs_approval":
+                if definition_snapshot.get("applicability_status") == ReportDefinition.APPLICABILITY_CANDIDATE:
+                    exceptions.append("Local applicability was still pending when this report was generated; generate a successor after confirmation.")
+                if not template.is_official_ready:
+                    exceptions.append("The pinned template has not completed independent promotion and fidelity validation for official use.")
+            source_projection = [
+                [
+                    source.pk, source.source_app, source.source_model, source.source_pk,
+                    source.source_public_id, source.source_reference,
+                    source.source_date.isoformat() if source.source_date else "",
+                    source.control_group, str(source.amount), source.source_checksum,
+                    source.source_url, source.snapshot,
+                ]
+                for source in item.source_records.all()
+            ]
+            event_projection = [
+                [event.pk, event.action, event.from_status, event.to_status, event.note, event.actor_id]
+                for event in item.events.all()
+            ]
+            projection = {
+                "run": [
+                    item.status, item.output_format, item.period_start.isoformat(), item.period_end.isoformat(),
+                    item.parameters, item.row_count, item.source_record_count,
+                    item.dataset_checksum, item.control_totals, item.control_checksum,
+                    item.control_status, item.control_message, item.control_gate_required,
+                    item.checksum, item.reproduction_key, item.error_message,
+                    item.definition_id, item.template_version_id, item.schedule_id,
+                    item.created_by_id, item.reviewed_by_id, item.approved_by_id,
+                ],
+                "definition": [
+                    item.definition.is_active, item.definition.updated_at.isoformat(),
+                    item.definition.applicability_status,
+                ],
+                "template": [
+                    template.is_active, template.render_mode, template.mapping_checksum,
+                    template.mapping_validated_at.isoformat() if template.mapping_validated_at else "",
+                    template.fidelity_status,
+                    template.fidelity_validated_at.isoformat() if template.fidelity_validated_at else "",
+                    template.approved_at.isoformat() if template.approved_at else "",
+                ],
+                "sources": source_projection,
+                "events": event_projection,
+            }
+            received_at = item.created_at
+            if action_key in ("control_blocked", "needs_review"):
+                received_at = item.generated_at or item.updated_at
+            elif action_key == "needs_approval":
+                received_at = item.reviewed_at or item.updated_at
+            due_on = item.scheduled_for.date() if item.scheduled_for else None
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:report-run:{item.public_id}:{action_key.replace('_', '-')}",
+                task_type=f"finance.report-run.{action_key}.v1",
+                area="Reporting",
+                case_id=f"report-run:{item.public_id}",
+                reference=f"{item.definition.name} · {item.period_start} to {item.period_end}",
+                transaction_type=f"{item.output_format.upper()} report · {item.definition.dataset_label}",
+                subject=(
+                    f"{item.row_count} row(s); {item.source_record_count} retained source(s); "
+                    f"control: {item.get_control_status_display()}"
+                ),
+                action=spec["next_action"],
+                gate=spec["definition"],
+                owner_queue=f"{queue_labels[action_key]} · {department.name}",
+                scope=f"{department.name}; dataset {definition_snapshot.get('dataset_key', item.definition.dataset_key)}",
+                received_at=received_at,
+                due_on=due_on,
+                due_state=_due_state(due_on, today),
+                calendar_basis=(
+                    "The stored schedule time is shown for scheduled generation; report period dates are coverage dates, not inferred action deadlines."
+                    if item.scheduled_for else
+                    "The report period is a coverage range, not an inferred generation, review, or approval deadline."
+                ),
+                age_days=_age_days(received_at, today),
+                state=(
+                    "Exception" if exceptions or action_key in ("generation_failed", "control_blocked")
+                    else "Ready"
+                ),
+                source_state=item.get_status_display(),
+                source_version=f"projection-sha256:{_projection_checksum(projection)}",
+                exception=" ".join(dict.fromkeys(exceptions)),
+                url=item.get_absolute_url(),
+            ))
+    return tasks
+
+
 def _field_operation_tasks(user, department, today):
     from finance.shadow_register_exports import (
         shadow_action_choices_for_user, shadow_action_queryset,
@@ -1656,6 +1778,7 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks.extend(_treasury_payment_tasks(user, department, today))
     tasks.extend(_remittance_tasks(user, department, today))
     tasks.extend(_cash_control_tasks(user, department, today))
+    tasks.extend(_reporting_tasks(user, department, today))
     tasks.extend(_field_operation_tasks(user, department, today))
     tasks.extend(_local_form_tasks(user, department, today))
     tasks.sort(key=lambda task: (task.area, task.reference.lower(), task.task_type, task.task_id))
@@ -1669,6 +1792,7 @@ def finance_work_tasks(user, *, display_limit=100):
             "DV preparation and controlled custody", "Accounting validation and JEV controls",
             "Treasury check preparation and instrument release",
             "Treasury remittance and cash controls",
+            "Report generation, reconciliation, review, and approval",
             "Field-operation cycle and nested-record gates", "Local forms",
         ),
     }

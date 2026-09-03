@@ -10,7 +10,10 @@ from django.utils.text import slugify
 
 from src.export_archive import archive_export
 
-from .access import can_download_reports, can_view_department_reports, department_for_user
+from .access import (
+    can_approve_reports, can_download_reports, can_generate_reports,
+    can_review_reports, can_view_department_reports, department_for_user,
+)
 from .models import ReportDefinition, ReportRun, ReportRunEvent
 
 
@@ -22,6 +25,90 @@ ATTENTION_CHOICES = (
     ("approved", "Approved output"),
     ("superseded", "Superseded evidence"),
 )
+
+RUN_ACTION_SPECS = {
+    "generation": {
+        "title": "Draft reports ready to generate",
+        "definition": "Visible draft report runs awaiting generation from their pinned definition and template.",
+        "next_action": "Generate the report from its governed sources and retain its exact output and control evidence.",
+        "permission": "generate",
+    },
+    "generation_failed": {
+        "title": "Failed reports to correct and rerun",
+        "definition": "Visible failed report runs awaiting a source/setup correction and controlled rerun.",
+        "next_action": "Read the retained error, correct the governed source or setup, then rerun this report.",
+        "permission": "generate",
+    },
+    "control_blocked": {
+        "title": "Generated reports blocked by controls",
+        "definition": "Generated reports whose required control evidence is unavailable or does not reconcile exactly.",
+        "next_action": "Resolve the stated source or mapping difference and generate a successor report; do not alter this evidence.",
+        "permission": "generate",
+    },
+    "needs_review": {
+        "title": "Reports ready for independent review",
+        "definition": "Generated reports with satisfied control gates awaiting a reviewer other than the creator.",
+        "next_action": "Independently verify the retained output, dataset, source, control, and reproduction checksums before review.",
+        "permission": "review",
+    },
+    "needs_approval": {
+        "title": "Reviewed reports awaiting approval",
+        "definition": "Reviewed reports awaiting an approver other than the report creator.",
+        "next_action": "Confirm local applicability, official-template readiness, exact controls, and retained checksums before approval.",
+        "permission": "approve",
+    },
+}
+
+
+def visible_report_runs(user, queryset=None):
+    department = department_for_user(user)
+    base = queryset if queryset is not None else ReportRun.objects.all()
+    if department is None:
+        return base.none()
+    base = base.filter(definition__department_id=department.pk)
+    if not can_view_department_reports(user):
+        base = base.filter(created_by=user)
+    return base
+
+
+def report_action_choices_for_user(user):
+    allowed = {
+        "generate": can_generate_reports(user),
+        "review": can_review_reports(user),
+        "approve": can_approve_reports(user),
+    }
+    return tuple(
+        (key, spec["title"])
+        for key, spec in RUN_ACTION_SPECS.items()
+        if allowed[spec["permission"]]
+    )
+
+
+def report_action_queryset(user, action, queryset=None):
+    base = visible_report_runs(user, queryset)
+    spec = RUN_ACTION_SPECS.get(action)
+    allowed = {
+        "generate": can_generate_reports(user),
+        "review": can_review_reports(user),
+        "approve": can_approve_reports(user),
+    }
+    if spec is None or not allowed[spec["permission"]]:
+        return base.none(), action if spec else "", spec
+    if action == "generation":
+        base = base.filter(status=ReportRun.DRAFT)
+    elif action == "generation_failed":
+        base = base.filter(status=ReportRun.FAILED)
+    elif action == "control_blocked":
+        base = base.filter(
+            status=ReportRun.GENERATED, control_gate_required=True,
+        ).exclude(control_status=ReportRun.CONTROL_RECONCILED)
+    elif action == "needs_review":
+        base = base.filter(status=ReportRun.GENERATED).filter(
+            Q(control_gate_required=False) | Q(control_status=ReportRun.CONTROL_RECONCILED),
+        ).exclude(created_by=user)
+    elif action == "needs_approval":
+        base = base.filter(status=ReportRun.REVIEWED).exclude(created_by=user)
+    return base.distinct(), action, spec
 
 RUN_REGISTER_COLUMNS = (
     "run_public_id", "report_name", "definition_slug", "dataset_key",

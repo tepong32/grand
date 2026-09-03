@@ -440,33 +440,25 @@ def _cash_groups(user, department):
 
 
 def _reporting_groups(user, department):
-    from reporting.access import (
-        can_approve_reports, can_generate_reports, can_review_reports, can_view_department_reports,
+    from reporting.run_register_exports import (
+        report_action_choices_for_user, report_action_queryset,
     )
-    from reporting.models import ReportRun
 
-    visible = ReportRun.objects.filter(definition__department=department)
-    if not can_view_department_reports(user):
-        visible = visible.filter(created_by=user)
     groups = []
-    specs = (
-        (can_generate_reports(user), "report-generation", "Draft reports ready to generate",
-         visible.filter(status=ReportRun.DRAFT), "", ReportRun.DRAFT),
-        (can_generate_reports(user), "report-rerun", "Failed reports to correct and rerun",
-         visible.filter(status=ReportRun.FAILED), "generation_failed", ""),
-        (can_review_reports(user), "report-review", "Reports ready for independent review",
-         visible.filter(status=ReportRun.GENERATED).filter(Q(control_gate_required=False) | Q(control_status=ReportRun.CONTROL_RECONCILED)), "needs_review", ""),
-        (can_approve_reports(user), "report-approval", "Reviewed reports awaiting approval",
-         visible.filter(status=ReportRun.REVIEWED), "needs_approval", ""),
-    )
-    for allowed, key, title, queryset, attention, status in specs:
-        if allowed:
-            groups.append(_group(
-                key=key, area="Reporting", title=title, count=queryset.count(),
-                url=_queue_url("reporting:workspace", attention=attention, status=status),
-                definition="Visible report runs in the explicit lifecycle state and control-gate condition named here.",
-                scope=department.name,
-            ))
+    keys = {
+        "generation": "report-generation",
+        "generation_failed": "report-rerun",
+        "control_blocked": "report-control-blocked",
+        "needs_review": "report-review",
+        "needs_approval": "report-approval",
+    }
+    for action, _label in report_action_choices_for_user(user):
+        queryset, selected, spec = report_action_queryset(user, action)
+        groups.append(_group(
+            key=keys[action], area="Reporting", title=spec["title"], count=queryset.count(),
+            url=_queue_url("reporting:workspace", attention=selected),
+            definition=spec["definition"], scope=department.name,
+        ))
     return groups
 
 

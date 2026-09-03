@@ -65,6 +65,7 @@ from .run_register_exports import (
     apply_report_run_filters,
     build_report_run_register,
     next_report_action,
+    report_action_choices_for_user, report_action_queryset, visible_report_runs,
 )
 from .local_form_register_exports import (
     LOCAL_FORM_ACTION_SPECS,
@@ -102,10 +103,7 @@ def _statement_department(user):
 
 
 def _runs_visible_to(user):
-    queryset = ReportRun.objects.filter(definition__department=department_for_user(user))
-    if not can_view_department_reports(user):
-        queryset = queryset.filter(created_by=user)
-    return queryset
+    return visible_report_runs(user)
 
 
 def _explained_finance_measures(runs):
@@ -151,18 +149,25 @@ def workspace(request):
     run_period_years = sorted(
         {value.year for value in visible_runs.values_list("period_end", flat=True)}, reverse=True,
     )
+    requested_attention = request.GET.get("attention", "").strip()
+    action_runs, selected_action, action_spec = report_action_queryset(
+        request.user, requested_attention, queryset=visible_runs,
+    )
+    filter_source = action_runs if selected_action else visible_runs
     filtered_runs, status, definition, output_format, control_status, period_year, attention, search = (
         apply_report_run_filters(
-            visible_runs,
+            filter_source,
             status=request.GET.get("status", "").strip(),
             definition=request.GET.get("definition", "").strip(),
             output_format=request.GET.get("output_format", "").strip(),
             control_status=request.GET.get("control_status", "").strip(),
             period_year=request.GET.get("period_year", "").strip(),
-            attention=request.GET.get("attention", "").strip(),
+            attention="" if selected_action else requested_attention,
             search=request.GET.get("q", ""),
         )
     )
+    if selected_action:
+        attention = selected_action
     visible_run_count = filtered_runs.count()
     runs = list(filtered_runs.select_related(
         "definition", "template_version", "created_by", "reviewed_by", "approved_by",
@@ -181,7 +186,10 @@ def workspace(request):
         "run_status_choices": ReportRun.STATUS_CHOICES,
         "run_format_choices": ReportDefinition.FORMAT_CHOICES,
         "run_control_choices": ReportRun.CONTROL_STATUS_CHOICES,
-        "run_attention_choices": RUN_ATTENTION_CHOICES,
+        "run_attention_choices": report_action_choices_for_user(request.user) + tuple(
+            choice for choice in RUN_ATTENTION_CHOICES if choice[0] in ("approved", "superseded")
+        ),
+        "run_work_spec": action_spec if selected_action else None,
         "run_filters": {
             "status": status, "definition": definition, "output_format": output_format,
             "control_status": control_status, "period_year": period_year,
@@ -324,18 +332,24 @@ def local_form_register_export(request):
 @reporting_permission_required(can_download_reports)
 def run_register_export(request):
     visible_runs = _runs_visible_to(request.user)
+    requested_attention = request.GET.get("attention", "").strip()
+    action_runs, selected_action, _action_spec = report_action_queryset(
+        request.user, requested_attention, queryset=visible_runs,
+    )
     runs, status, definition, output_format, control_status, period_year, attention, search = (
         apply_report_run_filters(
-            visible_runs,
+            action_runs if selected_action else visible_runs,
             status=request.GET.get("status", "").strip(),
             definition=request.GET.get("definition", "").strip(),
             output_format=request.GET.get("output_format", "").strip(),
             control_status=request.GET.get("control_status", "").strip(),
             period_year=request.GET.get("period_year", "").strip(),
-            attention=request.GET.get("attention", "").strip(),
+            attention="" if selected_action else requested_attention,
             search=request.GET.get("q", ""),
         )
     )
+    if selected_action:
+        attention = selected_action
     content, filename, receipt = build_report_run_register(
         actor=request.user, queryset=runs, status=status, definition=definition,
         output_format=output_format, control_status=control_status,
@@ -1897,7 +1911,7 @@ def run_transition(request, public_id, action):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     try:
-        transition_run(run, action, request.user, request.POST.get("note", ""))
+        run = transition_run(run, action, request.user, request.POST.get("note", ""))
     except ValueError as exc:
         messages.error(request, str(exc))
     else:

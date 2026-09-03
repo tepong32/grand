@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -22,6 +22,7 @@ from reportlab.pdfgen import canvas
 
 from assistance.models import AssistanceRequest, AssistanceType
 from departments.models import Department
+from finance.work_tasks import finance_work_tasks
 from social_welfare.models import ProgramActivity, SocialWelfareProgram
 
 from .access import can_view_reporting
@@ -29,6 +30,7 @@ from .datasets import build_dataset
 from .mappers import TemplateMappingError, preflight_template
 from .models import ReportDefinition, ReportRun, ReportSchedule, ReportTemplateMappingField, ReportTemplateVersion
 from .presets import seed_mswd_presets
+from .run_register_exports import report_action_queryset
 from .services import create_manual_run, execute_schedule, transition_run
 
 
@@ -237,8 +239,7 @@ class ReportingPlatformTests(TestCase):
         transition_run(first, "review", self.reviewer)
         transition_run(first, "approve", self.reviewer)
         second = self._generate()
-        second.period_start, second.period_end = first.period_start, first.period_end
-        second.save(update_fields=("period_start", "period_end"))
+        self.assertEqual((second.period_start, second.period_end), (first.period_start, first.period_end))
         transition_run(second, "review", self.reviewer)
         transition_run(second, "approve", self.reviewer)
         first.refresh_from_db()
@@ -349,7 +350,7 @@ class ReportingPlatformTests(TestCase):
         colleague_run = self._generate("pdf", self.head)
         year = str(own_run.period_end.year)
         query = {
-            "attention": "needs_review", "definition": str(self.definition.pk),
+            "status": ReportRun.GENERATED, "definition": str(self.definition.pk),
             "output_format": "csv", "period_year": year, "q": "Assistance",
         }
 
@@ -407,6 +408,93 @@ class ReportingPlatformTests(TestCase):
 
         self.client.force_login(self.limited)
         self.assertEqual(self.client.get(reverse("reporting:run_register_export")).status_code, 403)
+
+    def test_exact_reporting_tasks_share_review_source_and_detect_checksum_drift(self):
+        own_run = self._generate("csv", self.operator)
+        colleague_run = self._generate("pdf", self.head)
+        source, _selected, _spec = report_action_queryset(self.reviewer, "needs_review")
+        tasks = [
+            row for row in finance_work_tasks(self.reviewer)["tasks"]
+            if row["task_type"] == "finance.report-run.needs_review.v1"
+        ]
+
+        self.assertEqual(set(source), {own_run, colleague_run})
+        self.assertEqual(len(tasks), source.count())
+        task = next(row for row in tasks if row["case_id"] == f"report-run:{own_run.public_id}")
+        self.assertEqual(task["state"], "Ready")
+        self.assertIn("retained source", task["subject"])
+
+        self.reviewer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="accounting", codename="view_accounting_workspace",
+        ))
+        self.reviewer = get_user_model().objects.get(pk=self.reviewer.pk)
+        self.client.force_login(self.reviewer)
+        workspace = self.client.get(reverse("reporting:workspace"), {"attention": "needs_review"})
+        self.assertEqual(set(workspace.context["recent_runs"]), {own_run, colleague_run})
+        attention_keys = {key for key, _label in workspace.context["run_attention_choices"]}
+        self.assertEqual(
+            attention_keys,
+            {"needs_review", "needs_approval", "approved", "superseded"},
+        )
+        group = next(
+            row for row in self.client.get(reverse("finance_operations:my_work")).context["groups"]
+            if row["key"] == "report-review"
+        )
+        self.assertEqual(group["count"], source.count())
+        self.assertEqual(group["url"], "/reports/?attention=needs_review")
+
+        ReportRun.objects.filter(pk=own_run.pk).update(dataset_checksum="0" * 64)
+        changed = next(
+            row for row in finance_work_tasks(self.reviewer)["tasks"]
+            if row["case_id"] == f"report-run:{own_run.public_id}"
+        )
+        self.assertEqual(changed["task_id"], task["task_id"])
+        self.assertNotEqual(changed["source_version"], task["source_version"])
+        self.assertEqual(changed["state"], "Exception")
+        self.assertIn("dataset snapshot", changed["exception"])
+        with self.assertRaisesMessage(ValueError, "evidence verification failed"):
+            transition_run(own_run, "review", self.reviewer, "Should stop on drift.")
+
+    def test_report_creator_and_cross_department_actor_cannot_decide_run(self):
+        run = self._generate("csv", self.operator)
+        run.control_message = "Attempted in-place evidence rewrite."
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            run.save(update_fields=("control_message",))
+        run.refresh_from_db()
+        self.operator.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="reporting",
+            codename__in=("review_reports", "approve_reports"),
+        ))
+        self.operator = get_user_model().objects.get(pk=self.operator.pk)
+
+        self.assertFalse(report_action_queryset(self.operator, "needs_review")[0].exists())
+        with self.assertRaises(PermissionDenied):
+            transition_run(run, "review", self.operator, "Self review must fail.")
+
+        self.outsider.user_permissions.add(Permission.objects.get(
+            content_type__app_label="reporting", codename="review_reports",
+        ))
+        self.outsider = get_user_model().objects.get(pk=self.outsider.pk)
+        with self.assertRaises(PermissionDenied):
+            transition_run(run, "review", self.outsider, "Cross-office review must fail.")
+
+    def test_control_blocked_report_is_an_exact_generator_exception_task(self):
+        run = self._generate("csv", self.operator)
+        ReportRun.objects.filter(pk=run.pk).update(
+            control_gate_required=True, control_status=ReportRun.CONTROL_EXCEPTION,
+            control_message="Exact source total differs by 0.01.",
+        )
+
+        source, _selected, _spec = report_action_queryset(self.operator, "control_blocked")
+        self.assertEqual(set(source), {run})
+        task = next(
+            row for row in finance_work_tasks(self.operator)["tasks"]
+            if row["case_id"] == f"report-run:{run.public_id}"
+        )
+        self.assertEqual(task["task_type"], "finance.report-run.control_blocked.v1")
+        self.assertEqual(task["state"], "Exception")
+        self.assertIn("differs by 0.01", task["exception"])
+        self.assertIn("generate a successor", task["action"])
 
     def test_print_action_is_visible_only_for_authorized_pdf_outputs(self):
         pdf_run = self._generate("pdf")
