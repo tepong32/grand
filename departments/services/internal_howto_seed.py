@@ -638,13 +638,14 @@ ACCOUNTING_GUIDES = ACCOUNTING_GUIDES + (
     },
     {
         "slug": "finance-shadow-cutover-manager",
-        "version": 5,
+        "version": 6,
         "title": "Run shadow reconciliation and prepare cutover evidence",
         "summary": "Plan a limited cycle, lock exact comparisons, collect separate office decisions, and keep authority and rollback explicit.",
         "permission": "finance.manage_shadow_operation",
         "patterns": ["finance:shadow_*", "finance:cutover_*", "finance:field_acceptance_*"],
         "order": 89,
         "steps": (
+            ("Triage the visible field cycles", "Use status, fiscal year, run kind, search, or What needs attention to narrow the cycle register. Follow the plain next action, then export the same visible rows when a coordinator needs a portable oversight list.", "The screen and one-row-per-cycle CSV use the same role-bounded filters; a named cross-office reviewer sees only cycles assigned to that account.", "The register is a work aid. Its rows and percentages do not accept a checkpoint, replace detailed evidence, or authorize GRAND. Your private tutorial checkmarks also remain only personal resume aids.", "Open Shadow operation", "finance:shadow_workspace"),
             ("Start with the Field Acceptance Board", "Choose the exact candidate cycle and review its ten evidence checkpoints. Use each plain-language next action to return to the governed cycle records; export the board when a coordinator or records custodian needs a portable status copy.", "The board reflects current source locks, plans, exercises, form lineage, field cycles, reconciliation, stakeholder decisions, and cutover authority without creating a second approval list.", "Do not report the percentage as phase acceptance. GRAND remains in shadow/UAT mode until the separately recorded cutover authority is Authorized for the exact scope and date.", "Open Field Acceptance Board", "finance:field_acceptance_board"),
             ("Define a limited cycle", "Name the exact offices, funds, transaction types, and dates. Reference where the locally authoritative, redacted/read-only comparison source is retained.", "A draft plan identifies what is and is not being compared without importing a production database.", "Public COA/DBM material or an eGAPS export does not prove local applicability by itself.", "Open Shadow operation", "finance:shadow_workspace"),
             ("Stage the safe comparison copy", "Upload a UTF-8 redacted CSV up to 5 MB. Confirm what was removed or masked. GRAND calculates the file lock, normalized headings, row count, and column-layout lock without importing its rows into Finance transactions.", "A retained v1 source record shows the safe inspection results and any sensitive-heading reminder.", "Never upload a live database, executable spreadsheet, credentials, or unrestricted production export.", "Open Shadow operation", "finance:shadow_workspace"),

@@ -1,5 +1,14 @@
 # Changelog
 
+## F11 guided field-operation triage and portable cycle register
+
+- Added cycle status, run kind, fiscal year, plain next-action, attention, and search filters to the existing role-bounded Shadow operation workspace without changing field-evidence or cutover states.
+- Added a synchronized one-row-per-cycle register derived from the actual ten-checkpoint Field Acceptance Board, including source locks, current drift review, comparison/defect/reconciliation/stakeholder counts, discovery blockers, checkpoint progress, decision status, authority, lineage, actors, and latest audit evidence.
+- Preserved exact department and assigned-reviewer visibility, filing a single-office register under the office that owns its data even when the exporter is a named cross-office reviewer.
+- Archived exact spreadsheet-safe CSV bytes and manifests under the TraceSync-ready `finance-field-operation-register` tree and retained an append-only event against every included cycle; invalid controlled filters safely produce a header-only register.
+- Published an Accounting successor guide and documented the separation between cross-cycle oversight, the per-cycle board, detailed cycle evidence, independently accepted records, and exact-scope/date cutover authority.
+- Added focused filter synchronization, role/department scope, owner-folder, archive, manifest, audit, invalid-filter, numeric-count, formula-safety, and authority-boundary coverage. All 22 shadow/cutover tests, all 51 Finance tests, all 74 Finance-plus-guidance tests, and all 416 project tests pass across both routed databases; the full suite completed in 79.779 seconds of test execution.
+
 ## F10 guided local-form acceptance triage and portable register
 
 - Added status, governed-source type, delivery mode, plain next-action, and search filters to the department local-form register without changing acceptance states or evidence gates.

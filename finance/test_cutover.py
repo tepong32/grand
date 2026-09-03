@@ -1,7 +1,10 @@
+import csv
+import io
 import json
 import tempfile
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -1277,4 +1280,91 @@ class FinanceShadowCutoverTests(TestCase):
                 reverse("finance:field_acceptance_board"), {"cycle": hidden.pk},
             ).status_code,
             404,
+        )
+
+    def test_field_operation_triage_and_register_share_filters_scope_and_authority_boundary(self):
+        candidate = self._cycle(code="fy-2027-register-candidate")
+        FinanceShadowCycle.objects.filter(pk=candidate.pk).update(
+            title="=FY 2027 field register formula-like title",
+        )
+        candidate.refresh_from_db()
+        unlocked = self._unlocked_cycle(code="fy-2027-register-needs-source")
+        FinanceStakeholderAcceptance.objects.create(
+            cycle=candidate,
+            stakeholder_kind=FinanceStakeholderAcceptance.REQUESTING_OFFICE,
+            office=self.requesting,
+            assigned_reviewer=self.requesting_reviewer,
+            enabled_scope=candidate.enabled_scope,
+            created_by=self.manager,
+        )
+        filters = {
+            "attention": "ready_to_prepare", "status": FinanceShadowCycle.DRAFT,
+            "run_kind": FinanceShadowCycle.SHADOW, "fiscal_year": "2027",
+            "q": "field register formula",
+        }
+
+        self.client.force_login(self.manager)
+        workspace = self.client.get(reverse("finance:shadow_workspace"), filters)
+        self.assertEqual(workspace.status_code, 200)
+        self.assertContains(workspace, candidate.code)
+        self.assertNotContains(workspace, unlocked.code)
+        self.assertContains(workspace, "Open the Field Acceptance Board")
+        self.assertContains(workspace, "Export these 1 cycles")
+        self.assertContains(workspace, "do not accept a phase or authorize GRAND")
+        self.assertEqual(workspace.context["visible_count"], 1)
+
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            exported = self.client.get(reverse("finance:shadow_cycle_register_export"), filters)
+            self.assertEqual(exported.status_code, 200)
+            self.assertEqual(exported["X-GRAND-Export-Archived"], "true")
+            self.assertEqual(exported["X-Content-Type-Options"], "nosniff")
+            rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["cycle_public_id"], str(candidate.public_id))
+            self.assertEqual(rows[0]["title"], "'=FY 2027 field register formula-like title")
+            self.assertEqual(rows[0]["accepted_checkpoints"], "0")
+            self.assertEqual(rows[0]["total_checkpoints"], "10")
+            self.assertEqual(rows[0]["grand_authorized"], "False")
+            self.assertIn("Field Acceptance Board", rows[0]["next_action"])
+            relative_path = exported["X-GRAND-Export-Relative-Path"]
+            self.assertIn(
+                f"{self.accounting.slug}/cutovermanager/finance-field-operation-register/",
+                relative_path,
+            )
+            artifact = Path(export_root, *relative_path.split("/"))
+            self.assertEqual(artifact.read_bytes(), exported.content)
+            manifest = json.loads(Path(str(artifact) + ".manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["metadata"]["cycle_count"], 1)
+            self.assertEqual(manifest["metadata"]["cycle_department_ids"], [self.accounting.pk])
+            self.assertIn("do not accept a phase", manifest["metadata"]["authority_boundary"])
+            self.assertEqual(manifest["sha256"], exported["X-GRAND-Export-SHA256"])
+            self.assertTrue(FinanceAuditEvent.objects.filter(
+                department=self.accounting, target_type="financeshadowcycle",
+                target_id=str(candidate.pk), action="field_operation_register_exported",
+                actor=self.manager,
+            ).exists())
+
+            invalid = self.client.get(
+                reverse("finance:shadow_cycle_register_export"), {"attention": "unknown"},
+            )
+            self.assertEqual(
+                len(list(csv.reader(io.StringIO(invalid.content.decode("utf-8-sig"))))), 1,
+            )
+
+            self.client.force_login(self.requesting_reviewer)
+            reviewer_export = self.client.get(
+                reverse("finance:shadow_cycle_register_export"), {"q": candidate.code},
+            )
+            reviewer_rows = list(csv.DictReader(
+                io.StringIO(reviewer_export.content.decode("utf-8-sig")),
+            ))
+            self.assertEqual([row["cycle_code"] for row in reviewer_rows], [candidate.code])
+            self.assertIn(
+                f"{self.accounting.slug}/cutoverrequesting/finance-field-operation-register/",
+                reviewer_export["X-GRAND-Export-Relative-Path"],
+            )
+
+        self.client.force_login(self.outsider)
+        self.assertEqual(
+            self.client.get(reverse("finance:shadow_cycle_register_export")).status_code, 403,
         )

@@ -5,6 +5,7 @@ from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.text import slugify
+from django.views.decorators.http import require_GET
 
 from .access import (
     can_authorize_finance_cutover, can_manage_shadow_operation, can_review_shadow_reconciliation,
@@ -65,6 +66,10 @@ from .services import (
     FinanceTemplateError, build_finance_starter_workbook, create_payment_event_posting_starters,
     create_recognition_posting_starter, evaluate_readiness, preflight_finance_template,
     record_event, synthetic_preview, transition_release,
+)
+from .shadow_register_exports import (
+    ATTENTION_CHOICES as SHADOW_ATTENTION_CHOICES,
+    apply_shadow_cycle_filters, build_shadow_cycle_register, next_shadow_cycle_action,
 )
 
 
@@ -447,12 +452,62 @@ def _shadow_cycle_for_user(user, pk):
 @shadow_access_required
 def shadow_workspace(request):
     department = department_for_user(request.user)
-    cycles = _visible_shadow_cycles(request.user)
+    visible_cycles = _visible_shadow_cycles(request.user)
+    fiscal_year_choices = list(
+        visible_cycles.order_by("-fiscal_year").values_list("fiscal_year", flat=True).distinct()
+    )
+    cycles, status, run_kind, fiscal_year, attention, search = apply_shadow_cycle_filters(
+        visible_cycles,
+        status=request.GET.get("status", "").strip(),
+        run_kind=request.GET.get("run_kind", "").strip(),
+        fiscal_year=request.GET.get("fiscal_year", "").strip(),
+        attention=request.GET.get("attention", "").strip(),
+        search=request.GET.get("q", ""),
+    )
+    visible_count = cycles.count()
+    cycles = list(cycles.select_related("cutover_decision").prefetch_related(
+        "comparisons", "stakeholder_acceptances",
+    )[:100])
+    for cycle in cycles:
+        cycle.next_action_label = next_shadow_cycle_action(cycle)
     return render(request, "finance/shadow_workspace.html", {
         "cycles": cycles,
         "department": department,
+        "visible_count": visible_count,
+        "status_choices": FinanceShadowCycle.STATUS_CHOICES,
+        "run_kind_choices": FinanceShadowCycle.RUN_KIND_CHOICES,
+        "fiscal_year_choices": fiscal_year_choices,
+        "attention_choices": SHADOW_ATTENTION_CHOICES,
+        "filters": {
+            "status": status, "run_kind": run_kind, "fiscal_year": fiscal_year,
+            "attention": attention, "q": search,
+        },
         "can_manage": can_manage_shadow_operation(request.user, department),
     })
+
+
+@require_GET
+@shadow_access_required
+def shadow_cycle_register_export(request):
+    cycles, status, run_kind, fiscal_year, attention, search = apply_shadow_cycle_filters(
+        _visible_shadow_cycles(request.user),
+        status=request.GET.get("status", "").strip(),
+        run_kind=request.GET.get("run_kind", "").strip(),
+        fiscal_year=request.GET.get("fiscal_year", "").strip(),
+        attention=request.GET.get("attention", "").strip(),
+        search=request.GET.get("q", ""),
+    )
+    content, filename, receipt = build_shadow_cycle_register(
+        actor=request.user, queryset=cycles, status=status, run_kind=run_kind,
+        fiscal_year=fiscal_year, attention=attention, search=search,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Export-Relative-Path"] = receipt["relative_path"]
+    return response
 
 
 @finance_permission_required(can_manage_shadow_operation)

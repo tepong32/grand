@@ -1,10 +1,12 @@
 # Finance Field Acceptance Board
 
-Status: **F11.8 coordination layer implemented; actual LGU field evidence and the parent F11 exit gate remain open**.
+Status: **F11.8 coordination layer and F11.9 guided cross-cycle triage implemented; actual LGU field evidence and the parent F11 exit gate remain open**.
 
 ## Purpose
 
 The Field Acceptance Board gives Finance and assigned office reviewers one readable view of the remaining local transition work. It does not create another approval checklist. Every status is calculated from the governed F10/F11 records already maintained in the selected shadow or parallel cycle. Linked F0.2 discovery decisions and exact-scope blockers are shown above the board without inflating the ten-checkpoint percentage.
+
+The Shadow operation landing page is the cross-cycle entry point. Its status, fiscal-year, run-kind, attention, and search filters help staff find the next cycle that needs work. Its one-row-per-cycle export applies those same filters and visibility rules, then derives checkpoint counts from this board. It is an oversight index; the selected-cycle board and detailed cycle evidence remain separate levels.
 
 The board groups those records into ten practical checkpoints:
 
@@ -41,6 +43,8 @@ The CSV export contains the selected cycle, exact enabled scope, linked discover
 
 inside the single `GRAND_EXPORT_ROOT`, beside the SHA-256 manifest used for TraceSync whole-folder safekeeping. The export action is also retained in the append-only Finance audit history. The CSV is a status/evidence index, not an official COA/DBM form, records filing, database backup, or authority by itself.
 
+The separate cross-cycle register is archived under `department/user/finance-field-operation-register/year/month`. A register containing one office's cycles is filed under that data-owning office, including when a named reviewer from another office exports their assigned cycle. A mixed-office view is filed under the exporter's office and lists every owning department ID in its manifest. Each included cycle receives its own append-only export event. Empty or invalid-filter views retain only familiar headings and do not broaden access.
+
 ## Modification and correction behavior
 
 The board itself is read-only and always recalculates from current governed records. Corrections therefore follow the source workflow:
@@ -57,6 +61,8 @@ This preserves the existing pre-issuance modification allowance while preventing
 
 - A Finance manager can select a visible cycle and see all ten groups without a false authority claim.
 - A named cross-office reviewer can see and export their assigned cycle without receiving Finance preparation permissions.
+- The filtered landing page and cross-cycle CSV contain the same visible cycle set and plain next-action basis.
+- Spreadsheet-like text is exported as text while cycle and checkpoint counts remain numeric.
 - Replacing the query-string cycle ID with an unassigned cycle returns not found.
 - CSV bytes are UTF-8 with familiar headings, retained in the TraceSync layout, and recorded in Finance audit history.
 - No database migration or duplicated acceptance-state model is introduced.

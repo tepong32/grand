@@ -1,6 +1,6 @@
 # Finance shadow operation, UAT acceptance, and controlled cutover
 
-Status: F11.1 governed transition control, F11.2 versioned redacted source staging, F11.3 scheduled reconciliation/defect control, F11.4 governed curricula/support and readiness exercises, F11.5 consecutive field-cycle/signed-reference control, F11.6 exact accepted-form lineage, F11.7 structured two-store recovery evidence, and F11.8 field-acceptance coordination implemented. This workflow stores and summarizes transition evidence; it does not claim that the parent F11 exit gate, an actual LGU restore, or any local production cutover has occurred.
+Status: F11.1 governed transition control, F11.2 versioned redacted source staging, F11.3 scheduled reconciliation/defect control, F11.4 governed curricula/support and readiness exercises, F11.5 consecutive field-cycle/signed-reference control, F11.6 exact accepted-form lineage, F11.7 structured two-store recovery evidence, F11.8 field-acceptance coordination, and F11.9 guided cross-cycle triage implemented. This workflow stores and summarizes transition evidence; it does not claim that the parent F11 exit gate, an actual LGU restore, or any local production cutover has occurred.
 
 ## Purpose and authority boundary
 
@@ -180,6 +180,8 @@ Every visible cycle can produce a schema-v9 JSON evidence package containing eac
 inside the single `GRAND_EXPORT_ROOT`, beside a SHA-256 manifest for TraceSync whole-folder safekeeping. The export is portable evidence, not a Records filing, database backup, or authority by itself.
 
 F11.8 also provides the [Finance Field Acceptance Board](FINANCE_FIELD_ACCEPTANCE_BOARD.md). It groups the existing governed cycle records into ten plain-language field checkpoints, shows the next action without creating a parallel approval record, and exports a TraceSync-ready CSV status index. Assigned reviewers remain limited to their visible cycles, and only the separate authorized cutover decision can make GRAND authoritative for an exact scope/date.
+
+F11.9 adds a guided cross-cycle register above that board. Staff can filter the cycles already visible to them by status, run kind, fiscal year, attention, and familiar text, see one evidence-derived next action, and export the identical set. The spreadsheet-safe CSV includes source, comparison, defect, reconciliation, stakeholder, discovery, Field Board, lineage, actor, and authority facts; its exact bytes and checksum manifest are retained under `finance-field-operation-register`, with an append-only event for every included cycle. It neither duplicates detailed cycle evidence nor introduces another approval state.
 
 The [F0.2–F0.5 Finance decisions and evidence register](FINANCE_DISCOVERY_DECISIONS.md) supplies the earlier discovery dependency, role-bounded triage, and portable department index. Cutover readiness requires current recorded LGU-confirmed evidence with acceptance examples for all eight detailed coverage areas, a separate whole-scope decision matching the complete enabled-scope text, and no current linked blocker. A generated starter, filtered work list, exported index, or recorded unresolved question remains valid preparation/discovery evidence but cannot silently pass its named scope.
 
