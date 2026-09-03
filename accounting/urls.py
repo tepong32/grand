@@ -31,6 +31,7 @@ urlpatterns = [
     path("period-close/policies/<uuid:public_id>/submit/", views.period_close_policy_submit, name="period_close_policy_submit"),
     path("period-close/policies/<uuid:public_id>/decide/<slug:decision>/", views.period_close_policy_decide, name="period_close_policy_decide"),
     path("opening/", views.opening_workspace, name="opening_workspace"),
+    path("opening/export/", views.opening_register_export, name="opening_register_export"),
     path("opening/starter.csv", views.opening_starter, name="opening_starter"),
     path("opening/new/", views.opening_create, name="opening_create"),
     path("opening/<uuid:public_id>/", views.opening_detail, name="opening_detail"),

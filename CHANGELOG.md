@@ -1,5 +1,14 @@
 # Changelog
 
+## F2.2 guided opening-control triage and portable register
+
+- Added fiscal-year, exact workflow-status, and plain-language next-action filters to the existing opening-balance register without adding or changing transaction states.
+- Separated preparation, submission, independent review, posting, reconciliation, and completed work so staff can find the action they are authorized to perform.
+- Added a synchronized department-bounded control-register CSV containing declared/staged controls, validation results, checksums, role lineage, state versions, and next actions while keeping row-level evidence in each batch export.
+- Archived the exact spreadsheet-safe CSV and checksum manifest under the TraceSync-ready `department/user/finance-opening-register/year/month` tree and recorded an append-only Accounting audit event.
+- Kept the department-wide overview cards visibly distinct from the filtered work list and stated that the register neither approves a batch nor replaces an accepted LGU/COA opening schedule.
+- Updated the three role-specific floating opening guides for preparers, independent reviewers, and posters/reconcilers; added filter, isolation, viewer, archive, audit, and formula-safety regression coverage. The focused 41-test Accounting and 69-test Accounting-plus-guidance suites pass, as do all 403 project tests across both routed databases.
+
 ## F2.1 portable fiscal-foundation review register
 
 - Added one plain fiscal-year selector and export action to the existing guided Accounting setup page without introducing another setup or approval state.

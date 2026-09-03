@@ -120,6 +120,8 @@ Deliver:
 
 Exit gate: an approved synthetic fiscal year can open with reconciled configuration and balances; no transaction screen requires free-text recreation of governed codes.
 
+Implementation position: F2.1 supplies typed fiscal years, periods/business dates, effective-dated classifications, governed release adoption, five independently evidenced readiness layers, pre-issuance modification boundaries, and an audited selected-year/all-years foundation register. F2.2 supplies checksum-backed opening staging, exact row/batch/fund controls, reasoned pre-post correction, maker–checker approval, immutable per-fund opening JEVs, zero-difference reconciliation, a guided next-action queue, per-batch evidence export, and a synchronized filtered TraceSync control register. Synthetic controls pass, but actual locally approved master data, opening schedules/balances, official-layout decisions, signed controls, and named-office acceptance remain required before the parent F2 exit gate can be claimed for production.
+
 ### F3 — Annual budget preparation, authorization, and review
 
 Deliver:

@@ -184,12 +184,14 @@ ACCOUNTING_GUIDES = (
     },
     {
         "slug": "finance-opening-prepare",
+        "version": 2,
         "title": "Stage and correct opening balances",
         "summary": "Prepare controlled opening rows, resolve differences, and submit only after every declared control is exact.",
         "permission": "accounting.prepare_opening_balances",
         "patterns": ["accounting:opening_*"],
         "order": 20,
         "steps": (
+            ("Start from the action queue", "Use Fiscal year, Workflow status, and Next action filters to find only the batches you can move. Export visible register when a supervisor needs the same filtered control list.", "The screen and retained CSV show the same department-bounded set.", "The register is oversight evidence, not approval or a replacement for the accepted opening schedule.", "Open Opening Controls", "accounting:opening_workspace"),
             ("Create the control batch", "Open Opening Controls, choose the typed fiscal year and opening period, then record the reviewed source reference and independent row/debit/credit totals.", "A draft batch displays the declared controls before any rows are staged.", "Do not invent a balancing row or use an unapproved account code.", "Open Opening Controls", "accounting:opening_workspace"),
             ("Stage the reviewed CSV", "Upload the UTF-8 controlled source. GRAND records its SHA-256 checksum and maps each fund, account, and responsibility center.", "Every source row appears with a valid or needs-correction result.", "Replacing a draft source is allowed, but it creates new staging evidence.", "Open Opening Controls", "accounting:opening_workspace"),
             ("Correct with evidence", "Use Correct on the flagged row or Correct declared controls. Cite the reviewed schedule, instruction, or authority for the change.", "The row/control returns to draft and the before/after evidence is retained.", "Never edit a posted opening JEV; use the governed adjustment route.", "", ""),
@@ -199,12 +201,14 @@ ACCOUNTING_GUIDES = (
     },
     {
         "slug": "finance-opening-approve",
+        "version": 2,
         "title": "Review opening controls independently",
         "summary": "Approve only a checksum-backed, zero-difference opening schedule, or return it with a useful correction basis.",
         "permission": "accounting.approve_opening_balances",
         "patterns": ["accounting:opening_*"],
         "order": 30,
         "steps": (
+            ("Open the independent-review queue", "Filter Next action to Awaiting independent review, then open one batch at a time. Use Export visible register when a retained review list is needed.", "Only submitted batches from the current department are listed for review.", "A downloaded register does not approve its batches.", "Open Opening Controls", "accounting:opening_workspace"),
             ("Confirm segregation", "Verify that you are not the creator or submitter and that the selected fiscal year, period, and department are correct.", "The review is independent and within your current department.", "Do not share accounts or approve on another person's behalf.", "", ""),
             ("Compare source and controls", "Review the source reference/checksum, declared totals, mapped rows, validation errors, and per-fund balance against the accepted schedule.", "No unexplained row, debit, credit, or fund difference remains.", "GRAND validation does not replace review of the signed/local source evidence.", "", ""),
             ("Approve or return", "Record the supporting schedule/control evidence when approving. If anything is wrong, return the batch with a specific correction reason.", "Approval permits posting; return reopens governed preparation.", "An approved batch may be returned only before posting.", "", ""),
@@ -212,12 +216,14 @@ ACCOUNTING_GUIDES = (
     },
     {
         "slug": "finance-opening-post",
+        "version": 2,
         "title": "Post and reconcile opening JEVs",
         "summary": "Post independently approved per-fund opening entries, then close the readiness gate only after reconciliation reaches zero.",
         "permission": "accounting.post_opening_balances",
         "patterns": ["accounting:opening_*"],
         "order": 40,
         "steps": (
+            ("Separate posting from reconciliation work", "Filter Next action to Awaiting posting, complete those authorized actions, then filter to Awaiting reconciliation for the separate zero-difference check.", "Approved and posted batches stay visibly separated by the action still required.", "Do not treat a posted batch as complete until it is reconciled.", "Open Opening Controls", "accounting:opening_workspace"),
             ("Recheck posting readiness", "Confirm the year is approved or active, the opening period is open, and the batch remains independently approved.", "The Post opening JEVs action is available.", "The preparer cannot post the same batch.", "", ""),
             ("Post the generated entries", "Post once. GRAND creates one balanced, immutable opening JEV per fund with source and batch lineage.", "The batch becomes Posted; reconciliation pending.", "Do not retry by creating manual duplicate JEVs.", "", ""),
             ("Run the separate reconciliation", "Compare staged row/debit/credit controls to the generated posted JEV lineage using Reconcile posted controls.", "Every difference is zero and the batch becomes Reconciled.", "A failure remains recorded for investigation and does not satisfy fiscal readiness.", "", ""),

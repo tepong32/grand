@@ -837,6 +837,86 @@ class StandaloneAccountingTests(TestCase):
         response = self.client.get(reverse("accounting:opening_export", args=(batch.public_id,)))
         self.assertEqual(response.status_code, 404)
 
+    def test_opening_workspace_filters_by_exact_year_status_and_next_action(self):
+        fiscal_year = self._fiscal_foundation()
+        draft = self._opening_batch(fiscal_year, source_reference="SYN-OPEN-DRAFT")
+        review = self._opening_batch(fiscal_year, source_reference="SYN-OPEN-REVIEW")
+        review.status = OpeningBalanceBatch.FOR_REVIEW
+        review.save(update_fields=("status", "updated_at"))
+
+        self.client.force_login(self.setup_approver)
+        response = self.client.get(reverse("accounting:opening_workspace"), {
+            "fiscal_year": fiscal_year.pk,
+            "attention": "awaiting_review",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "SYN-OPEN-REVIEW")
+        self.assertNotContains(response, "SYN-OPEN-DRAFT")
+        self.assertContains(response, "Independent reviewer: approve or return")
+        self.assertContains(response, "1 visible opening batch")
+
+        response = self.client.get(reverse("accounting:opening_workspace"), {
+            "status": OpeningBalanceBatch.DRAFT,
+            "attention": "awaiting_review",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "SYN-OPEN-DRAFT")
+        self.assertNotContains(response, "SYN-OPEN-REVIEW")
+
+        other_year = FiscalYear.objects.create(
+            department_id=self.other_department.pk,
+            department_label=self.other_department.name,
+            year=2027,
+            label="Other FY 2027",
+            starts_on=date(2027, 1, 1),
+            ends_on=date(2027, 12, 31),
+            business_date=date(2027, 1, 1),
+            created_by_id=self.outsider.pk,
+            created_by_label=self.outsider.username,
+        )
+        response = self.client.get(reverse("accounting:opening_workspace"), {"fiscal_year": other_year.pk})
+        self.assertEqual(response.status_code, 404)
+
+    def test_filtered_opening_register_is_archived_audited_and_safe_for_viewers(self):
+        fiscal_year = self._fiscal_foundation()
+        self._opening_batch(fiscal_year, source_reference="SYN-OPEN-NOT-EXPORTED")
+        review = self._opening_batch(fiscal_year, source_reference="=SYN-OPEN-REVIEW")
+        review.status = OpeningBalanceBatch.FOR_REVIEW
+        review.validation_summary = {
+            "valid": True,
+            "row_count": 2,
+            "valid_row_count": 2,
+            "error_row_count": 0,
+            "debit": "100.00",
+            "credit": "100.00",
+            "batch_errors": [],
+        }
+        review.save(update_fields=("status", "validation_summary", "updated_at"))
+
+        self.client.force_login(self.viewer)
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            response = self.client.get(reverse("accounting:opening_register_export"), {
+                "fiscal_year": fiscal_year.pk,
+                "attention": "awaiting_review",
+            })
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+            exported = response.content.decode("utf-8-sig")
+            self.assertIn("'=SYN-OPEN-REVIEW", exported)
+            self.assertNotIn("SYN-OPEN-NOT-EXPORTED", exported)
+            self.assertIn("Independent reviewer: approve or return", exported)
+            artifacts = list(Path(export_root).rglob("*.csv"))
+            self.assertEqual(len(artifacts), 1)
+            self.assertIn(self.accounting_department.slug, artifacts[0].parts)
+            self.assertIn(slugify(self.viewer.username), artifacts[0].parts)
+            manifest = json.loads(Path(str(artifacts[0]) + ".manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["sha256"], response["X-GRAND-Export-SHA256"])
+            self.assertEqual(manifest["metadata"]["attention_filter"], "awaiting_review")
+            self.assertEqual(manifest["metadata"]["batch_count"], 1)
+            event = AccountingAuditEvent.objects.get(action="opening_register_exported")
+            self.assertEqual(event.actor_id, self.viewer.pk)
+            self.assertEqual(event.snapshot["sha256"], response["X-GRAND-Export-SHA256"])
+
     def test_opening_starter_csv_is_available_and_plain(self):
         self.client.force_login(self.preparer)
         response = self.client.get(reverse("accounting:opening_starter"))

@@ -65,6 +65,9 @@ from .close_services import (
     request_period_reopen, submit_period_close_policy, submit_period_close_run,
 )
 from .foundation_exports import build_foundation_register
+from .opening_exports import (
+    OPENING_ATTENTION_CHOICES, apply_opening_filters, build_opening_register, next_opening_action,
+)
 
 
 SETUP_TYPES = {
@@ -677,22 +680,72 @@ def period_close_export(request, public_id):
 @accounting_access_required
 def opening_workspace(request):
     department = department_for_user(request.user)
-    batches = OpeningBalanceBatch.objects.filter(department_id=department.pk).select_related(
+    department_batches = OpeningBalanceBatch.objects.filter(department_id=department.pk)
+    selected_fiscal_year = request.GET.get("fiscal_year", "").strip()
+    fiscal_year = None
+    if selected_fiscal_year:
+        fiscal_year = get_object_or_404(FiscalYear, pk=selected_fiscal_year, department_id=department.pk)
+    batches, selected_status, selected_attention = apply_opening_filters(
+        department_batches,
+        fiscal_year=fiscal_year,
+        status=request.GET.get("status", "").strip(),
+        attention=request.GET.get("attention", "").strip(),
+    )
+    batches = batches.select_related(
         "fiscal_year", "period",
     )
-    metrics = batches.aggregate(
+    metrics = department_batches.aggregate(
         staging=Count("pk", filter=Q(status__in=(OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED))),
         review=Count("pk", filter=Q(status__in=(OpeningBalanceBatch.VALIDATED, OpeningBalanceBatch.FOR_REVIEW))),
         approved=Count("pk", filter=Q(status__in=(OpeningBalanceBatch.APPROVED, OpeningBalanceBatch.POSTED))),
         reconciled=Count("pk", filter=Q(status=OpeningBalanceBatch.RECONCILED)),
     )
+    batches = list(batches)
+    for batch in batches:
+        batch.next_action_label = next_opening_action(batch.status)
     return render(request, "accounting/opening_workspace.html", {
         "batches": batches,
         "metrics": metrics,
+        "fiscal_years": FiscalYear.objects.filter(department_id=department.pk).order_by("-year", "pk"),
+        "selected_fiscal_year": selected_fiscal_year,
+        "selected_status": selected_status,
+        "selected_attention": selected_attention,
+        "status_choices": OpeningBalanceBatch.STATUS_CHOICES,
+        "attention_choices": OPENING_ATTENTION_CHOICES,
         "can_prepare_opening": can_prepare_opening_balances(request.user),
         "can_approve_opening": can_approve_opening_balances(request.user),
         "can_post_opening": can_post_opening_balances(request.user),
     })
+
+
+@require_GET
+@accounting_access_required
+def opening_register_export(request):
+    department = department_for_user(request.user)
+    selected_fiscal_year = request.GET.get("fiscal_year", "").strip()
+    fiscal_year = None
+    if selected_fiscal_year:
+        fiscal_year = get_object_or_404(FiscalYear, pk=selected_fiscal_year, department_id=department.pk)
+    batches, selected_status, selected_attention = apply_opening_filters(
+        OpeningBalanceBatch.objects.filter(department_id=department.pk),
+        fiscal_year=fiscal_year,
+        status=request.GET.get("status", "").strip(),
+        attention=request.GET.get("attention", "").strip(),
+    )
+    content, filename, receipt = build_opening_register(
+        department,
+        request.user,
+        batches,
+        fiscal_year=fiscal_year,
+        status=selected_status,
+        attention=selected_attention,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    return response
 
 
 @require_http_methods(["GET", "POST"])

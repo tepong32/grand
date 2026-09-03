@@ -17,6 +17,14 @@ The intake is deliberately generic. It does not claim that its CSV is a prescrib
 
 Permissions never cross the current department boundary.
 
+## Guided action queue and oversight register
+
+The Opening balances workspace remains the single operating register. Fiscal-year, workflow-status, and plain-language next-action filters divide the same governed records into needs staging/correction, ready for submission, awaiting independent review, awaiting posting, awaiting reconciliation, and reconciled/complete work. The four summary cards remain explicitly department-wide while the table and its visible count follow the selected filters.
+
+`Export visible register` uses the exact same filters. Its spreadsheet-safe CSV contains one control row per visible batch: declared and staged totals, validation exceptions, source checksum, maker/reviewer/poster/reconciler lineage, state version, and the next action. It intentionally does not repeat normalized source rows; those remain available in the controlled per-batch export. The exact register bytes and manifest are retained in the TraceSync-ready `department/user/finance-opening-register/year/month` tree and an append-only Accounting audit event retains their SHA-256 and filter scope.
+
+All users with Accounting workspace access may inspect and export the department-bounded register, matching the existing opening-evidence access rule. Exporting is a read-only evidence action: it does not approve, post, reconcile, or establish official-form status.
+
 ## Controlled CSV
 
 The UTF-8 source is limited to 5 MB and uses these columns:
@@ -59,7 +67,8 @@ fund_code,account_code,responsibility_center_code,debit,credit,subsidiary_refere
 5. The approver records the schedule/control evidence and approves, or returns it for correction. An approved but unposted batch may still be returned.
 6. A separate poster posts one immutable opening JEV per fund. The typed year must be approved or active and its selected period must be open.
 7. Run reconciliation. GRAND compares staged controls with the generated posted JEV lineage. Only zero row, debit, and credit differences move the batch to `Reconciled` and satisfy the Accounting structural-readiness check.
-8. Export the controlled CSV when operational review needs it. The export carries the department, fiscal year, period, source reference/status/checksum, declared controls, normalized rows, validation state, and stable codes. It is downloaded and retained in the [portable GRAND export archive](EXPORT_ARCHIVE.md), but remains evidence/data interchange rather than an automatically official form.
+8. Use the workspace filters to isolate the next authorized action. Export the visible register when a supervisor or reviewer needs one retained oversight list.
+9. Export an individual batch's controlled CSV when row-level operational review needs it. The export carries the department, fiscal year, period, source reference/status/checksum, declared controls, normalized rows, validation state, and stable codes. Both exports are downloaded and retained in the [portable GRAND export archive](EXPORT_ARCHIVE.md), but remain evidence/data interchange rather than automatically official forms.
 
 ## Modification allowance
 
@@ -69,4 +78,4 @@ This is stricter than the broader voucher/check issuance boundary because ledger
 
 ## Synthetic acceptance
 
-Acceptance requires tests showing department isolation, permission gates, rejected unknown codes, reasoned correction, exact row and control totals, per-fund balance, independent approval, immutable posted JEVs, explicit zero declaration, reconciliation to zero difference, and a scoped export. Production migration, historical conversion, and official-form fidelity remain outside this slice.
+Acceptance requires tests showing department isolation, permission gates, rejected unknown codes, reasoned correction, exact row and control totals, per-fund balance, independent approval, immutable posted JEVs, explicit zero declaration, reconciliation to zero difference, synchronized action filtering, and scoped control/row exports. Production migration, historical conversion, and official-form fidelity remain outside this slice.
