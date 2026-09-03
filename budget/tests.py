@@ -549,6 +549,56 @@ class AnnualBudgetPreparationTests(TestCase):
             self.assertEqual(len(manifests), 1)
             self.assertIn("finance-allotment-releases", str(manifests[0]))
 
+    def test_allotment_triage_and_visible_register_share_exact_scope(self):
+        authorization = self.make_authorized_appropriation()
+        posted = self.make_allotment_order(authorization)
+        posted.purpose = "=HYPERLINK(\"https://invalid.example\",\"unsafe\")"
+        posted.save(update_fields=("purpose",))
+        self.add_allotment_line(posted, "60000")
+        transition_allotment_order(posted, "submit", self.preparer)
+        posted = transition_allotment_order(posted, "post", self.authorizer, "Independent review.")
+        draft = self.make_allotment_order(
+            authorization, number="ARO-2027-DRAFT", kind=AllotmentReleaseOrder.RESERVE, total="1000.00",
+        )
+        self.client.force_login(self.authorizer)
+        query = {
+            "fiscal_year": self.fiscal_year.pk, "kind": AllotmentReleaseOrder.INITIAL,
+            "status": AllotmentReleaseOrder.POSTED, "attention": "posted",
+        }
+        workspace = self.client.get(reverse("budget:allotment_workspace"), query)
+        self.assertEqual(workspace.status_code, 200)
+        self.assertContains(workspace, posted.order_number)
+        self.assertNotContains(workspace, draft.order_number)
+        self.assertContains(workspace, "Retain evidence; use a linked successor for corrections")
+        conflict = self.client.get(reverse("budget:allotment_workspace"), {
+            "status": AllotmentReleaseOrder.DRAFT, "attention": "posted",
+        })
+        self.assertNotContains(conflict, posted.order_number)
+        self.assertNotContains(conflict, draft.order_number)
+        invalid = self.client.get(reverse("budget:allotment_workspace"), {"kind": "not-a-real-kind"})
+        self.assertNotContains(invalid, posted.order_number)
+        self.assertNotContains(invalid, draft.order_number)
+        outside_year = FiscalYear.objects.create(
+            department_id=self.accounting_office.pk, department_label=self.accounting_office.name,
+            year=2028, label="FY 2028", starts_on=date(2028, 1, 1), ends_on=date(2028, 12, 31),
+            business_date=date(2028, 1, 1), status=FiscalYear.APPROVED,
+        )
+        self.assertEqual(self.client.get(reverse("budget:allotment_workspace"), {
+            "fiscal_year": outside_year.pk,
+        }).status_code, 404)
+        with tempfile.TemporaryDirectory() as directory, override_settings(GRAND_EXPORT_ROOT=directory):
+            response = self.client.get(reverse("budget:allotment_register_export"), query)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+            content = response.content.decode("utf-8-sig")
+            self.assertIn(posted.order_number, content)
+            self.assertNotIn(draft.order_number, content)
+            self.assertIn("'=HYPERLINK", content)
+            self.assertTrue(BudgetAuditEvent.objects.filter(action="allotment_register_exported").exists())
+            manifests = list(Path(directory).rglob("*.manifest.json"))
+            self.assertEqual(len(manifests), 1)
+            self.assertIn("finance-allotment-control-register", str(manifests[0]))
+
     def test_guided_draft_editing_closes_at_submission(self):
         authorization = self.make_authorized_appropriation()
         self.client.force_login(self.preparer)
@@ -1151,3 +1201,63 @@ class AnnualBudgetPreparationTests(TestCase):
             manifests = list(Path(directory).rglob("*.manifest.json"))
             self.assertEqual(len(manifests), 1)
             self.assertIn("finance-obligation-registry", str(manifests[0]))
+
+    def test_obligation_triage_export_preserves_requesting_office_role_scope(self):
+        authorization = self.make_executable_authority()
+        visible = self.make_obligation_request(authorization, reference="GSO-VISIBLE-001", total="5000.00")
+        visible.claimant_payee = "=CMD(\"unsafe\")"
+        visible.save(update_fields=("claimant_payee",))
+        hidden = ObligationRequest.objects.create(
+            department_id=self.budget_office.pk, department_label=self.budget_office.name,
+            authorization=authorization, fiscal_year=self.fiscal_year,
+            requesting_department_id=self.other_office.pk, requesting_department_label=self.other_office.name,
+            kind=ObligationRequest.ORIGINAL, form_type=ObligationRequest.ORS,
+            request_reference="HR-HIDDEN-001", obligation_date=date(2027, 1, 16),
+            claimant_payee="Synthetic HR supplier", particulars="Synthetic HR obligation.",
+            evidence_reference="Synthetic HR support.", signed_control_total=Decimal("2000.00"),
+            created_by_id=self.outsider.pk, created_by_label=self.outsider.username,
+        )
+        self.client.force_login(self.requester)
+        query = {
+            "fiscal_year": self.fiscal_year.pk, "kind": ObligationRequest.ORIGINAL,
+            "form_type": ObligationRequest.OBR, "status": ObligationRequest.DRAFT,
+            "attention": "needs_preparation",
+        }
+        workspace = self.client.get(reverse("budget:obligation_workspace"), query)
+        self.assertEqual(workspace.status_code, 200)
+        self.assertContains(workspace, visible.request_reference)
+        self.assertNotContains(workspace, hidden.request_reference)
+        self.assertContains(workspace, "Requesting office: complete and submit")
+        conflict = self.client.get(reverse("budget:obligation_workspace"), {
+            "status": ObligationRequest.DRAFT, "attention": "certified",
+        })
+        self.assertNotContains(conflict, visible.request_reference)
+        invalid = self.client.get(reverse("budget:obligation_workspace"), {"form_type": "not-a-real-form"})
+        self.assertNotContains(invalid, visible.request_reference)
+        outside_year = FiscalYear.objects.create(
+            department_id=self.accounting_office.pk, department_label=self.accounting_office.name,
+            year=2029, label="FY 2029", starts_on=date(2029, 1, 1), ends_on=date(2029, 12, 31),
+            business_date=date(2029, 1, 1), status=FiscalYear.APPROVED,
+        )
+        self.assertEqual(self.client.get(reverse("budget:obligation_workspace"), {
+            "fiscal_year": outside_year.pk,
+        }).status_code, 404)
+        with tempfile.TemporaryDirectory() as directory, override_settings(GRAND_EXPORT_ROOT=directory):
+            response = self.client.get(reverse("budget:obligation_register_export"), query)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+            content = response.content.decode("utf-8-sig")
+            self.assertIn(visible.request_reference, content)
+            self.assertNotIn(hidden.request_reference, content)
+            self.assertIn("'=CMD", content)
+            self.assertTrue(BudgetAuditEvent.objects.filter(
+                action="obligation_register_exported", department_id=self.requesting_office.pk,
+            ).exists())
+            manifests = list(Path(directory).rglob("*.manifest.json"))
+            self.assertEqual(len(manifests), 1)
+            self.assertIn("finance-obligation-control-register", str(manifests[0]))
+
+        self.client.force_login(self.certifier)
+        budget_view = self.client.get(reverse("budget:obligation_workspace"))
+        self.assertContains(budget_view, visible.request_reference)
+        self.assertContains(budget_view, hidden.request_reference)

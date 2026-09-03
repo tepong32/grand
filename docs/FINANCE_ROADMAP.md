@@ -151,7 +151,7 @@ Deliver:
 
 Exit gate: GRAND prevents duplicate or excess obligations under concurrent use and reproduces signed synthetic appropriation/allotment/obligation control totals with zero unexplained difference.
 
-Implementation position: F4.1–F4.2 synthetic controls are implemented, including immutable allotment and obligation movements, requesting-office submission, Budget certification, concurrency protection, linked corrections, RAAO-equivalent balances, and portable exports. Exact locally accepted ARO/ALOBS/ORS/OBR/RAAO forms, numbering, signatures, and signed schedule reconciliation remain acceptance gates; see [Finance allotment control](FINANCE_ALLOTMENT_CONTROL.md) and [Finance obligation control](FINANCE_OBLIGATION_CONTROL.md).
+Implementation position: F4.1–F4.2 synthetic controls are implemented, including immutable allotment and obligation movements, requesting-office submission, Budget certification, concurrency protection, linked corrections, RAAO-equivalent balances, role-shaped next-action triage, synchronized control registers, and separate detailed movement exports. Exact locally accepted ARO/ALOBS/ORS/OBR/RAAO forms, numbering, signatures, and signed schedule reconciliation remain acceptance gates; see [Finance allotment control](FINANCE_ALLOTMENT_CONTROL.md) and [Finance obligation control](FINANCE_OBLIGATION_CONTROL.md).
 
 ### F5 — Request, procurement, delivery, payable, and voucher intake
 

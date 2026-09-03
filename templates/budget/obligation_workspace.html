@@ -10,13 +10,32 @@
     </div>
     <div>
       <a class="btn btn-outline-secondary" href="{% url 'budget:allotment_workspace' %}">Allotment control</a>
-      {% if can_registry %}<a class="btn btn-outline-primary" href="{% url 'budget:obligation_registry_export' %}">Export registry</a>{% endif %}
+      {% if can_registry %}<a class="btn btn-outline-primary" href="{% url 'budget:obligation_registry_export' %}">Export full certified RAAO detail</a>{% endif %}
       {% if can_initiate %}<a class="btn btn-primary" href="{% url 'budget:obligation_create' %}">New obligation request</a>{% endif %}
     </div>
   </div>
   <div class="alert alert-info"><strong>Modification allowance:</strong> draft and returned requests may be corrected with before/after audit evidence. Certification posts immutable movements. Certified corrections require a linked adjustment, return, or cancellation; once a linked DV/check is issued, use its later reversal or cancellation workflow.</div>
+  <div class="card card-outline card-primary mb-3">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Find the work that needs attention</h2></div>
+    <div class="card-body">
+      <form method="get" class="row align-items-end">
+        <div class="form-group col-md-2"><label for="obligation-fiscal-year">Fiscal year</label><select id="obligation-fiscal-year" class="form-control" name="fiscal_year"><option value="">All visible years</option>{% for year in fiscal_years %}<option value="{{ year.pk }}" {% if selected_fiscal_year == year.pk|stringformat:'s' %}selected{% endif %}>FY {{ year.year }}</option>{% endfor %}</select></div>
+        <div class="form-group col-md-2"><label for="obligation-kind">Request type</label><select id="obligation-kind" class="form-control" name="kind"><option value="">All request types</option>{% for value, label in kind_choices %}<option value="{{ value }}" {% if selected_kind == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="form-group col-md-2"><label for="obligation-form">Form</label><select id="obligation-form" class="form-control" name="form_type"><option value="">All forms</option>{% for value, label in form_choices %}<option value="{{ value }}" {% if selected_form_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="form-group col-md-3"><label for="obligation-status">Status</label><select id="obligation-status" class="form-control" name="status"><option value="">All statuses</option>{% for value, label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="form-group col-md-3"><label for="obligation-attention">Next-action group</label><select id="obligation-attention" class="form-control" name="attention"><option value="">All next actions</option>{% for value, label in attention_choices %}<option value="{{ value }}" {% if selected_attention == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="col-12 d-flex flex-wrap align-items-center">
+          <button class="btn btn-primary mr-2 mb-2" type="submit">Apply filters</button>
+          <a class="btn btn-outline-secondary mr-2 mb-2" href="{% url 'budget:obligation_workspace' %}">Clear</a>
+          <button class="btn btn-outline-primary mb-2" type="submit" formaction="{% url 'budget:obligation_register_export' %}">Export visible control register</button>
+          <span class="ml-auto text-muted small mb-2">{{ requests|length }} request{{ requests|length|pluralize }} shown</span>
+        </div>
+      </form>
+      <p class="small text-muted mb-0">The visible register follows these exact filters and your current role scope. The full certified RAAO detail remains a separate Budget-only reconciliation export.</p>
+    </div>
+  </div>
   {% if can_registry %}<div class="card card-outline card-success mb-3">
-    <div class="card-header"><h2 class="card-title font-weight-bold">RAAO-equivalent control totals</h2></div>
+    <div class="card-header"><h2 class="card-title font-weight-bold">RAAO-equivalent control totals</h2><div class="card-tools text-muted small">Budget-office overview; not narrowed by queue filters</div></div>
     <div class="table-responsive"><table class="table table-hover mb-0">
       <thead><tr><th>Authority</th><th class="text-right">Appropriation</th><th class="text-right">Released</th><th class="text-right">Held</th><th class="text-right">Executable</th><th class="text-right">Obligated</th><th class="text-right">Unobligated</th></tr></thead>
       <tbody>{% for row in authority_rows %}<tr>
@@ -28,11 +47,11 @@
   <div class="card card-outline card-primary">
     <div class="card-header"><h2 class="card-title font-weight-bold">Obligation requests and certified registry entries</h2></div>
     <div class="table-responsive"><table class="table table-hover mb-0">
-      <thead><tr><th>Request / obligation</th><th>Requesting office</th><th>Form</th><th>Date</th><th>Claimant/payee</th><th>Status</th><th class="text-right">Signed effect</th></tr></thead>
+      <thead><tr><th>Request / obligation</th><th>Requesting office</th><th>Form</th><th>Date</th><th>Claimant/payee</th><th>Status</th><th>What happens next</th><th class="text-right">Signed effect</th></tr></thead>
       <tbody>{% for item in requests %}<tr>
         <td><a href="{% url 'budget:obligation_detail' item.public_id %}">{{ item.obligation_number|default:item.request_reference }}</a><div class="small text-muted">{{ item.get_kind_display }} · request {{ item.request_reference }}</div></td>
-        <td>{{ item.requesting_department_label }}</td><td>{{ item.get_form_type_display }}</td><td>{{ item.obligation_date }}</td><td>{{ item.claimant_payee }}</td><td><span class="badge {% if item.status == 'certified' %}badge-success{% elif item.status == 'for_certification' %}badge-warning{% else %}badge-secondary{% endif %}">{{ item.get_status_display }}</span></td><td class="text-right">{{ item.signed_control_total|floatformat:2 }}</td>
-      </tr>{% empty %}<tr><td colspan="7" class="text-center text-muted py-4">No obligation request is visible in your department scope.</td></tr>{% endfor %}</tbody>
+        <td>{{ item.requesting_department_label }}</td><td>{{ item.get_form_type_display }}</td><td>{{ item.obligation_date }}</td><td>{{ item.claimant_payee }}</td><td><span class="badge {% if item.status == 'certified' %}badge-success{% elif item.status == 'for_certification' %}badge-warning{% else %}badge-secondary{% endif %}">{{ item.get_status_display }}</span></td><td>{{ item.next_action_label }}</td><td class="text-right">{{ item.signed_control_total|floatformat:2 }}</td>
+      </tr>{% empty %}<tr><td colspan="8" class="text-center text-muted py-4">No obligation request matches these filters in your department scope.</td></tr>{% endfor %}</tbody>
     </table></div>
   </div>
 </div>

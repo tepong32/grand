@@ -41,7 +41,11 @@ The current branch creates the authoritative obligation UUID link needed by the 
 
 ## RAAO-equivalent view and exports
 
-Authorized Budget users can review appropriation, released, held, executable, obligated, and unobligated totals and drill into the exact classified lines. Registry CSV exports include authority and obligation checksums, office/form/number/reference fields, correction lineage, classified dimensions, movement effects, and current balances.
+Fiscal-year, request-type, form, status, and next-action filters now shape both the role-bounded work list and its **Export visible control register** action. Requesting offices export only their own requests; authorized Budget users export only the registry scope of their current Budget office. Each one-row-per-request record includes authority and transaction checksums, signed and computed effects, control difference, correction and linked-voucher lineage, workflow actors, state version, and the same next action shown on screen. Invalid or conflicting filters do not broaden scope.
+
+The exact spreadsheet-safe visible-register bytes are archived under `GRAND_EXPORT_ROOT/<department>/<user>/finance-obligation-control-register/<year>/<month>/...` with an adjacent checksum manifest and append-only export event. This is queue oversight evidence, not a certified movement ledger or accepted official form.
+
+Authorized Budget users can separately review department-wide appropriation, released, held, executable, obligated, and unobligated totals and drill into the exact classified lines. The **full certified RAAO detail** export includes authority and obligation checksums, office/form/number/reference fields, correction lineage, classified dimensions, movement effects, and current balances. Its spreadsheet-safe export and actor audit event stay separate from the filtered visible-register export.
 
 The downloaded bytes are also archived under `GRAND_EXPORT_ROOT/<department>/<user>/finance-obligation-registry/<year>/<month>/...` with an adjacent SHA-256 manifest. Copy or synchronize the whole export root with TraceSync so artifacts and manifests stay together.
 

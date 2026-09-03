@@ -33,6 +33,12 @@ from .services import (
 from .annual_exports import (
     ANNUAL_ATTENTION_CHOICES, apply_annual_filters, build_annual_register, next_annual_action,
 )
+from .control_exports import (
+    ALLOTMENT_ATTENTION_CHOICES, OBLIGATION_ATTENTION_CHOICES,
+    apply_allotment_filters, apply_obligation_filters,
+    build_allotment_register, build_obligation_register,
+    next_allotment_action, next_obligation_action,
+)
 
 
 def _message_error(request, exc):
@@ -40,7 +46,10 @@ def _message_error(request, exc):
 
 
 def _csv_text(value):
-    value = str(value or "")
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        return value
     if value.startswith(("=", "+", "-", "@", "\t", "\r")):
         return "'" + value
     return value
@@ -431,13 +440,59 @@ def allotment_workspace(request):
     authority_rows = [
         {"authorization": item, "totals": authorization_allotment_totals(item)} for item in authorizations
     ]
-    orders = AllotmentReleaseOrder.objects.filter(department_id=department.pk).select_related(
-        "fiscal_year", "authorization", "corrects"
-    )[:60]
+    base_orders = AllotmentReleaseOrder.objects.filter(department_id=department.pk)
+    fiscal_year_id = request.GET.get("fiscal_year", "").strip()
+    fiscal_year = None
+    if fiscal_year_id:
+        fiscal_year = get_object_or_404(
+            FiscalYear.objects.filter(allotment_release_orders__department_id=department.pk).distinct(),
+            pk=fiscal_year_id,
+        )
+    orders, selected_kind, selected_status, selected_attention = apply_allotment_filters(
+        base_orders, fiscal_year=fiscal_year, kind=request.GET.get("kind", "").strip(),
+        status=request.GET.get("status", "").strip(), attention=request.GET.get("attention", "").strip(),
+    )
+    orders = list(orders.select_related("fiscal_year", "authorization", "corrects")[:100])
+    for order in orders:
+        order.next_action_label = next_allotment_action(order)
     return render(request, "budget/allotment_workspace.html", {
         "department": department, "authority_rows": authority_rows, "orders": orders,
+        "fiscal_years": FiscalYear.objects.filter(
+            allotment_release_orders__department_id=department.pk,
+        ).distinct().order_by("-year", "pk"),
+        "selected_fiscal_year": fiscal_year_id, "selected_kind": selected_kind,
+        "selected_status": selected_status, "selected_attention": selected_attention,
+        "kind_choices": AllotmentReleaseOrder.KIND_CHOICES,
+        "status_choices": AllotmentReleaseOrder.STATUS_CHOICES,
+        "attention_choices": ALLOTMENT_ATTENTION_CHOICES,
         "can_prepare": has_budget_permission(request.user, "prepare_allotment_releases"),
     })
+
+
+@require_GET
+@budget_permission_required("view_allotment_control")
+def allotment_register_export(request):
+    department = department_for_user(request.user)
+    base_orders = AllotmentReleaseOrder.objects.filter(department_id=department.pk)
+    fiscal_year_id = request.GET.get("fiscal_year", "").strip()
+    fiscal_year = None
+    if fiscal_year_id:
+        fiscal_year = get_object_or_404(
+            FiscalYear.objects.filter(allotment_release_orders__department_id=department.pk).distinct(),
+            pk=fiscal_year_id,
+        )
+    orders, selected_kind, selected_status, selected_attention = apply_allotment_filters(
+        base_orders, fiscal_year=fiscal_year, kind=request.GET.get("kind", "").strip(),
+        status=request.GET.get("status", "").strip(), attention=request.GET.get("attention", "").strip(),
+    )
+    content, filename, receipt = build_allotment_register(
+        department, request.user, orders, fiscal_year=fiscal_year, kind=selected_kind,
+        status=selected_status, attention=selected_attention,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"], response["X-GRAND-Export-SHA256"] = "true", receipt["sha256"]
+    return response
 
 
 @budget_permission_required("prepare_allotment_releases")
@@ -608,6 +663,7 @@ def allotment_export(request, public_id):
         "authorization", "authorization__version", "fiscal_year"
     ).prefetch_related("movements__appropriation_line"), public_id=public_id, department_id=department.pk, status=AllotmentReleaseOrder.POSTED)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response.write("\ufeff")
     writer = csv.writer(response)
     writer.writerow((
         "export_kind", "budget_office", "fiscal_year", "order_number", "order_type", "effective_date",
@@ -618,14 +674,14 @@ def allotment_export(request, public_id):
     ))
     for movement in item.movements.all():
         line, balance = movement.appropriation_line, allotment_line_balance(movement.appropriation_line)
-        writer.writerow((
+        writer.writerow(tuple(_csv_text(value) for value in (
             "posted_allotment_movement", item.department_label, item.fiscal_year.year, item.order_number,
             item.kind, item.effective_date, item.authority_reference, item.authorization.snapshot_checksum,
             item.snapshot_checksum, line.fund_code, line.responsibility_center_code, line.program_code,
             line.funding_source_code, line.account_code, line.expense_class, movement.movement_type,
             movement.amount, movement.release_effect, movement.hold_effect, balance["authorized"],
             balance["released"], balance["reserved"], balance["deferred"], balance["held"], balance["unreleased"], balance["executable"], movement.remarks,
-        ))
+        )))
     filename = f"allotment-{slugify(item.order_number)}.csv"
     archived = archive_export(
         content=response.content, department=department, user=request.user,
@@ -652,15 +708,66 @@ def obligation_workspace(request):
             department_id=department.pk, status=AppropriationAuthorization.AUTHORIZED,
         ).select_related("version", "version__fiscal_year").prefetch_related("schedule_lines"))
     authority_rows = [{"authorization": item, "totals": authorization_obligation_totals(item)} for item in authorizations]
-    items = _obligation_scope(request.user).select_related(
-        "fiscal_year", "authorization", "corrects"
-    )[:100]
+    base_items = _obligation_scope(request.user)
+    fiscal_year_id = request.GET.get("fiscal_year", "").strip()
+    fiscal_year = None
+    if fiscal_year_id:
+        fiscal_year = get_object_or_404(
+            FiscalYear.objects.filter(pk__in=base_items.values("fiscal_year_id")).distinct(),
+            pk=fiscal_year_id,
+        )
+    items, selected_kind, selected_form_type, selected_status, selected_attention = apply_obligation_filters(
+        base_items, fiscal_year=fiscal_year, kind=request.GET.get("kind", "").strip(),
+        form_type=request.GET.get("form_type", "").strip(), status=request.GET.get("status", "").strip(),
+        attention=request.GET.get("attention", "").strip(),
+    )
+    items = list(items.select_related("fiscal_year", "authorization", "corrects")[:100])
+    for item in items:
+        item.next_action_label = next_obligation_action(item)
     return render(request, "budget/obligation_workspace.html", {
         "department": department, "authority_rows": authority_rows, "requests": items,
+        "fiscal_years": FiscalYear.objects.filter(
+            pk__in=base_items.values("fiscal_year_id"),
+        ).distinct().order_by("-year", "pk"),
+        "selected_fiscal_year": fiscal_year_id, "selected_kind": selected_kind,
+        "selected_form_type": selected_form_type, "selected_status": selected_status,
+        "selected_attention": selected_attention,
+        "kind_choices": ObligationRequest.KIND_CHOICES, "form_choices": ObligationRequest.FORM_CHOICES,
+        "status_choices": ObligationRequest.STATUS_CHOICES, "attention_choices": OBLIGATION_ATTENTION_CHOICES,
         "can_initiate": has_budget_permission(request.user, "initiate_obligation_requests"),
         "can_certify": has_budget_permission(request.user, "certify_obligations"),
         "can_registry": can_registry,
     })
+
+
+@require_GET
+@budget_access_required
+def obligation_register_export(request):
+    _require_obligation_permission(
+        request.user, "view_obligation_registry", "initiate_obligation_requests", "certify_obligations",
+    )
+    department = department_for_user(request.user)
+    base_items = _obligation_scope(request.user)
+    fiscal_year_id = request.GET.get("fiscal_year", "").strip()
+    fiscal_year = None
+    if fiscal_year_id:
+        fiscal_year = get_object_or_404(
+            FiscalYear.objects.filter(pk__in=base_items.values("fiscal_year_id")).distinct(),
+            pk=fiscal_year_id,
+        )
+    items, selected_kind, selected_form_type, selected_status, selected_attention = apply_obligation_filters(
+        base_items, fiscal_year=fiscal_year, kind=request.GET.get("kind", "").strip(),
+        form_type=request.GET.get("form_type", "").strip(), status=request.GET.get("status", "").strip(),
+        attention=request.GET.get("attention", "").strip(),
+    )
+    content, filename, receipt = build_obligation_register(
+        department, request.user, items, fiscal_year=fiscal_year, kind=selected_kind,
+        form_type=selected_form_type, status=selected_status, attention=selected_attention,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"], response["X-GRAND-Export-SHA256"] = "true", receipt["sha256"]
+    return response
 
 
 @budget_access_required
@@ -840,6 +947,7 @@ def obligation_registry_export(request):
         department_id=department.pk, status=ObligationRequest.CERTIFIED,
     ).select_related("authorization", "fiscal_year").prefetch_related("movements__appropriation_line")
     response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response.write("\ufeff")
     writer = csv.writer(response)
     writer.writerow((
         "export_kind", "budget_office", "fiscal_year", "form_type", "obligation_number", "request_reference",
@@ -851,7 +959,7 @@ def obligation_registry_export(request):
     for item in items:
         for movement in item.movements.all():
             line, balance = movement.appropriation_line, obligation_line_balance(movement.appropriation_line)
-            writer.writerow((
+            writer.writerow(tuple(_csv_text(value) for value in (
                 "certified_obligation_movement", item.department_label, item.fiscal_year.year, item.form_type,
                 item.obligation_number, item.request_reference, item.requesting_department_label, item.obligation_date,
                 item.claimant_payee, item.kind, item.corrects.obligation_number if item.corrects else "",
@@ -860,7 +968,7 @@ def obligation_registry_export(request):
                 line.expense_class, movement.movement_type, movement.obligation_effect, balance["released"],
                 balance["held"], balance["executable"], balance["obligated"], balance["unobligated"],
                 item.particulars, movement.remarks,
-            ))
+            )))
     filename = f"raao-obligation-registry-{slugify(department.name)}.csv"
     archived = archive_export(
         content=response.content, department=department, user=request.user,
@@ -872,4 +980,13 @@ def obligation_registry_export(request):
     )
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     response["X-GRAND-Export-Archived"], response["X-GRAND-Export-SHA256"] = "true", archived["sha256"]
+    BudgetAuditEvent.objects.create(
+        department_id=department.pk, department_label=department.name,
+        target_type="obligation_workspace", target_id=str(department.pk), action="obligation_registry_exported",
+        actor_id=request.user.pk, actor_label=actor_label(request.user),
+        snapshot={
+            "kind": "certified_obligation_registry", "row_scope": "current certified registry",
+            "relative_path": archived["relative_path"], "sha256": archived["sha256"],
+        },
+    )
     return response

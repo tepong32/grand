@@ -1,5 +1,13 @@
 # Changelog
 
+## F4 guided allotment and obligation control triage
+
+- Added fiscal-year, type, status, form, and plain-language next-action filters to the existing allotment and role-shaped obligation workspaces without changing their transaction states or authority boundaries.
+- Added synchronized visible control-register exports containing signed/computed totals, control differences, authority and transaction checksums, correction lineage, actor lineage, and state versions while retaining detailed posted allotment and certified RAAO movement exports.
+- Preserved requesting-office versus Budget-office obligation visibility in both the screen and export, and kept department-wide balance panels visibly separate from filtered queues.
+- Archived exact spreadsheet-safe bytes and manifests under TraceSync-ready allotment/obligation control-register folders and recorded append-only Budget audit events; also hardened the existing detailed movement CSVs against spreadsheet formula prefixes and audited full RAAO exports.
+- Updated the two F4 floating guides and added focused filter-conflict, department/year isolation, role-scope, archive, audit, and formula-safety coverage. All 24 Budget tests, all 47 Budget-plus-guidance tests, and all 407 project tests pass across both routed databases.
+
 ## F3 guided annual-budget triage and portable register
 
 - Added fiscal-year, version-kind, proposal-status, and plain-language next-action filters to the existing Annual Budget workspace without changing call, proposal, or authorization states.

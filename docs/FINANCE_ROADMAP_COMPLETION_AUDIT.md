@@ -2,7 +2,7 @@
 
 Audit date: 2026-09-03
 
-Code position: `codex/finance-f3-budget-triage`, including the F0.2–F0.5 discovery controls, F2.1–F2.2 governed setup/opening registers, and F3 guided annual-budget triage/export checkpoints after F11.8
+Code position: `codex/finance-f4-budget-control-triage`, including the F0.2–F0.5 discovery controls, F2.1–F2.2 governed setup/opening registers, F3 guided annual-budget triage/export, and F4 guided allotment/obligation control checkpoints after F11.8
 
 Conclusion: **the planned software-control slices are implemented and regression-clean; the complete LGU field-acceptance and production-authority outcome is not yet proven**.
 
@@ -12,9 +12,9 @@ The following repository checks passed from the project virtual environment:
 
 - `python manage.py check` — no system-check issues;
 - `python manage.py makemigrations --check --dry-run` — no model/migration drift;
-- `python manage.py test budget.tests.AnnualBudgetPreparationTests --noinput --verbosity 1` — 22 Budget tests passed;
-- `python manage.py test budget departments --noinput --verbosity 1` — 45 Budget and Internal How-To tests passed; and
-- `python manage.py test --noinput --verbosity 1` — 405 project tests passed across the default and separately routed Finance databases in 76.140 seconds.
+- `python manage.py test budget.tests.AnnualBudgetPreparationTests --noinput --verbosity 1` — 24 Budget tests passed;
+- `python manage.py test budget departments --noinput --verbosity 1` — 47 Budget and Internal How-To tests passed; and
+- `python manage.py test --noinput --verbosity 0` — 407 project tests passed across the default and separately routed Finance databases in 77.738 seconds.
 
 The full suite exercises role and department access, maker–checker decisions, immutable evidence, reversal/successor behavior, cross-store Budget–Accounting–Treasury lineage, controlled output, TraceSync archival, reconciliation, and negative access paths. It is software evidence. It is not a substitute for field observation, production-compatible recovery, or local authority.
 
@@ -26,7 +26,7 @@ The full suite exercises role and department access, maker–checker decisions, 
 | F1 architecture, identity, and audit | Role-shaped workspaces, department/object boundaries, immutable audit patterns, cross-cycle lineage, two-store routing | Named-user role validation, actual segregation-of-duties approval, local security/privacy review, and supported-device/accessibility observation |
 | F2 fiscal foundation and opening | Typed year/calendar/classifications, governed release adoption, readiness layers, reconciled opening intake/JEVs, pre-issuance correction lock, audited foundation register, guided next-action opening queue, synchronized filtered control-register export, and role guidance | Actual classifications/calendars, approved opening schedules and balances, local authority, independent control reconciliation, and process-owner acceptance |
 | F3 budget preparation and authorization | Calls, ceilings, proposals, estimates, consolidation, reviews, authorized versions, supplemental/reenacted handling, control totals, guided proposal/authority triage, and a synchronized audited register | Current local budget calendar, ordinance/review evidence, accepted forms, signatures/routes, and replayed approved budget totals |
-| F4 allotment and obligation | Posted release movements, authoritative obligation registry, concurrency protection, adjustments/returns/cancellations, balances and exports | Current local ARO/ALOBS/ORS/OBR/RAAO equivalents, numbering/signatories, redacted replay, and zero unexplained control difference |
+| F4 allotment and obligation | Posted release movements, authoritative obligation registry, concurrency protection, adjustments/returns/cancellations, balances, role-shaped next-action queues, synchronized control registers, and separate detailed movement exports | Current local ARO/ALOBS/ORS/OBR/RAAO equivalents, numbering/signatories, redacted replay, and zero unexplained control difference |
 | F5 payable and voucher intake | Obligation/checksum consumption, variants and documentary rules, independent readiness, relationships, recognition decisions, modification allowance, exports | Enabled transaction catalog, exact COA/local documentary requirements and exceptions, redacted completed cases, and named Accounting/requesting-office acceptance |
 | F6 DV and controlled paper | Versioned signing copies, reasoned reprint/replacement, wet-signature custody checkpoints, returned-packet gates, TracePoint linkage | Accepted blank/completed DV packet, actual signatory/custody route, printer and form-stock trials, overflow/page behavior, and named-office acceptance |
 | F7 accounting and period control | Rule-backed balanced JEVs, payable/withholding subsidiaries, payment events, reversals, close/reopen, ledgers and trial balance | Locally accepted posting/closing rules, broader required subsidiary schedules, signed period outputs, and consecutive redacted Accounting replay |

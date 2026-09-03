@@ -50,6 +50,14 @@ Run `python manage.py configure_finance_roles` after migration to refresh curate
 
 ## Export and safekeeping
 
+A fiscal-year, order-type, status, and next-action filter now shapes both the existing work list and its **Export visible control register** action. Each one-row-per-order record includes the appropriation authority/checksum, signed and computed totals, control difference, workflow actors, correction lineage, transaction checksum, state version, and a plain-language next action. Invalid or conflicting filters never broaden the result, and a fiscal year outside the current Budget office returns no cross-department data.
+
+Those exact spreadsheet-safe bytes are archived under:
+
+`GRAND_EXPORT_ROOT/<department>/<user>/finance-allotment-control-register/<year>/<month>/`
+
+The balance table remains a clearly labeled department-wide overview; filtering the work queue does not redefine authoritative balances. The control register is oversight evidence and does not post an order or replace an accepted ARO/equivalent.
+
 A posted order exports CSV with authority and allotment checksums, classifications, signed movement effects, and current authorized/released/held/unreleased/executable balances. The exact downloaded bytes are also archived under:
 
 `GRAND_EXPORT_ROOT/<department>/<user>/finance-allotment-releases/<year>/<month>/`
@@ -65,4 +73,6 @@ The adjacent manifest records SHA-256, size, exporting identity, department, and
 - posted order/movement mutation fails and linked corrections retain original history;
 - repeated posting cannot create duplicate movements;
 - CSV bytes and the TraceSync-ready archived artifact share the recorded checksum;
+- queue filters and the visible register resolve to the same department-bounded orders, including an empty result for conflicting exact filters;
+- spreadsheet-formula prefixes are neutralized in both control and detailed movement exports;
 - certified obligations constrain later allotment changes, and accepted ALOBS/ORS/OBR and RAAO equivalents must still reconcile to signed references before official use.

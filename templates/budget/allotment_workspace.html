@@ -15,8 +15,26 @@
     </div>
   </div>
   <div class="alert alert-info"><strong>Control boundary:</strong> only posted orders affect allotment balances. Draft or returned orders may be edited; a posted order is corrected only through a linked successor movement.</div>
+  <div class="card card-outline card-primary mb-3">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Find the work that needs attention</h2></div>
+    <div class="card-body">
+      <form method="get" class="row align-items-end">
+        <div class="form-group col-md-3"><label for="allotment-fiscal-year">Fiscal year</label><select id="allotment-fiscal-year" class="form-control" name="fiscal_year"><option value="">All visible years</option>{% for year in fiscal_years %}<option value="{{ year.pk }}" {% if selected_fiscal_year == year.pk|stringformat:'s' %}selected{% endif %}>FY {{ year.year }}</option>{% endfor %}</select></div>
+        <div class="form-group col-md-3"><label for="allotment-kind">Order type</label><select id="allotment-kind" class="form-control" name="kind"><option value="">All order types</option>{% for value, label in kind_choices %}<option value="{{ value }}" {% if selected_kind == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="form-group col-md-3"><label for="allotment-status">Status</label><select id="allotment-status" class="form-control" name="status"><option value="">All statuses</option>{% for value, label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="form-group col-md-3"><label for="allotment-attention">Next-action group</label><select id="allotment-attention" class="form-control" name="attention"><option value="">All next actions</option>{% for value, label in attention_choices %}<option value="{{ value }}" {% if selected_attention == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="col-12 d-flex flex-wrap align-items-center">
+          <button class="btn btn-primary mr-2 mb-2" type="submit">Apply filters</button>
+          <a class="btn btn-outline-secondary mr-2 mb-2" href="{% url 'budget:allotment_workspace' %}">Clear</a>
+          <button class="btn btn-outline-primary mb-2" type="submit" formaction="{% url 'budget:allotment_register_export' %}">Export visible control register</button>
+          <span class="ml-auto text-muted small mb-2">{{ orders|length }} order{{ orders|length|pluralize }} shown</span>
+        </div>
+      </form>
+      <p class="small text-muted mb-0">The export follows these exact filters and is archived with its checksum. It is an oversight register; posted movement exports remain the detailed reconciliation evidence.</p>
+    </div>
+  </div>
   <div class="card card-outline card-success mb-3">
-    <div class="card-header"><h2 class="card-title font-weight-bold">Authorized appropriation balances</h2></div>
+    <div class="card-header"><h2 class="card-title font-weight-bold">Authorized appropriation balances</h2><div class="card-tools text-muted small">Department-wide overview; not narrowed by order filters</div></div>
     <div class="table-responsive"><table class="table table-hover mb-0">
       <thead><tr><th>Authority</th><th class="text-right">Authorized</th><th class="text-right">Released</th><th class="text-right">Held/deferred</th><th class="text-right">Unreleased</th><th class="text-right">Executable</th></tr></thead>
       <tbody>{% for row in authority_rows %}<tr>
@@ -28,10 +46,10 @@
   <div class="card card-outline card-secondary">
     <div class="card-header"><h2 class="card-title font-weight-bold">Release and adjustment orders</h2></div>
     <div class="table-responsive"><table class="table table-hover mb-0">
-      <thead><tr><th>Order</th><th>Type</th><th>Effective</th><th>Status</th><th class="text-right">Control total</th><th>Correction lineage</th></tr></thead>
+      <thead><tr><th>Order</th><th>Type</th><th>Effective</th><th>Status</th><th>What happens next</th><th class="text-right">Control total</th><th>Correction lineage</th></tr></thead>
       <tbody>{% for order in orders %}<tr>
-        <td><a href="{% url 'budget:allotment_detail' order.public_id %}">{{ order.order_number }}</a></td><td>{{ order.get_kind_display }}</td><td>{{ order.effective_date }}</td><td><span class="badge {% if order.status == 'posted' %}badge-success{% elif order.status == 'for_review' %}badge-warning{% else %}badge-secondary{% endif %}">{{ order.get_status_display }}</span></td><td class="text-right">{{ order.signed_control_total|floatformat:2 }}</td><td>{% if order.corrects %}<a href="{% url 'budget:allotment_detail' order.corrects.public_id %}">Corrects {{ order.corrects.order_number }}</a>{% else %}Original{% endif %}</td>
-      </tr>{% empty %}<tr><td colspan="6" class="text-center text-muted py-4">No allotment order yet.</td></tr>{% endfor %}</tbody>
+        <td><a href="{% url 'budget:allotment_detail' order.public_id %}">{{ order.order_number }}</a></td><td>{{ order.get_kind_display }}</td><td>{{ order.effective_date }}</td><td><span class="badge {% if order.status == 'posted' %}badge-success{% elif order.status == 'for_review' %}badge-warning{% else %}badge-secondary{% endif %}">{{ order.get_status_display }}</span></td><td>{{ order.next_action_label }}</td><td class="text-right">{{ order.signed_control_total|floatformat:2 }}</td><td>{% if order.corrects %}<a href="{% url 'budget:allotment_detail' order.corrects.public_id %}">Corrects {{ order.corrects.order_number }}</a>{% else %}Original{% endif %}</td>
+      </tr>{% empty %}<tr><td colspan="7" class="text-center text-muted py-4">No allotment order matches these filters.</td></tr>{% endfor %}</tbody>
     </table></div>
   </div>
 </div>
