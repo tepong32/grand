@@ -245,6 +245,38 @@ def _bank_advice_groups(user, department):
     return groups
 
 
+def _returned_instrument_groups(user, department):
+    from vouchers.access import has_explicit_permission
+    from vouchers.returned_instrument_register import (
+        RETURNED_INSTRUMENT_ATTENTION_SPECS, returned_instrument_attention_queryset,
+    )
+    from vouchers.roles import is_finance_uat_viewer
+
+    if is_finance_uat_viewer(user):
+        return []
+    keys = {
+        "accounting_review": "returned-instrument-accounting-review",
+        "treasury_clarification": "returned-instrument-treasury-clarification",
+        "treasury_replacement": "returned-instrument-treasury-replacement",
+    }
+    groups = []
+    for attention, spec in RETURNED_INSTRUMENT_ATTENTION_SPECS.items():
+        if has_explicit_permission(user, spec["permission"]):
+            queryset, selected_attention, _work_spec = returned_instrument_attention_queryset(user, attention)
+            scope = (
+                f"Accounting register: {department.name}"
+                if spec["scope_kind"] == "accounting"
+                else f"Owning Treasury office: {department.name}"
+            )
+            groups.append(_group(
+                key=keys[attention], area="Returned payment", title=spec["title"],
+                count=queryset.count(),
+                url=_queue_url("vouchers:advice_workspace", returned_attention=selected_attention),
+                definition=spec["definition"], scope=scope,
+            ))
+    return groups
+
+
 def _treasury_groups(user, department):
     from vouchers.access import has_explicit_permission
     from vouchers.models import TreasuryRemittanceBatch
@@ -342,6 +374,7 @@ def finance_work_attention(user):
     groups.extend(_voucher_groups(user, department))
     groups.extend(_accounting_groups(user, department))
     groups.extend(_bank_advice_groups(user, department))
+    groups.extend(_returned_instrument_groups(user, department))
     groups.extend(_treasury_groups(user, department))
     groups.extend(_cash_groups(user, department))
     groups.extend(_reporting_groups(user, department))

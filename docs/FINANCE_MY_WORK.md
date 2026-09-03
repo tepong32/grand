@@ -1,6 +1,6 @@
 # Finance work-attention foundation
 
-Status: F1.5 foundation plus the cash-control source-adapter checkpoint implemented. `/finance/my-work/` provides a live, permission-filtered overview of supported Budget, shared voucher, Accounting, bank-advice, Treasury remittance, cash-policy, cash-position, period-close/reopen, and Reporting action groups. It is a read model over existing governed registers, not yet the complete item-level My Work task contract.
+Status: F1.5 foundation plus the returned-payment source-adapter checkpoint implemented. `/finance/my-work/` provides a live, permission-filtered overview of supported Budget, shared voucher, Accounting, bank-advice, returned-payment, Treasury remittance, cash-policy, cash-position, period-close/reopen, and Reporting action groups. It is a read model over existing governed registers, not yet the complete item-level My Work task contract.
 
 ## What the page does
 
@@ -22,6 +22,7 @@ The first adapter set covers:
 - shared voucher cases whose current stage matches a held action permission;
 - Accounting JEV draft/posting, opening-balance preparation/submission/review/post/reconcile, bank-statement staging/correction/matching/review, and period-close preparation/review/reopen decision;
 - role-scoped bank-advice preparation/correction, independent review, approved bank submission, and submitted bank-response recording;
+- returned-payment review versions awaiting an Accounting decision, Treasury clarification, or Accounting-cleared controlled replacement;
 - Treasury cash-policy preparation/correction and independent review, kept separate from cash-position preparation/correction and independent review;
 - Treasury remittance draft, returned, review, and release states; and
 - own-run or department-visible Reporting draft, failed, control-ready review, and approval states.
@@ -30,7 +31,7 @@ The source workspace remains authoritative after the handoff. Its own permission
 
 ## Deliberately deferred adapters
 
-Returned-instrument subqueue, field-operation, setup/discovery, local-form, and other cross-cycle action groups are not counted until their source workspaces expose a filter that reproduces the same work item, role scope, and state. Bank advice, period close/reopen, and cash control now use shared filter services in both My Work and their source workspaces. The cash register deliberately presents policy versions and position versions as different work groups, so a policy row can never be presented as a position-task count. Omitting any still-unsupported number is safer than showing a plausible count that opens a different list.
+Field-operation, setup/discovery, local-form, and other cross-cycle action groups are not counted until their source workspaces expose a filter that reproduces the same work item, role scope, and state. Bank advice, returned payment, period close/reopen, and cash control now use shared filter services in both My Work and their source workspaces. Returned-payment actions are separated into Accounting decision, Treasury clarification, and controlled-replacement states; cash policy and position versions are likewise kept distinct. Omitting any still-unsupported number is safer than showing a plausible count that opens a different list.
 
 The broader F1 My Work contract also remains open. Later rollbackable slices must add stable task identity and type, case and authoritative record links, exact action/gate, owner or permitted queue, timing/due state, source state/version, exceptions, Waiting/Returned/Due/Completed-by-me views, assignment/following rules, and governed shared views. Notifications must remain signals over that same source contract, never a parallel queue.
 
@@ -40,8 +41,8 @@ The broader F1 My Work contract also remains open. Later rollbackable slices mus
 
 - requesting offices learn office-isolated shared-case triage and the pre-DV/check modification boundary;
 - Budget users learn proposal/allotment/obligation authority boundaries;
-- Accounting users learn JEV/opening/bank/close/advice/cash/reporting handoffs; and
-- Treasury users learn voucher/advice/remittance triage plus separate cash-policy and cash-position queues.
+- Accounting users learn JEV/opening/bank/close/advice/returned-payment/cash/reporting handoffs; and
+- Treasury users learn voucher/advice/remittance triage, returned-payment clarification/replacement boundaries, and separate cash-policy and cash-position queues.
 
 The floating `?` panel stays over the current page. Its checkmarks are optional private resume state, not an assignment, notification, submission, attendance record, competence rating, UAT result, or approval.
 
@@ -51,4 +52,4 @@ This checkpoint does not prove that an LGU accepts the workflow, terminology, ro
 
 ## Regression contract
 
-Automated coverage verifies the stable route and Finance-entry link, denial for reporting-only/ordinary users, exact requesting-office voucher count parity, bank-advice, period-close, cash-policy, and cash-position count parity with their filtered source queues, preparation-office isolation, independent cross-office review scope, UAT preview exclusion, boundary copy, and publication of the page-relevant department guide. The focused 28-test adapter/Finance/guidance run and all 436 project tests pass across both routed databases; the full suite completed in 83.634 seconds. Authenticated desktop and 390×844 browser checks confirmed the exact returned-position row, responsive register, floating guide, and zero console errors. Future source adapters must continue through the same release regression gate.
+Automated coverage verifies the stable route and Finance-entry link, denial for reporting-only/ordinary users, exact requesting-office voucher count parity, bank-advice, returned-payment, period-close, cash-policy, and cash-position count parity with their filtered source queues, preparation-office isolation, independent cross-office review scope, UAT preview exclusion, permission-shaped action choices, boundary copy, and publication of the page-relevant department guide. The focused 30-test adapter/Finance/guidance run and all 438 project tests pass across both routed databases; the full suite completed in 87.573 seconds. Authenticated desktop and 390×844 browser checks confirmed the exact Treasury-clarification row, responsive register, in-page clarification-successor form, floating guide, and zero console errors. Future source adapters must continue through the same release regression gate.

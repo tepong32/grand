@@ -51,8 +51,13 @@
   </div>
 
   <div class="card card-outline card-warning">
-    <div class="card-header"><h2 class="card-title font-weight-bold">Returned released instruments</h2></div>
+    <div class="card-header"><h2 class="card-title font-weight-bold">Returned released instruments</h2><span class="small text-muted float-right">{{ returned_visible_count }} review version{{ returned_visible_count|pluralize }} visible</span></div>
     <div class="card-body">
+      <form method="get" class="form-row align-items-end border-bottom mb-3">
+        <div class="form-group col-md-9"><label for="returned-attention">What returned-payment work needs attention?</label><select id="returned-attention" class="form-control" name="returned_attention"><option value="">All current returned-payment reviews</option>{% for value, label in returned_attention_choices %}<option value="{{ value }}"{% if selected_returned_attention == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="form-group col-md-3"><button class="btn btn-warning" type="submit">Show returned work</button> <a class="btn btn-outline-secondary" href="{% url 'vouchers:advice_workspace' %}">Clear</a></div>
+      </form>
+      {% if returned_work_spec %}<p><strong>{{ returned_work_spec.title }}.</strong> {{ returned_work_spec.definition }} <span class="text-muted">Next: {{ returned_work_spec.next_action }}</span></p>{% else %}<p class="small text-muted">Choose an exact action to separate Accounting decisions, Treasury clarifications, and controlled replacements. This register does not decide, post, replace, or close an item.</p>{% endif %}
       {% for review in returned_reviews %}
         <div class="border rounded p-3 mb-3">
           <div class="d-flex flex-wrap justify-content-between">
@@ -69,7 +74,7 @@
               <div class="form-group"><label>Accounting decision basis / clarification instruction</label><textarea class="form-control" name="decision_reason" rows="2" required></textarea></div>
               <button class="btn btn-warning" type="submit">Record Accounting decision</button>
             </form>
-          {% elif review.status == 'returned' %}
+          {% elif can_manage_returns and review.status == 'returned' %}
             <form method="post" action="{% url 'vouchers:returned_instrument_clarify' review.public_id %}" class="border-top pt-3">
               {% csrf_token %}<input type="hidden" name="state_version" value="{{ review.state_version }}">
               <div class="form-group"><label>Treasury clarification</label><textarea class="form-control" name="note" rows="2" required></textarea></div>

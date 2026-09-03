@@ -25,18 +25,15 @@ from .forms import (
     ReturnedInstrumentDecisionForm,
 )
 from .models import BankAdviceBatch, ReturnedInstrumentReview
+from .returned_instrument_register import (
+    returned_instrument_attention_choices_for_user, returned_instrument_attention_queryset,
+    visible_returned_instrument_reviews,
+)
 from .roles import finance_workspace_profile
 
 
 def _review_query(user):
-    query = ReturnedInstrumentReview.objects.select_related(
-        "case", "instrument", "exception__policy__treasury_department", "prepared_by", "reviewed_by",
-        "posting_request",
-    )
-    department = department_for_user(user)
-    if has_explicit_permission(user, "vouchers.review_returned_instruments"):
-        return query.filter(case__configuration_release__department=department)
-    return query.filter(exception__policy__treasury_department=department)
+    return visible_returned_instrument_reviews(user)
 
 
 def _batch(public_id, user):
@@ -53,7 +50,15 @@ def workspace(request):
         status=request.GET.get("status", ""), attention=request.GET.get("attention", ""),
     )
     batches = batches.order_by("-advice_date", "-created_at")
-    reviews = _review_query(request.user).exclude(status=ReturnedInstrumentReview.SUPERSEDED).order_by("-prepared_at")
+    returned_attention = request.GET.get("returned_attention", "")
+    if returned_attention:
+        reviews, selected_returned_attention, returned_work_spec = returned_instrument_attention_queryset(
+            request.user, returned_attention,
+        )
+    else:
+        reviews = _review_query(request.user).exclude(status=ReturnedInstrumentReview.SUPERSEDED)
+        selected_returned_attention, returned_work_spec = "", None
+    reviews = reviews.order_by("-prepared_at")
     return render(request, "vouchers/advice/workspace.html", {
         "batches": batches,
         "returned_reviews": reviews,
@@ -63,12 +68,17 @@ def workspace(request):
         "can_submit": has_explicit_permission(request.user, "vouchers.submit_bank_advice"),
         "can_acknowledge": has_explicit_permission(request.user, "vouchers.acknowledge_bank_advice"),
         "can_review_returns": has_explicit_permission(request.user, "vouchers.review_returned_instruments"),
+        "can_manage_returns": has_explicit_permission(request.user, "vouchers.manage_payment_exceptions"),
         "can_export": has_explicit_permission(request.user, "vouchers.export_bank_advice"),
         "status_choices": BankAdviceBatch.STATUS_CHOICES,
         "attention_choices": BANK_ADVICE_ATTENTION_CHOICES,
         "selected_status": selected_status,
         "selected_attention": selected_attention,
         "visible_count": batches.count(),
+        "returned_attention_choices": returned_instrument_attention_choices_for_user(request.user),
+        "selected_returned_attention": selected_returned_attention,
+        "returned_work_spec": returned_work_spec,
+        "returned_visible_count": reviews.count(),
     })
 
 

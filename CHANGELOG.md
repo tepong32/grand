@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 returned-payment work register
+
+- Added a plain returned-payment work filter to the existing bank-advice page, separating independent Accounting decisions, Treasury clarifications, and Accounting-cleared controlled replacements.
+- Reused one action-specific permission and department query service for the source rows and My Work counts, excluding hidden Accounting/Treasury offices and Finance UAT preview work before counting.
+- Preserved the existing immutable review, clarification-successor, posting/reversal, exception-resolution, and replacement workflows; the new register only finds the authoritative record and shared case.
+- Hid the Treasury clarification form from viewers without exception-management authority while retaining endpoint permission and owning-office checks.
+- Updated Accounting and Treasury floating guides and Finance roadmap documentation for the bank-return handoff and remaining cross-cycle adapters.
+- Added focused Accounting/Treasury scope, state separation, hidden-office, form-visibility, and source/My Work count-link parity coverage. The 30-test returned-payment/cash/advice/close/Finance/guidance run and all 438 project tests pass across both routed databases; the full suite completed in 87.573 seconds. Authenticated desktop and 390×844 browser checks confirmed the exact Treasury-clarification row, responsive register, in-page successor form, floating guide, and zero console errors.
+
 ## F1.5 cash-control work register
 
 - Added one plain cash-control work filter to the existing Treasury workspace, with separate policy-version and position-version preparation/review queues instead of treating policy rows as position tasks.
