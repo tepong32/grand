@@ -19,13 +19,16 @@ from django.utils import timezone
 
 from departments.models import Department
 from accounting.models import (
-    AccountingPeriod, BankStatementBatch, BankStatementMatch, FiscalYear, Fund, JournalEntry,
-    JournalSubsidiaryLine, LedgerAccount, PostingMapping, ProgramActivityProject,
-    ResponsibilityCenter,
+    AccountingPeriod, BankStatementBatch, BankStatementMatch, FiscalYear,
+    FiscalYearReadinessApproval, Fund, FundingSource, JournalEntry, JournalSubsidiaryLine,
+    LedgerAccount, OpeningBalanceBatch, PostingMapping, ProgramActivityProject, ResponsibilityCenter,
 )
 from accounting.services import (
     auto_match_bank_statement, bank_reconciliation_snapshot, decide_bank_reconciliation,
-    discard_draft, post_entry, stage_bank_statement_csv, submit_bank_reconciliation, submit_entry,
+    decide_opening_batch, decide_readiness_layer, discard_draft, ensure_readiness_layers,
+    evaluate_fiscal_year_readiness, post_entry, post_opening_batch, reconcile_opening_batch,
+    stage_bank_statement_csv, stage_opening_csv, submit_bank_reconciliation, submit_entry,
+    submit_opening_batch, transition_fiscal_year,
 )
 from budget.models import (
     AllotmentOrderLine, AllotmentReleaseOrder, AppropriationAuthorization, BudgetCall,
@@ -1001,7 +1004,7 @@ class VoucherWorkflowTests(TestCase):
         self.assertIn("RECEIPT-PAYMENT-EVENT", exported)
 
     def test_authoritative_budget_to_reconciled_treasury_report_replay(self):
-        """Replay one governed case across the implemented F3-F9 control boundaries."""
+        """Replay one governed case across the implemented F2-F9 control boundaries."""
         self.budget_user.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="budget",
             codename__in=(
@@ -1026,16 +1029,23 @@ class VoucherWorkflowTests(TestCase):
         ))
         self.preparer.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="accounting",
-            codename__in=("view_bank_reconciliation", "prepare_bank_reconciliation"),
+            codename__in=(
+                "prepare_opening_balances", "view_bank_reconciliation",
+                "prepare_bank_reconciliation",
+            ),
         ))
         self.validator.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="accounting",
-            codename__in=("view_bank_reconciliation", "approve_bank_reconciliation"),
+            codename__in=(
+                "approve_fiscal_readiness", "approve_opening_balances", "post_opening_balances",
+                "view_bank_reconciliation", "approve_bank_reconciliation",
+            ),
         ))
         self.treasury_user.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="reporting",
             codename__in=("view_reporting_workspace", "generate_reports", "download_reports"),
         ))
+        payment_rule = self.enable_payment_event_rules()
 
         accounting_owner = {
             "department_id": self.accounting.pk,
@@ -1048,12 +1058,26 @@ class VoucherWorkflowTests(TestCase):
             starts_on=date(2026, 1, 1),
             ends_on=date(2026, 12, 31),
             business_date=date(2026, 8, 25),
-            status=FiscalYear.ACTIVE,
+            source_release_id=self.release.pk,
+            source_release_code=self.release.code,
+            source_release_version=self.release.version,
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
         )
         AccountingPeriod.objects.filter(pk__in=(
             self.accounting_period.pk,
             getattr(self, "event_accounting_period", self.accounting_period).pk,
         )).update(fiscal_year_record=fiscal_year)
+        funding_source = FundingSource.objects.create(
+            **accounting_owner,
+            fiscal_year=fiscal_year,
+            fund=self.accounting_fund,
+            code="LOCAL-CYCLE",
+            name="Synthetic local source for full-cycle replay",
+            kind="local",
+            authority_reference="Synthetic appropriation ordinance.",
+            effective_from=date(2026, 1, 1),
+        )
         program = ProgramActivityProject.objects.create(
             **accounting_owner,
             fiscal_year=fiscal_year,
@@ -1061,8 +1085,71 @@ class VoucherWorkflowTests(TestCase):
             name="GSO full-cycle operations",
             kind="activity",
             responsibility_center=self.accounting_center,
+            funding_source=funding_source,
+            authority_reference="Synthetic approved annual budget.",
             effective_from=date(2026, 1, 1),
         )
+        equity_account = LedgerAccount.objects.create(
+            **accounting_owner,
+            code="3-01-01",
+            title="Synthetic opening government equity",
+            account_type="equity",
+            normal_balance="credit",
+        )
+        transition_fiscal_year(fiscal_year, "submit", self.preparer)
+        fiscal_year = transition_fiscal_year(fiscal_year, "approve", self.validator)
+        opening = OpeningBalanceBatch.objects.create(
+            **accounting_owner,
+            fiscal_year=fiscal_year,
+            period=self.accounting_period,
+            title="Synthetic full-cycle opening schedule",
+            source_reference="OPENING-2026-CYCLE-001",
+            expected_row_count=2,
+            expected_debit=Decimal("2000.00"),
+            expected_credit=Decimal("2000.00"),
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        opening_csv = (
+            "fund_code,account_code,responsibility_center_code,debit,credit,subsidiary_reference,memo\n"
+            f"{self.accounting_fund.code},1-01-02,{self.accounting_center.code},"
+            "2000.00,,SYN-CASH,Opening bank balance\n"
+            f"{self.accounting_fund.code},{equity_account.code},{self.accounting_center.code},"
+            ",2000.00,SYN-EQUITY,Opening government equity\n"
+        )
+        opening = stage_opening_csv(
+            opening,
+            self.preparer,
+            SimpleUploadedFile(
+                "full-cycle-opening.csv",
+                opening_csv.encode("utf-8"),
+                content_type="text/csv",
+            ),
+        )
+        self.assertEqual(opening.status, OpeningBalanceBatch.VALIDATED)
+        opening = submit_opening_batch(opening, self.preparer)
+        opening = decide_opening_batch(
+            opening,
+            self.validator,
+            decision=OpeningBalanceBatch.APPROVED,
+            evidence_note="Independently compared the staged opening schedule and declared controls.",
+        )
+        opening = post_opening_batch(opening, self.validator)
+        opening, opening_summary = reconcile_opening_batch(opening, self.validator)
+        self.assertTrue(opening_summary["reconciled"])
+        self.assertEqual(opening.status, OpeningBalanceBatch.RECONCILED)
+        self.assertEqual(opening.postings.get().entry.totals, (Decimal("2000.00"), Decimal("2000.00")))
+        ensure_readiness_layers(fiscal_year)
+        for result in evaluate_fiscal_year_readiness(fiscal_year)["layers"]:
+            decide_readiness_layer(
+                result["record"],
+                self.validator,
+                decision=FiscalYearReadinessApproval.APPROVED,
+                evidence_note=f"Synthetic {result['record'].layer} readiness evidence for full-cycle replay.",
+            )
+        fiscal_year = transition_fiscal_year(fiscal_year, "activate", self.validator)
+        self.assertEqual(fiscal_year.status, FiscalYear.ACTIVE)
+        self.assertTrue(evaluate_fiscal_year_readiness(fiscal_year)["ready"])
         budget_owner = {
             "department_id": self.budget.pk,
             "department_label": self.budget.name,
@@ -1292,7 +1379,6 @@ class VoucherWorkflowTests(TestCase):
         recognition_entry.refresh_from_db()
         reconcile_posted_voucher_entry(recognition_entry, self.validator)
 
-        payment_rule = self.enable_payment_event_rules()
         case.refresh_from_db()
         instrument = issue_check(
             case=case,
@@ -1363,8 +1449,8 @@ class VoucherWorkflowTests(TestCase):
             period_start=statement_start,
             period_end=statement_end,
             received_on=statement_end + timedelta(days=1),
-            opening_balance=Decimal("0.00"),
-            closing_balance=Decimal("-900.00"),
+            opening_balance=Decimal("2000.00"),
+            closing_balance=Decimal("1100.00"),
             expected_row_count=1,
             expected_deposits=Decimal("0.00"),
             expected_withdrawals=Decimal("900.00"),
@@ -1374,7 +1460,7 @@ class VoucherWorkflowTests(TestCase):
         statement = (
             "transaction_date,bank_reference,description,withdrawal,deposit,running_balance\n"
             f"{payment_entry.entry_date.isoformat()},{payment_entry.reference},"
-            "Synthetic cleared check 000501,900.00,,-900.00\n"
+            "Synthetic cleared check 000501,900.00,,1100.00\n"
         )
         reconciliation = stage_bank_statement_csv(
             reconciliation,
@@ -1395,6 +1481,8 @@ class VoucherWorkflowTests(TestCase):
             reconciliation,
         )
         self.assertEqual(bank_snapshot["difference"], "0.00")
+        self.assertEqual(bank_snapshot["book_balance"], "1100.00")
+        self.assertEqual(bank_snapshot["unclassified_ledger_line_count"], 0)
         self.assertTrue(bank_snapshot["ready_for_review"])
         submit_bank_reconciliation(reconciliation, self.preparer)
         reconciliation = decide_bank_reconciliation(

@@ -1507,7 +1507,7 @@ def _bank_account(batch):
     return mapping.account
 
 
-def _bank_lines(batch):
+def _bank_book_lines(batch):
     account = _bank_account(batch)
     return JournalLine.objects.select_related("entry", "account").filter(
         entry__department_id=batch.department_id,
@@ -1516,6 +1516,12 @@ def _bank_lines(batch):
         entry__entry_date__lte=batch.period_end,
         account=account,
     ).order_by("entry__entry_date", "entry__reference", "sequence", "pk")
+
+
+def _bank_lines(batch):
+    """Return bank transaction lines, excluding the governed opening baseline."""
+
+    return _bank_book_lines(batch).exclude(entry__opening_balance_posting__isnull=False)
 
 
 def _match_snapshot(row, line):
@@ -2142,13 +2148,17 @@ def bank_reconciliation_snapshot(batch):
     matches = list(BankStatementMatch.objects.filter(
         statement_row_id__in=row_ids, status=BankStatementMatch.ACTIVE,
     ).select_related("statement_row", "journal_line__entry"))
-    all_lines = list(_bank_lines(batch))
+    book_lines = list(_bank_book_lines(batch))
+    # A governed opening JEV establishes the book baseline represented by the
+    # statement's opening balance. It belongs in the cumulative book balance,
+    # but it is not a bank transaction row to match or classify as outstanding.
+    transaction_lines = list(_bank_lines(batch))
     globally_matched_ids = set(BankStatementMatch.objects.filter(
-        journal_line_id__in=[line.pk for line in all_lines],
+        journal_line_id__in=[line.pk for line in transaction_lines],
         status=BankStatementMatch.ACTIVE,
         batch__period_end__lte=batch.period_end,
     ).values_list("journal_line_id", flat=True))
-    unmatched_lines = [line for line in all_lines if line.pk not in globally_matched_ids]
+    unmatched_lines = [line for line in transaction_lines if line.pk not in globally_matched_ids]
     items = list(BankOutstandingItem.objects.filter(
         batch=batch, journal_line_id__in=[line.pk for line in unmatched_lines],
     ).filter(
@@ -2160,7 +2170,7 @@ def bank_reconciliation_snapshot(batch):
     item_line_ids = {item.journal_line_id for item in items}
     outstanding_deposits = sum((item.journal_line.debit for item in items), Decimal("0.00"))
     outstanding_checks = sum((item.journal_line.credit for item in items), Decimal("0.00"))
-    book_balance = sum((line.debit - line.credit for line in all_lines), Decimal("0.00"))
+    book_balance = sum((line.debit - line.credit for line in book_lines), Decimal("0.00"))
     adjusted_bank_balance = batch.closing_balance + outstanding_deposits - outstanding_checks
     difference = adjusted_bank_balance - book_balance
     snapshot = {

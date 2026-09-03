@@ -2,7 +2,7 @@
 
 ## Purpose
 
-GRAND now keeps one automated synthetic replay across the implemented Budget, Accounting, Treasury, vouchering, bank-reconciliation, and reporting boundaries. The replay closes an assurance gap that module-level tests could not close on their own: it proves that one authoritative obligation can remain the same governed case through final payment reporting.
+GRAND now keeps one automated synthetic replay across the implemented fiscal-foundation, opening-balance, Budget, Accounting, Treasury, vouchering, bank-reconciliation, and reporting boundaries. The replay closes an assurance gap that module-level tests could not close on their own: it proves that one governed fiscal foundation and authoritative obligation can remain connected through final payment reporting.
 
 This is an integration checkpoint, not evidence that an LGU has accepted GRAND for official use.
 
@@ -10,19 +10,23 @@ This is an integration checkpoint, not evidence that an LGU has accepted GRAND f
 
 The replay in `VoucherWorkflowTests.test_authoritative_budget_to_reconciled_treasury_report_replay` performs the following sequence:
 
-1. Uses an active synthetic fiscal-year foundation and governed fund, responsibility-center, program, and account dimensions.
-2. Creates a final approved budget version and independently authorizes its appropriation evidence.
-3. Releases and independently posts an allotment against the authorized appropriation.
-4. Lets a requesting office submit an obligation and lets Budget independently certify it against executable allotment.
-5. Opens the payable directly from that authoritative F4 obligation, records a pinned required invoice rule, submits the checklist, and obtains independent Accounting acceptance.
-6. Prepares the DV, completes its returned-signature gates, validates it, and posts and reconciles the recognition JEV.
-7. Issues one check, submits and independently reviews the bank advice, retains the bank acknowledgement, and records claimant release evidence.
-8. Posts and reconciles the payment-event JEV before allowing the case to complete.
-9. Stages a checksummed bank-statement CSV, uniquely matches the exact payment bank line, proves a zero difference, and obtains independent bank-reconciliation approval.
-10. Generates the Treasury Payment Instrument and Disbursement Register and proves that its control totals, case reference, check, and receipt trace back to the same case.
+1. Creates a draft synthetic fiscal year with governed fund, responsibility-center, funding-source, program, and account dimensions.
+2. Stages a checksummed opening-balance CSV, obtains independent approval, posts the per-fund opening JEV, and reconciles its row/debit/credit controls exactly.
+3. Records all five readiness-layer decisions and activates the fiscal year only after the structural checks pass.
+4. Creates a final approved budget version and independently authorizes its appropriation evidence.
+5. Releases and independently posts an allotment against the authorized appropriation.
+6. Lets a requesting office submit an obligation and lets Budget independently certify it against executable allotment.
+7. Opens the payable directly from that authoritative F4 obligation, records a pinned required invoice rule, submits the checklist, and obtains independent Accounting acceptance.
+8. Prepares the DV, completes its returned-signature gates, validates it, and posts and reconciles the recognition JEV.
+9. Issues one check, submits and independently reviews the bank advice, retains the bank acknowledgement, and records claimant release evidence.
+10. Posts and reconciles the payment-event JEV before allowing the case to complete.
+11. Stages a checksummed bank-statement CSV, treats the governed opening JEV as the book baseline rather than a bank transaction, uniquely matches the exact payment bank line, proves a zero difference, and obtains independent bank-reconciliation approval.
+12. Generates the Treasury Payment Instrument and Disbursement Register and proves that its control totals, case reference, check, and receipt trace back to the same case.
 
 ## Principal assertions
 
+- The fiscal year cannot activate until the reconciled opening batch and all five readiness layers pass.
+- The `2,000.00` governed bank opening contributes to book balance but cannot be falsely matched to a bank transaction row.
 - The payable retains the authoritative certified-obligation public identity.
 - The certified obligation is backed by an authorized appropriation and a posted allotment movement.
 - Gross amount is `1,000.00`, governed withholding is `100.00`, and the DV/check/released/report amount is `900.00`.

@@ -17,14 +17,15 @@ The public COA Government Accounting Manual Chapter 21 describes bank reconcilia
 
 1. An Accounting preparer creates one monthly batch using the active Finance Setup bank-account code, fund, bank/statement identity, safe masked account value, statement dates, receipt date, and independently checked control totals.
 2. The preparer uploads the [human-editable starter CSV](finance-starters/BANK_STATEMENT_IMPORT.csv). GRAND records its SHA-256, keeps each source version, validates dates, one-sided amounts, row totals, optional running balances, and the opening-plus-deposits-less-withdrawals closing equation.
-3. After validation, the preparer uses **Carry unresolved prior items**. GRAND selects only the latest active item from an earlier independently reconciled statement for the same bank account/fund, and preserves the original statement, evidence checksum, expected-clearance date, age, and overdue state.
-4. Unique exact matching requires the same date, reference, amount, and debit/credit direction. Ambiguous same-amount candidates remain visible for a human evidence-based choice.
-5. When a later bank row is matched to a carried check/deposit, GRAND closes every active occurrence in that retained lineage. The closed prior month itself is never rewritten.
-6. A statement transaction without a posted matching book line cannot close. Bank charges, credit/debit memoranda, direct credits, or book errors must follow the authorized JEV/correction route, then be matched.
-7. New posted ledger bank lines absent from the statement may be classified as deposits in transit or outstanding checks/withdrawals only with explanation, supporting reference, and expected clearance date.
-8. GRAND computes `statement closing + deposits in transit - outstanding checks = adjusted bank balance` and compares that to the posted GL cash balance through the statement end.
-9. Submission requires every statement row matched, every ledger-only line classified, valid statement controls, and exactly zero unexplained difference.
-10. A different Accounting reviewer approves with the reviewed BRS/evidence reference or returns a specific correction instruction.
+3. A governed opening-balance JEV contributes to the cumulative book cash balance represented by the statement opening balance, but GRAND does not offer that baseline as a transaction-row match or require it to be classified as an outstanding item. Any wrong opening amount still appears in the adjusted-bank-to-book difference and must be corrected through the governed opening/adjustment route.
+4. After validation, the preparer uses **Carry unresolved prior items**. GRAND selects only the latest active item from an earlier independently reconciled statement for the same bank account/fund, and preserves the original statement, evidence checksum, expected-clearance date, age, and overdue state.
+5. Unique exact matching requires the same date, reference, amount, and debit/credit direction. Ambiguous same-amount candidates remain visible for a human evidence-based choice.
+6. When a later bank row is matched to a carried check/deposit, GRAND closes every active occurrence in that retained lineage. The closed prior month itself is never rewritten.
+7. A statement transaction without a posted matching book line cannot close. Bank charges, credit/debit memoranda, direct credits, or book errors must follow the authorized JEV/correction route, then be matched.
+8. New posted ledger bank lines absent from the statement may be classified as deposits in transit or outstanding checks/withdrawals only with explanation, supporting reference, and expected clearance date.
+9. GRAND computes `statement closing + deposits in transit - outstanding checks = adjusted bank balance` and compares that to the posted GL cash balance through the statement end.
+10. Submission requires every statement row matched, every ledger-only line classified, valid statement controls, and exactly zero unexplained difference.
+11. A different Accounting reviewer approves with the reviewed BRS/evidence reference or returns a specific correction instruction.
 
 ## Modification allowance and history
 

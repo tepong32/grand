@@ -1114,6 +1114,107 @@ class StandaloneAccountingTests(TestCase):
             self.assertTrue((Path(export_root) / "GRAND_EXPORT_ROOT.json").exists())
         self.assertEqual(AccountingAuditEvent.objects.filter(action="report_exported").count(), 2)
 
+    def test_bank_reconciliation_uses_governed_opening_jev_as_book_baseline(self):
+        PostingMapping.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            category=PostingMapping.BANK,
+            source_code="SYN-BANK-OPENING",
+            label="Synthetic bank account with governed opening baseline",
+            account=self.cash,
+        )
+        fiscal_year = self._fiscal_foundation()
+        fiscal_year.status = FiscalYear.APPROVED
+        fiscal_year.save(update_fields=("status",))
+        opening = self._opening_batch(fiscal_year, source_reference="SYN-OPEN-BANK-BASELINE")
+        opening = stage_opening_csv(opening, self.preparer, self._opening_file())
+        opening = submit_opening_batch(opening, self.preparer)
+        opening = decide_opening_batch(
+            opening,
+            self.setup_approver,
+            decision=OpeningBalanceBatch.APPROVED,
+            evidence_note="Reviewed the synthetic opening bank and offset controls.",
+        )
+        opening = post_opening_batch(opening, self.poster)
+        opening, opening_summary = reconcile_opening_batch(opening, self.poster)
+        self.assertTrue(opening_summary["reconciled"])
+        opening_bank_line = opening.postings.get().entry.lines.get(account=self.cash)
+
+        payment = JournalEntry.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            reference="CHK-BASE-001",
+            entry_date=date(2027, 1, 15),
+            period=self.period,
+            fund=self.fund,
+            source_type="opening",
+            description="Synthetic check CHK-BASE-001 after governed opening",
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        JournalLine.objects.create(
+            entry=payment, sequence=1, account=self.payable,
+            debit=Decimal("20.00"), credit=Decimal("0.00"), memo="Settle synthetic payable",
+        )
+        payment_bank_line = JournalLine.objects.create(
+            entry=payment, sequence=2, account=self.cash,
+            debit=Decimal("0.00"), credit=Decimal("20.00"), memo="Check CHK-BASE-001",
+        )
+        submit_entry(payment, self.preparer)
+        post_entry(payment, self.poster)
+        self.assertFalse(hasattr(payment, "opening_balance_posting"))
+
+        batch = BankStatementBatch.objects.create(
+            department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name,
+            statement_reference="SYN-BRS-OPENING-2027-01",
+            bank_account_code="SYN-BANK-OPENING",
+            bank_name="Synthetic Government Bank",
+            account_number_masked="••••0001",
+            fund=self.fund,
+            period_start=date(2027, 1, 1),
+            period_end=date(2027, 1, 31),
+            received_on=date(2027, 2, 2),
+            opening_balance=Decimal("100.00"),
+            closing_balance=Decimal("80.00"),
+            expected_row_count=1,
+            expected_deposits=Decimal("0.00"),
+            expected_withdrawals=Decimal("20.00"),
+            created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        statement = (
+            "transaction_date,bank_reference,description,withdrawal,deposit,running_balance\n"
+            "2027-01-15,CHK-BASE-001,Synthetic cleared check,20.00,,80.00\n"
+        )
+        batch = stage_bank_statement_csv(
+            batch,
+            self.preparer,
+            SimpleUploadedFile(
+                "statement-opening-baseline.csv",
+                statement.encode("utf-8"),
+                content_type="text/csv",
+            ),
+        )
+        row = batch.rows.get(source_version=batch.source_version)
+        with self.assertRaisesMessage(ValidationError, "posted bank-account journal line"):
+            match_bank_statement_row(
+                row,
+                opening_bank_line,
+                self.preparer,
+                reason="An opening baseline must never be treated as a bank transaction.",
+            )
+        self.assertEqual(auto_match_bank_statement(batch, self.preparer), 1)
+        self.assertEqual(
+            BankStatementMatch.objects.get(batch=batch).journal_line_id,
+            payment_bank_line.pk,
+        )
+        snapshot, _checksum, _rows, _matches, _lines, _items = bank_reconciliation_snapshot(batch)
+        self.assertEqual(snapshot["book_balance"], "80.00")
+        self.assertEqual(snapshot["unclassified_ledger_line_count"], 0)
+        self.assertEqual(snapshot["difference"], "0.00")
+        self.assertTrue(snapshot["ready_for_review"])
+
     def test_bank_statement_versions_match_outstanding_items_and_close_zero_difference_independently(self):
         PostingMapping.objects.create(
             department_id=self.accounting_department.pk,

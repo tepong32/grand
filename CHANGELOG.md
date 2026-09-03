@@ -2,8 +2,9 @@
 
 ## Cross-cycle Finance integration replay
 
-- Added one authoritative synthetic F3–F9 replay from independently authorized appropriation, posted allotment, and certified obligation through payable intake, DV, recognition JEV, acknowledged check release, and payment JEV.
+- Added one authoritative synthetic F2–F9 replay from maker–checker fiscal-year readiness and reconciled opening balances through independently authorized appropriation, posted allotment, certified obligation, payable intake, DV, recognition JEV, acknowledged check release, and payment JEV.
 - Added exact payment-line bank-statement matching, zero-difference independent reconciliation, and a control-reconciled Treasury Payment Instrument and Disbursement Register tied back to the same case, check, and receipt.
+- Treated governed opening JEVs as cumulative book-balance baselines rather than matchable bank transactions, while preserving their amount in the adjusted-bank-to-book zero-difference control.
 - Documented the replayed controls, repeatable focused command, and strict boundary that actual local forms, authority, witnessed devices, consecutive field cycles, recovery, and named-office acceptance remain F10/F11 field work.
 
 ## In-app DBM local-form candidate catalog
