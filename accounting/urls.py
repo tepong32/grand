@@ -8,6 +8,7 @@ app_name = "accounting"
 urlpatterns = [
     path("", views.workspace, name="workspace"),
     path("setup/", views.setup_workspace, name="setup"),
+    path("setup/export/", views.foundation_register_export, name="foundation_register_export"),
     path("setup/releases/<int:pk>/adopt/", views.configuration_release_adopt, name="release_adopt"),
     path("setup/fiscal-years/<int:pk>/<slug:action>/", views.fiscal_year_transition, name="fiscal_year_transition"),
     path("setup/readiness/<int:pk>/<slug:decision>/", views.readiness_decision, name="readiness_decision"),

@@ -1,5 +1,14 @@
 # Changelog
 
+## F2.1 portable fiscal-foundation review register
+
+- Added one plain fiscal-year selector and export action to the existing guided Accounting setup page without introducing another setup or approval state.
+- Added a department-bounded register containing typed-year lineage, all five readiness decisions and structural results, periods, shared funds/offices/accounts, year-specific funding and program classifications, and voucher posting mappings.
+- Kept shared master data to one copy per export, while a selected-year export limits year-specific records to that exact typed fiscal year.
+- Archived the exact spreadsheet-safe CSV and manifest under the TraceSync-ready `department/user/finance-fiscal-foundation/year/month` tree and recorded an append-only Accounting event with SHA-256 and per-kind counts.
+- Added separate floating Internal How-Tos for the setup manager and independent readiness approver, including the pre-issuance modification boundary and the reminder that an export never grants authority.
+- Added positive archive/audit/content coverage plus ordinary-viewer and cross-department-filter rejection tests; the focused 39-test Accounting and 67-test Accounting-plus-guidance suites pass, as do all 401 project tests across both routed databases.
+
 ## F0.5 guided Finance discovery triage
 
 - Added candidate-cycle and plain-language Needs attention filters beside the existing phase and workflow-state controls.

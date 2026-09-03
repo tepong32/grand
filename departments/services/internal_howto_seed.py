@@ -7,6 +7,39 @@ from ..models import Department, InternalHowTo, InternalHowToStep
 
 ACCOUNTING_GUIDES = (
     {
+        "slug": "finance-fiscal-foundation-manager",
+        "version": 1,
+        "title": "Prepare the fiscal-year foundation",
+        "summary": "Build and hand off the governed calendar and classifications, then export one retained review register.",
+        "permission": "accounting.manage_accounting_setup",
+        "patterns": ["accounting:setup*"],
+        "order": 5,
+        "steps": (
+            ("Create or adopt the typed year", "Open Fiscal-year and accounting setup. Create the intended year or adopt the exact independently approved Finance Setup release, then confirm its dates, business date, version, and source checksum.", "One draft typed year identifies the source release or the named manual preparation basis.", "Adoption copies governed values; it does not approve the year or establish opening balances.", "Open Accounting setup", "accounting:setup"),
+            ("Complete the calendar and shared dimensions", "Add the real periods, funds, responsibility centers, posting accounts, funding sources, and PPA/MFO/project/activity hierarchy. Use readable authority references and effective dates.", "Later screens can select governed codes instead of asking staff to retype them.", "Do not guess local COA/DBM applicability or activate a starter merely because its code looks familiar.", "", ""),
+            ("Check the five readiness rows", "Read the structural result under Technical, Budget, Accounting, Treasury, and Forms. Complete the linked setup and opening-control work before asking an independent approver to decide each layer.", "Every failed structural result names the work still needed.", "A green structural check is not an approval and does not replace retained local evidence.", "Open Opening Controls", "accounting:opening_workspace"),
+            ("Correct only inside the modification window", "Before any DV or payment instrument is issued for the affected year, use Edit and record the exact reason and supporting reference. Resubmit after the affected readiness decisions reopen.", "The before/after audit event and repeated independent review remain reconstructible.", "After issuance, use the applicable successor, return, reversal, cancellation, or replacement workflow; never rewrite used history.", "", ""),
+            ("Export the review register", "Choose one typed year, or all years, under Portable foundation register and download the CSV. Send or preserve the complete TraceSync export folder with each manifest beside its artifact.", "The retained register contains readiness, periods, classifications, mappings, authority references, counts, and checksum evidence for the current department.", "The register is a review aid. Exporting it does not approve, activate, or authorize production use.", "Open Accounting setup", "accounting:setup"),
+            ("Submit for independent review", "Submit the completed fiscal-year definition. Give the approver the retained source references and foundation-register location needed to reproduce your review.", "The year enters For review with the submitting user and state version recorded.", "The preparer or submitter cannot approve the same fiscal year.", "", ""),
+        ),
+    },
+    {
+        "slug": "finance-fiscal-foundation-review",
+        "version": 1,
+        "title": "Review fiscal-year readiness independently",
+        "summary": "Review the governed fiscal year and each readiness layer without becoming its preparer.",
+        "permission": "accounting.approve_fiscal_readiness",
+        "patterns": ["accounting:setup*"],
+        "order": 6,
+        "steps": (
+            ("Confirm independence and scope", "Open the submitted typed fiscal year and verify the Accounting office, year, state version, preparer, submitter, source release, and checksum.", "The review concerns one exact department and fiscal-year definition prepared by another user.", "Do not approve on another person's account or review a year you prepared or submitted.", "Open Accounting setup", "accounting:setup"),
+            ("Reproduce the foundation register", "Export the selected fiscal year and compare its periods, funds, centers, accounts, funding sources, program hierarchy, mappings, and readiness rows with the retained local sources.", "Every reviewed classification and evidence note is visible in one checksummed, archived register.", "An export is evidence of what was reviewed; it is not itself proof that a source is current or locally applicable.", "", ""),
+            ("Approve or return the year definition", "Approve the submitted fiscal year only after its governed dates and source lineage agree. Return the work through the applicable setup correction route when they do not.", "The approver is recorded separately from the maker and submitter.", "Year approval alone does not approve the five readiness layers or make the year active.", "", ""),
+            ("Decide every readiness layer", "For each structural result, read the actual retained evidence and enter a specific authority or acceptance reference. Approve only when both the structural result and evidence pass; otherwise return it for a named correction.", "Technical, Budget, Accounting, Treasury, and Forms retain independent decisions and state versions.", "Do not use a generic note or infer Treasury/form readiness from Accounting data checks.", "", ""),
+            ("Activate last", "Activate only after the fiscal year is approved and all five readiness layers pass. Recheck that the opening batch is independently approved, posted, and reconciled with zero difference.", "Exactly one active fiscal year governs new work for the Accounting office.", "Activation is still not production cutover authority; F11 field evidence and the separate exact-scope decision remain required.", "", ""),
+        ),
+    },
+    {
         "slug": "finance-accounting-period-close",
         "version": 1,
         "title": "Close and, when authorized, reopen an Accounting period",

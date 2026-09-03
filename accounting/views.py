@@ -64,6 +64,7 @@ from .close_services import (
     decide_period_close_run, decide_period_reopen, refresh_period_close_run,
     request_period_reopen, submit_period_close_policy, submit_period_close_run,
 )
+from .foundation_exports import build_foundation_register
 
 
 SETUP_TYPES = {
@@ -163,12 +164,35 @@ def setup_workspace(request):
         "programs": ProgramActivityProject.objects.filter(department_id=department.pk).select_related(
             "fiscal_year", "parent", "responsibility_center", "funding_source",
         ),
+        "fiscal_years": FiscalYear.objects.filter(department_id=department.pk).order_by("-year", "pk"),
         "releases": FinanceConfigurationRelease.objects.filter(
             department=department, status__in=("approved", "scheduled", "active", "superseded"),
         ),
         "can_approve_readiness": can_approve_fiscal_readiness(request.user),
         "can_manage_setup": can_manage_setup(request.user),
     })
+
+
+@require_GET
+@accounting_permission_required(can_govern_setup)
+def foundation_register_export(request):
+    department = department_for_user(request.user)
+    selected = request.GET.get("fiscal_year", "").strip()
+    fiscal_year = None
+    if selected:
+        if not selected.isdigit():
+            raise Http404
+        fiscal_year = get_object_or_404(FiscalYear, pk=selected, department_id=department.pk)
+    content, filename, receipt = build_foundation_register(
+        department, request.user, fiscal_year=fiscal_year,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Export-Relative-Path"] = receipt["relative_path"]
+    return response
 
 
 @require_http_methods(["GET", "POST"])

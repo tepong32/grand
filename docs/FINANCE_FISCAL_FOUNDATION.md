@@ -19,6 +19,14 @@ The boundary deliberately uses stable numeric/UUID identities, display snapshots
 
 Activation requires all five decisions and the automated structural checks. The checks require a period, funding source, program classification, active fund, and posting account. Treasury and form readiness remain human evidence decisions because their locally accepted bank, payment, custody, and template rules cannot be inferred safely.
 
+## Portable review register
+
+The guided setup page can export either one typed fiscal year or the department's complete fiscal-foundation register. A selected-year register contains that year's definition, readiness decisions and live structural results, calendar periods, funding sources, and program hierarchy. Department-wide funds, responsibility centers, ledger accounts, and voucher posting mappings appear once because they are shared dimensions rather than year-owned copies.
+
+The CSV neutralizes spreadsheet-formula prefixes in human-entered labels, notes, and evidence. GRAND archives the exact downloaded bytes and a checksum manifest under `department/user/finance-fiscal-foundation/year/month`, then appends an Accounting audit event containing the selected year, SHA-256, archive path, and record counts by kind. Only a setup manager or readiness approver for the current department may export it; substituting another department's fiscal-year ID is rejected.
+
+This export is a portable review index, not an approval action. It does not activate the year, confirm local COA/DBM applicability, establish opening balances, accept a form, authorize a transaction, or grant production cutover.
+
 ## Guided setup workflow
 
 1. A **Finance Configuration Manager** creates a fiscal year or adopts an approved Finance Setup release.
@@ -67,6 +75,7 @@ Use synthetic codes only and retain the screenshots/decision notes in the eviden
 6. Activate the year, edit one classification before any DV/check issuance, and confirm GRAND records before/after/reason evidence, returns the year to Draft, and reopens affected readiness. Reapprove it.
 7. Issue a synthetic DV, then confirm the guided modification window closes and directs the operator to successor/return/reversal/cancellation/replacement workflows. Confirm the setup amendment and number issue use the same office/fiscal-year issuance-boundary record.
 8. Adopt the same approved synthetic setup release twice and confirm no duplicate dimensions are created and the checksum is unchanged.
-9. Run Accounting tests, the full test suite, `manage.py check`, and `makemigrations --check --dry-run`.
+9. Export FY 2027 and confirm the register contains its five readiness decisions, structural results, periods, classifications, mappings, archive manifest, and audit receipt, but no other department's records. Confirm a plain Accounting viewer cannot export it.
+10. Run Accounting tests, the full test suite, `manage.py check`, and `makemigrations --check --dry-run`.
 
 Passing this script proves the software controls only. It does not approve an official fiscal year, establish opening balances, or satisfy the F2 exit gate. F2.2 supplies staged opening-balance and control-total intake next.

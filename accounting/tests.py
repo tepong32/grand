@@ -40,6 +40,7 @@ from .services import (
     decide_bank_reconciliation, stage_bank_statement_csv, submit_bank_reconciliation,
     match_bank_statement_row, unclassify_bank_outstanding, unmatch_bank_statement_row, validate_opening_batch,
 )
+from .foundation_exports import build_foundation_register
 
 
 class StandaloneAccountingTests(TestCase):
@@ -387,6 +388,74 @@ class StandaloneAccountingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Approve year")
         self.assertNotContains(response, "Adopt / reconcile")
+
+    def test_foundation_register_export_is_filtered_archived_audited_and_spreadsheet_safe(self):
+        fiscal_year = self._fiscal_foundation()
+        ensure_readiness_layers(fiscal_year)
+        FiscalYearReadinessApproval.objects.filter(
+            fiscal_year=fiscal_year,
+            layer=FiscalYearReadinessApproval.TREASURY,
+        ).update(
+            status=FiscalYearReadinessApproval.RETURNED,
+            evidence_note="=REVIEW_REQUIRED",
+            decided_by_id=self.setup_approver.pk,
+            decided_by_label=self.setup_approver.username,
+        )
+        other_owner = {
+            "department_id": self.other_department.pk,
+            "department_label": self.other_department.name,
+        }
+        Fund.objects.create(**other_owner, code="HR-PRIVATE", name="Other office private fund")
+        self.client.force_login(self.preparer)
+
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            response = self.client.get(
+                reverse("accounting:foundation_register_export"),
+                {"fiscal_year": fiscal_year.pk},
+            )
+            content = response.content.decode("utf-8-sig")
+            event = AccountingAuditEvent.objects.get(action="foundation_register_exported")
+            archived_path = Path(export_root) / event.snapshot["relative_path"]
+
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("finance-fiscal-foundation-2027.csv", response["Content-Disposition"])
+            self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+            self.assertTrue(archived_path.exists())
+            self.assertTrue(Path(str(archived_path) + ".manifest.json").exists())
+            self.assertEqual(archived_path.read_bytes(), response.content)
+            self.assertIn("fiscal_year,2027", content)
+            self.assertIn("program_classification,2027", content)
+            self.assertIn("readiness,2027", content)
+            self.assertIn("'=REVIEW_REQUIRED", content)
+            self.assertNotIn("HR-PRIVATE", content)
+            self.assertEqual(event.snapshot["fiscal_year_public_id"], str(fiscal_year.public_id))
+            self.assertEqual(event.snapshot["record_counts"]["fiscal_year"], 1)
+            self.assertEqual(event.snapshot["record_counts"]["readiness"], 5)
+
+    def test_foundation_register_rejects_viewer_and_cross_department_year_filter(self):
+        other_year = FiscalYear.objects.create(
+            department_id=self.other_department.pk,
+            department_label=self.other_department.name,
+            year=2028,
+            label="Private HR FY 2028",
+            starts_on=date(2028, 1, 1),
+            ends_on=date(2028, 12, 31),
+            business_date=date(2028, 1, 1),
+            created_by_id=self.outsider.pk,
+            created_by_label=self.outsider.username,
+        )
+        self.client.force_login(self.viewer)
+        forbidden = self.client.get(reverse("accounting:foundation_register_export"))
+        self.assertEqual(forbidden.status_code, 403)
+
+        self.client.force_login(self.preparer)
+        hidden = self.client.get(
+            reverse("accounting:foundation_register_export"),
+            {"fiscal_year": other_year.pk},
+        )
+        self.assertEqual(hidden.status_code, 404)
+        with self.assertRaises(PermissionDenied):
+            build_foundation_register(self.other_department, self.preparer, fiscal_year=other_year)
 
     def test_guided_period_form_requires_and_pins_the_typed_fiscal_year(self):
         fiscal_year = self._fiscal_foundation()
