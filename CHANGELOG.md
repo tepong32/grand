@@ -1,5 +1,15 @@
 # Changelog
 
+## F0.5 guided Finance discovery triage
+
+- Added candidate-cycle and plain-language Needs attention filters beside the existing phase and workflow-state controls.
+- Defined current scope blockers, awaiting named reviewer, overdue open work, and returned-for-correction views without creating a second workflow or changing evidence state.
+- Marked overdue due dates directly in the existing register rows so staff can act without opening a separate dashboard.
+- Passed the same cycle and attention selections into the manager's department-register CSV, filename, TraceSync manifest metadata, and append-only export event.
+- Kept cycle choices role-bounded to records already visible to the signed-in user and retained manager-only bulk export permissions.
+- Aligned row-detail access for users holding the dedicated discovery-manager permission, removing an older dependency on the broader setup-view permission while keeping department isolation.
+- Added focused screen/export synchronization and manager-access coverage, updated the floating guide and roadmap boundary, and passed all 50 Finance tests plus all 399 project tests across both routed databases.
+
 ## F0.4 portable Finance discovery register
 
 - Added one-click export of the Finance discovery register using the same phase and workflow-state filters already visible in the workspace.

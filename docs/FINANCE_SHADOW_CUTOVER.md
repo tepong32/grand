@@ -181,7 +181,7 @@ inside the single `GRAND_EXPORT_ROOT`, beside a SHA-256 manifest for TraceSync w
 
 F11.8 also provides the [Finance Field Acceptance Board](FINANCE_FIELD_ACCEPTANCE_BOARD.md). It groups the existing governed cycle records into ten plain-language field checkpoints, shows the next action without creating a parallel approval record, and exports a TraceSync-ready CSV status index. Assigned reviewers remain limited to their visible cycles, and only the separate authorized cutover decision can make GRAND authoritative for an exact scope/date.
 
-The [F0.2–F0.4 Finance decisions and evidence register](FINANCE_DISCOVERY_DECISIONS.md) supplies the earlier discovery dependency and portable department index. Cutover readiness requires current recorded LGU-confirmed evidence with acceptance examples for all eight detailed coverage areas, a separate whole-scope decision matching the complete enabled-scope text, and no current linked blocker. A generated starter, exported index, or recorded unresolved question remains valid preparation/discovery evidence but cannot silently pass its named scope.
+The [F0.2–F0.5 Finance decisions and evidence register](FINANCE_DISCOVERY_DECISIONS.md) supplies the earlier discovery dependency, role-bounded triage, and portable department index. Cutover readiness requires current recorded LGU-confirmed evidence with acceptance examples for all eight detailed coverage areas, a separate whole-scope decision matching the complete enabled-scope text, and no current linked blocker. A generated starter, filtered work list, exported index, or recorded unresolved question remains valid preparation/discovery evidence but cannot silently pass its named scope.
 
 ## Remaining F11 acceptance work
 

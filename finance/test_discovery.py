@@ -1,11 +1,12 @@
 import tempfile
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from departments.models import Department
 from profiles.models import EmployeeProfile
@@ -28,12 +29,17 @@ class FinanceDiscoveryDecisionTests(TestCase):
             name="Municipal Budget Office", slug="budget-discovery",
         )
         cls.manager = cls._employee("discovery.manager", cls.accounting)
+        cls.discovery_only_manager = cls._employee("discovery.only.manager", cls.accounting)
         cls.owner = cls._employee("discovery.owner", cls.budget)
         cls.reviewer = cls._employee("discovery.reviewer", cls.accounting)
         cls.outsider = cls._employee("discovery.outsider", cls.budget)
         cls.manager.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="finance",
             codename__in=("manage_finance_discovery", "view_finance_setup"),
+        ))
+        cls.discovery_only_manager.user_permissions.add(Permission.objects.get(
+            content_type__app_label="finance",
+            codename="manage_finance_discovery",
         ))
 
     @classmethod
@@ -226,6 +232,74 @@ class FinanceDiscoveryDecisionTests(TestCase):
         response = self.client.get(reverse("finance:discovery_register_export"))
 
         self.assertEqual(response.status_code, 403)
+
+    def test_dedicated_discovery_manager_can_open_department_rows_without_setup_permission(self):
+        item = self._decision(code="DEC-DISCOVERY-MANAGER-ONLY")
+        self.client.force_login(self.discovery_only_manager)
+
+        workspace = self.client.get(reverse("finance:discovery_workspace"))
+        detail = self.client.get(
+            reverse("finance:discovery_decision_detail", args=(item.public_id,)),
+        )
+
+        self.assertContains(workspace, item.code)
+        self.assertNotContains(workspace, "Finance Setup Center")
+        self.assertEqual(detail.status_code, 200)
+
+    def test_cycle_and_attention_filters_keep_workspace_and_export_in_sync(self):
+        cycle = FinanceShadowCycle.objects.create(
+            department=self.accounting,
+            code="FY-2027-TRIAGE-A",
+            title="Discovery triage A",
+            fiscal_year=2027,
+            enabled_scope="General Fund ordinary supplier DVs for January 2027",
+            source_system_label="Current local process",
+            source_extract_reference="Restricted packet TRIAGE-A",
+            planned_start=date(2027, 1, 4),
+            planned_end=date(2027, 1, 29),
+            created_by=self.manager,
+        )
+        other_cycle = FinanceShadowCycle.objects.create(
+            department=self.accounting,
+            code="FY-2027-TRIAGE-B",
+            title="Discovery triage B",
+            fiscal_year=2027,
+            enabled_scope="Special Education Fund cases for February 2027",
+            source_system_label="Current local process",
+            source_extract_reference="Restricted packet TRIAGE-B",
+            planned_start=date(2027, 2, 1),
+            planned_end=date(2027, 2, 26),
+            created_by=self.manager,
+        )
+        today = timezone.localdate()
+        overdue = self._decision(
+            code="DEC-TRIAGE-OVERDUE", cycle=cycle, due_date=today - timedelta(days=1),
+        )
+        self._decision(
+            code="DEC-TRIAGE-FUTURE", cycle=cycle, due_date=today + timedelta(days=365),
+        )
+        self._decision(
+            code="DEC-TRIAGE-OTHER-CYCLE", cycle=other_cycle, due_date=today - timedelta(days=1),
+        )
+        self.client.force_login(self.manager)
+        filters = {"cycle": cycle.pk, "attention": "overdue"}
+
+        workspace = self.client.get(reverse("finance:discovery_workspace"), filters)
+
+        self.assertContains(workspace, overdue.code)
+        self.assertContains(workspace, "Overdue")
+        self.assertNotContains(workspace, "DEC-TRIAGE-FUTURE")
+        self.assertNotContains(workspace, "DEC-TRIAGE-OTHER-CYCLE")
+
+        exported = self.client.get(reverse("finance:discovery_register_export"), filters)
+        content = exported.content.decode("utf-8-sig")
+        self.assertIn(overdue.code, content)
+        self.assertNotIn("DEC-TRIAGE-FUTURE", content)
+        self.assertNotIn("DEC-TRIAGE-OTHER-CYCLE", content)
+        event = FinanceAuditEvent.objects.get(action="discovery_register_exported")
+        self.assertEqual(event.snapshot["cycle_filter"], cycle.pk)
+        self.assertEqual(event.snapshot["attention_filter"], "overdue")
+        self.assertEqual(event.snapshot["record_count"], 1)
 
     def test_manager_can_create_plain_language_draft_and_reasoned_successor_in_ui(self):
         self.client.force_login(self.manager)

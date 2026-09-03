@@ -277,7 +277,9 @@ def export_discovery_decision(item, actor):
     return content, filename, receipt
 
 
-def export_discovery_register(department, actor, *, phase="", status=""):
+def export_discovery_register(
+    department, actor, *, phase="", status="", cycle_id="", attention="",
+):
     """Export the actor's department register with the same filters as the workspace."""
     if not can_manage_finance_discovery(actor, department):
         raise PermissionDenied
@@ -292,6 +294,31 @@ def export_discovery_register(department, actor, *, phase="", status=""):
         decisions = decisions.filter(phase=phase)
     if status:
         decisions = decisions.filter(status=status)
+    try:
+        cycle_id = int(cycle_id)
+    except (TypeError, ValueError):
+        cycle_id = None
+    if cycle_id:
+        decisions = decisions.filter(cycle_id=cycle_id)
+    valid_attention = {"blockers", "awaiting_review", "overdue", "returned"}
+    attention = attention if attention in valid_attention else ""
+    if attention == "blockers":
+        decisions = decisions.exclude(status=FinanceDiscoveryDecision.SUPERSEDED).filter(
+            blocks_affected_scope=True,
+        )
+    elif attention == "awaiting_review":
+        decisions = decisions.filter(status=FinanceDiscoveryDecision.SUBMITTED)
+    elif attention == "overdue":
+        decisions = decisions.filter(
+            due_date__lt=timezone.localdate(),
+            status__in=(
+                FinanceDiscoveryDecision.DRAFT,
+                FinanceDiscoveryDecision.SUBMITTED,
+                FinanceDiscoveryDecision.RETURNED,
+            ),
+        )
+    elif attention == "returned":
+        decisions = decisions.filter(status=FinanceDiscoveryDecision.RETURNED)
     decisions = list(decisions)
 
     stream = io.StringIO(newline="")
@@ -324,7 +351,10 @@ def export_discovery_register(department, actor, *, phase="", status=""):
         writer.writerow(tuple(_csv_safe(value) for value in values))
 
     content = "\ufeff".encode("utf-8") + stream.getvalue().encode("utf-8")
-    filter_suffix = "-".join(value.lower() for value in (phase, status) if value) or "all"
+    filter_suffix = "-".join(
+        value.lower() for value in (phase, status, f"cycle-{cycle_id}" if cycle_id else "", attention)
+        if value
+    ) or "all"
     filename = f"finance-discovery-register-{filter_suffix}.csv"
     receipt = archive_export(
         content=content,
@@ -335,6 +365,8 @@ def export_discovery_register(department, actor, *, phase="", status=""):
         metadata={
             "phase_filter": phase,
             "status_filter": status,
+            "cycle_filter": cycle_id,
+            "attention_filter": attention,
             "record_count": len(decisions),
             "current_blocker_count": sum(item.is_current_blocker for item in decisions),
             "notice": "Department discovery index only; protected source files and cutover authority are separate.",
@@ -351,6 +383,8 @@ def export_discovery_register(department, actor, *, phase="", status=""):
             "sha256": receipt["sha256"],
             "phase_filter": phase,
             "status_filter": status,
+            "cycle_filter": cycle_id,
+            "attention_filter": attention,
             "record_count": len(decisions),
         },
     )

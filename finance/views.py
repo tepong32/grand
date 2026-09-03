@@ -916,19 +916,68 @@ def _discovery_decision_for_user(user, public_id):
     return item
 
 
-@discovery_access_required
-def discovery_workspace(request):
-    decisions = _visible_discovery_decisions(request.user)
+DISCOVERY_ATTENTION_CHOICES = (
+    ("blockers", "Current scope blockers"),
+    ("awaiting_review", "Awaiting named reviewer"),
+    ("overdue", "Overdue open work"),
+    ("returned", "Returned for correction"),
+)
+
+
+def _filter_discovery_workspace(queryset, request):
     selected_phase = request.GET.get("phase", "")
     selected_status = request.GET.get("status", "")
+    selected_cycle = request.GET.get("cycle", "")
+    selected_attention = request.GET.get("attention", "")
+    try:
+        selected_cycle_id = int(selected_cycle)
+    except (TypeError, ValueError):
+        selected_cycle = ""
+    else:
+        if queryset.filter(cycle_id=selected_cycle_id).exists():
+            queryset = queryset.filter(cycle_id=selected_cycle_id)
+            selected_cycle = str(selected_cycle_id)
+        else:
+            selected_cycle = ""
     if selected_phase in dict(FinanceDiscoveryDecision.PHASE_CHOICES):
-        decisions = decisions.filter(phase=selected_phase)
+        queryset = queryset.filter(phase=selected_phase)
     else:
         selected_phase = ""
     if selected_status in dict(FinanceDiscoveryDecision.STATUS_CHOICES):
-        decisions = decisions.filter(status=selected_status)
+        queryset = queryset.filter(status=selected_status)
     else:
         selected_status = ""
+    if selected_attention == "blockers":
+        queryset = queryset.exclude(status=FinanceDiscoveryDecision.SUPERSEDED).filter(
+            blocks_affected_scope=True,
+        )
+    elif selected_attention == "awaiting_review":
+        queryset = queryset.filter(status=FinanceDiscoveryDecision.SUBMITTED)
+    elif selected_attention == "overdue":
+        queryset = queryset.filter(
+            due_date__lt=timezone.localdate(),
+            status__in=(
+                FinanceDiscoveryDecision.DRAFT,
+                FinanceDiscoveryDecision.SUBMITTED,
+                FinanceDiscoveryDecision.RETURNED,
+            ),
+        )
+    elif selected_attention == "returned":
+        queryset = queryset.filter(status=FinanceDiscoveryDecision.RETURNED)
+    else:
+        selected_attention = ""
+    return queryset, selected_phase, selected_status, selected_cycle, selected_attention
+
+
+@discovery_access_required
+def discovery_workspace(request):
+    decisions = _visible_discovery_decisions(request.user)
+    cycle_choices = FinanceShadowCycle.objects.filter(
+        pk__in=decisions.exclude(cycle=None).values("cycle_id"),
+    ).order_by("-fiscal_year", "code")
+    decisions, selected_phase, selected_status, selected_cycle, selected_attention = (
+        _filter_discovery_workspace(decisions, request)
+    )
     department = department_for_user(request.user)
     can_create = can_manage_finance_discovery(request.user, department)
     coverage_summaries = []
@@ -970,12 +1019,27 @@ def discovery_workspace(request):
                 "scope_accepted": scope_accepted,
             })
     visible = list(decisions)
+    today = timezone.localdate()
+    for item in visible:
+        item.is_discovery_overdue = bool(
+            item.due_date
+            and item.due_date < today
+            and item.status in {
+                FinanceDiscoveryDecision.DRAFT,
+                FinanceDiscoveryDecision.SUBMITTED,
+                FinanceDiscoveryDecision.RETURNED,
+            }
+        )
     return render(request, "finance/discovery_workspace.html", {
         "decisions": visible,
         "selected_phase": selected_phase,
         "selected_status": selected_status,
+        "selected_cycle": selected_cycle,
+        "selected_attention": selected_attention,
         "phase_choices": FinanceDiscoveryDecision.PHASE_CHOICES,
         "status_choices": FinanceDiscoveryDecision.STATUS_CHOICES,
+        "cycle_choices": cycle_choices,
+        "attention_choices": DISCOVERY_ATTENTION_CHOICES,
         "can_create": can_create,
         "coverage_summaries": coverage_summaries,
         "can_access_setup": bool(department and can_view_finance_setup(request.user, department)),
@@ -1201,6 +1265,8 @@ def discovery_register_export(request):
         request.user,
         phase=request.GET.get("phase", ""),
         status=request.GET.get("status", ""),
+        cycle_id=request.GET.get("cycle", ""),
+        attention=request.GET.get("attention", ""),
     )
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'

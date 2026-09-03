@@ -71,7 +71,10 @@ def can_view_finance_discovery_decision(user, decision):
         return False
     if user.pk in {decision.owner_id, decision.reviewer_id}:
         return True
-    return can_view_finance_setup(user, decision.department)
+    return bool(
+        can_view_finance_setup(user, decision.department)
+        or can_manage_finance_discovery(user, decision.department)
+    )
 
 
 def can_prepare_finance_discovery_decision(user, decision):

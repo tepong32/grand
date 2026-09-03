@@ -448,7 +448,7 @@ BUDGET_GUIDES = (
 TREASURY_GUIDES = (
     {
         "slug": "finance-accountability-reporting-treasury",
-        "version": 3,
+        "version": 4,
         "title": "Prepare the payment instrument and disbursement register",
         "summary": "Report issued, advised, released, returned, cancelled, and replacement instruments with complete voucher and custody evidence.",
         "permission": "reporting.view_reporting_workspace",
@@ -571,6 +571,7 @@ ACCOUNTING_GUIDES = ACCOUNTING_GUIDES + (
         "order": 88,
         "steps": (
             ("Start from editable coverage prompts", "For a candidate shadow or parallel cycle, choose Add coverage starters, then assign one evidence owner, a different reviewer, and an optional review date. GRAND creates a whole-scope prompt plus step, field, balance, certification, signature, number, output, and exception prompts.", "Nine ordinary drafts make the minimum discovery areas visible without deciding their answers for the LGU; running the starter again creates only a missing current area.", "Every prompt starts Unresolved. Edit its wording and add more focused rows wherever the actual local process needs them.", "Add coverage starters", "finance:discovery_coverage_starters"),
+            ("Work the items needing attention", "Filter by candidate cycle, phase, workflow state, or Needs attention. Use Current scope blockers for work preventing the named scope, Awaiting named reviewer for queued checks, Overdue open work for missed review dates, and Returned for correction for rework.", "The list and manager's department export use the same selected filters; overdue dates are marked in the row.", "A filter is a work aid only. It does not change, accept, return, or clear any evidence.", "Open Decisions & Evidence", "finance:discovery_workspace"),
             ("Add one focused question", "Create one stable DEC reference for a missing authority, disagreement, local procedure, form, balance, role, or exception. Choose its roadmap phase and optionally link the exact shadow cycle.", "The question is readable and narrow enough for one accountable decision.", "Do not combine unrelated offices, transaction types, years, forms, or actions into one broad block.", "Open Decisions & Evidence", "finance:discovery_workspace"),
             ("Use the evidence label literally", "Choose Observed in eGAPS, Official reference, LGU-confirmed, GRAND-implemented, or Unresolved according to what the retained evidence actually proves.", "The label, cited reference, custody location, and evidence still needed agree with one another.", "A public memo does not prove local applicability; a system screen does not prove hidden validation or authority.", "", ""),
             ("Name only the affected scope", "Write the exact transaction type, office, fiscal year, form, output, or action affected. Keep Block affected scope selected while an Unresolved finding remains.", "Staff can tell what must wait and what unrelated work may continue.", "Never use an unresolved question to freeze all Finance work when only a smaller scope is uncertain.", "", ""),

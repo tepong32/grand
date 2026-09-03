@@ -1,6 +1,6 @@
 # Finance decisions and evidence register
 
-Status: **F0.2 governed register, F0.3 editable coverage control, and F0.4 portable department register implemented; actual LGU discovery evidence and parent F0 acceptance remain open**.
+Status: **F0.2 governed register, F0.3 editable coverage control, F0.4 portable department register, and F0.5 guided triage implemented; actual LGU discovery evidence and parent F0 acceptance remain open**.
 
 ## Purpose
 
@@ -64,9 +64,11 @@ The Decisions workspace shows a 0–8 detailed-area summary per candidate cycle.
 
 Finance discovery managers see their department's register. A named owner or reviewer from another office sees only entries assigned to them. Supplying another entry ID does not broaden access.
 
+The existing register can be narrowed by candidate cycle, phase, workflow state, or one plain **Needs attention** choice: current scope blockers, awaiting named reviewer, overdue open work, or returned for correction. Cycle choices come only from records already visible to the user. Overdue dates are marked in the row. These are work-list filters, not new decisions, approvals, performance measures, or evidence states.
+
 The Accounting-specific floating **?** guide explains the workflow in place and can be read without leaving the current page. Its personal checkmarks are private resume aids, never acceptance or employee-performance evidence.
 
-Every visible entry can be exported as a UTF-8 CSV. A Finance discovery manager can also apply the ordinary phase/workflow-state filters and choose **Export department register**. That bulk CSV contains only the manager's assigned department; cross-office assignees keep their intentionally narrower per-record export access. Spreadsheet-formula prefixes in human-entered text are neutralized without hiding the underlying value.
+Every visible entry can be exported as a UTF-8 CSV. A Finance discovery manager can also apply the cycle, phase, workflow-state, and attention filters and choose **Export department register**. That bulk CSV contains only the manager's assigned department and carries the same filters in its filename, manifest, and audit event; cross-office assignees keep their intentionally narrower per-record export access. Spreadsheet-formula prefixes in human-entered text are neutralized without hiding the underlying value.
 
 The exact downloaded bytes and sibling SHA-256 manifest are archived under either:
 
