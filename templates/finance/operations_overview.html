@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Finance operations{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="mb-3">
+    <p class="text-uppercase text-primary small font-weight-bold mb-1">GRAND Finance</p>
+    <h1 class="h3 mb-1">Finance operations</h1>
+    <p class="text-muted mb-0">Start from the work your account may perform. The same case and evidence remain connected across offices.</p>
+  </div>
+  <div class="alert alert-info"><strong>One entry point, existing controls.</strong> This page only opens workspaces already allowed for your current department and role. It does not copy cases, grant permissions, approve work, or combine separate authorities.</div>
+
+  <section class="card card-outline card-primary">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Your transaction work</h2></div>
+    <div class="card-body"><div class="row">
+      {% for area in work_areas %}<div class="col-xl-3 col-lg-4 col-md-6 mb-3"><div class="card h-100 mb-0"><div class="card-body d-flex flex-column">
+        <h3 class="h5"><i class="fas {{ area.icon }} text-primary mr-1"></i> {{ area.title }}</h3>
+        <p class="small">{{ area.description }}</p>
+        <p class="small mb-2"><strong>Next:</strong> {{ area.next_action }}</p>
+        <p class="small text-muted">{{ area.boundary }}</p>
+        <a class="btn btn-outline-primary mt-auto" href="{% url area.url_name %}">{{ area.action_label }}</a>
+      </div></div></div>{% empty %}<div class="col-12"><p class="text-muted mb-0">No transaction workspace is assigned to this account. Use the controls below for the work you were assigned.</p></div>{% endfor %}
+    </div></div>
+  </section>
+
+  <section class="card">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Setup, decisions, and field acceptance</h2></div>
+    <div class="card-body"><div class="row">
+      {% for area in control_areas %}<div class="col-lg-4 col-md-6 mb-3"><div class="card h-100 mb-0"><div class="card-body d-flex flex-column">
+        <h3 class="h5"><i class="fas {{ area.icon }} text-secondary mr-1"></i> {{ area.title }}</h3>
+        <p class="small">{{ area.description }}</p>
+        <p class="small mb-2"><strong>Next:</strong> {{ area.next_action }}</p>
+        <p class="small text-muted">{{ area.boundary }}</p>
+        <a class="btn btn-outline-secondary mt-auto" href="{% url area.url_name %}">{{ area.action_label }}</a>
+      </div></div></div>{% endfor %}
+    </div></div>
+  </section>
+
+  <p class="small text-muted"><i class="fas fa-question-circle mr-1"></i> Use the floating ? guide while keeping this page open. Personal tutorial checkmarks only help you resume; they are not attendance, competence, approval, or UAT evidence.</p>
+</div>
+{% endblock %}

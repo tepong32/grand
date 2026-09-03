@@ -15,10 +15,7 @@
     {% if can_access_reporting %}<li class="nav-item"><a href="{% url 'reporting:workspace' %}" class="nav-link"><i class="fas fa-file-alt mr-1"></i><span class="d-none d-xl-inline"> Reports</span></a></li>{% endif %}
     {% if can_access_records %}<li class="nav-item"><a href="{% url 'records:workspace' %}" class="nav-link"><i class="fas fa-folder-open mr-1"></i><span class="d-none d-xl-inline"> Records</span></a></li>{% endif %}
     {% if can_access_tracepoint %}<li class="nav-item"><a href="{% url 'tracepoint:workspace' %}" class="nav-link"><i class="fas fa-route mr-1"></i><span class="d-none d-xl-inline"> TracePoint</span></a></li>{% endif %}
-    {% if can_access_finance_setup %}<li class="nav-item"><a href="{% url 'finance:workspace' %}" class="nav-link"><i class="fas fa-sliders-h mr-1"></i><span class="d-none d-xl-inline"> Finance Setup</span></a></li>{% endif %}
-    {% if can_access_budget %}<li class="nav-item"><a href="{% url 'budget:obligation_workspace' %}" class="nav-link"><i class="fas fa-chart-pie mr-1"></i><span class="d-none d-xl-inline"> Budget</span></a></li>{% endif %}
-    {% if can_access_vouchers %}<li class="nav-item"><a href="{% url 'vouchers:workspace' %}" class="nav-link"><i class="fas fa-file-invoice-dollar mr-1"></i><span class="d-none d-xl-inline"> Vouchers</span></a></li>{% endif %}
-    {% if can_access_accounting %}<li class="nav-item"><a href="{% url 'accounting:workspace' %}" class="nav-link"><i class="fas fa-book mr-1"></i><span class="d-none d-xl-inline"> Accounting</span></a></li>{% endif %}
+    {% if can_access_finance_operations %}<li class="nav-item"><a href="{% url 'finance_operations:overview' %}" class="nav-link"><i class="fas fa-coins mr-1"></i><span class="d-none d-xl-inline"> Finance</span></a></li>{% endif %}
   </ul>
   <ul class="navbar-nav ml-auto">
     <li class="nav-item">
@@ -54,6 +51,7 @@
           {% if can_access_reporting %}<li><a href="{% url 'reporting:workspace' %}" class="gov-sidebar-link"><i class="fas fa-file-alt gov-sidebar-icon"></i><span>Reports and official outputs</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>{% endif %}
           {% if can_access_records %}<li><a href="{% url 'records:workspace' %}" class="gov-sidebar-link"><i class="fas fa-folder-open gov-sidebar-icon"></i><span>Records and documents</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>{% endif %}
           {% if can_access_tracepoint %}<li><a href="{% url 'tracepoint:workspace' %}" class="gov-sidebar-link"><i class="fas fa-route gov-sidebar-icon"></i><span>TracePoint physical custody</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>{% endif %}
+          {% if can_access_finance_operations %}<li><a href="{% url 'finance_operations:overview' %}" class="gov-sidebar-link"><i class="fas fa-coins gov-sidebar-icon"></i><span>Finance operations overview</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>{% endif %}
           {% if can_access_finance_setup %}<li><a href="{% url 'finance:workspace' %}" class="gov-sidebar-link"><i class="fas fa-sliders-h gov-sidebar-icon"></i><span>Finance Setup Center</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>{% endif %}
           {% if can_access_budget %}<li><a href="{% url 'budget:obligation_workspace' %}" class="gov-sidebar-link"><i class="fas fa-chart-pie gov-sidebar-icon"></i><span>Budget and obligation control</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>{% endif %}
           {% if can_access_vouchers %}<li><a href="{% url 'vouchers:workspace' %}" class="gov-sidebar-link"><i class="fas fa-file-invoice-dollar gov-sidebar-icon"></i><span>Voucher Workbench</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>{% endif %}

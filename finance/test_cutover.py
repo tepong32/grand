@@ -1352,6 +1352,10 @@ class FinanceShadowCutoverTests(TestCase):
             )
 
             self.client.force_login(self.requesting_reviewer)
+            portal = self.client.get(reverse("finance_operations:overview"))
+            self.assertEqual(portal.status_code, 200)
+            self.assertContains(portal, "Field acceptance and cutover")
+            self.assertNotContains(portal, "Finance Setup Center")
             reviewer_export = self.client.get(
                 reverse("finance:shadow_cycle_register_export"), {"q": candidate.code},
             )

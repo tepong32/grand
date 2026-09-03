@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.2 permission-shaped Finance operations entry
+
+- Added one stable `/finance/` starting page that composes plain Budget, Voucher, Accounting, Reporting, setup, discovery, and field-operation destinations exclusively from their existing access checks.
+- Kept reporting-only general employees outside the Finance entry, preserved named cross-office reviewer access to assigned field work, and retained every familiar direct workspace link in the account drawer.
+- Consolidated the top navigation to one Finance link without changing established setup, voucher, Budget, Accounting, or reporting URLs and without creating new transaction, count, approval, or authority states.
+- Published a department-seeded floating Internal How-To for shared-case handoffs, role-shaped next actions, governed modification/reversal routes, TraceSync-root handling, and private non-evaluative tutorial progress.
+- Documented the F1.2 implementation and the remaining named-user, complete My Work/search/notification, supported-device/accessibility, recovery, and local-acceptance gates.
+- Added focused full/selective-card, reports-only/ordinary/anonymous denial, established-route, and cross-office field-reviewer coverage. All 22 shadow/cutover tests, all 55 Finance tests, all 78 Finance-plus-guidance tests, and all 420 project tests pass across both routed databases; the final full suite completed in 82.561 seconds of test execution.
+
 ## F11 guided field-operation triage and portable cycle register
 
 - Added cycle status, run kind, fiscal year, plain next-action, attention, and search filters to the existing role-bounded Shadow operation workspace without changing field-evidence or cutover states.

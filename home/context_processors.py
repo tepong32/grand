@@ -40,14 +40,23 @@ def site_ui(request):
         from accounting.access import can_view_accounting
         from budget.access import can_view as can_view_budget
         from finance.access import can_view_finance_setup
+        from finance.operations import finance_operations_access
         from vouchers.access import can_view_workbench
         context["can_access_accounting"] = can_view_accounting(request.user)
         context["can_access_budget"] = can_view_budget(request.user)
         context["can_access_finance_setup"] = can_view_finance_setup(request.user)
         context["can_access_vouchers"] = can_view_workbench(request.user)
+        context["can_access_finance_operations"] = finance_operations_access(request.user, {
+            "accounting": context["can_access_accounting"],
+            "budget": context["can_access_budget"],
+            "setup": context["can_access_finance_setup"],
+            "vouchers": context["can_access_vouchers"],
+            "reporting": context["can_access_reporting"],
+        })["allowed"]
     else:
         context["can_access_accounting"] = False
         context["can_access_budget"] = False
         context["can_access_finance_setup"] = False
         context["can_access_vouchers"] = False
+        context["can_access_finance_operations"] = False
     return context

@@ -1,6 +1,6 @@
 # Complete-cycle Finance information architecture
 
-Status: F1.1 design contract and synthetic prototype. This package defines the intended navigation, role boundaries, shared-case vocabulary, and interaction model before dense Finance models are added. It does not grant transaction authority or satisfy the F1 production exit gate.
+Status: F1.1 design contract and synthetic prototype, with the narrow F1.2 permission-shaped Finance entry page implemented. This package defines the intended navigation, role boundaries, shared-case vocabulary, and interaction model. The entry page does not grant transaction authority or satisfy the F1 production exit gate.
 
 ## Design outcome
 
@@ -23,6 +23,8 @@ One case
 
 The navigation labels remain stable across roles. Counts, saved views, actions, supporting guidance, and accessible detail are role-shaped.
 
+The implemented `/finance/` entry now applies the first part of this contract without inventing a second queue. It presents plain cards for existing Budget, Voucher, Accounting, Reporting, setup, discovery, and field workspaces only when their current access checks allow them. Existing workspace links remain available in the account drawer, while the top bar uses one Finance destination. See [Finance operations entry](../FINANCE_OPERATIONS_ENTRY.md).
+
 ## Package
 
 | Artifact | Contract |
@@ -32,6 +34,7 @@ The navigation labels remain stable across roles. Counts, saved views, actions, 
 | [Status vocabulary](STATUS_VOCABULARY.md) | Separate case phase, work-task state, authority/artifact state, and exceptions. |
 | [Clickable synthetic prototype](prototype/index.html) | Responsive, no-backend walkthrough of Overview, My Work, case detail, and search. |
 | [Prototype notes and review script](PROTOTYPE.md) | Review boundaries, scenarios, and acceptance capture. |
+| [Implemented Finance operations entry](../FINANCE_OPERATIONS_ENTRY.md) | Permission composition, navigation, Internal How-To, and authority boundaries for F1.2. |
 
 ## Non-negotiable boundaries
 
@@ -44,6 +47,6 @@ The navigation labels remain stable across roles. Counts, saved views, actions, 
 - Search returns only objects the user may view; result counts and suggestions must not leak hidden objects.
 - The prototype is synthetic and deliberately marks unavailable/undiscovered actions. It is not an implementation promise beyond this contract.
 
-## F1.1 review gate
+## F1 review gate
 
-Synthetic role walkthroughs must demonstrate that users see only their queues and permitted actions; the same case remains traceable across the complete cycle; statuses use the agreed vocabulary; search does not reveal restricted data; and reviewers accept the desktop and narrow layouts. Findings become `DEC-###` items in the [Finance decision log](../finance-discovery/DECISION_LOG.md). F1 remains open until permission, concurrency, recovery, identity, audit, calendar/period, numbering, health, and backup requirements are implemented and tested.
+Synthetic and named-user walkthroughs must demonstrate that users see only their entry cards, queues, and permitted actions; the same case remains traceable across the complete cycle; statuses use the agreed vocabulary; search does not reveal restricted data; and reviewers accept the desktop and narrow layouts. Findings become governed Finance discovery decisions and, where useful during preparation, `DEC-###` worksheet items. F1 remains open until permission, concurrency, recovery, identity, audit, calendar/period, numbering, health, backup, supported-device/accessibility, and local acceptance requirements are implemented and tested.
