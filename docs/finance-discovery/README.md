@@ -1,10 +1,10 @@
 # Finance evidence register and interview kit
 
-Status: F0.1 discovery package plus the F0.2 in-app decision control. These files are templates and repository-safe public/project evidence; neither they nor an empty in-app register prove that an LGU process has been accepted.
+Status: F0.1 discovery package plus the F0.2 register and F0.3 editable coverage control. These files are templates and repository-safe public/project evidence; neither they nor an empty or merely generated in-app register prove that an LGU process has been accepted.
 
 Use this package to turn interviews, approved references, redacted artifacts, and synthetic replays into traceable Finance requirements. The canonical scope and evidence labels remain in the [Finance complete-cycle roadmap](../FINANCE_ROADMAP.md), while the [process discovery protocol](../FINANCE_PROCESS_DISCOVERY.md) controls walkthrough order and acceptance.
 
-Use the [in-app Finance decisions and evidence register](../FINANCE_DISCOVERY_DECISIONS.md) for governed ownership, independent review, exact-scope blocking, reasoned successors, cycle linkage, and TraceSync export. Keep the worksheets below for detailed interview and replay preparation; reference their retained IDs from GRAND rather than copying protected evidence into the application.
+Use the [in-app Finance decisions and evidence register](../FINANCE_DISCOVERY_DECISIONS.md) for governed ownership, independent review, editable cycle coverage starters, retained acceptance examples, exact-scope blocking, reasoned successors, cycle linkage, and TraceSync export. Keep the worksheets below for detailed interview and replay preparation; reference their retained IDs from GRAND rather than copying protected evidence into the application.
 
 ## Package
 
@@ -46,4 +46,4 @@ Never renumber an issued ID. Mark a superseded entry and link its replacement.
 
 ## F0 completion rule
 
-The F0.1 templates and F0.2 governed register are delivered. F0 itself remains open until field evidence gives every required step, field, balance, certification, signature, number, output, and exception an owner, authority/evidence label, and acceptance example. An unresolved item blocks only the transaction type, office, fiscal year, output, cycle, or action recorded in its affected-scope field. A cutover candidate also needs a current independently recorded LGU-confirmed F0 decision for its exact enabled scope and no current linked blocker.
+The F0.1 templates, F0.2 governed register, and F0.3 editable coverage prompts are delivered. F0 itself remains open until field evidence gives every required step, field, balance, certification, signature, number, output, and exception an owner, authority/evidence label, and acceptance example. An unresolved item blocks only the transaction type, office, fiscal year, output, cycle, or action recorded in its affected-scope field. A cutover candidate also needs accepted evidence for all eight detailed areas, a current independently recorded LGU-confirmed whole-scope decision for its exact enabled scope, and no current linked blocker.

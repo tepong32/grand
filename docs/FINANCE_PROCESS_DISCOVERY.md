@@ -104,6 +104,8 @@ Prefer demonstration with the selected evidence over recollection. Record disagr
 
 In GRAND, a recorded Unresolved decision remains blocked for only its stated affected scope. Draft or Returned records may be corrected directly; once recorded, changing evidence or authority requires a reasoned successor and independent review. An empty register is not evidence that discovery is complete.
 
+For each candidate cycle, use the editable starter set to make the minimum coverage areas visible. Rewrite the prompts from actual local evidence and add more rows when one process step, form, exception, office, or transaction variant needs a separate decision. A generated starter is only an Unresolved prompt. LGU-confirmed coverage requires a retained blank/redacted example, replay/control result, or accepted no-case explanation.
+
 ## Actual-step record
 
 Create a row for every authority decision, balance movement, business action, system event, print, signature, and physical handoff.
@@ -159,6 +161,6 @@ A complete-cycle scope is understood only when:
 - critical/high gaps have an accepted implementation or operational decision;
 - named Budget, Accounting, Treasury, requesting-office, IT, management, and audit stakeholders accept the map for the enabled scope.
 
-Before a linked shadow/parallel cycle can pass cutover readiness, record an independently reviewed LGU-confirmed F0 decision whose affected scope exactly matches that cycle's enabled scope, and clear every current linked scope blocker through retained evidence and a reviewed successor.
+Before a linked shadow/parallel cycle can pass cutover readiness, independently record LGU-confirmed F0 rows with acceptance examples for all eight detailed coverage areas, record the separate whole-scope decision whose affected scope exactly matches that cycle's enabled scope, and clear every current linked scope blocker through retained evidence and a reviewed successor.
 
 Do not claim full eGAPS equivalence until all enabled transaction types and period-end outputs satisfy the relevant roadmap exit gates.

@@ -1,6 +1,6 @@
 # Finance decisions and evidence register
 
-Status: **F0.2 in-app control implemented; actual LGU discovery evidence and parent F0 acceptance remain open**.
+Status: **F0.2 governed register and F0.3 editable coverage control implemented; actual LGU discovery evidence and parent F0 acceptance remain open**.
 
 ## Purpose
 
@@ -16,6 +16,24 @@ Each entry uses one evidence label:
 
 The preparer must state the question, current outcome, exact affected scope, evidence needed or why it is sufficient, owner, different reviewer, and optional due date. Protected evidence stays with its records custodian; GRAND stores a non-secret reference and custody location.
 
+## Editable coverage starters
+
+For a candidate shadow or parallel cycle, **Add coverage starters** creates nine ordinary drafts:
+
+1. whole enabled-scope acceptance;
+2. process steps;
+3. required fields and data;
+4. balances and control totals;
+5. certifications and approvals;
+6. signatures and accountable actors;
+7. official numbers and identifiers;
+8. forms, registers, reports, and other outputs; and
+9. exceptions and correction paths.
+
+These are minimum coverage areas, not a fixed LGU process. Staff edit the wording and add as many focused rows as the actual local route needs. Every starter begins **Unresolved**, blocks the cycle scope, and contains no assumed COA/DBM/local answer. Re-running the starter action creates only a missing current area.
+
+Before an area can be submitted as **LGU-confirmed**, it needs a retained acceptance-example reference: a blank/redacted example, replay result, control total, or an accountable accepted explanation that no local case applies. Protected bytes remain outside GRAND.
+
 ## Review and correction flow
 
 1. An authorized Finance configuration user creates the draft and may assign an owner or reviewer from another office.
@@ -27,17 +45,20 @@ The preparer must state the question, current outcome, exact affected scope, evi
 
 This is the discovery equivalent of GRAND's modification allowance: ordinary corrections remain easy before independent recording, while accepted history uses a traceable successor instead of silent editing. Voucher/check issuance, posting, payment, and other downstream locks remain governed by their own stricter workflows.
 
+When a cycle's cutover record leaves Draft, its linked discovery evidence is locked. A newly found issue belongs in the incident/rollback record and a successor cycle's discovery register; it cannot rewrite the evidence on which the earlier authority decision was made.
+
 ## Cutover relationship
 
 Link relevant decisions to the exact shadow or parallel cycle they affect. A cycle cannot satisfy its cutover-readiness gate unless:
 
-- one current, independently recorded **LGU-confirmed** F0 decision is linked to the cycle;
-- its affected scope exactly equals the cycle's enabled scope; and
+- one current, independently recorded **LGU-confirmed** F0 whole-scope decision is linked to the cycle;
+- that row has an acceptance example and its affected scope exactly equals the cycle's enabled scope;
+- current independently recorded LGU-confirmed rows with acceptance examples cover process step, field/data, balance/control total, certification/approval, signature/actor, number/identifier, output, and exception/correction; and
 - no current linked decision has **Blocks affected scope** selected.
 
 Therefore, an empty register is not proof that discovery is complete. A recorded Unresolved entry can accurately document a gap without blocking unrelated work, but the named affected scope cannot pass cutover until a reviewed successor clears it.
 
-The Field Acceptance Board displays linked decision and blocker counts outside its ten F10/F11 progress checkpoints. This keeps the coordination percentage honest while making the earlier F0 dependency visible.
+The Decisions workspace shows a 0–8 detailed-area summary per candidate cycle. The Field Acceptance Board displays missing area names, whole-scope state, and linked blocker counts outside its ten F10/F11 progress checkpoints. This keeps the coordination percentage honest while making the earlier F0 dependency visible.
 
 ## Access, guidance, and export
 
@@ -49,7 +70,7 @@ Every visible entry can be exported as a UTF-8 CSV. The exact downloaded bytes a
 
 `department/user/finance-discovery-decisions/year/month`
 
-inside the single `GRAND_EXPORT_ROOT` for TraceSync whole-folder safekeeping. Export is also written to the append-only Finance audit history. The F11 portable cutover package uses schema v8 and includes linked decision metadata, locked snapshots, checksums, actors, review basis, and successor lineage, while excluding protected evidence bytes and credentials.
+inside the single `GRAND_EXPORT_ROOT` for TraceSync whole-folder safekeeping. Export is also written to the append-only Finance audit history. The F11 portable cutover package uses schema v9 and includes linked decision coverage areas, acceptance-example references, locked snapshots, checksums, actors, review basis, and successor lineage, while excluding protected evidence bytes and credentials.
 
 ## Acceptance boundary
 

@@ -38,9 +38,10 @@ class FinanceDiscoveryDecisionForm(forms.ModelForm):
     class Meta:
         model = FinanceDiscoveryDecision
         fields = (
-            "cycle", "code", "phase", "question", "proposed_outcome",
+            "cycle", "code", "phase", "coverage_kind", "question", "proposed_outcome",
             "affected_scope", "evidence_label", "authority_evidence_reference",
-            "evidence_needed", "evidence_custody_reference", "blocks_affected_scope",
+            "evidence_needed", "evidence_custody_reference", "acceptance_example_reference",
+            "blocks_affected_scope",
             "owner", "reviewer", "due_date", "change_reason",
         )
         widgets = {
@@ -50,17 +51,18 @@ class FinanceDiscoveryDecisionForm(forms.ModelForm):
             "authority_evidence_reference": forms.Textarea(attrs={"rows": 3}),
             "evidence_needed": forms.Textarea(attrs={"rows": 3}),
             "evidence_custody_reference": forms.Textarea(attrs={"rows": 2}),
+            "acceptance_example_reference": forms.Textarea(attrs={"rows": 3}),
             "due_date": DateInput(),
             "change_reason": forms.Textarea(attrs={"rows": 3}),
         }
 
-    def __init__(self, *args, department=None, successor_of=None, **kwargs):
+    def __init__(self, *args, department=None, successor_of=None, creator=None, **kwargs):
         super().__init__(*args, **kwargs)
         users = get_user_model().objects.filter(
             is_active=True, employeeprofile__assigned_department__isnull=False,
         ).order_by("last_name", "first_name", "username")
         self.fields["owner"].queryset = users
-        self.fields["reviewer"].queryset = users
+        self.fields["reviewer"].queryset = users.exclude(pk=getattr(creator, "pk", None))
         if department:
             self.fields["cycle"].queryset = FinanceShadowCycle.objects.filter(
                 department=department,
@@ -89,6 +91,50 @@ class FinanceDiscoveryDecisionForm(forms.ModelForm):
                 "blocks_affected_scope",
                 "An unresolved decision must keep its named affected scope blocked.",
             )
+        if (
+            cleaned.get("evidence_label") == FinanceDiscoveryDecision.LGU_CONFIRMED
+            and cleaned.get("coverage_kind") != FinanceDiscoveryDecision.GENERAL
+            and not str(cleaned.get("acceptance_example_reference") or "").strip()
+        ):
+            self.add_error(
+                "acceptance_example_reference",
+                "Reference a retained acceptance example or explain the accepted no-case result.",
+            )
+        return cleaned
+
+
+class FinanceDiscoveryCoverageStarterForm(forms.Form):
+    cycle = forms.ModelChoiceField(
+        queryset=FinanceShadowCycle.objects.none(),
+        label="Shadow / parallel cycle",
+        help_text="The starter rows will use this cycle's exact enabled scope and remain unresolved drafts.",
+    )
+    owner = forms.ModelChoiceField(
+        queryset=get_user_model().objects.none(),
+        help_text="This person gathers the evidence and prepares each row.",
+    )
+    reviewer = forms.ModelChoiceField(
+        queryset=get_user_model().objects.none(),
+        help_text="Choose a different person to independently record or return each row.",
+    )
+    due_date = forms.DateField(required=False, widget=DateInput())
+
+    def __init__(self, *args, department=None, actor=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        users = get_user_model().objects.filter(
+            is_active=True, employeeprofile__assigned_department__isnull=False,
+        ).order_by("last_name", "first_name", "username")
+        self.fields["owner"].queryset = users
+        self.fields["reviewer"].queryset = users.exclude(pk=getattr(actor, "pk", None))
+        if department:
+            self.fields["cycle"].queryset = FinanceShadowCycle.objects.filter(
+                department=department,
+            ).order_by("-fiscal_year", "-planned_start", "code")
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("owner") and cleaned.get("reviewer") and cleaned["owner"] == cleaned["reviewer"]:
+            self.add_error("reviewer", "Choose a reviewer other than the evidence owner.")
         return cleaned
 
 

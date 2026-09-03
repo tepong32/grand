@@ -31,11 +31,13 @@ from .cutover_services import (
 )
 from .acceptance_services import build_field_acceptance_board, export_field_acceptance_board
 from .discovery_services import (
-    export_discovery_decision, review_discovery_decision, submit_discovery_decision,
+    create_discovery_coverage_starters, export_discovery_decision,
+    review_discovery_decision, submit_discovery_decision,
 )
 from .forms import (
     FinanceCutoverDecisionForm,
-    FinanceDiscoveryDecisionForm, FinanceDocumentRuleForm, FinanceItemForm,
+    FinanceDiscoveryCoverageStarterForm, FinanceDiscoveryDecisionForm,
+    FinanceDocumentRuleForm, FinanceItemForm,
     FinanceNumberingSequenceForm, FinanceReleaseForm,
     FinancePartyClaimantForm, FinancePartyForm, FinancePostingRuleForm, FinancePostingRuleLineForm,
     FinanceShadowComparisonForm, FinanceShadowCycleForm, FinanceShadowDriftReviewForm,
@@ -929,6 +931,44 @@ def discovery_workspace(request):
         selected_status = ""
     department = department_for_user(request.user)
     can_create = can_manage_finance_discovery(request.user, department)
+    coverage_summaries = []
+    if can_create:
+        coverage_labels = dict(FinanceDiscoveryDecision.COVERAGE_KIND_CHOICES)
+        for cycle in FinanceShadowCycle.objects.filter(department=department).prefetch_related(
+            "discovery_decisions",
+        ).order_by("-fiscal_year", "-planned_start", "code"):
+            current = [
+                item for item in cycle.discovery_decisions.all()
+                if item.status != FinanceDiscoveryDecision.SUPERSEDED
+            ]
+            accepted_kinds = {
+                item.coverage_kind for item in current
+                if item.status == FinanceDiscoveryDecision.RECORDED
+                and item.phase == "F0"
+                and item.evidence_label == FinanceDiscoveryDecision.LGU_CONFIRMED
+                and not item.blocks_affected_scope
+                and item.acceptance_example_reference.strip()
+            }
+            missing = sorted(FinanceDiscoveryDecision.REQUIRED_COVERAGE_KINDS - accepted_kinds)
+            scope_accepted = any(
+                item.coverage_kind == FinanceDiscoveryDecision.SCOPE_ACCEPTANCE
+                and item.phase == "F0"
+                and item.status == FinanceDiscoveryDecision.RECORDED
+                and item.evidence_label == FinanceDiscoveryDecision.LGU_CONFIRMED
+                and not item.blocks_affected_scope
+                and item.acceptance_example_reference.strip()
+                and item.affected_scope.strip() == cycle.enabled_scope.strip()
+                for item in current
+            )
+            coverage_summaries.append({
+                "cycle": cycle,
+                "current_count": len(current),
+                "blocking_count": sum(item.blocks_affected_scope for item in current),
+                "accepted_count": len(FinanceDiscoveryDecision.REQUIRED_COVERAGE_KINDS) - len(missing),
+                "required_count": len(FinanceDiscoveryDecision.REQUIRED_COVERAGE_KINDS),
+                "missing_labels": [coverage_labels[kind] for kind in missing],
+                "scope_accepted": scope_accepted,
+            })
     visible = list(decisions)
     return render(request, "finance/discovery_workspace.html", {
         "decisions": visible,
@@ -937,6 +977,7 @@ def discovery_workspace(request):
         "phase_choices": FinanceDiscoveryDecision.PHASE_CHOICES,
         "status_choices": FinanceDiscoveryDecision.STATUS_CHOICES,
         "can_create": can_create,
+        "coverage_summaries": coverage_summaries,
         "can_access_setup": bool(department and can_view_finance_setup(request.user, department)),
         "blocking_count": sum(item.is_current_blocker for item in visible),
     })
@@ -945,7 +986,9 @@ def discovery_workspace(request):
 @finance_permission_required(can_manage_finance_discovery)
 def discovery_decision_create(request):
     department = department_for_user(request.user)
-    form = FinanceDiscoveryDecisionForm(request.POST or None, department=department)
+    form = FinanceDiscoveryDecisionForm(
+        request.POST or None, department=department, creator=request.user,
+    )
     if request.method == "POST" and form.is_valid():
         item = form.save(False)
         item.department = department
@@ -980,6 +1023,34 @@ def discovery_decision_create(request):
     })
 
 
+@finance_permission_required(can_manage_finance_discovery)
+def discovery_coverage_starters(request):
+    department = department_for_user(request.user)
+    form = FinanceDiscoveryCoverageStarterForm(
+        request.POST or None, department=department, actor=request.user,
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            created = create_discovery_coverage_starters(
+                form.cleaned_data["cycle"],
+                request.user,
+                owner=form.cleaned_data["owner"],
+                reviewer=form.cleaned_data["reviewer"],
+                due_date=form.cleaned_data["due_date"],
+            )
+        except ValidationError as exc:
+            form.add_error(None, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+        else:
+            messages.success(
+                request,
+                f"{len(created)} unresolved discovery coverage starter(s) added. Edit each row from local evidence before review.",
+            )
+            return redirect("finance:discovery_workspace")
+    return render(request, "finance/discovery_coverage_starter.html", {
+        "form": form,
+    })
+
+
 @discovery_access_required
 def discovery_decision_detail(request, public_id):
     item = _discovery_decision_for_user(request.user, public_id)
@@ -997,7 +1068,10 @@ def discovery_decision_edit(request, public_id):
         raise PermissionDenied
     if item.status not in {FinanceDiscoveryDecision.DRAFT, FinanceDiscoveryDecision.RETURNED}:
         return redirect("finance:discovery_decision_detail", public_id=item.public_id)
-    form = FinanceDiscoveryDecisionForm(request.POST or None, instance=item, department=item.department)
+    form = FinanceDiscoveryDecisionForm(
+        request.POST or None, instance=item, department=item.department,
+        creator=item.created_by,
+    )
     if request.method == "POST" and form.is_valid():
         item = form.save()
         FinanceAuditEvent.objects.create(
@@ -1054,7 +1128,7 @@ def discovery_decision_successor(request, public_id):
     )
     form = FinanceDiscoveryDecisionForm(
         request.POST or None, instance=instance, department=predecessor.department,
-        successor_of=predecessor,
+        successor_of=predecessor, creator=request.user,
     )
     if request.method == "POST" and form.is_valid():
         item = form.save(False)

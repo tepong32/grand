@@ -324,11 +324,12 @@ class FinanceShadowCutoverTests(TestCase):
             )
 
     def _record_discovery_coverage(self, cycle, *, code="DEC-F0-COVERAGE"):
-        item = FinanceDiscoveryDecision.objects.create(
+        decisions = [FinanceDiscoveryDecision.objects.create(
             department=cycle.department,
             cycle=cycle,
             code=code,
             phase="F0",
+            coverage_kind=FinanceDiscoveryDecision.SCOPE_ACCEPTANCE,
             question="Has the LGU confirmed the exact Finance scope enabled for this candidate cycle?",
             proposed_outcome="Proceed only with the cycle's exact enabled scope under the retained local confirmation.",
             affected_scope=cycle.enabled_scope,
@@ -336,19 +337,41 @@ class FinanceShadowCutoverTests(TestCase):
             authority_evidence_reference="Retained Finance discovery workshop and accountable-owner decision DISC-F0-001",
             evidence_needed="The cited workshop record and accountable-owner decision are sufficient for this exact cycle scope.",
             evidence_custody_reference="Restricted Finance discovery packet DISC/F0/001",
+            acceptance_example_reference="Accepted exact-scope replay and decision record EXAMPLE-F0-001",
             blocks_affected_scope=False,
             owner=self.manager,
             reviewer=self.reconciler,
             created_by=self.manager,
-        )
-        submit_discovery_decision(item, self.manager)
-        review_discovery_decision(
-            item,
-            self.reconciler,
-            record=True,
-            reason="Independently reviewed the retained LGU confirmation against this exact enabled scope.",
-        )
-        return FinanceDiscoveryDecision.objects.get(pk=item.pk)
+        )]
+        for index, coverage_kind in enumerate(sorted(FinanceDiscoveryDecision.REQUIRED_COVERAGE_KINDS), 1):
+            decisions.append(FinanceDiscoveryDecision.objects.create(
+                department=cycle.department,
+                cycle=cycle,
+                code=f"{code[:30]}-{index}",
+                phase="F0",
+                coverage_kind=coverage_kind,
+                question=f"Is the {coverage_kind} coverage complete for this candidate cycle?",
+                proposed_outcome="Use the locally confirmed evidence for this coverage area within the candidate scope.",
+                affected_scope=f"{coverage_kind} coverage within: {cycle.enabled_scope}",
+                evidence_label=FinanceDiscoveryDecision.LGU_CONFIRMED,
+                authority_evidence_reference=f"Retained Finance discovery evidence DISC-F0-{index:03d}",
+                evidence_needed="The cited reviewed evidence is sufficient for this coverage area.",
+                evidence_custody_reference=f"Restricted Finance discovery packet DISC/F0/{index:03d}",
+                acceptance_example_reference=f"Accepted redacted example or no-case explanation EXAMPLE-F0-{index:03d}",
+                blocks_affected_scope=False,
+                owner=self.manager,
+                reviewer=self.reconciler,
+                created_by=self.manager,
+            ))
+        for item in decisions:
+            submit_discovery_decision(item, self.manager)
+            review_discovery_decision(
+                item,
+                self.reconciler,
+                record=True,
+                reason="Independently reviewed the retained LGU confirmation and acceptance example for this coverage area.",
+            )
+        return FinanceDiscoveryDecision.objects.get(pk=decisions[0].pk)
 
     def _approve_readiness_plan(self, cycle):
         existing = FinanceCutoverReadinessPlan.objects.filter(cycle=cycle).first()
@@ -538,7 +561,7 @@ class FinanceShadowCutoverTests(TestCase):
         )
         content, _filename, _receipt = build_cutover_evidence_package(cycle, self.manager)
         payload = json.loads(content)
-        self.assertEqual(payload["schema_version"], 8)
+        self.assertEqual(payload["schema_version"], 9)
         self.assertEqual(payload["cycle"]["schema_version"], 3)
         self.assertEqual(payload["cycle"]["reconciliation_plan"]["status"], "approved")
         self.assertEqual(payload["cycle"]["source_versions"][0]["row_count"], 1)
@@ -799,7 +822,7 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertIn(FinanceCutoverReadinessExercise.PRIVACY, readiness["missing_exercises"])
         content, _filename, _receipt = build_cutover_evidence_package(cycle, self.requesting_reviewer)
         payload = json.loads(content)
-        self.assertEqual(payload["schema_version"], 8)
+        self.assertEqual(payload["schema_version"], 9)
         self.assertEqual(payload["cutover_readiness_plan"]["status"], "approved")
         self.assertEqual(payload["cutover_readiness_exercises"][0]["status"], "passed")
         self.assertNotIn("progress_percent", content.decode("utf-8"))
@@ -881,7 +904,7 @@ class FinanceShadowCutoverTests(TestCase):
         content, _filename, _receipt = build_cutover_evidence_package(cycle, self.manager)
         payload = json.loads(content)
         recovery_payload = payload["cutover_readiness_exercises"][0]["recovery_rehearsal"]
-        self.assertEqual(payload["schema_version"], 8)
+        self.assertEqual(payload["schema_version"], 9)
         self.assertEqual(recovery_payload["backup_id"], "20270104T083000000000Z-deadbeef")
         self.assertEqual(recovery_payload["actual_rto_minutes"], 45)
         self.assertTrue(recovery_payload["meets_control_objectives"])
@@ -915,6 +938,18 @@ class FinanceShadowCutoverTests(TestCase):
         self._approve_qualification(cycle, [predecessor, cycle])
         self._record_discovery_coverage(cycle)
         self.assertTrue(cutover_readiness(cycle)["ready"])
+        package_content, _package_name, _package_receipt = build_cutover_evidence_package(
+            cycle, self.manager,
+        )
+        package = json.loads(package_content)
+        self.assertEqual(package["schema_version"], 9)
+        self.assertEqual(len(package["discovery_decisions"]), 9)
+        self.assertEqual(
+            {item["coverage_kind"] for item in package["discovery_decisions"]},
+            FinanceDiscoveryDecision.REQUIRED_COVERAGE_KINDS | {
+                FinanceDiscoveryDecision.SCOPE_ACCEPTANCE,
+            },
+        )
         submit_cutover_decision(decision, self.manager)
         decision.refresh_from_db()
         with self.assertRaisesMessage(ValidationError, "preparer"):
@@ -923,6 +958,21 @@ class FinanceShadowCutoverTests(TestCase):
         decision.refresh_from_db()
         self.assertTrue(decision.makes_grand_authoritative)
         self.assertEqual(decision.recovery_rehearsal.backup_id, "20270104T083000000000Z-deadbeef")
+        with self.assertRaisesMessage(ValidationError, "successor cycle"):
+            FinanceDiscoveryDecision.objects.create(
+                department=cycle.department,
+                cycle=cycle,
+                code="DEC-LATE-FINDING",
+                phase="F0",
+                question="Attempted late rewrite of accepted discovery evidence",
+                proposed_outcome="This must be recorded against a successor cycle.",
+                affected_scope=cycle.enabled_scope,
+                evidence_label=FinanceDiscoveryDecision.UNRESOLVED,
+                evidence_needed="Record the incident and use the governed rollback/successor route.",
+                owner=self.manager,
+                reviewer=self.reconciler,
+                created_by=self.manager,
+            )
         scheduled_for = timezone.make_aware(datetime.combine(cycle.planned_end, time(16, 0)))
         with self.assertRaisesMessage(ValidationError, "locked after the cutover record"):
             schedule_cutover_readiness_exercise(
@@ -953,6 +1003,7 @@ class FinanceShadowCutoverTests(TestCase):
             cycle=cycle,
             code="DEC-F0-GATE",
             phase="F0",
+            coverage_kind=FinanceDiscoveryDecision.SCOPE_ACCEPTANCE,
             question="Has the exact candidate scope been confirmed by the LGU?",
             proposed_outcome="Keep only this candidate scope blocked pending retained local confirmation.",
             affected_scope=cycle.enabled_scope,
@@ -980,6 +1031,7 @@ class FinanceShadowCutoverTests(TestCase):
             code=blocker.code,
             version=2,
             phase="F0",
+            coverage_kind=FinanceDiscoveryDecision.SCOPE_ACCEPTANCE,
             question=blocker.question,
             proposed_outcome="Proceed only with the cycle's exact scope under the retained local confirmation.",
             affected_scope=cycle.enabled_scope,
@@ -987,6 +1039,7 @@ class FinanceShadowCutoverTests(TestCase):
             authority_evidence_reference="Retained accountable-owner workshop decision DISC-F0-GATE",
             evidence_needed="The cited decision and exact-scope replay are sufficient.",
             evidence_custody_reference="Restricted Finance discovery packet DISC/F0/GATE",
+            acceptance_example_reference="Accepted exact-scope replay and decision record EXAMPLE-F0-GATE",
             blocks_affected_scope=False,
             owner=self.manager,
             reviewer=self.reconciler,
@@ -1008,6 +1061,10 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertTrue(discovery_check["passed"])
         self.assertEqual(readiness["discovery_blocking_ids"], [])
         self.assertEqual(readiness["discovery_coverage_ids"], [successor.pk])
+        self.assertEqual(
+            set(readiness["missing_discovery_kinds"]),
+            FinanceDiscoveryDecision.REQUIRED_COVERAGE_KINDS,
+        )
 
     def test_field_qualification_rejects_short_or_misordered_chain_and_locks_accepted_evidence(self):
         predecessor = self._reconciled_cycle(code="fy-2027-chain-01")
@@ -1167,6 +1224,11 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertEqual(board["total_count"], 10)
         self.assertFalse(board["authorized"])
         self.assertFalse(board["cutover_ready"])
+        self.assertFalse(board["discovery_scope_accepted"])
+        self.assertEqual(
+            set(board["missing_discovery_kinds"]),
+            FinanceDiscoveryDecision.REQUIRED_COVERAGE_KINDS,
+        )
         self.assertEqual(board["milestones"][-1]["state_label"], "Not started")
         source = next(item for item in board["milestones"] if item["code"] == "source_layout")
         self.assertFalse(source["passed"])
@@ -1203,6 +1265,7 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertIn("checkpoint_code", content)
         self.assertIn("source_layout", content)
         self.assertIn("grand_authorized", content)
+        self.assertIn("missing_discovery_coverage", content)
         event = FinanceAuditEvent.objects.get(
             target_type="financeshadowcycle",
             target_id=str(cycle.pk),

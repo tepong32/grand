@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Discovery Coverage Starters{% endblock %}
+{% block content %}
+<div class="container pb-4">
+  <a class="small" href="{% url 'finance:discovery_workspace' %}">&larr; Finance Decisions &amp; Evidence</a>
+  <h1 class="h3 mt-2">Add discovery coverage starters</h1>
+  <div class="alert alert-info"><strong>Nine editable prompts, no assumed answers.</strong> GRAND creates one whole-scope prompt plus process-step, field, balance, certification, signature, number, output, and exception prompts. Every row starts Unresolved and blocks only the cycle scope until local evidence is entered and independently reviewed.</div>
+  <form method="post" class="card card-body">{% csrf_token %}{{ form.as_p }}<div><button class="btn btn-primary">Add unresolved starter set</button></div></form>
+  <div class="alert alert-light border small mt-3">If a current row already covers one area, GRAND keeps it and creates only the missing starter areas. Re-running this action does not duplicate current coverage.</div>
+</div>
+{% endblock %}

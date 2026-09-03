@@ -956,6 +956,31 @@ class FinanceDiscoveryDecision(models.Model):
         (RETURNED, "Returned for correction"),
         (SUPERSEDED, "Superseded by recorded successor"),
     )
+    GENERAL = "general"
+    SCOPE_ACCEPTANCE = "scope_acceptance"
+    STEP = "step"
+    FIELD = "field"
+    BALANCE = "balance"
+    CERTIFICATION = "certification"
+    SIGNATURE = "signature"
+    NUMBER = "number"
+    OUTPUT = "output"
+    EXCEPTION = "exception"
+    COVERAGE_KIND_CHOICES = (
+        (GENERAL, "General finding / decision"),
+        (SCOPE_ACCEPTANCE, "Whole enabled-scope acceptance"),
+        (STEP, "Process step"),
+        (FIELD, "Required field / data"),
+        (BALANCE, "Balance / control total"),
+        (CERTIFICATION, "Certification / approval"),
+        (SIGNATURE, "Signature / accountable actor"),
+        (NUMBER, "Official number / identifier"),
+        (OUTPUT, "Form / report / other output"),
+        (EXCEPTION, "Exception / correction path"),
+    )
+    REQUIRED_COVERAGE_KINDS = {
+        STEP, FIELD, BALANCE, CERTIFICATION, SIGNATURE, NUMBER, OUTPUT, EXCEPTION,
+    }
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     department = models.ForeignKey(
@@ -969,6 +994,10 @@ class FinanceDiscoveryDecision(models.Model):
     code = models.CharField(max_length=40, help_text="Use a stable local reference such as DEC-001.")
     version = models.PositiveIntegerField(default=1)
     phase = models.CharField(max_length=4, choices=PHASE_CHOICES, default="F0")
+    coverage_kind = models.CharField(
+        max_length=24, choices=COVERAGE_KIND_CHOICES, default=GENERAL,
+        help_text="Choose the part of discovery this row proves. Add as many rows as the local process needs.",
+    )
     question = models.CharField(max_length=240)
     proposed_outcome = models.TextField(
         help_text="State the proposed answer or explain why the affected scope must remain unresolved.",
@@ -989,6 +1018,10 @@ class FinanceDiscoveryDecision(models.Model):
     evidence_custody_reference = models.TextField(
         blank=True,
         help_text="State where the protected evidence is retained without entering credentials or a secret-bearing link.",
+    )
+    acceptance_example_reference = models.TextField(
+        blank=True,
+        help_text="For a coverage row, reference the retained blank/redacted example, replay, control total, or accepted no-case explanation.",
     )
     blocks_affected_scope = models.BooleanField(
         default=True,
@@ -1065,8 +1098,22 @@ class FinanceDiscoveryDecision(models.Model):
         if self.status in {self.SUBMITTED, self.RECORDED, self.SUPERSEDED} and self.evidence_label != self.UNRESOLVED:
             if not self.authority_evidence_reference.strip() or not self.evidence_custody_reference.strip():
                 raise ValidationError("A non-Unresolved submitted decision requires its evidence reference and custody location.")
+        if (
+            self.status in {self.SUBMITTED, self.RECORDED, self.SUPERSEDED}
+            and self.evidence_label == self.LGU_CONFIRMED
+            and self.coverage_kind != self.GENERAL
+            and not self.acceptance_example_reference.strip()
+        ):
+            raise ValidationError({
+                "acceptance_example_reference": "An LGU-confirmed coverage decision requires a retained acceptance example or accepted no-case explanation.",
+            })
         if self.cycle_id and self.department_id and self.cycle.department_id != self.department_id:
             raise ValidationError({"cycle": "Choose a cycle owned by the same Finance department."})
+        if self.cycle_id and hasattr(self.cycle, "cutover_decision"):
+            if self.cycle.cutover_decision.status != self.cycle.cutover_decision.DRAFT:
+                raise ValidationError({
+                    "cycle": "Discovery evidence is locked after the cycle's cutover record leaves Draft. Record new findings against a successor cycle and use rollback when required.",
+                })
         if self.predecessor_id:
             if self.predecessor.department_id != self.department_id:
                 raise ValidationError({"predecessor": "The predecessor must belong to the same Finance department."})
@@ -1090,9 +1137,10 @@ class FinanceDiscoveryDecision(models.Model):
             prior = type(self).objects.filter(pk=self.pk).first()
             if prior and prior.status in {self.SUBMITTED, self.RECORDED, self.SUPERSEDED}:
                 governed = (
-                    "department_id", "cycle_id", "code", "version", "phase", "question",
+                    "department_id", "cycle_id", "code", "version", "phase", "coverage_kind", "question",
                     "proposed_outcome", "affected_scope", "evidence_label",
                     "authority_evidence_reference", "evidence_needed", "evidence_custody_reference",
+                    "acceptance_example_reference",
                     "blocks_affected_scope", "owner_id", "reviewer_id", "due_date",
                     "predecessor_id", "change_reason", "evidence_snapshot", "evidence_checksum",
                     "submitted_by_id", "submitted_at",

@@ -1,5 +1,15 @@
 # Changelog
 
+## F0.3 editable Finance discovery coverage
+
+- Added a one-action, human-editable starter set for each candidate cycle: whole-scope acceptance plus process-step, field/data, balance/control-total, certification/approval, signature/actor, number/identifier, output, and exception/correction prompts.
+- Kept every starter non-authoritative and safely blocking as an Unresolved draft, skipped already represented current areas on rerun, and retained attributable creation events.
+- Added a retained acceptance-example field and required it before any non-general coverage row can be submitted as LGU-confirmed.
+- Added a plain candidate-cycle coverage summary and Field Acceptance Board warnings that show the missing areas and whole-scope decision separately from the ten F10/F11 checkpoints.
+- Tightened cutover readiness to require all eight detailed F0 areas plus a separately reviewed exact-scope acceptance, while preserving any current linked blocker.
+- Locked cycle-linked discovery evidence after its cutover record leaves Draft, directing later findings through the retained rollback and successor-cycle route.
+- Extended decision CSV, locked snapshots, portable cutover evidence schema v9, the Accounting floating guide, tests, and roadmap documentation without hard-coding an LGU's local answers.
+
 ## F0.2 governed Finance decisions and evidence register
 
 - Added a plain-language, department-bounded Decisions & evidence workspace using distinct Observed in eGAPS, Official reference, LGU-confirmed, GRAND-implemented, and Unresolved labels.
@@ -7,7 +17,7 @@
 - Kept Draft and Returned records editable, made recorded evidence immutable, and added reasoned successor versions that preserve their predecessor until independently recorded.
 - Made recorded Unresolved findings remain blockers for only their named affected scope, and required an exact-scope recorded LGU-confirmed F0 decision with no current linked blocker before cutover readiness can pass.
 - Added role-bounded detail and CSV export, TraceSync archive manifests, linked blocker visibility on the Field Acceptance Board, an Accounting-specific floating Internal How-To, and schema-v8 cutover evidence containing decision lineage without protected evidence bytes.
-- Added lifecycle, UI, access, correction, export, and cutover-gate coverage; all 44 Finance tests and all 393 project tests passed across both routed databases, with clean system and migration-drift checks, while actual LGU evidence and parent-F0 acceptance remain open.
+- Added lifecycle, UI, access, correction, export, and cutover-gate coverage; all 46 Finance tests and all 395 project tests passed across both routed databases, with clean system and migration-drift checks, while actual LGU evidence and parent-F0 acceptance remain open.
 
 ## Finance roadmap-wide validation and field handoff
 

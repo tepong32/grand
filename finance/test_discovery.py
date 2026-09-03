@@ -11,7 +11,7 @@ from departments.models import Department
 from profiles.models import EmployeeProfile
 
 from .discovery_services import review_discovery_decision, submit_discovery_decision
-from .models import FinanceAuditEvent, FinanceDiscoveryDecision
+from .models import FinanceAuditEvent, FinanceDiscoveryDecision, FinanceShadowCycle
 
 
 EXPORT_ROOT = tempfile.mkdtemp(prefix="grand-discovery-export-tests-")
@@ -122,6 +122,18 @@ class FinanceDiscoveryDecisionTests(TestCase):
         self.assertEqual(successor.status, FinanceDiscoveryDecision.RECORDED)
         self.assertFalse(successor.is_current_blocker)
 
+    def test_lgu_confirmed_coverage_requires_a_retained_acceptance_example(self):
+        with self.assertRaisesMessage(ValidationError, "acceptance example"):
+            item = self._decision(
+                code="DEC-EXAMPLE-REQ",
+                coverage_kind=FinanceDiscoveryDecision.STEP,
+                evidence_label=FinanceDiscoveryDecision.LGU_CONFIRMED,
+                authority_evidence_reference="Retained local decision DISC-EXAMPLE-001",
+                evidence_custody_reference="Restricted packet DISC/EXAMPLE/001",
+                blocks_affected_scope=False,
+            )
+            submit_discovery_decision(item, self.owner)
+
     def test_owner_and_reviewer_have_narrow_workflow_access_and_outsider_does_not(self):
         item = self._decision(code="DEC-103")
         self.client.force_login(self.owner)
@@ -178,6 +190,7 @@ class FinanceDiscoveryDecisionTests(TestCase):
                 "cycle": "",
                 "code": "dec-ui-105",
                 "phase": "F0",
+                "coverage_kind": FinanceDiscoveryDecision.GENERAL,
                 "question": "Has the exact ordinary-DV discovery scope been confirmed?",
                 "proposed_outcome": "Keep the named ordinary-DV scope blocked until the local workshop record is retained.",
                 "affected_scope": "Ordinary supplier DVs for the General Fund in FY 2027 only",
@@ -210,6 +223,7 @@ class FinanceDiscoveryDecisionTests(TestCase):
             {
                 "cycle": "",
                 "phase": "F0",
+                "coverage_kind": FinanceDiscoveryDecision.GENERAL,
                 "question": item.question,
                 "proposed_outcome": "Use the locally confirmed ordinary-DV route for this exact scope.",
                 "affected_scope": item.affected_scope,
@@ -231,3 +245,57 @@ class FinanceDiscoveryDecisionTests(TestCase):
         self.assertEqual(successor.predecessor, item)
         self.assertEqual(successor.status, FinanceDiscoveryDecision.DRAFT)
         self.assertEqual(successor.change_reason, "The named local confirmation has now been retained and reviewed.")
+
+    def test_coverage_starter_set_is_editable_complete_and_idempotent(self):
+        cycle = FinanceShadowCycle.objects.create(
+            department=self.accounting,
+            code="fy-2027-discovery-starters",
+            title="FY 2027 discovery coverage preparation",
+            fiscal_year=2027,
+            enabled_scope="General Fund ordinary supplier DVs for Engineering in January 2027",
+            source_system_label="Current locally authoritative process",
+            source_extract_reference="Restricted discovery packet DISC-START-001",
+            planned_start=date(2027, 1, 4),
+            planned_end=date(2027, 1, 29),
+            created_by=self.manager,
+        )
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse("finance:discovery_coverage_starters"),
+            {
+                "cycle": cycle.pk,
+                "owner": self.manager.pk,
+                "reviewer": self.reviewer.pk,
+                "due_date": "2027-01-12",
+            },
+        )
+        self.assertRedirects(response, reverse("finance:discovery_workspace"))
+        rows = FinanceDiscoveryDecision.objects.filter(cycle=cycle)
+        self.assertEqual(rows.count(), 9)
+        self.assertEqual(
+            set(rows.values_list("coverage_kind", flat=True)),
+            FinanceDiscoveryDecision.REQUIRED_COVERAGE_KINDS | {
+                FinanceDiscoveryDecision.SCOPE_ACCEPTANCE,
+            },
+        )
+        self.assertTrue(all(item.status == FinanceDiscoveryDecision.DRAFT for item in rows))
+        self.assertTrue(all(item.is_current_blocker for item in rows))
+        self.assertEqual(
+            FinanceAuditEvent.objects.filter(action="discovery_coverage_starter_created").count(),
+            9,
+        )
+        workspace = self.client.get(reverse("finance:discovery_workspace"))
+        self.assertContains(workspace, "Candidate-cycle discovery coverage")
+        self.assertContains(workspace, "0 / 8")
+        self.assertContains(workspace, "Whole scope")
+
+        response = self.client.post(
+            reverse("finance:discovery_coverage_starters"),
+            {
+                "cycle": cycle.pk,
+                "owner": self.manager.pk,
+                "reviewer": self.reviewer.pk,
+            },
+        )
+        self.assertRedirects(response, reverse("finance:discovery_workspace"))
+        self.assertEqual(FinanceDiscoveryDecision.objects.filter(cycle=cycle).count(), 9)

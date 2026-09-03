@@ -29,13 +29,13 @@ Personal Internal How-To checkmarks remain private resume aids. They do not feed
 
 GRAND is authoritative only when the selected cycle has a separately prepared, independently authorized cutover decision for its exact scope and date. A ready board without that decision remains **Shadow/UAT only**.
 
-The cutover-readiness calculation also requires a current, independently recorded LGU-confirmed F0 decision whose affected scope exactly matches the cycle's enabled scope, with no current linked blocker. No linked entry is not treated as discovery acceptance evidence.
+The cutover-readiness calculation also requires LGU-confirmed F0 rows with retained acceptance examples for all eight detailed areas, a current independently recorded whole-scope decision whose affected scope exactly matches the cycle's enabled scope, and no current linked blocker. The board names missing areas above the ten checkpoints. No linked entry or unresolved generated starter is treated as discovery acceptance evidence.
 
 ## Access and portable export
 
 A Finance shadow-operation user sees cycles owned by their department. A requesting-office or other stakeholder sees only cycles explicitly assigned to their account. Supplying another cycle ID does not broaden access.
 
-The CSV export contains the selected cycle, exact enabled scope, linked discovery-decision/blocker counts, each checkpoint state, current evidence summary, next action, and current authority flag. The browser download bytes are archived atomically under:
+The CSV export contains the selected cycle, exact enabled scope, linked discovery-decision/blocker counts, missing discovery coverage, each checkpoint state, current evidence summary, next action, and current authority flag. The browser download bytes are archived atomically under:
 
 `department/user/finance-field-acceptance/year/month`
 

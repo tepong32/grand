@@ -13,6 +13,7 @@ from .models import (
     FinanceCutoverDecision,
     FinanceCutoverReadinessExercise,
     FinanceCutoverReadinessPlan,
+    FinanceDiscoveryDecision,
     FinanceShadowReconciliationPlan,
     FinanceShadowSourceVersion,
 )
@@ -83,6 +84,7 @@ def build_field_acceptance_board(cycle):
     discovery_blocking_count = discovery_decisions.filter(
         blocks_affected_scope=True,
     ).count()
+    coverage_labels = dict(FinanceDiscoveryDecision.COVERAGE_KIND_CHOICES)
 
     plans_passed = bool(
         reconciliation_plan
@@ -241,6 +243,12 @@ def build_field_acceptance_board(cycle):
         "decision_status": decision.status if decision else "not_prepared",
         "discovery_decision_count": discovery_decision_count,
         "discovery_blocking_count": discovery_blocking_count,
+        "discovery_scope_accepted": _all_pass(checks, "discovery_scope_accepted"),
+        "discovery_dimensions_accepted": _all_pass(checks, "discovery_dimensions_accepted"),
+        "missing_discovery_kinds": readiness["missing_discovery_kinds"],
+        "missing_discovery_labels": [
+            coverage_labels[kind] for kind in readiness["missing_discovery_kinds"]
+        ],
     }
 
 
@@ -262,6 +270,7 @@ def export_field_acceptance_board(cycle, actor):
             "grand_authorized",
             "linked_discovery_decisions",
             "linked_scope_blockers",
+            "missing_discovery_coverage",
         )
     )
     for milestone in board["milestones"]:
@@ -279,6 +288,7 @@ def export_field_acceptance_board(cycle, actor):
                 "yes" if board["authorized"] else "no",
                 board["discovery_decision_count"],
                 board["discovery_blocking_count"],
+                ", ".join(board["missing_discovery_labels"]),
             )
         )
     content = "\ufeff".encode("utf-8") + stream.getvalue().encode("utf-8")
@@ -297,6 +307,7 @@ def export_field_acceptance_board(cycle, actor):
             "grand_authorized": board["authorized"],
             "linked_discovery_decisions": board["discovery_decision_count"],
             "linked_scope_blockers": board["discovery_blocking_count"],
+            "missing_discovery_coverage": board["missing_discovery_kinds"],
         },
     )
     FinanceAuditEvent.objects.create(

@@ -13,6 +13,7 @@ from django.utils import timezone
 from src.export_archive import archive_export
 
 from .access import (
+    can_manage_finance_discovery,
     can_prepare_finance_discovery_decision,
     can_review_finance_discovery_decision,
     can_view_finance_discovery_decision,
@@ -28,6 +29,7 @@ def discovery_decision_snapshot(item):
         "code": item.code,
         "version": item.version,
         "phase": item.phase,
+        "coverage_kind": item.coverage_kind,
         "question": item.question,
         "proposed_outcome": item.proposed_outcome,
         "affected_scope": item.affected_scope,
@@ -35,6 +37,7 @@ def discovery_decision_snapshot(item):
         "authority_evidence_reference": item.authority_evidence_reference,
         "evidence_needed": item.evidence_needed,
         "evidence_custody_reference": item.evidence_custody_reference,
+        "acceptance_example_reference": item.acceptance_example_reference,
         "blocks_affected_scope": item.blocks_affected_scope,
         "owner_id": item.owner_id,
         "reviewer_id": item.reviewer_id,
@@ -60,6 +63,76 @@ def _event(item, actor, action, *, reason="", snapshot=None):
         reason=str(reason or "").strip(),
         snapshot=snapshot or {},
     )
+
+
+COVERAGE_STARTERS = (
+    (FinanceDiscoveryDecision.SCOPE_ACCEPTANCE, "SCOPE", "Has the LGU accepted this complete enabled scope after reviewing every coverage row?"),
+    (FinanceDiscoveryDecision.STEP, "STEP", "Are all required process steps, gates, handoffs, and repeated visits identified?"),
+    (FinanceDiscoveryDecision.FIELD, "FIELD", "Are all required fields, classifications, and source values identified?"),
+    (FinanceDiscoveryDecision.BALANCE, "BAL", "Are all affected balances, equations, control totals, and reconciliation points identified?"),
+    (FinanceDiscoveryDecision.CERTIFICATION, "CERT", "Are all certifications, approvals, and conditions for the next action identified?"),
+    (FinanceDiscoveryDecision.SIGNATURE, "SIGN", "Are all accountable actors, signing orders, acting rules, and custody points identified?"),
+    (FinanceDiscoveryDecision.NUMBER, "NUM", "Are all official numbers, assignment times, preserved identifiers, and replacement rules identified?"),
+    (FinanceDiscoveryDecision.OUTPUT, "OUT", "Are all forms, registers, reports, print/layout needs, recipients, and retention outputs identified?"),
+    (FinanceDiscoveryDecision.EXCEPTION, "EXC", "Are all returns, corrections, cancellations, reversals, reprints, replacements, downtime, and emergency paths identified?"),
+)
+
+
+@transaction.atomic
+def create_discovery_coverage_starters(cycle, actor, *, owner, reviewer, due_date=None):
+    cycle = type(cycle).objects.select_for_update().select_related("department").get(pk=cycle.pk)
+    if not can_manage_finance_discovery(actor, cycle.department):
+        raise PermissionDenied
+    if owner.pk == reviewer.pk:
+        raise ValidationError("Choose a reviewer other than the evidence owner.")
+    if actor.pk == reviewer.pk:
+        raise ValidationError("The person creating the starter set cannot review the same rows.")
+    current_kinds = set(
+        cycle.discovery_decisions.exclude(status=FinanceDiscoveryDecision.SUPERSEDED)
+        .values_list("coverage_kind", flat=True)
+    )
+    created = []
+    for coverage_kind, suffix, question in COVERAGE_STARTERS:
+        if coverage_kind in current_kinds:
+            continue
+        base_code = f"F0-{cycle.pk}-{suffix}"
+        code = base_code
+        copy_number = 2
+        while FinanceDiscoveryDecision.objects.filter(
+            department=cycle.department, code=code, version=1,
+        ).exists():
+            code = f"{base_code[:35]}-{copy_number}"
+            copy_number += 1
+        item = FinanceDiscoveryDecision.objects.create(
+            department=cycle.department,
+            cycle=cycle,
+            code=code,
+            phase="F0",
+            coverage_kind=coverage_kind,
+            question=question,
+            proposed_outcome=(
+                "Keep this named coverage area unresolved until the retained local evidence, acceptance example, and accountable decision are reviewed."
+            ),
+            affected_scope=cycle.enabled_scope,
+            evidence_label=FinanceDiscoveryDecision.UNRESOLVED,
+            evidence_needed=(
+                "Edit this starter to list the exact locally applicable items, then reference the retained authority, redacted example or accepted no-case explanation, and custody location."
+            ),
+            blocks_affected_scope=True,
+            owner=owner,
+            reviewer=reviewer,
+            due_date=due_date,
+            created_by=actor,
+        )
+        _event(item, actor, "discovery_coverage_starter_created", snapshot={
+            "public_id": str(item.public_id),
+            "code": item.code,
+            "coverage_kind": item.coverage_kind,
+            "cycle_id": cycle.pk,
+            "affected_scope": item.affected_scope,
+        })
+        created.append(item)
+    return created
 
 
 @transaction.atomic
@@ -146,6 +219,7 @@ def export_discovery_decision(item, actor):
     rows = (
         ("decision", f"{item.code} v{item.version}"),
         ("phase", item.phase),
+        ("coverage_area", item.get_coverage_kind_display()),
         ("status", item.get_status_display()),
         ("question", item.question),
         ("outcome_or_current_position", item.proposed_outcome),
@@ -155,6 +229,7 @@ def export_discovery_decision(item, actor):
         ("authority_or_evidence_reference", item.authority_evidence_reference),
         ("evidence_needed_or_sufficiency", item.evidence_needed),
         ("evidence_custody", item.evidence_custody_reference),
+        ("acceptance_example", item.acceptance_example_reference),
         ("owner", item.owner.get_full_name() or item.owner.username),
         ("reviewer", item.reviewer.get_full_name() or item.reviewer.username),
         ("due_date", item.due_date or ""),
