@@ -1,6 +1,6 @@
 # Finance shadow operation, UAT acceptance, and controlled cutover
 
-Status: F11.1 governed transition control, F11.2 versioned redacted source staging, F11.3 scheduled reconciliation/defect control, F11.4 governed curricula/support and readiness exercises, F11.5 consecutive field-cycle/signed-reference control, F11.6 exact accepted-form lineage, and F11.7 structured two-store recovery evidence implemented. This workflow stores transition evidence; it does not claim that the parent F11 exit gate, an actual LGU restore, or any local production cutover has occurred.
+Status: F11.1 governed transition control, F11.2 versioned redacted source staging, F11.3 scheduled reconciliation/defect control, F11.4 governed curricula/support and readiness exercises, F11.5 consecutive field-cycle/signed-reference control, F11.6 exact accepted-form lineage, F11.7 structured two-store recovery evidence, and F11.8 field-acceptance coordination implemented. This workflow stores and summarizes transition evidence; it does not claim that the parent F11 exit gate, an actual LGU restore, or any local production cutover has occurred.
 
 ## Purpose and authority boundary
 
@@ -178,6 +178,8 @@ Every visible cycle can produce a schema-v7 JSON evidence package containing eac
 `department/user/finance-shadow-cutover/year/month`
 
 inside the single `GRAND_EXPORT_ROOT`, beside a SHA-256 manifest for TraceSync whole-folder safekeeping. The export is portable evidence, not a Records filing, database backup, or authority by itself.
+
+F11.8 also provides the [Finance Field Acceptance Board](FINANCE_FIELD_ACCEPTANCE_BOARD.md). It groups the existing governed cycle records into ten plain-language field checkpoints, shows the next action without creating a parallel approval record, and exports a TraceSync-ready CSV status index. Assigned reviewers remain limited to their visible cycles, and only the separate authorized cutover decision can make GRAND authoritative for an exact scope/date.
 
 ## Remaining F11 acceptance work
 

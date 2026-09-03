@@ -540,14 +540,15 @@ TREASURY_GUIDES = (
 REQUESTING_GUIDES = REQUESTING_GUIDES + (
     {
         "slug": "finance-shadow-stakeholder-acceptance",
-        "version": 3,
+        "version": 4,
         "title": "Review and accept your office's shadow/UAT scope",
         "summary": "Use the floating guide while reviewing the exact enabled scope, role exercise, and comparison evidence assigned to you.",
         "permission": "",
-        "patterns": ["finance:shadow_*", "finance:stakeholder_*"],
+        "patterns": ["finance:shadow_*", "finance:stakeholder_*", "finance:field_acceptance_*"],
         "order": 90,
         "steps": (
             ("Open your assigned cycle", "Open Shadow operation & cutover and choose the cycle assigned to you. Read the office, transaction, fund, and date scope before reviewing results.", "You can see the shared cycle without receiving Finance preparation or cutover authority.", "Do not accept work outside the written scope or assume another office's acceptance covers yours.", "Open Shadow operation", "finance:shadow_workspace"),
+            ("Read the shared acceptance board", "Choose your assigned cycle in the Field Acceptance Board. Read the ten evidence checkpoints and the exact enabled scope, then open the cycle workspace for the records assigned to you.", "The board points to current governed evidence and refreshes when those source records change.", "Board percentages and tutorial checkmarks are coordination aids; neither is an approval or employee rating.", "Open Field Acceptance Board", "finance:field_acceptance_board"),
             ("Complete the role exercise", "Follow the department procedure with synthetic or properly redacted cases, including normal work, a return/correction, and the applicable exception route.", "You can complete your role without borrowed permissions or hidden manual steps.", "The personal checkmarks in this guide help you resume learning; supervisors do not use them as attendance, performance, or acceptance evidence.", "", ""),
             ("Submit observable exercise evidence", "Open the named role exercise, compare its procedure and expected result with what you actually performed, then reference the retained redacted observation sheet, output, or supervisor record.", "The result waits for the separately assigned witness; submitting it does not pass the exercise.", "Do not paste confidential case content or use this guide's private progress checkmarks as evidence.", "", ""),
             ("Complete a witnessed rerun when required", "If the witness returns the result, follow the exact correction or rerun request and submit the new actual result and evidence reference.", "The final passed record retains its owner, witness, checksum, and basis while the earlier return remains in audit history.", "The exercise owner cannot witness their own result.", "", ""),
@@ -562,13 +563,14 @@ REQUESTING_GUIDES = REQUESTING_GUIDES + (
 ACCOUNTING_GUIDES = ACCOUNTING_GUIDES + (
     {
         "slug": "finance-shadow-cutover-manager",
-        "version": 4,
+        "version": 5,
         "title": "Run shadow reconciliation and prepare cutover evidence",
         "summary": "Plan a limited cycle, lock exact comparisons, collect separate office decisions, and keep authority and rollback explicit.",
         "permission": "finance.manage_shadow_operation",
-        "patterns": ["finance:shadow_*", "finance:cutover_*"],
+        "patterns": ["finance:shadow_*", "finance:cutover_*", "finance:field_acceptance_*"],
         "order": 89,
         "steps": (
+            ("Start with the Field Acceptance Board", "Choose the exact candidate cycle and review its ten evidence checkpoints. Use each plain-language next action to return to the governed cycle records; export the board when a coordinator or records custodian needs a portable status copy.", "The board reflects current source locks, plans, exercises, form lineage, field cycles, reconciliation, stakeholder decisions, and cutover authority without creating a second approval list.", "Do not report the percentage as phase acceptance. GRAND remains in shadow/UAT mode until the separately recorded cutover authority is Authorized for the exact scope and date.", "Open Field Acceptance Board", "finance:field_acceptance_board"),
             ("Define a limited cycle", "Name the exact offices, funds, transaction types, and dates. Reference where the locally authoritative, redacted/read-only comparison source is retained.", "A draft plan identifies what is and is not being compared without importing a production database.", "Public COA/DBM material or an eGAPS export does not prove local applicability by itself.", "Open Shadow operation", "finance:shadow_workspace"),
             ("Stage the safe comparison copy", "Upload a UTF-8 redacted CSV up to 5 MB. Confirm what was removed or masked. GRAND calculates the file lock, normalized headings, row count, and column-layout lock without importing its rows into Finance transactions.", "A retained v1 source record shows the safe inspection results and any sensitive-heading reminder.", "Never upload a live database, executable spreadsheet, credentials, or unrestricted production export.", "Open Shadow operation", "finance:shadow_workspace"),
             ("Replace before start when needed", "While the cycle is still Draft, stage the corrected copy and explain why. GRAND retains the earlier version and marks only the successor current.", "The replacement reason and both version locks remain reconstructible.", "After the cycle starts, source changes require a successor cycle rather than an overwritten file.", "", ""),

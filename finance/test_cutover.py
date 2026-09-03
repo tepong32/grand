@@ -16,6 +16,7 @@ from profiles.models import EmployeeProfile
 from reporting.form_acceptance_services import checksum, file_checksum, form_snapshot
 from reporting.models import FinanceLocalFormAcceptance
 
+from .acceptance_services import build_field_acceptance_board
 from .cutover_services import (
     REQUIRED_NONFUNCTIONAL_EXERCISES,
     REQUIRED_STAKEHOLDERS,
@@ -1057,3 +1058,60 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertTrue(receipt["manifest_path"].exists())
         self.assertIn("finance-shadow-cutover", receipt["relative_path"])
         self.assertEqual(acceptance.decision, FinanceStakeholderAcceptance.PENDING)
+
+    def test_field_acceptance_board_summarizes_existing_records_without_claiming_authority(self):
+        cycle = self._cycle(code="fy-2027-acceptance-board")
+
+        board = build_field_acceptance_board(cycle)
+
+        self.assertEqual(board["total_count"], 10)
+        self.assertFalse(board["authorized"])
+        self.assertFalse(board["cutover_ready"])
+        self.assertEqual(board["milestones"][-1]["state_label"], "Not started")
+        source = next(item for item in board["milestones"] if item["code"] == "source_layout")
+        self.assertFalse(source["passed"])
+        self.assertIn("No governed current source version", source["evidence"])
+
+        self.client.force_login(self.manager)
+        response = self.client.get(reverse("finance:field_acceptance_board"), {"cycle": cycle.pk})
+        self.assertContains(response, "Finance Field Acceptance Board")
+        self.assertContains(response, cycle.enabled_scope)
+        self.assertContains(response, "This board does not approve a phase")
+        self.assertContains(response, "10. Cutover authority and rollback")
+
+    def test_assigned_reviewer_can_export_only_a_visible_field_acceptance_board(self):
+        cycle = self._cycle(code="fy-2027-acceptance-export")
+        FinanceStakeholderAcceptance.objects.create(
+            cycle=cycle,
+            stakeholder_kind=FinanceStakeholderAcceptance.REQUESTING_OFFICE,
+            office=self.requesting,
+            assigned_reviewer=self.requesting_reviewer,
+            enabled_scope=cycle.enabled_scope,
+            created_by=self.manager,
+        )
+        hidden = self._cycle(code="fy-2027-hidden-acceptance")
+        self.client.force_login(self.requesting_reviewer)
+
+        response = self.client.get(
+            reverse("finance:field_acceptance_board_export"), {"cycle": cycle.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("finance-field-acceptance", response["X-GRAND-Archive-Path"])
+        content = response.content.decode("utf-8-sig")
+        self.assertIn("checkpoint_code", content)
+        self.assertIn("source_layout", content)
+        self.assertIn("grand_authorized", content)
+        event = FinanceAuditEvent.objects.get(
+            target_type="financeshadowcycle",
+            target_id=str(cycle.pk),
+            action="field_acceptance_board_exported",
+        )
+        self.assertFalse(event.snapshot["grand_authorized"])
+        self.assertEqual(
+            self.client.get(
+                reverse("finance:field_acceptance_board"), {"cycle": hidden.pk},
+            ).status_code,
+            404,
+        )

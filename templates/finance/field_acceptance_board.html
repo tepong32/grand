@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Finance Field Acceptance Board{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div>
+      <a class="small" href="{% url 'finance:shadow_workspace' %}">&larr; Shadow operation &amp; cutover</a>
+      <h1 class="h3 mt-1 mb-1">Finance Field Acceptance Board</h1>
+      <p class="text-muted mb-0">One readable queue for the remaining local evidence—built from the governed records staff already maintain.</p>
+    </div>
+    {% if cycle %}<a class="btn btn-outline-secondary mt-2" href="{% url 'finance:field_acceptance_board_export' %}?cycle={{ cycle.pk }}"><i class="fas fa-download mr-1"></i> Export board</a>{% endif %}
+  </div>
+
+  <div class="alert alert-warning">
+    <strong>This board does not approve a phase.</strong> It summarizes accepted evidence for one exact cycle. Personal tutorial checkmarks, a green technical test, or an exported CSV never substitute for the named reviewers and final cutover authority.
+  </div>
+
+  {% if cycles %}
+    <form method="get" class="card card-body mb-3">
+      <div class="form-row align-items-end">
+        <div class="col-lg-8">
+          <label for="cycle"><strong>Cycle to review</strong></label>
+          <select class="form-control" name="cycle" id="cycle">
+            {% for item in cycles %}<option value="{{ item.pk }}"{% if cycle.pk == item.pk %} selected{% endif %}>{{ item.title }} · {{ item.code }} · FY {{ item.fiscal_year }} · {{ item.department.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-lg-4 mt-2 mt-lg-0"><button class="btn btn-primary">Show this cycle</button></div>
+      </div>
+    </form>
+
+    <div class="card card-outline {% if board.authorized %}card-success{% else %}card-warning{% endif %}">
+      <div class="card-body d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+          <p class="text-uppercase small font-weight-bold text-muted mb-1">{{ cycle.department.name }}</p>
+          <h2 class="h5 mb-1">{{ cycle.title }}</h2>
+          <p class="small mb-0">{{ cycle.code }} · {{ cycle.get_run_kind_display }} · {{ board.accepted_count }} of {{ board.total_count }} evidence checkpoints accepted</p>
+        </div>
+        <div class="text-lg-right mt-2 mt-lg-0">
+          <div class="h4 mb-1">{{ board.percent }}%</div>
+          {% if board.authorized %}<span class="badge badge-success">Authorized for recorded scope/date</span>{% elif board.decision_status == 'rolled_back' %}<span class="badge badge-danger">Cutover rolled back</span>{% elif board.decision_status == 'declined' %}<span class="badge badge-danger">Cutover declined</span>{% elif board.cutover_ready %}<span class="badge badge-info">Ready for authority decision</span>{% else %}<span class="badge badge-warning">Shadow/UAT only</span>{% endif %}
+        </div>
+      </div>
+      <div class="card-footer small"><strong>Exact enabled scope:</strong> {{ cycle.enabled_scope }}</div>
+    </div>
+
+    <div class="row">
+      {% for item in board.milestones %}
+        <div class="col-xl-6 d-flex">
+          <section class="card flex-fill card-outline {% if item.passed %}card-success{% elif item.state == 'action' %}card-warning{% else %}card-secondary{% endif %}">
+            <div class="card-header d-flex align-items-start">
+              <h2 class="card-title h6 font-weight-bold mb-0">{{ item.title }}</h2>
+              <span class="badge ml-auto {% if item.passed %}badge-success{% elif item.state == 'action' %}badge-warning{% else %}badge-secondary{% endif %}">{{ item.state_label }}</span>
+            </div>
+            <div class="card-body">
+              <p>{{ item.purpose }}</p>
+              <p class="small mb-2"><strong>Current record:</strong> {{ item.evidence }}</p>
+              {% if not item.passed %}<p class="small mb-0"><strong>Next:</strong> {{ item.next_action }}</p>{% endif %}
+            </div>
+          </section>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="card card-outline card-info">
+      <div class="card-body d-flex flex-wrap align-items-center">
+        <div><strong>Continue the governed work</strong><div class="small text-muted">Edit or review the source records in the cycle workspace. Returning here refreshes the board automatically.</div></div>
+        <a class="btn btn-primary ml-lg-auto mt-2 mt-lg-0" href="{% url 'finance:shadow_cycle_detail' cycle.pk %}">Open cycle workspace</a>
+      </div>
+    </div>
+  {% else %}
+    <div class="card"><div class="card-body text-center py-5">
+      <h2 class="h5">No field cycle is visible to this account</h2>
+      <p class="text-muted">A Finance manager can plan a limited shadow or parallel cycle and assign the relevant office reviewer.</p>
+      <a class="btn btn-outline-primary" href="{% url 'finance:shadow_workspace' %}">Open shadow operation</a>
+    </div></div>
+  {% endif %}
+</div>
+{% endblock %}

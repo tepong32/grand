@@ -1,5 +1,14 @@
 # Changelog
 
+## F11.8 Finance field-acceptance coordination board
+
+- Added one plain-language board that turns the remaining local F10/F11 field work into ten readable checkpoints while calculating every state from the existing governed records rather than duplicating approval data.
+- Added a visible-cycle selector for Finance staff and named cross-office reviewers, with object-level access checks that reject an unassigned cycle-ID substitution.
+- Kept the authority boundary explicit: board percentages and private tutorial progress are coordination aids, and only the separately authorized cutover decision can make GRAND authoritative for its exact scope and date.
+- Added UTF-8 CSV export with current evidence, next actions, and authority state; the exact browser bytes are archived under the TraceSync-ready department/user/category/year/month tree with a sibling manifest and append-only Finance audit event.
+- Extended the requesting-office and Finance-manager floating Internal How-Tos with board guidance, correction/successor reminders, and the instruction to continue edits in the governed source workspaces.
+- Documented modification behavior, access, export semantics, and focused tests without adding another acceptance-state model or migration.
+
 ## Cross-cycle Finance integration replay
 
 - Added one authoritative synthetic F2–F9 replay from maker–checker fiscal-year readiness and reconciled opening balances through independently authorized appropriation, posted allotment, certified obligation, payable intake, DV, recognition JEV, acknowledged check release, and payment JEV.

@@ -4,7 +4,7 @@
 <div class="container-fluid pb-4">
   <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
     <div><p class="text-uppercase text-primary small font-weight-bold mb-1">F11 governed transition</p><h1 class="h3 mb-1">Shadow operation &amp; cutover</h1><p class="text-muted mb-0">Compare first. Let each office accept its own work. Record authority last.</p></div>
-    {% if can_manage %}<a class="btn btn-primary mt-2" href="{% url 'finance:shadow_cycle_create' %}"><i class="fas fa-plus mr-1"></i> Plan a cycle</a>{% endif %}
+    <div class="mt-2"><a class="btn btn-outline-primary" href="{% url 'finance:field_acceptance_board' %}"><i class="fas fa-clipboard-check mr-1"></i> Field Acceptance Board</a>{% if can_manage %} <a class="btn btn-primary" href="{% url 'finance:shadow_cycle_create' %}"><i class="fas fa-plus mr-1"></i> Plan a cycle</a>{% endif %}</div>
   </div>
   <div class="alert alert-warning"><strong>GRAND remains in shadow/UAT mode by default.</strong> A reconciled pilot is evidence, not authority. Only an authorized cutover record applies, and only to its exact scope and date.</div>
   <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Cycles visible to you</h2></div><div class="card-body p-0"><div class="table-responsive">

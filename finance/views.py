@@ -26,6 +26,7 @@ from .cutover_services import (
     submit_cutover_readiness_plan, submit_reconciliation_plan, submit_reconciliation_run, submit_shadow_cycle,
     submit_shadow_defect_resolution,
 )
+from .acceptance_services import build_field_acceptance_board, export_field_acceptance_board
 from .forms import (
     FinanceCutoverDecisionForm,
     FinanceDocumentRuleForm, FinanceItemForm, FinanceNumberingSequenceForm, FinanceReleaseForm,
@@ -882,6 +883,42 @@ def cutover_readiness_exercise_result(request, pk):
             else "Record observable results and retained redacted evidence. The assigned independent witness decides pass or rerun."
         ),
     })
+
+
+def _field_acceptance_cycle(user, raw_pk=None):
+    cycles = _visible_shadow_cycles(user)
+    if raw_pk in (None, ""):
+        return cycles.first()
+    try:
+        pk = int(raw_pk)
+    except (TypeError, ValueError) as exc:
+        raise Http404 from exc
+    return get_object_or_404(cycles, pk=pk)
+
+
+@shadow_access_required
+def field_acceptance_board(request):
+    cycles = _visible_shadow_cycles(request.user)
+    cycle = _field_acceptance_cycle(request.user, request.GET.get("cycle"))
+    board = build_field_acceptance_board(cycle) if cycle else None
+    return render(request, "finance/field_acceptance_board.html", {
+        "cycles": cycles,
+        "cycle": cycle,
+        "board": board,
+    })
+
+
+@shadow_access_required
+def field_acceptance_board_export(request):
+    cycle = _field_acceptance_cycle(request.user, request.GET.get("cycle"))
+    if cycle is None:
+        raise Http404
+    content, filename, receipt = export_field_acceptance_board(cycle, request.user)
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Archive-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Archive-Path"] = receipt["relative_path"]
+    return response
 
 
 @shadow_access_required
