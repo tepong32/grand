@@ -92,18 +92,28 @@
             {% for value, label in attention_choices %}<option value="{{ value }}" {% if filters.attention == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
           </select>
         </div>
+        <div class="form-group col-lg-3 col-md-6">
+          <label for="case-custody">DV print / custody</label>
+          <select id="case-custody" class="form-control" name="custody">
+            <option value="">All print and custody states</option>
+            {% for value, label in custody_choices %}<option value="{{ value }}" {% if filters.custody == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
         <div class="col-12 d-flex flex-wrap align-items-center">
           <button class="btn btn-primary mr-2 mb-2" type="submit"><i class="fas fa-filter mr-1"></i>Apply filters</button>
           <a class="btn btn-outline-secondary mr-2 mb-2" href="{% url 'vouchers:workspace' %}{% if filters.office %}?office={{ filters.office|urlencode }}{% endif %}">Clear filters</a>
           {% if permissions.audit %}
-            <a class="btn btn-outline-success mb-2" href="{% url 'vouchers:case_control_register_export' %}?stage={{ filters.stage|urlencode }}&amp;transaction_type={{ filters.transaction_type|urlencode }}&amp;requesting_department={{ filters.requesting_department|urlencode }}&amp;attention={{ filters.attention|urlencode }}&amp;q={{ filters.q|urlencode }}{% if filters.office %}&amp;office={{ filters.office|urlencode }}{% endif %}">
+            <a class="btn btn-outline-success mr-2 mb-2" href="{% url 'vouchers:case_control_register_export' %}?stage={{ filters.stage|urlencode }}&amp;transaction_type={{ filters.transaction_type|urlencode }}&amp;requesting_department={{ filters.requesting_department|urlencode }}&amp;attention={{ filters.attention|urlencode }}&amp;custody={{ filters.custody|urlencode }}&amp;q={{ filters.q|urlencode }}{% if filters.office %}&amp;office={{ filters.office|urlencode }}{% endif %}">
               <i class="fas fa-file-csv mr-1"></i>Export these {{ visible_count }} cases
+            </a>
+            <a class="btn btn-outline-info mb-2" href="{% url 'vouchers:dv_custody_register_export' %}?stage={{ filters.stage|urlencode }}&amp;transaction_type={{ filters.transaction_type|urlencode }}&amp;requesting_department={{ filters.requesting_department|urlencode }}&amp;attention={{ filters.attention|urlencode }}&amp;custody={{ filters.custody|urlencode }}&amp;q={{ filters.q|urlencode }}{% if filters.office %}&amp;office={{ filters.office|urlencode }}{% endif %}">
+              <i class="fas fa-print mr-1"></i>Export DV custody history
             </a>
           {% endif %}
         </div>
       </form>
       <p class="small text-muted mb-0 mt-2">
-        The CSV mirrors this exact role scope and filter set. It is archived in the TraceSync-ready export root with a checksum manifest; it is oversight evidence, not an approval or official form.
+        Both CSVs mirror this exact role scope and filter set. The case register is one row per case; the DV custody register retains every print version and physical-packet state. Both are archived with checksum manifests and remain oversight evidence—not approval, a wet signature, or an official-form decision.
       </p>
     </div>
   </div>

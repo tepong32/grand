@@ -11,9 +11,10 @@ from src.export_archive import archive_export
 
 from .access import can_view_workbench, department_for_user, has_explicit_permission, voucher_access_required
 from .case_exports import (
-    ATTENTION_CHOICES, apply_case_filters, build_case_control_register, filter_options,
+    ATTENTION_CHOICES, CUSTODY_CHOICES, apply_case_filters, build_case_control_register, filter_options,
     visible_cases_for_user,
 )
+from .custody_exports import build_custody_register
 from .forms import (
     AccountingValidationForm, BankAdviceForm, BudgetCertificationForm, PayableIntakeForm,
     CancelCheckForm, CheckIssueForm, CheckReleaseForm, ReturnCaseForm,
@@ -124,11 +125,12 @@ def workspace(request):
         request.user, all_cases, requested_role=request.GET.get("office"),
     )
     transaction_type_choices, requesting_department_choices = filter_options(scoped_cases)
-    cases, stage, transaction_type, requesting_department, attention, search = apply_case_filters(
+    cases, stage, transaction_type, requesting_department, attention, custody, search = apply_case_filters(
         scoped_cases, actionable_stages=queue_stages,
         stage=request.GET.get("stage", ""), transaction_type=request.GET.get("transaction_type", ""),
         requesting_department=request.GET.get("requesting_department", ""),
-        attention=request.GET.get("attention", ""), search=request.GET.get("q", ""),
+        attention=request.GET.get("attention", ""), custody=request.GET.get("custody", ""),
+        search=request.GET.get("q", ""),
     )
     queue_query = cases.filter(current_stage__in=queue_stages)
     queue_ids = list(queue_query.values_list("pk", flat=True)[:100])
@@ -146,10 +148,11 @@ def workspace(request):
         "completed_count": stage_counts[VoucherCase.COMPLETED],
         "visible_count": cases.count(), "stage_choices": VoucherCase.STAGE_CHOICES,
         "attention_choices": ATTENTION_CHOICES, "transaction_type_choices": transaction_type_choices,
-        "requesting_department_choices": requesting_department_choices,
+        "requesting_department_choices": requesting_department_choices, "custody_choices": CUSTODY_CHOICES,
         "filters": {
             "stage": stage, "transaction_type": transaction_type,
-            "requesting_department": requesting_department, "attention": attention, "q": search,
+            "requesting_department": requesting_department, "attention": attention,
+            "custody": custody, "q": search,
             "office": request.GET.get("office", "") if profile["is_uat_viewer"] else "",
         },
     })
@@ -168,16 +171,50 @@ def case_control_register_export(request):
     )
     queue_stages = profile["stages"] if profile["is_uat_viewer"] else actionable_stages
     cases = visible_cases_for_user(request.user, requested_role=request.GET.get("office"))
-    cases, stage, transaction_type, requesting_department, attention, search = apply_case_filters(
+    cases, stage, transaction_type, requesting_department, attention, custody, search = apply_case_filters(
         cases, actionable_stages=queue_stages,
         stage=request.GET.get("stage", ""), transaction_type=request.GET.get("transaction_type", ""),
         requesting_department=request.GET.get("requesting_department", ""),
-        attention=request.GET.get("attention", ""), search=request.GET.get("q", ""),
+        attention=request.GET.get("attention", ""), custody=request.GET.get("custody", ""),
+        search=request.GET.get("q", ""),
     )
     content, filename, receipt = build_case_control_register(
         actor=request.user, queryset=cases,
         requested_role=request.GET.get("office"), stage=stage, transaction_type=transaction_type,
-        requesting_department=requesting_department, attention=attention, search=search,
+        requesting_department=requesting_department, attention=attention, custody=custody, search=search,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Export-Relative-Path"] = receipt["relative_path"]
+    return response
+
+
+@voucher_access_required
+def dv_custody_register_export(request):
+    if not has_explicit_permission(request.user, "vouchers.view_voucher_audit"):
+        raise PermissionDenied
+    permissions = _permissions(request.user)
+    profile = finance_workspace_profile(request.user, request.GET.get("office"))
+    from accounting.access import can_post_journals, can_prepare_journals
+    actionable_stages = _actionable_stages(
+        permissions,
+        (can_prepare_journals(request.user) or can_post_journals(request.user)) and not profile["is_uat_viewer"],
+    )
+    queue_stages = profile["stages"] if profile["is_uat_viewer"] else actionable_stages
+    cases = visible_cases_for_user(request.user, requested_role=request.GET.get("office"))
+    cases, stage, transaction_type, requesting_department, attention, custody, search = apply_case_filters(
+        cases, actionable_stages=queue_stages,
+        stage=request.GET.get("stage", ""), transaction_type=request.GET.get("transaction_type", ""),
+        requesting_department=request.GET.get("requesting_department", ""),
+        attention=request.GET.get("attention", ""), custody=request.GET.get("custody", ""),
+        search=request.GET.get("q", ""),
+    )
+    content, filename, receipt = build_custody_register(
+        actor=request.user, queryset=cases, requested_role=request.GET.get("office"),
+        stage=stage, transaction_type=transaction_type, requesting_department=requesting_department,
+        attention=attention, custody=custody, search=search,
     )
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'

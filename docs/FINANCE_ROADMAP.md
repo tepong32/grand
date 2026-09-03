@@ -182,6 +182,8 @@ Deliver:
 
 Exit gate: a printed redacted DV packet, wet-signature route, returned packet, corrections, and reprint behavior match the approved local procedure and cannot drift from the stored version.
 
+Implementation position: F6.1 synthetic controls now include role-scoped print/custody triage and a synchronized portable history register spanning current and superseded print versions, template/output checksums, actual print evidence, TracePoint packet facts, signature-round results, and correction lineage. The exact locally accepted DV, actual custody/signatory/acting route, printer/form-stock trials, redacted replay, and named-office acceptance remain the parent F6 gate; see [Finance controlled DV printing and custody](FINANCE_CONTROLLED_PRINT_CUSTODY.md).
+
 ### F7 — Accounting recognition, JEVs, ledgers, and period control
 
 Deliver:

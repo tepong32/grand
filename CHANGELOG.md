@@ -1,5 +1,13 @@
 # Changelog
 
+## F6 guided DV print/custody triage and portable history
+
+- Added a print/custody filter to the shared role-shaped Finance Queue for signing-copy preparation, print recording, packet assembly, signature circulation, and returned-packet review without adding or changing transaction states.
+- Added an exact synchronized DV custody register containing every retained current or superseded print version, template/output checksums, numeric voucher controls, actual copy/printer evidence, TracePoint packet/count/checkpoint facts, signature-round results, correction lineage, and case state versions.
+- Archived spreadsheet-safe register bytes and checksum manifests under the acting department/user `finance-dv-custody-register` tree and recorded append-only Finance audit receipts, including empty exports.
+- Published a successor Accounting DV guide explaining queue use, custody statuses, portable history, pre-check corrections, obsolete-copy control, and the boundary between custody evidence, wet signatures, approval, and local-form acceptance.
+- Added focused custody-state, retained-version, invalid-filter, archive, audit, role-scope, and formula-safety coverage. All 38 voucher workflow tests, all 63 voucher-plus-guidance tests, and all 411 project tests pass across both routed databases; the full suite completed in 76.930 seconds of test execution.
+
 ## F5 guided payable triage and department-safe control register
 
 - Enforced requesting-office department visibility across the workbench, direct case pages, actions, generated-output downloads, and case exports while preserving the shared cross-office workflow required by Budget, Accounting, Treasury, and read-only UAT preview.

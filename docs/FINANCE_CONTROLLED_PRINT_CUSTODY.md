@@ -29,6 +29,14 @@ The generated macro-free `.xlsx` uses a conservative government-form layout, a f
 
 The persistent, non-modal `?` panel exposes the same steps only to employees in the current department who hold the applicable role permission. A person's checkmarks are private tutorial progress—not task completion, approval, performance evidence, or history transferred to a successor.
 
+## Guided queue and portable custody register
+
+The shared Finance Queue can isolate controlled-paper work without adding another workflow state: **Needs a current signing copy**, **Signing file ready to print**, **Printed; packet not assembled**, **Packet circulating for signatures**, or **Signed packet returned**. These choices combine safely with stage, transaction type, requesting office, role attention, and plain search. Unknown controlled-choice values fail closed.
+
+**Export DV custody history** uses the exact visible role scope and filters, then emits every retained print version for each matching case. Rows include DV/template controls, gross/deductions/net, form status and checksum, print version/status, plain next action, output/archive checksum, actual copies/printer/note, TracePoint packet/item and counted contents, checkpoint count, signature-round results, returned-packet evidence, supersession lineage/reason, and case state version. Spreadsheet formula prefixes in text are neutralized while amounts remain numeric.
+
+The exact bytes and sibling manifest are archived under `department/user/finance-dv-custody-register/year/month`, and an append-only Finance audit event records the filters, case count, history-row count, path, and SHA-256—even for an empty result. This register is custody oversight evidence; it is not a wet signature, approval, payment authority, or local-form acceptance.
+
 ## Modification and reprint rules
 
 - Before check/payment-instrument issuance, an authorized user may correct permitted non-financial DV dates/signatories through the existing reasoned amendment route; related signing outputs and active print jobs are superseded and a new round is required.

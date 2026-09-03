@@ -7,6 +7,7 @@ app_name = "vouchers"
 urlpatterns = [
     path("", views.workspace, name="workspace"),
     path("export/case-control-register/", views.case_control_register_export, name="case_control_register_export"),
+    path("export/dv-custody-register/", views.dv_custody_register_export, name="dv_custody_register_export"),
     path("bank-advice/", advice_views.workspace, name="advice_workspace"),
     path("bank-advice/new/", advice_views.create, name="advice_create"),
     path("bank-advice/starter.csv", advice_views.starter, name="advice_starter"),

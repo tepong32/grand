@@ -2149,6 +2149,23 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(event.snapshot["case_count"], 0)
         self.assertEqual(event.snapshot["stage_filter"], "not-a-real-stage")
 
+    def test_dv_custody_register_invalid_filter_fails_closed(self):
+        case = self.create_case("custody-invalid-filter")
+        self.client.force_login(self.requesting_user)
+        workspace = self.client.get(reverse("vouchers:workspace") + "?custody=not-a-real-state")
+        self.assertNotContains(workspace, case.reference_code)
+        response = self.client.get(
+            reverse("vouchers:dv_custody_register_export") + "?custody=not-a-real-state",
+        )
+        self.assertEqual(response.status_code, 200)
+        text = response.content.decode("utf-8-sig")
+        self.assertNotIn(case.reference_code, text)
+        self.assertEqual(len(text.strip().splitlines()), 1)
+        event = FinanceAuditEvent.objects.get(action="dv_custody_register_exported")
+        self.assertEqual(event.snapshot["case_count"], 0)
+        self.assertEqual(event.snapshot["print_history_row_count"], 0)
+        self.assertEqual(event.snapshot["custody_filter"], "not-a-real-state")
+
     def test_department_home_surfaces_the_matching_finance_queue(self):
         for user, card_title in (
             (self.budget_user, "Budget Voucher Workspace"),
@@ -2231,6 +2248,11 @@ class VoucherWorkflowTests(TestCase):
         self.budget_certify(case, "f61-print-budget")
         self.accounting_prepare(case, "f61-print-dv")
         case.refresh_from_db()
+        self.client.force_login(self.preparer)
+        self.assertContains(
+            self.client.get(reverse("vouchers:workspace") + f"?custody=needs_signing_copy&q={case.reference_code}"),
+            case.reference_code,
+        )
         first_task = case.signature_tasks.filter(status="pending").first()
         with self.assertRaisesMessage(ValidationError, "Prepare and record the current signing copies"):
             record_signature_return(
@@ -2253,6 +2275,10 @@ class VoucherWorkflowTests(TestCase):
             print_note="Alignment checked against the starter comparison copy.",
             expected_version=case.state_version, idempotency_key="f61-printed-v1",
         )
+        self.assertContains(
+            self.client.get(reverse("vouchers:workspace") + f"?custody=printed&q={case.reference_code}"),
+            case.reference_code,
+        )
         case.refresh_from_db()
         first_job = assemble_finance_packet(
             case=case, actor=self.preparer, expected_document_count=4, expected_page_count=12,
@@ -2266,6 +2292,10 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(first_job.tracepoint_item.current_packet.checkpoints.count(), 2)
         self.assertNotIn("1000.00", first_job.tracepoint_item.current_packet.contents_manifest)
         self.assertEqual(first_job.custody_manifest["copy_count"], 2)
+        self.assertContains(
+            self.client.get(reverse("vouchers:workspace") + f"?custody=awaiting_signatures&q={case.reference_code}"),
+            case.reference_code,
+        )
 
         replacement = prepare_controlled_dv_print(
             case=case, actor=self.preparer,
@@ -2307,6 +2337,10 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(replacement.status, VoucherPrintJob.SIGNED_PACKET_RETURNED)
         self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_VALIDATION)
         self.assertTrue(case.events.filter(action="finance_packet_assembled").exists())
+        self.assertContains(
+            self.client.get(reverse("vouchers:workspace") + f"?custody=signed_packet_returned&q={case.reference_code}"),
+            case.reference_code,
+        )
 
         amendment = amend_nonfinancial_voucher(
             case=case,
@@ -2320,7 +2354,6 @@ class VoucherWorkflowTests(TestCase):
         case.refresh_from_db(); replacement.refresh_from_db()
         self.assertEqual(replacement.status, VoucherPrintJob.SUPERSEDED)
         self.assertEqual(case.current_stage, VoucherCase.AWAITING_SIGNATURES)
-        self.client.force_login(self.preparer)
         response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
         self.assertContains(response, "Prepare replacement signing copy")
 
@@ -2331,6 +2364,28 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(successor.supersedes, replacement)
         self.assertEqual(successor.signature_round, amendment.signature_round_number)
         self.assertEqual(successor.supersession_reason, replacement.supersession_reason)
+
+        custody_query = f"?custody=ready_to_print&q={case.reference_code}"
+        workspace = self.client.get(reverse("vouchers:workspace") + custody_query)
+        self.assertContains(workspace, case.reference_code)
+        self.assertContains(workspace, "Signing file ready to print")
+        exported = self.client.get(reverse("vouchers:dv_custody_register_export") + custody_query)
+        self.assertEqual(exported.status_code, 200)
+        rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[0]["print_version"], "3")
+        self.assertEqual(rows[0]["print_status"], "Ready to print")
+        self.assertEqual(rows[0]["gross_amount"], "1000.00")
+        self.assertEqual(sum(row["print_status"] == "Superseded — do not sign" for row in rows), 2)
+        self.assertTrue(all(row["output_checksum"] for row in rows))
+        self.assertIn(
+            "voucher-accounting/accountingpreparer/finance-dv-custody-register",
+            exported["X-GRAND-Export-Relative-Path"],
+        )
+        event = FinanceAuditEvent.objects.get(action="dv_custody_register_exported")
+        self.assertEqual(event.snapshot["case_count"], 1)
+        self.assertEqual(event.snapshot["print_history_row_count"], 3)
+        self.assertEqual(event.snapshot["custody_filter"], VoucherPrintJob.READY_TO_PRINT)
 
     def test_tracepoint_link_records_only_custody_reference_not_financial_fields(self):
         case = self.create_case("tracepoint-create")

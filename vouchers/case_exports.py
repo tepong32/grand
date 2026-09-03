@@ -11,7 +11,7 @@ from finance.models import FinanceAuditEvent
 from src.export_archive import archive_export
 
 from .access import department_for_user, has_explicit_permission
-from .models import PayableDocumentEvidence, VoucherCase
+from .models import PayableDocumentEvidence, VoucherCase, VoucherPrintJob
 from .roles import STAGE_NEXT_ACTION, finance_workspace_profile
 from .services import payable_relationship_summary
 
@@ -21,6 +21,14 @@ ATTENTION_CHOICES = (
     ("open_elsewhere", "Open with another role"),
     ("completed", "Released / completed"),
     ("cancelled", "Cancelled"),
+)
+
+CUSTODY_CHOICES = (
+    ("needs_signing_copy", "Needs a current signing copy"),
+    (VoucherPrintJob.READY_TO_PRINT, "Signing file ready to print"),
+    (VoucherPrintJob.PRINTED, "Printed; packet not assembled"),
+    (VoucherPrintJob.AWAITING_SIGNATURES, "Packet circulating for signatures"),
+    (VoucherPrintJob.SIGNED_PACKET_RETURNED, "Signed packet returned"),
 )
 
 CASE_REGISTER_COLUMNS = (
@@ -60,7 +68,7 @@ def visible_cases_for_user(user, queryset=None, *, requested_role=None):
 
 def apply_case_filters(
     queryset, *, actionable_stages=(), stage="", transaction_type="",
-    requesting_department="", attention="", search="",
+    requesting_department="", attention="", custody="", search="",
 ):
     actionable_stages = tuple(actionable_stages)
     if stage:
@@ -112,6 +120,21 @@ def apply_case_filters(
     else:
         attention = ""
 
+    if custody == "needs_signing_copy":
+        queryset = queryset.filter(
+            current_stage=VoucherCase.AWAITING_SIGNATURES,
+            voucher_template__controlled_print_required=True,
+        ).exclude(print_jobs__status__in=(
+            VoucherPrintJob.READY_TO_PRINT, VoucherPrintJob.PRINTED,
+            VoucherPrintJob.AWAITING_SIGNATURES,
+        ))
+    elif custody in dict(VoucherPrintJob.STATUS_CHOICES) and custody != VoucherPrintJob.SUPERSEDED:
+        queryset = queryset.filter(print_jobs__status=custody)
+    elif custody:
+        queryset = queryset.none()
+    else:
+        custody = ""
+
     search = (search or "").strip()[:160]
     if search:
         queryset = queryset.filter(
@@ -120,7 +143,7 @@ def apply_case_filters(
             | Q(particulars__icontains=search)
             | Q(authoritative_obligation_number__icontains=search)
         )
-    return queryset, stage, transaction_type, requesting_department, attention, search
+    return queryset.distinct(), stage, transaction_type, requesting_department, attention, custody, search
 
 
 def filter_options(queryset):
@@ -139,7 +162,7 @@ def filter_options(queryset):
 
 def build_case_control_register(
     *, actor, queryset, requested_role=None, stage="",
-    transaction_type="", requesting_department="", attention="", search="",
+    transaction_type="", requesting_department="", attention="", custody="", search="",
 ):
     department = department_for_user(actor)
     if department is None or not has_explicit_permission(actor, "vouchers.view_voucher_audit"):
@@ -185,14 +208,15 @@ def build_case_control_register(
     content = "\ufeff".encode("utf-8") + stream.getvalue().encode("utf-8")
     suffix = "-".join(slugify(value) for value in (
         stage, transaction_type, f"department-{requesting_department}" if requesting_department else "",
-        attention, search,
+        attention, custody, search,
     ) if value) or "all-visible"
     filename = f"finance-case-control-register-{suffix}.csv"
     metadata = {
         "kind": "finance_case_control_register", "role": finance_workspace_profile(actor, requested_role)["role"],
         "stage_filter": stage or "all", "transaction_type_filter": transaction_type or "all",
         "requesting_department_filter": requesting_department or "all",
-        "attention_filter": attention or "all", "search_filter": search,
+        "attention_filter": attention or "all", "custody_filter": custody or "all",
+        "search_filter": search,
         "case_count": len(cases),
         "authority_boundary": (
             "Controlled queue and oversight evidence only; this register is not an approval, payment authority, "
