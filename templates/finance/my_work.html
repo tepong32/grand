@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title_ext %} · My Finance work{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <div class="d-md-flex justify-content-between align-items-start mb-3">
+    <div>
+      <p class="text-uppercase text-primary small font-weight-bold mb-1">GRAND Finance</p>
+      <h1 class="h3 mb-1">Work needing attention</h1>
+      <p class="text-muted mb-0">A read-only starting point for the source queues your account may act on.</p>
+    </div>
+    <a class="btn btn-outline-secondary mt-2 mt-md-0" href="{% url 'finance_operations:overview' %}">Back to Finance operations</a>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>{{ action_count|default:0 }} visible action{{ action_count|default:0|pluralize }}</strong>
+    across the attention groups currently supported here.
+    Counts are generated from live governed registers; opening a group applies the same scope and state filter.
+  </div>
+
+  {% regroup groups by area as area_groups %}
+  {% for area in area_groups %}
+  <section class="card card-outline card-primary">
+    <div class="card-header"><h2 class="card-title font-weight-bold">{{ area.grouper }}</h2></div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Attention group</th><th class="text-right">Count</th><th>Meaning and scope</th><th></th></tr></thead>
+          <tbody>
+          {% for group in area.list %}
+            <tr>
+              <td class="font-weight-bold">{{ group.title }}</td>
+              <td class="text-right"><span class="badge badge-{% if group.count %}warning{% else %}light{% endif %} p-2">{{ group.count }}</span></td>
+              <td class="small">
+                <div>{{ group.definition }}</div>
+                <div class="text-muted"><strong>Scope:</strong> {{ group.scope }}</div>
+              </td>
+              <td class="text-right"><a class="btn btn-sm btn-outline-primary" href="{{ group.url }}">Open exact queue</a></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  {% empty %}
+  <div class="card"><div class="card-body">
+    <h2 class="h5">No supported action group is assigned</h2>
+    <p class="text-muted mb-0">Your Finance entry remains available, but this account does not hold an action permission covered by this attention view.</p>
+  </div></div>
+  {% endfor %}
+
+  <div class="card bg-light">
+    <div class="card-body small text-muted">
+      <p class="mb-1"><strong>Generated:</strong> {{ generated_at|date:"Y-m-d H:i:s T" }}{% if department %} · <strong>Department:</strong> {{ department.name }}{% endif %}</p>
+      <p class="mb-0"><strong>Control boundary:</strong> This page does not create assignments, approvals, notifications, or a second status. The linked Budget, Voucher, Accounting, Treasury, and Reporting records remain authoritative. Additional queue adapters and item-level task identity will be added as separate rollbackable checkpoints.</p>
+    </div>
+  </div>
+
+  <p class="small text-muted"><i class="fas fa-question-circle mr-1"></i> Use the floating ? guide while this page remains open. Tutorial progress is private resume help, not proof of training, competence, or approval.</p>
+</div>
+{% endblock %}

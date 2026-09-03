@@ -1,5 +1,15 @@
 # Changelog
 
+## F1.5 cross-domain work-attention foundation
+
+- Added `/finance/my-work/` as a read-only, permission-filtered starting point over existing Budget, Voucher, Accounting, Treasury remittance, and Reporting registers.
+- Kept every count tied to an exact existing source filter, splitting mixed lifecycle states and omitting unsupported adapters instead of opening a mismatched list.
+- Preserved requesting-office case isolation, department/own-report scopes, central remittance scope, existing action permissions, and Finance UAT preview exclusion.
+- Displayed each group's definition, visible scope, generated time, zero state, exact queue link, and non-authoritative boundary without creating assignments, notifications, approvals, or parallel workflow state.
+- Published separate requesting-office, Budget, Accounting, and Treasury floating guides covering source-queue verification, governed correction/reversal routes, and private tutorial-progress limits.
+- Documented the remaining bank-advice, cash-position, period-close and cross-cycle adapters plus stable item-level task IDs, ownership, timing, exceptions, Waiting/Returned/Due/Completed-by-me, governed shared views, following, and notifications as later F1 checkpoints.
+- Added focused route/access, cross-office isolation, source-count parity, UAT-preview, boundary, and contextual-guide regression coverage. The 8 focused tests and all 430 project tests pass across both routed databases; the final full suite completed in 82.240 seconds, followed by authenticated desktop/narrow-layout browser verification.
+
 ## F1.4 private shared-case saved views
 
 - Added user-named private filter shortcuts to the existing Voucher Workbench, with open, case-insensitive update, and deliberate remove controls rather than a second task or case store.

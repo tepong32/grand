@@ -2,7 +2,7 @@
 
 Audit date: 2026-09-03
 
-Code position: `codex/finance-f1-private-saved-case-views`, including the F1.2 permission-shaped Finance entry, F1.3 permission-filtered shared voucher-to-release case finder, F1.4 private current-scope-rechecked saved case views, the F0.2–F0.5 discovery controls, F2.1–F2.2 governed setup/opening registers, F3 guided annual-budget triage/export, F4 guided allotment/obligation control, F5 role-shaped payable triage, F6 controlled-paper/custody triage, F7 Accounting JEV triage, F8 bank-reconciliation triage, F9 reporting-run triage, F10 local-form acceptance triage, and F11.1–F11.9 field-operation controls
+Code position: `codex/finance-f1-my-work-foundation`, including the F1.2 permission-shaped Finance entry, F1.3 permission-filtered shared voucher-to-release case finder, F1.4 private current-scope-rechecked saved case views, F1.5 exact-drill cross-domain work-attention foundation, the F0.2–F0.5 discovery controls, F2.1–F2.2 governed setup/opening registers, F3 guided annual-budget triage/export, F4 guided allotment/obligation control, F5 role-shaped payable triage, F6 controlled-paper/custody triage, F7 Accounting JEV triage, F8 bank-reconciliation triage, F9 reporting-run triage, F10 local-form acceptance triage, and F11.1–F11.9 field-operation controls
 
 Conclusion: **the planned software-control slices are implemented and regression-clean; the complete LGU field-acceptance and production-authority outcome is not yet proven**.
 
@@ -12,11 +12,11 @@ The following repository checks passed from the project virtual environment:
 
 - `python manage.py check` — no system-check issues;
 - `python manage.py makemigrations --check --dry-run` — no model/migration drift;
-- `python manage.py test finance.test_cutover --noinput --verbosity 0` — 22 shadow-operation, field-acceptance, recovery, and cutover tests passed;
-- `python manage.py test finance --noinput --verbosity 0` — 55 Finance tests passed;
-- `python manage.py test vouchers --noinput --verbosity 0` — 46 Voucher Workbench, shared-case-finder, and private-view tests passed;
-- `python manage.py test finance departments --noinput --verbosity 0` — 78 Finance and Internal How-To tests passed; and
-- `python manage.py test --noinput --verbosity 0` — 426 project tests passed across the default and separately routed Finance databases in 80.677 seconds of test execution.
+- `python manage.py test finance.test_operations --verbosity 1` — all 8 Finance-entry/work-attention tests passed;
+- `python manage.py test finance.test_operations departments.tests.InternalHowToTests --verbosity 1` — all 16 selected work-attention and guide tests passed; and
+- `python manage.py test --verbosity 1` — all 430 project tests passed across the default and separately routed Finance databases in 82.240 seconds of test execution.
+
+An authenticated Playwright browser pass also exercised the live two-store development route, desktop and 390-pixel-wide layouts, exact source links, and the open non-modal Accounting guide. This is visual software evidence, not named-user accessibility or field acceptance.
 
 The full suite exercises role and department access, maker–checker decisions, immutable evidence, reversal/successor behavior, cross-store Budget–Accounting–Treasury lineage, controlled output, TraceSync archival, reconciliation, and negative access paths. It is software evidence. It is not a substitute for field observation, production-compatible recovery, or local authority.
 
@@ -25,7 +25,7 @@ The full suite exercises role and department access, maker–checker decisions, 
 | Phase | Software evidence now present | Evidence still required from the implementing LGU |
 |---|---|---|
 | F0 governance and discovery | Evidence labels, source register, field worksheets, governed decisions, nine editable coverage starters, acceptance-example references, cross-office maker–checker review, exact-scope blockers, immutable successors, cycle summary, guided cycle/attention triage, and synchronized per-record/department exports | Completed interviews, locally expanded coverage rows, named owners/reviewers, current local issuances, redacted examples/control results, and independently recorded decisions for every enabled item |
-| F1 architecture, identity, and audit | One permission-shaped Finance entry, a permission-filtered shared voucher-to-release case finder, private current-scope-rechecked saved case views, role-shaped domain workspaces, department/object boundaries, immutable audit patterns, cross-cycle lineage, and two-store routing | Named-user role validation, broader pre-voucher/cross-cycle My Work, governed shared-view/search/notification acceptance, actual segregation-of-duties approval, local security/privacy review, and supported-device/accessibility observation |
+| F1 architecture, identity, and audit | One permission-shaped Finance entry, permission-filtered shared voucher-to-release case finder, private current-scope-rechecked saved views, exact-drill work-attention foundation for supported Budget/Voucher/Accounting/remittance/Reporting queues, department guides, role-shaped domain workspaces, department/object boundaries, immutable audit patterns, cross-cycle lineage, and two-store routing | Deferred source adapters; stable item-level Task ID/type, action/gate, owner/queue, timing, version and exception contract; Waiting/Returned/Due/Completed-by-me; named-user role validation; governed shared-view/search/following/notification acceptance; actual segregation-of-duties approval; local security/privacy review; and supported-device/accessibility observation |
 | F2 fiscal foundation and opening | Typed year/calendar/classifications, governed release adoption, readiness layers, reconciled opening intake/JEVs, pre-issuance correction lock, audited foundation register, guided next-action opening queue, synchronized filtered control-register export, and role guidance | Actual classifications/calendars, approved opening schedules and balances, local authority, independent control reconciliation, and process-owner acceptance |
 | F3 budget preparation and authorization | Calls, ceilings, proposals, estimates, consolidation, reviews, authorized versions, supplemental/reenacted handling, control totals, guided proposal/authority triage, and a synchronized audited register | Current local budget calendar, ordinance/review evidence, accepted forms, signatures/routes, and replayed approved budget totals |
 | F4 allotment and obligation | Posted release movements, authoritative obligation registry, concurrency protection, adjustments/returns/cancellations, balances, role-shaped next-action queues, synchronized control registers, and separate detailed movement exports | Current local ARO/ALOBS/ORS/OBR/RAAO equivalents, numbering/signatories, redacted replay, and zero unexplained control difference |

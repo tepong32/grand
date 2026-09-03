@@ -1,6 +1,6 @@
 # Finance operations entry
 
-Status: F1.2–F1.4 implemented navigation, shared-case finder, and private saved-view controls. This page makes the existing complete-cycle workspaces and authorized case timeline easier to find and resume; it does not create a new transaction, approval, balance, search index, assignment, or authority layer.
+Status: F1.2–F1.5 foundation implemented: navigation, shared-case finder, private saved-view controls, and a permission-filtered work-attention overview. These pages make existing complete-cycle workspaces and authorized case timelines easier to find and resume; they do not create a new transaction, approval, balance, search index, assignment, notification, or authority layer.
 
 ## What staff receive
 
@@ -12,7 +12,7 @@ Status: F1.2–F1.4 implemented navigation, shared-case finder, and private save
 - Existing direct workspace links remain in the account drawer for familiar, low-friction access.
 - Each destination continues to enforce its own permission and object/department checks after navigation.
 
-The page deliberately shows no synthetic totals, copied case lists, inferred notifications, or second set of workflow states. The existing domain workspaces remain the source of their filters, next actions, histories, and exports.
+The entry page deliberately shows no synthetic transaction totals, copied case lists, inferred notifications, or second set of workflow states. Its Work needing attention link opens the separately documented F1.5 read model; existing domain workspaces remain the source of every filter, next action, history, and export.
 
 ## Shared-case finder
 
@@ -36,6 +36,8 @@ The seeded `Find and continue your Finance work` guide matches the operations en
 
 Run `python manage.py seed_internal_howtos` after deployment to publish the starter where no equal or newer local version exists. Existing newer local instructions are preserved.
 
+The F1.5 page also receives a separate department-kind guide for requesting offices, Budget, Accounting, or Treasury. See [Finance work-attention foundation](FINANCE_MY_WORK.md) for its exact adapter and deferral boundaries.
+
 ## Boundaries
 
 - A card proves only that the current account may open that workspace; it does not grant every action within it.
@@ -46,4 +48,4 @@ Run `python manage.py seed_internal_howtos` after deployment to publish the star
 
 ## Regression contract
 
-Automated coverage verifies full and selective Finance-card composition, denial for ordinary/reporting-only employees, anonymous redirection, preservation of established Finance URL paths, field-only navigation for an assigned cross-office reviewer, safe multi-token/controlled-ID matching, zero-result isolation for another requesting office's known case reference, private save/open/update/remove behavior, owner isolation, and current-scope rechecks.
+Automated coverage verifies full and selective Finance-card composition, denial for ordinary/reporting-only employees, anonymous redirection, preservation of established Finance URL paths, field-only navigation for an assigned cross-office reviewer, safe multi-token/controlled-ID matching, zero-result isolation for another requesting office's known case reference, private save/open/update/remove behavior, owner isolation, current-scope rechecks, exact shared-case attention parity, UAT preview exclusion, and page-relevant floating guidance.

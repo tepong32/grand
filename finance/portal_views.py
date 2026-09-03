@@ -2,7 +2,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render
 
-from .operations import finance_operations_areas
+from .operations import finance_operations_access, finance_operations_areas
+from .work_attention import finance_work_attention
 
 
 @login_required
@@ -17,3 +18,12 @@ def overview(request):
         "control_areas": control_areas,
         "can_search_cases": access["vouchers"],
     })
+
+
+@login_required
+def my_work(request):
+    access = finance_operations_access(request.user)
+    if not access["allowed"]:
+        raise PermissionDenied
+    attention = finance_work_attention(request.user)
+    return render(request, "finance/my_work.html", attention)

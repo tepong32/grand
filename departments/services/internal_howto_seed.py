@@ -701,6 +701,70 @@ def _department_kind(department):
     return ""
 
 
+FINANCE_MY_WORK_GUIDES = {
+    "accounting": {
+        "slug": "finance-my-work-accounting",
+        "version": 1,
+        "title": "Triage Accounting work needing attention",
+        "summary": "Start from live Accounting and connected Finance counts, then continue in the exact governed register.",
+        "permission": "accounting.view_accounting_workspace",
+        "patterns": ["finance_operations:overview", "finance_operations:my_work"],
+        "order": 4,
+        "steps": (
+            ("Open work needing attention", "From Finance operations, open Work needing attention. Read the generated time and your current department before relying on a count.", "Only groups supported for your current permissions are shown.", "A count is not a new assignment, approval, or notification.", "Review My Work", "finance_operations:my_work"),
+            ("Choose the exact Accounting group", "Use the JEV, opening-balance, bank-reconciliation, or reporting group that matches the action you may perform.", "The row states what is counted and the department scope used.", "Period-close and other queues appear only after their drill-down adapter can reproduce the same count.", "", ""),
+            ("Open the source queue", "Choose Open exact queue and confirm its visible row count before opening a record.", "The source register applies the same lifecycle-state filter as the attention row.", "The linked Accounting or Reporting record remains authoritative; do not treat this overview as transaction state.", "", ""),
+            ("Continue the governed action", "Open one source record, follow its next-action guidance, and use its return, reversal, or successor route if correction is needed.", "Work continues with the source record's permission, maker-checker, version, and audit controls.", "Private tutorial checkmarks only help you resume reading; they are not work-completion or competence evidence.", "", ""),
+        ),
+    },
+    "budget": {
+        "slug": "finance-my-work-budget",
+        "version": 1,
+        "title": "Triage Budget work needing attention",
+        "summary": "Start from live proposal, allotment, obligation, voucher, and reporting counts without creating another Budget queue.",
+        "permission": "budget.view_budget_workspace",
+        "patterns": ["finance_operations:overview", "finance_operations:my_work"],
+        "order": 4,
+        "steps": (
+            ("Open work needing attention", "From Finance operations, open Work needing attention. Confirm the generated time and Budget department shown.", "Only action groups allowed by your current role appear.", "The overview does not grant proposal, authorization, allotment, obligation, or report authority.", "Review My Work", "finance_operations:my_work"),
+            ("Read the group definition", "Choose preparation, review, certification, voucher, or reporting work only when the row's definition matches your duty.", "Each count has a plain definition and visible scope.", "Approved proposals are not spendable authority, and a queue count does not change that boundary.", "", ""),
+            ("Open the exact register", "Choose Open exact queue and compare the filtered source rows with the attention count.", "The Budget, Voucher, or Reporting workspace carries the same lifecycle filter.", "If the source record is returned, correct the same governed record rather than making an unlinked replacement.", "", ""),
+            ("Use the source workflow", "Continue from the source record's next action and retain its authority, version, and correction lineage.", "The authoritative register—not this overview—records the action and audit trail.", "Tutorial progress is private resume help, not submission, approval, UAT, or performance evidence.", "", ""),
+        ),
+    },
+    "treasury": {
+        "slug": "finance-my-work-treasury",
+        "version": 1,
+        "title": "Triage Treasury work needing attention",
+        "summary": "Start from live voucher and remittance counts, then continue in the exact controlled Treasury register.",
+        "permission": "vouchers.view_voucher_workbench",
+        "patterns": ["finance_operations:overview", "finance_operations:my_work"],
+        "order": 4,
+        "steps": (
+            ("Open work needing attention", "From Finance operations, open Work needing attention and check the generated time and department.", "Only Treasury groups backed by an exact drill-down are included.", "Bank-advice and cash-position groups stay outside this overview until their exact filtered adapters are implemented.", "Review My Work", "finance_operations:my_work"),
+            ("Choose voucher or remittance work", "Use the shared voucher action row for checks, advice-stage cases, returns, or release; use a remittance row for its named state.", "The group definition identifies what its number means.", "Do not infer bank acknowledgement, cash availability, release authority, or payment from a count.", "", ""),
+            ("Open the exact queue", "Choose Open exact queue and confirm the filtered records before acting.", "The Voucher Workbench or remittance register shows the same scoped state.", "The source record remains authoritative and retains maker-checker and correction controls.", "", ""),
+            ("Correct through the governed route", "Follow the source record's return, replacement, cancellation, or posting route and record the required reason and evidence.", "Original and successor evidence remain traceable.", "Never silently edit an issued check, acknowledged advice, released remittance, or posted Accounting event.", "", ""),
+        ),
+    },
+    "requesting": {
+        "slug": "finance-my-work-requesting",
+        "version": 1,
+        "title": "Triage your office's Finance work",
+        "summary": "See only this requesting office's actionable shared cases and continue in the existing governed queue.",
+        "permission": "vouchers.view_voucher_workbench",
+        "patterns": ["finance_operations:overview", "finance_operations:my_work"],
+        "order": 4,
+        "steps": (
+            ("Open work needing attention", "From Finance operations, open Work needing attention and confirm your current assigned department.", "The shared-case count is limited to this requesting office and your held action permission.", "A previous employee's tutorial progress and another office's hidden cases do not affect the number.", "Review My Work", "finance_operations:my_work"),
+            ("Read what is counted", "Use the definition and scope beside Shared cases ready for your role before opening it.", "You know why each case is included without exposing hidden case totals.", "The number is not approval, assignment, notification, or proof that work was completed.", "", ""),
+            ("Open the exact queue", "Choose Open exact queue and work from the filtered Voucher Workbench.", "The queue count and visible office-scoped source cases agree.", "Do not use search or filters to infer another office's cases.", "", ""),
+            ("Continue or correct the same case", "Follow the case's next action. If it was returned, use the recorded reason and correct the same case while the governed modification window permits it.", "The existing case keeps its evidence and change history.", "After DV or check issuance, use the coordinated return, cancellation, reversal, or successor process instead of overwriting history.", "", ""),
+        ),
+    },
+}
+
+
 @transaction.atomic
 def seed_finance_internal_howtos():
     counts = {"departments": 0, "guides_created": 0, "guides_preserved": 0, "guides_retired": 0}
@@ -708,7 +772,12 @@ def seed_finance_internal_howtos():
     for department in Department.objects.all().order_by("pk"):
         kind = _department_kind(department)
         counts["departments"] += 1
-        department_guides = REQUESTING_GUIDES + definitions.get(kind, ())
+        my_work_kind = kind or "requesting"
+        department_guides = (
+            REQUESTING_GUIDES
+            + (FINANCE_MY_WORK_GUIDES[my_work_kind],)
+            + definitions.get(kind, ())
+        )
         for definition in department_guides:
             target_version = definition.get("version", 1)
             published = InternalHowTo.objects.filter(
