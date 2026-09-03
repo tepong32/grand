@@ -13,6 +13,8 @@ from departments.models import Department
 from profiles.models import EmployeeProfile
 from reporting.models import FinanceLocalFormAcceptance
 from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+from vouchers.case_exports import apply_case_filters, payable_action_queryset, visible_cases_for_user
+from vouchers.models import PayableIntake, VoucherCase
 
 from accounting.models import FiscalYear
 from budget.annual_exports import apply_annual_filters
@@ -752,3 +754,208 @@ class FinanceBudgetWorkTaskContractTests(TestCase):
             reverse("budget:obligation_workspace"), {"attention": "awaiting_certification"},
         )
         self.assertEqual([item.pk for item in source_page.context["requests"]], [review.pk])
+
+
+class FinancePayableWorkTaskContractTests(TestCase):
+    databases = {"default", "finance"}
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.accounting = Department.objects.create(
+            name="Municipal Accounting Office", slug="task-payable-accounting",
+        )
+        cls.requesting = Department.objects.create(
+            name="General Services Office", slug="task-payable-requesting",
+        )
+        cls.other_requesting = Department.objects.create(
+            name="Municipal Engineering Office", slug="task-payable-other-requesting",
+        )
+        cls.preparer = cls._employee(
+            "task.payable.preparer", cls.requesting,
+            "view_voucher_workbench", "initiate_payable_case",
+        )
+        cls.other_preparer = cls._employee(
+            "task.payable.other", cls.other_requesting,
+            "view_voucher_workbench", "initiate_payable_case",
+        )
+        cls.reviewer = cls._employee(
+            "task.payable.reviewer", cls.accounting,
+            "view_voucher_workbench", "review_payable_intake",
+        )
+        cls.uat = cls._employee(
+            "task.payable.uat", cls.accounting,
+            "view_voucher_workbench", "review_payable_intake",
+        )
+        cls.uat.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+
+    @classmethod
+    def _employee(cls, username, department, *permissions):
+        user = get_user_model().objects.create_user(
+            username=username, email=f"{username}@example.test", password="payable-task-test",
+        )
+        profile, _created = EmployeeProfile.objects.get_or_create(user=user)
+        profile.assigned_department = department
+        profile.save(update_fields=("assigned_department",))
+        user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers", codename__in=permissions,
+        ))
+        return get_user_model().objects.get(pk=user.pk)
+
+    def _case(
+        self, reference, *, stage, requesting=None, current=None, prepared_by=None,
+        submitted_by=None, status=PayableIntake.DRAFT, claim="100.00", with_intake=True,
+    ):
+        requesting = requesting or self.requesting
+        current = current or requesting
+        prepared_by = prepared_by or self.preparer
+        item = VoucherCase.objects.create(
+            reference_code=reference,
+            requesting_department=requesting,
+            current_department=current,
+            payee_name="Synthetic LGU supplier",
+            particulars="Controlled payable work-item contract fixture.",
+            authoritative_obligation_number=f"OBR-{reference}",
+            authoritative_obligation_amount=Decimal(claim),
+            obligation_binding_status=VoucherCase.BINDING_LINKED,
+            current_stage=stage,
+            created_by=prepared_by,
+        )
+        if with_intake:
+            PayableIntake.objects.create(
+                case=item,
+                claim_reference=f"CLAIM-{reference}",
+                claim_amount=Decimal(claim),
+                initial_allocation_amount=Decimal(claim),
+                initial_relationship_type=PayableIntake.FULL,
+                evidence_reference="Synthetic retained payable evidence reference.",
+                status=status,
+                submitted_by=submitted_by,
+                submitted_at=timezone.now() if submitted_by else None,
+                reviewed_by=self.reviewer if status == PayableIntake.RETURNED else None,
+                reviewed_at=timezone.now() if status == PayableIntake.RETURNED else None,
+                decision_reason="Correct the named control difference." if status == PayableIntake.RETURNED else "",
+                prepared_by=prepared_by,
+            )
+        return item
+
+    def test_preparation_tasks_are_exact_requesting_office_items_with_no_invented_due_date(self):
+        own = self._case(
+            "PAY-TASK-PREP", stage=VoucherCase.PAYABLE_PREPARATION,
+            status=PayableIntake.DRAFT,
+        )
+        returned = self._case(
+            "PAY-TASK-RETURN", stage=VoucherCase.PAYABLE_PREPARATION,
+            status=PayableIntake.RETURNED,
+        )
+        self._case(
+            "PAY-TASK-OTHER", stage=VoucherCase.PAYABLE_PREPARATION,
+            requesting=self.other_requesting, current=self.other_requesting,
+            prepared_by=self.other_preparer,
+        )
+        self._case(
+            "PAY-TASK-MISROUTED", stage=VoucherCase.PAYABLE_PREPARATION,
+            current=self.accounting,
+        )
+
+        source, _selected, _spec = payable_action_queryset(self.preparer, "preparation")
+        tasks = [
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["task_type"] == "finance.payable-intake.preparation.v1"
+        ]
+
+        self.assertEqual(set(source), {own, returned})
+        self.assertEqual(len(tasks), 2)
+        own_task = next(task for task in tasks if str(own.public_id) in task["task_id"])
+        returned_task = next(task for task in tasks if str(returned.public_id) in task["task_id"])
+        self.assertIsNone(own_task["due_on"])
+        self.assertEqual(own_task["due_state"], "No structured target")
+        self.assertIn("No payable action deadline is stored", own_task["calendar_basis"])
+        self.assertEqual(own_task["url"], own.get_absolute_url())
+        self.assertIn("Claim-to-allocation control difference is 100.00", own_task["exception"])
+        self.assertEqual(returned_task["state"], "Returned")
+        self.assertIn("returned this same intake", returned_task["exception"])
+
+    def test_review_tasks_and_source_queue_exclude_maker_and_wrong_current_office(self):
+        review = self._case(
+            "PAY-TASK-REVIEW", stage=VoucherCase.PAYABLE_REVIEW,
+            current=self.accounting, submitted_by=self.preparer, status=PayableIntake.FOR_REVIEW,
+        )
+        self._case(
+            "PAY-TASK-SELF", stage=VoucherCase.PAYABLE_REVIEW,
+            current=self.accounting, prepared_by=self.reviewer,
+            submitted_by=self.reviewer, status=PayableIntake.FOR_REVIEW,
+        )
+        self._case(
+            "PAY-TASK-WRONG-OFFICE", stage=VoucherCase.PAYABLE_REVIEW,
+            current=self.other_requesting, submitted_by=self.preparer,
+            status=PayableIntake.FOR_REVIEW,
+        )
+
+        source, _selected, _spec = payable_action_queryset(self.reviewer, "review")
+        filtered_source, *_filters = apply_case_filters(
+            visible_cases_for_user(self.reviewer),
+            actionable_stages=(VoucherCase.PAYABLE_REVIEW,),
+            attention="ready_for_me", actor=self.reviewer,
+        )
+        tasks = [
+            task for task in finance_work_tasks(self.reviewer)["tasks"]
+            if task["task_type"] == "finance.payable-intake.review.v1"
+        ]
+
+        self.assertEqual(set(source), {review})
+        self.assertEqual(set(filtered_source), {review})
+        self.assertEqual(len(tasks), 1)
+        self.assertIn(str(review.public_id), tasks[0]["task_id"])
+        self.assertIn("Independent Accounting", tasks[0]["gate"])
+        self.client.force_login(self.reviewer)
+        page = self.client.get(reverse("vouchers:workspace"), {"attention": "ready_for_me"})
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual([item.pk for item in page.context["queue_cases"]], [review.pk])
+        voucher_group = next(
+            group for group in finance_work_attention(self.reviewer)["groups"]
+            if group["key"] == "voucher-ready"
+        )
+        self.assertEqual(voucher_group["count"], page.context["queue_count"])
+        self.assertEqual(voucher_group["count"], 1)
+
+    def test_projection_version_changes_without_changing_task_identity(self):
+        item = self._case(
+            "PAY-TASK-REVISION", stage=VoucherCase.PAYABLE_REVIEW,
+            current=self.accounting, submitted_by=self.preparer, status=PayableIntake.FOR_REVIEW,
+        )
+        first = next(
+            task for task in finance_work_tasks(self.reviewer)["tasks"]
+            if str(item.public_id) in task["task_id"]
+        )
+        intake = item.payable_intake
+        intake.duplicate_warning = "Synthetic possible duplicate needing human review."
+        intake.save(update_fields=("duplicate_warning",))
+        second = next(
+            task for task in finance_work_tasks(self.reviewer)["tasks"]
+            if str(item.public_id) in task["task_id"]
+        )
+
+        self.assertEqual(second["task_id"], first["task_id"])
+        self.assertNotEqual(second["source_version"], first["source_version"])
+        self.assertIn("duplicate warning", second["exception"])
+
+    def test_missing_intake_is_a_visible_blocker_and_uat_gets_no_exact_actions(self):
+        item = self._case(
+            "PAY-TASK-MISSING", stage=VoucherCase.PAYABLE_PREPARATION,
+            with_intake=False,
+        )
+        task = next(
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if str(item.public_id) in task["task_id"]
+        )
+
+        self.assertIn("payable intake record is missing", task["exception"])
+        self.assertIn("intake record missing", task["source_state"])
+        self.assertFalse(any(
+            task["task_type"].startswith("finance.payable-intake.")
+            for task in finance_work_tasks(self.uat)["tasks"]
+        ))
+        self.assertNotIn(
+            "voucher-ready",
+            {group["key"] for group in finance_work_attention(self.uat)["groups"]},
+        )

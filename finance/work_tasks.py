@@ -547,6 +547,102 @@ def _budget_tasks(user, department, today):
     return tasks
 
 
+def _payable_tasks(user, department, today):
+    from vouchers.case_exports import payable_action_choices_for_user, payable_action_queryset
+    from vouchers.models import PayableDocumentEvidence, PayableIntake
+    from vouchers.services import payable_relationship_summary
+
+    queue_labels = {
+        "preparation": "Requesting-office payable preparers",
+        "review": "Independent Accounting payable reviewers",
+    }
+    tasks = []
+    for action_key, _label in payable_action_choices_for_user(user):
+        queryset, _selected, spec = payable_action_queryset(user, action_key)
+        for item in queryset.select_related(
+            "requesting_department", "current_department", "payable_intake",
+        ).prefetch_related("payable_document_evidence").order_by("-updated_at", "-pk"):
+            intake = getattr(item, "payable_intake", None)
+            summary = payable_relationship_summary(item)
+            evidence = list(item.payable_document_evidence.all())
+            pending_count = sum(row.status == PayableDocumentEvidence.PENDING for row in evidence)
+            exception_parts = []
+            if intake is None:
+                exception_parts.append(
+                    "The payable intake record is missing; stop and route this data-integrity exception for repair."
+                )
+            if item.obligation_binding_status != item.BINDING_LINKED:
+                exception_parts.append(
+                    f"Authoritative obligation link is {item.get_obligation_binding_status_display().lower()}."
+                )
+            if summary["difference"]:
+                exception_parts.append(
+                    f"Claim-to-allocation control difference is {summary['difference']:.2f}; reconcile it to zero."
+                )
+            if pending_count:
+                exception_parts.append(f"{pending_count} documentary requirement(s) remain pending.")
+            if intake is not None and intake.duplicate_warning and not intake.duplicate_review_note.strip():
+                exception_parts.append("A duplicate warning still needs a recorded human review note.")
+            if intake is not None and intake.status == PayableIntake.RETURNED:
+                exception_parts.append("Accounting returned this same intake for governed correction.")
+            projection_revision = _projection_checksum({
+                "binding_error": item.obligation_binding_error,
+                "binding_status": item.obligation_binding_status,
+                "case_state_version": item.state_version,
+                "claim_amount": str(intake.claim_amount) if intake is not None else "",
+                "claim_reference": intake.claim_reference if intake is not None else "",
+                "duplicate_review_note": intake.duplicate_review_note if intake is not None else "",
+                "duplicate_warning": intake.duplicate_warning if intake is not None else "",
+                "evidence": [
+                    [row.pk, row.status, row.evidence_reference, row.decision_note, row.recorded_at.isoformat() if row.recorded_at else ""]
+                    for row in evidence
+                ],
+                "intake_status": intake.status if intake is not None else "missing",
+                "relationship": [
+                    [row.pk, row.version, row.status, str(row.allocated_amount), row.change_reason]
+                    for row in summary["allocations"]
+                ],
+            })
+            received_at = (
+                (intake.submitted_at if action_key == "review" else intake.prepared_at)
+                if intake is not None else item.updated_at
+            )
+            if intake is not None and intake.status == PayableIntake.RETURNED:
+                received_at = intake.reviewed_at or item.updated_at
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:payable-intake:{item.public_id}:{action_key}",
+                task_type=f"finance.payable-intake.{action_key}.v1",
+                area="Voucher case",
+                case_id=f"voucher-case:{item.public_id}",
+                reference=(
+                    f"{item.reference_code} · {item.authoritative_obligation_number or 'obligation link pending'}"
+                ),
+                transaction_type=item.transaction_type.replace("-", " ").replace("_", " ").title(),
+                subject=f"{item.payee_name} · {item.particulars}",
+                action=spec["next_action"],
+                gate=spec["definition"],
+                owner_queue=f"{queue_labels[action_key]} · {department.name}",
+                scope=(
+                    f"Requesting office: {item.requesting_department.name}; "
+                    f"current office: {item.current_department.name}"
+                ),
+                received_at=received_at or item.updated_at,
+                due_on=None,
+                due_state="No structured target",
+                calendar_basis="No payable action deadline is stored; follow the locally accepted voucher calendar.",
+                age_days=_age_days(received_at or item.updated_at, today),
+                state="Returned" if intake is not None and intake.status == PayableIntake.RETURNED else "Ready",
+                source_state=(
+                    f"{item.get_current_stage_display()} · {intake.get_status_display()}"
+                    if intake is not None else f"{item.get_current_stage_display()} · intake record missing"
+                ),
+                source_version=f"projection-sha256:{projection_revision}",
+                exception=" ".join(exception_parts),
+                url=item.get_absolute_url(),
+            ))
+    return tasks
+
+
 def _field_operation_tasks(user, department, today):
     from finance.shadow_register_exports import (
         shadow_action_choices_for_user, shadow_action_queryset,
@@ -615,6 +711,7 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks = _setup_tasks(user, department, today)
     tasks.extend(_discovery_tasks(user, department, today))
     tasks.extend(_budget_tasks(user, department, today))
+    tasks.extend(_payable_tasks(user, department, today))
     tasks.extend(_field_operation_tasks(user, department, today))
     tasks.extend(_local_form_tasks(user, department, today))
     tasks.sort(key=lambda task: (task.area, task.reference.lower(), task.task_type, task.task_id))
@@ -624,7 +721,7 @@ def finance_work_tasks(user, *, display_limit=100):
         "task_count": task_count,
         "tasks_truncated": task_count > display_limit,
         "task_coverage": (
-            "Finance setup releases", "Discovery decisions", "Budget controls",
+            "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "Field-operation cycle and nested-record gates", "Local forms",
         ),
     }

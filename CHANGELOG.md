@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 exact payable-intake work tasks
+
+- Added stable, source-linked My Work items for requesting-office payable preparation/correction and independent Accounting readiness review without creating parallel task state.
+- Reused one permission-, current-office-, requesting-office-, UAT-, and maker-checker-aware query contract across the shared Finance Queue, filtered case/custody exports, aggregate work-attention count, and exact payable projection.
+- Excluded a payable preparer or submitter from reviewing the same intake and excluded payable work routed to another acting office.
+- Surfaced authoritative-obligation link state, exact claim-to-allocation difference, pending-document count, unresolved duplicate review, returned correction, and missing-intake data-integrity blockers without copying protected documentary content.
+- Kept Task IDs stable while a SHA-256 projection revision changes with relevant mutable intake, checklist, and active-allocation evidence; no action deadline is invented when none is stored.
+- Updated requesting-office and Accounting floating guides plus the My Work roadmap/audit. The 71-test focused Finance/Budget/guidance gate and all 469 project tests passed across both routed databases in 103.270 seconds; Django checks are clean and no migration drift exists.
+
 ## F1.5 exact Budget work tasks
 
 - Extended the stable read-only My Work contract to proposal versions, allotment release orders, and obligation requests while leaving each governed Budget register authoritative.

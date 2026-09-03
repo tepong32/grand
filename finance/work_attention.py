@@ -115,7 +115,7 @@ def _field_operation_groups(user, department):
 def _voucher_groups(user, department):
     from accounting.access import can_post_journals, can_prepare_journals
     from vouchers.access import has_explicit_permission
-    from vouchers.case_exports import visible_cases_for_user
+    from vouchers.case_exports import apply_case_filters, visible_cases_for_user
     from vouchers.models import VoucherCase
     from vouchers.roles import is_finance_uat_viewer
 
@@ -140,7 +140,11 @@ def _voucher_groups(user, department):
             stages.append(stage)
     if not stages:
         return []
-    count = visible_cases_for_user(user).filter(current_stage__in=stages).count()
+    queryset, *_filters = apply_case_filters(
+        visible_cases_for_user(user), actionable_stages=stages,
+        attention="ready_for_me", actor=user,
+    )
+    count = queryset.count()
     return [_group(
         key="voucher-ready", area="Voucher case", title="Shared cases ready for your role",
         count=count, url=_queue_url("vouchers:workspace", attention="ready_for_me"),

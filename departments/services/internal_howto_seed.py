@@ -357,14 +357,14 @@ REQUESTING_GUIDES = (
     },
     {
         "slug": "finance-payable-readiness-review",
-        "version": 3,
+        "version": 4,
         "title": "Review payable documentary readiness",
         "summary": "Independently accept a transaction-specific payable checklist or return the same case with a precise correction basis.",
         "permission": "vouchers.review_payable_intake",
         "patterns": ["vouchers:*"],
         "order": 75,
         "steps": (
-            ("Find the Accounting review queue", "Use stage, transaction type, requesting office, next attention, or plain search to narrow the shared Finance Queue. The counts and Export these cases action follow the same filtered view.", "The work list and portable case register identify the same cases and next actions.", "The register is oversight evidence only; it does not accept a payable, issue a payment, or become an official form.", "Open Finance Queue", "vouchers:workspace"),
+            ("Find the Accounting review queue", "From Work needing attention, open the exact payable-review item or use the shared Finance Queue's next-attention filter. Read its Task ID, source version, office scope, and control exceptions before review.", "The exact item, shared attention count, filtered source queue, and export use the same acting-office and maker-checker boundaries.", "Your own prepared or submitted intake and work currently assigned to another Accounting office are excluded. The register does not accept a payable, issue payment, or become an official form.", "Open Finance Queue", "vouchers:workspace"),
             ("Open one payable for review", "Select a case at Accounting payable-readiness review. Confirm that the current requesting office—not Accounting—submitted the intake.", "The shared case shows the pinned certified obligation, claim, transaction variant, and documentary checklist.", "Do not review a case prepared or submitted by you, and do not accept work assigned to another Accounting office.", "", ""),
             ("Reconcile every obligation relationship", "Review each obligation UUID, full/partial/progress/final relationship, allocation version, current capacity, and lineage checksum. Confirm the allocation total equals the claim control exactly.", "One-to-many and many-to-one relationships are explicit and the control difference is zero.", "If a pre-DV obligation correction changed an amount or checksum, return for relationship reconciliation instead of continuing.", "Open Obligation Control", "budget:obligation_workspace"),
             ("Review every configured rule", "For each pinned rule, inspect the authority/applicability basis and the referenced source evidence. Confirm required items are present, conditional items have a specific not-applicable decision, and any waiver is explicitly allowed.", "Every checklist result is supported without copying sensitive source documents into GRAND.", "A public COA/DBM source is evidence for review; it is not automatic proof of local applicability or template acceptance.", "", ""),
@@ -374,14 +374,14 @@ REQUESTING_GUIDES = (
     },
     {
         "slug": "finance-requesting-office-payable-intake",
-        "version": 4,
+        "version": 5,
         "title": "Open a payable from a certified obligation",
         "summary": "Carry one certified obligation into Accounting without recreating its Budget authority or hiding document gaps.",
         "permission": "vouchers.initiate_payable_case",
         "patterns": ["vouchers:*"],
         "order": 2,
         "steps": (
-            ("Find only your office's payables", "Open the Finance Queue and use stage, transaction type, next attention, or plain search. Requesting-office visibility is fixed to your current assigned department; the counts and Export these cases action follow the same filtered view.", "Only this office's shared cases appear, with a plain next action and a matching portable control register.", "Filters never grant access to another office, and the register is not approval or an official form.", "Open Finance Queue", "vouchers:workspace"),
+            ("Find only your office's payables", "From Work needing attention, open the exact payable-preparation item or use the Finance Queue's next-attention filter. Read its Task ID, source version, office scope, and any obligation-link, allocation, document, duplicate, returned, or missing-intake exception.", "The exact item, shared attention count, filtered source queue, and export use the same current requesting-office boundary.", "A misrouted or another office's case is not your work. Filters never grant access, and the register is not approval or an official form.", "Open Finance Queue", "vouchers:workspace"),
             ("Select available obligation capacity", "Start a payable from a certified original obligation belonging to your current department with remaining claim capacity.", "The payable pins the controlled number, UUID, checksum, current corrected amount, and first allocation.", "Do not create a second Budget ledger or select another department's obligation.", "New Payable", "vouchers:case_create"),
             ("Choose the governed transaction variant", "Choose the governed payee and the exact locally approved transaction variant, then record the claim and source-record references that apply.", "The case pins the active variant and its authority-backed documentary rules without duplicating the authoritative procurement or records system.", "A public COA/DBM source or a generic transaction label is not automatic proof of local applicability.", "New Payable", "vouchers:case_create"),
             ("Build the exact relationship", "Choose full, partial, progress, or final for the first allocation. When several obligations support one claim, set the claim control and add the remaining obligations on the case. Separate cases may consume remaining capacity from the same obligation.", "Every valid one-to-one, one-to-many, or many-to-one relationship is explicit and capacity-protected.", "A final/full allocation must consume exact remaining capacity; use partial/progress only under locally accepted evidence.", "", ""),
@@ -595,7 +595,7 @@ TREASURY_GUIDES = (
 REQUESTING_GUIDES = REQUESTING_GUIDES + (
     {
         "slug": "finance-operations-entry",
-        "version": 7,
+        "version": 8,
         "title": "Find and continue your Finance work",
         "summary": "Use one permission-shaped starting page without changing the separate Budget, Accounting, Treasury, reporting, or field-control authorities.",
         "permission": "",
@@ -603,7 +603,7 @@ REQUESTING_GUIDES = REQUESTING_GUIDES + (
         "order": 5,
         "steps": (
             ("Start from Finance", "Open Finance from the top bar. Read only the cards shown for your assigned department, role, and named field work.", "You get one starting point for Finance-related work already allowed to your account.", "A visible card is access to a workspace, not authority to perform every action inside it.", "Open Finance", "finance_operations:overview"),
-            ("Read an exact work item when available", "For Finance Setup, discovery decisions, Budget versions/allotments/obligations, Field-operation cycle and nested actions, and Local forms, read the stable Task ID, source reference, exact action and gate, permitted queue, scope, timing basis, source version, and exception before opening the record.", "The same source and action keep the same Task ID while applicable, while separate actions on one source remain distinguishable.", "The item does not copy, assign, approve, or complete the source record. Budget control differences remain visible and must reconcile to zero before the governed posting step.", "Review My Work", "finance_operations:my_work"),
+            ("Read an exact work item when available", "For Finance Setup, discovery decisions, Budget versions/allotments/obligations, payable preparation/review, Field-operation cycle and nested actions, and Local forms, read the stable Task ID, source reference, exact action and gate, permitted queue, scope, timing basis, source version, and exception before opening the record.", "The same source and action keep the same Task ID while applicable, while separate actions on one source remain distinguishable.", "The item does not copy, assign, approve, or complete the source record. Budget and payable control differences remain visible and must reconcile to zero before the governed next step.", "Review My Work", "finance_operations:my_work"),
             ("Find the same shared case", "If your account has Voucher Workbench access, search from Finance using a case, OBR, DV, JEV, check, advice, receipt, claimant, safe purpose term, exact UUID, or exact checksum. GRAND opens the existing role-shaped case list.", "Matching and result counts happen only inside the cases your current office/role may already view.", "A zero-result search gives no hint that a hidden case exists. Do not use another employee's account or broad exports to look outside your scope.", "Open Finance", "finance_operations:overview"),
             ("Save a private case view", "In Voucher Workbench, apply the filters you need, enter a short plain name under Your private case views, and choose Save view. Open that name later to reapply the filters; use the same name to update it or Remove when it is no longer useful.", "Your repeat searches are easier to resume without changing a case or asking IT to create a report.", "The saved view belongs only to your account and is rechecked against your current role and office. It is not an assignment, alert, approval, shared record, or export authority; avoid confidential details in its name.", "Open Finance queue", "vouchers:workspace"),
             ("Follow the shared case", "Open the workspace named by your current handoff: requesting office or Budget intake, Accounting preparation and posting, Treasury issue and release, or the applicable report/control area.", "The same case, references, amounts, and history continue across offices.", "Do not create a replacement case merely because responsibility moved to another office.", "", ""),
@@ -707,7 +707,7 @@ def _department_kind(department):
 FINANCE_MY_WORK_GUIDES = {
     "accounting": {
         "slug": "finance-my-work-accounting",
-        "version": 9,
+        "version": 10,
         "title": "Triage Accounting work needing attention",
         "summary": "Start from live Accounting and connected Finance counts, then continue in the exact governed register.",
         "permission": "accounting.view_accounting_workspace",
@@ -715,7 +715,7 @@ FINANCE_MY_WORK_GUIDES = {
         "order": 4,
         "steps": (
             ("Open work needing attention", "From Finance operations, open Work needing attention. Read the generated time and your current department before relying on a count.", "Only groups supported for your current permissions are shown.", "A count is not a new assignment, approval, or notification.", "Review My Work", "finance_operations:my_work"),
-            ("Read an exact work item", "For Finance Setup, discovery decisions, Field-operation cycle and nested actions, and Local forms, read the stable Task ID, controlled type, source reference, action, gate, permitted queue, exact target when retained, timing basis, source version, and exception before opening the record.", "The same source and action keep the same Task ID while the action remains applicable, and separate actions on one source remain distinguishable.", "The item is a read-only pointer. Effectivity and review targets are not invented deadlines, and the overview does not create a second task or transaction.", "Review My Work", "finance_operations:my_work"),
+            ("Read an exact work item", "For Finance Setup, discovery decisions, payable review, Field-operation cycle and nested actions, and Local forms, read the stable Task ID, controlled type, source reference, action, gate, permitted queue, exact target when retained, timing basis, source version, and exception before opening the record.", "The same source and action keep the same Task ID while the action remains applicable, and payable-review items use the same office and maker-checker boundary as the shared queue.", "The item is a read-only pointer. Your own prepared/submitted payable is excluded; a zero-difference warning remains a blocker, and the overview creates no second transaction.", "Review My Work", "finance_operations:my_work"),
             ("Choose the exact Accounting group", "Use the setup-release, discovery-decision, field-operation, JEV, opening-balance, bank-reconciliation, period-close/reopen, bank-advice, returned-payment, cash-policy, cash-position, or reporting group that matches the action you may perform.", "Setup, discovery, and field preparation/review/authority work remain separate; named defects, exercises, witness checks, and stakeholder decisions appear only through their object assignment.", "A queue count does not accept local authority, approve or activate setup, record a discovery decision, pass a field checkpoint, authorize cutover, decide a bank return, post a reversal, establish cash availability, authorize a replacement, or release payment.", "", ""),
             ("Open the source queue", "Choose Open exact queue and confirm its visible row count before opening a record.", "The source register applies the same lifecycle-state filter as the attention row.", "The linked Accounting or Reporting record remains authoritative; do not treat this overview as transaction state.", "", ""),
             ("Continue the governed action", "Open one source record, follow its next-action guidance, and use its return, reversal, or successor route if correction is needed.", "Work continues with the source record's permission, maker-checker, version, and audit controls.", "Private tutorial checkmarks only help you resume reading; they are not work-completion or competence evidence.", "", ""),
@@ -753,7 +753,7 @@ FINANCE_MY_WORK_GUIDES = {
     },
     "requesting": {
         "slug": "finance-my-work-requesting",
-        "version": 1,
+        "version": 2,
         "title": "Triage your office's Finance work",
         "summary": "See only this requesting office's actionable shared cases and continue in the existing governed queue.",
         "permission": "vouchers.view_voucher_workbench",
@@ -761,7 +761,7 @@ FINANCE_MY_WORK_GUIDES = {
         "order": 4,
         "steps": (
             ("Open work needing attention", "From Finance operations, open Work needing attention and confirm your current assigned department.", "The shared-case count is limited to this requesting office and your held action permission.", "A previous employee's tutorial progress and another office's hidden cases do not affect the number.", "Review My Work", "finance_operations:my_work"),
-            ("Read what is counted", "Use the definition and scope beside Shared cases ready for your role before opening it.", "You know why each case is included without exposing hidden case totals.", "The number is not approval, assignment, notification, or proof that work was completed.", "", ""),
+            ("Read the exact payable item", "Read the stable Task ID, requesting/current-office scope, source version, timing basis, and any obligation-link, allocation, documentary, duplicate, returned, or data-integrity exception before opening the case.", "The exact payable-preparation item points to the same office-scoped source case while the shared count remains a stage-level total.", "Do not compare exact-item and shared-group totals as if they measure the same thing when later voucher-stage permissions are also held. The item is not approval, assignment, notification, or proof of completion.", "", ""),
             ("Open the exact queue", "Choose Open exact queue and work from the filtered Voucher Workbench.", "The queue count and visible office-scoped source cases agree.", "Do not use search or filters to infer another office's cases.", "", ""),
             ("Continue or correct the same case", "Follow the case's next action. If it was returned, use the recorded reason and correct the same case while the governed modification window permits it.", "The existing case keeps its evidence and change history.", "After DV or check issuance, use the coordinated return, cancellation, reversal, or successor process instead of overwriting history.", "", ""),
         ),

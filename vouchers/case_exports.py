@@ -14,7 +14,7 @@ from src.export_archive import archive_export
 
 from .access import department_for_user, has_explicit_permission
 from .models import PayableDocumentEvidence, VoucherCase, VoucherPrintJob
-from .roles import STAGE_NEXT_ACTION, finance_workspace_profile
+from .roles import STAGE_NEXT_ACTION, finance_workspace_profile, is_finance_uat_viewer
 from .services import payable_relationship_summary
 
 
@@ -24,6 +24,23 @@ ATTENTION_CHOICES = (
     ("completed", "Released / completed"),
     ("cancelled", "Cancelled"),
 )
+
+PAYABLE_ACTION_SPECS = {
+    "preparation": {
+        "permission": "vouchers.initiate_payable_case",
+        "stage": VoucherCase.PAYABLE_PREPARATION,
+        "title": "Payable intakes to prepare or correct",
+        "definition": "Current-office payable intakes at requesting-office preparation, including governed returned corrections.",
+        "next_action": "Reconcile the claim, obligation allocations, and documentary checklist, then submit the same case.",
+    },
+    "review": {
+        "permission": "vouchers.review_payable_intake",
+        "stage": VoucherCase.PAYABLE_REVIEW,
+        "title": "Payable intakes for independent Accounting review",
+        "definition": "Independent Accounting review of payable intakes assigned to the acting office whose preparer and submitter are not the signed-in reviewer.",
+        "next_action": "Review the zero-difference relationship, evidence decisions, and recognition route; accept or return the same case.",
+    },
+}
 
 CUSTODY_CHOICES = (
     ("needs_signing_copy", "Needs a current signing copy"),
@@ -68,9 +85,41 @@ def visible_cases_for_user(user, queryset=None, *, requested_role=None):
     return queryset
 
 
+def payable_action_choices_for_user(user):
+    if is_finance_uat_viewer(user):
+        return ()
+    return tuple(
+        (key, spec["title"])
+        for key, spec in PAYABLE_ACTION_SPECS.items()
+        if has_explicit_permission(user, spec["permission"])
+    )
+
+
+def payable_action_queryset(user, action, queryset=None):
+    spec = PAYABLE_ACTION_SPECS.get(action)
+    base = visible_cases_for_user(user, queryset)
+    department = department_for_user(user)
+    if (
+        spec is None or department is None or is_finance_uat_viewer(user)
+        or not has_explicit_permission(user, spec["permission"])
+    ):
+        return base.none(), action if spec else "", spec
+    base = base.filter(current_stage=spec["stage"])
+    if action == "preparation":
+        base = base.filter(
+            requesting_department_id=department.pk,
+            current_department_id=department.pk,
+        )
+    else:
+        base = base.filter(current_department_id=department.pk).exclude(
+            Q(payable_intake__prepared_by=user) | Q(payable_intake__submitted_by=user)
+        )
+    return base.distinct(), action, spec
+
+
 def apply_case_filters(
     queryset, *, actionable_stages=(), stage="", transaction_type="",
-    requesting_department="", attention="", custody="", search="",
+    requesting_department="", attention="", custody="", search="", actor=None,
 ):
     actionable_stages = tuple(actionable_stages)
     if stage:
@@ -111,6 +160,25 @@ def apply_case_filters(
     )
     if attention == "ready_for_me":
         queryset = queryset.filter(current_stage__in=actionable_stages)
+        actor_department = department_for_user(actor) if actor is not None else None
+        if actor_department is not None:
+            if VoucherCase.PAYABLE_PREPARATION in actionable_stages:
+                queryset = queryset.exclude(
+                    Q(current_stage=VoucherCase.PAYABLE_PREPARATION)
+                    & ~Q(
+                        requesting_department_id=actor_department.pk,
+                        current_department_id=actor_department.pk,
+                    )
+                )
+            if VoucherCase.PAYABLE_REVIEW in actionable_stages:
+                queryset = queryset.exclude(
+                    Q(current_stage=VoucherCase.PAYABLE_REVIEW)
+                    & (
+                        ~Q(current_department_id=actor_department.pk)
+                        | Q(payable_intake__prepared_by=actor)
+                        | Q(payable_intake__submitted_by=actor)
+                    )
+                )
     elif attention == "open_elsewhere":
         queryset = queryset.filter(current_stage__in=open_stages).exclude(current_stage__in=actionable_stages)
     elif attention == "completed":

@@ -150,7 +150,7 @@ def workspace(request):
         stage=filter_values.get("stage", ""), transaction_type=filter_values.get("transaction_type", ""),
         requesting_department=filter_values.get("requesting_department", ""),
         attention=filter_values.get("attention", ""), custody=filter_values.get("custody", ""),
-        search=filter_values.get("q", ""),
+        search=filter_values.get("q", ""), actor=request.user,
     )
     queue_query = cases.filter(current_stage__in=queue_stages)
     queue_ids = list(queue_query.values_list("pk", flat=True)[:100])
@@ -229,7 +229,7 @@ def case_control_register_export(request):
         stage=request.GET.get("stage", ""), transaction_type=request.GET.get("transaction_type", ""),
         requesting_department=request.GET.get("requesting_department", ""),
         attention=request.GET.get("attention", ""), custody=request.GET.get("custody", ""),
-        search=request.GET.get("q", ""),
+        search=request.GET.get("q", ""), actor=request.user,
     )
     content, filename, receipt = build_case_control_register(
         actor=request.user, queryset=cases,
@@ -262,7 +262,7 @@ def dv_custody_register_export(request):
         stage=request.GET.get("stage", ""), transaction_type=request.GET.get("transaction_type", ""),
         requesting_department=request.GET.get("requesting_department", ""),
         attention=request.GET.get("attention", ""), custody=request.GET.get("custody", ""),
-        search=request.GET.get("q", ""),
+        search=request.GET.get("q", ""), actor=request.user,
     )
     content, filename, receipt = build_custody_register(
         actor=request.user, queryset=cases, requested_role=request.GET.get("office"),
