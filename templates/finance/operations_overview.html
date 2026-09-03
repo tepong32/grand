@@ -9,6 +9,22 @@
   </div>
   <div class="alert alert-info"><strong>One entry point, existing controls.</strong> This page only opens workspaces already allowed for your current department and role. It does not copy cases, grant permissions, approve work, or combine separate authorities.</div>
 
+  {% if can_search_cases %}
+  <section class="card card-outline card-secondary">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Find a shared Finance case</h2></div>
+    <div class="card-body">
+      <form action="{% url 'vouchers:workspace' %}" method="get" class="row align-items-end">
+        <div class="form-group col-lg-9 mb-lg-0">
+          <label for="finance-case-search">Case, OBR, DV, JEV, check, advice, receipt, claimant, or exact ID</label>
+          <input id="finance-case-search" class="form-control" type="search" name="q" maxlength="160" required autocomplete="off" placeholder="Enter a reference or safe case detail">
+        </div>
+        <div class="col-lg-3"><button class="btn btn-secondary btn-block" type="submit"><i class="fas fa-search mr-1"></i>Find visible cases</button></div>
+      </form>
+      <p class="small text-muted mb-0 mt-2">Search runs inside your existing Voucher Workbench scope. Hidden cases do not affect results, suggestions, or counts; no broad wildcard export is created here.</p>
+    </div>
+  </section>
+  {% endif %}
+
   <section class="card card-outline card-primary">
     <div class="card-header"><h2 class="card-title font-weight-bold">Your transaction work</h2></div>
     <div class="card-body"><div class="row">

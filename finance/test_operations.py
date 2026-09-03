@@ -65,6 +65,9 @@ class FinanceOperationsEntryTests(TestCase):
         self.assertContains(response, reverse("accounting:workspace"))
         self.assertContains(response, reverse("reporting:workspace"))
         self.assertContains(response, reverse("finance:workspace"))
+        self.assertContains(response, "Find a shared Finance case")
+        self.assertContains(response, 'action="/finance/vouchers/"')
+        self.assertContains(response, "Hidden cases do not affect results")
         self.assertContains(response, "Open Decisions")
         self.assertContains(response, "Open Field operations")
         self.assertContains(response, "Personal tutorial checkmarks")
@@ -80,6 +83,7 @@ class FinanceOperationsEntryTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse("vouchers:workspace"))
+        self.assertContains(response, "Find a shared Finance case")
         self.assertNotContains(response, reverse("budget:obligation_workspace"))
         self.assertNotContains(response, reverse("accounting:workspace"))
         self.assertNotContains(response, reverse("reporting:workspace"))

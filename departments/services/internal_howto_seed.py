@@ -593,7 +593,7 @@ TREASURY_GUIDES = (
 REQUESTING_GUIDES = REQUESTING_GUIDES + (
     {
         "slug": "finance-operations-entry",
-        "version": 1,
+        "version": 2,
         "title": "Find and continue your Finance work",
         "summary": "Use one permission-shaped starting page without changing the separate Budget, Accounting, Treasury, reporting, or field-control authorities.",
         "permission": "",
@@ -601,6 +601,7 @@ REQUESTING_GUIDES = REQUESTING_GUIDES + (
         "order": 5,
         "steps": (
             ("Start from Finance", "Open Finance from the top bar. Read only the cards shown for your assigned department, role, and named field work.", "You get one starting point for Finance-related work already allowed to your account.", "A visible card is access to a workspace, not authority to perform every action inside it.", "Open Finance", "finance_operations:overview"),
+            ("Find the same shared case", "If your account has Voucher Workbench access, search from Finance using a case, OBR, DV, JEV, check, advice, receipt, claimant, safe purpose term, exact UUID, or exact checksum. GRAND opens the existing role-shaped case list.", "Matching and result counts happen only inside the cases your current office/role may already view.", "A zero-result search gives no hint that a hidden case exists. Do not use another employee's account or broad exports to look outside your scope.", "Open Finance", "finance_operations:overview"),
             ("Follow the shared case", "Open the workspace named by your current handoff: requesting office or Budget intake, Accounting preparation and posting, Treasury issue and release, or the applicable report/control area.", "The same case, references, amounts, and history continue across offices.", "Do not create a replacement case merely because responsibility moved to another office.", "", ""),
             ("Use the workspace next action", "Filter for the work assigned to your role, then open the case or register row and follow its plain next-action guidance.", "Work remains role-shaped and easier to resume without borrowed permissions.", "A queue, badge, percentage, or generated output is a work aid; it is not approval, payment, cutover, or form acceptance.", "", ""),
             ("Correct through the governed route", "Before issuance, use the allowed return or modification route and state the reason. After a protected event, use the linked reversal, cancellation, replacement, or successor route shown by that workspace.", "The original event and the correction remain attributable and reconstructible.", "Never overwrite issued checks, posted JEVs, recorded decisions, or locked evidence.", "", ""),

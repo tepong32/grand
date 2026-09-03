@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import csv
 import io
+import re
+from uuid import UUID
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
@@ -135,14 +137,48 @@ def apply_case_filters(
     else:
         custody = ""
 
-    search = (search or "").strip()[:160]
+    search = " ".join((search or "").split())[:160]
     if search:
-        queryset = queryset.filter(
-            Q(reference_code__icontains=search)
-            | Q(payee_name__icontains=search)
-            | Q(particulars__icontains=search)
-            | Q(authoritative_obligation_number__icontains=search)
-        )
+        text_match = Q()
+        for token in search.split()[:8]:
+            token_match = (
+                Q(reference_code__icontains=token)
+                | Q(payee_name__icontains=token)
+                | Q(particulars__icontains=token)
+                | Q(transaction_type__icontains=token)
+                | Q(requesting_department__name__icontains=token)
+                | Q(current_department__name__icontains=token)
+                | Q(authoritative_obligation_number__icontains=token)
+                | Q(payable_intake__claim_reference__icontains=token)
+                | Q(disbursement_voucher__dv_number__icontains=token)
+                | Q(payment_instruments__check_number__icontains=token)
+                | Q(payment_instruments__receipt_reference__icontains=token)
+                | Q(payment_instruments__current_advice_batch__advice_number__icontains=token)
+                | Q(posting_requests__jev_number__icontains=token)
+            )
+            text_match &= token_match
+
+        exact_identifier_match = Q()
+        try:
+            identifier = UUID(search)
+        except (TypeError, ValueError, AttributeError):
+            identifier = None
+        if identifier:
+            exact_identifier_match |= (
+                Q(public_id=identifier)
+                | Q(authoritative_obligation_public_id=identifier)
+                | Q(payment_instruments__public_id=identifier)
+                | Q(payment_instruments__current_advice_batch__public_id=identifier)
+                | Q(posting_requests__public_id=identifier)
+            )
+        if re.fullmatch(r"[0-9a-fA-F]{64}", search):
+            exact_identifier_match |= (
+                Q(authoritative_obligation_checksum__iexact=search)
+                | Q(posting_requests__payload_checksum__iexact=search)
+                | Q(posting_requests__posting_rule_checksum__iexact=search)
+                | Q(outputs__checksum__iexact=search)
+            )
+        queryset = queryset.filter(text_match | exact_identifier_match)
     return queryset.distinct(), stage, transaction_type, requesting_department, attention, custody, search
 
 

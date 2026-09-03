@@ -61,7 +61,7 @@
       <form method="get" class="row align-items-end">
         {% if filters.office %}<input type="hidden" name="office" value="{{ filters.office }}">{% endif %}
         <div class="form-group col-lg-3 col-md-6">
-          <label for="case-search">Reference, payee, obligation, or purpose</label>
+          <label for="case-search">Case, OBR, DV, JEV, check, advice, receipt, claimant, or exact ID</label>
           <input id="case-search" class="form-control" type="search" name="q" maxlength="160" value="{{ filters.q }}" placeholder="Search this role's cases">
         </div>
         <div class="form-group col-lg-2 col-md-6">

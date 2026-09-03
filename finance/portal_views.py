@@ -15,4 +15,5 @@ def overview(request):
         "department": department,
         "work_areas": work_areas,
         "control_areas": control_areas,
+        "can_search_cases": access["vouchers"],
     })

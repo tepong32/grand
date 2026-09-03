@@ -1,6 +1,6 @@
 # Finance operations entry
 
-Status: F1.2 implemented navigation control. This page makes the existing complete-cycle workspaces easier to find; it does not create a new transaction, approval, balance, or authority layer.
+Status: F1.2–F1.3 implemented navigation and shared-case finder controls. This page makes the existing complete-cycle workspaces and authorized case timeline easier to find; it does not create a new transaction, approval, balance, search index, or authority layer.
 
 ## What staff receive
 
@@ -14,9 +14,17 @@ Status: F1.2 implemented navigation control. This page makes the existing comple
 
 The page deliberately shows no synthetic totals, copied case lists, inferred notifications, or second set of workflow states. The existing domain workspaces remain the source of their filters, next actions, histories, and exports.
 
+## Shared-case finder
+
+Users who may open Voucher Workbench receive a case finder on `/finance/`. It hands the normalized query to the existing role-shaped workbench rather than querying through a second index. The workbench applies department/role visibility first and then matches up to eight safe tokens or an exact controlled identifier.
+
+Supported search evidence includes the case reference, safe payee/purpose, transaction type, requesting/current office, OBR/obligation, claim, DV, JEV, check, receipt, advice, and exact case/payment/advice/posting UUID. Exact 64-character locks may match the authorized case's obligation, posting payload/rule, or controlled-output checksum.
+
+The same filter service drives the on-screen queue and authorized case-register/custody exports. A hidden case contributes no result, option, or count; the page makes no existence suggestion. A search result opens the existing shared case, whose detail page already carries Budget authority, claim/DV, Accounting handoffs, payment/advice/release, custody/output, and permitted append-only history.
+
 ## Internal How-To
 
-The seeded `Find and continue your Finance work` guide matches the operations entry page and is published separately for each department. It explains the shared-case handoff, governed modification boundary, role-shaped next actions, TraceSync-ready export handling, and the private tutorial-progress boundary.
+The seeded `Find and continue your Finance work` guide matches the operations entry page and is published separately for each department. Version 2 explains the permission-filtered case finder, shared-case handoff, governed modification boundary, role-shaped next actions, TraceSync-ready export handling, and the private tutorial-progress boundary.
 
 Run `python manage.py seed_internal_howtos` after deployment to publish the starter where no equal or newer local version exists. Existing newer local instructions are preserved.
 
@@ -30,4 +38,4 @@ Run `python manage.py seed_internal_howtos` after deployment to publish the star
 
 ## Regression contract
 
-Automated coverage verifies full and selective Finance-card composition, denial for ordinary/reporting-only employees, anonymous redirection, preservation of established Finance URL paths, and field-only navigation for an assigned cross-office reviewer.
+Automated coverage verifies full and selective Finance-card composition, denial for ordinary/reporting-only employees, anonymous redirection, preservation of established Finance URL paths, field-only navigation for an assigned cross-office reviewer, safe multi-token/controlled-ID matching, and zero-result isolation for another requesting office's known case reference.

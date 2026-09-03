@@ -2135,6 +2135,62 @@ class VoucherWorkflowTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "append-only"):
             event.save()
 
+    def test_shared_case_finder_matches_controlled_references_and_safe_tokens(self):
+        case = self.ready_for_treasury("-shared-finder")
+        instrument = issue_check(
+            case=case,
+            actor=self.treasury_user,
+            bank_account_code="gf-lbp",
+            check_number="SEARCH-CHECK-991",
+            amount=Decimal("900.00"),
+            expected_version=case.state_version,
+            idempotency_key="shared-finder-check",
+        )
+        case.refresh_from_db()
+        posting_request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
+        searches = (
+            case.reference_code,
+            str(case.public_id),
+            case.disbursement_voucher.dv_number,
+            posting_request.jev_number,
+            str(posting_request.public_id),
+            posting_request.payload_checksum,
+            instrument.check_number,
+            str(instrument.public_id),
+            "Synthetic supply",
+        )
+
+        self.client.force_login(self.treasury_user)
+        for search in searches:
+            with self.subTest(search=search):
+                response = self.client.get(reverse("vouchers:workspace"), {"q": search})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context["visible_count"], 1)
+                self.assertContains(response, case.reference_code)
+
+    def test_shared_case_finder_does_not_count_or_hint_at_another_requesting_office(self):
+        other_office = Department.objects.create(
+            name="Engineering Office", slug="voucher-search-engineering",
+        )
+        hidden = create_budget_case(
+            actor=self.budget_user,
+            requesting_department=other_office,
+            payee=self.party,
+            particulars="Hidden engineering search target",
+            transaction_type="ordinary-supplier-claim",
+            idempotency_key="hidden-shared-finder-case",
+        )
+
+        self.client.force_login(self.requesting_user)
+        response = self.client.get(
+            reverse("vouchers:workspace"), {"q": hidden.reference_code},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["visible_count"], 0)
+        self.assertNotContains(response, hidden.particulars)
+        self.assertContains(response, "No additional voucher cases to show")
+
     def test_case_control_register_invalid_filter_fails_closed_and_preserves_export_evidence(self):
         case = self.create_case("register-invalid-filter")
         self.client.force_login(self.requesting_user)

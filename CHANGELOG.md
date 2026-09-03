@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.3 permission-filtered shared-case finder
+
+- Added a plain shared-case search handoff to the Finance entry for Voucher Workbench users without creating a second case index, queue, export, or authority state.
+- Extended the existing role-scoped case filter to normalized multi-token matching across safe case/office/purpose fields and OBR, claim, DV, JEV, check, receipt, and advice references.
+- Added exact authorized-case matching for case, obligation, payment-instrument, advice, and posting UUIDs plus obligation, posting, rule, and controlled-output checksums.
+- Kept screen and case/custody exports on the same filter service, with department/role visibility applied before matching so hidden cases contribute no result, option, suggestion, or count.
+- Published a version-2 Finance-entry guide and documented the distinction between this shared voucher-to-release timeline finder and the broader pre-voucher/saved-view/notification work still open under F1.
+- Added focused controlled-reference, multi-token, exact-ID/checksum, portal availability, and cross-requesting-office non-disclosure coverage. All 42 Voucher tests, all 55 Finance tests within the combined run, all 78 Finance-plus-guidance tests, and all 422 project tests pass across both routed databases; the final full suite completed in 85.198 seconds of test execution.
+
 ## F1.2 permission-shaped Finance operations entry
 
 - Added one stable `/finance/` starting page that composes plain Budget, Voucher, Accounting, Reporting, setup, discovery, and field-operation destinations exclusively from their existing access checks.
