@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 field-operation work register
+
+- Added permission- and object-shaped field-operation attention groups for source locking, cycle preparation/execution, independent reconciliation, assigned defect correction/review, readiness exercise completion/witnessing, stakeholder decisions, and cutover authority.
+- Reused the same visible-cycle and action-query services across My Work, the Shadow operation register, and its TraceSync-ready filtered export; each count intentionally represents cycles containing the named work, not a duplicated nested-task total.
+- Kept reconciled-without-authority, authorized, and returned filters as oversight views rather than personal assignments, and excluded Finance UAT preview users from field action groups.
+- Closed an existing visibility gap so named cross-office defect owners and readiness exercise owners/witnesses can open only cycles containing their assigned records without receiving broader Finance-office permissions.
+- Preserved every authoritative F11 source action, maker-checker rule, retained evidence lock, successor/rollback boundary, and explicit exact-scope/date cutover decision.
+- Updated field-operation and Accounting floating guides plus roadmap documentation. The 45-test cutover/Finance/guidance run and all 449 project tests pass across both routed databases; the full suite completed in 103.170 seconds. An authenticated isolated two-store browser pass confirmed the exact one-cycle source-lock queue, its matching My Work count, the separate prepared-cycle count, responsive 390×844 layout, open non-modal Accounting guide, and zero application-route console errors.
+
 ## F1.5 setup and discovery work register
 
 - Added plain, permission-shaped attention filters to Finance Setup, separating editable draft release preparation, independent review, future scheduling, and due activation.

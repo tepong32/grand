@@ -6,7 +6,7 @@ Status: **F11.8 coordination layer and F11.9 guided cross-cycle triage implement
 
 The Field Acceptance Board gives Finance and assigned office reviewers one readable view of the remaining local transition work. It does not create another approval checklist. Every status is calculated from the governed F10/F11 records already maintained in the selected shadow or parallel cycle. Linked F0.2 discovery decisions and exact-scope blockers are shown above the board without inflating the ten-checkpoint percentage.
 
-The Shadow operation landing page is the cross-cycle entry point. Its status, fiscal-year, run-kind, attention, and search filters help staff find the next cycle that needs work. Its one-row-per-cycle export applies those same filters and visibility rules, then derives checkpoint counts from this board. It is an oversight index; the selected-cycle board and detailed cycle evidence remain separate levels.
+The Shadow operation landing page is the cross-cycle entry point. Its status, fiscal-year, run-kind, attention, and search filters help staff find the next cycle that needs work. Personal action choices are shaped by the signed-in permission or named defect/exercise/stakeholder assignment; reconciled, authorized, and returned choices remain oversight. My Work, the screen, and the one-row-per-cycle export reuse the same visible-cycle filter, then derive checkpoint counts from this board. A displayed count means cycles containing the selected work, not nested work items. The selected-cycle board and detailed cycle evidence remain separate authoritative levels.
 
 The board groups those records into ten practical checkpoints:
 

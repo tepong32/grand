@@ -73,6 +73,45 @@ def _discovery_groups(user, department):
     return groups
 
 
+def _field_operation_groups(user, department):
+    from finance.shadow_register_exports import (
+        shadow_action_choices_for_user, shadow_action_queryset, visible_shadow_cycles,
+    )
+
+    keys = {
+        "needs_source": "field-source-lock",
+        "ready_to_prepare": "field-cycle-preparation",
+        "running": "field-cycle-execution",
+        "for_review": "field-cycle-review",
+        "my_defects": "field-defect-correction",
+        "review_defects": "field-defect-review",
+        "my_exercises": "field-exercise-completion",
+        "witness_exercises": "field-exercise-witness",
+        "my_acceptances": "field-stakeholder-decision",
+        "authorize_cutover": "field-cutover-authority",
+    }
+    named_roles = {
+        "my_defects": "Open defects naming you as correction owner",
+        "my_exercises": "Readiness exercises naming you as owner",
+        "witness_exercises": "Submitted exercises naming you as independent witness",
+        "my_acceptances": "Pending exact-scope decisions naming you as stakeholder reviewer",
+    }
+    groups = []
+    visible = visible_shadow_cycles(user)
+    for attention, _label in shadow_action_choices_for_user(user, department):
+        queryset, selected_attention, spec = shadow_action_queryset(
+            user, attention, queryset=visible,
+        )
+        groups.append(_group(
+            key=keys[attention], area="Field operation", title=spec["title"],
+            count=queryset.count(),
+            url=_queue_url("finance:shadow_workspace", attention=selected_attention),
+            definition=spec["definition"],
+            scope=named_roles.get(attention, f"Acting Finance office: {department.name}"),
+        ))
+    return groups
+
+
 def _voucher_groups(user, department):
     from accounting.access import can_post_journals, can_prepare_journals
     from vouchers.access import has_explicit_permission
@@ -426,6 +465,7 @@ def finance_work_attention(user):
     groups = []
     groups.extend(_setup_groups(user, department))
     groups.extend(_discovery_groups(user, department))
+    groups.extend(_field_operation_groups(user, department))
     groups.extend(_budget_groups(user, department))
     groups.extend(_voucher_groups(user, department))
     groups.extend(_accounting_groups(user, department))

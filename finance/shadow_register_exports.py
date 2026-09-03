@@ -10,10 +10,19 @@ from django.utils.text import slugify
 from src.export_archive import archive_export
 
 from .acceptance_services import build_field_acceptance_board
-from .access import can_view_shadow_cycle, department_for_user
+from vouchers.roles import is_finance_uat_viewer
+
+from .access import (
+    can_authorize_finance_cutover,
+    can_manage_shadow_operation,
+    can_review_shadow_reconciliation,
+    can_view_shadow_cycle,
+    department_for_user,
+)
 from .models import (
-    FinanceAuditEvent, FinanceCutoverDecision, FinanceShadowComparison, FinanceShadowCycle,
-    FinanceShadowDefect, FinanceShadowReconciliationRun,
+    FinanceAuditEvent, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
+    FinanceShadowComparison, FinanceShadowCycle, FinanceShadowDefect,
+    FinanceShadowReconciliationRun, FinanceStakeholderAcceptance,
 )
 
 
@@ -22,10 +31,203 @@ ATTENTION_CHOICES = (
     ("ready_to_prepare", "Draft has a source lock; complete local plans"),
     ("running", "Field cycle in progress"),
     ("for_review", "Waiting for independent reconciliation"),
+    ("my_defects", "Open defects assigned to me"),
+    ("review_defects", "Defect corrections for independent review"),
+    ("my_exercises", "Readiness exercises I must complete or rerun"),
+    ("witness_exercises", "Readiness exercises assigned to me as witness"),
+    ("my_acceptances", "Stakeholder decisions assigned to me"),
+    ("authorize_cutover", "Cutover records awaiting my authority role"),
     ("reconciled_no_authority", "Reconciled; remaining gates or authority"),
     ("authorized", "Explicitly authorized scope"),
     ("returned", "Returned; another cycle required"),
 )
+
+SHADOW_ACTION_SPECS = {
+    "needs_source": {
+        "role": "manage",
+        "title": "Field cycles needing a redacted source lock",
+        "definition": "Draft cycles in the acting Finance office whose current redacted source checksum or layout signature is still missing.",
+        "next_action": "Stage the redacted CSV or record the externally retained source lock before preparing the cycle controls.",
+    },
+    "ready_to_prepare": {
+        "role": "manage",
+        "title": "Field cycles whose local controls need preparation",
+        "definition": "Source-locked draft cycles in the acting Finance office that still need their locally accepted plans, forms, and exercises completed before start.",
+        "next_action": "Open the cycle and complete the editable local controls; submit each governed plan for independent review when ready.",
+    },
+    "running": {
+        "role": "manage",
+        "title": "Field cycles in progress",
+        "definition": "Running cycles in the acting Finance office requiring comparisons, scheduled reconciliation runs, defect resolution, or final evidence submission.",
+        "next_action": "Record the actual limited-run evidence and resolve every open item before submitting the locked cycle for independent reconciliation.",
+    },
+    "for_review": {
+        "role": "review",
+        "title": "Field cycles for independent reconciliation",
+        "definition": "Submitted cycles in the acting Finance office awaiting a reviewer other than the cycle submitter.",
+        "next_action": "Compare the locked evidence and record an independent reconcile-or-return decision without editing the submitted cycle.",
+    },
+    "my_defects": {
+        "role": "defect_owner",
+        "title": "Open field defects assigned to me",
+        "definition": "Visible cycles containing an open defect that names the signed-in user as correction owner.",
+        "next_action": "Open the cycle, record the correction and retained evidence on the named defect, then submit it for independent review.",
+    },
+    "review_defects": {
+        "role": "review",
+        "title": "Field-defect corrections for independent review",
+        "definition": "Cycles in the acting Finance office containing submitted defect resolutions not prepared by the signed-in reviewer.",
+        "next_action": "Verify the correction evidence and independently accept the resolution or reopen the defect with a reason.",
+    },
+    "my_exercises": {
+        "role": "exercise_owner",
+        "title": "Readiness exercises I must complete or rerun",
+        "definition": "Visible cycles containing a planned or returned exercise that names the signed-in user as owner.",
+        "next_action": "Perform the named field exercise, retain the actual result and evidence reference, then submit it to the assigned witness.",
+    },
+    "witness_exercises": {
+        "role": "exercise_witness",
+        "title": "Readiness exercises assigned to me as witness",
+        "definition": "Visible cycles containing submitted exercise evidence assigned to the signed-in independent witness.",
+        "next_action": "Compare what was observed with the expected result and independently pass or return the exercise.",
+    },
+    "my_acceptances": {
+        "role": "stakeholder",
+        "title": "Stakeholder decisions assigned to me",
+        "definition": "Independently reconciled cycles containing a pending exact-scope stakeholder decision assigned to the signed-in reviewer.",
+        "next_action": "Review the role-specific training and UAT evidence, then record the retained attributable decision for only the named scope.",
+    },
+    "authorize_cutover": {
+        "role": "authorize",
+        "title": "Cutover records awaiting my authority role",
+        "definition": "Submitted cutover records in the acting Finance office that the signed-in authority did not prepare or submit.",
+        "next_action": "Recheck the exact scope, date, signed authority, recovery evidence, and live acceptance gates before authorizing or declining.",
+    },
+}
+
+SHADOW_OVERSIGHT_CHOICES = tuple(
+    choice for choice in ATTENTION_CHOICES if choice[0] not in SHADOW_ACTION_SPECS
+)
+
+
+def visible_shadow_cycles(user):
+    department = department_for_user(user)
+    query = (
+        Q(stakeholder_acceptances__assigned_reviewer=user)
+        | Q(defects__owner=user)
+        | Q(cutover_readiness_exercises__owner=user)
+        | Q(cutover_readiness_exercises__witness=user)
+    )
+    if department:
+        query |= Q(department=department)
+    return FinanceShadowCycle.objects.filter(query).select_related(
+        "department", "created_by", "submitted_by", "reconciled_by",
+    ).prefetch_related("stakeholder_acceptances").distinct()
+
+
+def _shadow_action_role_allowed(user, department, role):
+    if is_finance_uat_viewer(user):
+        return False
+    if role == "manage":
+        return can_manage_shadow_operation(user, department)
+    if role == "review":
+        return can_review_shadow_reconciliation(user, department)
+    if role == "authorize":
+        return can_authorize_finance_cutover(user, department)
+    if role == "defect_owner":
+        return user.assigned_finance_shadow_defects.filter(status=FinanceShadowDefect.OPEN).exists()
+    if role == "exercise_owner":
+        return user.owned_finance_cutover_readiness_exercises.filter(
+            status__in=(FinanceCutoverReadinessExercise.PLANNED, FinanceCutoverReadinessExercise.RETURNED),
+        ).exists()
+    if role == "exercise_witness":
+        return user.witnessed_finance_cutover_readiness_exercises.filter(
+            status=FinanceCutoverReadinessExercise.SUBMITTED,
+        ).exists()
+    if role == "stakeholder":
+        return user.assigned_finance_shadow_acceptances.filter(
+            decision=FinanceStakeholderAcceptance.PENDING,
+            cycle__status=FinanceShadowCycle.RECONCILED,
+        ).exists()
+    return False
+
+
+def shadow_action_choices_for_user(user, department=None):
+    department = department or department_for_user(user)
+    labels = dict(ATTENTION_CHOICES)
+    return tuple(
+        (attention, labels[attention])
+        for attention, spec in SHADOW_ACTION_SPECS.items()
+        if _shadow_action_role_allowed(user, department, spec["role"])
+    ) if department else ()
+
+
+def shadow_attention_choices_for_user(user, department=None):
+    return shadow_action_choices_for_user(user, department) + SHADOW_OVERSIGHT_CHOICES
+
+
+def shadow_action_queryset(user, attention, *, queryset):
+    spec = SHADOW_ACTION_SPECS.get(attention)
+    if spec is None:
+        return queryset.none(), "", None
+    department = department_for_user(user)
+    if department is None or not _shadow_action_role_allowed(user, department, spec["role"]):
+        return queryset.none(), attention, spec
+
+    if attention == "needs_source":
+        queryset = queryset.filter(department=department, status=FinanceShadowCycle.DRAFT).filter(
+            Q(source_checksum="") | Q(source_schema_signature=""),
+        )
+    elif attention == "ready_to_prepare":
+        queryset = queryset.filter(department=department, status=FinanceShadowCycle.DRAFT).exclude(
+            Q(source_checksum="") | Q(source_schema_signature=""),
+        )
+    elif attention == "running":
+        queryset = queryset.filter(department=department, status=FinanceShadowCycle.RUNNING)
+    elif attention == "for_review":
+        queryset = queryset.filter(
+            department=department, status=FinanceShadowCycle.RECONCILIATION_REVIEW,
+        ).exclude(submitted_by=user)
+    elif attention == "my_defects":
+        queryset = queryset.filter(defects__owner=user, defects__status=FinanceShadowDefect.OPEN)
+    elif attention == "review_defects":
+        actionable_defects = FinanceShadowDefect.objects.filter(
+            status=FinanceShadowDefect.RESOLUTION_REVIEW,
+        ).exclude(resolution_submitted_by=user)
+        queryset = queryset.filter(
+            department=department,
+            pk__in=actionable_defects.values("cycle_id"),
+        )
+    elif attention == "my_exercises":
+        queryset = queryset.filter(
+            cutover_readiness_exercises__owner=user,
+            cutover_readiness_exercises__status__in=(
+                FinanceCutoverReadinessExercise.PLANNED,
+                FinanceCutoverReadinessExercise.RETURNED,
+            ),
+        )
+    elif attention == "witness_exercises":
+        actionable_exercises = FinanceCutoverReadinessExercise.objects.filter(
+            witness=user,
+            status=FinanceCutoverReadinessExercise.SUBMITTED,
+        ).exclude(
+            Q(owner=user) | Q(submitted_by=user)
+        )
+        queryset = queryset.filter(pk__in=actionable_exercises.values("cycle_id"))
+    elif attention == "my_acceptances":
+        queryset = queryset.filter(
+            status=FinanceShadowCycle.RECONCILED,
+            stakeholder_acceptances__assigned_reviewer=user,
+            stakeholder_acceptances__decision=FinanceStakeholderAcceptance.PENDING,
+        )
+    elif attention == "authorize_cutover":
+        queryset = queryset.filter(
+            department=department,
+            cutover_decision__status=FinanceCutoverDecision.SUBMITTED,
+        ).exclude(
+            Q(cutover_decision__prepared_by=user) | Q(cutover_decision__submitted_by=user),
+        )
+    return queryset.distinct(), attention, spec
 
 SHADOW_REGISTER_COLUMNS = (
     "cycle_public_id", "cycle_code", "title", "department", "fiscal_year", "run_kind",
@@ -45,7 +247,7 @@ SHADOW_REGISTER_COLUMNS = (
 
 
 def apply_shadow_cycle_filters(
-    queryset, *, status="", run_kind="", fiscal_year="", attention="", search="",
+    queryset, *, user=None, status="", run_kind="", fiscal_year="", attention="", search="",
 ):
     if status in dict(FinanceShadowCycle.STATUS_CHOICES):
         queryset = queryset.filter(status=status)
@@ -68,18 +270,13 @@ def apply_shadow_cycle_filters(
         else:
             queryset = queryset.none()
 
-    if attention == "needs_source":
-        queryset = queryset.filter(status=FinanceShadowCycle.DRAFT).filter(
-            Q(source_checksum="") | Q(source_schema_signature=""),
-        )
-    elif attention == "ready_to_prepare":
-        queryset = queryset.filter(status=FinanceShadowCycle.DRAFT).exclude(
-            Q(source_checksum="") | Q(source_schema_signature=""),
-        )
-    elif attention == "running":
-        queryset = queryset.filter(status=FinanceShadowCycle.RUNNING)
-    elif attention == "for_review":
-        queryset = queryset.filter(status=FinanceShadowCycle.RECONCILIATION_REVIEW)
+    if attention in SHADOW_ACTION_SPECS:
+        if user is None:
+            queryset = queryset.none()
+        else:
+            queryset, _selected, _spec = shadow_action_queryset(
+                user, attention, queryset=queryset,
+            )
     elif attention == "reconciled_no_authority":
         queryset = queryset.filter(status=FinanceShadowCycle.RECONCILED).exclude(
             cutover_decision__status=FinanceCutoverDecision.AUTHORIZED,

@@ -75,8 +75,8 @@ from .setup_register import (
     setup_attention_choices_for_user, setup_attention_queryset, setup_releases_for_department,
 )
 from .shadow_register_exports import (
-    ATTENTION_CHOICES as SHADOW_ATTENTION_CHOICES,
-    apply_shadow_cycle_filters, build_shadow_cycle_register, next_shadow_cycle_action,
+    SHADOW_ACTION_SPECS, apply_shadow_cycle_filters, build_shadow_cycle_register,
+    next_shadow_cycle_action, shadow_attention_choices_for_user, visible_shadow_cycles,
 )
 
 
@@ -451,18 +451,8 @@ def release_action(request, pk, action):
     return redirect("finance:release_detail", pk=release.pk)
 
 
-def _visible_shadow_cycles(user):
-    department = department_for_user(user)
-    query = Q(stakeholder_acceptances__assigned_reviewer=user)
-    if department:
-        query |= Q(department=department)
-    return FinanceShadowCycle.objects.filter(query).select_related(
-        "department", "created_by", "submitted_by", "reconciled_by",
-    ).prefetch_related("stakeholder_acceptances").distinct()
-
-
 def _shadow_cycle_for_user(user, pk):
-    cycle = get_object_or_404(_visible_shadow_cycles(user), pk=pk)
+    cycle = get_object_or_404(visible_shadow_cycles(user), pk=pk)
     if not can_view_shadow_cycle(user, cycle):
         raise PermissionDenied
     return cycle
@@ -471,12 +461,13 @@ def _shadow_cycle_for_user(user, pk):
 @shadow_access_required
 def shadow_workspace(request):
     department = department_for_user(request.user)
-    visible_cycles = _visible_shadow_cycles(request.user)
+    visible_cycles = visible_shadow_cycles(request.user)
     fiscal_year_choices = list(
         visible_cycles.order_by("-fiscal_year").values_list("fiscal_year", flat=True).distinct()
     )
     cycles, status, run_kind, fiscal_year, attention, search = apply_shadow_cycle_filters(
         visible_cycles,
+        user=request.user,
         status=request.GET.get("status", "").strip(),
         run_kind=request.GET.get("run_kind", "").strip(),
         fiscal_year=request.GET.get("fiscal_year", "").strip(),
@@ -496,7 +487,8 @@ def shadow_workspace(request):
         "status_choices": FinanceShadowCycle.STATUS_CHOICES,
         "run_kind_choices": FinanceShadowCycle.RUN_KIND_CHOICES,
         "fiscal_year_choices": fiscal_year_choices,
-        "attention_choices": SHADOW_ATTENTION_CHOICES,
+        "attention_choices": shadow_attention_choices_for_user(request.user, department),
+        "shadow_work_spec": SHADOW_ACTION_SPECS.get(attention),
         "filters": {
             "status": status, "run_kind": run_kind, "fiscal_year": fiscal_year,
             "attention": attention, "q": search,
@@ -509,7 +501,8 @@ def shadow_workspace(request):
 @shadow_access_required
 def shadow_cycle_register_export(request):
     cycles, status, run_kind, fiscal_year, attention, search = apply_shadow_cycle_filters(
-        _visible_shadow_cycles(request.user),
+        visible_shadow_cycles(request.user),
+        user=request.user,
         status=request.GET.get("status", "").strip(),
         run_kind=request.GET.get("run_kind", "").strip(),
         fiscal_year=request.GET.get("fiscal_year", "").strip(),
@@ -1295,7 +1288,7 @@ def discovery_register_export(request):
 
 
 def _field_acceptance_cycle(user, raw_pk=None):
-    cycles = _visible_shadow_cycles(user)
+    cycles = visible_shadow_cycles(user)
     if raw_pk in (None, ""):
         return cycles.first()
     try:
@@ -1307,7 +1300,7 @@ def _field_acceptance_cycle(user, raw_pk=None):
 
 @shadow_access_required
 def field_acceptance_board(request):
-    cycles = _visible_shadow_cycles(request.user)
+    cycles = visible_shadow_cycles(request.user)
     cycle = _field_acceptance_cycle(request.user, request.GET.get("cycle"))
     board = build_field_acceptance_board(cycle) if cycle else None
     return render(request, "finance/field_acceptance_board.html", {

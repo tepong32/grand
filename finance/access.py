@@ -148,6 +148,8 @@ def can_view_shadow_workspace(user):
         return False
     if user.assigned_finance_shadow_acceptances.exists():
         return True
+    if user.assigned_finance_shadow_defects.exists():
+        return True
     if user.owned_finance_cutover_readiness_exercises.exists():
         return True
     if user.witnessed_finance_cutover_readiness_exercises.exists():

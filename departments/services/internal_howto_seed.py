@@ -613,14 +613,14 @@ REQUESTING_GUIDES = REQUESTING_GUIDES + (
     },
     {
         "slug": "finance-shadow-stakeholder-acceptance",
-        "version": 4,
+        "version": 5,
         "title": "Review and accept your office's shadow/UAT scope",
         "summary": "Use the floating guide while reviewing the exact enabled scope, role exercise, and comparison evidence assigned to you.",
         "permission": "",
-        "patterns": ["finance:shadow_*", "finance:stakeholder_*", "finance:field_acceptance_*"],
+        "patterns": ["finance:shadow_*", "finance:stakeholder_*", "finance:field_acceptance_*", "finance_operations:*"],
         "order": 90,
         "steps": (
-            ("Open your assigned cycle", "Open Shadow operation & cutover and choose the cycle assigned to you. Read the office, transaction, fund, and date scope before reviewing results.", "You can see the shared cycle without receiving Finance preparation or cutover authority.", "Do not accept work outside the written scope or assume another office's acceptance covers yours.", "Open Shadow operation", "finance:shadow_workspace"),
+            ("Open your exact named field action", "From Work needing attention, choose only the field defect, readiness exercise, witness check, or stakeholder decision that names you. GRAND opens the same cycle register with that exact filter. Read the office, transaction, fund, and date scope before acting.", "The My Work count and source register show the same visible cycles containing your named action without granting Finance preparation or cutover authority.", "A cycle can contain several records; act only on the row that names you and do not assume another office's acceptance covers yours.", "Open Shadow operation", "finance:shadow_workspace"),
             ("Read the shared acceptance board", "Choose your assigned cycle in the Field Acceptance Board. Read the ten evidence checkpoints and the exact enabled scope, then open the cycle workspace for the records assigned to you.", "The board points to current governed evidence and refreshes when those source records change.", "Board percentages and tutorial checkmarks are coordination aids; neither is an approval or employee rating.", "Open Field Acceptance Board", "finance:field_acceptance_board"),
             ("Complete the role exercise", "Follow the department procedure with synthetic or properly redacted cases, including normal work, a return/correction, and the applicable exception route.", "You can complete your role without borrowed permissions or hidden manual steps.", "The personal checkmarks in this guide help you resume learning; supervisors do not use them as attendance, performance, or acceptance evidence.", "", ""),
             ("Submit observable exercise evidence", "Open the named role exercise, compare its procedure and expected result with what you actually performed, then reference the retained redacted observation sheet, output, or supervisor record.", "The result waits for the separately assigned witness; submitting it does not pass the exercise.", "Do not paste confidential case content or use this guide's private progress checkmarks as evidence.", "", ""),
@@ -658,14 +658,14 @@ ACCOUNTING_GUIDES = ACCOUNTING_GUIDES + (
     },
     {
         "slug": "finance-shadow-cutover-manager",
-        "version": 6,
+        "version": 7,
         "title": "Run shadow reconciliation and prepare cutover evidence",
         "summary": "Plan a limited cycle, lock exact comparisons, collect separate office decisions, and keep authority and rollback explicit.",
         "permission": "finance.manage_shadow_operation",
-        "patterns": ["finance:shadow_*", "finance:cutover_*", "finance:field_acceptance_*"],
+        "patterns": ["finance:shadow_*", "finance:cutover_*", "finance:field_acceptance_*", "finance_operations:*"],
         "order": 89,
         "steps": (
-            ("Triage the visible field cycles", "Use status, fiscal year, run kind, search, or What needs attention to narrow the cycle register. Follow the plain next action, then export the same visible rows when a coordinator needs a portable oversight list.", "The screen and one-row-per-cycle CSV use the same role-bounded filters; a named cross-office reviewer sees only cycles assigned to that account.", "The register is a work aid. Its rows and percentages do not accept a checkpoint, replace detailed evidence, or authorize GRAND. Your private tutorial checkmarks also remain only personal resume aids.", "Open Shadow operation", "finance:shadow_workspace"),
+            ("Triage the exact field action", "From Work needing attention, choose source locking, cycle preparation/execution, independent reconciliation, defect correction/review, exercise completion/witnessing, stakeholder decision, or cutover authority only when that named action matches your role. The source register uses the same filter; reconciled, authorized, and returned choices remain oversight views.", "My Work, the source screen, and its one-row-per-cycle export use the same role- and object-bounded cycle set; named cross-office users see only cycles containing their assigned record.", "A cycle count is a drill-in aid, not the number of nested records. It does not accept a checkpoint, replace detailed evidence, or authorize GRAND. Private tutorial checkmarks remain personal resume aids.", "Open Shadow operation", "finance:shadow_workspace"),
             ("Start with the Field Acceptance Board", "Choose the exact candidate cycle and review its ten evidence checkpoints. Use each plain-language next action to return to the governed cycle records; export the board when a coordinator or records custodian needs a portable status copy.", "The board reflects current source locks, plans, exercises, form lineage, field cycles, reconciliation, stakeholder decisions, and cutover authority without creating a second approval list.", "Do not report the percentage as phase acceptance. GRAND remains in shadow/UAT mode until the separately recorded cutover authority is Authorized for the exact scope and date.", "Open Field Acceptance Board", "finance:field_acceptance_board"),
             ("Define a limited cycle", "Name the exact offices, funds, transaction types, and dates. Reference where the locally authoritative, redacted/read-only comparison source is retained.", "A draft plan identifies what is and is not being compared without importing a production database.", "Public COA/DBM material or an eGAPS export does not prove local applicability by itself.", "Open Shadow operation", "finance:shadow_workspace"),
             ("Stage the safe comparison copy", "Upload a UTF-8 redacted CSV up to 5 MB. Confirm what was removed or masked. GRAND calculates the file lock, normalized headings, row count, and column-layout lock without importing its rows into Finance transactions.", "A retained v1 source record shows the safe inspection results and any sensitive-heading reminder.", "Never upload a live database, executable spreadsheet, credentials, or unrestricted production export.", "Open Shadow operation", "finance:shadow_workspace"),
@@ -705,7 +705,7 @@ def _department_kind(department):
 FINANCE_MY_WORK_GUIDES = {
     "accounting": {
         "slug": "finance-my-work-accounting",
-        "version": 5,
+        "version": 6,
         "title": "Triage Accounting work needing attention",
         "summary": "Start from live Accounting and connected Finance counts, then continue in the exact governed register.",
         "permission": "accounting.view_accounting_workspace",
@@ -713,7 +713,7 @@ FINANCE_MY_WORK_GUIDES = {
         "order": 4,
         "steps": (
             ("Open work needing attention", "From Finance operations, open Work needing attention. Read the generated time and your current department before relying on a count.", "Only groups supported for your current permissions are shown.", "A count is not a new assignment, approval, or notification.", "Review My Work", "finance_operations:my_work"),
-            ("Choose the exact Accounting group", "Use the setup-release, discovery-decision, JEV, opening-balance, bank-reconciliation, period-close/reopen, bank-advice, returned-payment, cash-policy, cash-position, or reporting group that matches the action you may perform.", "Setup preparation/review/scheduling/activation and discovery preparation/review remain separate; returned payments, cash policy, and cash positions also keep their distinct states.", "A queue count does not accept local authority, approve or activate setup, record a discovery decision, decide a bank return, post a reversal, establish cash availability, authorize a replacement, or release payment.", "", ""),
+            ("Choose the exact Accounting group", "Use the setup-release, discovery-decision, field-operation, JEV, opening-balance, bank-reconciliation, period-close/reopen, bank-advice, returned-payment, cash-policy, cash-position, or reporting group that matches the action you may perform.", "Setup, discovery, and field preparation/review/authority work remain separate; named defects, exercises, witness checks, and stakeholder decisions appear only through their object assignment.", "A queue count does not accept local authority, approve or activate setup, record a discovery decision, pass a field checkpoint, authorize cutover, decide a bank return, post a reversal, establish cash availability, authorize a replacement, or release payment.", "", ""),
             ("Open the source queue", "Choose Open exact queue and confirm its visible row count before opening a record.", "The source register applies the same lifecycle-state filter as the attention row.", "The linked Accounting or Reporting record remains authoritative; do not treat this overview as transaction state.", "", ""),
             ("Continue the governed action", "Open one source record, follow its next-action guidance, and use its return, reversal, or successor route if correction is needed.", "Work continues with the source record's permission, maker-checker, version, and audit controls.", "Private tutorial checkmarks only help you resume reading; they are not work-completion or competence evidence.", "", ""),
         ),

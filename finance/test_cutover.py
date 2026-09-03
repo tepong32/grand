@@ -7,7 +7,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -18,6 +18,7 @@ from departments.models import Department
 from profiles.models import EmployeeProfile
 from reporting.form_acceptance_services import checksum, file_checksum, form_snapshot
 from reporting.models import FinanceLocalFormAcceptance
+from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
 
 from .acceptance_services import build_field_acceptance_board
 from .cutover_services import (
@@ -1372,3 +1373,259 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertEqual(
             self.client.get(reverse("finance:shadow_cycle_register_export")).status_code, 403,
         )
+
+    def test_field_cycle_manager_and_reviewer_actions_match_my_work_and_source_filters(self):
+        unlocked = self._unlocked_cycle(code="fy-2027-work-needs-source")
+        prepared = self._cycle(code="fy-2027-work-prepare")
+        running = self._cycle(code="fy-2027-work-running")
+        start_shadow_cycle(running, self.manager)
+        review = self._cycle(code="fy-2027-work-review")
+        FinanceShadowCycle.objects.filter(pk=review.pk).update(
+            status=FinanceShadowCycle.RECONCILIATION_REVIEW,
+            submitted_by=self.manager,
+            submitted_at=timezone.now(),
+            evidence_checksum="c" * 64,
+        )
+
+        self.client.force_login(self.manager)
+        manager_work = self.client.get(reverse("finance_operations:my_work"))
+        manager_groups = {item["key"]: item for item in manager_work.context["groups"]}
+        manager_expectations = {
+            "needs_source": ("field-source-lock", unlocked),
+            "ready_to_prepare": ("field-cycle-preparation", prepared),
+            "running": ("field-cycle-execution", running),
+        }
+        for attention, (key, expected) in manager_expectations.items():
+            source = self.client.get(reverse("finance:shadow_workspace"), {"attention": attention})
+            self.assertEqual(source.context["visible_count"], 1)
+            self.assertEqual(source.context["cycles"], [expected])
+            self.assertEqual(manager_groups[key]["count"], source.context["visible_count"])
+            self.assertEqual(
+                manager_groups[key]["url"],
+                f'{reverse("finance:shadow_workspace")}?attention={attention}',
+            )
+        self.assertEqual(
+            self.client.get(
+                reverse("finance:shadow_workspace"), {"attention": "for_review"},
+            ).context["visible_count"],
+            0,
+        )
+
+        self.client.force_login(self.reconciler)
+        reviewer_source = self.client.get(
+            reverse("finance:shadow_workspace"), {"attention": "for_review"},
+        )
+        reviewer_work = self.client.get(reverse("finance_operations:my_work"))
+        reviewer_group = next(
+            item for item in reviewer_work.context["groups"] if item["key"] == "field-cycle-review"
+        )
+        self.assertEqual(reviewer_source.context["cycles"], [review])
+        self.assertEqual(reviewer_group["count"], reviewer_source.context["visible_count"])
+        self.assertContains(reviewer_source, "reviewer other than the cycle submitter")
+
+    def test_named_cross_office_defect_owner_gets_exact_field_action_without_broader_access(self):
+        cycle = self._cycle(code="fy-2027-owned-defect")
+        start_shadow_cycle(cycle, self.manager)
+        comparison = FinanceShadowComparison(
+            cycle=cycle,
+            comparison_level=FinanceShadowComparison.CASE,
+            control_code="owned-defect-control",
+            label="Assigned correction control",
+            source_reference="Retained source row DEF-001",
+            grand_reference="GRAND shadow row DEF-001",
+            source_amount=Decimal("100.00"),
+            grand_amount=Decimal("90.00"),
+            outcome=FinanceShadowComparison.OPEN_DEFECT,
+            explanation="The GRAND amount is ten pesos below the retained source row.",
+            evidence_reference="Difference worksheet DEF-001",
+            defect_owner=self.outsider,
+            created_by=self.manager,
+        )
+        comparison.full_clean()
+        comparison.save()
+        defect = register_shadow_defect(
+            comparison,
+            self.manager,
+            code="owned-defect",
+            severity=FinanceShadowDefect.MEDIUM,
+            summary="Correct the assigned synthetic difference",
+            impact="The named comparison cannot be reconciled until corrected.",
+            owner=self.outsider,
+        )
+
+        self.client.force_login(self.outsider)
+        source = self.client.get(
+            reverse("finance:shadow_workspace"), {"attention": "my_defects"},
+        )
+        work = self.client.get(reverse("finance_operations:my_work"))
+        group = next(
+            item for item in work.context["groups"] if item["key"] == "field-defect-correction"
+        )
+
+        self.assertEqual(source.status_code, 200)
+        self.assertEqual(source.context["cycles"], [cycle])
+        self.assertEqual(group["count"], source.context["visible_count"])
+        self.assertContains(source, "names the signed-in user as correction owner")
+        self.assertNotContains(source, "Draft has a source lock; complete local plans")
+
+        submit_shadow_defect_resolution(
+            defect,
+            self.outsider,
+            note="Corrected the synthetic ten-peso mapping difference.",
+            evidence_reference="Retained correction worksheet DEF-001-B",
+        )
+        self.client.force_login(self.reconciler)
+        review_source = self.client.get(
+            reverse("finance:shadow_workspace"), {"attention": "review_defects"},
+        )
+        review_work = self.client.get(reverse("finance_operations:my_work"))
+        review_group = next(
+            item for item in review_work.context["groups"] if item["key"] == "field-defect-review"
+        )
+        self.assertEqual(review_source.context["cycles"], [cycle])
+        self.assertEqual(review_group["count"], review_source.context["visible_count"])
+
+    def test_named_stakeholder_decision_matches_cross_office_source_and_my_work(self):
+        cycle = self._reconciled_cycle(code="fy-2027-stakeholder-work")
+        FinanceStakeholderAcceptance.objects.create(
+            cycle=cycle,
+            stakeholder_kind=FinanceStakeholderAcceptance.REQUESTING_OFFICE,
+            office=self.requesting,
+            assigned_reviewer=self.requesting_reviewer,
+            enabled_scope=cycle.enabled_scope,
+            created_by=self.manager,
+        )
+
+        self.client.force_login(self.requesting_reviewer)
+        source = self.client.get(
+            reverse("finance:shadow_workspace"), {"attention": "my_acceptances"},
+        )
+        work = self.client.get(reverse("finance_operations:my_work"))
+        group = next(
+            item for item in work.context["groups"] if item["key"] == "field-stakeholder-decision"
+        )
+
+        self.assertEqual(source.context["cycles"], [cycle])
+        self.assertEqual(group["count"], source.context["visible_count"])
+        self.assertEqual(
+            group["url"],
+            f'{reverse("finance:shadow_workspace")}?attention=my_acceptances',
+        )
+        self.assertContains(source, "pending exact-scope stakeholder decision")
+        exported = self.client.get(
+            reverse("finance:shadow_cycle_register_export"), {"attention": "my_acceptances"},
+        )
+        rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+        self.assertEqual([row["cycle_code"] for row in rows], [cycle.code])
+
+    def test_uat_preview_user_does_not_receive_field_operation_action_groups(self):
+        self._unlocked_cycle(code="fy-2027-uat-hidden-action")
+        uat_user = self._employee("cutover.uat", self.accounting)
+        self._grant(
+            uat_user,
+            "manage_shadow_operation",
+            "review_shadow_reconciliation",
+            "authorize_finance_cutover",
+        )
+        group, _created = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)
+        uat_user.groups.add(group)
+
+        self.client.force_login(uat_user)
+        source = self.client.get(
+            reverse("finance:shadow_workspace"), {"attention": "needs_source"},
+        )
+        work = self.client.get(reverse("finance_operations:my_work"))
+
+        self.assertEqual(source.context["visible_count"], 0)
+        self.assertNotContains(source, "Draft needs its redacted source lock")
+        self.assertFalse(
+            any(item["key"].startswith("field-") for item in work.context["groups"]),
+        )
+
+    def test_named_exercise_owner_and_witness_get_separate_exact_actions(self):
+        cycle = self._cycle(code="fy-2027-exercise-work")
+        self._approve_readiness_plan(cycle)
+        scheduled_for = timezone.make_aware(datetime.combine(cycle.planned_start, time(13, 0)))
+        exercise = schedule_cutover_readiness_exercise(
+            cycle,
+            self.manager,
+            kind=FinanceCutoverReadinessExercise.ACCESSIBILITY,
+            code="accessibility-work-001",
+            title="Assisted-use field exercise",
+            enabled_scope=cycle.enabled_scope,
+            procedure="Complete the retained assisted-use script with synthetic records.",
+            expected_result="The named user completes every step with the accepted support route.",
+            owner=self.requesting_reviewer,
+            witness=self.other_reviewer,
+            scheduled_for=scheduled_for,
+            due_at=scheduled_for + timedelta(hours=2),
+        )
+
+        self.client.force_login(self.requesting_reviewer)
+        owner_source = self.client.get(
+            reverse("finance:shadow_workspace"), {"attention": "my_exercises"},
+        )
+        owner_work = self.client.get(reverse("finance_operations:my_work"))
+        owner_group = next(
+            item for item in owner_work.context["groups"] if item["key"] == "field-exercise-completion"
+        )
+        self.assertEqual(owner_source.context["cycles"], [cycle])
+        self.assertEqual(owner_group["count"], owner_source.context["visible_count"])
+
+        submit_cutover_readiness_exercise(
+            exercise,
+            self.requesting_reviewer,
+            actual_result="Completed the retained assisted-use script without an unexplained step.",
+            evidence_reference="Redacted observation sheet ACCESSIBILITY-WORK-001",
+        )
+        self.client.force_login(self.other_reviewer)
+        witness_source = self.client.get(
+            reverse("finance:shadow_workspace"), {"attention": "witness_exercises"},
+        )
+        witness_work = self.client.get(reverse("finance_operations:my_work"))
+        witness_group = next(
+            item for item in witness_work.context["groups"] if item["key"] == "field-exercise-witness"
+        )
+        self.assertEqual(witness_source.context["cycles"], [cycle])
+        self.assertEqual(witness_group["count"], witness_source.context["visible_count"])
+
+    def test_cutover_authority_action_excludes_the_record_preparer(self):
+        cycle = self._reconciled_cycle(code="fy-2027-authority-work")
+        decision = FinanceCutoverDecision.objects.create(
+            cycle=cycle,
+            authority_matrix_reference="Retained authority matrix AUTH-WORK-001",
+            enabled_scope=cycle.enabled_scope,
+            cutover_at=timezone.now() + timedelta(days=30),
+            opening_reconciliation_reference="Opening reconciliation OPEN-WORK-001",
+            rollback_criteria="Invoke rollback for an unexplained control difference.",
+            legacy_read_only_retention_plan="Retain the legacy source read-only under the local schedule.",
+            backup_recovery_evidence="Structured recovery evidence will be bound before actual submission.",
+            signed_authority_reference="Retained signed authority record AUTH-WORK-SIGNED-001",
+            signed_authority_checksum="d" * 64,
+            signature_custody_reference="Restricted management records folder AUTH-WORK-001",
+            prepared_by=self.manager,
+        )
+        FinanceCutoverDecision.objects.filter(pk=decision.pk).update(
+            status=FinanceCutoverDecision.SUBMITTED,
+            submitted_by=self.manager,
+            submitted_at=timezone.now(),
+        )
+
+        self.client.force_login(self.manager)
+        self.assertEqual(
+            self.client.get(
+                reverse("finance:shadow_workspace"), {"attention": "authorize_cutover"},
+            ).context["visible_count"],
+            0,
+        )
+
+        self.client.force_login(self.authority)
+        source = self.client.get(
+            reverse("finance:shadow_workspace"), {"attention": "authorize_cutover"},
+        )
+        work = self.client.get(reverse("finance_operations:my_work"))
+        group = next(
+            item for item in work.context["groups"] if item["key"] == "field-cutover-authority"
+        )
+        self.assertEqual(source.context["cycles"], [cycle])
+        self.assertEqual(group["count"], source.context["visible_count"])
