@@ -1,5 +1,14 @@
 # Changelog
 
+## F7 guided Accounting JEV triage and portable control register
+
+- Added status, source, accounting-period, fund, plain next-action, and search filters to the Accounting journal register without changing JEV states or posting authority.
+- Derived human-readable next work from actual line counts, debit/credit control totals, return evidence, period status, independent-review status, and reversal lineage.
+- Added a synchronized one-row-per-JEV register with numeric controls, source/payload/rule checksums, immutable source-snapshot checksum, subsidiary count, maker-checker actors, latest audit reason, and correction lineage.
+- Archived exact spreadsheet-safe register bytes and checksum manifests under the acting Accounting department/user `finance-journal-control-register` tree and recorded append-only Accounting audit receipts, including empty exports.
+- Published successor preparer/poster guides and documented the modification, posting, close, and local-form authority boundaries.
+- Added focused balance, return, posting, reversal-lineage, invalid-filter, department, archive, audit, permission, and formula-safety coverage. All 47 Accounting tests, all 70 Accounting-plus-guidance tests, and all 412 project tests pass across both routed databases; the full suite completed in 77.541 seconds of test execution.
+
 ## F6 guided DV print/custody triage and portable history
 
 - Added a print/custody filter to the shared role-shaped Finance Queue for signing-copy preparation, print recording, packet assembly, signature circulation, and returned-packet review without adding or changing transaction states.

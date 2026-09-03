@@ -7,6 +7,7 @@ app_name = "accounting"
 
 urlpatterns = [
     path("", views.workspace, name="workspace"),
+    path("export/journal-control-register/", views.journal_register_export, name="journal_register_export"),
     path("setup/", views.setup_workspace, name="setup"),
     path("setup/export/", views.foundation_register_export, name="foundation_register_export"),
     path("setup/releases/<int:pk>/adopt/", views.configuration_release_adopt, name="release_adopt"),

@@ -232,13 +232,14 @@ ACCOUNTING_GUIDES = (
     },
     {
         "slug": "finance-journal-prepare",
-        "version": 3,
+        "version": 4,
         "title": "Prepare and submit a journal entry",
         "summary": "Create manual JEVs only for supported events, or materialize a voucher JEV from its pinned posting rule, then send it to a different poster.",
         "permission": "accounting.prepare_journal_entries",
         "patterns": ["accounting:entry_*", "accounting:workspace"],
         "order": 60,
         "steps": (
+            ("Find the journal that needs work", "Use status, source, period, fund, next-action, or search filters on the Accounting workspace. Draft needs lines, Debit and credit differ, and Returned to preparer isolate work that remains safely modifiable before posting.", "The filtered screen shows why each JEV needs attention and the same filter set can be retained in a portable control register by an authorized ledger user.", "The register is operational evidence, not posting or period-close approval and not an accepted COA/local form.", "Open Accounting", "accounting:workspace"),
             ("Choose the correct source route", "For a voucher handoff, review whether it is recognition, payment release, or another governed event, its recognition point, current event amount, and pinned posting-rule title, then use Create GRAND JEV. Use New journal only for a separately supported manual event.", "The selected route preserves the source, physical-instrument trigger, and policy lineage.", "Do not recreate a voucher or opening-balance JEV manually.", "Open Accounting", "accounting:workspace"),
             ("Create or inspect the draft", "For a manual event, choose the open period and fund and record its reference, date, and source. For a voucher event, let GRAND resolve the pinned account/amount instructions and verify the generated rule checksum.", "A department-scoped draft exists with its source evidence.", "A mapping error must be corrected in governed setup; do not substitute an unexplained account.", "", ""),
             ("Add controlled lines", "Add one positive debit or credit per line using active posting accounts and the correct responsibility center.", "The live totals are non-zero and equal.", "Do not use a manual journal to bypass a source-generated voucher or opening route.", "", ""),
@@ -248,13 +249,14 @@ ACCOUNTING_GUIDES = (
     },
     {
         "slug": "finance-journal-post",
-        "version": 5,
+        "version": 6,
         "title": "Review, post, or return a JEV",
         "summary": "Independently review source lineage and balanced lines before they enter the immutable ledger.",
         "permission": "accounting.post_journal_entries",
         "patterns": ["accounting:entry_*", "accounting:workspace"],
         "order": 70,
         "steps": (
+            ("Open the exact independent-review queue", "Filter What needs attention to Waiting for independent posting, then narrow by source, period, fund, or reference. Export these JEVs when a checksummed handoff/control register is needed.", "The screen and CSV contain the same Accounting-department JEVs, source checksums, totals, actors, last audit reason, and correction lineage.", "An exported queue does not authorize posting; review the underlying source and entry before acting.", "Open Accounting", "accounting:workspace"),
             ("Review the submitted entry", "Confirm the period/fund, source reference, description, accounts, centers, line details, and equal debit/credit totals. For a voucher JEV, compare its event, recognition decision, pinned posting-rule checksum, claimant/payee, and deduction subsidiary labels to the handoff.", "The entry agrees with its supporting evidence and immutable posting rule.", "Posting is an authoritative boundary; do not approve an unexplained mapping, missing subsidiary identity, or a rule used at the wrong recognition point.", "Open Accounting", "accounting:workspace"),
             ("Return or post", "Return with a specific reason when review can be resolved on the same generated draft. Otherwise post once; a recognition JEV moves to check preparation, while a payment-event JEV resumes its exact recorded Treasury stage or completes the last release.", "The entry is either editable again by its preparer or immutable in the ledger, and the shared case resumes once.", "Do not manually move a voucher around its recorded resume stage.", "", ""),
             ("Correct after posting properly", "Use a linked reversing or adjusting entry with a mandatory reason rather than changing posted lines.", "The original and correction both remain traceable.", "", "", ""),

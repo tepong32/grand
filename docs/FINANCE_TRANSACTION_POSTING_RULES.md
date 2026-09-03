@@ -57,8 +57,11 @@ This complements the wider modification allowance: draft setup changes stay insi
 
 Authorized ledger users can export:
 
+- the filtered Accounting journal control register, one row per JEV, with the same status/source/period/fund/next-action/search scope shown on screen, numeric balance controls, source and rule checksums, maker-checker actors, latest audit reason, and reversal/replacement lineage;
 - the posted general ledger for all accounts or one selected account, including JEV/source lineage and any posting-rule checksum; and
 - the posted trial balance with debit, credit, and net columns plus a balance indicator in its manifest.
+
+The Accounting workspace keeps the existing JEV states intact and adds plain operational views for drafts needing lines, drafts whose debit and credit differ, returned corrections, independent posting, posted evidence, discarded drafts, and correction lineage. Invalid controlled filter values fail closed. The downloaded control register is generated from the exact same department-bounded query as the screen and records an append-only export receipt even when no JEV matches.
 
 The browser download bytes are atomically retained under:
 
@@ -87,3 +90,4 @@ Before official use, Accounting must compare each enabled variant and event with
 - Confirm the JEV is balanced, carries the pinned event/rule lineage, and requires independent posting.
 - Confirm an earlier-accrual decision cannot generate a duplicate DV-recognition request.
 - Export the ledger and trial balance; verify the downloaded bytes, archived bytes, checksum headers, manifests, and department/user folder boundaries agree.
+- Filter the Accounting journal queue by source, period, fund, and next action; export the synchronized register and verify numeric totals, formula-safe text, source checksums, audit receipt, and reversal lineage.

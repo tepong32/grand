@@ -1,5 +1,7 @@
 from datetime import date
 from decimal import Decimal
+import csv
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -35,7 +37,7 @@ from .services import (
     classify_bank_outstanding,
     control_reconciliation_snapshot,
     correct_opening_batch, correct_opening_row, decide_opening_batch, discard_draft, ensure_readiness_layers,
-    evaluate_fiscal_year_readiness, post_entry, post_opening_batch, reconcile_opening_batch,
+    evaluate_fiscal_year_readiness, post_entry, post_opening_batch, reconcile_opening_batch, return_entry,
     run_control_reconciliation, stage_opening_csv, submit_entry, submit_opening_batch, transition_fiscal_year,
     decide_bank_reconciliation, stage_bank_statement_csv, submit_bank_reconciliation,
     match_bank_statement_row, unclassify_bank_outstanding, unmatch_bank_statement_row, validate_opening_batch,
@@ -1203,6 +1205,101 @@ class StandaloneAccountingTests(TestCase):
         self.client.force_login(self.outsider)
         response = self.client.get(reverse("accounting:entry_detail", args=(entry.public_id,)))
         self.assertEqual(response.status_code, 404)
+
+    def test_journal_triage_and_control_register_are_synchronized_and_audited(self):
+        unbalanced = self._entry(reference="SYN-JEV-NEEDS-BALANCE", balanced=False)
+        submitted = self._entry(reference="SYN-JEV-FOR-POSTING")
+        submitted.source_type = "voucher"
+        submitted.source_reference = "SYN-VOUCHER-SOURCE"
+        submitted.description = "=Synthetic formula-like description"
+        submitted.source_snapshot = {
+            "posting_event": "recognition", "posting_rule_checksum": "rule-checksum",
+            "payload_checksum": "payload-checksum",
+        }
+        submitted.save()
+        submit_entry(submitted, self.preparer)
+
+        returned = self._entry(reference="SYN-JEV-RETURNED")
+        submit_entry(returned, self.preparer)
+        return_entry(returned, self.poster, "Correct the responsibility center evidence.")
+
+        posted = self._entry(reference="SYN-JEV-CORRECTION-ORIGINAL")
+        submit_entry(posted, self.preparer)
+        post_entry(posted, self.poster)
+        reversal = create_reversal(
+            posted, self.preparer, reference="SYN-JEV-CORRECTION-REVERSAL",
+            entry_date=date(2027, 1, 20), period=self.period,
+            reason="Correct a synthetic posting while retaining the original.",
+        )
+
+        self.client.force_login(self.poster)
+        balance_view = self.client.get(reverse("accounting:workspace"), {"attention": "needs_balance"})
+        self.assertContains(balance_view, unbalanced.reference)
+        self.assertNotContains(balance_view, submitted.reference)
+        returned_view = self.client.get(reverse("accounting:workspace"), {"attention": "returned_correction"})
+        self.assertContains(returned_view, returned.reference)
+        correction_view = self.client.get(reverse("accounting:workspace"), {"attention": "correction_lineage"})
+        self.assertContains(correction_view, posted.reference)
+        self.assertContains(correction_view, reversal.reference)
+
+        filters = {
+            "attention": "for_posting", "source_type": "voucher", "period": str(self.period.pk),
+            "fund": str(self.fund.pk), "q": "SYN-JEV-FOR-POSTING",
+        }
+        workspace = self.client.get(reverse("accounting:workspace"), filters)
+        self.assertContains(workspace, submitted.reference)
+        self.assertContains(workspace, "Independent poster reviews")
+        self.assertEqual(workspace.context["visible_count"], 1)
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            exported = self.client.get(reverse("accounting:journal_register_export"), filters)
+            self.assertEqual(exported.status_code, 200)
+            rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["jev_reference"], submitted.reference)
+            self.assertEqual(rows[0]["description"], "'=Synthetic formula-like description")
+            self.assertEqual(rows[0]["total_debit"], "100.00")
+            self.assertEqual(rows[0]["total_credit"], "100.00")
+            self.assertEqual(rows[0]["posting_rule_checksum"], "rule-checksum")
+            self.assertEqual(rows[0]["source_payload_checksum"], "payload-checksum")
+            self.assertTrue(rows[0]["source_snapshot_checksum"])
+            self.assertIn(
+                "accounting/ledgerposter/finance-journal-control-register",
+                exported["X-GRAND-Export-Relative-Path"],
+            )
+            artifact = Path(export_root) / exported["X-GRAND-Export-Relative-Path"]
+            self.assertTrue(artifact.exists())
+            self.assertTrue(Path(str(artifact) + ".manifest.json").exists())
+            correction_export = self.client.get(
+                reverse("accounting:journal_register_export"), {"attention": "correction_lineage"},
+            )
+            correction_rows = {
+                row["jev_reference"]: row for row in csv.DictReader(
+                    io.StringIO(correction_export.content.decode("utf-8-sig")),
+                )
+            }
+            self.assertEqual(
+                correction_rows[posted.reference]["active_reversal_or_replacement"], reversal.reference,
+            )
+            self.assertEqual(correction_rows[reversal.reference]["reversal_of"], posted.reference)
+            self.assertEqual(
+                correction_rows[reversal.reference]["reversal_reason"],
+                "Correct a synthetic posting while retaining the original.",
+            )
+        event = AccountingAuditEvent.objects.get(
+            action="journal_register_exported", snapshot__attention_filter="for_posting",
+        )
+        self.assertEqual(event.snapshot["journal_count"], 1)
+        self.assertEqual(event.snapshot["attention_filter"], "for_posting")
+        self.assertEqual(event.snapshot["source_type_filter"], "voucher")
+
+        invalid = self.client.get(reverse("accounting:journal_register_export"), {"attention": "not-real"})
+        self.assertEqual(len(invalid.content.decode("utf-8-sig").strip().splitlines()), 1)
+        self.assertEqual(
+            AccountingAuditEvent.objects.filter(action="journal_register_exported").latest("pk").snapshot["journal_count"],
+            0,
+        )
+        self.client.force_login(self.preparer)
+        self.assertEqual(self.client.get(reverse("accounting:journal_register_export")).status_code, 403)
 
     def test_workflow_actions_are_post_only_and_role_bound(self):
         entry = self._entry(reference="SYN-JEV-0006")

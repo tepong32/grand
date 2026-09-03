@@ -65,6 +65,10 @@ from .close_services import (
     request_period_reopen, submit_period_close_policy, submit_period_close_run,
 )
 from .foundation_exports import build_foundation_register
+from .journal_exports import (
+    ATTENTION_CHOICES as JOURNAL_ATTENTION_CHOICES,
+    apply_journal_filters, build_journal_control_register, next_journal_action,
+)
 from .opening_exports import (
     OPENING_ATTENTION_CHOICES, apply_opening_filters, build_opening_register, next_opening_action,
 )
@@ -103,15 +107,17 @@ def _form_for_setup(kind, *args, department, **kwargs):
 @accounting_access_required
 def workspace(request):
     department = department_for_user(request.user)
-    entries = JournalEntry.objects.filter(department_id=department.pk).select_related("fund", "period")
-    selected_status = request.GET.get("status", "").strip()
-    query = request.GET.get("q", "").strip()
-    if selected_status in dict(JournalEntry.STATUS_CHOICES):
-        entries = entries.filter(status=selected_status)
-    else:
-        selected_status = ""
-    if query:
-        entries = entries.filter(Q(reference__icontains=query) | Q(description__icontains=query))
+    department_entries = JournalEntry.objects.filter(department_id=department.pk).select_related("fund", "period")
+    (
+        entries, selected_status, selected_source_type, selected_period,
+        selected_fund, selected_attention, query,
+    ) = apply_journal_filters(
+        department_entries,
+        status=request.GET.get("status", "").strip(),
+        source_type=request.GET.get("source_type", "").strip(),
+        period=request.GET.get("period", "").strip(), fund=request.GET.get("fund", "").strip(),
+        attention=request.GET.get("attention", "").strip(), search=request.GET.get("q", ""),
+    )
     metrics = JournalEntry.objects.filter(department_id=department.pk).aggregate(
         drafts=Count("pk", filter=Q(status=JournalEntry.DRAFT)),
         submitted=Count("pk", filter=Q(status=JournalEntry.SUBMITTED)),
@@ -131,9 +137,21 @@ def workspace(request):
         finance_department_id=department.pk,
         status__in=(RemittancePostingRequest.PENDING, RemittancePostingRequest.FAILED, RemittancePostingRequest.MATERIALIZED),
     ).select_related("batch", "batch__recipient_party")[:50]
+    visible_count = entries.count()
+    display_entries = list(entries[:100])
+    for entry in display_entries:
+        entry.next_action_label = next_journal_action(entry)
     return render(request, "accounting/workspace.html", {
-        "entries": entries[:100], "metrics": metrics, "setup_ready": setup_ready,
-        "status_choices": JournalEntry.STATUS_CHOICES, "selected_status": selected_status, "query": query,
+        "entries": display_entries, "metrics": metrics, "setup_ready": setup_ready,
+        "status_choices": JournalEntry.STATUS_CHOICES, "source_type_choices": JournalEntry.SOURCE_CHOICES,
+        "attention_choices": JOURNAL_ATTENTION_CHOICES,
+        "period_choices": AccountingPeriod.objects.filter(department_id=department.pk).order_by("-fiscal_year", "-period_number"),
+        "fund_choices": Fund.objects.filter(department_id=department.pk).order_by("code"),
+        "filters": {
+            "status": selected_status, "source_type": selected_source_type, "period": selected_period,
+            "fund": selected_fund, "attention": selected_attention, "q": query,
+        },
+        "visible_count": visible_count,
         "can_manage_setup": can_manage_setup(request.user), "can_prepare": can_prepare_journals(request.user),
         "can_post": can_post_journals(request.user), "can_view_ledger": can_view_ledger(request.user),
         "can_prepare_opening": can_prepare_opening_balances(request.user),
@@ -174,6 +192,30 @@ def setup_workspace(request):
         "can_approve_readiness": can_approve_fiscal_readiness(request.user),
         "can_manage_setup": can_manage_setup(request.user),
     })
+
+
+@require_GET
+@accounting_permission_required(can_view_ledger)
+def journal_register_export(request):
+    department = department_for_user(request.user)
+    entries, status, source_type, period, fund, attention, search = apply_journal_filters(
+        JournalEntry.objects.filter(department_id=department.pk),
+        status=request.GET.get("status", "").strip(),
+        source_type=request.GET.get("source_type", "").strip(),
+        period=request.GET.get("period", "").strip(), fund=request.GET.get("fund", "").strip(),
+        attention=request.GET.get("attention", "").strip(), search=request.GET.get("q", ""),
+    )
+    content, filename, receipt = build_journal_control_register(
+        actor=request.user, queryset=entries, status=status, source_type=source_type,
+        period=period, fund=fund, attention=attention, search=search,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Export-Relative-Path"] = receipt["relative_path"]
+    return response
 
 
 @require_GET
