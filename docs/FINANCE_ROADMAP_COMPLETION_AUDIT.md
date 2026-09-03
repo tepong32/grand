@@ -2,7 +2,7 @@
 
 Audit date: 2026-09-03
 
-Code position: `codex/finance-f9-reporting-triage`, including the F0.2–F0.5 discovery controls, F2.1–F2.2 governed setup/opening registers, F3 guided annual-budget triage/export, F4 guided allotment/obligation control, F5 role-shaped payable triage, F6 controlled-paper/custody triage, F7 Accounting JEV triage, F8 bank-reconciliation triage, and F9 reporting-run triage checkpoints after F11.8
+Code position: `codex/finance-f10-form-acceptance-triage`, including the F0.2–F0.5 discovery controls, F2.1–F2.2 governed setup/opening registers, F3 guided annual-budget triage/export, F4 guided allotment/obligation control, F5 role-shaped payable triage, F6 controlled-paper/custody triage, F7 Accounting JEV triage, F8 bank-reconciliation triage, F9 reporting-run triage, and F10 local-form acceptance triage checkpoints after F11.8
 
 Conclusion: **the planned software-control slices are implemented and regression-clean; the complete LGU field-acceptance and production-authority outcome is not yet proven**.
 
@@ -12,9 +12,10 @@ The following repository checks passed from the project virtual environment:
 
 - `python manage.py check` — no system-check issues;
 - `python manage.py makemigrations --check --dry-run` — no model/migration drift;
-- `python manage.py test reporting --noinput --verbosity 0` — 70 Reporting tests passed;
-- `python manage.py test reporting departments --noinput --verbosity 0` — 93 Reporting and Internal How-To tests passed; and
-- `python manage.py test --noinput --verbosity 0` — 414 project tests passed across the default and separately routed Finance databases in 78.173 seconds of test execution.
+- `python manage.py test reporting.test_local_form_acceptance --noinput --verbosity 0` — 14 local-form acceptance tests passed across both routed databases;
+- `python manage.py test reporting --noinput --verbosity 0` — 71 Reporting tests passed;
+- `python manage.py test reporting departments --noinput --verbosity 0` — 94 Reporting and Internal How-To tests passed; and
+- `python manage.py test --noinput --verbosity 0` — 415 project tests passed across the default and separately routed Finance databases in 77.922 seconds of test execution.
 
 The full suite exercises role and department access, maker–checker decisions, immutable evidence, reversal/successor behavior, cross-store Budget–Accounting–Treasury lineage, controlled output, TraceSync archival, reconciliation, and negative access paths. It is software evidence. It is not a substitute for field observation, production-compatible recovery, or local authority.
 
@@ -32,7 +33,7 @@ The full suite exercises role and department access, maker–checker decisions, 
 | F7 accounting and period control | Rule-backed balanced JEVs, payable/withholding subsidiaries, payment events, reversals, close/reopen, ledgers/trial balance, guided balance/review/correction triage, and a synchronized source/checksum/reversal-aware control register | Locally accepted posting/closing rules, broader required subsidiary schedules, signed period outputs, and consecutive redacted Accounting replay |
 | F8 Treasury and bank reconciliation | Instrument lifecycle, advice/acknowledgement, release/return/reissue, remittance, cash policy, ageing, bank intake/matching, carry/clear lineage, guided monthly triage, and synchronized multi-statement control-register export | Actual bank terms/channels/files, check/advice/cash/BRS forms, thresholds/escalation, consecutive-month replay, and Treasury/Accounting acceptance |
 | F9 reports and accountability | Reproducible operational reports, statements/measures/notes, reference comparison, tax schedules/evidence, governed packages/exports, permission-preserving guided run triage, and a synchronized source/control/checksum-aware run register | Current official/local layouts, accepted tax applicability/forms/deadlines/channels, signed and acknowledged reference packages, exact reproduced totals, and named-office acceptance |
-| F10 template administration | Human-editable safe templates, preflight/golden checks, promotion/rollback, 31 DBM candidate forms and 77 candidate section groups | Actual LGU references and applicability decisions, completed mappings, physical output trials, accepted golden files, current authority, and independent sign-off |
+| F10 template administration | Human-editable safe templates, preflight/golden checks, promotion/rollback, 31 DBM candidate forms, 77 candidate section groups, guided mapping/reference/section/test/review triage, and a synchronized checksum/test-count-aware office register | Actual LGU references and applicability decisions, completed mappings, physical output trials, accepted golden files, current authority, and independent sign-off |
 | F11 shadow operation and cutover | Source locks/drift, cadence/runs/defects, curricula/support, witnessed exercises, exact-form field-chain qualification, structured restore, seven-party decisions, rollback, and Field Acceptance Board | Actual approved plans/pass conditions, field exercises, isolated two-store restore, uninterrupted qualifying cycles, retained attributable decisions, and final authorized exact-scope/date cutover |
 
 ## Remaining work in dependency order

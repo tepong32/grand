@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 import tempfile
 from datetime import date
@@ -12,6 +14,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 
 from departments.models import Department
 from finance.models import FinanceConfigurationRelease, FinanceTemplateVersion
@@ -27,7 +30,8 @@ from .form_acceptance_services import (
 from .forms import FinanceLocalFormSectionForm
 from .local_form_starters import DBM_FORM_STARTERS
 from .models import (
-    FinanceLocalFormAcceptance, FinanceLocalFormSection, FinanceLocalFormTestAttempt,
+    FinanceLocalFormAcceptance, FinanceLocalFormEvent, FinanceLocalFormSection,
+    FinanceLocalFormTestAttempt,
     ReportDefinition, ReportRun, ReportTemplatePromotion, ReportTemplateVersion,
 )
 from .template_services import template_snapshot
@@ -270,6 +274,80 @@ class FinanceLocalFormAcceptanceTests(TestCase):
         self.assertTrue(any("Upload the exact blank" in message for message in errors))
         self.assertTrue(any("compare this candidate starter row" in message for message in errors))
         self.assertTrue(any("record and independently witness" in message for message in errors))
+
+    def test_local_form_triage_and_register_are_synchronized_and_department_scoped(self):
+        candidate = create_local_form_from_starter(
+            self.department, self.preparer, starter_key="lbp-form-4",
+        )
+        FinanceLocalFormAcceptance.objects.filter(pk=candidate.pk).update(
+            name="=LBP candidate must remain spreadsheet text",
+        )
+        candidate.refresh_from_db()
+        completed_record = self.local_form("separate-local-form")
+        outsider_record = create_local_form_from_starter(
+            self.other_department, self.outsider, starter_key="lbp-form-4",
+        )
+        query = {
+            "attention": "candidate_sections", "source_type": "unmapped",
+            "delivery_mode": "unconfirmed", "q": "LBP candidate",
+        }
+
+        self.client.force_login(self.preparer)
+        workspace = self.client.get(reverse("reporting:local_form_workspace"), query)
+        self.assertEqual(workspace.status_code, 200)
+        self.assertContains(workspace, candidate.get_absolute_url())
+        self.assertNotContains(workspace, completed_record.get_absolute_url())
+        self.assertNotContains(workspace, outsider_record.get_absolute_url())
+        self.assertContains(workspace, "Link the exact governed report template or Finance workbook")
+        self.assertContains(workspace, "Export these 1 forms")
+        self.assertContains(workspace, "A register row does not make a candidate official")
+
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            response = self.client.get(reverse("reporting:local_form_register_export"), query)
+            self.assertEqual(response.status_code, 200)
+            rows = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig"))))
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["form_public_id"], str(candidate.public_id))
+            self.assertEqual(rows[0]["name"], "'=LBP candidate must remain spreadsheet text")
+            self.assertEqual(rows[0]["section_count"], str(candidate.sections.count()))
+            self.assertEqual(rows[0]["candidate_section_count"], str(candidate.sections.count()))
+            self.assertEqual(rows[0]["missing_test_count"], "7")
+            self.assertEqual(rows[0]["source_checksum"], "")
+            self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+            relative_path = response["X-GRAND-Export-Relative-Path"]
+            self.assertIn(
+                f"{self.department.slug}/{slugify(self.preparer.username)}/finance-local-form-register/",
+                relative_path,
+            )
+            artifact = Path(export_root, *relative_path.split("/"))
+            self.assertEqual(artifact.read_bytes(), response.content)
+            manifest = json.loads(Path(str(artifact) + ".manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["metadata"]["form_count"], 1)
+            self.assertEqual(manifest["sha256"], response["X-GRAND-Export-SHA256"])
+            self.assertTrue(FinanceLocalFormEvent.objects.filter(
+                form=candidate, actor=self.preparer, action="register_exported",
+            ).exists())
+
+            all_visible = self.client.get(reverse("reporting:local_form_register_export"))
+            all_visible_text = all_visible.content.decode("utf-8-sig")
+            self.assertIn(str(candidate.public_id), all_visible_text)
+            self.assertIn(str(completed_record.public_id), all_visible_text)
+            self.assertNotIn(str(outsider_record.public_id), all_visible_text)
+            invalid = self.client.get(
+                reverse("reporting:local_form_register_export"), {"attention": "unknown"},
+            )
+            self.assertEqual(
+                len(list(csv.reader(io.StringIO(invalid.content.decode("utf-8-sig"))))), 1,
+            )
+
+        self.preparer.user_permissions.remove(Permission.objects.get(
+            content_type__app_label="reporting", codename="export_local_form_acceptance",
+        ))
+        self.preparer = get_user_model().objects.get(pk=self.preparer.pk)
+        self.client.force_login(self.preparer)
+        self.assertEqual(
+            self.client.get(reverse("reporting:local_form_register_export")).status_code, 403,
+        )
 
     def test_dbm_starter_duplicate_and_department_boundaries(self):
         first = create_local_form_from_starter(

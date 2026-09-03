@@ -1,5 +1,14 @@
 # Changelog
 
+## F10 guided local-form acceptance triage and portable register
+
+- Added status, governed-source type, delivery mode, plain next-action, and search filters to the department local-form register without changing acceptance states or evidence gates.
+- Added prioritized guidance for unmapped candidates, missing local references, incomplete section inventories, unresolved DBM starter sections, unconfirmed delivery details, failed/pending/missing practical tests, returned corrections, independent review, accepted use, and superseded history.
+- Added a synchronized one-row-per-form register with source/reference/submission checksums, version lineage, candidate/local section counts, latest practical-test outcomes, actors, timing, review and event evidence, and spreadsheet-safe text while preserving numeric counts.
+- Archived exact register bytes and manifests under the authorized department/user `finance-local-form-register` tree and retained per-form append-only export events, including safe header-only exports for invalid filters.
+- Published updated Accounting, Budget, and Treasury successor guides and documented that DBM candidates and summary rows do not replace locally verified references, detailed acceptance packets, independently witnessed tests, or named-office sign-off.
+- Added focused synchronized-filter, department, archive, manifest, audit, permission, invalid-filter, checksum, numeric-value, formula-safety, and sanitized-folder coverage. All 14 dedicated local-form tests, all 71 Reporting tests, all 94 Reporting-plus-guidance tests, and all 415 project tests pass across both routed databases; the full suite completed in 77.922 seconds of test execution.
+
 ## F9 guided reporting triage and portable run register
 
 - Replaced the twelve-row recent-run view with a permission-preserving report-run register supporting report, status, control result, output format, period year, plain next-action, and search filters without changing report states or approval authority.

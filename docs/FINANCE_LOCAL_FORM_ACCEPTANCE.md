@@ -26,6 +26,14 @@ An inventory-only record is useful while an office is collecting evidence, but i
 
 No SQL, macro, executable script, credential, arbitrary formula, or production database is accepted by this register.
 
+### Guided office queue and summary export
+
+The office register can be filtered by status, governed GRAND source type, delivery mode, next attention, or plain search across the form name, number, code, purpose, and authority. Controlled next-attention filters isolate forms that still need mapping, the current local reference, local decisions on built-in candidate sections, returned correction, independent acceptance, or retained accepted/superseded evidence. Invalid controlled values fail closed rather than silently widening scope.
+
+Each visible row states the next action in evidence order: link the exact governed source, retain the blank/redacted reference, add recognizable sections, resolve every starter candidate against local evidence, confirm actual delivery and custody, correct or witness the latest practical tests, complete missing test categories, or submit/review the exact form version. These are explanations of persisted evidence, not new workflow states.
+
+An authorized export mirrors the exact department scope and filters in one row per form version. It includes version/successor identity; source, reference, and submission checksums; candidate/resolved section counts; latest witnessed-pass, not-applicable, pending, failed, and missing test counts; actors/times; review evidence; and the latest event. Formula-like text is retained safely as text while counts remain numeric. The register helps a coordinator manage many forms, but it does not make a candidate official or replace the form detail, blank/redacted reference, witnessed test attempts, deterministic acceptance packet, or named-office sign-off.
+
 ## Built-in DBM candidate catalog
 
 An authorized form preparer can choose **Use DBM starter** from Local form acceptance. The catalog groups all 31 LBP, LBA, LBR, LBE, and LBAc entries identified in the DBM Budget Operations Manual for LGUs, 2023 Edition and shows both the printed-manual and PDF page anchors. Its 77 section groups summarize candidate fields, likely source records, controls, owners, and print/layout behavior in ordinary office language.
@@ -83,6 +91,8 @@ Accepted and historically superseded form versions export a deterministic JSON p
 It contains the accepted form contract, locally resolved candidate mapping where applicable, exact source snapshot, blank/redacted-reference checksum, current witnessed results, complete failed/superseded test history, workflow actors/times, non-export event history, and source/submission SHA-256 values. Schema 2 carries the candidate mapping and local-resolution fields. Historical schema-1 accepted packets remain byte-reproducible and export with their original schema version. Export actions remain append-only audit events but are excluded from the packet body so downloading the same retained record does not change the next packet's bytes. The adjacent export manifest locks the downloaded bytes.
 
 The packet references separately retained blank/redacted samples, test outputs, print samples, screenshots, signed comparison sheets, and promotion receipts; it does not silently duplicate signature images, confidential form bodies, credentials, or TIN-bearing data.
+
+The filtered office summary uses the separate `finance-local-form-register` category under the same TraceSync-ready root. Each included form records an append-only register-export event, while even a zero-row export retains its exact CSV and adjacent manifest. Keep this summary beside—not in place of—the detailed `finance-local-form-acceptance` JSON packets and their referenced protected evidence.
 
 ## F11 field-qualification handoff
 

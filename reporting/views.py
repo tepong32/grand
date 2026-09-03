@@ -66,6 +66,13 @@ from .run_register_exports import (
     build_report_run_register,
     next_report_action,
 )
+from .local_form_register_exports import (
+    ATTENTION_CHOICES as LOCAL_FORM_ATTENTION_CHOICES,
+    apply_local_form_filters,
+    build_local_form_register,
+    latest_test_summary,
+    next_local_form_action,
+)
 from .template_services import (
     activate_template_promotion, create_template_promotion, promotion_receipt,
     review_template_promotion, rollback_template_promotion, submit_template_promotion,
@@ -239,17 +246,70 @@ def _local_form_validation(item):
 @reporting_access_required
 def local_form_workspace(request):
     department = department_for_user(request.user)
-    records = FinanceLocalFormAcceptance.objects.filter(department=department).select_related(
+    department_records = FinanceLocalFormAcceptance.objects.filter(department=department)
+    records, status, source_type, delivery_mode, attention, search = apply_local_form_filters(
+        department_records,
+        status=request.GET.get("status", "").strip(),
+        source_type=request.GET.get("source_type", "").strip(),
+        delivery_mode=request.GET.get("delivery_mode", "").strip(),
+        attention=request.GET.get("attention", "").strip(),
+        search=request.GET.get("q", ""),
+    )
+    visible_count = records.count()
+    records = list(records.select_related(
         "report_template__definition", "finance_template", "created_by", "reviewed_by", "supersedes",
-    ).prefetch_related("sections", "test_attempts")
+    ).prefetch_related("sections", "test_attempts")[:100])
+    for item in records:
+        sections = list(item.sections.all())
+        _latest, test_counts = latest_test_summary(item)
+        item.next_action_label = next_local_form_action(
+            item, sections=sections, test_counts=test_counts,
+        )
+        item.latest_passing_test_count = (
+            test_counts["passed"] + test_counts["not_applicable"]
+        )
     return render(request, "reporting/local_form_workspace.html", {
         "department": department,
         "records": records,
+        "visible_count": visible_count,
+        "status_choices": FinanceLocalFormAcceptance.STATUS_CHOICES,
+        "source_type_choices": FinanceLocalFormAcceptance.SOURCE_CHOICES,
+        "delivery_mode_choices": FinanceLocalFormAcceptance.DELIVERY_CHOICES,
+        "attention_choices": LOCAL_FORM_ATTENTION_CHOICES,
+        "filters": {
+            "status": status, "source_type": source_type,
+            "delivery_mode": delivery_mode, "attention": attention, "q": search,
+        },
         "can_manage": can_manage_local_form_acceptance(request.user),
         "can_witness": can_witness_local_form_tests(request.user),
         "can_review": can_review_local_form_acceptance(request.user),
         "can_export": can_export_local_form_acceptance(request.user),
     })
+
+
+@require_GET
+@reporting_permission_required(can_export_local_form_acceptance)
+def local_form_register_export(request):
+    department = department_for_user(request.user)
+    records, status, source_type, delivery_mode, attention, search = apply_local_form_filters(
+        FinanceLocalFormAcceptance.objects.filter(department=department),
+        status=request.GET.get("status", "").strip(),
+        source_type=request.GET.get("source_type", "").strip(),
+        delivery_mode=request.GET.get("delivery_mode", "").strip(),
+        attention=request.GET.get("attention", "").strip(),
+        search=request.GET.get("q", ""),
+    )
+    content, filename, receipt = build_local_form_register(
+        actor=request.user, queryset=records, status=status, source_type=source_type,
+        delivery_mode=delivery_mode, attention=attention, search=search,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Export-Relative-Path"] = receipt["relative_path"]
+    return response
 
 
 @require_GET

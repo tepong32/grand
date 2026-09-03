@@ -33,7 +33,7 @@ The repository contains an end-to-end **synthetic control framework** for F9. It
 
 ## Recommended next delivery phase
 
-F10.2 now implements the governed software workspace for this handoff: a plain-language inventory, dynamic sections, exact F10.1/Finance-workbook source locks, independently witnessed tests, separate acceptance, reasoned retested successors, and TraceSync evidence. Proceed with the **actual F10 local-form acceptance and exact-output campaign**, then the **F11 field-replay and cutover campaign**:
+F10.2 now implements the governed software workspace for this handoff: a guided and filterable plain-language inventory, synchronized portable oversight register, dynamic sections, exact F10.1/Finance-workbook source locks, independently witnessed tests, separate acceptance, reasoned retested successors, and detailed TraceSync evidence. Proceed with the **actual F10 local-form acceptance and exact-output campaign**, then the **F11 field-replay and cutover campaign**:
 
 1. Inventory the actual Budget, Accounting, Treasury, BIR, bank, register, statement, note, and package forms used by the LGU; retain blank/redacted references, authority, owners, signatories, copies, deadlines, paper, and printer details.
 2. Map each form through F10.1 promotion, then record it in F10.2; add optional/conditional/repeating behavior only where the actual form and retained local decision prove the need.
