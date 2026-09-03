@@ -94,7 +94,7 @@
             <td class="small" data-label="Queue and timing">
               <div>{{ task.owner_queue }}</div>
               <div class="text-muted"><strong>Scope:</strong> {{ task.scope }}</div>
-              <div class="text-muted"><strong>Timing:</strong> {{ task.due_state }} · age {{ task.age_days }} day{{ task.age_days|pluralize }}</div>
+              <div class="text-muted"><strong>Timing:</strong> {{ task.due_state }}{% if task.due_on %} · target {{ task.due_on|date:'Y-m-d' }}{% endif %} · age {{ task.age_days }} day{{ task.age_days|pluralize }}</div>
               <div class="text-muted">{{ task.calendar_basis }}</div>
             </td>
             <td class="small" data-label="State">

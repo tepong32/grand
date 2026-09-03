@@ -85,7 +85,7 @@ def setup_attention_queryset(user, attention, *, as_of=None):
     if attention == "needs_preparation":
         query = query.filter(status="draft")
     elif attention == "awaiting_review":
-        query = query.filter(status="submitted")
+        query = query.filter(status="submitted").exclude(Q(created_by=user) | Q(submitted_by=user))
     elif attention == "ready_to_schedule":
         query = query.filter(status="approved", effective_from__gt=as_of)
     elif attention == "ready_to_activate":

@@ -68,7 +68,7 @@ def _cutover_date_state(cutover_on, today):
 _FIELD_RECORD_NAMESPACE = UUID("9bdf0446-4b9e-4c98-b0c9-eb3e7e9876aa")
 
 
-def _field_record_identity(source_kind, pk):
+def _source_record_identity(source_kind, pk):
     return uuid5(_FIELD_RECORD_NAMESPACE, f"grand.finance.{source_kind}:{pk}")
 
 
@@ -94,7 +94,7 @@ def _nested_field_task(item, action_key, spec, department, today):
         "my_acceptances": "This pending exact-scope acceptance belongs to an independently reconciled visible cycle and names the signed-in user as reviewer.",
         "authorize_cutover": "This submitted cutover record belongs to the acting Finance office, and the signed-in authority neither prepared nor submitted it.",
     }
-    source_id = _field_record_identity(source_kind, item.pk)
+    source_id = _source_record_identity(source_kind, item.pk)
     cycle = item.cycle
     common = {
         "task_id": f"finwork:v1:{source_kind}:{source_id}:{action_key.replace('_', '-')}",
@@ -259,6 +259,116 @@ def _local_form_tasks(user, department, today):
     return tasks
 
 
+def _setup_tasks(user, department, today):
+    from finance.setup_register import setup_attention_choices_for_user, setup_attention_queryset
+
+    role_labels = {
+        "needs_preparation": "Finance configuration preparers",
+        "awaiting_review": "Independent Accounting configuration approvers",
+        "ready_to_schedule": "Finance configuration approvers",
+        "ready_to_activate": "Finance configuration approvers",
+    }
+    tasks = []
+    for action_key, _label in setup_attention_choices_for_user(user, department):
+        queryset, _selected, spec = setup_attention_queryset(user, action_key, as_of=today)
+        for item in queryset.order_by("-fiscal_year", "code", "-version", "pk"):
+            source_id = _source_record_identity("setup-release", item.pk)
+            received_at = item.created_at
+            due_on = None
+            due_state = "No structured target"
+            calendar_basis = "The retained effective date is not treated as an action deadline."
+            if action_key == "awaiting_review":
+                received_at = item.submitted_at or item.updated_at
+            elif action_key == "ready_to_schedule":
+                received_at = item.approved_at or item.updated_at
+                due_on = item.effective_from
+                due_state = "Future effectivity awaiting scheduling"
+                calendar_basis = "Retained effective date; it is not an inferred approval deadline."
+            elif action_key == "ready_to_activate":
+                received_at = item.approved_at or item.updated_at
+                due_on = item.effective_from
+                due_state = "Effectivity window is open"
+                calendar_basis = "Retained effective period; activation still requires its governed readiness gate."
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:setup-release:{source_id}:{action_key.replace('_', '-')}",
+                task_type=f"finance.setup-release.{action_key}.v1",
+                area="Finance setup",
+                case_id=f"setup-release:{source_id}",
+                reference=f"{item.code} v{item.version} · FY {item.fiscal_year}",
+                transaction_type="Finance configuration release",
+                subject=item.title,
+                action=spec["next_action"],
+                gate=spec["definition"],
+                owner_queue=f"{role_labels[action_key]} · {department.name}",
+                scope=f"{department.name}; FY {item.fiscal_year}; effectivity {item.effective_from.isoformat()}",
+                received_at=received_at,
+                due_on=due_on,
+                due_state=due_state,
+                calendar_basis=calendar_basis,
+                age_days=_age_days(received_at, today),
+                state="Ready",
+                source_state=item.get_status_display(),
+                source_version=f"updated:{item.updated_at.isoformat()}",
+                exception="",
+                url=reverse("finance:release_detail", kwargs={"pk": item.pk}),
+            ))
+    return tasks
+
+
+def _discovery_tasks(user, department, today):
+    from finance.discovery_register import discovery_action_choices_for_user, discovery_action_queryset
+    from finance.models import FinanceDiscoveryDecision
+
+    tasks = []
+    for action_key, _label in discovery_action_choices_for_user(user):
+        queryset, _selected, spec = discovery_action_queryset(user, action_key)
+        for item in queryset.order_by("phase", "code", "-version", "pk"):
+            if action_key == "my_reviews":
+                received_at = item.submitted_at or item.updated_at
+            elif item.status == FinanceDiscoveryDecision.RETURNED:
+                received_at = item.reviewed_at or item.updated_at
+            else:
+                received_at = item.created_at
+            due_state = _due_state(item.due_date, today)
+            exception = ""
+            if item.status == FinanceDiscoveryDecision.RETURNED:
+                exception = "The named reviewer returned this decision for correction."
+            elif item.blocks_affected_scope:
+                exception = "This unresolved decision blocks only its named affected scope."
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:discovery-decision:{item.public_id}:{action_key.replace('_', '-')}",
+                task_type=f"finance.discovery-decision.{action_key}.v1",
+                area="Finance decisions",
+                case_id=f"discovery-decision:{item.public_id}",
+                reference=f"{item.code} v{item.version} · {item.phase}",
+                transaction_type=item.get_coverage_kind_display(),
+                subject=item.question,
+                action=spec["next_action"],
+                gate=spec["definition"],
+                owner_queue=(
+                    f"Decision owners / discovery managers · {department.name}"
+                    if action_key == "needs_preparation"
+                    else "Named independent decision reviewer"
+                ),
+                scope=f"{item.department.name}; {item.affected_scope}",
+                received_at=received_at,
+                due_on=item.due_date,
+                due_state=due_state,
+                calendar_basis=(
+                    "Retained local review target; no working-day or holiday adjustment inferred."
+                    if item.due_date
+                    else "No review target is stored; follow the locally accepted discovery plan."
+                ),
+                age_days=_age_days(received_at, today),
+                state="Returned" if item.status == FinanceDiscoveryDecision.RETURNED else "Ready",
+                source_state=item.get_status_display(),
+                source_version=f"updated:{item.updated_at.isoformat()}",
+                exception=exception,
+                url=reverse("finance:discovery_decision_detail", kwargs={"public_id": item.public_id}),
+            ))
+    return tasks
+
+
 def _field_operation_tasks(user, department, today):
     from finance.shadow_register_exports import (
         shadow_action_choices_for_user, shadow_action_queryset,
@@ -324,7 +434,9 @@ def finance_work_tasks(user, *, display_limit=100):
     if department is None:
         return {"tasks": [], "task_count": 0, "tasks_truncated": False, "task_coverage": ()}
     today = timezone.localdate()
-    tasks = _field_operation_tasks(user, department, today)
+    tasks = _setup_tasks(user, department, today)
+    tasks.extend(_discovery_tasks(user, department, today))
+    tasks.extend(_field_operation_tasks(user, department, today))
     tasks.extend(_local_form_tasks(user, department, today))
     tasks.sort(key=lambda task: (task.area, task.reference.lower(), task.task_type, task.task_id))
     task_count = len(tasks)
@@ -332,5 +444,8 @@ def finance_work_tasks(user, *, display_limit=100):
         "tasks": [task.as_dict() for task in tasks[:display_limit]],
         "task_count": task_count,
         "tasks_truncated": task_count > display_limit,
-        "task_coverage": ("Field-operation cycle and nested-record gates", "Local forms"),
+        "task_coverage": (
+            "Finance setup releases", "Discovery decisions",
+            "Field-operation cycle and nested-record gates", "Local forms",
+        ),
     }

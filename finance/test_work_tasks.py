@@ -15,9 +15,9 @@ from reporting.models import FinanceLocalFormAcceptance
 from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
 
 from .models import (
-    FinanceCutoverDecision, FinanceCutoverReadinessExercise,
+    FinanceConfigurationRelease, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
     FinanceCutoverReadinessPlan, FinanceShadowComparison, FinanceShadowCycle,
-    FinanceShadowDefect, FinanceStakeholderAcceptance,
+    FinanceDiscoveryDecision, FinanceShadowDefect, FinanceStakeholderAcceptance,
 )
 from .work_attention import finance_work_attention
 from .work_tasks import finance_work_tasks
@@ -40,12 +40,15 @@ class FinanceWorkTaskContractTests(TestCase):
         cls._grant(
             cls.worker,
             "finance.view_finance_setup",
+            "finance.manage_finance_configuration",
+            "finance.manage_finance_discovery",
             "finance.manage_shadow_operation",
             "reporting.manage_local_form_acceptance",
         )
         cls._grant(
             cls.reviewer,
             "finance.view_finance_setup",
+            "finance.approve_finance_configuration",
             "finance.review_shadow_reconciliation",
             "finance.authorize_finance_cutover",
         )
@@ -184,6 +187,48 @@ class FinanceWorkTaskContractTests(TestCase):
             support_route_snapshot="Finance support owner",
             scheduled_for=timezone.now() + timedelta(hours=1),
             due_at=timezone.now() + timedelta(days=1),
+            created_by=self.worker,
+        )
+
+    def _release(self, *, code, status, effective_from):
+        now = timezone.now()
+        return FinanceConfigurationRelease.objects.create(
+            department=self.accounting,
+            code=code,
+            version=1,
+            title=f"Controlled setup release {code}",
+            fiscal_year=effective_from.year,
+            status=status,
+            effective_from=effective_from,
+            created_by=self.worker,
+            submitted_by=self.worker if status != "draft" else None,
+            submitted_at=now if status != "draft" else None,
+            approved_by=self.reviewer if status in {"approved", "scheduled"} else None,
+            approved_at=now if status in {"approved", "scheduled"} else None,
+        )
+
+    def _decision(self, *, code, status, due_date):
+        now = timezone.now()
+        return FinanceDiscoveryDecision.objects.create(
+            department=self.accounting,
+            code=code,
+            version=1,
+            phase="F1",
+            coverage_kind=FinanceDiscoveryDecision.BALANCE,
+            question=f"Which retained balance control governs {code}?",
+            proposed_outcome="Remain unresolved until the named local evidence is reviewed.",
+            affected_scope=f"Synthetic exact scope for {code}.",
+            evidence_label=FinanceDiscoveryDecision.UNRESOLVED,
+            evidence_needed="Retained locally accepted control and a redacted replay.",
+            blocks_affected_scope=True,
+            owner=self.worker,
+            reviewer=self.reviewer,
+            due_date=due_date,
+            status=status,
+            submitted_by=self.worker if status == FinanceDiscoveryDecision.SUBMITTED else None,
+            submitted_at=now if status == FinanceDiscoveryDecision.SUBMITTED else None,
+            reviewed_at=now if status == FinanceDiscoveryDecision.RETURNED else None,
+            review_note="Return for exact retained evidence." if status == FinanceDiscoveryDecision.RETURNED else "",
             created_by=self.worker,
         )
 
@@ -402,3 +447,83 @@ class FinanceWorkTaskContractTests(TestCase):
         self.assertContains(response, changed_task["task_id"])
         self.assertContains(response, authority_task["task_id"])
         self.assertContains(response, "Proposed cutover is upcoming")
+
+    def test_setup_release_tasks_separate_preparation_review_schedule_and_activation(self):
+        today = timezone.localdate()
+        draft = self._release(code="setup-draft", status="draft", effective_from=today + timedelta(days=10))
+        submitted = self._release(code="setup-review", status="submitted", effective_from=today + timedelta(days=8))
+        future = self._release(code="setup-schedule", status="approved", effective_from=today + timedelta(days=5))
+        ready = self._release(code="setup-activate", status="approved", effective_from=today)
+
+        preparer_tasks = [
+            task for task in finance_work_tasks(self.worker)["tasks"]
+            if task["task_type"].startswith("finance.setup-release.")
+        ]
+        reviewer_tasks = [
+            task for task in finance_work_tasks(self.reviewer)["tasks"]
+            if task["task_type"].startswith("finance.setup-release.")
+        ]
+
+        self.assertEqual(len(preparer_tasks), 1)
+        self.assertIn("setup-draft", preparer_tasks[0]["reference"])
+        self.assertEqual(preparer_tasks[0]["url"], reverse("finance:release_detail", kwargs={"pk": draft.pk}))
+        self.assertEqual(
+            {task["task_type"] for task in reviewer_tasks},
+            {
+                "finance.setup-release.awaiting_review.v1",
+                "finance.setup-release.ready_to_schedule.v1",
+                "finance.setup-release.ready_to_activate.v1",
+            },
+        )
+        task_by_type = {task["task_type"]: task for task in reviewer_tasks}
+        self.assertEqual(task_by_type["finance.setup-release.awaiting_review.v1"]["due_on"], None)
+        self.assertEqual(task_by_type["finance.setup-release.ready_to_schedule.v1"]["due_on"], future.effective_from)
+        self.assertEqual(task_by_type["finance.setup-release.ready_to_activate.v1"]["due_on"], ready.effective_from)
+        self.assertIn("not an inferred approval deadline", task_by_type["finance.setup-release.ready_to_schedule.v1"]["calendar_basis"])
+
+        self._grant(self.worker, "finance.approve_finance_configuration")
+        self.assertFalse(any(
+            task["task_type"] == "finance.setup-release.awaiting_review.v1"
+            and "setup-review" in task["reference"]
+            for task in finance_work_tasks(self.worker)["tasks"]
+        ))
+        self.assertEqual(submitted.submitted_by_id, self.worker.pk)
+
+    def test_discovery_tasks_preserve_named_review_scope_returned_state_and_dates(self):
+        today = timezone.localdate()
+        draft = self._decision(
+            code="DEC-TASK-DRAFT", status=FinanceDiscoveryDecision.DRAFT,
+            due_date=today + timedelta(days=2),
+        )
+        returned = self._decision(
+            code="DEC-TASK-RETURN", status=FinanceDiscoveryDecision.RETURNED,
+            due_date=today - timedelta(days=1),
+        )
+        submitted = self._decision(
+            code="DEC-TASK-REVIEW", status=FinanceDiscoveryDecision.SUBMITTED,
+            due_date=None,
+        )
+
+        preparer_tasks = [
+            task for task in finance_work_tasks(self.worker)["tasks"]
+            if task["task_type"] == "finance.discovery-decision.needs_preparation.v1"
+        ]
+        review_tasks = [
+            task for task in finance_work_tasks(self.reviewer)["tasks"]
+            if task["task_type"] == "finance.discovery-decision.my_reviews.v1"
+        ]
+
+        self.assertEqual(len(preparer_tasks), 2)
+        self.assertEqual(len(review_tasks), 1)
+        self.assertIn(str(submitted.public_id), review_tasks[0]["task_id"])
+        self.assertEqual(
+            review_tasks[0]["url"],
+            reverse("finance:discovery_decision_detail", kwargs={"public_id": submitted.public_id}),
+        )
+        returned_task = next(task for task in preparer_tasks if str(returned.public_id) in task["task_id"])
+        draft_task = next(task for task in preparer_tasks if str(draft.public_id) in task["task_id"])
+        self.assertEqual(returned_task["state"], "Returned")
+        self.assertEqual(returned_task["due_state"], "Past planned date")
+        self.assertIn("returned this decision", returned_task["exception"])
+        self.assertEqual(draft_task["due_state"], "Within planned period")
+        self.assertIn("blocks only its named affected scope", draft_task["exception"])

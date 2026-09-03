@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 exact Finance Setup and discovery tasks
+
+- Extended the stable read-only My Work contract to each actionable Finance configuration release and discovery decision without creating parallel task state.
+- Reused the source registers' department, permission, lifecycle, effectivity, owner, named-reviewer, and UAT filters; tightened the setup review queue so a release creator or submitter cannot receive their own independent-review item.
+- Kept configuration preparation, review, future scheduling, and due activation distinct, and showed retained effectivity dates without inventing an approval deadline.
+- Projected discovery drafts, returned corrections, and named-review assignments with their exact affected scope, retained local review target, source version, and safe returned/blocker notice; oversight-only filters remain outside personal tasks.
+- Added exact target-date rendering and updated the general, Accounting, setup, and discovery floating guides while keeping every task a non-mutating pointer to its authoritative source record.
+- Passed the 91-test focused setup/discovery/task-contract/field/local-form/guidance gate and all 462 project tests across both routed databases in 102.050 seconds; Django checks are clean and no migration drift exists.
+
 ## F1.5 exact nested field-operation tasks
 
 - Extended the read-only My Work contract from cycle gates to every actionable named defect, readiness exercise, stakeholder acceptance, and submitted cutover decision.
