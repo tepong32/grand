@@ -1,5 +1,13 @@
 # Changelog
 
+## F1.5 local-form work register
+
+- Added permission-shaped local-form preparation queues for missing governed mappings, current references, candidate-section decisions, and returned corrections.
+- Added separate independent practical-test witness and final form-acceptance review queues that exclude the signed-in test performer, form creator, and submitter as applicable.
+- Reused one department-, permission-, state-, and UAT-aware query contract across Local form acceptance, its TraceSync-ready filtered register export, and My Finance Work counts.
+- Kept accepted and superseded form filters as oversight views rather than personal assignments, while preserving all pinned checksums, immutable evidence, reasoned successor attempts, and fully retested form successors.
+- Added plain next-action explanations and updated Accounting, Budget, and Treasury floating guides. The 37-test local-form/Finance/guidance contract run and all 453 project tests pass across both routed databases; the full suite completed in 104.968 seconds. An authenticated isolated two-store browser pass confirmed the exact one-form mapping queue, matching My Work count, separate reference/section counts, responsive 390×844 layout, updated non-modal Accounting guide, and zero application-route console errors.
+
 ## F1.5 field-operation work register
 
 - Added permission- and object-shaped field-operation attention groups for source locking, cycle preparation/execution, independent reconciliation, assigned defect correction/review, readiness exercise completion/witnessing, stakeholder decisions, and cutover authority.

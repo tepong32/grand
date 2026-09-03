@@ -480,6 +480,8 @@ def shadow_workspace(request):
     )[:100])
     for cycle in cycles:
         cycle.next_action_label = next_shadow_cycle_action(cycle)
+    attention_choices = shadow_attention_choices_for_user(request.user, department)
+    allowed_attention = {value for value, _label in attention_choices}
     return render(request, "finance/shadow_workspace.html", {
         "cycles": cycles,
         "department": department,
@@ -487,8 +489,10 @@ def shadow_workspace(request):
         "status_choices": FinanceShadowCycle.STATUS_CHOICES,
         "run_kind_choices": FinanceShadowCycle.RUN_KIND_CHOICES,
         "fiscal_year_choices": fiscal_year_choices,
-        "attention_choices": shadow_attention_choices_for_user(request.user, department),
-        "shadow_work_spec": SHADOW_ACTION_SPECS.get(attention),
+        "attention_choices": attention_choices,
+        "shadow_work_spec": (
+            SHADOW_ACTION_SPECS.get(attention) if attention in allowed_attention else None
+        ),
         "filters": {
             "status": status, "run_kind": run_kind, "fiscal_year": fiscal_year,
             "attention": attention, "q": search,

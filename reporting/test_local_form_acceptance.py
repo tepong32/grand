@@ -8,7 +8,7 @@ from datetime import date
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -19,7 +19,7 @@ from django.utils.text import slugify
 from departments.models import Department
 from finance.models import FinanceConfigurationRelease, FinanceTemplateVersion
 from finance.services import build_finance_starter_workbook, preflight_finance_template
-from vouchers.roles import FINANCE_ROLE_PERMISSIONS
+from vouchers.roles import FINANCE_ROLE_PERMISSIONS, FINANCE_UAT_VIEWER_GROUP
 
 from .form_acceptance_services import (
     checksum, create_local_form_from_starter, create_local_form_successor,
@@ -121,6 +121,13 @@ class FinanceLocalFormAcceptanceTests(TestCase):
             content_type__app_label="reporting", codename__in=permissions,
         ))
         return user
+
+    @staticmethod
+    def grant_finance_entry(user):
+        user.user_permissions.add(Permission.objects.get(
+            content_type__app_label="finance", codename="view_finance_setup",
+        ))
+        return get_user_model().objects.get(pk=user.pk)
 
     def local_form(self, code="annual-statement"):
         item = FinanceLocalFormAcceptance.objects.create(
@@ -347,6 +354,134 @@ class FinanceLocalFormAcceptanceTests(TestCase):
         self.client.force_login(self.preparer)
         self.assertEqual(
             self.client.get(reverse("reporting:local_form_register_export")).status_code, 403,
+        )
+
+    def test_local_form_preparation_actions_match_my_work_and_source_filters(self):
+        candidate = create_local_form_from_starter(
+            self.department, self.preparer, starter_key="lbp-form-4",
+        )
+        returned = self.local_form("returned-local-form")
+        self.pass_all_tests(returned)
+        submit_local_form(returned, self.preparer)
+        review_local_form(
+            returned, self.witness, approve=False,
+            note="Correct the retained routing instruction and rerun affected evidence.",
+        )
+        self.preparer = self.grant_finance_entry(self.preparer)
+        self.client.force_login(self.preparer)
+
+        work = self.client.get(reverse("finance_operations:my_work"))
+        groups = {item["key"]: item for item in work.context["groups"]}
+        expectations = {
+            "needs_mapping": ("local-form-mapping", candidate),
+            "needs_reference": ("local-form-reference", candidate),
+            "candidate_sections": ("local-form-section-decisions", candidate),
+            "returned": ("local-form-returned", returned),
+        }
+        for attention, (key, expected) in expectations.items():
+            source = self.client.get(
+                reverse("reporting:local_form_workspace"), {"attention": attention},
+            )
+            self.assertEqual(source.context["records"], [expected])
+            self.assertEqual(groups[key]["count"], source.context["visible_count"])
+            self.assertEqual(
+                groups[key]["url"],
+                f'{reverse("reporting:local_form_workspace")}?attention={attention}',
+            )
+        self.assertContains(
+            self.client.get(
+                reverse("reporting:local_form_workspace"), {"attention": "returned"},
+            ),
+            "record successor attempts for affected practical tests",
+        )
+
+    def test_local_form_witness_action_excludes_tests_performed_by_same_user(self):
+        assigned = self.local_form("assigned-witness-test")
+        record_test_attempt(
+            assigned, self.preparer, category=FinanceLocalFormTestAttempt.DATA_CONTROL,
+            test_steps="Recalculate every synthetic control total.",
+            expected_result="Every total agrees with the retained control schedule.",
+            observed_result="The synthetic control schedule agreed.",
+            environment="Supported browser and isolated test database.",
+            evidence_reference="Retained synthetic witness packet WITNESS-001.",
+            evidence_checksum="a" * 64,
+        )
+        self.witness = self.grant_finance_entry(self.witness)
+        record_test_attempt(
+            self.local_form("self-witness-test"), self.witness,
+            category=FinanceLocalFormTestAttempt.DATA_CONTROL,
+            test_steps="Recalculate every synthetic control total.",
+            expected_result="Every total agrees with the retained control schedule.",
+            observed_result="The synthetic control schedule agreed.",
+            environment="Supported browser and isolated test database.",
+            evidence_reference="Retained synthetic self-test packet WITNESS-SELF-001.",
+            evidence_checksum="b" * 64,
+        )
+        self.client.force_login(self.witness)
+
+        source = self.client.get(
+            reverse("reporting:local_form_workspace"), {"attention": "witness_tests"},
+        )
+        work = self.client.get(reverse("finance_operations:my_work"))
+        group = next(
+            item for item in work.context["groups"] if item["key"] == "local-form-test-witness"
+        )
+
+        self.assertEqual(source.context["records"], [assigned])
+        self.assertEqual(group["count"], source.context["visible_count"])
+        self.assertContains(source, "not performed by the signed-in witness")
+
+    def test_local_form_acceptance_review_excludes_creator_and_submitter(self):
+        assigned = self.local_form("assigned-form-review")
+        self.pass_all_tests(assigned)
+        submit_local_form(assigned, self.preparer)
+
+        self.witness.user_permissions.add(Permission.objects.get(
+            content_type__app_label="reporting", codename="manage_local_form_acceptance",
+        ))
+        self.witness = self.grant_finance_entry(self.witness)
+        self_submitted = self.local_form("self-submitted-form-review")
+        self.pass_all_tests(self_submitted)
+        submit_local_form(self_submitted, self.witness)
+        self.client.force_login(self.witness)
+
+        source = self.client.get(
+            reverse("reporting:local_form_workspace"), {"attention": "for_review"},
+        )
+        work = self.client.get(reverse("finance_operations:my_work"))
+        group = next(
+            item for item in work.context["groups"]
+            if item["key"] == "local-form-acceptance-review"
+        )
+
+        self.assertEqual(source.context["records"], [assigned])
+        self.assertEqual(group["count"], source.context["visible_count"])
+        self.assertContains(source, "did not create or submit")
+
+    def test_finance_uat_preview_does_not_receive_local_form_action_queues(self):
+        create_local_form_from_starter(
+            self.department, self.preparer, starter_key="lbp-form-4",
+        )
+        uat = self.employee(
+            self.department, "f102.form.uat", "view_reporting_workspace",
+            "manage_local_form_acceptance", "witness_local_form_tests",
+            "review_local_form_acceptance", "export_local_form_acceptance",
+        )
+        uat = self.grant_finance_entry(uat)
+        group, _created = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)
+        uat.groups.add(group)
+        self.client.force_login(uat)
+
+        source = self.client.get(
+            reverse("reporting:local_form_workspace"), {"attention": "needs_mapping"},
+        )
+        work = self.client.get(reverse("finance_operations:my_work"))
+
+        self.assertEqual(source.context["visible_count"], 0)
+        self.assertNotContains(source, "Needs a governed GRAND mapping")
+        self.assertNotContains(source, "Editable forms in the acting office")
+        self.assertFalse(
+            any(item["key"].startswith("local-form-") for item in work.context["groups"]),
         )
 
     def test_dbm_starter_duplicate_and_department_boundaries(self):

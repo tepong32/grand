@@ -456,6 +456,31 @@ def _reporting_groups(user, department):
     return groups
 
 
+def _local_form_groups(user, department):
+    from reporting.local_form_register_exports import (
+        local_form_action_choices_for_user, local_form_action_queryset,
+    )
+
+    keys = {
+        "needs_mapping": "local-form-mapping",
+        "needs_reference": "local-form-reference",
+        "candidate_sections": "local-form-section-decisions",
+        "returned": "local-form-returned",
+        "witness_tests": "local-form-test-witness",
+        "for_review": "local-form-acceptance-review",
+    }
+    groups = []
+    for attention, _label in local_form_action_choices_for_user(user, department):
+        queryset, selected_attention, spec = local_form_action_queryset(user, attention)
+        groups.append(_group(
+            key=keys[attention], area="Local forms", title=spec["title"],
+            count=queryset.count(),
+            url=_queue_url("reporting:local_form_workspace", attention=selected_attention),
+            definition=spec["definition"], scope=f"Acting office: {department.name}",
+        ))
+    return groups
+
+
 def finance_work_attention(user):
     """Build permission-filtered, drillable cross-domain attention metrics without creating task state."""
     department = getattr(getattr(user, "employeeprofile", None), "assigned_department", None)
@@ -474,6 +499,7 @@ def finance_work_attention(user):
     groups.extend(_treasury_groups(user, department))
     groups.extend(_cash_groups(user, department))
     groups.extend(_reporting_groups(user, department))
+    groups.extend(_local_form_groups(user, department))
     return {
         "groups": groups,
         "action_count": sum(group["count"] for group in groups),

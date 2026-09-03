@@ -9,7 +9,12 @@ from django.utils.text import slugify
 
 from src.export_archive import archive_export
 
-from .access import can_export_local_form_acceptance, department_for_user
+from vouchers.roles import is_finance_uat_viewer
+
+from .access import (
+    can_export_local_form_acceptance, can_manage_local_form_acceptance,
+    can_review_local_form_acceptance, can_witness_local_form_tests, department_for_user,
+)
 from .models import (
     FinanceLocalFormAcceptance, FinanceLocalFormEvent, FinanceLocalFormSection,
     FinanceLocalFormTestAttempt,
@@ -21,10 +26,114 @@ ATTENTION_CHOICES = (
     ("needs_reference", "Needs the current local reference"),
     ("candidate_sections", "Starter sections need local decisions"),
     ("returned", "Returned for correction"),
+    ("witness_tests", "Practical tests awaiting my independent witness"),
     ("for_review", "Waiting for independent acceptance"),
     ("accepted", "Locally accepted evidence"),
     ("superseded", "Superseded history"),
 )
+
+LOCAL_FORM_ACTION_SPECS = {
+    "needs_mapping": {
+        "role": "manage",
+        "title": "Local forms needing a governed GRAND mapping",
+        "definition": "Editable forms in the acting office that still name no activated report template or active preflighted Finance workbook.",
+        "next_action": "Compare the actual local output with the governed source, then link only the exact accepted template version used to produce it.",
+    },
+    "needs_reference": {
+        "role": "manage",
+        "title": "Local forms needing the current reference",
+        "definition": "Editable forms in the acting office whose exact blank or safely redacted local reference has not been retained yet.",
+        "next_action": "Obtain the current locally used copy, remove sensitive data, verify its file type, and retain its checksum before testing.",
+    },
+    "candidate_sections": {
+        "role": "manage",
+        "title": "Candidate form sections needing local decisions",
+        "definition": "Editable starter forms in the acting office with one or more sections still awaiting an evidenced match or not-applicable decision.",
+        "next_action": "Compare every candidate row with the retained current form and cite the page, memorandum, comparison, or decision for the outcome.",
+    },
+    "returned": {
+        "role": "manage",
+        "title": "Returned local forms to correct and retest",
+        "definition": "Returned editable form versions in the acting office that require the review reason to be resolved before resubmission.",
+        "next_action": "Correct the returned version, record successor attempts for affected practical tests, and resubmit only after every gate is current.",
+    },
+    "witness_tests": {
+        "role": "witness",
+        "title": "Local-form tests awaiting my independent witness",
+        "definition": "Forms in the acting office containing submitted practical-test evidence not performed by the signed-in witness.",
+        "next_action": "Reperform or observe the named test against its pinned basis, then pass, fail, or mark only an eligible digital printer test not applicable.",
+    },
+    "for_review": {
+        "role": "review",
+        "title": "Local forms for independent acceptance",
+        "definition": "Submitted form versions in the acting office that the signed-in reviewer did not create or submit.",
+        "next_action": "Verify the pinned source, reference, sections, latest witnessed tests, routing, and checksums before accepting or returning the form.",
+    },
+}
+
+LOCAL_FORM_OVERSIGHT_CHOICES = tuple(
+    choice for choice in ATTENTION_CHOICES if choice[0] not in LOCAL_FORM_ACTION_SPECS
+)
+
+
+def _local_form_action_role_allowed(user, department, role):
+    if is_finance_uat_viewer(user):
+        return False
+    if role == "manage":
+        return can_manage_local_form_acceptance(user, department)
+    if role == "witness":
+        return can_witness_local_form_tests(user, department)
+    if role == "review":
+        return can_review_local_form_acceptance(user, department)
+    return False
+
+
+def local_form_action_choices_for_user(user, department=None):
+    department = department or department_for_user(user)
+    labels = dict(ATTENTION_CHOICES)
+    return tuple(
+        (attention, labels[attention])
+        for attention, spec in LOCAL_FORM_ACTION_SPECS.items()
+        if _local_form_action_role_allowed(user, department, spec["role"])
+    ) if department else ()
+
+
+def local_form_attention_choices_for_user(user, department=None):
+    return local_form_action_choices_for_user(user, department) + LOCAL_FORM_OVERSIGHT_CHOICES
+
+
+def local_form_action_queryset(user, attention, *, queryset=None):
+    queryset = queryset if queryset is not None else FinanceLocalFormAcceptance.objects.all()
+    spec = LOCAL_FORM_ACTION_SPECS.get(attention)
+    if spec is None:
+        return queryset.none(), "", None
+    department = department_for_user(user)
+    if department is None or not _local_form_action_role_allowed(user, department, spec["role"]):
+        return queryset.none(), attention, spec
+
+    editable = (FinanceLocalFormAcceptance.DRAFT, FinanceLocalFormAcceptance.RETURNED)
+    queryset = queryset.filter(department=department)
+    if attention == "needs_mapping":
+        queryset = queryset.filter(status__in=editable, source_type=FinanceLocalFormAcceptance.SOURCE_UNMAPPED)
+    elif attention == "needs_reference":
+        queryset = queryset.filter(status__in=editable, reference_file="")
+    elif attention == "candidate_sections":
+        queryset = queryset.filter(
+            status__in=editable,
+            sections__confirmation_status=FinanceLocalFormSection.STARTER_CANDIDATE,
+        )
+    elif attention == "returned":
+        queryset = queryset.filter(status=FinanceLocalFormAcceptance.RETURNED)
+    elif attention == "witness_tests":
+        actionable_tests = FinanceLocalFormTestAttempt.objects.filter(
+            status=FinanceLocalFormTestAttempt.SUBMITTED,
+        ).exclude(created_by=user)
+        queryset = queryset.filter(pk__in=actionable_tests.values("form_id"))
+    elif attention == "for_review":
+        queryset = queryset.filter(status=FinanceLocalFormAcceptance.SUBMITTED).exclude(
+            Q(created_by=user) | Q(submitted_by=user),
+        )
+    return queryset.distinct(), attention, spec
 
 LOCAL_FORM_REGISTER_COLUMNS = (
     "form_public_id", "code", "form_number", "name", "version", "status", "next_action",
@@ -40,7 +149,7 @@ LOCAL_FORM_REGISTER_COLUMNS = (
 
 
 def apply_local_form_filters(
-    queryset, *, status="", source_type="", delivery_mode="", attention="", search="",
+    queryset, *, user=None, status="", source_type="", delivery_mode="", attention="", search="",
 ):
     if status in dict(FinanceLocalFormAcceptance.STATUS_CHOICES):
         queryset = queryset.filter(status=status)
@@ -63,18 +172,13 @@ def apply_local_form_filters(
     else:
         delivery_mode = ""
 
-    if attention == "needs_mapping":
-        queryset = queryset.filter(source_type=FinanceLocalFormAcceptance.SOURCE_UNMAPPED)
-    elif attention == "needs_reference":
-        queryset = queryset.filter(reference_file="")
-    elif attention == "candidate_sections":
-        queryset = queryset.filter(
-            sections__confirmation_status=FinanceLocalFormSection.STARTER_CANDIDATE,
-        ).distinct()
-    elif attention == "returned":
-        queryset = queryset.filter(status=FinanceLocalFormAcceptance.RETURNED)
-    elif attention == "for_review":
-        queryset = queryset.filter(status=FinanceLocalFormAcceptance.SUBMITTED)
+    if attention in LOCAL_FORM_ACTION_SPECS:
+        if user is None:
+            queryset = queryset.none()
+        else:
+            queryset, _selected, _spec = local_form_action_queryset(
+                user, attention, queryset=queryset,
+            )
     elif attention == "accepted":
         queryset = queryset.filter(status=FinanceLocalFormAcceptance.ACCEPTED)
     elif attention == "superseded":

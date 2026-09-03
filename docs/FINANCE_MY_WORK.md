@@ -1,6 +1,6 @@
 # Finance work-attention foundation
 
-Status: F1.5 foundation plus the field-operation source-adapter checkpoint implemented. `/finance/my-work/` provides a live, permission-filtered overview of supported Finance setup/discovery/field operation, Budget, shared voucher, Accounting, bank-advice, returned-payment, Treasury remittance, cash-policy, cash-position, period-close/reopen, and Reporting action groups. It is a read model over existing governed registers, not yet the complete item-level My Work task contract.
+Status: F1.5 foundation plus the local-form source-adapter checkpoint implemented. `/finance/my-work/` provides a live, permission-filtered overview of supported Finance setup/discovery/field operation, Budget, shared voucher, Accounting, bank-advice, returned-payment, Treasury remittance, cash-policy, cash-position, period-close/reopen, Reporting, and local-form action groups. It is a read model over existing governed registers, not yet the complete item-level My Work task contract.
 
 ## What the page does
 
@@ -27,14 +27,15 @@ The first adapter set covers:
 - role-scoped bank-advice preparation/correction, independent review, approved bank submission, and submitted bank-response recording;
 - returned-payment review versions awaiting an Accounting decision, Treasury clarification, or Accounting-cleared controlled replacement;
 - Treasury cash-policy preparation/correction and independent review, kept separate from cash-position preparation/correction and independent review;
-- Treasury remittance draft, returned, review, and release states; and
-- own-run or department-visible Reporting draft, failed, control-ready review, and approval states.
+- Treasury remittance draft, returned, review, and release states;
+- own-run or department-visible Reporting draft, failed, control-ready review, and approval states; and
+- local-form mapping/reference/section preparation, returned correction, independent practical-test witnessing, and independent acceptance review; accepted/superseded form views remain oversight only.
 
 The source workspace remains authoritative after the handoff. Its own permission, maker–checker, state-version, locking, correction, export, and audit controls still apply.
 
 ## Deliberately deferred adapters
 
-Local-form and other remaining cross-cycle action groups are not counted until their source workspaces expose a filter that reproduces the same work item, role scope, and state. Field operation, setup, discovery, bank advice, returned payment, period close/reopen, and cash control now use shared filter services in both My Work and their source workspaces. A field count means visible cycles containing the named action, not the number of nested defects, exercises, or decisions. Field personal actions remain distinct from oversight; setup states remain effectivity-aware; discovery owner/reviewer actions remain separate from oversight; returned-payment actions separate Accounting decision, Treasury clarification, and controlled replacement; and cash policy and position versions stay distinct. Omitting any still-unsupported number is safer than showing a plausible count that opens a different list.
+Other remaining cross-cycle action groups are not counted until their source workspaces expose a filter that reproduces the same work item, role scope, and state. Local forms, field operation, setup, discovery, bank advice, returned payment, period close/reopen, and cash control now use shared filter services in both My Work and their source workspaces. Local-form preparation, test witnessing, and acceptance review remain separate from accepted/superseded oversight, and a user never receives independent work for that user's own test or submitted form. A field count means visible cycles containing the named action, not the number of nested defects, exercises, or decisions. Field personal actions remain distinct from oversight; setup states remain effectivity-aware; discovery owner/reviewer actions remain separate from oversight; returned-payment actions separate Accounting decision, Treasury clarification, and controlled replacement; and cash policy and position versions stay distinct. Omitting any still-unsupported number is safer than showing a plausible count that opens a different list.
 
 The broader F1 My Work contract also remains open. Later rollbackable slices must add stable task identity and type, case and authoritative record links, exact action/gate, owner or permitted queue, timing/due state, source state/version, exceptions, Waiting/Returned/Due/Completed-by-me views, assignment/following rules, and governed shared views. Notifications must remain signals over that same source contract, never a parallel queue.
 
@@ -44,8 +45,9 @@ The broader F1 My Work contract also remains open. Later rollbackable slices mus
 
 - requesting offices learn office-isolated shared-case triage and the pre-DV/check modification boundary;
 - Budget users learn proposal/allotment/obligation authority boundaries;
-- Accounting users learn setup/discovery/field-operation/JEV/opening/bank/close/advice/returned-payment/cash/reporting handoffs;
-- named field participants learn to open only defect, exercise, witness, or stakeholder rows assigned to them and to distinguish a cycle count from nested work; and
+- Accounting users learn setup/discovery/field-operation/JEV/opening/bank/close/advice/returned-payment/cash/reporting/local-form handoffs;
+- named field participants learn to open only defect, exercise, witness, or stakeholder rows assigned to them and to distinguish a cycle count from nested work;
+- Budget, Accounting, and Treasury users learn to distinguish local-form preparation, returned correction, independent test witnessing, final acceptance review, and non-action oversight; and
 - Treasury users learn voucher/advice/remittance triage, returned-payment clarification/replacement boundaries, and separate cash-policy and cash-position queues.
 
 The floating `?` panel stays over the current page. Its checkmarks are optional private resume state, not an assignment, notification, submission, attendance record, competence rating, UAT result, or approval.
@@ -56,4 +58,4 @@ This checkpoint does not prove that an LGU accepts the workflow, terminology, ro
 
 ## Regression contract
 
-Automated coverage verifies the stable route and Finance-entry link, denial for reporting-only/ordinary users, exact field lifecycle/role/object parity, setup lifecycle/effectivity and discovery owner/reviewer parity, requesting-office voucher count parity, bank-advice, returned-payment, period-close, cash-policy, and cash-position parity with their filtered source queues, hidden-office isolation, independent review exclusions, named cross-office defect/exercise/stakeholder visibility, UAT preview exclusion, permission-shaped action choices, synchronized exports, boundary copy, and publication of page-relevant department guides. The checkpoint gate passed 45 focused cutover/Finance/guidance tests and all 449 project tests across both routed databases. An authenticated isolated two-store browser pass matched the source-lock queue to its My Work count, kept the prepared-cycle count separate, and verified the open non-modal guide at desktop and 390×844 with zero application-route console errors. Future source adapters must continue through the same gate.
+Automated coverage verifies the stable route and Finance-entry link, denial for reporting-only/ordinary users, exact local-form preparation/witness/review parity, exact field lifecycle/role/object parity, setup lifecycle/effectivity and discovery owner/reviewer parity, requesting-office voucher count parity, bank-advice, returned-payment, period-close, cash-policy, and cash-position parity with their filtered source queues, hidden-office isolation, independent review exclusions, named cross-office defect/exercise/stakeholder visibility, UAT preview exclusion, permission-shaped action choices, synchronized exports, boundary copy, and publication of page-relevant department guides. The current checkpoint gate passed 37 focused local-form/Finance/guidance contract tests and all 453 project tests across both routed databases. An authenticated isolated two-store browser pass matched the one-form mapping queue to its My Work count, kept reference and section-decision counts separate, and verified the updated non-modal Accounting guide at desktop and 390×844 with zero application-route console errors. Future source adapters must continue through the same gate.

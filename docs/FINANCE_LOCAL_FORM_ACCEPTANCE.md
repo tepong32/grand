@@ -28,7 +28,11 @@ No SQL, macro, executable script, credential, arbitrary formula, or production d
 
 ### Guided office queue and summary export
 
-The office register can be filtered by status, governed GRAND source type, delivery mode, next attention, or plain search across the form name, number, code, purpose, and authority. Controlled next-attention filters isolate forms that still need mapping, the current local reference, local decisions on built-in candidate sections, returned correction, independent acceptance, or retained accepted/superseded evidence. Invalid controlled values fail closed rather than silently widening scope.
+The office register can be filtered by status, governed GRAND source type, delivery mode, next attention, or plain search across the form name, number, code, purpose, and authority. Controlled next-attention filters isolate forms that still need mapping, the current local reference, local decisions on built-in candidate sections, returned correction, independently witnessed practical tests, independent acceptance, or retained accepted/superseded evidence. Invalid controlled values fail closed rather than silently widening scope.
+
+Preparation and returned-correction choices appear only to authorized form preparers. A practical-test witness sees only forms containing a submitted test performed by another user. An acceptance reviewer sees only submitted forms the reviewer neither created nor submitted. Finance UAT preview accounts receive none of these personal-action queues. Accepted and superseded filters remain oversight views rather than assignments.
+
+My Finance Work uses these same department-, permission-, state-, and independence-aware queries. Each count opens the exact filtered Local form acceptance list, and the filtered register export applies the same scope again. No count, link, or export creates a task state, changes a form, accepts evidence, or makes a candidate official.
 
 Each visible row states the next action in evidence order: link the exact governed source, retain the blank/redacted reference, add recognizable sections, resolve every starter candidate against local evidence, confirm actual delivery and custody, correct or witness the latest practical tests, complete missing test categories, or submit/review the exact form version. These are explanations of persisted evidence, not new workflow states.
 

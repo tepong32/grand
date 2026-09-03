@@ -67,10 +67,11 @@ from .run_register_exports import (
     next_report_action,
 )
 from .local_form_register_exports import (
-    ATTENTION_CHOICES as LOCAL_FORM_ATTENTION_CHOICES,
+    LOCAL_FORM_ACTION_SPECS,
     apply_local_form_filters,
     build_local_form_register,
     latest_test_summary,
+    local_form_attention_choices_for_user,
     next_local_form_action,
 )
 from .template_services import (
@@ -249,6 +250,7 @@ def local_form_workspace(request):
     department_records = FinanceLocalFormAcceptance.objects.filter(department=department)
     records, status, source_type, delivery_mode, attention, search = apply_local_form_filters(
         department_records,
+        user=request.user,
         status=request.GET.get("status", "").strip(),
         source_type=request.GET.get("source_type", "").strip(),
         delivery_mode=request.GET.get("delivery_mode", "").strip(),
@@ -268,6 +270,8 @@ def local_form_workspace(request):
         item.latest_passing_test_count = (
             test_counts["passed"] + test_counts["not_applicable"]
         )
+    attention_choices = local_form_attention_choices_for_user(request.user, department)
+    allowed_attention = {value for value, _label in attention_choices}
     return render(request, "reporting/local_form_workspace.html", {
         "department": department,
         "records": records,
@@ -275,7 +279,10 @@ def local_form_workspace(request):
         "status_choices": FinanceLocalFormAcceptance.STATUS_CHOICES,
         "source_type_choices": FinanceLocalFormAcceptance.SOURCE_CHOICES,
         "delivery_mode_choices": FinanceLocalFormAcceptance.DELIVERY_CHOICES,
-        "attention_choices": LOCAL_FORM_ATTENTION_CHOICES,
+        "attention_choices": attention_choices,
+        "local_form_work_spec": (
+            LOCAL_FORM_ACTION_SPECS.get(attention) if attention in allowed_attention else None
+        ),
         "filters": {
             "status": status, "source_type": source_type,
             "delivery_mode": delivery_mode, "attention": attention, "q": search,
@@ -293,6 +300,7 @@ def local_form_register_export(request):
     department = department_for_user(request.user)
     records, status, source_type, delivery_mode, attention, search = apply_local_form_filters(
         FinanceLocalFormAcceptance.objects.filter(department=department),
+        user=request.user,
         status=request.GET.get("status", "").strip(),
         source_type=request.GET.get("source_type", "").strip(),
         delivery_mode=request.GET.get("delivery_mode", "").strip(),
