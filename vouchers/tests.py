@@ -57,6 +57,7 @@ from .models import (
     VoucherNonFinancialAmendment,
     RemittancePostingRequest, TaxFilingEvidence, TreasuryRemittanceBatch, TreasuryRemittanceLine,
     PayableDocumentEvidence, VoucherDeduction, VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
+    WetSignatureTask,
 )
 from .posting import materialize_voucher_journal, reconcile_posted_voucher_entry
 from .advice import (
@@ -2410,6 +2411,89 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(response["X-GRAND-SHA256"], output.checksum)
         with self.assertRaises(RecordWorkflowError):
             source_department(output)
+
+    def test_dv_preparation_service_rejects_actor_outside_current_office(self):
+        case = self.create_case("current-office-prepare")
+        self.budget_certify(case, "current-office-budget")
+        case.refresh_from_db()
+        self.outsider.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="prepare_disbursement_voucher",
+        ))
+
+        with self.assertRaises(PermissionDenied):
+            prepare_voucher(
+                case=case, actor=self.outsider, voucher_date=date(2026, 8, 25),
+                gross_amount=Decimal("1000.00"), deductions=[],
+                line_description="Attempted cross-office DV preparation",
+                line_account_code="5-02-03", document_codes=["invoice"],
+                expected_version=case.state_version,
+                idempotency_key="current-office-denied",
+            )
+
+        self.assertFalse(hasattr(case, "disbursement_voucher"))
+        self.assertFalse(case.events.filter(idempotency_key="current-office-denied").exists())
+
+    def test_print_custody_and_signature_services_reject_actor_outside_current_office(self):
+        self.template.controlled_print_required = True
+        self.template.save(update_fields=("controlled_print_required",))
+        case = self.create_case("current-office-custody")
+        self.budget_certify(case, "current-office-custody-budget")
+        self.accounting_prepare(case, "current-office-custody-dv")
+        case.refresh_from_db()
+        self.outsider.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers",
+            codename__in=("control_dv_printing", "link_tracepoint_custody", "track_wet_signatures"),
+        ))
+
+        with self.assertRaises(PermissionDenied):
+            prepare_controlled_dv_print(
+                case=case, actor=self.outsider, replacement_reason="",
+                expected_version=case.state_version, idempotency_key="cross-office-copy-denied",
+            )
+        job = prepare_controlled_dv_print(
+            case=case, actor=self.preparer, replacement_reason="",
+            expected_version=case.state_version, idempotency_key="current-office-copy",
+        )
+        case.refresh_from_db()
+        with self.assertRaises(PermissionDenied):
+            record_dv_printed(
+                case=case, actor=self.outsider, copy_count=1,
+                printer_or_form_stock="Unauthorized remote printer",
+                print_note="Must not be recorded.", expected_version=case.state_version,
+                idempotency_key="cross-office-print-denied",
+            )
+        job = record_dv_printed(
+            case=case, actor=self.preparer, copy_count=1,
+            printer_or_form_stock="Accounting controlled printer and stock",
+            print_note="Physical copy checked.", expected_version=case.state_version,
+            idempotency_key="current-office-print",
+        )
+        case.refresh_from_db()
+        with self.assertRaises(PermissionDenied):
+            assemble_finance_packet(
+                case=case, actor=self.outsider, expected_document_count=2,
+                expected_page_count=4, confidentiality=TrackedPacket.RESTRICTED,
+                assembly_note="Must not be recorded.", expected_version=case.state_version,
+                idempotency_key="cross-office-packet-denied",
+            )
+        job = assemble_finance_packet(
+            case=case, actor=self.preparer, expected_document_count=2,
+            expected_page_count=4, confidentiality=TrackedPacket.RESTRICTED,
+            assembly_note="Accounting packet counted and controlled.",
+            expected_version=case.state_version, idempotency_key="current-office-packet",
+        )
+        case.refresh_from_db()
+        first_signature = case.signature_tasks.filter(
+            round_number=job.signature_round, status=WetSignatureTask.PENDING,
+        ).order_by("sequence").first()
+        with self.assertRaises(PermissionDenied):
+            record_signature_return(
+                case=case, task=first_signature, actor=self.outsider,
+                note="Must not be recorded.", expected_version=case.state_version,
+                idempotency_key="cross-office-signature-denied",
+            )
+
+        self.assertFalse(case.events.filter(idempotency_key__startswith="cross-office-").exists())
 
     def test_controlled_print_reprint_and_tracepoint_packet_gate_wet_signatures(self):
         self.template.controlled_print_required = True

@@ -6,14 +6,14 @@ import re
 from uuid import UUID
 
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils.text import slugify
 
 from finance.models import FinanceAuditEvent
 from src.export_archive import archive_export
 
 from .access import department_for_user, has_explicit_permission
-from .models import PayableDocumentEvidence, VoucherCase, VoucherPrintJob
+from .models import PayableDocumentEvidence, VoucherCase, VoucherPrintJob, WetSignatureTask
 from .roles import STAGE_NEXT_ACTION, finance_workspace_profile, is_finance_uat_viewer
 from .services import payable_relationship_summary
 
@@ -41,6 +41,43 @@ PAYABLE_ACTION_SPECS = {
         "next_action": "Review the zero-difference relationship, evidence decisions, and recognition route; accept or return the same case.",
     },
 }
+
+DV_CUSTODY_ACTION_SPECS = {
+    "dv_preparation": {
+        "permissions": ("vouchers.prepare_disbursement_voucher",),
+        "stage": VoucherCase.ACCOUNTING_PREPARATION,
+        "title": "Disbursement vouchers to prepare or correct",
+        "definition": "Cases assigned to the acting Accounting office at DV preparation, subject to the Budget-certifier separation rule.",
+        "next_action": "Recheck the accepted payable and exact gross-deduction-net equation, then prepare the governed DV.",
+    },
+    "signing_copy": {
+        "permissions": ("vouchers.control_dv_printing",),
+        "stage": VoucherCase.AWAITING_SIGNATURES,
+        "title": "DVs needing a controlled signing copy",
+        "definition": "Controlled-form cases with no active signing copy in the acting Accounting office.",
+        "next_action": "Generate and archive the current checksummed signing copy before printing.",
+    },
+    "record_print": {
+        "permissions": ("vouchers.control_dv_printing",),
+        "stage": VoucherCase.AWAITING_SIGNATURES,
+        "title": "Signing copies ready for print recording",
+        "definition": "Current controlled signing copies whose physical copy count and printer/form-stock evidence are not yet recorded.",
+        "next_action": "Print the current version and record the actual copy count, printer, paper/form stock, and note.",
+    },
+    "assemble_packet": {
+        "permissions": ("vouchers.control_dv_printing", "vouchers.link_tracepoint_custody"),
+        "stage": VoucherCase.AWAITING_SIGNATURES,
+        "title": "Printed DVs needing packet assembly",
+        "definition": "Printed current signing copies awaiting counted packet assembly and TracePoint custody linkage.",
+        "next_action": "Count and assemble the physical packet, then create or verify its TracePoint route.",
+    },
+}
+
+DV_ACTIVE_PRINT_STATES = (
+    VoucherPrintJob.READY_TO_PRINT,
+    VoucherPrintJob.PRINTED,
+    VoucherPrintJob.AWAITING_SIGNATURES,
+)
 
 CUSTODY_CHOICES = (
     ("needs_signing_copy", "Needs a current signing copy"),
@@ -117,6 +154,90 @@ def payable_action_queryset(user, action, queryset=None):
     return base.distinct(), action, spec
 
 
+def dv_custody_action_choices_for_user(user):
+    if is_finance_uat_viewer(user):
+        return ()
+    return tuple(
+        (key, spec["title"])
+        for key, spec in DV_CUSTODY_ACTION_SPECS.items()
+        if all(has_explicit_permission(user, permission) for permission in spec["permissions"])
+    )
+
+
+def dv_custody_action_queryset(user, action, queryset=None):
+    spec = DV_CUSTODY_ACTION_SPECS.get(action)
+    base = visible_cases_for_user(user, queryset)
+    department = department_for_user(user)
+    if (
+        spec is None or department is None or is_finance_uat_viewer(user)
+        or not all(has_explicit_permission(user, permission) for permission in spec["permissions"])
+    ):
+        return base.none(), action if spec else "", spec
+    base = base.filter(
+        current_stage=spec["stage"], current_department_id=department.pk,
+    )
+    if action == "dv_preparation":
+        from finance.exemptions import workflow_exemption_for
+        from finance.models import FinanceWorkflowExemption
+
+        exemption = workflow_exemption_for(
+            actor=user,
+            control_code=FinanceWorkflowExemption.BUDGET_CERTIFIER_DV_PREPARATION,
+            department_id=department.pk,
+        )
+        if exemption is None:
+            base = base.exclude(obligation__certified_by=user)
+    elif action == "signing_copy":
+        base = base.filter(voucher_template__controlled_print_required=True).exclude(
+            print_jobs__status__in=DV_ACTIVE_PRINT_STATES,
+        )
+    elif action == "record_print":
+        base = base.filter(print_jobs__status=VoucherPrintJob.READY_TO_PRINT)
+    elif action == "assemble_packet":
+        base = base.filter(print_jobs__status=VoucherPrintJob.PRINTED)
+    return base.distinct(), action, spec
+
+
+def dv_signature_task_queryset(user):
+    base_cases = visible_cases_for_user(user)
+    department = department_for_user(user)
+    if (
+        department is None or is_finance_uat_viewer(user)
+        or not has_explicit_permission(user, "vouchers.track_wet_signatures")
+    ):
+        return WetSignatureTask.objects.none()
+    prior_pending = WetSignatureTask.objects.filter(
+        case_id=OuterRef("case_id"),
+        round_number=OuterRef("round_number"),
+        sequence__lt=OuterRef("sequence"),
+        status=WetSignatureTask.PENDING,
+    )
+    controlled_ready = VoucherPrintJob.objects.filter(
+        case_id=OuterRef("case_id"),
+        signature_round=OuterRef("round_number"),
+        status=VoucherPrintJob.AWAITING_SIGNATURES,
+    )
+    return WetSignatureTask.objects.filter(
+        case__in=base_cases,
+        case__current_stage=VoucherCase.AWAITING_SIGNATURES,
+        case__current_department_id=department.pk,
+        status=WetSignatureTask.PENDING,
+    ).annotate(
+        has_prior_pending=Exists(prior_pending),
+        controlled_ready=Exists(controlled_ready),
+    ).filter(
+        has_prior_pending=False,
+    ).filter(
+        Q(case__voucher_template__isnull=True)
+        | Q(case__voucher_template__controlled_print_required=False)
+        | Q(controlled_ready=True)
+    ).select_related(
+        "case", "case__requesting_department", "case__current_department", "custody_department",
+    ).prefetch_related("case__print_jobs").order_by(
+        "case__reference_code", "round_number", "sequence", "pk",
+    )
+
+
 def apply_case_filters(
     queryset, *, actionable_stages=(), stage="", transaction_type="",
     requesting_department="", attention="", custody="", search="", actor=None,
@@ -178,6 +299,29 @@ def apply_case_filters(
                         | Q(payable_intake__prepared_by=actor)
                         | Q(payable_intake__submitted_by=actor)
                     )
+                )
+            if VoucherCase.ACCOUNTING_PREPARATION in actionable_stages:
+                from finance.exemptions import workflow_exemption_for
+                from finance.models import FinanceWorkflowExemption
+
+                queryset = queryset.exclude(
+                    Q(current_stage=VoucherCase.ACCOUNTING_PREPARATION)
+                    & ~Q(current_department_id=actor_department.pk)
+                )
+                exemption = workflow_exemption_for(
+                    actor=actor,
+                    control_code=FinanceWorkflowExemption.BUDGET_CERTIFIER_DV_PREPARATION,
+                    department_id=actor_department.pk,
+                )
+                if exemption is None:
+                    queryset = queryset.exclude(
+                        current_stage=VoucherCase.ACCOUNTING_PREPARATION,
+                        obligation__certified_by=actor,
+                    )
+            if VoucherCase.AWAITING_SIGNATURES in actionable_stages:
+                queryset = queryset.exclude(
+                    Q(current_stage=VoucherCase.AWAITING_SIGNATURES)
+                    & ~Q(current_department_id=actor_department.pk)
                 )
     elif attention == "open_elsewhere":
         queryset = queryset.filter(current_stage__in=open_stages).exclude(current_stage__in=actionable_stages)

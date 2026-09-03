@@ -90,7 +90,7 @@ def _actionable_stages(permissions, can_access_accounting=False):
         (permissions["initiate_payable"], VoucherCase.PAYABLE_PREPARATION),
         (permissions["review_payable"], VoucherCase.PAYABLE_REVIEW),
         (permissions["prepare"], VoucherCase.ACCOUNTING_PREPARATION),
-        (permissions["signatures"], VoucherCase.AWAITING_SIGNATURES),
+        (permissions["control_print"] or permissions["signatures"], VoucherCase.AWAITING_SIGNATURES),
         (permissions["validate"], VoucherCase.ACCOUNTING_VALIDATION),
         (can_access_accounting, VoucherCase.ACCOUNTING_POSTING),
         (can_access_accounting, VoucherCase.ACCOUNTING_EVENT_POSTING),

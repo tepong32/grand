@@ -127,7 +127,11 @@ def _voucher_groups(user, department):
         (has_explicit_permission(user, "vouchers.initiate_payable_case"), VoucherCase.PAYABLE_PREPARATION),
         (has_explicit_permission(user, "vouchers.review_payable_intake"), VoucherCase.PAYABLE_REVIEW),
         (has_explicit_permission(user, "vouchers.prepare_disbursement_voucher"), VoucherCase.ACCOUNTING_PREPARATION),
-        (has_explicit_permission(user, "vouchers.track_wet_signatures"), VoucherCase.AWAITING_SIGNATURES),
+        (
+            has_explicit_permission(user, "vouchers.control_dv_printing")
+            or has_explicit_permission(user, "vouchers.track_wet_signatures"),
+            VoucherCase.AWAITING_SIGNATURES,
+        ),
         (has_explicit_permission(user, "vouchers.validate_accounting_voucher"), VoucherCase.ACCOUNTING_VALIDATION),
         (can_prepare_journals(user) or can_post_journals(user), VoucherCase.ACCOUNTING_POSTING),
         (can_prepare_journals(user) or can_post_journals(user), VoucherCase.ACCOUNTING_EVENT_POSTING),

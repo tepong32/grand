@@ -13,8 +13,14 @@ from departments.models import Department
 from profiles.models import EmployeeProfile
 from reporting.models import FinanceLocalFormAcceptance
 from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
-from vouchers.case_exports import apply_case_filters, payable_action_queryset, visible_cases_for_user
-from vouchers.models import PayableIntake, VoucherCase
+from vouchers.case_exports import (
+    apply_case_filters, dv_custody_action_queryset, dv_signature_task_queryset,
+    payable_action_queryset, visible_cases_for_user,
+)
+from vouchers.models import (
+    BudgetObligation, DisbursementVoucher, PayableIntake, VoucherCase,
+    VoucherOutput, VoucherPrintJob, WetSignatureTask,
+)
 
 from accounting.models import FiscalYear
 from budget.annual_exports import apply_annual_filters
@@ -27,6 +33,7 @@ from .models import (
     FinanceConfigurationRelease, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
     FinanceCutoverReadinessPlan, FinanceShadowComparison, FinanceShadowCycle,
     FinanceDiscoveryDecision, FinanceShadowDefect, FinanceStakeholderAcceptance,
+    FinanceTemplateVersion, FinanceWorkflowExemption,
 )
 from .work_attention import finance_work_attention
 from .work_tasks import finance_work_tasks
@@ -958,4 +965,266 @@ class FinancePayableWorkTaskContractTests(TestCase):
         self.assertNotIn(
             "voucher-ready",
             {group["key"] for group in finance_work_attention(self.uat)["groups"]},
+        )
+
+
+class FinanceDVCustodyWorkTaskContractTests(TestCase):
+    databases = {"default", "finance"}
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.accounting = Department.objects.create(
+            name="Municipal Accounting Office", slug="task-dv-accounting",
+        )
+        cls.requesting = Department.objects.create(
+            name="General Services Office", slug="task-dv-requesting",
+        )
+        cls.other = Department.objects.create(
+            name="Municipal Engineering Office", slug="task-dv-other",
+        )
+        cls.preparer = cls._employee(
+            "task.dv.preparer", cls.accounting,
+            "view_voucher_workbench", "prepare_disbursement_voucher",
+        )
+        cls.certifier = cls._employee(
+            "task.dv.certifier", cls.accounting,
+            "view_voucher_workbench", "prepare_disbursement_voucher",
+        )
+        cls.print_operator = cls._employee(
+            "task.dv.print", cls.accounting,
+            "view_voucher_workbench", "control_dv_printing", "link_tracepoint_custody",
+        )
+        cls.signature_operator = cls._employee(
+            "task.dv.signature", cls.accounting,
+            "view_voucher_workbench", "track_wet_signatures",
+        )
+        cls.uat = cls._employee(
+            "task.dv.uat", cls.accounting,
+            "view_voucher_workbench", "prepare_disbursement_voucher",
+            "control_dv_printing", "track_wet_signatures", "link_tracepoint_custody",
+        )
+        cls.uat.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        today = timezone.localdate()
+        cls.release = FinanceConfigurationRelease.objects.create(
+            department=cls.accounting, code="task-dv-release", version=1,
+            title="Synthetic DV task release", fiscal_year=today.year,
+            status="active", effective_from=today, created_by=cls.preparer,
+        )
+        cls.template = FinanceTemplateVersion.objects.create(
+            department=cls.accounting, release=cls.release,
+            document_type="disbursement-voucher", version=1,
+            title="Synthetic controlled DV task template",
+            controlled_print_required=True, workbook="finance/templates/task-dv.xlsx",
+            workbook_checksum="a" * 64, effective_from=today, created_by=cls.preparer,
+        )
+
+    @classmethod
+    def _employee(cls, username, department, *permissions):
+        user = get_user_model().objects.create_user(
+            username=username, email=f"{username}@example.test", password="dv-task-test",
+        )
+        profile, _created = EmployeeProfile.objects.get_or_create(user=user)
+        profile.assigned_department = department
+        profile.save(update_fields=("assigned_department",))
+        user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers", codename__in=permissions,
+        ))
+        return get_user_model().objects.get(pk=user.pk)
+
+    def _case(
+        self, reference, *, stage=VoucherCase.ACCOUNTING_PREPARATION,
+        current=None, certified_by=None, with_voucher=False, controlled=True,
+    ):
+        item = VoucherCase.objects.create(
+            reference_code=reference, requesting_department=self.requesting,
+            current_department=current or self.accounting,
+            configuration_release=self.release,
+            voucher_template=self.template if controlled else None,
+            payee_name="Synthetic LGU supplier",
+            particulars="Controlled DV and physical-custody task fixture.",
+            authoritative_obligation_number=f"OBR-{reference}",
+            authoritative_obligation_amount=Decimal("100.00"),
+            obligation_binding_status=VoucherCase.BINDING_LINKED,
+            current_stage=stage, created_by=self.preparer,
+        )
+        BudgetObligation.objects.create(
+            case=item, obr_number=f"OBR-{reference}", obligation_date=timezone.localdate(),
+            budget_source_reference="Synthetic retained appropriation evidence.",
+            certified_amount=Decimal("100.00"), certified_by=certified_by or self.certifier,
+            certified_at=timezone.now(),
+        )
+        if with_voucher:
+            DisbursementVoucher.objects.create(
+                case=item, dv_number=f"DV-{reference}", voucher_date=timezone.localdate(),
+                gross_amount=Decimal("100.00"), total_deductions=Decimal("10.00"),
+                net_amount=Decimal("90.00"), prepared_by=self.preparer,
+                prepared_at=timezone.now(),
+            )
+        return item
+
+    def _print_job(self, item, status):
+        output = VoucherOutput.objects.create(
+            case=item, output_type="signing-copy", version=1, template=self.template,
+            file=f"vouchers/outputs/{item.reference_code}/signing-copy/v1/dv.xlsx",
+            checksum="b" * 64, input_snapshot={"case": item.reference_code},
+            status=VoucherOutput.OFFICIAL, generated_by=self.print_operator,
+        )
+        printed = status in {VoucherPrintJob.PRINTED, VoucherPrintJob.AWAITING_SIGNATURES}
+        return VoucherPrintJob.objects.create(
+            case=item, version=1, output=output, output_checksum=output.checksum,
+            signature_round=1, status=status,
+            copy_count=2 if printed else None,
+            printer_or_form_stock="Accounting printer 1 · A4 controlled stock" if printed else "",
+            print_note="Two legible copies counted." if printed else "",
+            prepared_by=self.print_operator,
+            printed_by=self.print_operator if printed else None,
+            printed_at=timezone.now() if printed else None,
+            archive_manifest={"sha256": output.checksum, "relative_path": output.file.name},
+        )
+
+    def test_dv_preparation_scope_enforces_current_office_and_certifier_separation(self):
+        ready = self._case("DV-TASK-READY")
+        self._case("DV-TASK-WRONG", current=self.other)
+        self_certified = self._case("DV-TASK-SELF", certified_by=self.preparer)
+
+        source, _selected, _spec = dv_custody_action_queryset(self.preparer, "dv_preparation")
+        filtered_source, *_filters = apply_case_filters(
+            visible_cases_for_user(self.preparer),
+            actionable_stages=(VoucherCase.ACCOUNTING_PREPARATION,),
+            attention="ready_for_me", actor=self.preparer,
+        )
+        tasks = [
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["task_type"] == "finance.dv-custody.dv_preparation.v1"
+        ]
+
+        self.assertEqual(set(source), {ready})
+        self.assertEqual(set(filtered_source), {ready})
+        self.assertEqual(len(tasks), 1)
+        self.assertIn(str(ready.public_id), tasks[0]["task_id"])
+        self.assertIsNone(tasks[0]["due_on"])
+        self.assertIn("gross-deduction-net equation", tasks[0]["action"])
+
+        FinanceWorkflowExemption.objects.create(
+            department=self.accounting,
+            control_code=FinanceWorkflowExemption.BUDGET_CERTIFIER_DV_PREPARATION,
+            subject_user=self.preparer,
+            rationale="Synthetic scarce-staff exception with named compensating review.",
+            created_by=self.certifier,
+        )
+        exempt_source, _selected, _spec = dv_custody_action_queryset(
+            self.preparer, "dv_preparation",
+        )
+        self.assertEqual(set(exempt_source), {ready, self_certified})
+
+    def test_print_actions_are_state_specific_and_do_not_overlap(self):
+        signing_copy = self._case(
+            "DV-TASK-COPY", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True,
+        )
+        record_print = self._case(
+            "DV-TASK-PRINT", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True,
+        )
+        assemble = self._case(
+            "DV-TASK-PACKET", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True,
+        )
+        self._print_job(record_print, VoucherPrintJob.READY_TO_PRINT)
+        self._print_job(assemble, VoucherPrintJob.PRINTED)
+
+        expected = {
+            "signing_copy": signing_copy,
+            "record_print": record_print,
+            "assemble_packet": assemble,
+        }
+        for action, item in expected.items():
+            with self.subTest(action=action):
+                queryset, _selected, _spec = dv_custody_action_queryset(self.print_operator, action)
+                self.assertEqual(set(queryset), {item})
+
+        tasks = [
+            task for task in finance_work_tasks(self.print_operator)["tasks"]
+            if task["task_type"].startswith("finance.dv-custody.")
+        ]
+        self.assertEqual(len(tasks), 3)
+        self.assertEqual(
+            {task["case_id"] for task in tasks},
+            {f"voucher-case:{item.public_id}" for item in expected.values()},
+        )
+
+    def test_only_earliest_ready_signature_is_projected_for_controlled_copy(self):
+        item = self._case(
+            "DV-TASK-SIGN", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True,
+        )
+        first = WetSignatureTask.objects.create(
+            case=item, round_number=1, sequence=1, role_code="department-head",
+            signatory_name_snapshot="Synthetic Department Head",
+            position_snapshot="Department Head", custody_department=self.accounting,
+            custody_instructions="Route through the counted Accounting packet.",
+        )
+        second = WetSignatureTask.objects.create(
+            case=item, round_number=1, sequence=2, role_code="municipal-accountant",
+            signatory_name_snapshot="Synthetic Municipal Accountant",
+            position_snapshot="Municipal Accountant", custody_department=self.accounting,
+        )
+        self.assertFalse(dv_signature_task_queryset(self.signature_operator).exists())
+
+        job = self._print_job(item, VoucherPrintJob.AWAITING_SIGNATURES)
+        first_query = list(dv_signature_task_queryset(self.signature_operator))
+        first_task = next(
+            task for task in finance_work_tasks(self.signature_operator)["tasks"]
+            if task["task_type"] == "finance.wet-signature.record-return.v1"
+        )
+        self.assertEqual(first_query, [first])
+        self.assertIn("step 1", first_task["reference"])
+        self.assertIn("not the wet signature itself", first_task["exception"])
+
+        first.status = WetSignatureTask.SIGNED_RETURNED
+        first.recorded_by = self.signature_operator
+        first.recorded_at = timezone.now()
+        first.note = "Signed paper received in the controlled packet."
+        first.save(update_fields=("status", "recorded_by", "recorded_at", "note"))
+        self.assertEqual(list(dv_signature_task_queryset(self.signature_operator)), [second])
+        next_task = next(
+            task for task in finance_work_tasks(self.signature_operator)["tasks"]
+            if task["task_type"] == "finance.wet-signature.record-return.v1"
+        )
+        self.assertIn("step 2", next_task["reference"])
+        self.assertEqual(job.status, VoucherPrintJob.AWAITING_SIGNATURES)
+
+    def test_projection_identity_is_stable_and_checksum_tracks_print_evidence(self):
+        item = self._case(
+            "DV-TASK-REVISION", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True,
+        )
+        job = self._print_job(item, VoucherPrintJob.READY_TO_PRINT)
+        first = next(
+            task for task in finance_work_tasks(self.print_operator)["tasks"]
+            if str(item.public_id) in task["task_id"]
+        )
+        job.printer_or_form_stock = "Accounting printer 2 · replacement controlled stock"
+        job.save(update_fields=("printer_or_form_stock",))
+        second = next(
+            task for task in finance_work_tasks(self.print_operator)["tasks"]
+            if str(item.public_id) in task["task_id"]
+        )
+
+        self.assertEqual(second["task_id"], first["task_id"])
+        self.assertNotEqual(second["source_version"], first["source_version"])
+
+    def test_unbalanced_legacy_dv_is_visible_as_stop_exception_and_uat_has_no_actions(self):
+        item = self._case(
+            "DV-TASK-UNBALANCED", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True,
+        )
+        DisbursementVoucher.objects.filter(case=item).update(net_amount=Decimal("89.99"))
+        task = next(
+            task for task in finance_work_tasks(self.print_operator)["tasks"]
+            if str(item.public_id) in task["task_id"]
+        )
+
+        self.assertIn("unexplained difference is 0.01", task["exception"])
+        self.assertIn("Stop and repair", task["exception"])
+        self.assertFalse(any(
+            task["task_type"].startswith(("finance.dv-custody.", "finance.wet-signature."))
+            for task in finance_work_tasks(self.uat)["tasks"]
+        ))
+        self.assertNotIn(
+            "voucher-ready", {group["key"] for group in finance_work_attention(self.uat)["groups"]},
         )

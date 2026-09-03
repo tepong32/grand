@@ -643,6 +643,173 @@ def _payable_tasks(user, department, today):
     return tasks
 
 
+def _dv_custody_tasks(user, department, today):
+    from vouchers.case_exports import (
+        DV_ACTIVE_PRINT_STATES, dv_custody_action_choices_for_user,
+        dv_custody_action_queryset, dv_signature_task_queryset,
+    )
+    from vouchers.models import VoucherPrintJob
+
+    queue_labels = {
+        "dv_preparation": "Accounting DV preparers",
+        "signing_copy": "Controlled signing-copy preparers",
+        "record_print": "Controlled print operators",
+        "assemble_packet": "Finance packet and TracePoint custodians",
+    }
+    tasks = []
+    for action_key, _label in dv_custody_action_choices_for_user(user):
+        queryset, _selected, spec = dv_custody_action_queryset(user, action_key)
+        for item in queryset.select_related(
+            "requesting_department", "current_department", "voucher_template",
+            "disbursement_voucher", "obligation", "payable_intake",
+        ).prefetch_related(
+            "payable_document_evidence", "print_jobs", "signature_tasks",
+        ).order_by("-updated_at", "-pk"):
+            obligation = getattr(item, "obligation", None)
+            intake = getattr(item, "payable_intake", None)
+            voucher = getattr(item, "disbursement_voucher", None)
+            active_jobs = [job for job in item.print_jobs.all() if job.status in DV_ACTIVE_PRINT_STATES]
+            job = sorted(active_jobs, key=lambda row: (row.version, row.pk), reverse=True)[0] if active_jobs else None
+            exceptions = []
+            if action_key == "dv_preparation":
+                if obligation is None:
+                    exceptions.append("The certified-obligation compatibility record is missing; stop for data repair.")
+                if item.payable_document_evidence.exists() and (
+                    intake is None or intake.status != intake.READY
+                ):
+                    exceptions.append("The transaction-specific payable intake is not Accounting-accepted.")
+            elif action_key == "signing_copy":
+                if voucher is None:
+                    exceptions.append("The prepared DV record is missing; stop for data repair.")
+            elif job is None:
+                exceptions.append("The expected active print-control record is missing; stop for data repair.")
+            if voucher is not None:
+                amount_difference = voucher.gross_amount - voucher.total_deductions - voucher.net_amount
+                if amount_difference != 0:
+                    exceptions.append(
+                        f"DV gross less deductions does not equal net; unexplained difference is {amount_difference:.2f}. Stop and repair the source evidence."
+                    )
+                if obligation is not None and voucher.gross_amount != obligation.certified_amount:
+                    exceptions.append(
+                        "DV gross does not equal the certified-obligation amount; stop and use the governed correction route."
+                    )
+            print_revision = [
+                [
+                    row.pk, row.version, row.status, row.output_checksum, row.signature_round,
+                    row.copy_count, row.printer_or_form_stock, row.print_note,
+                    row.printed_by_id, row.packet_reference, row.tracepoint_item_id,
+                    row.custody_manifest, row.custody_confirmed_by_id, row.prepared_at.isoformat(),
+                    row.printed_at.isoformat() if row.printed_at else "",
+                    row.custody_confirmed_at.isoformat() if row.custody_confirmed_at else "",
+                ]
+                for row in item.print_jobs.all()
+            ]
+            signature_revision = [
+                [row.pk, row.round_number, row.sequence, row.status, row.recorded_at.isoformat() if row.recorded_at else ""]
+                for row in item.signature_tasks.all()
+            ]
+            projection_revision = _projection_checksum({
+                "case_state_version": item.state_version,
+                "dv": [
+                    voucher.dv_number, voucher.voucher_date.isoformat(), str(voucher.gross_amount),
+                    str(voucher.total_deductions), str(voucher.net_amount), voucher.prepared_by_id,
+                ] if voucher is not None else [],
+                "intake_status": intake.status if intake is not None else "",
+                "obligation": [obligation.obr_number, str(obligation.certified_amount), obligation.certified_by_id]
+                if obligation is not None else [],
+                "print_jobs": print_revision,
+                "signature_tasks": signature_revision,
+                "template_checksum": item.voucher_template.workbook_checksum if item.voucher_template_id else "",
+            })
+            received_at = item.updated_at
+            if job is not None:
+                received_at = {
+                    "record_print": job.prepared_at,
+                    "assemble_packet": job.printed_at,
+                }.get(action_key) or item.updated_at
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:dv-custody:{item.public_id}:{action_key.replace('_', '-')}",
+                task_type=f"finance.dv-custody.{action_key}.v1",
+                area="Voucher case",
+                case_id=f"voucher-case:{item.public_id}",
+                reference=(
+                    f"{item.reference_code} · {voucher.dv_number if voucher is not None else 'DV not yet numbered'}"
+                ),
+                transaction_type=item.transaction_type.replace("-", " ").replace("_", " ").title(),
+                subject=f"{item.payee_name} · {item.particulars}",
+                action=spec["next_action"],
+                gate=spec["definition"],
+                owner_queue=f"{queue_labels[action_key]} · {department.name}",
+                scope=(
+                    f"Requesting office: {item.requesting_department.name}; "
+                    f"current office: {item.current_department.name}"
+                ),
+                received_at=received_at,
+                due_on=None,
+                due_state="No structured target",
+                calendar_basis="No DV/custody action deadline is stored; follow the locally accepted paper route.",
+                age_days=_age_days(received_at, today),
+                state="Ready",
+                source_state=(
+                    f"{item.get_current_stage_display()}"
+                    + (f" · {job.get_status_display()} · print v{job.version}" if job is not None else "")
+                ),
+                source_version=f"projection-sha256:{projection_revision}",
+                exception=" ".join(exceptions),
+                url=item.get_absolute_url(),
+            ))
+
+    for signature in dv_signature_task_queryset(user):
+        item = signature.case
+        source_id = _source_record_identity("wet-signature", signature.pk)
+        ready_jobs = [
+            row for row in item.print_jobs.all()
+            if row.status == VoucherPrintJob.AWAITING_SIGNATURES
+            and row.signature_round == signature.round_number
+        ]
+        job = sorted(ready_jobs, key=lambda row: (row.version, row.pk), reverse=True)[0] if ready_jobs else None
+        received_at = job.custody_confirmed_at if job is not None else item.updated_at
+        revision = _projection_checksum({
+            "case_state_version": item.state_version,
+            "custody_department_id": signature.custody_department_id,
+            "custody_instructions": signature.custody_instructions,
+            "position": signature.position_snapshot,
+            "print_checksum": job.output_checksum if job is not None else "",
+            "role": signature.role_code,
+            "round": signature.round_number,
+            "sequence": signature.sequence,
+            "signatory": signature.signatory_name_snapshot,
+            "status": signature.status,
+        })
+        tasks.append(FinanceWorkTask(
+            task_id=f"finwork:v1:wet-signature:{source_id}:record-return",
+            task_type="finance.wet-signature.record-return.v1",
+            area="Voucher case",
+            case_id=f"wet-signature:{source_id}",
+            reference=f"{item.reference_code} · signature round {signature.round_number}, step {signature.sequence}",
+            transaction_type="Wet-signature custody",
+            subject=f"{signature.signatory_name_snapshot} · {signature.position_snapshot or signature.role_code}",
+            action="Confirm the physical evidence, then record this returned wet-signature step on the shared case.",
+            gate="This is the earliest pending signature in the current round, and any required signing copy and TracePoint packet are ready.",
+            owner_queue=f"Wet-signature return recorders · {department.name}",
+            scope=(
+                f"Current office: {item.current_department.name}; custody office: "
+                f"{signature.custody_department.name if signature.custody_department_id else item.current_department.name}"
+            ),
+            received_at=received_at,
+            due_on=None,
+            due_state="No structured target",
+            calendar_basis="No wet-signature return deadline is stored; follow the locally accepted physical-custody route.",
+            age_days=_age_days(received_at, today),
+            state="Ready",
+            source_state=signature.get_status_display(),
+            source_version=f"projection-sha256:{revision}",
+            exception="A screen action records receipt evidence; it is not the wet signature itself.",
+            url=item.get_absolute_url(),
+        ))
+    return tasks
+
+
 def _field_operation_tasks(user, department, today):
     from finance.shadow_register_exports import (
         shadow_action_choices_for_user, shadow_action_queryset,
@@ -712,6 +879,7 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks.extend(_discovery_tasks(user, department, today))
     tasks.extend(_budget_tasks(user, department, today))
     tasks.extend(_payable_tasks(user, department, today))
+    tasks.extend(_dv_custody_tasks(user, department, today))
     tasks.extend(_field_operation_tasks(user, department, today))
     tasks.extend(_local_form_tasks(user, department, today))
     tasks.sort(key=lambda task: (task.area, task.reference.lower(), task.task_type, task.task_id))
@@ -722,6 +890,7 @@ def finance_work_tasks(user, *, display_limit=100):
         "tasks_truncated": task_count > display_limit,
         "task_coverage": (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
+            "DV preparation and controlled custody",
             "Field-operation cycle and nested-record gates", "Local forms",
         ),
     }

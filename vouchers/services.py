@@ -64,6 +64,12 @@ def _require(actor, permission):
         raise PermissionDenied
 
 
+def _require_current_office(case, actor):
+    department = department_for_user(actor)
+    if department is None or department.pk != case.current_department_id:
+        raise PermissionDenied
+
+
 def _department_for_permission(permission, fallback):
     app_label, codename = permission.split(".", 1)
     profiles = EmployeeProfile.objects.filter(assigned_department__isnull=False, user__is_active=True).filter(
@@ -1269,6 +1275,7 @@ def prepare_voucher(*, case, actor, voucher_date, gross_amount, deductions, line
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return case
+    _require_current_office(case, actor)
     _require_active_case_foundation(case)
     if case.current_stage != VoucherCase.ACCOUNTING_PREPARATION:
         raise VoucherWorkflowError("This case is not awaiting Accounting DV preparation.")
@@ -1371,6 +1378,7 @@ def record_signature_return(*, case, task, actor, note, expected_version, idempo
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return case
+    _require_current_office(case, actor)
     if case.current_stage != VoucherCase.AWAITING_SIGNATURES or task.case_id != case.pk or task.status != WetSignatureTask.PENDING:
         raise VoucherWorkflowError("This wet-signature task is not awaiting return.")
     print_job = None
@@ -2164,6 +2172,7 @@ def prepare_controlled_dv_print(*, case, actor, replacement_reason, expected_ver
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return VoucherPrintJob.objects.get(pk=existing.metadata["print_job_id"])
+    _require_current_office(case, actor)
     if not hasattr(case, "disbursement_voucher") or not case.voucher_template_id:
         raise VoucherWorkflowError("Prepare the DV and pin a preflighted workbook before creating a signing copy.")
     if case.current_stage != VoucherCase.AWAITING_SIGNATURES:
@@ -2256,6 +2265,7 @@ def record_dv_printed(*, case, actor, copy_count, printer_or_form_stock, print_n
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return VoucherPrintJob.objects.get(pk=existing.metadata["print_job_id"])
+    _require_current_office(case, actor)
     if case.current_stage != VoucherCase.AWAITING_SIGNATURES:
         raise VoucherWorkflowError("This voucher is not in its controlled printing and wet-signature step.")
     job = case.print_jobs.select_for_update().filter(status=VoucherPrintJob.READY_TO_PRINT).first()
@@ -2291,6 +2301,7 @@ def assemble_finance_packet(*, case, actor, expected_document_count, expected_pa
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return VoucherPrintJob.objects.get(pk=existing.metadata["print_job_id"])
+    _require_current_office(case, actor)
     if case.current_stage != VoucherCase.AWAITING_SIGNATURES:
         raise VoucherWorkflowError("This voucher is not in its controlled printing and wet-signature step.")
     job = case.print_jobs.select_for_update().filter(status=VoucherPrintJob.PRINTED).first()

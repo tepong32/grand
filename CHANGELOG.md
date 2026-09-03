@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 exact DV and controlled-custody work tasks
+
+- Added stable, source-linked My Work actions for Accounting DV preparation, controlled signing-copy creation, physical-print recording, counted packet/TracePoint assembly, and the earliest eligible wet-signature return without creating parallel workflow state.
+- Reused current-office, permission, UAT, controlled-template, active-print-version, and ordered-signature queries across the shared Voucher queue and exact projections; DV preparers cannot act on their own Budget certification unless a current governed exemption explicitly allows it.
+- Kept generated file, actual print evidence, physical custody, and wet-signature receipt as separate human actions. A screen receipt is explicitly not treated as the paper signature.
+- Added evidence-sensitive projection checksums and hard-stop exceptions for any gross-minus-deductions-to-net difference or mismatch against the certified obligation amount.
+- Hardened DV preparation, print, packet assembly, and signature-return services against direct cross-office action while preserving idempotent retries of already-recorded actions.
+- Added focused contract coverage and updated the general and Accounting floating guides plus the My Work roadmap/audit. The 106-test Finance/Voucher/guidance gate plus a targeted cross-office custody-service test passed, and all 476 project tests passed across both routed databases in 106.324 seconds; Django checks are clean and no migration drift exists.
+
 ## F1.5 exact payable-intake work tasks
 
 - Added stable, source-linked My Work items for requesting-office payable preparation/correction and independent Accounting readiness review without creating parallel task state.

@@ -32,7 +32,7 @@ These views are private conveniences. They do not assign work, create a notifica
 
 ## Internal How-To
 
-The seeded `Find and continue your Finance work` guide matches the operations entry page and is published separately for each department. Version 3 explains the permission-filtered case finder, private saved-view controls, shared-case handoff, governed modification boundary, role-shaped next actions, TraceSync-ready export handling, and the private tutorial-progress boundary.
+The seeded `Find and continue your Finance work` guide matches the operations entry page and is published separately for each department. Version 9 explains the permission-filtered case finder, private saved-view controls, shared-case handoff, exact DV/custody/signature actions, governed modification boundary, zero-difference controls, TraceSync-ready export handling, and the private tutorial-progress boundary.
 
 Run `python manage.py seed_internal_howtos` after deployment to publish the starter where no equal or newer local version exists. Existing newer local instructions are preserved.
 
