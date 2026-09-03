@@ -1,5 +1,12 @@
 # Changelog
 
+## Finance roadmap-wide validation and field handoff
+
+- Audited F0–F11 software evidence against every parent-phase exit gate instead of treating implemented screens or synthetic tests as local acceptance.
+- Passed all 387 project tests across the default and separately routed Finance databases, plus Django system checks and the no-migration-drift check.
+- Recorded the remaining LGU-provided evidence and authority inputs, then ordered field closure from discovery and exact-form acceptance through opening readiness, complete-cycle replay, recovery/qualification, seven-party decisions, and cutover.
+- Kept GRAND Finance truthfully in shadow/UAT status until those actual inputs pass the implemented independent controls.
+
 ## F11.8 Finance field-acceptance coordination board
 
 - Added one plain-language board that turns the remaining local F10/F11 field work into ten readable checkpoints while calculating every state from the existing governed records rather than duplicating approval data.

@@ -1,0 +1,57 @@
+# GRAND Finance roadmap completion audit
+
+Audit date: 2026-09-03
+
+Code position: `codex/finance-roadmap-acceptance` at or after F11.8 checkpoint `fec6626`
+
+Conclusion: **the planned software-control slices are implemented and regression-clean; the complete LGU field-acceptance and production-authority outcome is not yet proven**.
+
+## Verification performed
+
+The following repository checks passed from the project virtual environment:
+
+- `python manage.py check` — no system-check issues;
+- `python manage.py makemigrations --check --dry-run` — no model/migration drift;
+- `python manage.py test finance --keepdb --verbosity 1` — 38 Finance tests passed; and
+- `python manage.py test --keepdb --verbosity 1` — 387 project tests passed across the default and separately routed Finance databases in 73.887 seconds.
+
+The full suite exercises role and department access, maker–checker decisions, immutable evidence, reversal/successor behavior, cross-store Budget–Accounting–Treasury lineage, controlled output, TraceSync archival, reconciliation, and negative access paths. It is software evidence. It is not a substitute for field observation, production-compatible recovery, or local authority.
+
+## Requirement-by-requirement position
+
+| Phase | Software evidence now present | Evidence still required from the implementing LGU |
+|---|---|---|
+| F0 governance and discovery | Evidence labels, source register, decision log, role/signature and actual-step worksheets, unresolved-item handling | Completed interviews, named owners/reviewers, current local issuances, redacted examples, and decisions for every enabled step/form/exception |
+| F1 architecture, identity, and audit | Role-shaped workspaces, department/object boundaries, immutable audit patterns, cross-cycle lineage, two-store routing | Named-user role validation, actual segregation-of-duties approval, local security/privacy review, and supported-device/accessibility observation |
+| F2 fiscal foundation and opening | Typed year/calendar/classifications, governed release adoption, readiness layers, reconciled opening intake/JEVs, pre-issuance correction lock | Actual classifications/calendars, approved opening schedules and balances, local authority, independent control reconciliation, and process-owner acceptance |
+| F3 budget preparation and authorization | Calls, ceilings, proposals, estimates, consolidation, reviews, authorized versions, supplemental/reenacted handling, control totals | Current local budget calendar, ordinance/review evidence, accepted forms, signatures/routes, and replayed approved budget totals |
+| F4 allotment and obligation | Posted release movements, authoritative obligation registry, concurrency protection, adjustments/returns/cancellations, balances and exports | Current local ARO/ALOBS/ORS/OBR/RAAO equivalents, numbering/signatories, redacted replay, and zero unexplained control difference |
+| F5 payable and voucher intake | Obligation/checksum consumption, variants and documentary rules, independent readiness, relationships, recognition decisions, modification allowance, exports | Enabled transaction catalog, exact COA/local documentary requirements and exceptions, redacted completed cases, and named Accounting/requesting-office acceptance |
+| F6 DV and controlled paper | Versioned signing copies, reasoned reprint/replacement, wet-signature custody checkpoints, returned-packet gates, TracePoint linkage | Accepted blank/completed DV packet, actual signatory/custody route, printer and form-stock trials, overflow/page behavior, and named-office acceptance |
+| F7 accounting and period control | Rule-backed balanced JEVs, payable/withholding subsidiaries, payment events, reversals, close/reopen, ledgers and trial balance | Locally accepted posting/closing rules, broader required subsidiary schedules, signed period outputs, and consecutive redacted Accounting replay |
+| F8 Treasury and bank reconciliation | Instrument lifecycle, advice/acknowledgement, release/return/reissue, remittance, cash policy, ageing, bank intake/matching, carry/clear lineage | Actual bank terms/channels/files, check/advice/cash/BRS forms, thresholds/escalation, consecutive-month replay, and Treasury/Accounting acceptance |
+| F9 reports and accountability | Reproducible operational reports, statements/measures/notes, reference comparison, tax schedules/evidence, governed packages and exports | Current official/local layouts, accepted tax applicability/forms/deadlines/channels, signed and acknowledged reference packages, exact reproduced totals, and named-office acceptance |
+| F10 template administration | Human-editable safe templates, preflight/golden checks, promotion/rollback, 31 DBM candidate forms and 77 candidate section groups | Actual LGU references and applicability decisions, completed mappings, physical output trials, accepted golden files, current authority, and independent sign-off |
+| F11 shadow operation and cutover | Source locks/drift, cadence/runs/defects, curricula/support, witnessed exercises, exact-form field-chain qualification, structured restore, seven-party decisions, rollback, and Field Acceptance Board | Actual approved plans/pass conditions, field exercises, isolated two-store restore, uninterrupted qualifying cycles, retained attributable decisions, and final authorized exact-scope/date cutover |
+
+## Remaining work in dependency order
+
+1. **Close F0/F1 field discovery for the intended first deployment scope.** Name the actual owners, reviewers, signatories, support contacts, enabled transaction types, forms, systems, bank interfaces, and unresolved decisions. Keep unresolved scope blocked rather than guessing.
+2. **Accept the exact F10 forms needed by that scope.** Compare current blank and redacted completed forms, resolve every candidate section, run the seven practical layout/print/accessibility tests, and obtain independent acceptance. F11 qualification cannot truthfully pin forms before this.
+3. **Open F2 with real, approved configuration and balances.** Adopt the accepted master data, stage the opening schedule, correct it before posting where necessary, independently approve/post it, and reconcile every fund to signed controls.
+4. **Replay one complete redacted F3–F9 chain.** Use the actual authorized budget through allotment, obligation, payable, DV, JEV, payment/advice/release, bank reconciliation, and accountability package. Resolve every difference by governed correction, reversal, or successor—not by overwriting history.
+5. **Execute F11 field qualification.** Approve local cadence/curriculum/support and field-cycle rules; run named role and nonfunctional exercises; complete the production-compatible off-host two-store restore; and finish the required uninterrupted shadow/parallel cycles using the exact accepted form set.
+6. **Collect seven-party decisions and decide cutover last.** Requesting offices, Budget, Accounting, Treasury, IT, management, and audit stakeholders decide their exact scopes. The separate authority then records go/no-go, date, retained signed authority reference/checksum/custody, and rollback criteria.
+
+## Current blockers to a truthful completion claim
+
+No repository defect currently blocks continued preparation. The remaining blockers are evidence or authority inputs that code cannot manufacture safely:
+
+- current locally applicable COA, DBM, BIR, ordinance, bank, records, and office-procedure decisions for the enabled scope;
+- actual approved master data, opening balances, redacted field transactions, source registers/files, accepted blank/completed forms, and signed outputs;
+- named staff, reviewers, witnesses, signatories, support owners, and cutover authority;
+- physical printer/form-stock and supported-device observations;
+- a production-compatible off-host backup and witnessed isolated restore; and
+- attributable stakeholder and cutover decisions.
+
+Until those are entered and independently accepted through the implemented controls, GRAND Finance remains a validated software-control system in shadow/UAT status—not a locally authorized production replacement.
