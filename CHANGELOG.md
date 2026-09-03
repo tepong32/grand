@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 exact Treasury payment work tasks
+
+- Added stable current-office My Work actions for Treasury check preparation and one separate release task for each advised physical instrument.
+- Reused the same permission-, office-, and UAT-scoped Voucher query for source queues, attention counts, and exact task projections; action rows no longer treat another office's custody as the signed-in user's work.
+- Added evidence-sensitive remaining-net, instrument, pinned bank-setup, advice-acknowledgement, operational-exception, and claimant checks without inferring a release deadline.
+- Hardened direct issue, advice-handoff/preparation, release, cancellation, and return services with current-office checks; issue now rejects invalid precision/value and unconfigured bank/check inputs, while release re-locks evidence and requires a currently effective claimant and actual receipt reference.
+- Updated legacy regression expectations so cross-office early release is explicitly denied while the posted-JEV reversal test still reaches its intended immutable-ledger control through the currently assigned Treasury office.
+- Expanded the Treasury and general floating guides and updated the My Work roadmap/audit. The 169-test Finance/Voucher/Accounting/guidance gate and all 489 project tests passed across both routed databases; the full suite completed in 109.374 seconds, Django checks are clean, and no migration drift exists.
+
 ## F1.5 exact Accounting validation and JEV work tasks
 
 - Added stable, source-linked My Work actions for independent signed-DV Accounting validation, JEV draft preparation/returned correction, and independent JEV posting without creating parallel workflow state.

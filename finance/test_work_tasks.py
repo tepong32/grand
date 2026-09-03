@@ -17,13 +17,16 @@ from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
 from vouchers.case_exports import (
     accounting_validation_action_queryset, apply_case_filters,
     dv_custody_action_queryset, dv_signature_task_queryset,
-    payable_action_queryset, visible_cases_for_user,
+    payable_action_queryset, treasury_payment_action_queryset, visible_cases_for_user,
 )
 from vouchers.models import (
-    BudgetAllocationLine, BudgetObligation, DisbursementVoucher, PayableIntake, VoucherCase,
-    VoucherOutput, VoucherPrintJob, WetSignatureTask,
+    BankAdviceBatch, BudgetAllocationLine, BudgetObligation, DisbursementVoucher,
+    PayableIntake, PaymentInstrument, VoucherCase, VoucherOutput, VoucherPrintJob,
+    WetSignatureTask,
 )
-from vouchers.services import validate_accounting
+from vouchers.services import (
+    VoucherWorkflowError, issue_check, release_check, submit_checks_for_advice, validate_accounting,
+)
 
 from accounting.journal_exports import journal_action_queryset
 from accounting.models import (
@@ -37,9 +40,9 @@ from budget.models import (
 )
 
 from .models import (
-    FinanceConfigurationRelease, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
+    FinanceConfigurationItem, FinanceConfigurationRelease, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
     FinanceCutoverReadinessPlan, FinanceShadowComparison, FinanceShadowCycle,
-    FinanceDiscoveryDecision, FinanceShadowDefect, FinanceStakeholderAcceptance,
+    FinanceDiscoveryDecision, FinanceParty, FinancePartyClaimant, FinanceShadowDefect, FinanceStakeholderAcceptance,
     FinanceTemplateVersion, FinanceWorkflowExemption,
 )
 from .work_attention import finance_work_attention
@@ -1483,3 +1486,241 @@ class FinanceAccountingWorkTaskContractTests(TestCase):
             task["task_type"].startswith("finance.journal-entry.")
             for task in finance_work_tasks(self.uat)["tasks"]
         ))
+
+
+class FinanceTreasuryPaymentWorkTaskContractTests(TestCase):
+    databases = {"default", "finance"}
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.accounting = Department.objects.create(
+            name="Municipal Accounting Office", slug="task-payment-accounting",
+        )
+        cls.treasury = Department.objects.create(
+            name="Municipal Treasury Office", slug="task-payment-treasury",
+        )
+        cls.other = Department.objects.create(
+            name="Other Treasury Office", slug="task-payment-other",
+        )
+        cls.officer = cls._employee(
+            "task.payment.officer", cls.treasury,
+            "view_voucher_workbench", "issue_payment_instruments", "release_payment_instruments",
+        )
+        cls.uat = cls._employee(
+            "task.payment.uat", cls.treasury,
+            "view_voucher_workbench", "issue_payment_instruments", "release_payment_instruments",
+        )
+        cls.uat.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        today = timezone.localdate()
+        cls.release = FinanceConfigurationRelease.objects.create(
+            department=cls.accounting, code="task-payment-release", version=1,
+            title="Synthetic Treasury payment task release", fiscal_year=today.year,
+            status="active", effective_from=today, created_by=cls.officer,
+        )
+        cls.party = FinanceParty.objects.create(
+            department=cls.accounting, release=cls.release, code="task-payment-payee", version=1,
+            display_name="Synthetic Treasury Task Payee", party_type=FinanceParty.SUPPLIER,
+            effective_from=today, status="active", created_by=cls.officer,
+        )
+        FinanceConfigurationItem.objects.create(
+            department=cls.accounting, release=cls.release, category="bank_account",
+            code="task-bank", version=1, label="Synthetic Treasury task bank",
+            status="active", effective_from=today, created_by=cls.officer,
+        )
+        cls.claimant = FinancePartyClaimant.objects.create(
+            party=cls.party, display_name="Synthetic Authorized Claimant",
+            relationship="Authorized representative", valid_from=today,
+            status="active", created_by=cls.officer,
+        )
+
+    @classmethod
+    def _employee(cls, username, department, *permissions):
+        user = get_user_model().objects.create_user(
+            username=username, email=f"{username}@example.test", password="payment-task-test",
+        )
+        profile, _created = EmployeeProfile.objects.get_or_create(user=user)
+        profile.assigned_department = department
+        profile.save(update_fields=("assigned_department",))
+        user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers", codename__in=permissions,
+        ))
+        return get_user_model().objects.get(pk=user.pk)
+
+    def _case(self, reference, *, stage=VoucherCase.TREASURY_CHECK_PREPARATION, current=None):
+        item = VoucherCase.objects.create(
+            reference_code=reference, requesting_department=self.other,
+            current_department=current or self.treasury,
+            configuration_release=self.release, payee=self.party,
+            payee_name=self.party.display_name,
+            particulars="Controlled Treasury payment task fixture.",
+            authoritative_obligation_number=f"OBR-{reference}",
+            authoritative_obligation_amount=Decimal("100.00"),
+            obligation_binding_status=VoucherCase.BINDING_LINKED,
+            current_stage=stage, created_by=self.officer,
+        )
+        obligation = BudgetObligation.objects.create(
+            case=item, obr_number=f"OBR-{reference}", obligation_date=timezone.localdate(),
+            budget_source_reference="Synthetic retained appropriation evidence.",
+            certified_amount=Decimal("100.00"), certified_by=self.officer,
+            certified_at=timezone.now(),
+        )
+        BudgetAllocationLine.objects.create(
+            obligation=obligation, fund_code="general-fund",
+            responsibility_center_code="task-treasury", account_code="5-02-03",
+            amount=Decimal("100.00"),
+        )
+        DisbursementVoucher.objects.create(
+            case=item, dv_number=f"DV-{reference}", voucher_date=timezone.localdate(),
+            gross_amount=Decimal("100.00"), total_deductions=Decimal("10.00"),
+            net_amount=Decimal("90.00"), prepared_by=self.officer,
+            prepared_at=timezone.now(),
+        )
+        return item
+
+    def _acknowledged_instrument(self, item, *, check_number="TASK-CHK-001"):
+        advice = BankAdviceBatch.objects.create(
+            advice_number=f"ADV-{item.reference_code}", advice_date=timezone.localdate(),
+            bank_account_code="task-bank", status=BankAdviceBatch.ACKNOWLEDGED,
+            configuration_release=self.release, accounting_department=self.accounting,
+            preparation_note="Synthetic reconciled advice.", authority_reference="Synthetic authority.",
+            local_applicability_note="Synthetic local acceptance only.", item_count=1,
+            total_amount=Decimal("90.00"), snapshot_checksum="a" * 64,
+            created_by=self.officer, acknowledged_by=self.officer,
+            acknowledged_at=timezone.now(), acknowledgement_reference="TASK-BANK-ACK",
+            acknowledgement_evidence_reference="Synthetic retained bank acknowledgement.",
+        )
+        return PaymentInstrument.objects.create(
+            case=item, bank_account_code="task-bank", fund_code="general-fund",
+            check_number=check_number, amount=Decimal("90.00"),
+            status=PaymentInstrument.ADVISED, operational_status=PaymentInstrument.NORMAL,
+            issued_by=self.officer, issued_at=timezone.now(), current_advice_batch=advice,
+        )
+
+    def test_check_preparation_source_workspace_and_exact_task_share_current_office_scope(self):
+        ready = self._case("PAYMENT-TASK-READY")
+        self._case("PAYMENT-TASK-WRONG-OFFICE", current=self.other)
+
+        source, _selected, _spec = treasury_payment_action_queryset(
+            self.officer, "check_preparation",
+        )
+        workspace_source, *_filters = apply_case_filters(
+            visible_cases_for_user(self.officer),
+            actionable_stages=(VoucherCase.TREASURY_CHECK_PREPARATION,),
+            attention="ready_for_me", actor=self.officer,
+        )
+        tasks = [
+            task for task in finance_work_tasks(self.officer)["tasks"]
+            if task["task_type"] == "finance.treasury-payment.check-preparation.v1"
+        ]
+        self.assertEqual(set(source), {ready})
+        self.assertEqual(set(workspace_source), {ready})
+        self.assertEqual(len(tasks), 1)
+        self.assertIn("exact remaining net is 90.00", tasks[0]["action"])
+        self.assertIsNone(tasks[0]["due_on"])
+
+        PaymentInstrument.objects.create(
+            case=ready, bank_account_code="task-bank", fund_code="general-fund",
+            check_number="TASK-CHK-PREP", amount=Decimal("90.00"),
+            status=PaymentInstrument.ISSUED, issued_by=self.officer, issued_at=timezone.now(),
+        )
+        changed = next(
+            task for task in finance_work_tasks(self.officer)["tasks"]
+            if task["case_id"] == f"voucher-case:{ready.public_id}"
+        )
+        self.assertEqual(changed["task_id"], tasks[0]["task_id"])
+        self.assertNotEqual(changed["source_version"], tasks[0]["source_version"])
+        self.assertIn("submit this case to Accounting bank advice", changed["action"])
+
+    def test_release_projects_one_task_per_check_and_bank_claimant_controls(self):
+        item = self._case("PAYMENT-TASK-RELEASE", stage=VoucherCase.TREASURY_RELEASE)
+        instrument = self._acknowledged_instrument(item)
+        source, _selected, _spec = treasury_payment_action_queryset(self.officer, "release")
+        tasks = [
+            task for task in finance_work_tasks(self.officer)["tasks"]
+            if task["task_type"] == "finance.treasury-payment.instrument-release.v1"
+        ]
+        self.assertEqual(set(source), {item})
+        self.assertEqual(len(tasks), 1)
+        self.assertIn(str(instrument.public_id), tasks[0]["task_id"])
+        self.assertEqual(tasks[0]["state"], "Ready")
+
+        instrument.current_advice_batch.status = BankAdviceBatch.SUBMITTED
+        instrument.current_advice_batch.save(update_fields=("status",))
+        blocked = next(
+            task for task in finance_work_tasks(self.officer)["tasks"]
+            if str(instrument.public_id) in task["task_id"]
+        )
+        self.assertEqual(blocked["state"], "Exception")
+        self.assertIn("not acknowledged", blocked["exception"])
+
+    def test_service_boundary_rejects_wrong_office_invalid_amount_and_invalid_release_evidence(self):
+        wrong_office = self._case("PAYMENT-TASK-SERVICE-OFFICE", current=self.other)
+        with self.assertRaises(PermissionDenied):
+            issue_check(
+                case=wrong_office, actor=self.officer, bank_account_code="task-bank",
+                check_number="TASK-DENIED", amount=Decimal("1.00"),
+                expected_version=wrong_office.state_version, idempotency_key="payment-wrong-office",
+            )
+
+        preparation = self._case("PAYMENT-TASK-SERVICE-AMOUNT")
+        with self.assertRaisesMessage(VoucherWorkflowError, "positive amount"):
+            issue_check(
+                case=preparation, actor=self.officer, bank_account_code="task-bank",
+                check_number="TASK-ZERO", amount=Decimal("0.00"),
+                expected_version=preparation.state_version, idempotency_key="payment-zero",
+            )
+        wrong_stage = self._case(
+            "PAYMENT-TASK-WRONG-STAGE", stage=VoucherCase.ACCOUNTING_BANK_ADVICE,
+        )
+        with self.assertRaisesMessage(VoucherWorkflowError, "currently assigned Treasury"):
+            submit_checks_for_advice(
+                case=wrong_stage, actor=self.officer,
+                expected_version=wrong_stage.state_version, idempotency_key="payment-wrong-stage",
+            )
+
+        release_case = self._case("PAYMENT-TASK-SERVICE-RELEASE", stage=VoucherCase.TREASURY_RELEASE)
+        instrument = self._acknowledged_instrument(release_case, check_number="TASK-CHK-RELEASE")
+        expired = FinancePartyClaimant.objects.create(
+            party=self.party, display_name="Expired Synthetic Claimant",
+            valid_from=timezone.localdate() - timedelta(days=10),
+            valid_to=timezone.localdate() - timedelta(days=1), status="active",
+            created_by=self.officer,
+        )
+        with self.assertRaisesMessage(VoucherWorkflowError, "active authorized claimant"):
+            release_check(
+                case=release_case, instrument=instrument, actor=self.officer,
+                claimant=expired, receipt_reference="TASK-RECEIPT",
+                expected_version=release_case.state_version, idempotency_key="payment-expired-claimant",
+            )
+        with self.assertRaisesMessage(VoucherWorkflowError, "actual claimant receipt"):
+            release_check(
+                case=release_case, instrument=instrument, actor=self.officer,
+                claimant=self.claimant, receipt_reference="",
+                expected_version=release_case.state_version, idempotency_key="payment-empty-receipt",
+            )
+
+    def test_uat_account_receives_no_treasury_payment_actions(self):
+        self._case("PAYMENT-TASK-UAT")
+        self.assertFalse(treasury_payment_action_queryset(self.uat, "check_preparation")[0].exists())
+        self.assertFalse(any(
+            task["task_type"].startswith("finance.treasury-payment.")
+            for task in finance_work_tasks(self.uat)["tasks"]
+        ))
+
+    def test_missing_pinned_setup_is_a_visible_stop_and_service_boundary(self):
+        item = self._case("PAYMENT-TASK-MISSING-SETUP")
+        VoucherCase.objects.filter(pk=item.pk).update(configuration_release=None)
+        item.refresh_from_db()
+
+        task = next(
+            task for task in finance_work_tasks(self.officer)["tasks"]
+            if task["case_id"] == f"voucher-case:{item.public_id}"
+        )
+        self.assertEqual(task["state"], "Exception")
+        self.assertIn("No governed Finance Setup release is pinned", task["exception"])
+        with self.assertRaisesMessage(VoucherWorkflowError, "no pinned Finance Setup release"):
+            issue_check(
+                case=item, actor=self.officer, bank_account_code="task-bank",
+                check_number="TASK-NO-SETUP", amount=Decimal("90.00"),
+                expected_version=item.state_version, idempotency_key="payment-no-setup",
+            )

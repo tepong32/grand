@@ -1046,6 +1046,221 @@ def _journal_tasks(user, department, today):
     return tasks
 
 
+def _treasury_payment_tasks(user, department, today):
+    from vouchers.case_exports import (
+        treasury_payment_action_choices_for_user, treasury_payment_action_queryset,
+    )
+    from vouchers.models import BankAdviceBatch, PaymentInstrument
+
+    tasks = []
+    for action_key, _label in treasury_payment_action_choices_for_user(user):
+        queryset, _selected, spec = treasury_payment_action_queryset(user, action_key)
+        queryset = queryset.select_related(
+            "requesting_department", "current_department", "configuration_release",
+            "disbursement_voucher", "obligation", "payee",
+        ).prefetch_related(
+            "obligation__allocation_lines", "payment_instruments__current_advice_batch",
+            "payment_instruments__exceptions", "payee__authorized_claimants",
+            "configuration_release__items",
+        )
+        for item in queryset.order_by("-updated_at", "-pk"):
+            voucher = getattr(item, "disbursement_voucher", None)
+            obligation = getattr(item, "obligation", None)
+            instruments = list(item.payment_instruments.all())
+            live_instruments = [
+                row for row in instruments
+                if row.status not in (PaymentInstrument.CANCELLED, PaymentInstrument.BANK_RETURNED)
+            ]
+            live_total = sum((row.amount for row in live_instruments), start=Decimal("0.00"))
+            net_amount = voucher.net_amount if voucher is not None else Decimal("0.00")
+            shared_exceptions = []
+            if voucher is None:
+                shared_exceptions.append(
+                    "The prepared DV record is missing; stop and route this data-integrity exception for repair."
+                )
+            else:
+                difference = voucher.gross_amount - voucher.total_deductions - voucher.net_amount
+                if difference != 0:
+                    shared_exceptions.append(
+                        f"DV gross less deductions does not equal net; unexplained difference is {difference:.2f}."
+                    )
+            if obligation is None:
+                shared_exceptions.append(
+                    "The certified-obligation record is missing; stop and route this data-integrity exception for repair."
+                )
+            elif voucher is not None and voucher.gross_amount != obligation.certified_amount:
+                shared_exceptions.append("DV gross does not equal the certified-obligation amount.")
+            if voucher is not None and live_total > voucher.net_amount:
+                shared_exceptions.append(
+                    f"Active payment instruments exceed voucher net by {live_total - voucher.net_amount:.2f}; stop release."
+                )
+            issued_bank_accounts = {
+                row.bank_account_code for row in instruments if row.status == PaymentInstrument.ISSUED
+            }
+            if item.configuration_release_id is None:
+                configured_bank_accounts = set()
+                shared_exceptions.append(
+                    "No governed Finance Setup release is pinned to this voucher; stop payment processing and route the record for repair."
+                )
+            else:
+                configured_bank_accounts = {
+                    row.code for row in item.configuration_release.items.all()
+                    if row.category == "bank_account" and row.status == "active"
+                }
+            invalid_bank_accounts = {
+                row.bank_account_code for row in live_instruments
+                if row.bank_account_code not in configured_bank_accounts
+            }
+            if invalid_bank_accounts:
+                shared_exceptions.append(
+                    "Active instruments reference a bank/payment account outside the voucher's pinned active Finance Setup: "
+                    + ", ".join(sorted(invalid_bank_accounts)) + "."
+                )
+            if len(issued_bank_accounts) > 1:
+                shared_exceptions.append(
+                    "Issued checks use more than one bank account; this pilot case cannot enter one advice batch."
+                )
+            projection = {
+                "case_state_version": item.state_version,
+                "configured_bank_accounts": sorted(configured_bank_accounts),
+                "instruments": [
+                    [
+                        str(row.public_id), row.bank_account_code, row.fund_code, row.check_number,
+                        str(row.amount), row.status, row.operational_status, row.current_advice_batch_id,
+                        row.replaces_id, row.issued_by_id, row.released_by_id, row.receipt_reference,
+                    ]
+                    for row in instruments
+                ],
+                "obligation": [obligation.obr_number, str(obligation.certified_amount)]
+                if obligation is not None else [],
+                "voucher": [
+                    voucher.dv_number, str(voucher.gross_amount),
+                    str(voucher.total_deductions), str(voucher.net_amount),
+                ] if voucher is not None else [],
+            }
+            if action_key == "check_preparation":
+                exceptions = list(shared_exceptions)
+                remaining = net_amount - live_total
+                issued = [row for row in instruments if row.status == PaymentInstrument.ISSUED]
+                if remaining < 0:
+                    next_action = "Stop and reconcile the over-issued instrument total before any further action."
+                elif remaining > 0:
+                    next_action = (
+                        f"Confirm the governed bank/fund and current cash position, then register the next physical "
+                        f"check; exact remaining net is {remaining:.2f}."
+                    )
+                elif issued and all(row.status == PaymentInstrument.ISSUED for row in live_instruments):
+                    next_action = "Reconcile the issued-check total to voucher net, then submit this case to Accounting bank advice."
+                else:
+                    next_action = "Stop and reconcile instrument states before leaving Treasury check preparation."
+                    exceptions.append(
+                        "Voucher net is fully represented, but not solely by issued checks eligible for Accounting bank advice."
+                    )
+                projection["remaining_net"] = str(remaining)
+                tasks.append(FinanceWorkTask(
+                    task_id=f"finwork:v1:treasury-payment:{item.public_id}:check-preparation",
+                    task_type="finance.treasury-payment.check-preparation.v1",
+                    area="Treasury disbursement",
+                    case_id=f"voucher-case:{item.public_id}",
+                    reference=f"{item.reference_code} · {voucher.dv_number if voucher is not None else 'DV record missing'}",
+                    transaction_type=item.transaction_type.replace("-", " ").replace("_", " ").title(),
+                    subject=f"{item.payee_name} · {item.particulars}",
+                    action=next_action,
+                    gate=spec["definition"],
+                    owner_queue=f"Treasury check preparation · {department.name}",
+                    scope=f"Requesting office: {item.requesting_department.name}; current office: {item.current_department.name}",
+                    received_at=item.updated_at,
+                    due_on=None,
+                    due_state="No structured target",
+                    calendar_basis="The check and voucher dates are transaction dates, not inferred Treasury deadlines.",
+                    age_days=_age_days(item.updated_at, today),
+                    state="Exception" if exceptions else "Ready",
+                    source_state=item.get_current_stage_display(),
+                    source_version=f"projection-sha256:{_projection_checksum(projection)}",
+                    exception=" ".join(exceptions),
+                    url=item.get_absolute_url(),
+                ))
+                continue
+
+            advised = [row for row in instruments if row.status == PaymentInstrument.ADVISED]
+            for instrument in advised:
+                exceptions = list(shared_exceptions)
+                advice = instrument.current_advice_batch
+                if advice is None:
+                    exceptions.append("The advised check has no current bank-advice version; stop release.")
+                elif advice.status != BankAdviceBatch.ACKNOWLEDGED:
+                    exceptions.append(
+                        f"Current bank advice is {advice.get_status_display().lower()}, not acknowledged; stop release."
+                    )
+                if instrument.operational_status in (PaymentInstrument.STALE, PaymentInstrument.RETURNED):
+                    exceptions.append(
+                        f"The check is marked {instrument.get_operational_status_display().lower()}; resolve its exception first."
+                    )
+                valid_claimants = []
+                if item.payee_id:
+                    valid_claimants = [
+                        row for row in item.payee.authorized_claimants.all()
+                        if row.status == "active" and row.valid_from <= today
+                        and (row.valid_to is None or row.valid_to >= today)
+                    ]
+                if not valid_claimants:
+                    exceptions.append("No currently effective authorized claimant is configured for this payee.")
+                release_projection = dict(projection)
+                release_projection["release_instrument"] = str(instrument.public_id)
+                release_projection["advice"] = [
+                    str(advice.public_id), advice.version, advice.status, advice.snapshot_checksum,
+                    advice.acknowledgement_reference, advice.acknowledgement_evidence_reference,
+                ] if advice is not None else []
+                release_projection["claimants"] = [
+                    [row.pk, row.display_name, row.status, row.valid_from.isoformat(), row.valid_to.isoformat() if row.valid_to else ""]
+                    for row in valid_claimants
+                ]
+                tasks.append(FinanceWorkTask(
+                    task_id=f"finwork:v1:treasury-payment:{item.public_id}:{instrument.public_id}:release",
+                    task_type="finance.treasury-payment.instrument-release.v1",
+                    area="Treasury disbursement",
+                    case_id=f"voucher-case:{item.public_id}",
+                    reference=f"{item.reference_code} · check {instrument.check_number}",
+                    transaction_type=item.transaction_type.replace("-", " ").replace("_", " ").title(),
+                    subject=f"{item.payee_name} · {instrument.amount:.2f}",
+                    action="Verify the authorized claimant in person, release this check, and record the actual receipt reference.",
+                    gate=spec["definition"],
+                    owner_queue=f"Treasury check release · {department.name}",
+                    scope=f"Bank account: {instrument.bank_account_code}; fund: {instrument.fund_code or 'not recorded'}",
+                    received_at=(advice.acknowledged_at if advice is not None else None) or item.updated_at,
+                    due_on=None,
+                    due_state="No structured target",
+                    calendar_basis="No release deadline is inferred from the check, advice, or acknowledgement date.",
+                    age_days=_age_days((advice.acknowledged_at if advice is not None else None) or item.updated_at, today),
+                    state="Exception" if exceptions else "Ready",
+                    source_state=instrument.get_status_display(),
+                    source_version=f"projection-sha256:{_projection_checksum(release_projection)}",
+                    exception=" ".join(exceptions),
+                    url=item.get_absolute_url(),
+                ))
+            if not advised:
+                exceptions = list(shared_exceptions)
+                exceptions.append("No advised check exists in this Treasury-release case; stop and reconcile its instrument history.")
+                tasks.append(FinanceWorkTask(
+                    task_id=f"finwork:v1:treasury-payment:{item.public_id}:release-reconciliation",
+                    task_type="finance.treasury-payment.release-reconciliation.v1",
+                    area="Treasury disbursement",
+                    case_id=f"voucher-case:{item.public_id}", reference=item.reference_code,
+                    transaction_type=item.transaction_type.replace("-", " ").replace("_", " ").title(),
+                    subject=f"{item.payee_name} · release evidence exception",
+                    action="Stop release and reconcile the case's governed instrument and bank-advice lineage.",
+                    gate=spec["definition"], owner_queue=f"Treasury check release · {department.name}",
+                    scope=f"Requesting office: {item.requesting_department.name}; current office: {item.current_department.name}",
+                    received_at=item.updated_at, due_on=None, due_state="No structured target",
+                    calendar_basis="No release deadline is stored or inferred.",
+                    age_days=_age_days(item.updated_at, today), state="Exception",
+                    source_state=item.get_current_stage_display(),
+                    source_version=f"projection-sha256:{_projection_checksum(projection)}",
+                    exception=" ".join(exceptions), url=item.get_absolute_url(),
+                ))
+    return tasks
+
+
 def _field_operation_tasks(user, department, today):
     from finance.shadow_register_exports import (
         shadow_action_choices_for_user, shadow_action_queryset,
@@ -1118,6 +1333,7 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks.extend(_dv_custody_tasks(user, department, today))
     tasks.extend(_accounting_validation_tasks(user, department, today))
     tasks.extend(_journal_tasks(user, department, today))
+    tasks.extend(_treasury_payment_tasks(user, department, today))
     tasks.extend(_field_operation_tasks(user, department, today))
     tasks.extend(_local_form_tasks(user, department, today))
     tasks.sort(key=lambda task: (task.area, task.reference.lower(), task.task_type, task.task_id))
@@ -1129,6 +1345,7 @@ def finance_work_tasks(user, *, display_limit=100):
         "task_coverage": (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls",
+            "Treasury check preparation and instrument release",
             "Field-operation cycle and nested-record gates", "Local forms",
         ),
     }

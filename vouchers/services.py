@@ -16,7 +16,7 @@ from django.utils import timezone
 from finance.exemptions import workflow_exemption_for, workflow_exemption_snapshot
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
-    FinancePostingRule, FinanceSignatory, FinanceTransactionVariant, FinanceWorkflowExemption,
+    FinancePartyClaimant, FinancePostingRule, FinanceSignatory, FinanceTransactionVariant, FinanceWorkflowExemption,
     finance_tax_rule_snapshot,
 )
 from finance.services import (
@@ -133,6 +133,10 @@ def _advance(case, actor, stage, action, idempotency_key, reason="", metadata=No
 def _lock_case_foundation_boundary(case):
     """Lock the office/year amendment cutoff before locking a voucher case."""
 
+    if not case.configuration_release_id:
+        raise VoucherWorkflowError(
+            "This voucher has no pinned Finance Setup release. Stop processing and route the record for repair."
+        )
     release = case.configuration_release
     return lock_foundation_issuance_boundary(
         department_id=release.department_id,
@@ -1749,16 +1753,35 @@ def issue_check(*, case, actor, bank_account_code, check_number, amount, expecte
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return case.payment_instruments.get(public_id=existing.metadata["instrument_id"])
+    _require_current_office(case, actor)
     _require_active_case_foundation(case)
     if case.current_stage != VoucherCase.TREASURY_CHECK_PREPARATION:
         raise VoucherWorkflowError("This voucher is not ready for Treasury check preparation.")
-    amount = Decimal(amount)
+    try:
+        amount = Decimal(amount)
+    except (ArithmeticError, TypeError, ValueError):
+        raise VoucherWorkflowError("Enter a valid check amount.")
+    if not amount.is_finite() or amount <= Decimal("0.00") or amount.as_tuple().exponent < -2:
+        raise VoucherWorkflowError("A check amount must be a positive amount stated to no more than two decimal places.")
+    bank_account_code = (bank_account_code or "").strip()
+    check_number = (check_number or "").strip()
+    if not bank_account_code or not check_number:
+        raise VoucherWorkflowError("Record both the governed bank account and the physical check number.")
+    if not FinanceConfigurationItem.objects.filter(
+        release=case.configuration_release,
+        category="bank_account",
+        code=bank_account_code,
+        status="active",
+    ).exists():
+        raise VoucherWorkflowError("Choose an active bank/payment account from the voucher's pinned Finance Setup release.")
     from .cash_positions import preflight_instrument_cash, reserve_instrument_cash
     fund_code, cash_policy, cash_availability = preflight_instrument_cash(
         case=case, bank_account_code=bank_account_code, fund_code=fund_code, amount=amount,
     )
     if PaymentInstrument.objects.filter(bank_account_code=bank_account_code, check_number=check_number).exists():
         raise VoucherWorkflowError("That physical check number has already been registered for this bank account and cannot be reused.")
+    if replaces is not None:
+        replaces = PaymentInstrument.objects.select_for_update().get(pk=replaces.pk)
     replacement_statuses = {PaymentInstrument.CANCELLED, PaymentInstrument.BANK_RETURNED}
     if replaces and (
         replaces.case_id != case.pk or replaces.status not in replacement_statuses or hasattr(replaces, "replacement")
@@ -1775,11 +1798,13 @@ def issue_check(*, case, actor, bank_account_code, check_number, amount, expecte
     ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
     if active_total + amount > case.disbursement_voucher.net_amount:
         raise VoucherWorkflowError("Active checks cannot exceed the voucher net amount.")
-    instrument = PaymentInstrument.objects.create(
+    instrument = PaymentInstrument(
         case=case, bank_account_code=bank_account_code, fund_code=fund_code, check_number=check_number,
         amount=amount, status=PaymentInstrument.ISSUED, replaces=replaces,
         issued_by=actor, issued_at=timezone.now(),
     )
+    instrument.full_clean()
+    instrument.save()
     reserve_instrument_cash(
         instrument=instrument, actor=actor, policy=cash_policy, availability=cash_availability,
     )
@@ -1832,6 +1857,9 @@ def submit_checks_for_advice(*, case, actor, expected_version, idempotency_key):
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return case
+    _require_current_office(case, actor)
+    if case.current_stage != VoucherCase.TREASURY_CHECK_PREPARATION:
+        raise VoucherWorkflowError("Only the currently assigned Treasury check-preparation case may be sent to bank advice.")
     issued = case.payment_instruments.filter(status=PaymentInstrument.ISSUED)
     total = issued.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
     if not issued.exists() or total != case.disbursement_voucher.net_amount:
@@ -1850,6 +1878,7 @@ def finalize_bank_advice(
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return BankAdviceBatch.objects.get(public_id=existing.metadata["batch_id"])
+    _require_current_office(case, actor)
     if case.current_stage != VoucherCase.ACCOUNTING_BANK_ADVICE:
         raise VoucherWorkflowError("This voucher is not awaiting Accounting bank advice.")
     instruments = list(case.payment_instruments.filter(status=PaymentInstrument.ISSUED))
@@ -1877,18 +1906,31 @@ def release_check(*, case, instrument, actor, claimant, receipt_reference, expec
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return case
+    _require_current_office(case, actor)
+    instrument = PaymentInstrument.objects.select_for_update().select_related(
+        "current_advice_batch",
+    ).get(pk=instrument.pk)
+    claimant = FinancePartyClaimant.objects.select_for_update().get(pk=claimant.pk)
     if case.current_stage != VoucherCase.TREASURY_RELEASE or instrument.case_id != case.pk or instrument.status != PaymentInstrument.ADVISED:
         raise VoucherWorkflowError("Only an advised check in Treasury's release queue may be released.")
     if not instrument.current_advice_batch_id or instrument.current_advice_batch.status != BankAdviceBatch.ACKNOWLEDGED:
         raise VoucherWorkflowError("Record the bank's acknowledgement of the current advice version before releasing this check.")
     if instrument.operational_status in (PaymentInstrument.STALE, PaymentInstrument.RETURNED):
         raise VoucherWorkflowError("This instrument has an open stale/returned exception and cannot be released.")
-    if claimant.party_id != case.payee_id or claimant.status != "active":
+    today = timezone.localdate()
+    if (
+        claimant.party_id != case.payee_id or claimant.status != "active"
+        or claimant.valid_from > today
+        or (claimant.valid_to is not None and claimant.valid_to < today)
+    ):
         raise VoucherWorkflowError("Select an active authorized claimant for this payee.")
+    receipt_reference = (receipt_reference or "").strip()
+    if not receipt_reference:
+        raise VoucherWorkflowError("Record the actual claimant receipt or release reference.")
     instrument.status = PaymentInstrument.RELEASED
     instrument.released_by, instrument.released_at = actor, timezone.now()
     instrument.released_to_claimant, instrument.released_to = claimant, claimant.display_name
-    instrument.receipt_reference = receipt_reference.strip()
+    instrument.receipt_reference = receipt_reference
     instrument.save(update_fields=("status", "released_by", "released_at", "released_to_claimant", "released_to", "receipt_reference"))
     from .cash_positions import close_reservation, resolve_instrument_exception
     close_reservation(
@@ -1946,6 +1988,8 @@ def cancel_check(*, case, instrument, actor, reason, expected_version, idempoten
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return case
+    _require_current_office(case, actor)
+    instrument = PaymentInstrument.objects.select_for_update().get(pk=instrument.pk)
     if instrument.case_id != case.pk or instrument.status not in {PaymentInstrument.ISSUED, PaymentInstrument.ADVISED}:
         raise VoucherWorkflowError("Only an issued or advised, unreleased check can be cancelled.")
     if not reason.strip():
@@ -2002,6 +2046,7 @@ def return_case(*, case, actor, target_stage, reason, expected_version, idempote
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
         return case
+    _require_current_office(case, actor)
     allowed = {
         VoucherCase.ACCOUNTING_PREPARATION: {VoucherCase.PAYABLE_PREPARATION},
         VoucherCase.AWAITING_SIGNATURES: {VoucherCase.ACCOUNTING_PREPARATION},

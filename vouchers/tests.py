@@ -1677,7 +1677,7 @@ class VoucherWorkflowTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "already has a posted JEV"):
             return_case(
                 case=case,
-                actor=self.validator,
+                actor=self.treasury_user,
                 target_stage=VoucherCase.ACCOUNTING_VALIDATION,
                 reason="Attempted rewrite after ledger posting",
                 expected_version=case.state_version,
@@ -2714,7 +2714,7 @@ class VoucherWorkflowTests(TestCase):
             expected_version=batch.state_version,
         )
         first_case.refresh_from_db(); first.refresh_from_db(); batch.refresh_from_db()
-        with self.assertRaises(ValidationError):
+        with self.assertRaises(PermissionDenied):
             release_check(
                 case=first_case, instrument=first, actor=self.treasury_user,
                 claimant=self.claimant, receipt_reference="EARLY-RELEASE",

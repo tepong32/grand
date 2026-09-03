@@ -56,6 +56,27 @@ ACCOUNTING_VALIDATION_ACTION_SPEC = {
     ),
 }
 
+TREASURY_PAYMENT_ACTION_SPECS = {
+    "check_preparation": {
+        "permission": "vouchers.issue_payment_instruments",
+        "stage": VoucherCase.TREASURY_CHECK_PREPARATION,
+        "title": "Vouchers awaiting controlled check preparation",
+        "definition": (
+            "Cases assigned to the acting Treasury office whose active check total must be completed and "
+            "reconciled exactly to voucher net before Accounting bank advice."
+        ),
+    },
+    "release": {
+        "permission": "vouchers.release_payment_instruments",
+        "stage": VoucherCase.TREASURY_RELEASE,
+        "title": "Bank-acknowledged checks awaiting controlled release",
+        "definition": (
+            "Cases assigned to the acting Treasury office at release; each advised check remains a separate "
+            "claimant-and-receipt action."
+        ),
+    },
+}
+
 DV_CUSTODY_ACTION_SPECS = {
     "dv_preparation": {
         "permissions": ("vouchers.prepare_disbursement_voucher",),
@@ -207,6 +228,30 @@ def accounting_validation_action_queryset(user, action="validation", queryset=No
     return base.distinct(), action, spec
 
 
+def treasury_payment_action_choices_for_user(user):
+    if is_finance_uat_viewer(user):
+        return ()
+    return tuple(
+        (key, spec["title"])
+        for key, spec in TREASURY_PAYMENT_ACTION_SPECS.items()
+        if has_explicit_permission(user, spec["permission"])
+    )
+
+
+def treasury_payment_action_queryset(user, action, queryset=None):
+    spec = TREASURY_PAYMENT_ACTION_SPECS.get(action)
+    base = visible_cases_for_user(user, queryset)
+    department = department_for_user(user)
+    if (
+        spec is None or department is None or is_finance_uat_viewer(user)
+        or not has_explicit_permission(user, spec["permission"])
+    ):
+        return base.none(), action if spec else "", spec
+    return base.filter(
+        current_stage=spec["stage"], current_department_id=department.pk,
+    ).distinct(), action, spec
+
+
 def dv_custody_action_choices_for_user(user):
     if is_finance_uat_viewer(user):
         return ()
@@ -336,6 +381,10 @@ def apply_case_filters(
         queryset = queryset.filter(current_stage__in=actionable_stages)
         actor_department = department_for_user(actor) if actor is not None else None
         if actor_department is not None:
+            queryset = queryset.exclude(
+                Q(current_stage__in=actionable_stages)
+                & ~Q(current_department_id=actor_department.pk)
+            )
             if VoucherCase.PAYABLE_PREPARATION in actionable_stages:
                 queryset = queryset.exclude(
                     Q(current_stage=VoucherCase.PAYABLE_PREPARATION)
