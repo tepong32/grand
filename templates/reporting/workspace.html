@@ -52,14 +52,27 @@
       </section>
 
       <section class="card card-outline card-secondary">
-        <div class="card-header border-0"><h2 class="card-title font-weight-bold">Recent report runs</h2></div>
+        <div class="card-header border-0"><h2 class="card-title font-weight-bold">Report run register</h2></div>
+        <div class="card-body border-bottom">
+          <form method="get" class="row align-items-end">
+            <div class="col-lg-4 col-md-6 mb-2"><label for="run-search">Search</label><input id="run-search" name="q" value="{{ run_filters.q }}" class="form-control" placeholder="Report name, code, error, or control note"></div>
+            <div class="col-lg-3 col-md-6 mb-2"><label for="run-definition">Report</label><select id="run-definition" name="definition" class="form-control"><option value="">All reports</option>{% for definition in run_definition_choices %}<option value="{{ definition.pk }}" {% if run_filters.definition == definition.pk|stringformat:"s" %}selected{% endif %}>{{ definition.name }}</option>{% endfor %}</select></div>
+            <div class="col-lg-2 col-md-4 mb-2"><label for="run-status">Status</label><select id="run-status" name="status" class="form-control"><option value="">All statuses</option>{% for value, label in run_status_choices %}<option value="{{ value }}" {% if run_filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+            <div class="col-lg-3 col-md-4 mb-2"><label for="run-attention">What needs attention?</label><select id="run-attention" name="attention" class="form-control"><option value="">All next actions</option>{% for value, label in run_attention_choices %}<option value="{{ value }}" {% if run_filters.attention == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+            <div class="col-lg-3 col-md-4 mb-2"><label for="run-control">Control result</label><select id="run-control" name="control_status" class="form-control"><option value="">All controls</option>{% for value, label in run_control_choices %}<option value="{{ value }}" {% if run_filters.control_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+            <div class="col-lg-2 col-md-3 mb-2"><label for="run-format">Format</label><select id="run-format" name="output_format" class="form-control"><option value="">All formats</option>{% for value, label in run_format_choices %}<option value="{{ value }}" {% if run_filters.output_format == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+            <div class="col-lg-2 col-md-3 mb-2"><label for="run-year">Period year</label><select id="run-year" name="period_year" class="form-control"><option value="">All years</option>{% for year in run_period_year_choices %}<option value="{{ year }}" {% if run_filters.period_year == year|stringformat:"s" %}selected{% endif %}>{{ year }}</option>{% endfor %}</select></div>
+            <div class="col-lg-5 col-md-6 mb-2 d-flex flex-wrap align-items-center"><button class="btn btn-outline-primary mr-2 mb-1"><i class="fas fa-filter mr-1"></i>Apply filters</button><a class="btn btn-link mr-2 mb-1" href="{% url 'reporting:workspace' %}">Clear</a>{% if can_download %}<a class="btn btn-outline-success mb-1" href="{% url 'reporting:run_register_export' %}?status={{ run_filters.status|urlencode }}&amp;definition={{ run_filters.definition|urlencode }}&amp;output_format={{ run_filters.output_format|urlencode }}&amp;control_status={{ run_filters.control_status|urlencode }}&amp;period_year={{ run_filters.period_year|urlencode }}&amp;attention={{ run_filters.attention|urlencode }}&amp;q={{ run_filters.q|urlencode }}"><i class="fas fa-file-csv mr-1"></i>Export these {{ visible_run_count }} runs</a>{% endif %}</div>
+          </form>
+          <p class="small text-muted mb-0">This register mirrors your exact visibility and filters. Open a run for its output, row-level control evidence, and reproduction receipt. The register itself is not an approved report, signed form, or filing acknowledgement.</p>
+        </div>
         <div class="table-responsive"><table class="table table-hover mb-0">
-          <thead><tr><th>Report</th><th>Period</th><th>Format</th><th>Status</th><th>Created</th><th class="text-right">Output</th></tr></thead>
+          <thead><tr><th>Report</th><th>Period</th><th>Format</th><th>Status / next action</th><th>Created</th><th class="text-right">Output</th></tr></thead>
           <tbody>{% for run in recent_runs %}<tr>
             <td><a href="{{ run.get_absolute_url }}" class="font-weight-bold">{{ run.definition.name }}</a></td><td>{{ run.period_start|date:"M j, Y" }} - {{ run.period_end|date:"M j, Y" }}</td><td>{{ run.output_format|upper }}</td>
-            <td><span class="badge {% if run.status == 'approved' %}badge-success{% elif run.status == 'failed' %}badge-danger{% elif run.status == 'reviewed' %}badge-info{% else %}badge-secondary{% endif %}">{{ run.get_status_display }}</span></td><td>{{ run.created_at|date:"M j, Y g:i A" }}</td>
+            <td><span class="badge {% if run.status == 'approved' %}badge-success{% elif run.status == 'failed' %}badge-danger{% elif run.status == 'reviewed' %}badge-info{% else %}badge-secondary{% endif %}">{{ run.get_status_display }}</span><div class="small mt-1">{{ run.next_action_label }}</div></td><td>{{ run.created_at|date:"M j, Y g:i A" }}</td>
             <td class="text-right">{% if run.output_file and can_download %}{% if run.is_printable %}<a href="{% url 'reporting:run_print_preview' run.public_id %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary" aria-label="Print {{ run.definition.name }} PDF"><i class="fas fa-print"></i></a>{% endif %}<a href="{% url 'reporting:run_download' run.public_id %}" class="btn btn-sm btn-outline-primary" aria-label="Download {{ run.definition.name }}"><i class="fas fa-download"></i></a>{% else %}<span class="text-muted">&mdash;</span>{% endif %}</td>
-          </tr>{% empty %}<tr><td colspan="6" class="text-muted text-center py-4">No reports generated yet.</td></tr>{% endfor %}</tbody>
+          </tr>{% empty %}<tr><td colspan="6" class="text-muted text-center py-4">No report runs match this view.</td></tr>{% endfor %}</tbody>
         </table></div>
       </section>
     </div>

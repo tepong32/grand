@@ -8,7 +8,7 @@ from django.db.models import Count, Q
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from src.export_archive import archive_export
 
@@ -60,6 +60,12 @@ from .accountability_services import (
     validate_profile,
 )
 from .services import create_manual_run, transition_run
+from .run_register_exports import (
+    ATTENTION_CHOICES as RUN_ATTENTION_CHOICES,
+    apply_report_run_filters,
+    build_report_run_register,
+    next_report_action,
+)
 from .template_services import (
     activate_template_promotion, create_template_promotion, promotion_receipt,
     review_template_promotion, rollback_template_promotion, submit_template_promotion,
@@ -131,7 +137,30 @@ def workspace(request):
     department = department_for_user(request.user)
     definitions = ReportDefinition.objects.filter(department=department, is_active=True).annotate(run_total=Count("runs"))
     visible_runs = _runs_visible_to(request.user)
-    runs = visible_runs.select_related("definition", "template_version", "created_by")[:12]
+    run_definitions = ReportDefinition.objects.filter(
+        department=department, runs__in=visible_runs,
+    ).distinct().order_by("name")
+    run_period_years = sorted(
+        {value.year for value in visible_runs.values_list("period_end", flat=True)}, reverse=True,
+    )
+    filtered_runs, status, definition, output_format, control_status, period_year, attention, search = (
+        apply_report_run_filters(
+            visible_runs,
+            status=request.GET.get("status", "").strip(),
+            definition=request.GET.get("definition", "").strip(),
+            output_format=request.GET.get("output_format", "").strip(),
+            control_status=request.GET.get("control_status", "").strip(),
+            period_year=request.GET.get("period_year", "").strip(),
+            attention=request.GET.get("attention", "").strip(),
+            search=request.GET.get("q", ""),
+        )
+    )
+    visible_run_count = filtered_runs.count()
+    runs = list(filtered_runs.select_related(
+        "definition", "template_version", "created_by", "reviewed_by", "approved_by",
+    )[:100])
+    for run in runs:
+        run.next_action_label = next_report_action(run)
     schedules = ReportSchedule.objects.filter(definition__department=department, is_active=True).select_related("definition")[:8]
     now = timezone.now()
     statement_mappings_enabled = definitions.filter(
@@ -139,6 +168,17 @@ def workspace(request):
     ).exists()
     return render(request, "reporting/workspace.html", {
         "department": department, "definitions": definitions, "recent_runs": runs, "schedules": schedules,
+        "visible_run_count": visible_run_count,
+        "run_definition_choices": run_definitions, "run_period_year_choices": run_period_years,
+        "run_status_choices": ReportRun.STATUS_CHOICES,
+        "run_format_choices": ReportDefinition.FORMAT_CHOICES,
+        "run_control_choices": ReportRun.CONTROL_STATUS_CHOICES,
+        "run_attention_choices": RUN_ATTENTION_CHOICES,
+        "run_filters": {
+            "status": status, "definition": definition, "output_format": output_format,
+            "control_status": control_status, "period_year": period_year,
+            "attention": attention, "q": search,
+        },
         "failed_count": visible_runs.filter(status=ReportRun.FAILED).count(),
         "awaiting_review_count": visible_runs.filter(status=ReportRun.GENERATED).count(),
         "overdue_count": ReportSchedule.objects.filter(definition__department=department, is_active=True, next_run_at__lt=now).count(),
@@ -210,6 +250,36 @@ def local_form_workspace(request):
         "can_review": can_review_local_form_acceptance(request.user),
         "can_export": can_export_local_form_acceptance(request.user),
     })
+
+
+@require_GET
+@reporting_permission_required(can_download_reports)
+def run_register_export(request):
+    visible_runs = _runs_visible_to(request.user)
+    runs, status, definition, output_format, control_status, period_year, attention, search = (
+        apply_report_run_filters(
+            visible_runs,
+            status=request.GET.get("status", "").strip(),
+            definition=request.GET.get("definition", "").strip(),
+            output_format=request.GET.get("output_format", "").strip(),
+            control_status=request.GET.get("control_status", "").strip(),
+            period_year=request.GET.get("period_year", "").strip(),
+            attention=request.GET.get("attention", "").strip(),
+            search=request.GET.get("q", ""),
+        )
+    )
+    content, filename, receipt = build_report_run_register(
+        actor=request.user, queryset=runs, status=status, definition=definition,
+        output_format=output_format, control_status=control_status,
+        period_year=period_year, attention=attention, search=search,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Export-Relative-Path"] = receipt["relative_path"]
+    return response
 
 
 @reporting_permission_required(can_manage_local_form_acceptance)

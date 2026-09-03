@@ -1,5 +1,14 @@
 # Changelog
 
+## F9 guided reporting triage and portable run register
+
+- Replaced the twelve-row recent-run view with a permission-preserving report-run register supporting report, status, control result, output format, period year, plain next-action, and search filters without changing report states or approval authority.
+- Added evidence-derived guidance for generation failures, control-gated source correction, independent review, candidate-definition successors, template promotion, approval, current official outputs, and superseded history.
+- Added a synchronized one-row-per-run register containing pinned definition/template facts, applicability and authority, period, source/control counts, all retained checksums, reproduction key, actors, timing, latest event, error evidence, and plain next action.
+- Archived exact spreadsheet-safe register bytes and manifests under each authorized department/user `finance-report-run-register` tree, retained each included run's append-only export event, and preserved own-run visibility for users without department-wide report access.
+- Published updated Accounting, Budget, and Treasury successor guides and documented that the summary register does not replace the output, row-level control evidence, reproduction receipt, signed form, official approval, or filing/bank acknowledgement.
+- Added focused synchronized-filter, own-run/department visibility, archive, manifest, audit, permission, invalid-filter, checksum, numeric-value, and formula-safety coverage. All 70 Reporting tests, all 93 Reporting-plus-guidance tests, and all 414 project tests pass across both routed databases; the full suite completed in 78.173 seconds of test execution.
+
 ## F8 guided bank-reconciliation triage and portable monthly register
 
 - Added status, fund, bank-account, statement-year, plain next-action, and search filters to the monthly Accounting reconciliation register without changing the adjusted-balance workflow or approval states.

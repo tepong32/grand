@@ -23,13 +23,15 @@ Candidate reports may be generated and reviewed as controlled working outputs, b
 
 ## Guided workflow and controls
 
-1. Budget or Accounting chooses a report and covered period in the familiar Reporting workspace.
-2. GRAND pins the definition, applicability, parameters, template version, and layout/signatory fields used for that run.
-3. The Finance dataset is generated only from authorized/posting records for the selected department and period.
-4. GRAND stores the rendered-data snapshot, control totals, freshness, source count, and separate SHA-256 values for the output, dataset, and control evidence.
-5. The preparer reconciles the visible controls and follows source links to the authoritative appropriation, allotment, obligation, or posted JEV record.
-6. A separate reviewer may review the run. A control exception blocks review; a candidate applicability position or pilot template blocks official approval.
-7. Authorized users download the main output, the control/source CSV, and the deterministic JSON reproduction receipt.
+1. Budget, Accounting, or Treasury uses the Report run register's report, status, control-result, format, period-year, next-action, and plain-search filters to find the work relevant to the current role.
+2. Each row gives the next action derived from retained status, control-gate, applicability, template-fidelity, and approval evidence; it does not create a second workflow state.
+3. The user chooses a report and covered period in the familiar Reporting workspace.
+4. GRAND pins the definition, applicability, parameters, template version, and layout/signatory fields used for that run.
+5. The Finance dataset is generated only from authorized/posting records for the selected department and period.
+6. GRAND stores the rendered-data snapshot, control totals, freshness, source count, and separate SHA-256 values for the output, dataset, and control evidence.
+7. The preparer reconciles the visible controls and follows source links to the authoritative appropriation, allotment, obligation, or posted JEV record.
+8. A separate reviewer may review the run. A control exception blocks review; a candidate applicability position or pilot template blocks official approval.
+9. Authorized users download the main output, the control/source CSV, and the deterministic JSON reproduction receipt.
 
 The floating **?** help window contains separate Budget and Accounting instructions on the relevant pages. Progress belongs to the individual user only, is not assigned to a predecessor or copied to a successor, and does not alter the report's approval state.
 
@@ -41,10 +43,11 @@ Before approval, users do not edit retained report evidence in place. Correct th
 
 Each output can be accompanied by:
 
+- a synchronized one-row-per-run summary register for the exact visible filters, including pinned definition/template/applicability facts, control/source counts, checksums, actors, timing, latest event, and next action;
 - a CSV containing control totals and immutable source identities, references, dates, amounts, checksums, and permitted drill-through paths; and
 - a JSON reproduction receipt containing the pinned definition/template snapshots, period/parameters, all three report checksums, control result, source snapshots, and reproduction key.
 
-These files use the existing `GRAND_EXPORT_ROOT` department/user/category/year/month hierarchy. The generated manifest/checksum files allow the entire root folder to be copied or synchronized by TraceSync without users reorganizing individual exports.
+The summary register preserves the same own-run or department-wide visibility as the screen, and invalid controlled filter values fail closed to a header-only export. Formula-like text is retained safely as text while counts remain numeric. These files use the existing `GRAND_EXPORT_ROOT` department/user/category/year/month hierarchy. The generated manifest/checksum files allow the entire root folder to be copied or synchronized by TraceSync without users reorganizing individual exports. The register is operational oversight evidence, not the actual report output, its detailed control evidence, a signed form, an approval, or an external filing or bank acknowledgement.
 
 ## Acceptance still required
 

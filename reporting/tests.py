@@ -1,3 +1,4 @@
+import csv
 import hashlib
 import io
 import json
@@ -338,6 +339,74 @@ class ReportingPlatformTests(TestCase):
         self.operator = get_user_model().objects.get(pk=self.operator.pk)
         self.client.force_login(self.operator)
         self.assertEqual(self.client.get(reverse("reporting:run_download", args=(run.public_id,))).status_code, 403)
+
+    def test_report_run_triage_and_register_follow_exact_user_visibility(self):
+        own_run = self._generate("csv", self.operator)
+        ReportRun.objects.filter(pk=own_run.pk).update(
+            control_message="=CONTROL_NOTE must remain spreadsheet text",
+        )
+        own_run.refresh_from_db()
+        colleague_run = self._generate("pdf", self.head)
+        year = str(own_run.period_end.year)
+        query = {
+            "attention": "needs_review", "definition": str(self.definition.pk),
+            "output_format": "csv", "period_year": year, "q": "Assistance",
+        }
+
+        self.client.force_login(self.operator)
+        workspace = self.client.get(reverse("reporting:workspace"), query)
+        self.assertEqual(workspace.status_code, 200)
+        self.assertContains(workspace, own_run.get_absolute_url())
+        self.assertNotContains(workspace, colleague_run.get_absolute_url())
+        self.assertContains(
+            workspace,
+            "A different authorized reviewer checks controls, source evidence, and layout",
+        )
+        self.assertContains(workspace, "Export these 1 runs")
+
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            response = self.client.get(reverse("reporting:run_register_export"), query)
+            self.assertEqual(response.status_code, 200)
+            rows = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig"))))
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["run_public_id"], str(own_run.public_id))
+            self.assertEqual(rows[0]["report_name"], self.definition.name)
+            self.assertEqual(rows[0]["row_count"], str(own_run.row_count))
+            self.assertEqual(rows[0]["dataset_checksum"], own_run.dataset_checksum)
+            self.assertEqual(rows[0]["control_message"], "'=CONTROL_NOTE must remain spreadsheet text")
+            self.assertEqual(rows[0]["run_source"], "Manual")
+            self.assertNotIn(str(colleague_run.public_id), response.content.decode("utf-8-sig"))
+            self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+            relative_path = response["X-GRAND-Export-Relative-Path"]
+            self.assertIn(f"{self.mswd.slug}/{self.operator.username}/finance-report-run-register/", relative_path)
+            artifact = Path(export_root, *relative_path.split("/"))
+            self.assertEqual(artifact.read_bytes(), response.content)
+            manifest = json.loads(Path(str(artifact) + ".manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["metadata"]["run_count"], 1)
+            self.assertEqual(manifest["metadata"]["visibility_scope"], "own_runs")
+            self.assertEqual(manifest["sha256"], response["X-GRAND-Export-SHA256"])
+            self.assertTrue(own_run.events.filter(action="register_exported", actor=self.operator).exists())
+
+            all_visible = self.client.get(reverse("reporting:run_register_export"))
+            self.assertIn(str(own_run.public_id), all_visible.content.decode("utf-8-sig"))
+            self.assertNotIn(str(colleague_run.public_id), all_visible.content.decode("utf-8-sig"))
+            invalid = self.client.get(reverse("reporting:run_register_export"), {"attention": "unknown"})
+            self.assertEqual(len(list(csv.reader(io.StringIO(invalid.content.decode("utf-8-sig"))))), 1)
+
+            self.client.force_login(self.head)
+            department_response = self.client.get(reverse("reporting:run_register_export"))
+            department_text = department_response.content.decode("utf-8-sig")
+            self.assertIn(str(own_run.public_id), department_text)
+            self.assertIn(str(colleague_run.public_id), department_text)
+            department_relative = department_response["X-GRAND-Export-Relative-Path"]
+            department_artifact = Path(export_root, *department_relative.split("/"))
+            department_manifest = json.loads(
+                Path(str(department_artifact) + ".manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(department_manifest["metadata"]["visibility_scope"], "department")
+
+        self.client.force_login(self.limited)
+        self.assertEqual(self.client.get(reverse("reporting:run_register_export")).status_code, 403)
 
     def test_print_action_is_visible_only_for_authorized_pdf_outputs(self):
         pdf_run = self._generate("pdf")

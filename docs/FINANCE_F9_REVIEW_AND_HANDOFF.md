@@ -6,7 +6,7 @@ Review scope: F9.1–F9.7 reporting, statements, notes, signed-reference compari
 
 | Slice | Implemented control | Remaining acceptance evidence |
 | --- | --- | --- |
-| F9.1 | Governed report definitions/runs, applicability labels, immutable output/dataset/control evidence, drill-through, approval, reproduction receipt | Accepted local forms, signatories, routes, and signed reference replay |
+| F9.1 | Governed report definitions/runs, applicability labels, immutable output/dataset/control evidence, drill-through, approval, reproduction receipt, guided run triage, and synchronized portable run register | Accepted local forms, signatories, routes, and signed reference replay |
 | F9.2 | Budget-versus-actual, posted ledger, payable/withholding, and Treasury disbursement report catalog | Named-office catalog completeness and accepted schedules |
 | F9.3 | Versioned statement mappings, exact account coverage, position/performance equations, explained measures | Accepted statement classification/mapping and signed outputs |
 | F9.4 | Versioned notes and independently reconciled signed/redacted reference comparisons | Current local disclosure checklist, complete statement-and-note package acceptance |
@@ -24,8 +24,8 @@ Review scope: F9.1–F9.7 reporting, statements, notes, signed-reference compari
 - **Stale evidence:** submission and approval re-resolve the exact source and compare its retained snapshot/checksum. Draft packages reject obsolete or superseded sources. Historically approved packages remain reproducible after legitimate supersession.
 - **Department boundary:** package objects are Accounting-department bounded. Cross-office source selection is possible only through a reviewed profile and eligible approved evidence; source-module access rules remain intact.
 - **Privacy:** package manifests retain identifiers, approval/control facts, and hashes, not copied signature images, full confidential report bodies, TIN-bearing data, credentials, or uploaded reference bodies.
-- **Portability:** exports use the single TraceSync-ready root and the existing department/user/category/year/month archive contract with adjacent SHA-256 manifests.
-- **Guidance:** Accounting Internal How-To version 7 includes package assembly, reasoned replacement, approved-successor, and source-reversal boundaries. The accountability workspace also has a floating `?` guide.
+- **Portability:** exports use the single TraceSync-ready root and the existing department/user/category/year/month archive contract with adjacent SHA-256 manifests. The report-run register mirrors the exact filtered queue while retaining the detailed per-run output, control CSV, and reproduction receipt as separate evidence levels.
+- **Guidance:** the Accounting, Budget, and Treasury reporting guides now begin with the role-preserving filtered run register and distinguish its oversight purpose from package assembly, detailed evidence, official approval, signed forms, and external acknowledgements. The accountability workspace also has a floating `?` guide.
 
 ## Parent F9 gate decision
 

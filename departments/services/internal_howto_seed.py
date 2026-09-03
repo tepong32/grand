@@ -59,13 +59,14 @@ ACCOUNTING_GUIDES = (
     },
     {
         "slug": "finance-accountability-reporting-accounting",
-        "version": 9,
+        "version": 10,
         "title": "Prepare, map, and review Accounting reports",
         "summary": "Prepare operational schedules and governed management statements from posted entries, explain every measure and equation, and retain portable reproduction evidence.",
         "permission": "reporting.view_reporting_workspace",
         "patterns": ["reporting:*", "accounting:trial_balance", "accounting:entry_*"],
         "order": 60,
         "steps": (
+            ("Find the reporting work", "Use report, status, control result, format, period year, next-action, or plain search filters in the Report run register. Open the retained run named by the row's next action.", "The screen and summary export follow the same Accounting visibility and filters while each run keeps its detailed output, control evidence, and reproduction receipt.", "The summary register is not an approved statement, signed form, filed return, or permission to see another user's restricted runs.", "Open Reports", "reporting:workspace"),
             ("Choose the report starter", "Open Reports and choose an operational schedule or either management financial statement. Confirm whether the report covers activity during a period or balances through an end date.", "The run pins the exact definition, template, period, output format, and applicable statement mapping.", "The starters follow accounting-control guidance but are not automatically the LGU's accepted signed forms or BIR returns.", "Open Reports", "reporting:workspace"),
             ("Check local applicability", "Read the authority/reference and applicability badge. Keep the definition as Local confirmation pending until the Municipal Accountant or named owner confirms the exact form, signatories, routing, and retained comparison evidence.", "Official-form claims remain separate from a technically correct report.", "Do not mark a public recommendation as locally accepted without actual confirmation.", "", ""),
             ("Generate and reconcile", "Generate the covered period. Confirm total posted debit equals total posted credit and that the control status reads reconciled.", "The report stores immutable row, control, freshness, and checksum evidence.", "A control exception cannot enter official review; correct the posted source through normal Accounting routes, then generate a successor.", "Open Trial Balance", "accounting:trial_balance"),
@@ -397,13 +398,14 @@ REQUESTING_GUIDES = (
 BUDGET_GUIDES = (
     {
         "slug": "finance-accountability-reporting-budget",
-        "version": 5,
+        "version": 6,
         "title": "Prepare the quarterly Budget accountability schedule",
         "summary": "Generate cumulative Budget accountability and Budget-versus-posted-actual controls while keeping working starters distinct from locally accepted official forms.",
         "permission": "reporting.view_reporting_workspace",
         "patterns": ["reporting:*", "budget:authorization_*", "budget:allotment_*", "budget:obligation_*"],
         "order": 60,
         "steps": (
+            ("Find the reporting work", "Use report, status, control result, format, period year, next-action, or plain search filters in the Report run register. Open the retained Budget run named by the row's next action.", "The screen and summary export follow the same Budget visibility and filters while each run keeps its detailed output, source controls, and reproduction receipt.", "The summary register is not an approved DBM/COA schedule, signed form, or permission to see another user's restricted runs.", "Open Reports", "reporting:workspace"),
             ("Open the quarterly starter", "Open Reports and choose Quarterly Budget Accountability Schedule. Select the quarter start and end covered by the review.", "The report calculates cumulative authority and posted movements through the selected period end.", "The native starter is LBAc Form No. 2-equivalent working material; it is not automatically the current locally accepted DBM/COA form.", "Open Reports", "reporting:workspace"),
             ("Confirm authority and local use", "Read the DBM recommendation basis and Local confirmation pending badge. Ask the named Budget owner to confirm the actual form, deadlines, signatories, copies, recipients, and retained signed comparison.", "The definition becomes Locally confirmed only with a specific authority and acceptance note.", "Do not infer current local applicability from a generic circular or manual alone.", "", ""),
             ("Generate and read the equation", "Generate the run and review appropriation, released allotment, reserve/deferral, executable allotment, obligation, unreleased appropriation, and unobligated allotment.", "No cumulative balance is negative or exceeds its controlling authority.", "A control exception blocks review; correct the authoritative Budget transaction through its governed successor route.", "Open Budget Accountability", "budget:obligation_workspace"),
@@ -498,13 +500,14 @@ BUDGET_GUIDES = (
 TREASURY_GUIDES = (
     {
         "slug": "finance-accountability-reporting-treasury",
-        "version": 4,
+        "version": 5,
         "title": "Prepare the payment instrument and disbursement register",
         "summary": "Report issued, advised, released, returned, cancelled, and replacement instruments with complete voucher and custody evidence.",
         "permission": "reporting.view_reporting_workspace",
         "patterns": ["reporting:*", "vouchers:case_*", "vouchers:advice_*"],
         "order": 60,
         "steps": (
+            ("Find the reporting work", "Use report, status, control result, format, period year, next-action, or plain search filters in the Report run register. Open the retained Treasury run named by the row's next action.", "The screen and summary export follow the same Treasury visibility and filters while each run keeps its detailed output, transaction controls, and reproduction receipt.", "The summary register is not an approved disbursement register, signed Treasury form, bank acknowledgement, or permission to see another user's restricted runs.", "Open Reports", "reporting:workspace"),
             ("Open the controlled starter", "Open Reports and choose Payment Instrument and Disbursement Register. Select the activity period and the approved native or mapped template version.", "The run pins one reproducible view of instrument activity during the period.", "The editable starter is not automatically the locally accepted COA/Treasury register.", "Open Reports", "reporting:workspace"),
             ("Check local applicability", "Confirm the instrument scope, status treatment, signatories, copies, recipients, deadlines, and the retained local acceptance evidence before requesting official approval.", "The report remains visibly pending until a named owner records the accepted requirement.", "Do not infer local acceptance from a public manual or another LGU's template.", "", ""),
             ("Witness the actual Treasury form", "Use Local form acceptance to link the activated register or Finance workbook and retain the blank/redacted reference. For an applicable LBP/LBA/LBR/LBE/LBAc form, an authorized preparer may begin with Use DBM starter, but must compare and locally resolve every candidate section before recording the actual signatory, copy, recipient, custody, deadline, paper, printer, overflow, and continuation rules. Perform or independently witness the applicable practical tests.", "Only a different reviewer can accept the exact checksummed form after every starter row is resolved and every current test passes; earlier failed attempts remain visible.", "A DBM starter is not automatically the Treasury's accepted form. Do not mark printer/form-stock testing not applicable when Treasury prints, signs, releases, or files paper; accepted changes use a successor and a fresh test cycle.", "Open Local form acceptance", "reporting:local_form_workspace"),
