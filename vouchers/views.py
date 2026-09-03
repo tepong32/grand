@@ -1,11 +1,14 @@
 import csv
+from uuid import UUID
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Count, Sum
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.text import slugify
+from django.views.decorators.http import require_POST
 
 from src.export_archive import archive_export
 
@@ -24,8 +27,12 @@ from .forms import (
     PayableAllocationAddForm, PayableAllocationRevisionForm, PayableClaimControlForm,
     ControlledPrintPrepareForm, FinancePacketAssemblyForm, PrintEvidenceForm,
 )
-from .models import PaymentInstrument, VoucherCase, VoucherOutput, VoucherPostingRequest, VoucherPrintJob
-from .roles import STAGE_NEXT_ACTION, finance_workspace_profile
+from .models import (
+    PaymentInstrument, VoucherCase, VoucherCaseSavedView, VoucherOutput, VoucherPostingRequest,
+    VoucherPrintJob,
+)
+from .roles import STAGE_NEXT_ACTION, finance_workspace_profile, is_finance_uat_viewer
+from .saved_views import save_private_case_view
 from .services import (
     VoucherWorkflowError, _active_release, amend_nonfinancial_voucher, cancel_check, certify_budget,
     create_payable_case_from_obligation,
@@ -109,11 +116,24 @@ def _decorate_cases(cases, actionable_stages=()):
 
 @voucher_access_required
 def workspace(request):
+    selected_saved_view = None
+    filter_values = request.GET
+    saved_view_id = request.GET.get("saved", "").strip()
+    if saved_view_id:
+        try:
+            saved_view_uuid = UUID(saved_view_id)
+        except (TypeError, ValueError, AttributeError):
+            raise Http404
+        selected_saved_view = get_object_or_404(
+            VoucherCaseSavedView, owner=request.user, public_id=saved_view_uuid,
+        )
+        filter_values = selected_saved_view.filters
+
     all_cases = VoucherCase.objects.select_related(
         "requesting_department", "current_department", "payee", "configuration_release",
     ).annotate(check_count=Count("payment_instruments"))
     permissions = _permissions(request.user)
-    profile = finance_workspace_profile(request.user, request.GET.get("office"))
+    profile = finance_workspace_profile(request.user, filter_values.get("office"))
     from accounting.access import can_post_journals, can_prepare_journals
     can_handle_posting = can_prepare_journals(request.user) or can_post_journals(request.user)
     actionable_stages = _actionable_stages(
@@ -122,15 +142,15 @@ def workspace(request):
     )
     queue_stages = profile["stages"] if profile["is_uat_viewer"] else actionable_stages
     scoped_cases = visible_cases_for_user(
-        request.user, all_cases, requested_role=request.GET.get("office"),
+        request.user, all_cases, requested_role=filter_values.get("office"),
     )
     transaction_type_choices, requesting_department_choices = filter_options(scoped_cases)
     cases, stage, transaction_type, requesting_department, attention, custody, search = apply_case_filters(
         scoped_cases, actionable_stages=queue_stages,
-        stage=request.GET.get("stage", ""), transaction_type=request.GET.get("transaction_type", ""),
-        requesting_department=request.GET.get("requesting_department", ""),
-        attention=request.GET.get("attention", ""), custody=request.GET.get("custody", ""),
-        search=request.GET.get("q", ""),
+        stage=filter_values.get("stage", ""), transaction_type=filter_values.get("transaction_type", ""),
+        requesting_department=filter_values.get("requesting_department", ""),
+        attention=filter_values.get("attention", ""), custody=filter_values.get("custody", ""),
+        search=filter_values.get("q", ""),
     )
     queue_query = cases.filter(current_stage__in=queue_stages)
     queue_ids = list(queue_query.values_list("pk", flat=True)[:100])
@@ -149,13 +169,46 @@ def workspace(request):
         "visible_count": cases.count(), "stage_choices": VoucherCase.STAGE_CHOICES,
         "attention_choices": ATTENTION_CHOICES, "transaction_type_choices": transaction_type_choices,
         "requesting_department_choices": requesting_department_choices, "custody_choices": CUSTODY_CHOICES,
+        "saved_views": VoucherCaseSavedView.objects.filter(owner=request.user),
+        "selected_saved_view": selected_saved_view,
         "filters": {
             "stage": stage, "transaction_type": transaction_type,
             "requesting_department": requesting_department, "attention": attention,
             "custody": custody, "q": search,
-            "office": request.GET.get("office", "") if profile["is_uat_viewer"] else "",
+            "office": filter_values.get("office", "") if profile["is_uat_viewer"] else "",
         },
     })
+
+
+@voucher_access_required
+@require_POST
+def saved_view_save(request):
+    try:
+        saved_view, created = save_private_case_view(
+            owner=request.user,
+            name=request.POST.get("name", ""),
+            filters=request.POST,
+            allow_office=is_finance_uat_viewer(request.user),
+        )
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+        return redirect("vouchers:workspace")
+    messages.success(
+        request,
+        f"Private view {'saved' if created else 'updated'}: {saved_view.name}. "
+        "It changes only your workbench filters, not any Finance record or authority.",
+    )
+    return redirect(f"{reverse('vouchers:workspace')}?saved={saved_view.public_id}")
+
+
+@voucher_access_required
+@require_POST
+def saved_view_delete(request, public_id):
+    saved_view = get_object_or_404(VoucherCaseSavedView, owner=request.user, public_id=public_id)
+    name = saved_view.name
+    saved_view.delete()
+    messages.success(request, f"Private view removed: {name}. No Finance record was changed.")
+    return redirect("vouchers:workspace")
 
 
 @voucher_access_required

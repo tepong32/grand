@@ -1,6 +1,6 @@
 # Finance operations entry
 
-Status: F1.2–F1.3 implemented navigation and shared-case finder controls. This page makes the existing complete-cycle workspaces and authorized case timeline easier to find; it does not create a new transaction, approval, balance, search index, or authority layer.
+Status: F1.2–F1.4 implemented navigation, shared-case finder, and private saved-view controls. This page makes the existing complete-cycle workspaces and authorized case timeline easier to find and resume; it does not create a new transaction, approval, balance, search index, assignment, or authority layer.
 
 ## What staff receive
 
@@ -22,9 +22,17 @@ Supported search evidence includes the case reference, safe payee/purpose, trans
 
 The same filter service drives the on-screen queue and authorized case-register/custody exports. A hidden case contributes no result, option, or count; the page makes no existence suggestion. A search result opens the existing shared case, whose detail page already carries Budget authority, claim/DV, Accounting handoffs, payment/advice/release, custody/output, and permitted append-only history.
 
+## Private saved case views
+
+An authorized workbench user can give the current case filters a short name and reopen them later. Saving the same name, without regard to capitalization, updates that user's shortcut. Removing it deliberately deletes only the preference; it is not financial or acceptance evidence and therefore does not enter the immutable transaction timeline.
+
+Each user may retain up to 25 views. Names and filter choices are editable by the owner, and ordinary users cannot retain the UAT-only office-preview field. Every open runs the stored choices through current authentication, workbench role, department visibility, and fail-closed filter validation. A former office, role, or permission therefore cannot remain accessible through an old shortcut.
+
+These views are private conveniences. They do not assign work, create a notification, affect counts outside the authorized result, approve a case, authorize an export, or become governed shared filters. F1 governed shared views and notifications remain separate future work that requires named ownership and local acceptance rules.
+
 ## Internal How-To
 
-The seeded `Find and continue your Finance work` guide matches the operations entry page and is published separately for each department. Version 2 explains the permission-filtered case finder, shared-case handoff, governed modification boundary, role-shaped next actions, TraceSync-ready export handling, and the private tutorial-progress boundary.
+The seeded `Find and continue your Finance work` guide matches the operations entry page and is published separately for each department. Version 3 explains the permission-filtered case finder, private saved-view controls, shared-case handoff, governed modification boundary, role-shaped next actions, TraceSync-ready export handling, and the private tutorial-progress boundary.
 
 Run `python manage.py seed_internal_howtos` after deployment to publish the starter where no equal or newer local version exists. Existing newer local instructions are preserved.
 
@@ -38,4 +46,4 @@ Run `python manage.py seed_internal_howtos` after deployment to publish the star
 
 ## Regression contract
 
-Automated coverage verifies full and selective Finance-card composition, denial for ordinary/reporting-only employees, anonymous redirection, preservation of established Finance URL paths, field-only navigation for an assigned cross-office reviewer, safe multi-token/controlled-ID matching, and zero-result isolation for another requesting office's known case reference.
+Automated coverage verifies full and selective Finance-card composition, denial for ordinary/reporting-only employees, anonymous redirection, preservation of established Finance URL paths, field-only navigation for an assigned cross-office reviewer, safe multi-token/controlled-ID matching, zero-result isolation for another requesting office's known case reference, private save/open/update/remove behavior, owner isolation, and current-scope rechecks.

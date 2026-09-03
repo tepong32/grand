@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.4 private shared-case saved views
+
+- Added user-named private filter shortcuts to the existing Voucher Workbench, with open, case-insensitive update, and deliberate remove controls rather than a second task or case store.
+- Reapply every saved view through the current role/department visibility and workbench filter services so a department or permission change cannot preserve former case access.
+- Kept UAT office-preview state restricted to UAT viewers, rejected invalid controlled stage/attention/custody values, and capped each user at 25 manageable shortcuts.
+- Kept saved views personal and non-authoritative: they create no assignment, notification, approval, audit conclusion, shared filter, export permission, or Finance transaction event.
+- Published a version-3 Finance-entry guide and documented the saved-view workflow, privacy boundary, intentional removability, and still-open governed shared-view/notification work.
+- Added focused save/open/update, owner-isolation/removal, changed-office-scope, invalid-filter, and personal-limit regression coverage. All 46 Voucher tests, all 55 Finance tests within the combined run, all 78 Finance-plus-guidance tests, and all 426 project tests pass across both routed databases; the final full suite completed in 80.677 seconds of test execution.
+
 ## F1.3 permission-filtered shared-case finder
 
 - Added a plain shared-case search handoff to the Finance entry for Voucher Workbench users without creating a second case index, queue, export, or authority state.

@@ -53,7 +53,8 @@ from tracepoint.models import PacketItem, TrackedPacket
 from .access import can_view_workbench
 from .models import (
     BankAdviceBatch, FinanceFoundationIssuanceBoundary, PayableIntake, PaymentInstrument, PaymentInstrumentException, ReturnedInstrumentReview, TreasuryCashPolicy,
-    TreasuryCashPosition, TreasuryCashReservation, VoucherCase, VoucherEvent, VoucherNonFinancialAmendment,
+    TreasuryCashPosition, TreasuryCashReservation, VoucherCase, VoucherCaseSavedView, VoucherEvent,
+    VoucherNonFinancialAmendment,
     RemittancePostingRequest, TaxFilingEvidence, TreasuryRemittanceBatch, TreasuryRemittanceLine,
     PayableDocumentEvidence, VoucherDeduction, VoucherNumberIssue, VoucherPostingRequest, VoucherPrintJob,
 )
@@ -2190,6 +2191,126 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(response.context["visible_count"], 0)
         self.assertNotContains(response, hidden.particulars)
         self.assertContains(response, "No additional voucher cases to show")
+
+    def test_private_saved_case_view_can_be_named_opened_and_updated(self):
+        first = self.create_case("saved-view-first")
+        second = self.create_case("saved-view-second")
+        self.client.force_login(self.requesting_user)
+
+        response = self.client.post(reverse("vouchers:saved_view_save"), {
+            "name": "  Cases to check  ",
+            "q": first.reference_code,
+            "office": "treasury",
+        })
+
+        self.assertEqual(response.status_code, 302)
+        saved_view = VoucherCaseSavedView.objects.get(owner=self.requesting_user)
+        self.assertEqual(saved_view.name, "Cases to check")
+        self.assertEqual(saved_view.filters, {"q": first.reference_code})
+        response = self.client.get(response.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_saved_view"], saved_view)
+        self.assertEqual(response.context["visible_count"], 1)
+        self.assertContains(response, "Your private case views")
+        self.assertContains(response, "Cases to check")
+        self.assertContains(response, "Update view")
+        self.assertContains(response, first.reference_code)
+        self.assertNotContains(response, second.reference_code)
+
+        response = self.client.post(reverse("vouchers:saved_view_save"), {
+            "name": "cases TO CHECK",
+            "q": second.reference_code,
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(VoucherCaseSavedView.objects.filter(owner=self.requesting_user).count(), 1)
+        saved_view.refresh_from_db()
+        self.assertEqual(saved_view.name, "cases TO CHECK")
+        self.assertEqual(saved_view.filters, {"q": second.reference_code})
+
+    def test_private_saved_case_view_is_owner_only_and_removable(self):
+        saved_view = VoucherCaseSavedView.objects.create(
+            owner=self.treasury_user,
+            name="Treasury private",
+            name_key="treasury private",
+            filters={"attention": "ready_for_me"},
+        )
+        self.client.force_login(self.requesting_user)
+
+        response = self.client.get(
+            reverse("vouchers:workspace"), {"saved": str(saved_view.public_id)},
+        )
+        self.assertEqual(response.status_code, 404)
+        response = self.client.post(
+            reverse("vouchers:saved_view_delete", kwargs={"public_id": saved_view.public_id}),
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(VoucherCaseSavedView.objects.filter(pk=saved_view.pk).exists())
+
+        self.client.force_login(self.treasury_user)
+        response = self.client.post(
+            reverse("vouchers:saved_view_delete", kwargs={"public_id": saved_view.public_id}),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Private view removed: Treasury private")
+        self.assertFalse(VoucherCaseSavedView.objects.filter(pk=saved_view.pk).exists())
+
+    def test_private_saved_case_view_rechecks_current_requesting_office_scope(self):
+        other_office = Department.objects.create(
+            name="Agriculture Office", slug="saved-view-agriculture",
+        )
+        hidden = create_budget_case(
+            actor=self.budget_user,
+            requesting_department=other_office,
+            payee=self.party,
+            particulars="Restricted saved-view target",
+            transaction_type="ordinary-supplier-claim",
+            idempotency_key="private-saved-view-hidden-case",
+        )
+        saved_view = VoucherCaseSavedView.objects.create(
+            owner=self.requesting_user,
+            name="Old office shortcut",
+            name_key="old office shortcut",
+            filters={"q": hidden.reference_code},
+        )
+        self.client.force_login(self.requesting_user)
+
+        response = self.client.get(
+            reverse("vouchers:workspace"), {"saved": str(saved_view.public_id)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["visible_count"], 0)
+        self.assertNotContains(response, hidden.particulars)
+        self.assertContains(response, "rechecked against your current role and office")
+
+    def test_private_saved_case_view_rejects_invalid_controls_and_enforces_personal_limit(self):
+        self.client.force_login(self.requesting_user)
+        response = self.client.post(reverse("vouchers:saved_view_save"), {
+            "name": "Invalid shortcut", "stage": "not-a-controlled-stage",
+        }, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Choose a valid voucher stage")
+        self.assertFalse(VoucherCaseSavedView.objects.filter(owner=self.requesting_user).exists())
+
+        VoucherCaseSavedView.objects.bulk_create([
+            VoucherCaseSavedView(
+                owner=self.requesting_user,
+                name=f"Private view {index}",
+                name_key=f"private view {index}",
+                filters={},
+            )
+            for index in range(25)
+        ])
+        response = self.client.post(reverse("vouchers:saved_view_save"), {
+            "name": "One too many",
+        }, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "keep up to 25 private case views")
+        self.assertEqual(VoucherCaseSavedView.objects.filter(owner=self.requesting_user).count(), 25)
 
     def test_case_control_register_invalid_filter_fails_closed_and_preserves_export_evidence(self):
         case = self.create_case("register-invalid-filter")

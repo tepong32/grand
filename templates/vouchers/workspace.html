@@ -112,6 +112,33 @@
           {% endif %}
         </div>
       </form>
+      <div class="border-top mt-3 pt-3">
+        <div class="row">
+          <div class="col-lg-7 mb-3 mb-lg-0">
+            <h3 class="h6 font-weight-bold">Your private case views</h3>
+            <div class="d-flex flex-wrap align-items-center">
+              {% for saved_view in saved_views %}
+                <a class="btn btn-sm {% if selected_saved_view.pk == saved_view.pk %}btn-secondary{% else %}btn-outline-secondary{% endif %} mr-2 mb-2" href="{% url 'vouchers:workspace' %}?saved={{ saved_view.public_id }}">{{ saved_view.name }}</a>
+                <form method="post" action="{% url 'vouchers:saved_view_delete' saved_view.public_id %}" class="mr-3 mb-2">
+                  {% csrf_token %}<button class="btn btn-sm btn-link text-danger px-0" type="submit" aria-label="Remove private view {{ saved_view.name }}">Remove</button>
+                </form>
+              {% empty %}<span class="small text-muted mb-2">No private view saved yet.</span>{% endfor %}
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <form method="post" action="{% url 'vouchers:saved_view_save' %}">
+              {% csrf_token %}
+              {% for key, value in filters.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+              <label for="saved-view-name">Save these filters for yourself</label>
+              <div class="input-group">
+                <input id="saved-view-name" class="form-control" name="name" maxlength="80" required value="{% if selected_saved_view %}{{ selected_saved_view.name }}{% endif %}" placeholder="Example: Checks ready for release">
+                <div class="input-group-append"><button class="btn btn-outline-secondary" type="submit">{% if selected_saved_view %}Update view{% else %}Save view{% endif %}</button></div>
+              </div>
+            </form>
+          </div>
+        </div>
+        <p class="small text-muted mb-0 mt-2">Saved views belong only to your account and are rechecked against your current role and office every time. They are editable shortcuts, not assignments, notifications, approvals, or shared Finance records. Avoid confidential details in the view name.</p>
+      </div>
       <p class="small text-muted mb-0 mt-2">
         Both CSVs mirror this exact role scope and filter set. The case register is one row per case; the DV custody register retains every print version and physical-packet state. Both are archived with checksum manifests and remain oversight evidence—not approval, a wet signature, or an official-form decision.
       </p>

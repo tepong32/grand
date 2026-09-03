@@ -162,6 +162,45 @@ class VoucherCase(models.Model):
                     raise ValidationError("Voucher identity and transaction type are immutable.")
 
 
+class VoucherCaseSavedView(models.Model):
+    """Private, non-authoritative filters for the existing shared-case workbench."""
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="voucher_case_saved_views",
+    )
+    name = models.CharField(max_length=80)
+    name_key = models.CharField(max_length=80, editable=False)
+    filters = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("name_key", "pk")
+        constraints = (
+            models.UniqueConstraint(fields=("owner", "name_key"), name="unique_private_voucher_case_view_name"),
+        )
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        self.name = " ".join((self.name or "").split())
+        if not self.name:
+            raise ValidationError({"name": "Enter a short name for this private view."})
+        self.name_key = self.name.casefold()[:80]
+        if not isinstance(self.filters, dict) or any(
+            not isinstance(key, str) or not isinstance(value, str)
+            for key, value in self.filters.items()
+        ):
+            raise ValidationError({"filters": "Saved case-view filters must be plain text values."})
+
+    def save(self, *args, **kwargs):
+        self.name = " ".join((self.name or "").split())
+        self.name_key = self.name.casefold()[:80]
+        return super().save(*args, **kwargs)
+
+
 class BudgetObligation(models.Model):
     case = models.OneToOneField(VoucherCase, on_delete=models.PROTECT, related_name="obligation")
     obr_number = models.CharField(max_length=60, db_index=True)

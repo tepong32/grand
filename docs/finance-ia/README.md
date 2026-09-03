@@ -1,6 +1,6 @@
 # Complete-cycle Finance information architecture
 
-Status: F1.1 design contract and synthetic prototype, with the narrow F1.2 permission-shaped Finance entry and F1.3 shared-case finder implemented. This package defines the intended navigation, role boundaries, shared-case vocabulary, and interaction model. These controls do not grant transaction authority or satisfy the F1 production exit gate.
+Status: F1.1 design contract and synthetic prototype, with the narrow F1.2 permission-shaped Finance entry, F1.3 shared-case finder, and F1.4 private saved case views implemented. This package defines the intended navigation, role boundaries, shared-case vocabulary, and interaction model. These controls do not grant transaction authority or satisfy the F1 production exit gate.
 
 ## Design outcome
 
@@ -23,7 +23,7 @@ One case
 
 The navigation labels remain stable across roles. Counts, saved views, actions, supporting guidance, and accessible detail are role-shaped.
 
-The implemented `/finance/` entry now applies the first part of this contract without inventing a second queue. It presents plain cards for existing Budget, Voucher, Accounting, Reporting, setup, discovery, and field workspaces only when their current access checks allow them. Existing workspace links remain available in the account drawer, while the top bar uses one Finance destination. Voucher-authorized users can hand a controlled-reference or safe-token search into the existing permission-filtered shared-case workbench; no separate index, hidden-object count, or suggestion is created. See [Finance operations entry](../FINANCE_OPERATIONS_ENTRY.md).
+The implemented `/finance/` entry now applies the first part of this contract without inventing a second queue. It presents plain cards for existing Budget, Voucher, Accounting, Reporting, setup, discovery, and field workspaces only when their current access checks allow them. Existing workspace links remain available in the account drawer, while the top bar uses one Finance destination. Voucher-authorized users can hand a controlled-reference or safe-token search into the existing permission-filtered shared-case workbench and keep up to 25 human-named private filter shortcuts. Every shortcut is rechecked against current scope; no separate index, hidden-object count, assignment, or suggestion is created. See [Finance operations entry](../FINANCE_OPERATIONS_ENTRY.md).
 
 ## Package
 
@@ -34,7 +34,7 @@ The implemented `/finance/` entry now applies the first part of this contract wi
 | [Status vocabulary](STATUS_VOCABULARY.md) | Separate case phase, work-task state, authority/artifact state, and exceptions. |
 | [Clickable synthetic prototype](prototype/index.html) | Responsive, no-backend walkthrough of Overview, My Work, case detail, and search. |
 | [Prototype notes and review script](PROTOTYPE.md) | Review boundaries, scenarios, and acceptance capture. |
-| [Implemented Finance operations entry](../FINANCE_OPERATIONS_ENTRY.md) | Permission composition, navigation, shared-case finder, Internal How-To, and authority boundaries for F1.2–F1.3. |
+| [Implemented Finance operations entry](../FINANCE_OPERATIONS_ENTRY.md) | Permission composition, navigation, shared-case finder, private saved views, Internal How-To, and authority boundaries for F1.2–F1.4. |
 
 ## Non-negotiable boundaries
 
