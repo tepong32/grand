@@ -17,6 +17,7 @@ from .cash_positions import (
     open_instrument_exception, policy_availability, resolve_instrument_exception,
     submit_policy, submit_position,
 )
+from .cash_register import CASH_ATTENTION_CHOICES, cash_attention_queryset, visible_cash_policies
 from .forms import (
     InstrumentExceptionForm, InstrumentExceptionResolutionForm, TreasuryCashPolicyForm,
     TreasuryCashPositionForm, TreasuryCashReviewForm,
@@ -51,11 +52,7 @@ def _policy(public_id, user=None):
 def workspace(request):
     if not _can_view(request.user):
         raise PermissionDenied
-    policy_query = TreasuryCashPolicy.objects.select_related(
-        "configuration_release", "treasury_department",
-    )
-    if not has_explicit_permission(request.user, "vouchers.approve_cash_position") and not is_finance_uat_viewer(request.user):
-        policy_query = policy_query.filter(treasury_department=department_for_user(request.user))
+    policy_query = visible_cash_policies(request.user)
     policies = list(policy_query.order_by("-effective_from", "bank_account_code", "fund_code")[:100])
     for policy in policies:
         availability = policy_availability(policy)
@@ -74,8 +71,16 @@ def workspace(request):
         exception_query = exception_query.filter(policy__treasury_department=department_for_user(request.user))
     instruments = instrument_query.order_by("-issued_at", "check_number")[:100]
     exceptions = exception_query[:100]
+    work_items, selected_attention, work_spec = cash_attention_queryset(
+        request.user, request.GET.get("attention", ""),
+    )
     return render(request, "vouchers/cash/workspace.html", {
         "policies": policies, "instruments": instruments, "exceptions": exceptions,
+        "cash_work_items": work_items[:100],
+        "cash_work_count": work_items.count(),
+        "cash_work_spec": work_spec,
+        "selected_attention": selected_attention,
+        "attention_choices": CASH_ATTENTION_CHOICES,
         "exception_form": InstrumentExceptionForm(),
         "can_prepare": has_explicit_permission(request.user, "vouchers.prepare_cash_position"),
         "can_approve": has_explicit_permission(request.user, "vouchers.approve_cash_position"),

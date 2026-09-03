@@ -1,5 +1,13 @@
 # Changelog
 
+## F1.5 cash-control work register
+
+- Added one plain cash-control work filter to the existing Treasury workspace, with separate policy-version and position-version preparation/review queues instead of treating policy rows as position tasks.
+- Reused the same permission- and office-scoped query service for the source register and My Work counts, preserving Treasury preparation isolation, permitted cross-office independent review, and Finance UAT exclusion.
+- Kept the source cash policy/position records authoritative: the register only finds work and cannot assign, submit, approve, activate, establish availability, issue, or release anything.
+- Updated Accounting and Treasury floating guides and roadmap documentation for the exact cash handoff, correction boundary, and still-deferred returned-instrument/cross-cycle adapters.
+- Added focused policy-versus-position separation, hidden-office preparation, cross-office review, and source/My Work count-link parity coverage. The 28-test cash/advice/close/Finance/guidance run and all 436 project tests pass across both routed databases; the full suite completed in 83.634 seconds. Authenticated desktop and 390×844 browser checks confirmed the exact returned-position row, responsive register, floating guide, and zero console errors.
+
 ## F1.5 bank-advice and period-close attention adapters
 
 - Added plain lifecycle and next-action filters to the existing bank-advice and period-close registers without changing approval, close, reopen, bank-response, or correction states.

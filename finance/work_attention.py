@@ -271,6 +271,35 @@ def _treasury_groups(user, department):
     return groups
 
 
+def _cash_groups(user, department):
+    from vouchers.access import has_explicit_permission
+    from vouchers.cash_register import CASH_ATTENTION_SPECS, cash_attention_queryset
+    from vouchers.roles import is_finance_uat_viewer
+
+    if is_finance_uat_viewer(user):
+        return []
+    groups = []
+    review_scope = "Permitted cross-office cash-control register"
+    preparation_scope = f"Acting Treasury department: {department.name}"
+    keys = {
+        "policy_needs_preparation": "cash-policy-preparation",
+        "policy_awaiting_review": "cash-policy-review",
+        "position_needs_preparation": "cash-position-preparation",
+        "position_awaiting_review": "cash-position-review",
+    }
+    for attention, spec in CASH_ATTENTION_SPECS.items():
+        if has_explicit_permission(user, spec["permission"]):
+            queryset, selected_attention, _work_spec = cash_attention_queryset(user, attention)
+            groups.append(_group(
+                key=keys[attention], area="Treasury cash", title=spec["title"],
+                count=queryset.count(),
+                url=_queue_url("vouchers:cash_workspace", attention=selected_attention),
+                definition=spec["definition"],
+                scope=review_scope if spec["permission"] == "vouchers.approve_cash_position" else preparation_scope,
+            ))
+    return groups
+
+
 def _reporting_groups(user, department):
     from reporting.access import (
         can_approve_reports, can_generate_reports, can_review_reports, can_view_department_reports,
@@ -314,6 +343,7 @@ def finance_work_attention(user):
     groups.extend(_accounting_groups(user, department))
     groups.extend(_bank_advice_groups(user, department))
     groups.extend(_treasury_groups(user, department))
+    groups.extend(_cash_groups(user, department))
     groups.extend(_reporting_groups(user, department))
     return {
         "groups": groups,

@@ -21,6 +21,21 @@
     <strong>Local acceptance gate.</strong> Observe mode reports availability without blocking issue. Enforce mode blocks issue only after a different reviewer activates the bank/fund policy and approves a current cash position. Public COA/DBM guidance is supporting context, not automatic local acceptance.
   </div>
 
+  <div class="card card-outline card-secondary">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Find cash-control work</h2>{% if cash_work_spec %}<span class="small text-muted float-right">{{ cash_work_count }} work item{{ cash_work_count|pluralize }} visible</span>{% endif %}</div>
+    <div class="card-body">
+      <form method="get" class="form-row align-items-end">
+        <div class="form-group col-md-9"><label for="cash-attention">What needs attention?</label><select id="cash-attention" class="form-control" name="attention"><option value="">Choose a work group</option>{% for value, label in attention_choices %}<option value="{{ value }}"{% if selected_attention == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="form-group col-md-3"><button class="btn btn-primary" type="submit">Show work</button> <a class="btn btn-outline-secondary" href="{% url 'vouchers:cash_workspace' %}">Clear</a></div>
+      </form>
+      {% if cash_work_spec %}<p class="mb-1"><strong>{{ cash_work_spec.title }}</strong></p><p class="small text-muted mb-0">{{ cash_work_spec.definition }} This list does not assign, submit, approve, or alter any record.</p>{% else %}<p class="small text-muted mb-0">Choose one policy or position action so the register counts actual records rather than mixing two kinds of work.</p>{% endif %}
+    </div>
+    {% if cash_work_spec %}<div class="table-responsive"><table class="table table-sm table-hover mb-0"><thead><tr><th>Bank / fund</th><th>Work record</th><th>Status</th><th>Next action</th><th></th></tr></thead><tbody>
+      {% for item in cash_work_items %}<tr><td>{% if cash_work_spec.kind == 'position' %}<strong>{{ item.policy.bank_account_code }}</strong><br><span class="text-muted">{{ item.policy.fund_code }}</span>{% else %}<strong>{{ item.bank_account_code }}</strong><br><span class="text-muted">{{ item.fund_code }}</span>{% endif %}</td><td>{% if cash_work_spec.kind == 'position' %}Position {{ item.as_of_date }} · v{{ item.version }}{% else %}Policy v{{ item.version }}{% endif %}</td><td>{{ item.get_status_display }}</td><td>{{ cash_work_spec.next_action }}</td><td class="text-right"><a class="btn btn-sm btn-outline-primary" href="{% if cash_work_spec.kind == 'position' %}{% url 'vouchers:cash_policy_detail' item.policy.public_id %}{% else %}{% url 'vouchers:cash_policy_detail' item.public_id %}{% endif %}">Open</a></td></tr>
+      {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">No record currently matches this work group.</td></tr>{% endfor %}
+    </tbody></table></div>{% endif %}
+  </div>
+
   <div class="card card-outline card-primary">
     <div class="card-header"><h2 class="card-title font-weight-bold">Bank and fund controls</h2></div>
     <div class="table-responsive">
