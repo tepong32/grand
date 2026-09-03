@@ -9,6 +9,7 @@ urlpatterns = [
     path("discovery/", views.discovery_workspace, name="discovery_workspace"),
     path("discovery/new/", views.discovery_decision_create, name="discovery_decision_create"),
     path("discovery/coverage-starters/", views.discovery_coverage_starters, name="discovery_coverage_starters"),
+    path("discovery/export/", views.discovery_register_export, name="discovery_register_export"),
     path("discovery/<uuid:public_id>/", views.discovery_decision_detail, name="discovery_decision_detail"),
     path("discovery/<uuid:public_id>/edit/", views.discovery_decision_edit, name="discovery_decision_edit"),
     path("discovery/<uuid:public_id>/successor/", views.discovery_decision_successor, name="discovery_decision_successor"),

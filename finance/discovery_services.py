@@ -21,6 +21,16 @@ from .access import (
 from .models import FinanceAuditEvent, FinanceDiscoveryDecision
 
 
+def _csv_safe(value):
+    """Keep exported evidence text from being executed as a spreadsheet formula."""
+    if value is None:
+        return ""
+    text = str(value)
+    if text.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return f"'{text}"
+    return text
+
+
 def discovery_decision_snapshot(item):
     return {
         "public_id": str(item.public_id),
@@ -240,7 +250,7 @@ def export_discovery_decision(item, actor):
         ("evidence_checksum", item.evidence_checksum),
         ("notice", "Portable decision evidence; it blocks or clears only the recorded affected scope and is not cutover authority."),
     )
-    writer.writerows(rows)
+    writer.writerows((_csv_safe(field), _csv_safe(value)) for field, value in rows)
     content = "\ufeff".encode("utf-8") + stream.getvalue().encode("utf-8")
     filename = f"{item.code.lower()}-v{item.version}-finance-decision.csv"
     receipt = archive_export(
@@ -264,4 +274,84 @@ def export_discovery_decision(item, actor):
         "sha256": receipt["sha256"],
         "status": item.status,
     })
+    return content, filename, receipt
+
+
+def export_discovery_register(department, actor, *, phase="", status=""):
+    """Export the actor's department register with the same filters as the workspace."""
+    if not can_manage_finance_discovery(actor, department):
+        raise PermissionDenied
+    valid_phases = dict(FinanceDiscoveryDecision.PHASE_CHOICES)
+    valid_statuses = dict(FinanceDiscoveryDecision.STATUS_CHOICES)
+    phase = phase if phase in valid_phases else ""
+    status = status if status in valid_statuses else ""
+    decisions = FinanceDiscoveryDecision.objects.filter(department=department).select_related(
+        "cycle", "owner", "reviewer", "created_by", "submitted_by", "reviewed_by", "predecessor",
+    )
+    if phase:
+        decisions = decisions.filter(phase=phase)
+    if status:
+        decisions = decisions.filter(status=status)
+    decisions = list(decisions)
+
+    stream = io.StringIO(newline="")
+    writer = csv.writer(stream, lineterminator="\n")
+    writer.writerow((
+        "decision_id", "code", "version", "phase", "coverage_area", "workflow_state",
+        "cycle", "question", "outcome_or_current_position", "evidence_label", "affected_scope",
+        "scope_blocked", "authority_or_evidence_reference", "evidence_needed_or_sufficiency",
+        "evidence_custody", "acceptance_example", "owner", "reviewer", "due_date",
+        "predecessor", "change_reason", "submitted_by", "submitted_at", "reviewed_by",
+        "reviewed_at", "review_basis", "evidence_checksum", "created_at", "updated_at",
+    ))
+    for item in decisions:
+        values = (
+            item.public_id, item.code, item.version, item.phase, item.get_coverage_kind_display(),
+            item.get_status_display(), item.cycle.code if item.cycle_id else "", item.question,
+            item.proposed_outcome, item.get_evidence_label_display(), item.affected_scope,
+            "yes" if item.blocks_affected_scope else "no", item.authority_evidence_reference,
+            item.evidence_needed, item.evidence_custody_reference, item.acceptance_example_reference,
+            item.owner.get_full_name() or item.owner.username,
+            item.reviewer.get_full_name() or item.reviewer.username, item.due_date or "",
+            f"{item.predecessor.code} v{item.predecessor.version}" if item.predecessor_id else "",
+            item.change_reason,
+            (item.submitted_by.get_full_name() or item.submitted_by.username) if item.submitted_by_id else "",
+            item.submitted_at or "",
+            (item.reviewed_by.get_full_name() or item.reviewed_by.username) if item.reviewed_by_id else "",
+            item.reviewed_at or "", item.review_note, item.evidence_checksum,
+            item.created_at, item.updated_at,
+        )
+        writer.writerow(tuple(_csv_safe(value) for value in values))
+
+    content = "\ufeff".encode("utf-8") + stream.getvalue().encode("utf-8")
+    filter_suffix = "-".join(value.lower() for value in (phase, status) if value) or "all"
+    filename = f"finance-discovery-register-{filter_suffix}.csv"
+    receipt = archive_export(
+        content=content,
+        department=department,
+        user=actor,
+        category="finance-discovery-register",
+        filename=filename,
+        metadata={
+            "phase_filter": phase,
+            "status_filter": status,
+            "record_count": len(decisions),
+            "current_blocker_count": sum(item.is_current_blocker for item in decisions),
+            "notice": "Department discovery index only; protected source files and cutover authority are separate.",
+        },
+    )
+    FinanceAuditEvent.objects.create(
+        department=department,
+        target_type="financediscoveryregister",
+        target_id=str(department.pk),
+        action="discovery_register_exported",
+        actor=actor,
+        snapshot={
+            "relative_path": receipt["relative_path"],
+            "sha256": receipt["sha256"],
+            "phase_filter": phase,
+            "status_filter": status,
+            "record_count": len(decisions),
+        },
+    )
     return content, filename, receipt

@@ -12,7 +12,7 @@
     <form method="get" class="form-row align-items-end">
       <div class="col-md-4"><label for="phase">Phase</label><select class="form-control" id="phase" name="phase"><option value="">All phases</option>{% for value,label in phase_choices %}<option value="{{ value }}"{% if selected_phase == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
       <div class="col-md-4 mt-2 mt-md-0"><label for="status">Workflow state</label><select class="form-control" id="status" name="status"><option value="">All states</option>{% for value,label in status_choices %}<option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-      <div class="col-md-4 mt-2 mt-md-0"><button class="btn btn-outline-primary">Apply</button> <a class="btn btn-link" href="{% url 'finance:discovery_workspace' %}">Clear</a></div>
+      <div class="col-md-4 mt-2 mt-md-0"><button class="btn btn-outline-primary">Apply</button>{% if can_create %} <button class="btn btn-outline-secondary" formaction="{% url 'finance:discovery_register_export' %}"><i class="fas fa-download mr-1"></i> Export department register</button>{% endif %} <a class="btn btn-link" href="{% url 'finance:discovery_workspace' %}">Clear</a></div>
     </form>
   </div>
   <div class="d-flex mb-2"><span class="small text-muted">{{ decisions|length }} visible record{{ decisions|length|pluralize }} · {{ blocking_count }} current affected-scope blocker{{ blocking_count|pluralize }}</span></div>

@@ -563,7 +563,7 @@ REQUESTING_GUIDES = REQUESTING_GUIDES + (
 ACCOUNTING_GUIDES = ACCOUNTING_GUIDES + (
     {
         "slug": "finance-discovery-decision-register",
-        "version": 2,
+        "version": 3,
         "title": "Record Finance findings and unresolved decisions",
         "summary": "Turn interviews and reviewed evidence into scoped, independently reviewed Finance decisions without silently inventing policy.",
         "permission": "finance.manage_finance_discovery",
@@ -579,7 +579,7 @@ ACCOUNTING_GUIDES = ACCOUNTING_GUIDES + (
             ("Submit a checksum-backed snapshot", "Review the coverage area, plain-language outcome, evidence references, acceptance example, custody, needed proof, scope, and blocker flag, then submit it.", "GRAND locks the submitted fields with a SHA-256 and records the action in append-only Finance audit history.", "Submission is not acceptance and does not create COA, DBM, BIR, bank, ordinance, or cutover authority.", "", ""),
             ("Review or return independently", "The named reviewer compares the cited retained evidence, then records the decision or returns it with the exact correction required.", "A recorded Unresolved decision remains visibly scope-blocking; a supported decision reflects only what its label and affected scope prove.", "A deadline or manager preference cannot convert missing evidence into a confirmed rule.", "", ""),
             ("Correct through the right route", "Edit Draft or Returned work. For a recorded decision, create a reasoned successor, update the evidence, and repeat independent review.", "When the successor is recorded, the predecessor becomes Superseded while both snapshots and audit events remain reconstructible.", "Do not overwrite or delete a recorded decision merely because the authority, form, or local practice changed.", "", ""),
-            ("Export and safeguard", "Export the decision when a reviewer or records custodian needs it. Copy or synchronize the complete GRAND export root so the CSV remains beside its checksum manifest.", "The portable record is filed under department/user/finance-discovery-decisions/year/month.", "The export is an evidence index, not the protected source file, an official form, a backup, or cutover authority.", "", ""),
+            ("Export and safeguard", "Export one decision when its named reviewer needs it. To safeguard the department register, apply the Phase and Workflow state filters, then choose Export department register. Copy or synchronize the complete GRAND export root so every CSV remains beside its checksum manifest.", "Per-record files use department/user/finance-discovery-decisions/year/month; manager register files use department/user/finance-discovery-register/year/month.", "The filtered register is department-bounded. Every export is an evidence index, not the protected source file, an official form, a backup, or cutover authority.", "Open Decisions & Evidence", "finance:discovery_workspace"),
         ),
     },
     {

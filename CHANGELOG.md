@@ -1,5 +1,14 @@
 # Changelog
 
+## F0.4 portable Finance discovery register
+
+- Added one-click export of the Finance discovery register using the same phase and workflow-state filters already visible in the workspace.
+- Kept the bulk file strictly department-bounded and manager-only while preserving the narrower per-record export available to named cross-office owners and reviewers.
+- Included coverage, workflow, evidence references, acceptance examples, ownership, review, version lineage, timestamps, and checksums without copying protected source files into the export.
+- Archived the exact browser bytes and checksum manifest under the single TraceSync-ready `department/user/finance-discovery-register/year/month` tree and retained an append-only export event.
+- Neutralized spreadsheet-formula prefixes in both bulk and per-record discovery CSV text, while leaving the evidence value readable for human review.
+- Extended focused access, filtering, archive, audit, and CSV-safety tests plus the department-specific floating guide and roadmap documentation; all 48 Finance tests and all 397 project tests pass across both routed databases.
+
 ## F0.3 editable Finance discovery coverage
 
 - Added a one-action, human-editable starter set for each candidate cycle: whole-scope acceptance plus process-step, field/data, balance/control-total, certification/approval, signature/actor, number/identifier, output, and exception/correction prompts.
@@ -17,7 +26,7 @@
 - Kept Draft and Returned records editable, made recorded evidence immutable, and added reasoned successor versions that preserve their predecessor until independently recorded.
 - Made recorded Unresolved findings remain blockers for only their named affected scope, and required an exact-scope recorded LGU-confirmed F0 decision with no current linked blocker before cutover readiness can pass.
 - Added role-bounded detail and CSV export, TraceSync archive manifests, linked blocker visibility on the Field Acceptance Board, an Accounting-specific floating Internal How-To, and schema-v8 cutover evidence containing decision lineage without protected evidence bytes.
-- Added lifecycle, UI, access, correction, export, and cutover-gate coverage; all 46 Finance tests and all 395 project tests passed across both routed databases, with clean system and migration-drift checks, while actual LGU evidence and parent-F0 acceptance remain open.
+- Added lifecycle, UI, access, correction, export, and cutover-gate coverage; the expanded F0.4 regression now passes all 48 Finance tests and all 397 project tests across both routed databases, with clean system and migration-drift checks, while actual LGU evidence and parent-F0 acceptance remain open.
 
 ## Finance roadmap-wide validation and field handoff
 

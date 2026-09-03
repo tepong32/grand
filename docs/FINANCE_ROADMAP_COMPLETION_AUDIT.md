@@ -2,7 +2,7 @@
 
 Audit date: 2026-09-03
 
-Code position: `codex/finance-discovery-coverage`, including the F0.2 governed register and F0.3 editable coverage checkpoint after F11.8
+Code position: `codex/finance-discovery-register-export`, including the F0.2 governed register, F0.3 editable coverage, and F0.4 portable-register checkpoint after F11.8
 
 Conclusion: **the planned software-control slices are implemented and regression-clean; the complete LGU field-acceptance and production-authority outcome is not yet proven**.
 
@@ -12,8 +12,8 @@ The following repository checks passed from the project virtual environment:
 
 - `python manage.py check` — no system-check issues;
 - `python manage.py makemigrations --check --dry-run` — no model/migration drift;
-- `python manage.py test finance --keepdb --verbosity 1` — 46 Finance tests passed; and
-- `python manage.py test --keepdb --verbosity 1` — 395 project tests passed across the default and separately routed Finance databases in 75.857 seconds.
+- `python manage.py test finance --keepdb --verbosity 1` — 48 Finance tests passed; and
+- `python manage.py test --keepdb --verbosity 1` — 397 project tests passed across the default and separately routed Finance databases in 75.437 seconds.
 
 The full suite exercises role and department access, maker–checker decisions, immutable evidence, reversal/successor behavior, cross-store Budget–Accounting–Treasury lineage, controlled output, TraceSync archival, reconciliation, and negative access paths. It is software evidence. It is not a substitute for field observation, production-compatible recovery, or local authority.
 
@@ -21,7 +21,7 @@ The full suite exercises role and department access, maker–checker decisions, 
 
 | Phase | Software evidence now present | Evidence still required from the implementing LGU |
 |---|---|---|
-| F0 governance and discovery | Evidence labels, source register, field worksheets, governed decisions, nine editable coverage starters, acceptance-example references, cross-office maker–checker review, exact-scope blockers, immutable successors, cycle summary, guidance, and exports | Completed interviews, locally expanded coverage rows, named owners/reviewers, current local issuances, redacted examples/control results, and independently recorded decisions for every enabled item |
+| F0 governance and discovery | Evidence labels, source register, field worksheets, governed decisions, nine editable coverage starters, acceptance-example references, cross-office maker–checker review, exact-scope blockers, immutable successors, cycle summary, guidance, and per-record/filtered department exports | Completed interviews, locally expanded coverage rows, named owners/reviewers, current local issuances, redacted examples/control results, and independently recorded decisions for every enabled item |
 | F1 architecture, identity, and audit | Role-shaped workspaces, department/object boundaries, immutable audit patterns, cross-cycle lineage, two-store routing | Named-user role validation, actual segregation-of-duties approval, local security/privacy review, and supported-device/accessibility observation |
 | F2 fiscal foundation and opening | Typed year/calendar/classifications, governed release adoption, readiness layers, reconciled opening intake/JEVs, pre-issuance correction lock | Actual classifications/calendars, approved opening schedules and balances, local authority, independent control reconciliation, and process-owner acceptance |
 | F3 budget preparation and authorization | Calls, ceilings, proposals, estimates, consolidation, reviews, authorized versions, supplemental/reenacted handling, control totals | Current local budget calendar, ordinance/review evidence, accepted forms, signatures/routes, and replayed approved budget totals |

@@ -31,7 +31,7 @@ from .cutover_services import (
 )
 from .acceptance_services import build_field_acceptance_board, export_field_acceptance_board
 from .discovery_services import (
-    create_discovery_coverage_starters, export_discovery_decision,
+    create_discovery_coverage_starters, export_discovery_decision, export_discovery_register,
     review_discovery_decision, submit_discovery_decision,
 )
 from .forms import (
@@ -1186,6 +1186,22 @@ def discovery_decision_action(request, public_id, action):
 def discovery_decision_export(request, public_id):
     item = _discovery_decision_for_user(request.user, public_id)
     content, filename, receipt = export_discovery_decision(item, request.user)
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Archive-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Archive-Path"] = receipt["relative_path"]
+    return response
+
+
+@finance_permission_required(can_manage_finance_discovery)
+def discovery_register_export(request):
+    department = department_for_user(request.user)
+    content, filename, receipt = export_discovery_register(
+        department,
+        request.user,
+        phase=request.GET.get("phase", ""),
+        status=request.GET.get("status", ""),
+    )
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     response["X-GRAND-Archive-SHA256"] = receipt["sha256"]

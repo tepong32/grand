@@ -1,6 +1,6 @@
 # Finance decisions and evidence register
 
-Status: **F0.2 governed register and F0.3 editable coverage control implemented; actual LGU discovery evidence and parent F0 acceptance remain open**.
+Status: **F0.2 governed register, F0.3 editable coverage control, and F0.4 portable department register implemented; actual LGU discovery evidence and parent F0 acceptance remain open**.
 
 ## Purpose
 
@@ -66,11 +66,17 @@ Finance discovery managers see their department's register. A named owner or rev
 
 The Accounting-specific floating **?** guide explains the workflow in place and can be read without leaving the current page. Its personal checkmarks are private resume aids, never acceptance or employee-performance evidence.
 
-Every visible entry can be exported as a UTF-8 CSV. The exact downloaded bytes and sibling SHA-256 manifest are archived under:
+Every visible entry can be exported as a UTF-8 CSV. A Finance discovery manager can also apply the ordinary phase/workflow-state filters and choose **Export department register**. That bulk CSV contains only the manager's assigned department; cross-office assignees keep their intentionally narrower per-record export access. Spreadsheet-formula prefixes in human-entered text are neutralized without hiding the underlying value.
+
+The exact downloaded bytes and sibling SHA-256 manifest are archived under either:
 
 `department/user/finance-discovery-decisions/year/month`
 
-inside the single `GRAND_EXPORT_ROOT` for TraceSync whole-folder safekeeping. Export is also written to the append-only Finance audit history. The F11 portable cutover package uses schema v9 and includes linked decision coverage areas, acceptance-example references, locked snapshots, checksums, actors, review basis, and successor lineage, while excluding protected evidence bytes and credentials.
+or, for the filtered department register:
+
+`department/user/finance-discovery-register/year/month`
+
+inside the single `GRAND_EXPORT_ROOT` for TraceSync whole-folder safekeeping. Each export is written to the append-only Finance audit history. These CSVs are evidence indexes, not the protected source files, Records filing, database backups, or authority. The F11 portable cutover package uses schema v9 and includes linked decision coverage areas, acceptance-example references, locked snapshots, checksums, actors, review basis, and successor lineage, while excluding protected evidence bytes and credentials.
 
 ## Acceptance boundary
 

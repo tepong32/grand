@@ -182,6 +182,51 @@ class FinanceDiscoveryDecisionTests(TestCase):
         )
         self.assertEqual(event.snapshot["sha256"], response["X-GRAND-Archive-SHA256"])
 
+    def test_manager_exports_filtered_department_register_without_cross_office_rows(self):
+        included = self._decision(
+            code="DEC-REGISTER-F5",
+            proposed_outcome="=UNSAFE_SPREADSHEET_FORMULA()",
+        )
+        self._decision(code="DEC-REGISTER-F0", phase="F0")
+        self._decision(
+            department=self.budget,
+            code="DEC-REGISTER-OTHER",
+            owner=self.outsider,
+            reviewer=self.owner,
+            created_by=self.outsider,
+        )
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("finance:discovery_register_export"),
+            {"phase": "F5", "status": FinanceDiscoveryDecision.DRAFT},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("finance-discovery-register", response["X-GRAND-Archive-Path"])
+        content = response.content.decode("utf-8-sig")
+        self.assertIn("coverage_area", content)
+        self.assertIn(included.code, content)
+        self.assertIn("'=UNSAFE_SPREADSHEET_FORMULA()", content)
+        self.assertNotIn("DEC-REGISTER-F0", content)
+        self.assertNotIn("DEC-REGISTER-OTHER", content)
+        event = FinanceAuditEvent.objects.get(
+            target_type="financediscoveryregister",
+            target_id=str(self.accounting.pk),
+            action="discovery_register_exported",
+        )
+        self.assertEqual(event.snapshot["record_count"], 1)
+        self.assertEqual(event.snapshot["phase_filter"], "F5")
+        self.assertEqual(event.snapshot["sha256"], response["X-GRAND-Archive-SHA256"])
+
+    def test_cross_office_assignee_cannot_bulk_export_department_register(self):
+        self._decision(code="DEC-REGISTER-NARROW")
+        self.client.force_login(self.owner)
+
+        response = self.client.get(reverse("finance:discovery_register_export"))
+
+        self.assertEqual(response.status_code, 403)
+
     def test_manager_can_create_plain_language_draft_and_reasoned_successor_in_ui(self):
         self.client.force_login(self.manager)
         create_response = self.client.post(
