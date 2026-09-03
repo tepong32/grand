@@ -3,7 +3,6 @@ import io
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -17,6 +16,9 @@ from .advice import (
     export_bank_advice_csv, record_advice_submission, record_bank_response,
     review_advice, submit_advice_for_review,
 )
+from .advice_register import (
+    BANK_ADVICE_ATTENTION_CHOICES, apply_bank_advice_filters, visible_bank_advice_batches,
+)
 from .forms import (
     AdviceStateForm, BankAdviceBatchForm, BankAdviceResponseForm, BankAdviceReviewForm,
     BankAdviceSubmissionForm, ReturnedInstrumentClarificationForm,
@@ -24,30 +26,6 @@ from .forms import (
 )
 from .models import BankAdviceBatch, ReturnedInstrumentReview
 from .roles import finance_workspace_profile
-
-
-def _batch_query(user):
-    query = BankAdviceBatch.objects.select_related(
-        "accounting_department", "configuration_release", "created_by", "approved_by", "supersedes",
-    ).prefetch_related("items__instrument__case", "events")
-    department = department_for_user(user)
-    if has_explicit_permission(user, "vouchers.approve_bank_advice") or has_explicit_permission(
-        user, "vouchers.acknowledge_bank_advice"
-    ):
-        return query.filter(accounting_department=department)
-    if has_explicit_permission(user, "vouchers.submit_bank_advice"):
-        return query.filter(
-            Q(accounting_department=department)
-            | Q(status__in=(
-                BankAdviceBatch.APPROVED,
-                BankAdviceBatch.SUBMITTED,
-                BankAdviceBatch.ACKNOWLEDGED,
-                BankAdviceBatch.RETURNED,
-                BankAdviceBatch.SUPERSEDED,
-            ))
-            | Q(bank_submitted_by=user)
-        ).distinct()
-    return query.filter(accounting_department=department)
 
 
 def _review_query(user):
@@ -62,7 +40,7 @@ def _review_query(user):
 
 
 def _batch(public_id, user):
-    item = get_object_or_404(_batch_query(user), public_id=public_id)
+    item = get_object_or_404(visible_bank_advice_batches(user), public_id=public_id)
     return item
 
 
@@ -70,7 +48,11 @@ def _batch(public_id, user):
 def workspace(request):
     if not has_explicit_permission(request.user, "vouchers.view_bank_advice"):
         raise PermissionDenied
-    batches = _batch_query(request.user).order_by("-advice_date", "-created_at")
+    batches, selected_status, selected_attention = apply_bank_advice_filters(
+        visible_bank_advice_batches(request.user),
+        status=request.GET.get("status", ""), attention=request.GET.get("attention", ""),
+    )
+    batches = batches.order_by("-advice_date", "-created_at")
     reviews = _review_query(request.user).exclude(status=ReturnedInstrumentReview.SUPERSEDED).order_by("-prepared_at")
     return render(request, "vouchers/advice/workspace.html", {
         "batches": batches,
@@ -82,6 +64,11 @@ def workspace(request):
         "can_acknowledge": has_explicit_permission(request.user, "vouchers.acknowledge_bank_advice"),
         "can_review_returns": has_explicit_permission(request.user, "vouchers.review_returned_instruments"),
         "can_export": has_explicit_permission(request.user, "vouchers.export_bank_advice"),
+        "status_choices": BankAdviceBatch.STATUS_CHOICES,
+        "attention_choices": BANK_ADVICE_ATTENTION_CHOICES,
+        "selected_status": selected_status,
+        "selected_attention": selected_attention,
+        "visible_count": batches.count(),
     })
 
 

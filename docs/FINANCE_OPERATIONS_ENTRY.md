@@ -1,6 +1,6 @@
 # Finance operations entry
 
-Status: F1.2–F1.5 foundation implemented: navigation, shared-case finder, private saved-view controls, and a permission-filtered work-attention overview. These pages make existing complete-cycle workspaces and authorized case timelines easier to find and resume; they do not create a new transaction, approval, balance, search index, assignment, notification, or authority layer.
+Status: F1.2–F1.5 foundation and first source adapters implemented: navigation, shared-case finder, private saved-view controls, and a permission-filtered work-attention overview with exact bank-advice and period-close/reopen handoffs. These pages make existing complete-cycle workspaces and authorized case timelines easier to find and resume; they do not create a new transaction, approval, balance, search index, assignment, notification, or authority layer.
 
 ## What staff receive
 

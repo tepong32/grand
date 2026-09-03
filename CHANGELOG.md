@@ -1,5 +1,13 @@
 # Changelog
 
+## F1.5 bank-advice and period-close attention adapters
+
+- Added plain lifecycle and next-action filters to the existing bank-advice and period-close registers without changing approval, close, reopen, bank-response, or correction states.
+- Reused the same role/department-scoped filter services for source pages and My Work counts, covering advice preparation/return, independent review, bank submission/response, close preparation/review, and reopen decisions.
+- Kept bank-advice submission visibility consistent with the existing cross-office Treasury handoff while preserving Accounting department boundaries for review and response roles.
+- Updated Accounting and Treasury floating guides to include the new exact queues and to keep cash-position work explicitly deferred until policy rows and actionable position versions can be represented without a misleading count.
+- Added focused source-filter, hidden-office, and My Work count/link parity coverage. The 25-test adapter/Finance/close/guidance run and all 433 project tests pass across both routed databases; the full suite completed in 82.809 seconds. Authenticated browser checks confirmed the selected filters, zero states, plain authority boundaries, and responsive 390-pixel period-close layout with no console errors.
+
 ## F1.5 cross-domain work-attention foundation
 
 - Added `/finance/my-work/` as a read-only, permission-filtered starting point over existing Budget, Voucher, Accounting, Treasury remittance, and Reporting registers.

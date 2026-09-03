@@ -129,10 +129,12 @@ def _budget_groups(user, department):
 def _accounting_groups(user, department):
     from accounting.access import (
         can_approve_bank_reconciliation, can_approve_opening_balances,
-        can_post_journals, can_post_opening_balances, can_prepare_bank_reconciliation,
-        can_prepare_journals, can_prepare_opening_balances,
+        can_approve_period_close, can_post_journals, can_post_opening_balances,
+        can_prepare_bank_reconciliation, can_prepare_journals, can_prepare_opening_balances,
+        can_prepare_period_close, can_reopen_period,
     )
     from accounting.models import BankStatementBatch, JournalEntry, OpeningBalanceBatch
+    from accounting.period_close_register import apply_period_close_filters, period_close_runs_for_department
 
     groups = []
     definitions = (
@@ -190,6 +192,55 @@ def _accounting_groups(user, department):
             groups.append(_group(
                 key=key, area=area, title=title, count=queryset.count(), url=url,
                 definition=definition, scope=department.name,
+            ))
+    close_specs = (
+        (can_prepare_period_close(user), "period-close-preparation", "Period-close checklists to prepare or correct",
+         "needs_preparation", "Draft or returned period-close evidence available to an authorized preparer."),
+        (can_approve_period_close(user), "period-close-review", "Period closes for independent review",
+         "awaiting_review", "Submitted close evidence awaiting an independent close-or-return decision."),
+        (can_reopen_period(user), "period-reopen-review", "Period reopen requests for decision",
+         "awaiting_reopen_decision", "Closed periods whose retained reopen request awaits an independent decision."),
+    )
+    for allowed, key, title, attention, definition in close_specs:
+        if allowed:
+            queryset, _status, selected_attention = apply_period_close_filters(
+                period_close_runs_for_department(department), attention=attention,
+            )
+            groups.append(_group(
+                key=key, area="Accounting close", title=title, count=queryset.count(),
+                url=_queue_url("accounting:period_close_workspace", attention=selected_attention),
+                definition=definition, scope=department.name,
+            ))
+    return groups
+
+
+def _bank_advice_groups(user, department):
+    from vouchers.access import has_explicit_permission
+    from vouchers.advice_register import apply_bank_advice_filters, visible_bank_advice_batches
+
+    if not has_explicit_permission(user, "vouchers.view_bank_advice"):
+        return []
+    groups = []
+    specs = (
+        ("vouchers.prepare_bank_advice", "bank-advice-preparation", "Bank advice to prepare or correct",
+         "needs_preparation", "Draft or returned advice versions available for preparation or a reasoned successor."),
+        ("vouchers.approve_bank_advice", "bank-advice-review", "Bank advice for independent review",
+         "awaiting_review", "Advice versions awaiting an independent Accounting approve-or-return decision."),
+        ("vouchers.submit_bank_advice", "bank-advice-submission", "Approved advice to submit to the bank",
+         "awaiting_bank_submission", "Approved advice versions awaiting retained bank-submission evidence."),
+        ("vouchers.acknowledge_bank_advice", "bank-advice-response", "Submitted advice awaiting bank response",
+         "awaiting_bank_response", "Submitted advice versions awaiting retained acknowledgement or return evidence."),
+    )
+    for permission, key, title, attention, definition in specs:
+        if has_explicit_permission(user, permission):
+            queryset, _status, selected_attention = apply_bank_advice_filters(
+                visible_bank_advice_batches(user), attention=attention,
+            )
+            groups.append(_group(
+                key=key, area="Bank advice", title=title, count=queryset.count(),
+                url=_queue_url("vouchers:advice_workspace", attention=selected_attention),
+                definition=definition,
+                scope=f"Existing role-scoped bank-advice handoff; acting department: {department.name}",
             ))
     return groups
 
@@ -261,6 +312,7 @@ def finance_work_attention(user):
     groups.extend(_budget_groups(user, department))
     groups.extend(_voucher_groups(user, department))
     groups.extend(_accounting_groups(user, department))
+    groups.extend(_bank_advice_groups(user, department))
     groups.extend(_treasury_groups(user, department))
     groups.extend(_reporting_groups(user, department))
     return {

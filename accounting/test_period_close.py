@@ -188,3 +188,27 @@ class GovernedPeriodCloseTests(TestCase):
                 manifests = list(Path(export_root).rglob("*.manifest.json"))
                 self.assertEqual(len(manifests), 1)
         self.assertTrue(PeriodCloseEvent.objects.filter(run=run, action="exported").exists())
+
+    def test_close_attention_filter_and_my_work_use_the_same_source_records(self):
+        submitted = self._run(self.january)
+        submit_period_close_run(submitted, self.preparer)
+        draft = self._run(self.february)
+        self.client.force_login(self.preparer)
+
+        source = self.client.get(
+            reverse("accounting:period_close_workspace"), {"attention": "awaiting_review"},
+        )
+        work = self.client.get(reverse("finance_operations:my_work"))
+
+        self.assertEqual(source.status_code, 200)
+        self.assertEqual(source.context["selected_attention"], "awaiting_review")
+        self.assertEqual(source.context["visible_count"], 1)
+        self.assertEqual(list(source.context["runs"].values_list("pk", flat=True)), [submitted.pk])
+        self.assertNotEqual(draft.pk, submitted.pk)
+        group = next(item for item in work.context["groups"] if item["key"] == "period-close-review")
+        self.assertEqual(group["count"], source.context["visible_count"])
+        self.assertEqual(
+            group["url"],
+            f'{reverse("accounting:period_close_workspace")}?attention=awaiting_review',
+        )
+        self.assertContains(source, "does not assign work, close a period, or approve a reopen")

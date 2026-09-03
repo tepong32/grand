@@ -64,6 +64,9 @@ from .close_services import (
     decide_period_close_run, decide_period_reopen, refresh_period_close_run,
     request_period_reopen, submit_period_close_policy, submit_period_close_run,
 )
+from .period_close_register import (
+    PERIOD_CLOSE_ATTENTION_CHOICES, apply_period_close_filters, period_close_runs_for_department,
+)
 from .bank_register_exports import (
     ATTENTION_CHOICES as BANK_ATTENTION_CHOICES,
     apply_bank_register_filters, build_bank_control_register, next_bank_action,
@@ -428,7 +431,10 @@ def _close_policy_for_department(request, public_id):
 @accounting_access_required
 def period_close_workspace(request):
     department = department_for_user(request.user)
-    runs = PeriodCloseRun.objects.filter(department_id=department.pk).select_related("period", "policy")
+    runs, selected_status, selected_attention = apply_period_close_filters(
+        period_close_runs_for_department(department),
+        status=request.GET.get("status", ""), attention=request.GET.get("attention", ""),
+    )
     periods = AccountingPeriod.objects.filter(department_id=department.pk).order_by(
         "-fiscal_year", "-period_number",
     )
@@ -442,6 +448,11 @@ def period_close_workspace(request):
         "can_export_close": can_export_period_close(request.user),
         "can_manage_policies": can_manage_period_close_policies(request.user),
         "can_approve_policies": can_approve_period_close_policies(request.user),
+        "status_choices": PeriodCloseRun.STATUS_CHOICES,
+        "attention_choices": PERIOD_CLOSE_ATTENTION_CHOICES,
+        "selected_status": selected_status,
+        "selected_attention": selected_attention,
+        "visible_count": runs.count(),
     })
 
 

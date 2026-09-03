@@ -8,7 +8,7 @@ from ..models import Department, InternalHowTo, InternalHowToStep
 ACCOUNTING_GUIDES = (
     {
         "slug": "finance-fiscal-foundation-manager",
-        "version": 1,
+        "version": 2,
         "title": "Prepare the fiscal-year foundation",
         "summary": "Build and hand off the governed calendar and classifications, then export one retained review register.",
         "permission": "accounting.manage_accounting_setup",
@@ -704,7 +704,7 @@ def _department_kind(department):
 FINANCE_MY_WORK_GUIDES = {
     "accounting": {
         "slug": "finance-my-work-accounting",
-        "version": 1,
+        "version": 2,
         "title": "Triage Accounting work needing attention",
         "summary": "Start from live Accounting and connected Finance counts, then continue in the exact governed register.",
         "permission": "accounting.view_accounting_workspace",
@@ -712,7 +712,7 @@ FINANCE_MY_WORK_GUIDES = {
         "order": 4,
         "steps": (
             ("Open work needing attention", "From Finance operations, open Work needing attention. Read the generated time and your current department before relying on a count.", "Only groups supported for your current permissions are shown.", "A count is not a new assignment, approval, or notification.", "Review My Work", "finance_operations:my_work"),
-            ("Choose the exact Accounting group", "Use the JEV, opening-balance, bank-reconciliation, or reporting group that matches the action you may perform.", "The row states what is counted and the department scope used.", "Period-close and other queues appear only after their drill-down adapter can reproduce the same count.", "", ""),
+            ("Choose the exact Accounting group", "Use the JEV, opening-balance, bank-reconciliation, period-close/reopen, bank-advice, or reporting group that matches the action you may perform.", "The row states what is counted and the department scope used.", "Cash-position and other queues appear only after their source page can reproduce the same work item and count.", "", ""),
             ("Open the source queue", "Choose Open exact queue and confirm its visible row count before opening a record.", "The source register applies the same lifecycle-state filter as the attention row.", "The linked Accounting or Reporting record remains authoritative; do not treat this overview as transaction state.", "", ""),
             ("Continue the governed action", "Open one source record, follow its next-action guidance, and use its return, reversal, or successor route if correction is needed.", "Work continues with the source record's permission, maker-checker, version, and audit controls.", "Private tutorial checkmarks only help you resume reading; they are not work-completion or competence evidence.", "", ""),
         ),
@@ -734,16 +734,16 @@ FINANCE_MY_WORK_GUIDES = {
     },
     "treasury": {
         "slug": "finance-my-work-treasury",
-        "version": 1,
+        "version": 2,
         "title": "Triage Treasury work needing attention",
         "summary": "Start from live voucher and remittance counts, then continue in the exact controlled Treasury register.",
         "permission": "vouchers.view_voucher_workbench",
         "patterns": ["finance_operations:overview", "finance_operations:my_work"],
         "order": 4,
         "steps": (
-            ("Open work needing attention", "From Finance operations, open Work needing attention and check the generated time and department.", "Only Treasury groups backed by an exact drill-down are included.", "Bank-advice and cash-position groups stay outside this overview until their exact filtered adapters are implemented.", "Review My Work", "finance_operations:my_work"),
-            ("Choose voucher or remittance work", "Use the shared voucher action row for checks, advice-stage cases, returns, or release; use a remittance row for its named state.", "The group definition identifies what its number means.", "Do not infer bank acknowledgement, cash availability, release authority, or payment from a count.", "", ""),
-            ("Open the exact queue", "Choose Open exact queue and confirm the filtered records before acting.", "The Voucher Workbench or remittance register shows the same scoped state.", "The source record remains authoritative and retains maker-checker and correction controls.", "", ""),
+            ("Open work needing attention", "From Finance operations, open Work needing attention and check the generated time and department.", "Only Treasury groups backed by an exact drill-down are included.", "Cash-position work stays outside this overview until its policy page can identify the same actionable position records and count.", "Review My Work", "finance_operations:my_work"),
+            ("Choose voucher, advice, or remittance work", "Use the shared voucher action row for checks, returns, or release; use the bank-advice row for approved submission work; use a remittance row for its named state.", "The group definition identifies what its number means.", "Do not infer bank acknowledgement, cash availability, release authority, or payment from a count.", "", ""),
+            ("Open the exact queue", "Choose Open exact queue and confirm the filtered records before acting.", "The Voucher Workbench, bank-advice register, or remittance register shows the same role-scoped state.", "The source record remains authoritative and retains maker-checker and correction controls.", "", ""),
             ("Correct through the governed route", "Follow the source record's return, replacement, cancellation, or posting route and record the required reason and evidence.", "Original and successor evidence remain traceable.", "Never silently edit an issued check, acknowledged advice, released remittance, or posted Accounting event.", "", ""),
         ),
     },

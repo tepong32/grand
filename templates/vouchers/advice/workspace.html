@@ -18,6 +18,18 @@
     <strong>Release gate:</strong> approving or submitting an advice does not release a check. Treasury receives the case only after the bank acknowledgement reference and retained evidence are recorded.
   </div>
 
+  <div class="card card-outline card-secondary">
+    <div class="card-header"><h2 class="card-title font-weight-bold">Find advice work</h2><span class="small text-muted float-right">{{ visible_count }} advice version{{ visible_count|pluralize }} visible</span></div>
+    <div class="card-body">
+      <form method="get" class="form-row align-items-end">
+        <div class="form-group col-md-4"><label for="advice-status">Lifecycle status</label><select id="advice-status" class="form-control" name="status"><option value="">All statuses</option>{% for value, label in status_choices %}<option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="form-group col-md-5"><label for="advice-attention">What needs attention?</label><select id="advice-attention" class="form-control" name="attention"><option value="">All next actions</option>{% for value, label in attention_choices %}<option value="{{ value }}"{% if selected_attention == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="form-group col-md-3"><button class="btn btn-primary" type="submit">Apply</button> <a class="btn btn-outline-secondary" href="{% url 'vouchers:advice_workspace' %}">Clear</a></div>
+      </form>
+      <p class="small text-muted mb-0">These filters change only the visible source register. They do not assign work or change an advice status.</p>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-header"><h2 class="card-title font-weight-bold">Advice versions</h2></div>
     <div class="card-body p-0">
