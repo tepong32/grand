@@ -7,6 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid5
 
+from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.utils import timezone
 
@@ -1261,6 +1262,325 @@ def _treasury_payment_tasks(user, department, today):
     return tasks
 
 
+def _remittance_tasks(user, department, today):
+    from django.db.models import Q
+
+    from finance.models import FinanceConfigurationItem, FinancePostingRule
+    from vouchers.models import TreasuryRemittanceBatch, TreasuryRemittanceLine
+    from vouchers.remittance_register import (
+        remittance_action_choices_for_user, remittance_action_queryset,
+    )
+    from vouchers.remittances import _digest, _validate_live_lines
+
+    queue_labels = {
+        "preparation": "Treasury remittance preparers",
+        "returned": "Treasury remittance preparers",
+        "review": "Independent Accounting remittance reviewers",
+        "release": "Treasury remittance release officers",
+    }
+    tasks = []
+    for action_key, _label in remittance_action_choices_for_user(user):
+        queryset, _selected, spec = remittance_action_queryset(user, action_key)
+        queryset = queryset.select_related(
+            "configuration_release", "configuration_release__department", "transaction_variant",
+            "recipient_party", "treasury_department", "created_by", "submitted_by", "reviewed_by",
+            "posting_rule",
+        ).prefetch_related("lines", "posting_requests")
+        for item in queryset.order_by("-remittance_date", "-pk"):
+            lines = list(item.lines.all())
+            active_lines = [row for row in lines if row.status == TreasuryRemittanceLine.ACTIVE]
+            active_total = sum((row.amount for row in active_lines), start=Decimal("0.00"))
+            exceptions = []
+            if active_total != item.total_amount:
+                exceptions.append(
+                    f"Active remittance lines differ from the batch control total by {active_total - item.total_amount:.2f}."
+                )
+            if item.status in (
+                TreasuryRemittanceBatch.FOR_REVIEW, TreasuryRemittanceBatch.APPROVED,
+            ):
+                try:
+                    _validate_live_lines(item)
+                except ValidationError as exc:
+                    exceptions.extend(getattr(exc, "messages", [str(exc)]))
+            configured = set(FinanceConfigurationItem.objects.filter(
+                release=item.configuration_release,
+                category__in=("fund", "bank_account"), status="active",
+                effective_from__lte=item.remittance_date,
+            ).filter(
+                Q(effective_to__isnull=True) | Q(effective_to__gte=item.remittance_date),
+            ).values_list("category", "code"))
+            if ("fund", item.fund_code) not in configured:
+                exceptions.append("The remittance fund is not active in its pinned Finance Setup release.")
+            if ("bank_account", item.bank_account_code) not in configured:
+                exceptions.append("The remittance bank/payment account is not active in its pinned Finance Setup release.")
+            if (
+                item.recipient_party.status != "active"
+                or item.recipient_party.party_type != item.recipient_party.AGENCY
+                or item.recipient_party.effective_from > item.remittance_date
+                or (
+                    item.recipient_party.effective_to is not None
+                    and item.recipient_party.effective_to < item.remittance_date
+                )
+            ):
+                exceptions.append("The pinned remittance recipient is not an active government agency.")
+            if (
+                item.transaction_variant.status != "active"
+                or item.transaction_variant.effective_from > item.remittance_date
+                or (
+                    item.transaction_variant.effective_to is not None
+                    and item.transaction_variant.effective_to < item.remittance_date
+                )
+            ):
+                exceptions.append("The pinned remittance transaction variant is not active.")
+            live_rule = item.transaction_variant.posting_rules.filter(
+                event_kind=FinancePostingRule.REMITTANCE,
+                recognition_point=FinancePostingRule.DEDUCTION_REMITTANCE,
+                accounting_effect=FinancePostingRule.JOURNAL_ENTRY,
+            ).first()
+            if action_key in ("preparation", "returned") and live_rule is None:
+                exceptions.append("No active governed deduction-remittance posting rule is available for this variant.")
+            if action_key in ("review", "release"):
+                if item.posting_rule_id is None or not item.posting_rule_snapshot or not item.posting_rule_checksum:
+                    exceptions.append("The submitted remittance does not carry a complete pinned posting-rule snapshot.")
+                elif _digest(item.posting_rule_snapshot) != item.posting_rule_checksum:
+                    exceptions.append("The pinned remittance posting-rule checksum no longer matches its snapshot.")
+                elif item.posting_rule_id != (live_rule.pk if live_rule is not None else None):
+                    exceptions.append("The pinned posting rule no longer matches the governed remittance rule; return for review.")
+            if not active_lines:
+                next_action = "Add at least one posted withholding balance, then reconcile the exact schedule total before submission."
+            else:
+                next_action = spec["next_action"]
+            if item.status == TreasuryRemittanceBatch.RETURNED:
+                exceptions.append(item.review_reason.strip() or "Accounting returned this batch with retained correction instructions.")
+            projection = {
+                "batch": [
+                    item.state_version, item.status, str(item.total_amount), item.fund_code,
+                    item.bank_account_code, item.remittance_date.isoformat(), item.payment_method,
+                    item.configuration_release_id, item.transaction_variant_id, item.recipient_party_id,
+                    item.created_by_id, item.submitted_by_id, item.reviewed_by_id,
+                    item.posting_rule_id, item.posting_rule_checksum,
+                    item.posting_rule_snapshot,
+                ],
+                "configured_routes": sorted([list(row) for row in configured]),
+                "lines": [
+                    [
+                        row.pk, str(row.lineage_key), row.version, row.status, row.fund_code,
+                        row.account_code, row.reference_key, row.deduction_code, str(row.amount),
+                        str(row.available_balance_snapshot), row.source_checksum, row.tax_rule_checksum,
+                    ]
+                    for row in lines
+                ],
+                "posting_requests": [
+                    [str(row.public_id), row.version, row.status, row.jev_number, row.payload_checksum, row.failure_reason]
+                    for row in item.posting_requests.all()
+                ],
+            }
+            received_at = item.submitted_at if action_key == "review" else item.updated_at
+            if action_key == "release":
+                received_at = item.reviewed_at or item.updated_at
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:treasury-remittance:{item.public_id}:{action_key}",
+                task_type=f"finance.treasury-remittance.{action_key}.v1",
+                area="Treasury remittance",
+                case_id=f"treasury-remittance:{item.public_id}",
+                reference=item.reference_code,
+                transaction_type=item.transaction_variant.label,
+                subject=f"{item.recipient_party.display_name} · {item.total_amount:.2f}",
+                action=next_action,
+                gate=spec["definition"],
+                owner_queue=f"{queue_labels[action_key]} · {department.name}",
+                scope=(
+                    f"Treasury: {item.treasury_department.name}; Finance ledger: {item.finance_department_label}; "
+                    f"fund {item.fund_code}; bank {item.bank_account_code}"
+                ),
+                received_at=received_at or item.updated_at,
+                due_on=None,
+                due_state="No structured target",
+                calendar_basis="The remittance date is a transaction date, not an inferred review or release deadline.",
+                age_days=_age_days(received_at or item.updated_at, today),
+                state=(
+                    "Returned" if item.status == TreasuryRemittanceBatch.RETURNED
+                    else "Exception" if exceptions else "Ready"
+                ),
+                source_state=item.get_status_display(),
+                source_version=f"projection-sha256:{_projection_checksum(projection)}",
+                exception=" ".join(exceptions),
+                url=item.get_absolute_url(),
+            ))
+    return tasks
+
+
+def _cash_control_tasks(user, department, today):
+    from accounting.models import Fund
+    from finance.models import FinanceConfigurationItem
+    from vouchers.cash_positions import (
+        _checksum, _position_snapshot, latest_reconciled_bank_position,
+    )
+    from vouchers.cash_register import cash_attention_choices_for_user, cash_attention_queryset
+    from vouchers.models import TreasuryCashPolicy, TreasuryCashPosition
+
+    tasks = []
+    for action_key, _label in cash_attention_choices_for_user(user):
+        queryset, _selected, spec = cash_attention_queryset(user, action_key)
+        if spec["kind"] == "policy":
+            queryset = queryset.select_related(
+                "configuration_release", "configuration_release__department", "treasury_department",
+                "created_by", "submitted_by", "approved_by", "supersedes",
+            )
+        else:
+            queryset = queryset.select_related(
+                "policy", "policy__configuration_release", "policy__configuration_release__department",
+                "policy__treasury_department", "created_by", "submitted_by", "approved_by", "supersedes",
+            )
+        for item in queryset.order_by("-pk"):
+            if spec["kind"] == "policy":
+                policy = item
+                exceptions = []
+                bank_is_active = FinanceConfigurationItem.objects.filter(
+                    release=policy.configuration_release, category="bank_account",
+                    code=policy.bank_account_code, status="active",
+                ).exists()
+                fund_is_active = Fund.objects.filter(
+                    department_id=policy.configuration_release.department_id,
+                    code=policy.fund_code, is_active=True,
+                ).exists()
+                if not bank_is_active:
+                    exceptions.append("The policy bank/payment account is not active in its pinned Finance Setup.")
+                if not fund_is_active:
+                    exceptions.append("The policy fund is not active in the pinned Accounting setup.")
+                if not policy.authority_reference.strip() or not policy.local_applicability_note.strip():
+                    exceptions.append("The reviewed authority and local-applicability evidence must both be recorded.")
+                if policy.status == TreasuryCashPolicy.RETURNED:
+                    action = "Prepare a reasoned successor policy version from the returned record; do not overwrite or resubmit it."
+                    exceptions.append("This policy was returned; its correction instructions remain in the append-only cash events.")
+                else:
+                    action = spec["next_action"]
+                projection = {
+                    "route": [policy.configuration_release_id, policy.bank_account_code, policy.fund_code],
+                    "policy": [
+                        policy.state_version, policy.status, policy.version, policy.mode,
+                        str(policy.minimum_reserve), policy.position_max_age_days,
+                        policy.unclaimed_after_days, policy.stale_after_days,
+                        policy.effective_from.isoformat(), policy.effective_to.isoformat() if policy.effective_to else "",
+                        policy.authority_reference, policy.local_applicability_note,
+                        policy.created_by_id, policy.submitted_by_id, policy.supersedes_id,
+                    ],
+                    "route_active": [bank_is_active, fund_is_active],
+                }
+                received_at = policy.submitted_at if action_key == "policy_awaiting_review" else policy.created_at
+                tasks.append(FinanceWorkTask(
+                    task_id=f"finwork:v1:treasury-cash-policy:{policy.public_id}:{action_key.replace('_', '-')}",
+                    task_type=f"finance.treasury-cash-policy.{action_key}.v1",
+                    area="Treasury cash control",
+                    case_id=f"treasury-cash-policy:{policy.public_id}",
+                    reference=f"{policy.bank_account_code} · {policy.fund_code} · v{policy.version}",
+                    transaction_type=f"Cash policy · {policy.get_mode_display()}",
+                    subject=f"Reserve {policy.minimum_reserve:.2f}; position age limit {policy.position_max_age_days} day(s)",
+                    action=action,
+                    gate=spec["definition"],
+                    owner_queue=(
+                        "Independent cash-control reviewers"
+                        if action_key == "policy_awaiting_review"
+                        else f"Treasury cash-policy preparers · {policy.treasury_department.name}"
+                    ),
+                    scope=f"{policy.treasury_department.name}; Finance Setup {policy.configuration_release.code}",
+                    received_at=received_at or policy.created_at,
+                    due_on=None,
+                    due_state="No structured target",
+                    calendar_basis="Policy effectivity is retained as a control period, not inferred as a review deadline.",
+                    age_days=_age_days(received_at or policy.created_at, today),
+                    state=(
+                        "Returned" if policy.status == TreasuryCashPolicy.RETURNED
+                        else "Exception" if exceptions else "Ready"
+                    ),
+                    source_state=policy.get_status_display(),
+                    source_version=f"projection-sha256:{_projection_checksum(projection)}",
+                    exception=" ".join(exceptions),
+                    url=reverse("vouchers:cash_policy_detail", kwargs={"public_id": policy.public_id}),
+                ))
+                continue
+
+            position = item
+            policy = position.policy
+            exceptions = []
+            exact_available = position.approved_available_cash
+            if not position.evidence_reference.strip():
+                exceptions.append("The retained cash-position evidence reference is blank.")
+            try:
+                reconciliation, snapshot = latest_reconciled_bank_position(policy, position.as_of_date)
+            except ValidationError as exc:
+                exceptions.extend(getattr(exc, "messages", [str(exc)]))
+            else:
+                if (
+                    str(reconciliation.public_id) != str(position.reconciliation_public_id)
+                    or reconciliation.reconciliation_checksum != position.reconciliation_checksum
+                    or snapshot["book_balance"] != str(position.reconciled_book_balance)
+                ):
+                    exceptions.append("The pinned reconciliation is no longer the authoritative bank position for this date.")
+            if action_key == "position_awaiting_review":
+                if not position.snapshot_checksum:
+                    exceptions.append("The submitted position has no immutable snapshot checksum.")
+                elif _checksum(_position_snapshot(position)) != position.snapshot_checksum:
+                    exceptions.append("The submitted cash-position checksum no longer matches its evidence.")
+            if position.status == TreasuryCashPosition.RETURNED:
+                action = "Prepare a reasoned successor position for the same policy/date; do not overwrite or resubmit the returned snapshot."
+                exceptions.append("This position was returned; its correction instructions remain in the append-only cash events.")
+            else:
+                action = (
+                    f"{spec['next_action']} Exact available cash is {exact_available:.2f} "
+                    "after inflows, outflows, holds, and minimum reserve."
+                )
+            projection = {
+                "position": [
+                    position.state_version, position.status, position.version,
+                    position.as_of_date.isoformat(), str(position.reconciliation_public_id),
+                    position.reconciliation_checksum, position.reconciliation_period_end.isoformat(),
+                    str(position.reconciled_book_balance), str(position.confirmed_inflows),
+                    str(position.confirmed_outflows), str(position.other_holds),
+                    str(policy.minimum_reserve), str(exact_available), position.evidence_reference,
+                    position.preparation_note, position.snapshot_checksum,
+                    position.created_by_id, position.submitted_by_id, position.supersedes_id,
+                ],
+                "policy": [policy.state_version, policy.status, policy.mode, policy.bank_account_code, policy.fund_code],
+            }
+            received_at = position.submitted_at if action_key == "position_awaiting_review" else position.created_at
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:treasury-cash-position:{position.public_id}:{action_key.replace('_', '-')}",
+                task_type=f"finance.treasury-cash-position.{action_key}.v1",
+                area="Treasury cash control",
+                case_id=f"treasury-cash-position:{position.public_id}",
+                reference=f"{policy.bank_account_code} · {policy.fund_code} · {position.as_of_date} · v{position.version}",
+                transaction_type="Cash-position snapshot",
+                subject=(
+                    f"{position.reconciled_book_balance:.2f} + {position.confirmed_inflows:.2f} - "
+                    f"{position.confirmed_outflows:.2f} - {position.other_holds:.2f} - "
+                    f"{policy.minimum_reserve:.2f} = {exact_available:.2f}"
+                ),
+                action=action,
+                gate=spec["definition"],
+                owner_queue=(
+                    "Independent cash-position reviewers"
+                    if action_key == "position_awaiting_review"
+                    else f"Treasury cash-position preparers · {policy.treasury_department.name}"
+                ),
+                scope=f"{policy.treasury_department.name}; reconciliation {position.reconciliation_public_id}",
+                received_at=received_at or position.created_at,
+                due_on=None,
+                due_state="No structured target",
+                calendar_basis="The as-of and reconciliation dates are control dates, not inferred review deadlines.",
+                age_days=_age_days(received_at or position.created_at, today),
+                state=(
+                    "Returned" if position.status == TreasuryCashPosition.RETURNED
+                    else "Exception" if exceptions else "Ready"
+                ),
+                source_state=position.get_status_display(),
+                source_version=f"projection-sha256:{_projection_checksum(projection)}",
+                exception=" ".join(exceptions),
+                url=reverse("vouchers:cash_policy_detail", kwargs={"public_id": policy.public_id}),
+            ))
+    return tasks
+
+
 def _field_operation_tasks(user, department, today):
     from finance.shadow_register_exports import (
         shadow_action_choices_for_user, shadow_action_queryset,
@@ -1334,6 +1654,8 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks.extend(_accounting_validation_tasks(user, department, today))
     tasks.extend(_journal_tasks(user, department, today))
     tasks.extend(_treasury_payment_tasks(user, department, today))
+    tasks.extend(_remittance_tasks(user, department, today))
+    tasks.extend(_cash_control_tasks(user, department, today))
     tasks.extend(_field_operation_tasks(user, department, today))
     tasks.extend(_local_form_tasks(user, department, today))
     tasks.sort(key=lambda task: (task.area, task.reference.lower(), task.task_type, task.task_id))
@@ -1346,6 +1668,7 @@ def finance_work_tasks(user, *, display_limit=100):
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls",
             "Treasury check preparation and instrument release",
+            "Treasury remittance and cash controls",
             "Field-operation cycle and nested-record gates", "Local forms",
         ),
     }

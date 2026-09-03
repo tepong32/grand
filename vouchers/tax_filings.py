@@ -29,6 +29,12 @@ def _require(actor, permission):
         raise PermissionDenied
 
 
+def _require_treasury_scope(actor, batch):
+    department = department_for_user(actor)
+    if department is None or batch.treasury_department_id != department.pk:
+        raise PermissionDenied("Tax-remittance preparation is limited to the owning Treasury office.")
+
+
 def _digest(value):
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
@@ -200,6 +206,7 @@ def _event(item, actor, action, previous, reason=""):
 def save_draft(*, batch, actor, evidence=None, **values):
     _require(actor, "vouchers.prepare_remittances")
     locked_batch = TreasuryRemittanceBatch.objects.select_for_update().select_related("recipient_party").get(pk=batch.pk)
+    _require_treasury_scope(actor, locked_batch)
     if locked_batch.status not in {locked_batch.ACCOUNTING_POSTING, locked_batch.COMPLETED}:
         raise TaxFilingWorkflowError("Record the actual remittance release before preparing filing evidence.")
     scope, _scope_checksum = tax_scope(locked_batch)
@@ -256,7 +263,8 @@ def save_draft(*, batch, actor, evidence=None, **values):
 @transaction.atomic
 def submit_evidence(*, evidence, actor):
     _require(actor, "vouchers.prepare_remittances")
-    item = TaxFilingEvidence.objects.select_for_update().get(pk=evidence.pk)
+    item = TaxFilingEvidence.objects.select_for_update().select_related("batch").get(pk=evidence.pk)
+    _require_treasury_scope(actor, item.batch)
     if item.status not in {item.DRAFT, item.RETURNED}:
         raise TaxFilingWorkflowError("Only draft or returned filing evidence can be submitted.")
     scope, _checksum = tax_scope(item.batch)
@@ -298,7 +306,8 @@ def review_evidence(*, evidence, actor, approve, reason):
 @transaction.atomic
 def create_amendment(*, evidence, actor, reason):
     _require(actor, "vouchers.prepare_remittances")
-    prior = TaxFilingEvidence.objects.select_for_update().get(pk=evidence.pk)
+    prior = TaxFilingEvidence.objects.select_for_update().select_related("batch").get(pk=evidence.pk)
+    _require_treasury_scope(actor, prior.batch)
     if prior.status != prior.VERIFIED:
         raise TaxFilingWorkflowError("Only verified evidence can start an amended successor.")
     if not reason.strip():

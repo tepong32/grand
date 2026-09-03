@@ -226,5 +226,8 @@ class FinanceOperationsEntryTests(TestCase):
         )
         self.assertEqual(groups["report-generation"]["url"], "/reports/?status=draft")
         self.assertEqual(groups["report-rerun"]["url"], "/reports/?attention=generation_failed")
-        self.assertEqual(groups["remittance-preparation"]["url"], "/finance/vouchers/remittances/?status=draft")
+        self.assertEqual(
+            groups["remittance-preparation"]["url"],
+            "/finance/vouchers/remittances/?attention=preparation",
+        )
         self.assertEqual(response.context["action_count"], 0)

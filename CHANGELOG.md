@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 exact Treasury remittance and cash-control work tasks
+
+- Added stable, source-linked My Work items for remittance preparation, returned correction, independent review, actual release, cash-policy preparation/review, and cash-position preparation/review.
+- Replaced raw global remittance counts with shared permission-, office-, state-, maker-checker-, and UAT-aware source queries; added the same maker-checker protection to cash review source queues.
+- Added evidence-sensitive remittance line/control, configured route, agency/variant effectivity, posting-rule checksum, cash-policy, reconciliation, submitted-position checksum, and exact cash arithmetic checks without inventing deadlines.
+- Hardened remittance and tax-filing object/service boundaries so cross-office review visibility cannot be used for another Treasury office's preparation, filing edits, or release; direct remittance inputs now enforce current setup/effectivity and cent precision.
+- Locked submitted and returned cash policy/position evidence against in-place rewrites, required reasoned successors, and removed returned items from preparation once a successor exists.
+- Expanded the remittance, cash-control, and general floating guides and updated the My Work roadmap/audit. The 179-test Finance/Voucher/Accounting/guidance gate and all 499 project tests passed across both routed databases; the full suite completed in 110.868 seconds, Django checks are clean, and no migration drift exists.
+
 ## F1.5 exact Treasury payment work tasks
 
 - Added stable current-office My Work actions for Treasury check preparation and one separate release task for each advised physical instrument.

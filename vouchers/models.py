@@ -1011,10 +1011,10 @@ class TreasuryCashPolicy(models.Model):
                 "stale_after_days", "effective_from", "effective_to", "authority_reference",
                 "local_applicability_note", "version", "supersedes_id",
             )
-            if prior and prior.status in (self.ACTIVE, self.SUPERSEDED) and any(
+            if prior and prior.status in (self.FOR_REVIEW, self.ACTIVE, self.RETURNED, self.SUPERSEDED) and any(
                 getattr(prior, field) != getattr(self, field) for field in governed
             ):
-                raise ValidationError("Active cash-control policy is immutable. Prepare a successor version.")
+                raise ValidationError("Submitted, returned, or active cash-control policy evidence is immutable. Prepare a successor version.")
 
     def save(self, *args, **kwargs):
         if self.pk:
@@ -1025,10 +1025,10 @@ class TreasuryCashPolicy(models.Model):
                 "stale_after_days", "effective_from", "effective_to", "authority_reference",
                 "local_applicability_note", "version", "supersedes_id",
             )
-            if prior.status in (self.ACTIVE, self.SUPERSEDED) and any(
+            if prior.status in (self.FOR_REVIEW, self.ACTIVE, self.RETURNED, self.SUPERSEDED) and any(
                 getattr(prior, field) != getattr(self, field) for field in governed
             ):
-                raise ValidationError("Active cash-control policy is immutable. Prepare a successor version.")
+                raise ValidationError("Submitted, returned, or active cash-control policy evidence is immutable. Prepare a successor version.")
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -1114,10 +1114,10 @@ class TreasuryCashPosition(models.Model):
                 "confirmed_outflows", "other_holds", "evidence_reference", "preparation_note",
                 "version", "supersedes_id", "snapshot_checksum",
             )
-            if prior and prior.status in (self.APPROVED, self.SUPERSEDED) and any(
+            if prior and prior.status in (self.FOR_REVIEW, self.APPROVED, self.RETURNED, self.SUPERSEDED) and any(
                 getattr(prior, field) != getattr(self, field) for field in governed
             ):
-                raise ValidationError("Approved cash positions are immutable. Prepare a successor snapshot.")
+                raise ValidationError("Submitted, returned, or approved cash-position evidence is immutable. Prepare a successor snapshot.")
 
     def save(self, *args, **kwargs):
         if self.pk:
@@ -1128,10 +1128,10 @@ class TreasuryCashPosition(models.Model):
                 "confirmed_outflows", "other_holds", "evidence_reference", "preparation_note",
                 "version", "supersedes_id", "snapshot_checksum",
             )
-            if prior.status in (self.APPROVED, self.SUPERSEDED) and any(
+            if prior.status in (self.FOR_REVIEW, self.APPROVED, self.RETURNED, self.SUPERSEDED) and any(
                 getattr(prior, field) != getattr(self, field) for field in governed
             ):
-                raise ValidationError("Approved cash positions are immutable. Prepare a successor snapshot.")
+                raise ValidationError("Submitted, returned, or approved cash-position evidence is immutable. Prepare a successor snapshot.")
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from django.db.models import Q
+
 from .access import department_for_user, has_explicit_permission
 from .models import TreasuryCashPolicy, TreasuryCashPosition
 from .roles import is_finance_uat_viewer
@@ -61,6 +63,16 @@ def visible_cash_policies(user):
     return query.filter(treasury_department=department)
 
 
+def cash_attention_choices_for_user(user):
+    if is_finance_uat_viewer(user):
+        return ()
+    return tuple(
+        (key, spec["title"])
+        for key, spec in CASH_ATTENTION_SPECS.items()
+        if has_explicit_permission(user, spec["permission"])
+    )
+
+
 def cash_attention_queryset(user, attention):
     """Return one exact actionable record type, never a mixed policy/position count."""
     spec = CASH_ATTENTION_SPECS.get(attention)
@@ -71,10 +83,19 @@ def cash_attention_queryset(user, attention):
             return TreasuryCashPosition.objects.none(), attention, spec
         return TreasuryCashPolicy.objects.none(), attention, spec
     policies = visible_cash_policies(user)
+    if spec["permission"] == "vouchers.prepare_cash_position":
+        department = department_for_user(user)
+        policies = policies.filter(treasury_department_id=department.pk)
     if spec["kind"] == "position":
         queryset = TreasuryCashPosition.objects.filter(
             policy__in=policies, status__in=spec["statuses"],
         ).select_related("policy", "policy__treasury_department", "created_by", "submitted_by", "approved_by")
     else:
         queryset = policies.filter(status__in=spec["statuses"])
+    if attention == "policy_needs_preparation":
+        queryset = queryset.exclude(status=TreasuryCashPolicy.RETURNED, successor__isnull=False)
+    elif attention == "position_needs_preparation":
+        queryset = queryset.exclude(status=TreasuryCashPosition.RETURNED, successor__isnull=False)
+    if attention.endswith("awaiting_review"):
+        queryset = queryset.exclude(Q(created_by=user) | Q(submitted_by=user))
     return queryset, attention, spec

@@ -3,15 +3,19 @@ from decimal import Decimal
 from uuid import uuid4
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group, Permission
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
 from departments.models import Department
 from finance.models import FinanceConfigurationRelease
+from finance.work_tasks import finance_work_tasks
 from profiles.models import EmployeeProfile
 
+from .cash_register import cash_attention_queryset
 from .models import TreasuryCashPolicy, TreasuryCashPosition
+from .roles import FINANCE_UAT_VIEWER_GROUP
 
 
 class CashWorkRegisterTests(TestCase):
@@ -165,3 +169,113 @@ class CashWorkRegisterTests(TestCase):
         group = next(item for item in work.context["groups"] if item["key"] == "cash-position-review")
         self.assertEqual(group["count"], source.context["cash_work_count"])
         self.assertEqual(group["scope"], "Permitted cross-office cash-control register")
+
+    def test_exact_cash_tasks_preserve_source_count_and_show_the_control_equation(self):
+        policy_source, _selected, _spec = cash_attention_queryset(
+            self.user, "policy_needs_preparation",
+        )
+        position_source, _selected, _spec = cash_attention_queryset(
+            self.user, "position_needs_preparation",
+        )
+        tasks = finance_work_tasks(self.user)["tasks"]
+        policy_tasks = [
+            row for row in tasks
+            if row["task_type"] == "finance.treasury-cash-policy.policy_needs_preparation.v1"
+        ]
+        position_tasks = [
+            row for row in tasks
+            if row["task_type"] == "finance.treasury-cash-position.position_needs_preparation.v1"
+        ]
+
+        self.assertEqual(len(policy_tasks), policy_source.count())
+        self.assertEqual(len(position_tasks), position_source.count())
+        draft = next(
+            row for row in position_tasks
+            if row["case_id"] == f"treasury-cash-position:{self.draft_position.public_id}"
+        )
+        self.assertIn("1000.00 + 100.00 - 50.00 - 25.00 - 100.00 = 925.00", draft["subject"])
+        self.assertIn("Accounting fund is not active", draft["exception"])
+        returned = next(
+            row for row in policy_tasks
+            if row["case_id"] == f"treasury-cash-policy:{self.returned_policy.public_id}"
+        )
+        self.assertEqual(returned["state"], "Returned")
+        self.assertIn("reasoned successor policy version", returned["action"])
+
+        original = next(
+            row for row in policy_tasks
+            if row["case_id"] == f"treasury-cash-policy:{self.draft_policy.public_id}"
+        )
+        self.draft_policy.minimum_reserve = Decimal("101.00")
+        self.draft_policy.save(update_fields=("minimum_reserve",))
+        changed = next(
+            row for row in finance_work_tasks(self.user)["tasks"]
+            if row["case_id"] == original["case_id"]
+        )
+        self.assertEqual(changed["task_id"], original["task_id"])
+        self.assertNotEqual(changed["source_version"], original["source_version"])
+
+    def test_combined_role_does_not_receive_own_review_or_other_office_preparation(self):
+        self.user.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="approve_cash_position",
+        ))
+
+        self.assertEqual(
+            set(cash_attention_queryset(self.user, "policy_needs_preparation")[0]),
+            {self.draft_policy, self.returned_policy},
+        )
+        self.assertFalse(cash_attention_queryset(self.user, "policy_awaiting_review")[0].exists())
+        self.assertFalse(cash_attention_queryset(self.user, "position_awaiting_review")[0].exists())
+
+    def test_uat_account_has_no_exact_cash_actions(self):
+        uat = get_user_model().objects.create_user(
+            username="cash.register.uat", email="cash.register.uat@example.test",
+            password="test-password",
+        )
+        profile, _created = EmployeeProfile.objects.get_or_create(user=uat)
+        profile.assigned_department = self.treasury
+        profile.save(update_fields=("assigned_department",))
+        uat.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers",
+            codename__in=("view_cash_position", "prepare_cash_position", "approve_cash_position"),
+        ))
+        uat.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+
+        self.assertFalse(cash_attention_queryset(uat, "policy_needs_preparation")[0].exists())
+        self.assertFalse(any(
+            row["task_type"].startswith("finance.treasury-cash-")
+            for row in finance_work_tasks(uat)["tasks"]
+        ))
+
+    def test_review_and_returned_cash_evidence_requires_a_successor_not_rewrite(self):
+        self.review_policy.minimum_reserve = Decimal("101.00")
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            self.review_policy.save()
+        self.returned_policy.minimum_reserve = Decimal("102.00")
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            self.returned_policy.save()
+        self.review_position.confirmed_inflows = Decimal("101.00")
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            self.review_position.save()
+        self.returned_position.confirmed_inflows = Decimal("102.00")
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            self.returned_position.save()
+
+    def test_reasoned_successor_replaces_returned_item_in_preparation_queue(self):
+        successor_policy = self._policy(
+            self.release, self.treasury, self.user, TreasuryCashPolicy.DRAFT, 5,
+        )
+        successor_policy.supersedes = self.returned_policy
+        successor_policy.save(update_fields=("supersedes",))
+        successor_position = self._position(
+            self.active_policy, self.user, TreasuryCashPosition.DRAFT, 5,
+        )
+        successor_position.supersedes = self.returned_position
+        successor_position.save(update_fields=("supersedes",))
+
+        policies = cash_attention_queryset(self.user, "policy_needs_preparation")[0]
+        positions = cash_attention_queryset(self.user, "position_needs_preparation")[0]
+        self.assertIn(successor_policy, policies)
+        self.assertNotIn(self.returned_policy, policies)
+        self.assertIn(successor_position, positions)
+        self.assertNotIn(self.returned_position, positions)

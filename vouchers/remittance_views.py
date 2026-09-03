@@ -5,13 +5,17 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.text import slugify
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from .access import has_explicit_permission, voucher_access_required
+from .access import department_for_user, has_explicit_permission, voucher_access_required
 from .forms import (
     RemittanceBatchForm, RemittanceLineForm, RemittanceLineRevisionForm,
     RemittanceReleaseForm, RemittanceReviewForm, TaxFilingAmendmentForm,
     TaxFilingEvidenceForm, TaxFilingEvidenceReviewForm,
 )
 from .models import TaxFilingEvidence, TreasuryRemittanceBatch, TreasuryRemittanceLine
+from .remittance_register import (
+    remittance_action_choices_for_user, remittance_action_queryset,
+    visible_remittance_batches,
+)
 from .remittances import (
     add_line, create_batch, export_batch_csv, release_batch, review_batch,
     revise_line, submit_batch, withholding_availability,
@@ -29,10 +33,12 @@ def _can_view(user):
     ))
 
 
-def _batch(public_id):
-    return get_object_or_404(TreasuryRemittanceBatch.objects.select_related(
+def _batch(public_id, user):
+    return get_object_or_404(visible_remittance_batches(
+        user, TreasuryRemittanceBatch.objects.select_related(
         "configuration_release", "transaction_variant", "recipient_party", "treasury_department",
         "created_by", "submitted_by", "reviewed_by", "released_by", "posting_rule",
+        )
     ), public_id=public_id)
 
 
@@ -40,10 +46,16 @@ def _message_error(request, exc):
     messages.error(request, " ".join(getattr(exc, "messages", [str(exc)])))
 
 
-def _evidence(public_id, evidence_id):
+def _require_treasury_action(user, batch):
+    if batch.treasury_department != department_for_user(user):
+        raise PermissionDenied
+
+
+def _evidence(public_id, evidence_id, user):
+    batch = _batch(public_id, user)
     return get_object_or_404(
         TaxFilingEvidence.objects.select_related("batch", "created_by", "submitted_by", "reviewed_by"),
-        public_id=evidence_id, batch__public_id=public_id,
+        public_id=evidence_id, batch=batch,
     )
 
 
@@ -52,15 +64,28 @@ def _evidence(public_id, evidence_id):
 def workspace(request):
     if not _can_view(request.user):
         raise PermissionDenied
-    batches = TreasuryRemittanceBatch.objects.select_related("recipient_party", "treasury_department")
+    batches = visible_remittance_batches(
+        request.user,
+        TreasuryRemittanceBatch.objects.select_related("recipient_party", "treasury_department"),
+    )
+    attention = request.GET.get("attention", "")
+    work_items, selected_attention, work_spec = remittance_action_queryset(
+        request.user, attention, queryset=batches,
+    )
     selected = request.GET.get("status", "")
-    if selected in dict(TreasuryRemittanceBatch.STATUS_CHOICES):
+    if selected_attention:
+        batches = work_items
+        selected = ""
+    elif selected in dict(TreasuryRemittanceBatch.STATUS_CHOICES):
         batches = batches.filter(status=selected)
     else:
         selected = ""
     return render(request, "vouchers/remittances/workspace.html", {
         "batches": batches[:100], "status_choices": TreasuryRemittanceBatch.STATUS_CHOICES,
         "selected_status": selected,
+        "selected_attention": selected_attention,
+        "work_spec": work_spec,
+        "attention_choices": remittance_action_choices_for_user(request.user),
         "can_prepare": has_explicit_permission(request.user, "vouchers.prepare_remittances"),
         "can_approve": has_explicit_permission(request.user, "vouchers.approve_remittances"),
         "can_release": has_explicit_permission(request.user, "vouchers.release_remittances"),
@@ -89,7 +114,7 @@ def create(request):
 def detail(request, public_id):
     if not _can_view(request.user):
         raise PermissionDenied
-    batch = _batch(public_id)
+    batch = _batch(public_id, request.user)
     active_lines = batch.lines.filter(status=TreasuryRemittanceLine.ACTIVE)
     available = withholding_availability(finance_department_id=batch.finance_department_id, transaction_type=batch.transaction_variant.code, as_of_date=batch.remittance_date)
     can_audit = has_explicit_permission(request.user, "vouchers.view_remittance_audit")
@@ -109,9 +134,18 @@ def detail(request, public_id):
         "available_count": len([row for row in available if row["fund_code"] == batch.fund_code]),
         "line_form": RemittanceLineForm(batch=batch),
         "review_form": RemittanceReviewForm(), "release_form": RemittanceReleaseForm(),
-        "can_prepare": has_explicit_permission(request.user, "vouchers.prepare_remittances"),
-        "can_approve": has_explicit_permission(request.user, "vouchers.approve_remittances"),
-        "can_release": has_explicit_permission(request.user, "vouchers.release_remittances"),
+        "can_prepare": (
+            has_explicit_permission(request.user, "vouchers.prepare_remittances")
+            and batch.treasury_department == department_for_user(request.user)
+        ),
+        "can_approve": (
+            has_explicit_permission(request.user, "vouchers.approve_remittances")
+            and request.user.pk not in (batch.created_by_id, batch.submitted_by_id)
+        ),
+        "can_release": (
+            has_explicit_permission(request.user, "vouchers.release_remittances")
+            and batch.treasury_department == department_for_user(request.user)
+        ),
         "can_audit": can_audit,
         "filing_history": filing_history, "current_filing": current_filing,
         "tax_filing_eligible": tax_filing_eligible,
@@ -123,7 +157,7 @@ def detail(request, public_id):
 @require_POST
 @voucher_access_required
 def add_allocation(request, public_id):
-    batch = _batch(public_id)
+    batch = _batch(public_id, request.user)
     form = RemittanceLineForm(request.POST, batch=batch)
     if form.is_valid():
         try:
@@ -140,7 +174,7 @@ def add_allocation(request, public_id):
 @require_http_methods(["GET", "POST"])
 @voucher_access_required
 def revise_allocation(request, public_id, pk):
-    batch = _batch(public_id)
+    batch = _batch(public_id, request.user)
     line = get_object_or_404(TreasuryRemittanceLine, pk=pk, batch=batch, status=TreasuryRemittanceLine.ACTIVE)
     form = RemittanceLineRevisionForm(request.POST or None, line=line)
     if request.method == "POST" and form.is_valid():
@@ -157,7 +191,7 @@ def revise_allocation(request, public_id, pk):
 @require_POST
 @voucher_access_required
 def submit(request, public_id):
-    batch = _batch(public_id)
+    batch = _batch(public_id, request.user)
     try:
         submit_batch(batch=batch, actor=request.user)
     except ValidationError as exc:
@@ -170,7 +204,7 @@ def submit(request, public_id):
 @require_POST
 @voucher_access_required
 def review(request, public_id):
-    batch = _batch(public_id)
+    batch = _batch(public_id, request.user)
     form = RemittanceReviewForm(request.POST)
     if form.is_valid():
         try:
@@ -187,7 +221,7 @@ def review(request, public_id):
 @require_POST
 @voucher_access_required
 def release(request, public_id):
-    batch = _batch(public_id)
+    batch = _batch(public_id, request.user)
     form = RemittanceReleaseForm(request.POST)
     if form.is_valid():
         try:
@@ -204,7 +238,7 @@ def release(request, public_id):
 @require_GET
 @voucher_access_required
 def export(request, public_id):
-    batch = _batch(public_id)
+    batch = _batch(public_id, request.user)
     content, archived = export_batch_csv(batch=batch, actor=request.user)
     filename = f"{slugify(batch.reference_code)}-remittance-register.csv"
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")
@@ -219,9 +253,10 @@ def export(request, public_id):
 @require_http_methods(["GET", "POST"])
 @voucher_access_required
 def tax_filing_create(request, public_id):
-    batch = _batch(public_id)
+    batch = _batch(public_id, request.user)
     if not has_explicit_permission(request.user, "vouchers.prepare_remittances"):
         raise PermissionDenied
+    _require_treasury_action(request.user, batch)
     form = TaxFilingEvidenceForm(request.POST or None, batch=batch)
     if request.method == "POST" and form.is_valid():
         try:
@@ -240,9 +275,10 @@ def tax_filing_create(request, public_id):
 @require_http_methods(["GET", "POST"])
 @voucher_access_required
 def tax_filing_edit(request, public_id, evidence_id):
-    evidence = _evidence(public_id, evidence_id)
+    evidence = _evidence(public_id, evidence_id, request.user)
     if not has_explicit_permission(request.user, "vouchers.prepare_remittances"):
         raise PermissionDenied
+    _require_treasury_action(request.user, evidence.batch)
     form = TaxFilingEvidenceForm(request.POST or None, instance=evidence, batch=evidence.batch)
     if request.method == "POST" and form.is_valid():
         try:
@@ -261,7 +297,7 @@ def tax_filing_edit(request, public_id, evidence_id):
 @require_POST
 @voucher_access_required
 def tax_filing_submit(request, public_id, evidence_id):
-    evidence = _evidence(public_id, evidence_id)
+    evidence = _evidence(public_id, evidence_id, request.user)
     try:
         submit_evidence(evidence=evidence, actor=request.user)
     except ValidationError as exc:
@@ -274,7 +310,7 @@ def tax_filing_submit(request, public_id, evidence_id):
 @require_POST
 @voucher_access_required
 def tax_filing_review(request, public_id, evidence_id):
-    evidence = _evidence(public_id, evidence_id)
+    evidence = _evidence(public_id, evidence_id, request.user)
     form = TaxFilingEvidenceReviewForm(request.POST)
     if form.is_valid():
         try:
@@ -294,7 +330,7 @@ def tax_filing_review(request, public_id, evidence_id):
 @require_POST
 @voucher_access_required
 def tax_filing_amend(request, public_id, evidence_id):
-    evidence = _evidence(public_id, evidence_id)
+    evidence = _evidence(public_id, evidence_id, request.user)
     form = TaxFilingAmendmentForm(request.POST)
     if form.is_valid():
         try:
@@ -311,7 +347,7 @@ def tax_filing_amend(request, public_id, evidence_id):
 @require_GET
 @voucher_access_required
 def tax_filing_export(request, public_id, evidence_id):
-    evidence = _evidence(public_id, evidence_id)
+    evidence = _evidence(public_id, evidence_id, request.user)
     content, archived = export_evidence_csv(evidence=evidence, actor=request.user)
     filename = f"{slugify(evidence.batch.reference_code)}-tax-filing-v{evidence.version}.csv"
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")

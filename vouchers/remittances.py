@@ -4,6 +4,7 @@ import csv
 import hashlib
 import io
 import json
+from datetime import date
 from decimal import Decimal
 
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -17,7 +18,7 @@ from accounting.models import (
     JournalSubsidiaryLine, LedgerAccount, PostingMapping,
 )
 from finance.models import (
-    FinanceConfigurationRelease, FinanceNumberingSequence, FinanceParty,
+    FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence, FinanceParty,
     FinancePostingRule, FinancePostingRuleLine,
 )
 from finance.services import posting_rule_snapshot
@@ -37,6 +38,12 @@ class RemittanceWorkflowError(ValidationError):
 def _require(actor, permission):
     if not has_explicit_permission(actor, permission):
         raise PermissionDenied
+
+
+def _require_treasury_scope(actor, batch):
+    department = department_for_user(actor)
+    if department is None or batch.treasury_department_id != department.pk:
+        raise PermissionDenied("Remittance preparation and release are limited to the owning Treasury office.")
 
 
 def _digest(value):
@@ -179,8 +186,53 @@ def create_batch(*, actor, configuration_release, transaction_variant, recipient
                  bank_account_code, remittance_date, payment_method, authority_reference, evidence_reference):
     _require(actor, "vouchers.prepare_remittances")
     treasury_department = department_for_user(actor)
-    if configuration_release.status != "active":
+    if treasury_department is None:
+        raise PermissionDenied("Assign the preparer to a Treasury department before creating a remittance.")
+    configuration_release = FinanceConfigurationRelease.objects.select_for_update().get(
+        pk=configuration_release.pk,
+    )
+    transaction_variant = type(transaction_variant).objects.get(pk=transaction_variant.pk)
+    recipient_party = FinanceParty.objects.get(pk=recipient_party.pk)
+    today = timezone.localdate()
+    if not isinstance(remittance_date, date):
+        raise RemittanceWorkflowError("Enter a valid remittance date.")
+    if (
+        configuration_release.status != "active"
+        or configuration_release.effective_from > today
+        or (configuration_release.effective_to is not None and configuration_release.effective_to < today)
+    ):
         raise RemittanceWorkflowError("Choose the currently active Accounting-approved Finance Setup release.")
+    if (
+        transaction_variant.release_id != configuration_release.pk
+        or transaction_variant.status != "active"
+        or transaction_variant.effective_from > remittance_date
+        or (transaction_variant.effective_to is not None and transaction_variant.effective_to < remittance_date)
+    ):
+        raise RemittanceWorkflowError("Choose a transaction variant active for the remittance date from the pinned release.")
+    if (
+        recipient_party.release_id != configuration_release.pk
+        or recipient_party.party_type != FinanceParty.AGENCY
+        or recipient_party.status != "active"
+        or recipient_party.effective_from > remittance_date
+        or (recipient_party.effective_to is not None and recipient_party.effective_to < remittance_date)
+    ):
+        raise RemittanceWorkflowError("Choose an active receiving government agency for the remittance date.")
+    fund_code = str(fund_code or "").strip()
+    bank_account_code = str(bank_account_code or "").strip()
+    configured = set(FinanceConfigurationItem.objects.filter(
+        release=configuration_release, status="active",
+        category__in=("fund", "bank_account"),
+        effective_from__lte=remittance_date,
+    ).filter(
+        Q(effective_to__isnull=True) | Q(effective_to__gte=remittance_date),
+    ).values_list("category", "code"))
+    if ("fund", fund_code) not in configured or ("bank_account", bank_account_code) not in configured:
+        raise RemittanceWorkflowError("Choose an active fund and bank/payment account from the pinned Finance Setup release.")
+    payment_method = str(payment_method or "").strip()
+    authority_reference = str(authority_reference or "").strip()
+    evidence_reference = str(evidence_reference or "").strip()
+    if not payment_method or not authority_reference or not evidence_reference:
+        raise RemittanceWorkflowError("Record the payment method, reviewed authority, and retained evidence reference.")
     batch = TreasuryRemittanceBatch(
         reference_code=f"PENDING-{timezone.now().strftime('%Y%m%d%H%M%S%f')}",
         configuration_release=configuration_release, transaction_variant=transaction_variant,
@@ -188,8 +240,8 @@ def create_batch(*, actor, configuration_release, transaction_variant, recipient
         finance_department_id=configuration_release.department_id,
         finance_department_label=configuration_release.department.name,
         fund_code=fund_code, bank_account_code=bank_account_code,
-        remittance_date=remittance_date, payment_method=payment_method.strip(),
-        authority_reference=authority_reference.strip(), evidence_reference=evidence_reference.strip(),
+        remittance_date=remittance_date, payment_method=payment_method,
+        authority_reference=authority_reference, evidence_reference=evidence_reference,
         created_by=actor,
     )
     batch.full_clean(); batch.save()
@@ -203,6 +255,7 @@ def create_batch(*, actor, configuration_release, transaction_variant, recipient
 def add_line(*, batch, actor, choice_key, amount, reason):
     _require(actor, "vouchers.prepare_remittances")
     locked = TreasuryRemittanceBatch.objects.select_for_update().get(pk=batch.pk)
+    _require_treasury_scope(actor, locked)
     _lock_reservation_scope(locked)
     if locked.status not in {locked.DRAFT, locked.RETURNED}:
         raise RemittanceWorkflowError("Allocations can be changed only before submission or after an Accounting return.")
@@ -211,9 +264,15 @@ def add_line(*, batch, actor, choice_key, amount, reason):
         raise RemittanceWorkflowError("That posted withholding balance is no longer available. Refresh the batch.")
     if row["fund_code"] != locked.fund_code:
         raise RemittanceWorkflowError("One remittance batch must use one fund. Start another batch for a different fund.")
-    amount = Decimal(amount)
-    if amount <= 0 or amount > row["available"]:
+    try:
+        amount = Decimal(amount)
+    except (ArithmeticError, TypeError, ValueError):
+        raise RemittanceWorkflowError("Enter a valid remittance allocation amount.")
+    if not amount.is_finite() or amount.as_tuple().exponent < -2 or amount <= 0 or amount > row["available"]:
         raise RemittanceWorkflowError(f"Enter an amount up to the currently available {row['available']:,.2f}.")
+    reason = str(reason or "").strip()
+    if not reason:
+        raise RemittanceWorkflowError("Record why this posted withholding balance belongs in the schedule.")
     line = TreasuryRemittanceLine(
         batch=locked, fund_code=row["fund_code"], account_code=row["account_code"],
         account_title=row["account_title"], reference_key=row["reference_key"],
@@ -221,7 +280,7 @@ def add_line(*, batch, actor, choice_key, amount, reason):
         source_as_of_date=locked.remittance_date, available_balance_snapshot=row["available"],
         amount=amount, source_checksum=row["source_checksum"],
         tax_rule_snapshot=row["tax_rule_snapshot"], tax_rule_checksum=row["tax_rule_checksum"],
-        change_reason=reason.strip(), created_by=actor,
+        change_reason=reason, created_by=actor,
     )
     line.full_clean(); line.save()
     locked.total_amount = locked.lines.filter(status=TreasuryRemittanceLine.ACTIVE).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
@@ -235,20 +294,29 @@ def revise_line(*, line, actor, amount, reason):
     _require(actor, "vouchers.prepare_remittances")
     current = TreasuryRemittanceLine.objects.select_for_update().select_related("batch").get(pk=line.pk)
     batch = TreasuryRemittanceBatch.objects.select_for_update().get(pk=current.batch_id)
+    _require_treasury_scope(actor, batch)
     _lock_reservation_scope(batch)
     if current.status != current.ACTIVE or batch.status not in {batch.DRAFT, batch.RETURNED}:
         raise RemittanceWorkflowError("Only an active pre-submission allocation can be revised.")
-    if not reason.strip():
+    reason = str(reason or "").strip()
+    if not reason:
         raise RemittanceWorkflowError("Explain the allocation modification.")
-    amount = Decimal(amount)
+    try:
+        amount = Decimal(amount)
+    except (ArithmeticError, TypeError, ValueError):
+        raise RemittanceWorkflowError("Enter a valid revised remittance amount.")
     available_without_self = next((row for row in withholding_availability(
         finance_department_id=batch.finance_department_id,
         transaction_type=batch.transaction_variant.code,
         as_of_date=batch.remittance_date,
         include_nonpositive=True,
     ) if row["fund_code"] == current.fund_code and row["account_code"] == current.account_code and row["reference_key"] == current.reference_key and row["deduction_code"] == current.deduction_code), None)
-    capacity = (available_without_self["available"] if available_without_self else Decimal("0.00")) + current.amount
-    if amount < 0 or amount > capacity:
+    if available_without_self is None:
+        raise RemittanceWorkflowError(
+            "The original posted withholding balance no longer exists. Stop and route the batch for reconciliation."
+        )
+    capacity = available_without_self["available"] + current.amount
+    if not amount.is_finite() or amount.as_tuple().exponent < -2 or amount < 0 or amount > capacity:
         raise RemittanceWorkflowError(f"Enter zero to remove, or an amount up to {capacity:,.2f}.")
     current.status = current.REMOVED if amount == 0 else current.SUPERSEDED
     TreasuryRemittanceLine.objects.filter(pk=current.pk).update(status=current.status)
@@ -261,7 +329,7 @@ def revise_line(*, line, actor, amount, reason):
         source_as_of_date=batch.remittance_date, available_balance_snapshot=capacity,
         amount=amount if amount > 0 else current.amount, source_checksum=current.source_checksum,
         tax_rule_snapshot=current.tax_rule_snapshot, tax_rule_checksum=current.tax_rule_checksum,
-        change_reason=reason.strip(), created_by=actor,
+        change_reason=reason, created_by=actor,
     )
     successor.full_clean(); successor.save()
     batch.total_amount = batch.lines.filter(status=TreasuryRemittanceLine.ACTIVE).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
@@ -282,7 +350,12 @@ def _validate_live_lines(batch):
     )
     available = {(r["fund_code"], r["account_code"], r["reference_key"], r["deduction_code"]): r["available"] for r in current}
     for line in lines:
-        remaining = available.get((line.fund_code, line.account_code, line.reference_key, line.deduction_code), Decimal("0.00"))
+        key = (line.fund_code, line.account_code, line.reference_key, line.deduction_code)
+        if key not in available:
+            raise RemittanceWorkflowError(
+                f"The posted withholding balance for {line.reference_label} no longer exists. Return to preparation and reconcile it."
+            )
+        remaining = available[key]
         if remaining < 0:
             raise RemittanceWorkflowError(f"The available balance for {line.reference_label} changed. Return to preparation and refresh it.")
     total = sum((line.amount for line in lines), Decimal("0.00"))
@@ -295,6 +368,7 @@ def _validate_live_lines(batch):
 def submit_batch(*, batch, actor):
     _require(actor, "vouchers.prepare_remittances")
     locked = TreasuryRemittanceBatch.objects.select_for_update().select_related("transaction_variant").get(pk=batch.pk)
+    _require_treasury_scope(actor, locked)
     _lock_reservation_scope(locked)
     if locked.status not in {locked.DRAFT, locked.RETURNED}:
         raise RemittanceWorkflowError("Only a draft or returned remittance can be submitted.")
@@ -323,14 +397,15 @@ def review_batch(*, batch, actor, approve, reason):
         raise RemittanceWorkflowError("Only a submitted remittance is awaiting Accounting review.")
     if locked.created_by_id == actor.pk or locked.submitted_by_id == actor.pk:
         raise RemittanceWorkflowError("Maker-checker control: the preparer cannot approve the same remittance.")
-    if not reason.strip():
+    reason = str(reason or "").strip()
+    if not reason:
         raise RemittanceWorkflowError("Record the review basis or correction reason.")
     if approve:
         _lock_reservation_scope(locked)
         _validate_live_lines(locked)
     previous = locked.status
     locked.status = locked.APPROVED if approve else locked.RETURNED
-    locked.reviewed_by = actor; locked.reviewed_at = timezone.now(); locked.review_reason = reason.strip()
+    locked.reviewed_by = actor; locked.reviewed_at = timezone.now(); locked.review_reason = reason
     locked.state_version += 1; locked.save()
     _event(locked, actor, "approved_for_release" if approve else "returned_for_correction", previous, reason)
     return locked
@@ -362,14 +437,17 @@ def _posting_payload(batch, lines):
 def release_batch(*, batch, actor, release_reference, acknowledgement_reference):
     _require(actor, "vouchers.release_remittances")
     locked = TreasuryRemittanceBatch.objects.select_for_update().get(pk=batch.pk)
+    _require_treasury_scope(actor, locked)
     _lock_reservation_scope(locked)
     if locked.status != locked.APPROVED:
         raise RemittanceWorkflowError("Only an independently approved remittance can be released.")
-    if not release_reference.strip():
+    release_reference = str(release_reference or "").strip()
+    acknowledgement_reference = str(acknowledgement_reference or "").strip()
+    if not release_reference:
         raise RemittanceWorkflowError("Record the bank, payment, or official release reference.")
     lines = _validate_live_lines(locked)
-    locked.release_reference = release_reference.strip()
-    locked.acknowledgement_reference = acknowledgement_reference.strip()
+    locked.release_reference = release_reference
+    locked.acknowledgement_reference = acknowledgement_reference
     locked.released_by = actor; locked.released_at = timezone.now()
     previous = locked.status; locked.status = locked.ACCOUNTING_POSTING; locked.state_version += 1
     locked.save()

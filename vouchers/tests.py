@@ -628,6 +628,19 @@ class VoucherWorkflowTests(TestCase):
             evidence_reference="Synthetic withholding schedule 2026-08",
         )
         self.assertEqual(batch.reference_code, "REM-00001")
+        for invalid_amount in (Decimal("NaN"), Decimal("Infinity"), Decimal("0.001")):
+            with self.subTest(invalid_amount=invalid_amount):
+                with self.assertRaisesMessage(ValidationError, "currently available"):
+                    add_line(
+                        batch=batch, actor=self.treasury_user,
+                        choice_key=availability[0]["choice_key"], amount=invalid_amount,
+                        reason="Synthetic invalid precision check",
+                    )
+        with self.assertRaisesMessage(ValidationError, "Record why"):
+            add_line(
+                batch=batch, actor=self.treasury_user,
+                choice_key=availability[0]["choice_key"], amount=Decimal("80.00"), reason=" ",
+            )
         first = add_line(
             batch=batch, actor=self.treasury_user, choice_key=availability[0]["choice_key"],
             amount=Decimal("80.00"), reason="Initial reviewed schedule amount",

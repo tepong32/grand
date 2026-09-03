@@ -389,38 +389,35 @@ def _returned_instrument_groups(user, department):
 
 
 def _treasury_groups(user, department):
-    from vouchers.access import has_explicit_permission
-    from vouchers.models import TreasuryRemittanceBatch
+    from vouchers.remittance_register import (
+        remittance_action_choices_for_user, remittance_action_queryset,
+    )
 
     groups = []
-    specs = (
-        ("vouchers.prepare_remittances", "remittance-preparation", "Remittances to prepare or correct",
-         TreasuryRemittanceBatch.objects.filter(status=TreasuryRemittanceBatch.DRAFT), TreasuryRemittanceBatch.DRAFT),
-        ("vouchers.prepare_remittances", "remittance-returned", "Returned remittances to correct",
-         TreasuryRemittanceBatch.objects.filter(status=TreasuryRemittanceBatch.RETURNED), TreasuryRemittanceBatch.RETURNED),
-        ("vouchers.approve_remittances", "remittance-review", "Remittances for independent review",
-         TreasuryRemittanceBatch.objects.filter(status=TreasuryRemittanceBatch.FOR_REVIEW), TreasuryRemittanceBatch.FOR_REVIEW),
-        ("vouchers.release_remittances", "remittance-release", "Approved remittances awaiting release",
-         TreasuryRemittanceBatch.objects.filter(status=TreasuryRemittanceBatch.APPROVED), TreasuryRemittanceBatch.APPROVED),
-    )
-    for permission, key, title, queryset, status in specs:
-        if has_explicit_permission(user, permission):
-            groups.append(_group(
-                key=key, area="Treasury", title=title, count=queryset.count(),
-                url=_queue_url("vouchers:remittance_workspace", status=status),
-                definition="Records in the explicit governed state named by this attention group.",
-                scope="Permitted central Finance remittance register",
-            ))
+    keys = {
+        "preparation": "remittance-preparation",
+        "returned": "remittance-returned",
+        "review": "remittance-review",
+        "release": "remittance-release",
+    }
+    for action, _label in remittance_action_choices_for_user(user):
+        queryset, selected, spec = remittance_action_queryset(user, action)
+        scope = (
+            "Permitted cross-office Finance remittance review"
+            if spec["scope"] == "finance"
+            else f"Owning Treasury office: {department.name}"
+        )
+        groups.append(_group(
+            key=keys[action], area="Treasury", title=spec["title"], count=queryset.count(),
+            url=_queue_url("vouchers:remittance_workspace", attention=selected),
+            definition=spec["definition"], scope=scope,
+        ))
     return groups
 
 
 def _cash_groups(user, department):
-    from vouchers.access import has_explicit_permission
-    from vouchers.cash_register import CASH_ATTENTION_SPECS, cash_attention_queryset
-    from vouchers.roles import is_finance_uat_viewer
+    from vouchers.cash_register import cash_attention_choices_for_user, cash_attention_queryset
 
-    if is_finance_uat_viewer(user):
-        return []
     groups = []
     review_scope = "Permitted cross-office cash-control register"
     preparation_scope = f"Acting Treasury department: {department.name}"
@@ -430,16 +427,15 @@ def _cash_groups(user, department):
         "position_needs_preparation": "cash-position-preparation",
         "position_awaiting_review": "cash-position-review",
     }
-    for attention, spec in CASH_ATTENTION_SPECS.items():
-        if has_explicit_permission(user, spec["permission"]):
-            queryset, selected_attention, _work_spec = cash_attention_queryset(user, attention)
-            groups.append(_group(
-                key=keys[attention], area="Treasury cash", title=spec["title"],
-                count=queryset.count(),
-                url=_queue_url("vouchers:cash_workspace", attention=selected_attention),
-                definition=spec["definition"],
-                scope=review_scope if spec["permission"] == "vouchers.approve_cash_position" else preparation_scope,
-            ))
+    for attention, _label in cash_attention_choices_for_user(user):
+        queryset, selected_attention, spec = cash_attention_queryset(user, attention)
+        groups.append(_group(
+            key=keys[attention], area="Treasury cash", title=spec["title"],
+            count=queryset.count(),
+            url=_queue_url("vouchers:cash_workspace", attention=selected_attention),
+            definition=spec["definition"],
+            scope=review_scope if spec["permission"] == "vouchers.approve_cash_position" else preparation_scope,
+        ))
     return groups
 
 
