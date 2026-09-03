@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
+from uuid import UUID, uuid5
 
 from django.urls import reverse
 from django.utils import timezone
@@ -52,6 +55,155 @@ def _due_state(due_on, today):
     if due_on == today:
         return "Planned for today"
     return "Within planned period"
+
+
+def _cutover_date_state(cutover_on, today):
+    if cutover_on < today:
+        return "Proposed cutover date has passed"
+    if cutover_on == today:
+        return "Proposed cutover is today"
+    return "Proposed cutover is upcoming"
+
+
+_FIELD_RECORD_NAMESPACE = UUID("9bdf0446-4b9e-4c98-b0c9-eb3e7e9876aa")
+
+
+def _field_record_identity(source_kind, pk):
+    return uuid5(_FIELD_RECORD_NAMESPACE, f"grand.finance.{source_kind}:{pk}")
+
+
+def _projection_checksum(values):
+    payload = json.dumps(values, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _nested_field_task(item, action_key, spec, department, today):
+    source_kind = {
+        "my_defects": "field-defect",
+        "review_defects": "field-defect",
+        "my_exercises": "field-exercise",
+        "witness_exercises": "field-exercise",
+        "my_acceptances": "field-stakeholder",
+        "authorize_cutover": "field-cutover",
+    }[action_key]
+    exact_gates = {
+        "my_defects": "This visible defect is Open and names the signed-in user as its correction owner.",
+        "review_defects": "This defect awaits resolution review in the acting Finance office, and the signed-in reviewer did not submit its correction.",
+        "my_exercises": "This visible exercise is Planned or Returned and names the signed-in user as its owner.",
+        "witness_exercises": "This submitted exercise names the signed-in user as independent witness, who is neither its owner nor evidence submitter.",
+        "my_acceptances": "This pending exact-scope acceptance belongs to an independently reconciled visible cycle and names the signed-in user as reviewer.",
+        "authorize_cutover": "This submitted cutover record belongs to the acting Finance office, and the signed-in authority neither prepared nor submitted it.",
+    }
+    source_id = _field_record_identity(source_kind, item.pk)
+    cycle = item.cycle
+    common = {
+        "task_id": f"finwork:v1:{source_kind}:{source_id}:{action_key.replace('_', '-')}",
+        "task_type": f"finance.{source_kind}.{action_key}.v1",
+        "area": "Field operation",
+        "case_id": f"{source_kind}:{source_id}",
+        "action": spec["next_action"],
+        "gate": exact_gates[action_key],
+        "scope": f"{cycle.department.name}; {cycle.enabled_scope}",
+        "url": reverse("finance:shadow_cycle_detail", kwargs={"pk": cycle.pk}),
+    }
+    if action_key == "my_defects":
+        common["url"] = reverse("finance:shadow_defect_resolution", kwargs={"pk": item.pk})
+    elif action_key == "my_exercises":
+        common["url"] = reverse("finance:cutover_readiness_exercise_result", kwargs={"pk": item.pk})
+    elif action_key == "my_acceptances":
+        common["url"] = reverse("finance:stakeholder_acceptance_decide", kwargs={"pk": item.pk})
+    if source_kind == "field-defect":
+        due_on = timezone.localtime(item.correction_due_at).date()
+        return FinanceWorkTask(
+            **common,
+            reference=f"{cycle.code} · defect {item.code}",
+            transaction_type=f"Field defect · {item.get_severity_display()}",
+            subject=item.summary,
+            owner_queue=(
+                f"Named defect owner · {cycle.department.name}"
+                if action_key == "my_defects"
+                else f"Independent reconciliation reviewers · {cycle.department.name}"
+            ),
+            received_at=item.created_at,
+            due_on=due_on,
+            due_state=_due_state(due_on, today),
+            calendar_basis="Correction due time retained on the defect; no holiday adjustment inferred.",
+            age_days=_age_days(item.created_at, today),
+            state="Ready",
+            source_state=item.get_status_display(),
+            source_version=f"updated:{item.updated_at.isoformat()}",
+            exception="Correction is past its retained due time." if item.is_overdue else "",
+        )
+    if source_kind == "field-exercise":
+        due_on = timezone.localtime(item.due_at).date()
+        exception = "Witness returned this exercise for a governed rerun." if item.status == item.RETURNED else ""
+        if item.is_overdue:
+            exception = "Exercise evidence is past its retained due time."
+        return FinanceWorkTask(
+            **common,
+            reference=f"{cycle.code} · exercise {item.code}",
+            transaction_type=item.get_kind_display(),
+            subject=item.title,
+            owner_queue=(
+                f"Named exercise owner · {cycle.department.name}"
+                if action_key == "my_exercises"
+                else f"Named independent exercise witness · {cycle.department.name}"
+            ),
+            received_at=item.created_at,
+            due_on=due_on,
+            due_state=_due_state(due_on, today),
+            calendar_basis="Exercise evidence due time retained on the source; no holiday adjustment inferred.",
+            age_days=_age_days(item.created_at, today),
+            state="Returned" if item.status == item.RETURNED else "Ready",
+            source_state=item.get_status_display(),
+            source_version=f"updated:{item.updated_at.isoformat()}",
+            exception=exception,
+        )
+    if source_kind == "field-stakeholder":
+        office = f" · {item.office.name}" if item.office_id else ""
+        revision = _projection_checksum({
+            "assigned_reviewer_id": item.assigned_reviewer_id,
+            "cycle_id": item.cycle_id,
+            "decision": item.decision,
+            "enabled_scope": item.enabled_scope,
+            "office_id": item.office_id,
+            "stakeholder_kind": item.stakeholder_kind,
+            "training_evidence_reference": item.training_evidence_reference,
+            "uat_evidence_reference": item.uat_evidence_reference,
+        })
+        return FinanceWorkTask(
+            **common,
+            reference=f"{cycle.code} · {item.get_stakeholder_kind_display()}{office}",
+            transaction_type="Field stakeholder acceptance",
+            subject="Review the retained training, UAT, and exact-scope acceptance evidence.",
+            owner_queue="Named stakeholder reviewer",
+            received_at=item.created_at,
+            due_on=None,
+            due_state="No structured target",
+            calendar_basis="No decision deadline is stored; follow the locally accepted field plan.",
+            age_days=_age_days(item.created_at, today),
+            state="Ready",
+            source_state=item.get_decision_display(),
+            source_version=f"projection-sha256:{revision}",
+            exception="",
+        )
+    due_on = timezone.localtime(item.cutover_at).date()
+    return FinanceWorkTask(
+        **common,
+        reference=f"{cycle.code} · cutover authority",
+        transaction_type="Exact-scope cutover authority",
+        subject=cycle.title,
+        owner_queue=f"Authorized cutover decision-makers · {department.name}",
+        received_at=item.submitted_at or item.created_at,
+        due_on=due_on,
+        due_state=_cutover_date_state(due_on, today),
+        calendar_basis="This is the retained proposed cutover date, not an inferred approval deadline.",
+        age_days=_age_days(item.submitted_at or item.created_at, today),
+        state="Ready",
+        source_state=item.get_status_display(),
+        source_version=f"submitted:{item.submitted_at.isoformat() if item.submitted_at else 'not-recorded'}",
+        exception="",
+    )
 
 
 def _local_form_tasks(user, department, today):
@@ -109,7 +261,8 @@ def _local_form_tasks(user, department, today):
 
 def _field_operation_tasks(user, department, today):
     from finance.shadow_register_exports import (
-        shadow_action_choices_for_user, shadow_action_queryset, visible_shadow_cycles,
+        shadow_action_choices_for_user, shadow_action_queryset,
+        shadow_action_record_queryset, visible_shadow_cycles,
     )
 
     role_labels = {
@@ -121,10 +274,14 @@ def _field_operation_tasks(user, department, today):
     tasks = []
     visible = visible_shadow_cycles(user)
     for action_key, _label in shadow_action_choices_for_user(user, department):
-        # Named defects, exercises, stakeholder decisions, and cutover decisions are
-        # separate nested source records. They remain group-only until their own
-        # record identity is projected instead of pretending the parent cycle is the task.
         if action_key not in role_labels:
+            records, _selected, spec = shadow_action_record_queryset(
+                user, action_key, queryset=visible,
+            )
+            tasks.extend(
+                _nested_field_task(item, action_key, spec, department, today)
+                for item in records
+            )
             continue
         queryset, _selected, spec = shadow_action_queryset(
             user, action_key, queryset=visible,
@@ -175,5 +332,5 @@ def finance_work_tasks(user, *, display_limit=100):
         "tasks": [task.as_dict() for task in tasks[:display_limit]],
         "task_count": task_count,
         "tasks_truncated": task_count > display_limit,
-        "task_coverage": ("Field-operation cycle gates", "Local forms"),
+        "task_coverage": ("Field-operation cycle and nested-record gates", "Local forms"),
     }

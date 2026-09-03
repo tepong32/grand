@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 exact nested field-operation tasks
+
+- Extended the read-only My Work contract from cycle gates to every actionable named defect, readiness exercise, stakeholder acceptance, and submitted cutover decision.
+- Derived opaque deterministic record identities without adding parallel task rows, and kept exact task selection on the same role-, office-, lifecycle-, object-assignment-, UAT-, and maker–checker-bounded source queries as the Field Acceptance register.
+- Kept cycle-level attention counts intact for source-register parity while showing each actionable child record separately; the UI and guides now explain that those two totals measure different levels.
+- Linked owners directly to their defect, exercise, or stakeholder action screen and reviewers/authorities to the authoritative cycle evidence, with actual defect/exercise due times and an explicitly non-deadline proposed cutover date.
+- Added a deterministic projection checksum for mutable pending stakeholder evidence so its Task ID stays stable while its displayed source revision changes.
+- Passed the 84-test focused Finance/field/local-form/guidance gate and all 460 project tests across both routed databases; the focused route assertion also renders nested stakeholder and cutover tasks through My Work.
+
 ## F1.5 first item-level My Work contract
 
 - Added deterministic, versioned Task IDs for exact Field-operation cycle-gate and Local-form actions while keeping each source register authoritative and avoiding parallel task state.

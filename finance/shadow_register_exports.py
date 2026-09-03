@@ -229,6 +229,50 @@ def shadow_action_queryset(user, attention, *, queryset):
         )
     return queryset.distinct(), attention, spec
 
+
+def shadow_action_record_queryset(user, attention, *, queryset):
+    """Return the exact source records behind one field-operation action filter."""
+    cycles, selected, spec = shadow_action_queryset(user, attention, queryset=queryset)
+    cycle_ids = cycles.values("pk")
+    if attention == "my_defects":
+        records = FinanceShadowDefect.objects.filter(
+            cycle_id__in=cycle_ids, owner=user, status=FinanceShadowDefect.OPEN,
+        ).select_related("cycle", "cycle__department", "owner")
+    elif attention == "review_defects":
+        records = FinanceShadowDefect.objects.filter(
+            cycle_id__in=cycle_ids, status=FinanceShadowDefect.RESOLUTION_REVIEW,
+        ).exclude(resolution_submitted_by=user).select_related(
+            "cycle", "cycle__department", "owner", "resolution_submitted_by",
+        )
+    elif attention == "my_exercises":
+        records = FinanceCutoverReadinessExercise.objects.filter(
+            cycle_id__in=cycle_ids,
+            owner=user,
+            status__in=(FinanceCutoverReadinessExercise.PLANNED, FinanceCutoverReadinessExercise.RETURNED),
+        ).select_related("cycle", "cycle__department", "owner", "witness")
+    elif attention == "witness_exercises":
+        records = FinanceCutoverReadinessExercise.objects.filter(
+            cycle_id__in=cycle_ids, witness=user, status=FinanceCutoverReadinessExercise.SUBMITTED,
+        ).exclude(Q(owner=user) | Q(submitted_by=user)).select_related(
+            "cycle", "cycle__department", "owner", "witness", "submitted_by",
+        )
+    elif attention == "my_acceptances":
+        records = FinanceStakeholderAcceptance.objects.filter(
+            cycle_id__in=cycle_ids,
+            assigned_reviewer=user,
+            decision=FinanceStakeholderAcceptance.PENDING,
+            cycle__status=FinanceShadowCycle.RECONCILED,
+        ).select_related("cycle", "cycle__department", "office", "assigned_reviewer")
+    elif attention == "authorize_cutover":
+        records = FinanceCutoverDecision.objects.filter(
+            cycle_id__in=cycle_ids, status=FinanceCutoverDecision.SUBMITTED,
+        ).exclude(Q(prepared_by=user) | Q(submitted_by=user)).select_related(
+            "cycle", "cycle__department", "prepared_by", "submitted_by",
+        )
+    else:
+        records = cycles
+    return records.distinct(), selected, spec
+
 SHADOW_REGISTER_COLUMNS = (
     "cycle_public_id", "cycle_code", "title", "department", "fiscal_year", "run_kind",
     "planned_start", "planned_end", "status", "next_action", "enabled_scope",
