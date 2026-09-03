@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .access import department_for_user, has_explicit_permission
-from .models import ReturnedInstrumentReview
+from .models import ReturnedInstrumentReview, VoucherCase
 from .roles import is_finance_uat_viewer
 
 
@@ -82,9 +82,15 @@ def returned_instrument_attention_queryset(user, attention):
         return query.none(), attention, spec
     query = query.filter(status=spec["status"])
     if spec["scope_kind"] == "accounting":
-        query = query.filter(case__configuration_release__department=department)
+        query = query.filter(
+            case__configuration_release__department=department,
+            case__current_stage=VoucherCase.ACCOUNTING_RETURNED_ITEM,
+        ).exclude(prepared_by=user)
     else:
         query = query.filter(exception__policy__treasury_department=department)
     if attention == "treasury_replacement":
-        query = query.filter(outcome=ReturnedInstrumentReview.REISSUE)
-    return query, attention, spec
+        query = query.filter(
+            outcome=ReturnedInstrumentReview.REISSUE,
+            case__current_stage=VoucherCase.TREASURY_CHECK_PREPARATION,
+        )
+    return query.distinct(), attention, spec

@@ -327,32 +327,27 @@ def _accounting_groups(user, department):
 
 def _bank_advice_groups(user, department):
     from vouchers.access import has_explicit_permission
-    from vouchers.advice_register import apply_bank_advice_filters, visible_bank_advice_batches
+    from vouchers.advice_register import (
+        bank_advice_action_choices_for_user, bank_advice_action_queryset,
+    )
 
     if not has_explicit_permission(user, "vouchers.view_bank_advice"):
         return []
     groups = []
-    specs = (
-        ("vouchers.prepare_bank_advice", "bank-advice-preparation", "Bank advice to prepare or correct",
-         "needs_preparation", "Draft or returned advice versions available for preparation or a reasoned successor."),
-        ("vouchers.approve_bank_advice", "bank-advice-review", "Bank advice for independent review",
-         "awaiting_review", "Advice versions awaiting an independent Accounting approve-or-return decision."),
-        ("vouchers.submit_bank_advice", "bank-advice-submission", "Approved advice to submit to the bank",
-         "awaiting_bank_submission", "Approved advice versions awaiting retained bank-submission evidence."),
-        ("vouchers.acknowledge_bank_advice", "bank-advice-response", "Submitted advice awaiting bank response",
-         "awaiting_bank_response", "Submitted advice versions awaiting retained acknowledgement or return evidence."),
-    )
-    for permission, key, title, attention, definition in specs:
-        if has_explicit_permission(user, permission):
-            queryset, _status, selected_attention = apply_bank_advice_filters(
-                visible_bank_advice_batches(user), attention=attention,
-            )
-            groups.append(_group(
-                key=key, area="Bank advice", title=title, count=queryset.count(),
-                url=_queue_url("vouchers:advice_workspace", attention=selected_attention),
-                definition=definition,
-                scope=f"Existing role-scoped bank-advice handoff; acting department: {department.name}",
-            ))
+    keys = {
+        "needs_preparation": "bank-advice-preparation",
+        "awaiting_review": "bank-advice-review",
+        "awaiting_bank_submission": "bank-advice-submission",
+        "awaiting_bank_response": "bank-advice-response",
+    }
+    for attention, title in bank_advice_action_choices_for_user(user):
+        queryset, selected_attention, spec = bank_advice_action_queryset(user, attention)
+        groups.append(_group(
+            key=keys[attention], area="Bank advice", title=title, count=queryset.count(),
+            url=_queue_url("vouchers:advice_workspace", attention=selected_attention),
+            definition=spec["definition"],
+            scope=f"Existing role-scoped bank-advice handoff; acting department: {department.name}",
+        ))
     return groups
 
 

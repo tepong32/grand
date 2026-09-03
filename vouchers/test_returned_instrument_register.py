@@ -8,6 +8,7 @@ from django.urls import reverse
 
 from departments.models import Department
 from finance.models import FinanceConfigurationRelease
+from finance.work_tasks import finance_work_tasks
 from profiles.models import EmployeeProfile
 
 from .models import (
@@ -56,6 +57,10 @@ class ReturnedInstrumentWorkRegisterTests(TestCase):
         cls.hidden_accounting_review = cls._review(
             "RET-HIDDEN-ACCT", cls.other_accounting_release, cls.other_treasury_policy,
             ReturnedInstrumentReview.AWAITING_REVIEW, cls.treasury_user,
+        )
+        cls.self_accounting_review = cls._review(
+            "RET-SELF-ACCT", cls.accounting_release, cls.treasury_policy,
+            ReturnedInstrumentReview.AWAITING_REVIEW, cls.reviewer,
         )
         cls.treasury_clarification = cls._review(
             "RET-CLARIFY", cls.accounting_release, cls.treasury_policy,
@@ -155,6 +160,19 @@ class ReturnedInstrumentWorkRegisterTests(TestCase):
             f'{reverse("vouchers:advice_workspace")}?returned_attention=accounting_review',
         )
         self.assertNotContains(source, "CHK-RET-HIDDEN-ACCT")
+        self.assertNotContains(source, "CHK-RET-SELF-ACCT")
+
+        tasks = [
+            task for task in finance_work_tasks(self.reviewer)["tasks"]
+            if task["area"] == "Returned payment"
+        ]
+        self.assertEqual(len(tasks), 1)
+        self.assertIn(str(self.accounting_review.public_id), tasks[0]["task_id"])
+        self.assertEqual(tasks[0]["url"], (
+            f'{reverse("vouchers:advice_workspace")}?returned_attention=accounting_review'
+            f'#returned-review-{self.accounting_review.public_id}'
+        ))
+        self.assertTrue(tasks[0]["source_version"].startswith("projection-sha256:"))
 
     def test_treasury_clarification_and_replacement_remain_separate_exact_queues(self):
         self.client.force_login(self.treasury_user)
@@ -184,3 +202,30 @@ class ReturnedInstrumentWorkRegisterTests(TestCase):
         )
         self.assertEqual(clarification_group["count"], 1)
         self.assertEqual(replacement_group["count"], 1)
+
+        tasks = [
+            task for task in finance_work_tasks(self.treasury_user)["tasks"]
+            if task["area"] == "Returned payment"
+        ]
+        self.assertEqual(len(tasks), 2)
+        clarification_task = next(
+            task for task in tasks if str(self.treasury_clarification.public_id) in task["task_id"]
+        )
+        replacement_task = next(
+            task for task in tasks if str(self.treasury_replacement.public_id) in task["task_id"]
+        )
+        self.assertEqual(clarification_task["state"], "Returned")
+        self.assertIn("Accounting returned this item without a retained clarification instruction", clarification_task["exception"])
+        self.assertIn("Accounting entry is not complete", replacement_task["exception"])
+
+        prior_id = clarification_task["task_id"]
+        prior_version = clarification_task["source_version"]
+        ReturnedInstrumentReview.objects.filter(pk=self.treasury_clarification.pk).update(
+            treasury_note="Tampered Treasury source evidence.",
+        )
+        changed = next(
+            task for task in finance_work_tasks(self.treasury_user)["tasks"]
+            if str(self.treasury_clarification.public_id) in task["task_id"]
+        )
+        self.assertEqual(changed["task_id"], prior_id)
+        self.assertNotEqual(changed["source_version"], prior_version)

@@ -10,7 +10,7 @@
     <div class="mt-2">
       {% if can_prepare %}<a class="btn btn-primary" href="{% url 'vouchers:advice_create' %}">Prepare advice</a>{% endif %}
       <a class="btn btn-outline-secondary" href="{% url 'vouchers:advice_starter' %}">Download editable starter</a>
-      {% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'vouchers:advice_export' %}">Export evidence</a>{% endif %}
+      {% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'vouchers:advice_export' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">Export visible evidence</a>{% endif %}
     </div>
   </div>
 
@@ -59,13 +59,13 @@
       </form>
       {% if returned_work_spec %}<p><strong>{{ returned_work_spec.title }}.</strong> {{ returned_work_spec.definition }} <span class="text-muted">Next: {{ returned_work_spec.next_action }}</span></p>{% else %}<p class="small text-muted">Choose an exact action to separate Accounting decisions, Treasury clarifications, and controlled replacements. This register does not decide, post, replace, or close an item.</p>{% endif %}
       {% for review in returned_reviews %}
-        <div class="border rounded p-3 mb-3">
+        <div class="border rounded p-3 mb-3" id="returned-review-{{ review.public_id }}">
           <div class="d-flex flex-wrap justify-content-between">
             <div><strong>{{ review.instrument.check_number }}</strong> · {{ review.instrument.amount }}<div class="small text-muted"><a href="{{ review.case.get_absolute_url }}">{{ review.case.reference_code }}</a> · review v{{ review.version }}</div></div>
             <span class="badge badge-{% if review.status == 'closed' %}success{% elif review.status == 'returned' %}danger{% elif review.status == 'ready_for_treasury' %}info{% else %}warning{% endif %}">{{ review.get_status_display }}</span>
           </div>
           <dl class="row small mt-3 mb-2"><dt class="col-sm-3">Treasury evidence</dt><dd class="col-sm-9">{{ review.treasury_evidence_reference }}<br>{{ review.treasury_note }}</dd>{% if review.accounting_decision_reason %}<dt class="col-sm-3">Accounting decision</dt><dd class="col-sm-9">{{ review.accounting_decision_reason }}<br>{{ review.accounting_evidence_reference }}</dd>{% endif %}</dl>
-          {% if can_review_returns and review.status == 'awaiting_review' %}
+          {% if can_review_returns and review.status == 'awaiting_review' and review.prepared_by_id != request.user.id %}
             <form method="post" action="{% url 'vouchers:returned_instrument_decide' review.public_id %}" class="border-top pt-3">
               {% csrf_token %}
               {% with form=review.decision_form %}{% endwith %}

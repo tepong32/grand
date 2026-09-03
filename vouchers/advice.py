@@ -610,30 +610,57 @@ def complete_returned_review_on_replacement(*, original_instrument, replacement,
     return review
 
 
-def export_bank_advice_csv(*, actor, batch=None):
+def export_bank_advice_csv(
+    *, actor, batch=None, status="", attention="", returned_attention="",
+):
     _require(actor, "vouchers.export_bank_advice")
-    batches = BankAdviceBatch.objects.select_related(
-        "accounting_department", "configuration_release", "supersedes",
-    ).prefetch_related("items__instrument__case", "events")
+    from .advice_register import (
+        apply_bank_advice_filters, bank_advice_action_queryset, visible_bank_advice_batches,
+    )
+    from .returned_instrument_register import (
+        returned_instrument_attention_queryset, visible_returned_instrument_reviews,
+    )
+
+    batches = visible_bank_advice_batches(actor)
     if batch is not None:
         batches = batches.filter(pk=batch.pk)
-    elif not has_explicit_permission(actor, "vouchers.approve_bank_advice"):
-        batches = batches.filter(accounting_department=department_for_user(actor))
+        status = attention = ""
+        returned_reviews = ReturnedInstrumentReview.objects.none()
+    else:
+        batches, status, _ignored_attention = apply_bank_advice_filters(batches, status=status)
+        if attention:
+            batches, attention, _spec = bank_advice_action_queryset(
+                actor, attention, queryset=batches,
+            )
+    if batch is None and returned_attention:
+        returned_reviews, returned_attention, _returned_spec = returned_instrument_attention_queryset(
+            actor, returned_attention,
+        )
+    elif batch is None:
+        returned_reviews = visible_returned_instrument_reviews(actor).exclude(
+            status=ReturnedInstrumentReview.SUPERSEDED,
+        )
     output = io.StringIO(newline="")
     writer = csv.writer(output)
 
+    columns = (
+        "record_type", "advice_id", "advice_number", "version", "status", "advice_date",
+        "bank_account", "item_count", "total_amount", "snapshot_checksum", "instrument_id",
+        "case_reference", "instrument_number", "fund", "amount", "submission_reference",
+        "acknowledgement_reference", "return_reason", "event_action", "event_reason", "evidence_reference",
+        "returned_review_id", "returned_review_version", "returned_review_status", "returned_outcome",
+        "exception_id", "exception_observed_on", "treasury_note", "accounting_decision_reason",
+        "posting_request_id", "source_state_version",
+    )
+
     def row(values):
+        values = list(values) + [""] * (len(columns) - len(values))
         writer.writerow([
             "'" + value if isinstance(value, str) and value[:1] in ("=", "+", "-", "@") else value
             for value in values
         ])
 
-    row([
-        "record_type", "advice_id", "advice_number", "version", "status", "advice_date",
-        "bank_account", "item_count", "total_amount", "snapshot_checksum", "instrument_id",
-        "case_reference", "instrument_number", "fund", "amount", "submission_reference",
-        "acknowledgement_reference", "return_reason", "event_action", "event_reason", "evidence_reference",
-    ])
+    row(columns)
     for item in batches.order_by("advice_date", "advice_number", "version"):
         row([
             "advice", item.public_id, item.advice_number, item.version, item.status, item.advice_date,
@@ -658,6 +685,20 @@ def export_bank_advice_csv(*, actor, batch=None):
                 item.submission_reference, item.acknowledgement_reference, item.return_reason,
                 event.action, event.reason, json.dumps(event.snapshot, sort_keys=True),
             ])
+    for review in returned_reviews.select_related(
+        "case", "instrument", "exception", "posting_request",
+    ).order_by("prepared_at", "pk"):
+        row([
+            "returned_review", "", "", "", "", "", review.instrument.bank_account_code,
+            "", "", "", review.instrument.public_id, review.case.reference_code,
+            review.instrument.check_number, review.instrument.fund_code, review.instrument.amount,
+            "", "", "", "", "", review.treasury_evidence_reference,
+            review.public_id, review.version, review.status, review.outcome,
+            review.exception.public_id, review.exception.observed_on, review.treasury_note,
+            review.accounting_decision_reason,
+            review.posting_request.public_id if review.posting_request_id else "",
+            review.state_version,
+        ])
     content = output.getvalue().encode("utf-8-sig")
     owner = batch.accounting_department if batch else department_for_user(actor)
     return content, archive_export(
@@ -666,5 +707,10 @@ def export_bank_advice_csv(*, actor, batch=None):
         metadata={
             "kind": "bank_advice_and_returned_item_evidence",
             "batch_public_id": str(batch.public_id) if batch else "all",
+            "status_filter": status or "all",
+            "attention_filter": attention or "all",
+            "returned_attention_filter": returned_attention or "all",
+            "advice_row_count": batches.count(),
+            "returned_review_row_count": returned_reviews.count(),
         },
     )

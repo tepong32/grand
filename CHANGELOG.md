@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 exact bank-advice and returned-payment work tasks
+
+- Added stable, source-linked My Work items for bank-advice draft/returned correction, independent review, bank submission, bank-response recording, returned-payment Accounting decision, Treasury clarification, and Accounting-cleared controlled replacement.
+- Reused one permission-, office-, lifecycle-, maker-checker-, and UAT-aware action query across the bank-advice workspace, attention counts, evidence export, and exact task projection; a preparer or submitter cannot receive that record's independent review task.
+- Added evidence-sensitive projection checksums and hard-stop exceptions for advice item count, exact centavo total, retained item snapshot, current instrument state, bank response, exception lineage, original-payment posting, reversal setup/posting, clarification, and replacement evidence.
+- Kept Accounting decision, Treasury clarification, and controlled replacement as separate returned-payment actions with exact source fragments, retained notes, and no inferred deadline.
+- Expanded the visible-evidence export to preserve the filtered screen query and include returned-payment review evidence while retaining office and action scope.
+- Added stable-identity, revision, office-isolation, self-review, UAT, one-cent, tamper, source-link, and source/task/export parity coverage. The final cross-module gate passed 261 tests in 62.576 seconds and the complete project gate passed all 506 tests across both routed databases in 134.438 seconds; Django checks and the migration-drift gate are clean.
+
 ## F1.5 exact Reporting work tasks
 
 - Added stable, source-linked My Work items for report generation, failed reruns, control-blocked successor preparation, independent review, and official approval.

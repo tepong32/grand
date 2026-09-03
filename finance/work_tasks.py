@@ -4,7 +4,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from uuid import UUID, uuid5
 
 from django.core.exceptions import ValidationError
@@ -1262,6 +1262,374 @@ def _treasury_payment_tasks(user, department, today):
     return tasks
 
 
+def _bank_advice_tasks(user, department, today):
+    from vouchers.advice import advice_snapshot
+    from vouchers.advice_register import (
+        bank_advice_action_choices_for_user, bank_advice_action_queryset,
+    )
+    from vouchers.models import BankAdviceBatch, PaymentInstrument
+
+    queue_labels = {
+        "needs_preparation": "Bank-advice preparers",
+        "awaiting_review": "Independent Accounting bank-advice reviewers",
+        "awaiting_bank_submission": "Authorized bank-advice submitters",
+        "awaiting_bank_response": "Bank-response evidence recorders",
+    }
+    tasks = []
+    for action_key, _label in bank_advice_action_choices_for_user(user):
+        queryset, _selected, spec = bank_advice_action_queryset(user, action_key)
+        queryset = queryset.select_related(
+            "accounting_department", "configuration_release", "created_by",
+            "review_submitted_by", "approved_by", "bank_submitted_by", "supersedes",
+        ).prefetch_related("items__instrument__case", "events")
+        for item in queryset.order_by("-advice_date", "-created_at", "pk"):
+            advice_items = list(item.items.all())
+            events = list(item.events.all())
+            snapshot = advice_snapshot(item)
+            retained_total = sum(
+                (row.amount_snapshot for row in advice_items), start=Decimal("0.00"),
+            )
+            snapshot_checksum = hashlib.sha256(
+                json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            exceptions = []
+            if len(advice_items) != item.item_count:
+                exceptions.append(
+                    f"Retained item count is {len(advice_items)}, not the recorded {item.item_count}; stop and repair the governed evidence."
+                )
+            if retained_total != item.total_amount:
+                exceptions.append(
+                    f"Retained instrument total differs from the advice total by {retained_total - item.total_amount:.2f}; it must equal exactly zero."
+                )
+            if snapshot_checksum != item.snapshot_checksum:
+                exceptions.append("The retained bank-advice snapshot checksum no longer reproduces.")
+            expected_instrument_status = (
+                PaymentInstrument.ADVISED
+                if action_key in ("awaiting_bank_submission", "awaiting_bank_response")
+                else PaymentInstrument.ISSUED
+            )
+            for row in advice_items:
+                instrument = row.instrument
+                if (
+                    str(instrument.public_id) != str(row.instrument_public_id_snapshot)
+                    or instrument.check_number != row.check_number_snapshot
+                    or instrument.fund_code != row.fund_code_snapshot
+                    or instrument.amount != row.amount_snapshot
+                    or instrument.issued_at != row.issued_at_snapshot
+                    or instrument.bank_account_code != item.bank_account_code
+                ):
+                    exceptions.append(
+                        f"Live instrument {row.check_number_snapshot} no longer matches its retained advice snapshot."
+                    )
+                if instrument.current_advice_batch_id != item.pk:
+                    exceptions.append(
+                        f"Instrument {row.check_number_snapshot} no longer points to this current advice version."
+                    )
+                if instrument.status != expected_instrument_status:
+                    exceptions.append(
+                        f"Instrument {row.check_number_snapshot} is {instrument.get_status_display().lower()}, not the expected governed state."
+                    )
+            if item.configuration_release_id is None:
+                exceptions.append("No Finance Setup release is pinned to this advice version.")
+            if item.accounting_department_id is None:
+                exceptions.append("No owning Accounting department is retained on this advice version.")
+            if action_key == "awaiting_review" and (
+                item.authority_reference.lower().startswith(("pending", "edit"))
+                or item.local_applicability_note.lower().startswith(("pending", "edit"))
+            ):
+                exceptions.append("Starter or pending authority text must be replaced with the reviewed local basis before approval.")
+            if item.status == BankAdviceBatch.REVIEW_RETURNED:
+                exceptions.append(item.review_note.strip() or "Accounting returned this advice without a retained correction note.")
+            elif item.status == BankAdviceBatch.RETURNED:
+                exceptions.append(item.return_reason.strip() or "The bank returned this advice without a retained correction reason.")
+            projection = {
+                "batch": [
+                    str(item.public_id), item.status, item.state_version, item.version,
+                    item.advice_number, item.advice_date.isoformat(), item.bank_account_code,
+                    item.configuration_release_id, item.accounting_department_id,
+                    item.preparation_note, item.authority_reference, item.local_applicability_note,
+                    item.item_count, str(item.total_amount), item.snapshot_checksum,
+                    item.created_by_id, item.review_submitted_by_id, item.approved_by_id,
+                    item.bank_submitted_by_id, item.acknowledged_by_id, item.returned_by_id,
+                    item.review_submitted_at.isoformat() if item.review_submitted_at else "",
+                    item.approved_at.isoformat() if item.approved_at else "", item.review_note,
+                    item.bank_submitted_at.isoformat() if item.bank_submitted_at else "",
+                    item.acknowledged_at.isoformat() if item.acknowledged_at else "",
+                    item.returned_at.isoformat() if item.returned_at else "",
+                    item.submission_reference,
+                    item.submission_evidence_reference, item.acknowledgement_reference,
+                    item.acknowledgement_evidence_reference, item.return_reason,
+                    item.return_evidence_reference,
+                ],
+                "items": [
+                    [
+                        row.pk, row.instrument_id, str(row.instrument_public_id_snapshot),
+                        row.check_number_snapshot, row.fund_code_snapshot, str(row.amount_snapshot),
+                        row.issued_at_snapshot.isoformat() if row.issued_at_snapshot else "",
+                        row.instrument.status, row.instrument.current_advice_batch_id,
+                        str(row.instrument.public_id), row.instrument.check_number,
+                        row.instrument.fund_code, str(row.instrument.amount),
+                        row.instrument.issued_at.isoformat() if row.instrument.issued_at else "",
+                        row.instrument.bank_account_code,
+                        row.instrument.case_id, row.instrument.case.state_version,
+                        row.instrument.case.current_stage,
+                    ]
+                    for row in advice_items
+                ],
+                "events": [
+                    [
+                        event.pk, event.action, event.actor_id, event.actor_department_id,
+                        event.instrument_id, event.reason, event.snapshot,
+                        event.created_at.isoformat(),
+                    ]
+                    for event in events
+                ],
+            }
+            received_at = item.created_at
+            if action_key == "awaiting_review":
+                received_at = item.review_submitted_at or item.created_at
+            elif action_key == "awaiting_bank_submission":
+                received_at = item.approved_at or item.created_at
+            elif action_key == "awaiting_bank_response":
+                received_at = item.bank_submitted_at or item.created_at
+            elif item.status == BankAdviceBatch.REVIEW_RETURNED:
+                received_at = item.approved_at or item.created_at
+            elif item.status == BankAdviceBatch.RETURNED:
+                received_at = item.returned_at or item.created_at
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:bank-advice:{item.public_id}:{action_key.replace('_', '-')}",
+                task_type=f"finance.bank-advice.{action_key}.v1",
+                area="Bank advice",
+                case_id=f"bank-advice:{item.public_id}",
+                reference=f"{item.advice_number} v{item.version} · {item.advice_date.isoformat()}",
+                transaction_type=f"Bank advice · {item.bank_account_code}",
+                subject=f"{item.item_count} instrument(s) · total {item.total_amount:.2f}",
+                action=spec["next_action"],
+                gate=spec["definition"],
+                owner_queue=f"{queue_labels[action_key]} · {item.accounting_department.name if item.accounting_department_id else department.name}",
+                scope=f"Accounting office: {item.accounting_department.name if item.accounting_department_id else 'missing'}; bank account {item.bank_account_code}",
+                received_at=received_at,
+                due_on=None,
+                due_state="No structured target",
+                calendar_basis="The advice date is an evidence date, not an inferred preparation, review, submission, or response deadline.",
+                age_days=_age_days(received_at, today),
+                state=(
+                    "Returned" if item.status in (BankAdviceBatch.REVIEW_RETURNED, BankAdviceBatch.RETURNED)
+                    else "Exception" if exceptions else "Ready"
+                ),
+                source_state=item.get_status_display(),
+                source_version=f"projection-sha256:{_projection_checksum(projection)}",
+                exception=" ".join(dict.fromkeys(exceptions)),
+                url=reverse("vouchers:advice_detail", kwargs={"public_id": item.public_id}),
+            ))
+    return tasks
+
+
+def _returned_payment_tasks(user, department, today):
+    from finance.models import FinancePostingRule
+    from vouchers.advice import advice_snapshot
+    from vouchers.models import (
+        BankAdviceBatch, PaymentInstrument, PaymentInstrumentException,
+        ReturnedInstrumentReview, VoucherPostingRequest,
+    )
+    from vouchers.returned_instrument_register import (
+        returned_instrument_attention_choices_for_user, returned_instrument_attention_queryset,
+    )
+
+    queue_labels = {
+        "accounting_review": "Independent Accounting returned-payment reviewers",
+        "treasury_clarification": "Owning Treasury exception preparers",
+        "treasury_replacement": "Owning Treasury instrument issuers",
+    }
+    tasks = []
+    for action_key, _label in returned_instrument_attention_choices_for_user(user):
+        queryset, _selected, spec = returned_instrument_attention_queryset(user, action_key)
+        queryset = queryset.select_related(
+            "case", "case__configuration_release", "instrument", "instrument__current_advice_batch",
+            "exception", "exception__policy", "exception__policy__treasury_department",
+            "prepared_by", "reviewed_by", "posting_request", "original_payment_request",
+        )
+        for item in queryset.order_by("-prepared_at", "-version", "pk"):
+            instrument = item.instrument
+            case = item.case
+            source_exception = item.exception
+            posting_request = item.posting_request
+            source_posting = item.original_payment_request
+            exceptions = []
+            if source_exception.kind != PaymentInstrumentException.RETURNED:
+                exceptions.append("The pinned exception is not a bank-return event.")
+            if source_exception.status != PaymentInstrumentException.OPEN:
+                exceptions.append("The pinned bank-return exception is already resolved; stop duplicate action.")
+            if instrument.case_id != case.pk or source_exception.instrument_id != instrument.pk:
+                exceptions.append("Returned-payment instrument, exception, and case lineage do not agree.")
+            if instrument.operational_status != PaymentInstrument.RETURNED:
+                exceptions.append("The instrument is not marked as a current returned-payment exception.")
+            if instrument.amount <= 0:
+                exceptions.append("The returned instrument amount is not positive.")
+            if action_key in ("accounting_review", "treasury_clarification"):
+                if instrument.status != PaymentInstrument.RELEASED:
+                    exceptions.append("The instrument is no longer in the released state required for returned-payment review.")
+                advice = instrument.current_advice_batch
+                if advice is None or advice.status != BankAdviceBatch.ACKNOWLEDGED:
+                    exceptions.append("The released instrument has no current acknowledged bank-advice evidence.")
+                else:
+                    retained_advice = advice_snapshot(advice)
+                    retained_advice_total = sum(
+                        (row.amount_snapshot for row in advice.items.all()), start=Decimal("0.00"),
+                    )
+                    retained_advice_checksum = hashlib.sha256(
+                        json.dumps(retained_advice, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                    ).hexdigest()
+                    if (
+                        len(retained_advice["items"]) != advice.item_count
+                        or retained_advice_total != advice.total_amount
+                        or retained_advice_checksum != advice.snapshot_checksum
+                    ):
+                        exceptions.append("The acknowledged bank-advice count, total, or checksum no longer reproduces.")
+                if source_posting is None or source_posting.status not in (
+                    VoucherPostingRequest.POSTED, VoucherPostingRequest.NOT_REQUIRED,
+                ):
+                    exceptions.append("The original payment-release Accounting decision is missing or incomplete.")
+                else:
+                    source_payload_checksum = hashlib.sha256(
+                        json.dumps(source_posting.payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                    ).hexdigest()
+                    source_rule_checksum = hashlib.sha256(
+                        json.dumps(source_posting.posting_rule_snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                    ).hexdigest()
+                    if source_payload_checksum != source_posting.payload_checksum:
+                        exceptions.append("The original payment-release payload checksum no longer reproduces.")
+                    if source_rule_checksum != source_posting.posting_rule_checksum:
+                        exceptions.append("The original payment-release posting-rule checksum no longer reproduces.")
+                    try:
+                        source_amount = Decimal(str(source_posting.payload.get("event_amount", "")))
+                    except (InvalidOperation, TypeError, ValueError):
+                        exceptions.append("The original payment-release payload has no exact event amount.")
+                    else:
+                        if source_amount != instrument.amount:
+                            exceptions.append(
+                                f"Returned instrument and original payment evidence differ by {instrument.amount - source_amount:.2f}; it must equal exactly zero."
+                            )
+            if action_key == "accounting_review":
+                release = case.configuration_release
+                variant = release.transaction_variants.filter(
+                    code=case.transaction_type,
+                    status__in=("approved", "scheduled", "active", "superseded"),
+                ).first() if release is not None else None
+                rule = variant.posting_rules.filter(
+                    event_kind=FinancePostingRule.REVERSAL,
+                    recognition_point=FinancePostingRule.PAYMENT_RETURN,
+                ).first() if variant is not None else None
+                if rule is None:
+                    exceptions.append("The pinned Finance Setup release has no reviewed returned-payment reversal or no-entry rule.")
+            if action_key == "treasury_clarification" and not item.accounting_decision_reason.strip():
+                exceptions.append("Accounting returned this item without a retained clarification instruction.")
+            if action_key == "treasury_replacement":
+                if instrument.status != PaymentInstrument.BANK_RETURNED:
+                    exceptions.append("Accounting has not moved the original instrument to the bank-returned state.")
+                if posting_request is None or posting_request.status not in (
+                    VoucherPostingRequest.POSTED, VoucherPostingRequest.NOT_REQUIRED,
+                ):
+                    exceptions.append("The returned-payment Accounting entry is not complete.")
+                if hasattr(instrument, "replacement"):
+                    exceptions.append("A controlled replacement already exists; stop duplicate issuance.")
+            if posting_request is not None:
+                payload_checksum = hashlib.sha256(
+                    json.dumps(posting_request.payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                ).hexdigest()
+                rule_checksum = hashlib.sha256(
+                    json.dumps(posting_request.posting_rule_snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                ).hexdigest()
+                if payload_checksum != posting_request.payload_checksum:
+                    exceptions.append("The returned-payment posting payload checksum no longer reproduces.")
+                if rule_checksum != posting_request.posting_rule_checksum:
+                    exceptions.append("The pinned returned-payment posting-rule checksum no longer reproduces.")
+            projection = {
+                "review": [
+                    str(item.public_id), item.status, item.outcome, item.version,
+                    item.state_version, item.treasury_evidence_reference, item.treasury_note,
+                    item.accounting_decision_reason, item.accounting_evidence_reference,
+                    item.prepared_by_id, item.reviewed_by_id, item.closed_by_id,
+                    item.posting_request_id, item.original_payment_request_id, item.supersedes_id,
+                    item.prepared_at.isoformat(),
+                    item.reviewed_at.isoformat() if item.reviewed_at else "",
+                    item.closed_at.isoformat() if item.closed_at else "",
+                ],
+                "case": [
+                    case.pk, str(case.public_id), case.current_stage, case.current_department_id,
+                    case.configuration_release_id, case.state_version, case.transaction_type,
+                ],
+                "instrument": [
+                    instrument.pk, str(instrument.public_id), instrument.status,
+                    instrument.operational_status, str(instrument.amount), instrument.bank_account_code,
+                    instrument.current_advice_batch_id,
+                    instrument.current_advice_batch.status if instrument.current_advice_batch_id else "",
+                    instrument.current_advice_batch.snapshot_checksum if instrument.current_advice_batch_id else "",
+                ],
+                "exception": [
+                    source_exception.pk, str(source_exception.public_id), source_exception.kind,
+                    source_exception.status, source_exception.observed_on.isoformat(),
+                    source_exception.reason, source_exception.evidence_reference,
+                    source_exception.policy_id,
+                ],
+                "posting": (
+                    [
+                        posting_request.pk, str(posting_request.public_id), posting_request.status,
+                        posting_request.version, posting_request.payload,
+                        posting_request.payload_checksum, posting_request.posting_rule_snapshot,
+                        posting_request.posting_rule_checksum,
+                    ] if posting_request is not None else []
+                ),
+                "original_posting": (
+                    [
+                        item.original_payment_request_id, item.original_payment_request.status,
+                        item.original_payment_request.version, item.original_payment_request.payload_checksum,
+                        item.original_payment_request.posting_rule_checksum,
+                    ] if item.original_payment_request_id else []
+                ),
+            }
+            received_at = item.prepared_at
+            if action_key == "treasury_clarification":
+                received_at = item.reviewed_at or item.prepared_at
+            elif action_key == "treasury_replacement":
+                received_at = (
+                    posting_request.posted_at if posting_request is not None and posting_request.posted_at
+                    else item.reviewed_at or item.prepared_at
+                )
+            scope_department = (
+                case.configuration_release.department.name
+                if spec["scope_kind"] == "accounting" and case.configuration_release_id
+                else source_exception.policy.treasury_department.name
+            )
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:returned-payment:{item.public_id}:{action_key.replace('_', '-')}",
+                task_type=f"finance.returned-payment.{action_key}.v1",
+                area="Returned payment",
+                case_id=f"returned-payment:{item.public_id}",
+                reference=f"{case.reference_code} · check {instrument.check_number} · review v{item.version}",
+                transaction_type="Bank-returned payment",
+                subject=f"Instrument amount {instrument.amount:.2f} · observed {source_exception.observed_on.isoformat()}",
+                action=spec["next_action"],
+                gate=spec["definition"],
+                owner_queue=f"{queue_labels[action_key]} · {scope_department}",
+                scope=f"{scope_department}; bank account {instrument.bank_account_code}; case {case.reference_code}",
+                received_at=received_at,
+                due_on=None,
+                due_state="No structured target",
+                calendar_basis="The bank-return observation date is evidence timing, not an inferred Accounting or Treasury action deadline.",
+                age_days=_age_days(received_at, today),
+                state="Returned" if action_key == "treasury_clarification" else ("Exception" if exceptions else "Ready"),
+                source_state=item.get_status_display(),
+                source_version=f"projection-sha256:{_projection_checksum(projection)}",
+                exception=" ".join(dict.fromkeys(exceptions)),
+                url=(
+                    f"{reverse('vouchers:advice_workspace')}?returned_attention={action_key}"
+                    f"#returned-review-{item.public_id}"
+                ),
+            ))
+    return tasks
+
+
 def _remittance_tasks(user, department, today):
     from django.db.models import Q
 
@@ -1776,6 +2144,8 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks.extend(_accounting_validation_tasks(user, department, today))
     tasks.extend(_journal_tasks(user, department, today))
     tasks.extend(_treasury_payment_tasks(user, department, today))
+    tasks.extend(_bank_advice_tasks(user, department, today))
+    tasks.extend(_returned_payment_tasks(user, department, today))
     tasks.extend(_remittance_tasks(user, department, today))
     tasks.extend(_cash_control_tasks(user, department, today))
     tasks.extend(_reporting_tasks(user, department, today))
@@ -1791,6 +2161,7 @@ def finance_work_tasks(user, *, display_limit=100):
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls",
             "Treasury check preparation and instrument release",
+            "Bank-advice handoff and returned-payment resolution",
             "Treasury remittance and cash controls",
             "Report generation, reconciliation, review, and approval",
             "Field-operation cycle and nested-record gates", "Local forms",

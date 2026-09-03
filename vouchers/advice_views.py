@@ -17,7 +17,8 @@ from .advice import (
     review_advice, submit_advice_for_review,
 )
 from .advice_register import (
-    BANK_ADVICE_ATTENTION_CHOICES, apply_bank_advice_filters, visible_bank_advice_batches,
+    apply_bank_advice_filters, bank_advice_action_choices_for_user,
+    bank_advice_action_queryset, visible_bank_advice_batches,
 )
 from .forms import (
     AdviceStateForm, BankAdviceBatchForm, BankAdviceResponseForm, BankAdviceReviewForm,
@@ -45,10 +46,16 @@ def _batch(public_id, user):
 def workspace(request):
     if not has_explicit_permission(request.user, "vouchers.view_bank_advice"):
         raise PermissionDenied
-    batches, selected_status, selected_attention = apply_bank_advice_filters(
-        visible_bank_advice_batches(request.user),
-        status=request.GET.get("status", ""), attention=request.GET.get("attention", ""),
+    batches, selected_status, _ignored_attention = apply_bank_advice_filters(
+        visible_bank_advice_batches(request.user), status=request.GET.get("status", ""),
     )
+    requested_attention = request.GET.get("attention", "")
+    if requested_attention:
+        batches, selected_attention, _advice_work_spec = bank_advice_action_queryset(
+            request.user, requested_attention, queryset=batches,
+        )
+    else:
+        selected_attention = ""
     batches = batches.order_by("-advice_date", "-created_at")
     returned_attention = request.GET.get("returned_attention", "")
     if returned_attention:
@@ -71,7 +78,7 @@ def workspace(request):
         "can_manage_returns": has_explicit_permission(request.user, "vouchers.manage_payment_exceptions"),
         "can_export": has_explicit_permission(request.user, "vouchers.export_bank_advice"),
         "status_choices": BankAdviceBatch.STATUS_CHOICES,
-        "attention_choices": BANK_ADVICE_ATTENTION_CHOICES,
+        "attention_choices": bank_advice_action_choices_for_user(request.user),
         "selected_status": selected_status,
         "selected_attention": selected_attention,
         "visible_count": batches.count(),
@@ -255,7 +262,11 @@ def returned_clarify(request, public_id):
 @voucher_access_required
 def export(request, public_id=None):
     batch = _batch(public_id, request.user) if public_id else None
-    content, archived = export_bank_advice_csv(actor=request.user, batch=batch)
+    content, archived = export_bank_advice_csv(
+        actor=request.user, batch=batch, status=request.GET.get("status", ""),
+        attention=request.GET.get("attention", ""),
+        returned_attention=request.GET.get("returned_attention", ""),
+    )
     filename = f"bank-advice-{batch.advice_number if batch else timezone.localdate().isoformat()}.csv"
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
