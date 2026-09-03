@@ -16,6 +16,7 @@
           <td>
             <a href="{{ case.get_absolute_url }}"><strong>{{ case.reference_code }}</strong></a>
             <div class="small text-muted">{{ case.requesting_department.name }}</div>
+            <div class="small text-muted">{{ case.transaction_type_label }}</div>
           </td>
           <td>
             {{ case.payee_name }}

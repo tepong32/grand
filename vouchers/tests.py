@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from decimal import Decimal
+import csv
 import io
 from calendar import monthrange
 from pathlib import Path
@@ -38,7 +39,7 @@ from budget.services import transition_allotment_order, transition_authorization
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
     FinanceDocumentRule, FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
-    FinanceSignatory, FinanceTemplateVersion, FinanceTransactionVariant, FinanceWorkflowExemption,
+    FinanceAuditEvent, FinanceSignatory, FinanceTemplateVersion, FinanceTransactionVariant, FinanceWorkflowExemption,
 )
 from finance.services import preflight_finance_template
 from openpyxl import Workbook
@@ -2067,6 +2068,86 @@ class VoucherWorkflowTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, title)
                 self.assertContains(response, "Shared case history")
+
+    def test_requesting_office_case_visibility_is_department_bound_while_finance_remains_shared(self):
+        own_case = self.create_case("scope-own-case")
+        other_department = Department.objects.create(name="Municipal Engineering Office", slug="voucher-engineering")
+        other_case = create_budget_case(
+            actor=self.budget_user, requesting_department=other_department, payee=self.party,
+            particulars="Other office infrastructure payment", transaction_type="ordinary-supplier-claim",
+            idempotency_key="scope-other-case",
+        )
+
+        self.client.force_login(self.requesting_user)
+        workspace = self.client.get(reverse("vouchers:workspace"))
+        self.assertContains(workspace, own_case.reference_code)
+        self.assertNotContains(workspace, other_case.reference_code)
+        self.assertEqual(self.client.get(other_case.get_absolute_url()).status_code, 404)
+        self.assertEqual(self.client.get(reverse(
+            "vouchers:transaction_export", kwargs={"public_id": other_case.public_id},
+        )).status_code, 404)
+        self.assertEqual(self.client.get(reverse(
+            "vouchers:payment_register_export", kwargs={"public_id": other_case.public_id},
+        )).status_code, 404)
+        self.assertEqual(self.client.post(reverse(
+            "vouchers:case_action", kwargs={"public_id": other_case.public_id, "action": "submit-payable"},
+        )).status_code, 404)
+
+        self.client.force_login(self.preparer)
+        workspace = self.client.get(reverse("vouchers:workspace"))
+        self.assertContains(workspace, own_case.reference_code)
+        self.assertContains(workspace, other_case.reference_code)
+        self.assertEqual(self.client.get(other_case.get_absolute_url()).status_code, 200)
+
+    def test_case_control_register_matches_filters_archives_and_records_append_only_audit(self):
+        included = self.create_case("register-included")
+        included.payee_name = "=unsafe supplier"
+        included.save(update_fields=("payee_name", "updated_at"))
+        excluded = self.create_case("register-excluded")
+        excluded.current_stage = VoucherCase.CANCELLED
+        excluded.cancelled_at = timezone.now()
+        excluded.cancellation_reason = "Synthetic cancelled case"
+        excluded.save(update_fields=("current_stage", "cancelled_at", "cancellation_reason", "updated_at"))
+
+        self.client.force_login(self.requesting_user)
+        query = "?stage=budget_draft&transaction_type=ordinary-supplier-claim&attention=open_elsewhere&q=unsafe"
+        workspace = self.client.get(reverse("vouchers:workspace") + query)
+        self.assertContains(workspace, included.reference_code)
+        self.assertNotContains(workspace, excluded.reference_code)
+        self.assertContains(workspace, "Export these 1 cases")
+
+        response = self.client.get(reverse("vouchers:case_control_register_export") + query)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["X-GRAND-Export-Archived"], "true")
+        text = response.content.decode("utf-8-sig")
+        self.assertIn(included.reference_code, text)
+        self.assertNotIn(excluded.reference_code, text)
+        self.assertIn("'=unsafe supplier", text)
+        rows = list(csv.DictReader(io.StringIO(text)))
+        self.assertEqual(rows[0]["obligation_amount"], "0.00")
+        relative_path = response["X-GRAND-Export-Relative-Path"]
+        self.assertTrue((Path(self._export_directory.name) / relative_path).exists())
+        self.assertTrue((Path(self._export_directory.name) / f"{relative_path}.manifest.json").exists())
+        event = FinanceAuditEvent.objects.get(action="case_register_exported")
+        self.assertEqual(event.department, self.requesting)
+        self.assertEqual(event.snapshot["case_count"], 1)
+        self.assertEqual(event.snapshot["stage_filter"], VoucherCase.BUDGET_DRAFT)
+        with self.assertRaisesMessage(ValidationError, "append-only"):
+            event.save()
+
+    def test_case_control_register_invalid_filter_fails_closed_and_preserves_export_evidence(self):
+        case = self.create_case("register-invalid-filter")
+        self.client.force_login(self.requesting_user)
+        response = self.client.get(
+            reverse("vouchers:case_control_register_export") + "?stage=not-a-real-stage",
+        )
+        self.assertEqual(response.status_code, 200)
+        text = response.content.decode("utf-8-sig")
+        self.assertNotIn(case.reference_code, text)
+        self.assertEqual(len(text.strip().splitlines()), 1)
+        event = FinanceAuditEvent.objects.get(action="case_register_exported")
+        self.assertEqual(event.snapshot["case_count"], 0)
+        self.assertEqual(event.snapshot["stage_filter"], "not-a-real-stage")
 
     def test_department_home_surfaces_the_matching_finance_queue(self):
         for user, card_title in (

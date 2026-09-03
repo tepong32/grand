@@ -63,6 +63,10 @@ The browser receives the same bytes atomically retained below `GRAND_EXPORT_ROOT
 
 The adjacent `.manifest.json` records SHA-256, byte length, source case/state, claim/allocation totals, department, exporting user, and the explicit non-official-form boundary. Copy or synchronize the entire export root so TraceSync and ordinary offline safekeeping retain artifacts beside their manifests.
 
+The workspace also supplies a separate **case control register** for triage. It is one row per visible case and includes stage/next action, offices, variant, obligation authority/checksum, payable and relationship controls, checklist pending count, duplicate-review evidence, recognition/adjustment decisions, state version, and terminal-state dates. Stage/type/office/attention/search filters are applied identically to the screen and export; unknown controlled-choice filters fail closed. GRAND archives the exact CSV under `finance-case-control-register` and records an append-only Finance audit event even when the result is empty. This summary does not replace the detailed per-case transaction export.
+
+Spreadsheet formula prefixes in user-entered text are neutralized in both register levels while amounts remain numeric. Requesting offices can export only their assigned department's cases; central Finance roles retain the shared cross-office route needed to do their work.
+
 ## Internal How-Tos
 
 The floating non-modal `?` window now publishes successor versions for:

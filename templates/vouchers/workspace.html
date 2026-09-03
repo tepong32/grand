@@ -52,15 +52,71 @@
     </div>
   {% endif %}
 
+  <div class="card card-outline card-secondary">
+    <div class="card-header">
+      <h2 class="card-title font-weight-bold">Find work and export the same view</h2>
+      <span class="small text-muted float-right">{{ visible_count }} case{{ visible_count|pluralize }} visible</span>
+    </div>
+    <div class="card-body">
+      <form method="get" class="row align-items-end">
+        {% if filters.office %}<input type="hidden" name="office" value="{{ filters.office }}">{% endif %}
+        <div class="form-group col-lg-3 col-md-6">
+          <label for="case-search">Reference, payee, obligation, or purpose</label>
+          <input id="case-search" class="form-control" type="search" name="q" maxlength="160" value="{{ filters.q }}" placeholder="Search this role's cases">
+        </div>
+        <div class="form-group col-lg-2 col-md-6">
+          <label for="case-stage">Stage</label>
+          <select id="case-stage" class="form-control" name="stage">
+            <option value="">All stages</option>
+            {% for value, label in stage_choices %}<option value="{{ value }}" {% if filters.stage == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group col-lg-2 col-md-6">
+          <label for="case-type">Transaction type</label>
+          <select id="case-type" class="form-control" name="transaction_type">
+            <option value="">All types</option>
+            {% for option in transaction_type_choices %}<option value="{{ option.value }}" {% if filters.transaction_type == option.value %}selected{% endif %}>{{ option.label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group col-lg-2 col-md-6">
+          <label for="case-office">Requesting office</label>
+          <select id="case-office" class="form-control" name="requesting_department">
+            <option value="">All visible offices</option>
+            {% for option in requesting_department_choices %}<option value="{{ option.value }}" {% if filters.requesting_department == option.value %}selected{% endif %}>{{ option.label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group col-lg-3 col-md-6">
+          <label for="case-attention">Next attention</label>
+          <select id="case-attention" class="form-control" name="attention">
+            <option value="">All attention groups</option>
+            {% for value, label in attention_choices %}<option value="{{ value }}" {% if filters.attention == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-12 d-flex flex-wrap align-items-center">
+          <button class="btn btn-primary mr-2 mb-2" type="submit"><i class="fas fa-filter mr-1"></i>Apply filters</button>
+          <a class="btn btn-outline-secondary mr-2 mb-2" href="{% url 'vouchers:workspace' %}{% if filters.office %}?office={{ filters.office|urlencode }}{% endif %}">Clear filters</a>
+          {% if permissions.audit %}
+            <a class="btn btn-outline-success mb-2" href="{% url 'vouchers:case_control_register_export' %}?stage={{ filters.stage|urlencode }}&amp;transaction_type={{ filters.transaction_type|urlencode }}&amp;requesting_department={{ filters.requesting_department|urlencode }}&amp;attention={{ filters.attention|urlencode }}&amp;q={{ filters.q|urlencode }}{% if filters.office %}&amp;office={{ filters.office|urlencode }}{% endif %}">
+              <i class="fas fa-file-csv mr-1"></i>Export these {{ visible_count }} cases
+            </a>
+          {% endif %}
+        </div>
+      </form>
+      <p class="small text-muted mb-0 mt-2">
+        The CSV mirrors this exact role scope and filter set. It is archived in the TraceSync-ready export root with a checksum manifest; it is oversight evidence, not an approval or official form.
+      </p>
+    </div>
+  </div>
+
   <div class="row">
     <div class="col-md-4">
       <div class="small-box bg-info"><div class="inner"><h3>{{ queue_count }}</h3><p>{% if workspace_profile.is_uat_viewer %}Cases in this office preview{% else %}Ready for your role{% endif %}</p></div><div class="icon"><i class="fas {{ workspace_profile.icon }}"></i></div></div>
     </div>
     <div class="col-md-4">
-      <div class="small-box bg-warning"><div class="inner"><h3>{{ open_count }}</h3><p>Open shared cases</p></div><div class="icon"><i class="fas fa-route"></i></div></div>
+      <div class="small-box bg-warning"><div class="inner"><h3>{{ open_count }}</h3><p>Open cases in this view</p></div><div class="icon"><i class="fas fa-route"></i></div></div>
     </div>
     <div class="col-md-4">
-      <div class="small-box bg-success"><div class="inner"><h3>{{ completed_count }}</h3><p>Released and completed</p></div><div class="icon"><i class="fas fa-check-circle"></i></div></div>
+      <div class="small-box bg-success"><div class="inner"><h3>{{ completed_count }}</h3><p>Completed in this view</p></div><div class="icon"><i class="fas fa-check-circle"></i></div></div>
     </div>
   </div>
 

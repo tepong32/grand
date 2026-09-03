@@ -9,7 +9,11 @@ from django.utils.text import slugify
 
 from src.export_archive import archive_export
 
-from .access import can_view_workbench, has_explicit_permission, voucher_access_required
+from .access import can_view_workbench, department_for_user, has_explicit_permission, voucher_access_required
+from .case_exports import (
+    ATTENTION_CHOICES, apply_case_filters, build_case_control_register, filter_options,
+    visible_cases_for_user,
+)
 from .forms import (
     AccountingValidationForm, BankAdviceForm, BudgetCertificationForm, PayableIntakeForm,
     CancelCheckForm, CheckIssueForm, CheckReleaseForm, ReturnCaseForm,
@@ -35,8 +39,15 @@ from .services import (
 
 def _csv_safe(value):
     """Keep portable CSV text from being treated as a spreadsheet formula."""
-    text = str(value or "")
-    return "'" + text if text[:1] in ("=", "+", "-", "@") else text
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        return value
+    return "'" + value if value.startswith(("=", "+", "-", "@", "\t", "\r")) else value
+
+
+def _safe_writerow(writer, values):
+    writer.writerow(tuple(_csv_safe(value) for value in values))
 
 
 def _permissions(user):
@@ -90,13 +101,14 @@ def _decorate_cases(cases, actionable_stages=()):
     rows = list(cases)
     for case in rows:
         case.next_action_label = STAGE_NEXT_ACTION.get(case.current_stage, case.get_current_stage_display())
+        case.transaction_type_label = case.transaction_type.replace("-", " ").replace("_", " ").title()
         case.ready_for_user = case.current_stage in actionable_stages
     return rows
 
 
 @voucher_access_required
 def workspace(request):
-    cases = VoucherCase.objects.select_related(
+    all_cases = VoucherCase.objects.select_related(
         "requesting_department", "current_department", "payee", "configuration_release",
     ).annotate(check_count=Count("payment_instruments"))
     permissions = _permissions(request.user)
@@ -108,6 +120,16 @@ def workspace(request):
         can_handle_posting and not profile["is_uat_viewer"],
     )
     queue_stages = profile["stages"] if profile["is_uat_viewer"] else actionable_stages
+    scoped_cases = visible_cases_for_user(
+        request.user, all_cases, requested_role=request.GET.get("office"),
+    )
+    transaction_type_choices, requesting_department_choices = filter_options(scoped_cases)
+    cases, stage, transaction_type, requesting_department, attention, search = apply_case_filters(
+        scoped_cases, actionable_stages=queue_stages,
+        stage=request.GET.get("stage", ""), transaction_type=request.GET.get("transaction_type", ""),
+        requesting_department=request.GET.get("requesting_department", ""),
+        attention=request.GET.get("attention", ""), search=request.GET.get("q", ""),
+    )
     queue_query = cases.filter(current_stage__in=queue_stages)
     queue_ids = list(queue_query.values_list("pk", flat=True)[:100])
     queue_cases = _decorate_cases(
@@ -122,7 +144,47 @@ def workspace(request):
         "queue_count": queue_query.count(),
         "open_count": cases.exclude(current_stage__in=(VoucherCase.COMPLETED, VoucherCase.CANCELLED)).count(),
         "completed_count": stage_counts[VoucherCase.COMPLETED],
+        "visible_count": cases.count(), "stage_choices": VoucherCase.STAGE_CHOICES,
+        "attention_choices": ATTENTION_CHOICES, "transaction_type_choices": transaction_type_choices,
+        "requesting_department_choices": requesting_department_choices,
+        "filters": {
+            "stage": stage, "transaction_type": transaction_type,
+            "requesting_department": requesting_department, "attention": attention, "q": search,
+            "office": request.GET.get("office", "") if profile["is_uat_viewer"] else "",
+        },
     })
+
+
+@voucher_access_required
+def case_control_register_export(request):
+    if not has_explicit_permission(request.user, "vouchers.view_voucher_audit"):
+        raise PermissionDenied
+    permissions = _permissions(request.user)
+    profile = finance_workspace_profile(request.user, request.GET.get("office"))
+    from accounting.access import can_post_journals, can_prepare_journals
+    actionable_stages = _actionable_stages(
+        permissions,
+        (can_prepare_journals(request.user) or can_post_journals(request.user)) and not profile["is_uat_viewer"],
+    )
+    queue_stages = profile["stages"] if profile["is_uat_viewer"] else actionable_stages
+    cases = visible_cases_for_user(request.user, requested_role=request.GET.get("office"))
+    cases, stage, transaction_type, requesting_department, attention, search = apply_case_filters(
+        cases, actionable_stages=queue_stages,
+        stage=request.GET.get("stage", ""), transaction_type=request.GET.get("transaction_type", ""),
+        requesting_department=request.GET.get("requesting_department", ""),
+        attention=request.GET.get("attention", ""), search=request.GET.get("q", ""),
+    )
+    content, filename, receipt = build_case_control_register(
+        actor=request.user, queryset=cases,
+        requested_role=request.GET.get("office"), stage=stage, transaction_type=transaction_type,
+        requesting_department=requesting_department, attention=attention, search=search,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Export-Relative-Path"] = receipt["relative_path"]
+    return response
 
 
 @voucher_access_required
@@ -135,7 +197,6 @@ def case_create(request):
     except VoucherWorkflowError as exc:
         messages.error(request, "; ".join(exc.messages))
         return redirect("vouchers:workspace")
-    from .access import department_for_user
     department = department_for_user(request.user)
     form = PayableIntakeForm(request.POST or None, release=release, department=department)
     if request.method == "POST" and form.is_valid():
@@ -158,9 +219,9 @@ def case_create(request):
     })
 
 
-def _case(public_id):
+def _case(public_id, user):
     return get_object_or_404(
-        VoucherCase.objects.select_related(
+        visible_cases_for_user(user, VoucherCase.objects.select_related(
             "requesting_department", "current_department", "configuration_release", "voucher_template", "payee",
             "obligation", "obligation__certified_by", "payable_intake", "disbursement_voucher", "disbursement_voucher__prepared_by",
         ).prefetch_related(
@@ -170,7 +231,7 @@ def _case(public_id):
             "posting_requests",
             "nonfinancial_amendments__amended_by",
             "payable_document_evidence__source_rule", "payable_document_evidence__recorded_by",
-        ), public_id=public_id,
+        )), public_id=public_id,
     )
 
 
@@ -186,7 +247,7 @@ def _voucher_deduction_formset(case, data=None):
 
 @voucher_access_required
 def case_detail(request, public_id):
-    case = _case(public_id)
+    case = _case(public_id, request.user)
     permissions = _permissions(request.user)
     profile = finance_workspace_profile(request.user)
     from accounting.access import can_post_journals, can_prepare_journals
@@ -244,7 +305,7 @@ def case_detail(request, public_id):
 def case_action(request, public_id, action):
     if request.method != "POST":
         raise Http404
-    case = _case(public_id)
+    case = _case(public_id, request.user)
     forms = {
         "certify-budget": BudgetCertificationForm,
         "prepare-dv": VoucherPreparationForm,
@@ -411,7 +472,7 @@ def case_action(request, public_id, action):
 
 @voucher_access_required
 def output_download(request, public_id, output_pk):
-    case = _case(public_id)
+    case = _case(public_id, request.user)
     output = get_object_or_404(VoucherOutput, pk=output_pk, case=case)
     output.file.open("rb")
     response = FileResponse(output.file, as_attachment=True, filename=output.file.name.rsplit("/", 1)[-1])
@@ -422,7 +483,7 @@ def output_download(request, public_id, output_pk):
 
 @voucher_access_required
 def transaction_export(request, public_id):
-    case = _case(public_id)
+    case = _case(public_id, request.user)
     if not has_explicit_permission(request.user, "vouchers.view_voucher_audit"):
         raise PermissionDenied
     summary = payable_relationship_summary(case) if hasattr(case, "payable_intake") else {
@@ -430,7 +491,7 @@ def transaction_export(request, public_id):
     }
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     writer = csv.writer(response)
-    writer.writerow((
+    _safe_writerow(writer, (
         "section", "case_reference", "case_public_id", "stage", "requesting_office",
         "transaction_type", "payee", "claim_reference", "claim_amount", "allocated_total",
         "control_difference", "obligation_number", "obligation_public_id", "relationship_type",
@@ -449,7 +510,7 @@ def transaction_export(request, public_id):
         summary["allocated_total"], summary["difference"],
     )
     for allocation in summary["allocations"]:
-        writer.writerow((
+        _safe_writerow(writer, (
             "obligation_allocation", *base,
             allocation.obligation.obligation_number, allocation.obligation.public_id,
             allocation.relationship_type, allocation.allocated_amount,
@@ -462,7 +523,7 @@ def transaction_export(request, public_id):
         ))
     if intake:
         for evidence in case.payable_document_evidence.all():
-            writer.writerow((
+            _safe_writerow(writer, (
                 "documentary_evidence", *base,
                 "", "", "", "", "", "", "",
                 intake.recognition_decision, intake.recognition_basis,
@@ -474,7 +535,7 @@ def transaction_export(request, public_id):
     if hasattr(case, "disbursement_voucher"):
         for deduction in case.disbursement_voucher.deductions.order_by("pk"):
             tax = deduction.tax_rule_snapshot or {}
-            writer.writerow((
+            _safe_writerow(writer, (
                 "deduction_tax_evidence", *base,
                 "", "", "", "", "", "", "",
                 intake.recognition_decision if intake else "", intake.recognition_basis if intake else "",
@@ -489,7 +550,7 @@ def transaction_export(request, public_id):
     filename = f"{slugify(case.reference_code)}-payable-transaction.csv"
     archived = archive_export(
         content=response.content,
-        department=case.requesting_department,
+        department=department_for_user(request.user),
         user=request.user,
         category="finance-payable-transactions",
         filename=filename,
@@ -514,11 +575,9 @@ def transaction_export(request, public_id):
 
 @voucher_access_required
 def payment_register_export(request, public_id):
-    case = _case(public_id)
+    case = _case(public_id, request.user)
     if not has_explicit_permission(request.user, "vouchers.view_voucher_audit"):
         raise PermissionDenied
-    from .access import department_for_user
-
     request_by_trigger = {}
     for posting in case.posting_requests.all():
         parts = posting.trigger_key.split(":")
@@ -530,7 +589,7 @@ def payment_register_export(request, public_id):
             request_by_trigger[key] = posting
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     writer = csv.writer(response)
-    writer.writerow((
+    _safe_writerow(writer, (
         "export_kind", "case_reference", "case_public_id", "dv_number", "requesting_office",
         "transaction_type", "payee", "instrument_public_id", "bank_account_code", "check_number",
         "amount", "status", "issued_at", "issued_by", "replaces_instrument_public_id",
@@ -563,7 +622,7 @@ def payment_register_export(request, public_id):
             return posting.get_status_display()
 
         advice = instrument.current_advice_batch
-        writer.writerow((
+        _safe_writerow(writer, (
             "payment_instrument_register", _csv_safe(case.reference_code), case.public_id,
             _csv_safe(case.disbursement_voucher.dv_number), _csv_safe(case.requesting_department.name),
             _csv_safe(case.transaction_type), _csv_safe(case.payee_name), instrument.public_id,

@@ -166,6 +166,8 @@ Deliver:
 
 Exit gate: the ordinary-supplier flow and each enabled variant reproduce a redacted completed case from request through a payment-ready, budget-supported payable.
 
+Implementation position: F5.1–F5.3 synthetic transaction controls now include a role-shaped, searchable next-action queue; requesting-office department enforcement on lists, direct case access, actions, downloads, and exports; and a synchronized one-row-per-case control register alongside the detailed relationship/document/tax export. Exact locally accepted variant rules/forms, exception routes, redacted completed replay, and named requesting-office/Accounting acceptance remain the parent F5 gate; see [Finance payable intake](FINANCE_PAYABLE_INTAKE.md), [Finance transaction variants and payable readiness](FINANCE_PAYABLE_VARIANTS.md), and [Finance payable relationships](FINANCE_PAYABLE_RELATIONSHIPS.md).
+
 ### F6 — Disbursement Voucher and controlled paper workflow
 
 Deliver:

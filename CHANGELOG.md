@@ -1,5 +1,14 @@
 # Changelog
 
+## F5 guided payable triage and department-safe control register
+
+- Enforced requesting-office department visibility across the workbench, direct case pages, actions, generated-output downloads, and case exports while preserving the shared cross-office workflow required by Budget, Accounting, Treasury, and read-only UAT preview.
+- Added stage, transaction type, requesting office, next-attention, and plain search filters with fail-closed controlled choices, visible filtered counts, and plain-language next actions.
+- Added a synchronized one-row-per-case control register with obligation authority/checksum, claim/allocation reconciliation, checklist status, duplicate review, recognition/adjustment decisions, state version, and terminal-state evidence; retained the per-case relationship/document/tax export as the detail level.
+- Archived exact spreadsheet-safe bytes and checksum manifests under the TraceSync-ready `finance-case-control-register` folder and recorded append-only Finance audit events, including zero-row exports.
+- Hardened existing transaction and payment-register CSV text against formula prefixes without coercing numeric amounts, and published successor requesting-office and Accounting floating guides for filters, export levels, modification windows, and authority boundaries.
+- Added focused department-disclosure, filter, archive, audit, and formula-safety coverage. All 37 voucher workflow tests, all 62 voucher-plus-guidance tests, and all 410 project tests pass across both routed databases.
+
 ## F4 guided allotment and obligation control triage
 
 - Added fiscal-year, type, status, form, and plain-language next-action filters to the existing allotment and role-shaped obligation workspaces without changing their transaction states or authority boundaries.

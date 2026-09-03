@@ -12,6 +12,8 @@ F5.1 replaces the Voucher Workbench's normal entry point with a requesting-offic
 - The core transaction database and Finance authority database use a recoverable UUID handoff. A pending or failed link cannot proceed silently; the requesting office can reconcile the same case.
 - DV preparation independently rechecks the link, current lineage amount, and checksum. A later pre-DV obligation correction pauses the case for payable reconciliation.
 - The department-specific floating Internal How-To explains intake, modification, duplicate review, and handoff recovery. Its checkmarks remain private tutorial progress only.
+- The requesting-office workbench is now a true department boundary: its screen, direct case links, output downloads, actions, and exports cannot disclose another office's case. Budget, Accounting, and Treasury retain the cross-office shared-case view required for their assigned work, while the UAT viewer remains broad but read-only.
+- Staff can filter by stage, transaction type, requesting office where their role permits it, next attention, or plain reference/payee/obligation/purpose search. The one-row-per-case control register uses the exact same role scope and filters.
 
 ## Modification boundary
 

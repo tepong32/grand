@@ -48,6 +48,8 @@ The floating non-modal `?` panel now provides:
 
 Seeder-authored instructions are versioned. A newer curated version retires the prior published version and publishes a successor without overwriting prior steps or copying personal tutorial checkmarks. Those checkmarks remain private learning aids—not workflow status, approval, performance evidence, or inherited employee history.
 
+The successor guides also explain how to narrow the role-shaped workbench, distinguish work ready for the current role from work held elsewhere, and export the exact visible case register without mistaking it for acceptance or payment authority.
+
 ## Authority and acceptance boundary
 
 The included transaction kinds are configuration capabilities, not declarations that every variant is enabled or accepted locally. Each enabled variant still needs a locally reviewed authority decision, accepted documentary rules, redacted completed-case replay, and any exact accepted form/template before official use.
