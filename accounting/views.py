@@ -2,6 +2,7 @@ import csv
 from decimal import Decimal
 import hashlib
 import json
+from pathlib import Path
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -755,6 +756,10 @@ def _csv_text(value):
     return value
 
 
+def _opening_balance_starter_path():
+    return Path(__file__).resolve().parent.parent / "docs" / "finance-starters" / "OPENING_BALANCE_IMPORT.csv"
+
+
 @require_GET
 @accounting_access_required
 def opening_export(request, public_id):
@@ -821,6 +826,30 @@ def opening_export(request, public_id):
         request.user,
         snapshot={"relative_path": archived["relative_path"], "sha256": archived["sha256"]},
     )
+    return response
+
+
+@require_GET
+@accounting_permission_required(can_prepare_opening_balances)
+def opening_starter(request):
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="opening-balance-starter.csv"'
+    response["X-Content-Type-Options"] = "nosniff"
+    template_path = _opening_balance_starter_path()
+    if template_path.exists():
+        response.write(template_path.read_text(encoding="utf-8"))
+        return response
+    writer = csv.writer(response)
+    writer.writerow((
+        "fund_code", "account_code", "responsibility_center_code", "debit", "credit",
+        "subsidiary_reference", "memo",
+    ))
+    writer.writerow((
+        "SYN-FUND", "SYN-CASH", "", "10000.00", "", "SYN-SUB01", "Replace/remove this sample opening row",
+    ))
+    writer.writerow((
+        "SYN-FUND", "SYN-REV", "", "", "2500.00", "SYN-SUB02", "Replace/remove this sample opening row",
+    ))
     return response
 
 

@@ -27,6 +27,29 @@ fund_code,account_code,responsibility_center_code,debit,credit,subsidiary_refere
 
 `fund_code`, `account_code`, `debit`, and `credit` are required columns. Every populated row must resolve to active governed codes, contain a positive debit or credit but not both, and use a non-negative amount with no more than two decimal places. GRAND checks row count, declared debit and credit, batch balance, and balance within each fund. A genuinely new year with no brought-forward balances uses an explicit zero-balance declaration rather than invented rows.
 
+## Starter CSV
+
+To make onboarding easier for clerks and new processors, GRAND provides a plain starter template at
+
+```text
+docs/finance-starters/OPENING_BALANCE_IMPORT.csv
+```
+
+and an in-app download:
+
+* `/accounting/opening/starter.csv`
+
+The CSV is deliberately familiar and editable:
+
+```text
+fund_code,account_code,responsibility_center_code,debit,credit,subsidiary_reference,memo
+```
+
+- Opening rows do not carry a transaction-date column; controls are enforced per declared period and header.
+- Keep one positive debit or one positive credit per row; do not mix both.
+- Replace or remove the sample rows before uploading.
+- Keep codes in your local COA/ledger format so GRAND can map governed master data.
+
 ## Operator sequence
 
 1. Create the batch for one typed fiscal year and its opening period. Record the reviewed source reference and independent row/debit/credit controls.

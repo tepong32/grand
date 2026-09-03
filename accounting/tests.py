@@ -768,6 +768,15 @@ class StandaloneAccountingTests(TestCase):
         response = self.client.get(reverse("accounting:opening_export", args=(batch.public_id,)))
         self.assertEqual(response.status_code, 404)
 
+    def test_opening_starter_csv_is_available_and_plain(self):
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("accounting:opening_starter"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("opening-balance-starter.csv", response["Content-Disposition"])
+        content = response.content.decode("utf-8")
+        self.assertIn("fund_code,account_code,responsibility_center_code,debit,credit,subsidiary_reference,memo", content)
+        self.assertIn("Replace/remove this sample opening row.", content)
+
     def test_accounting_models_are_routed_only_to_finance_database(self):
         self.assertEqual(JournalEntry.objects.db, "finance")
         self.assertEqual(AccountingPeriod.objects.db, "finance")

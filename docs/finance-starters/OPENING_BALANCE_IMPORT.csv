@@ -1,0 +1,3 @@
+fund_code,account_code,responsibility_center_code,debit,credit,subsidiary_reference,memo
+SYN-FUND,SYN-101,,10000.00,,SYN-SUB-OPEN-01,Replace/remove this sample opening row.
+SYN-FUND,SYN-401,,,2500.00,SYN-SUB-OPEN-02,Replace/remove this sample opening row.
