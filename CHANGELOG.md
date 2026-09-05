@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 exact bank-reconciliation work tasks
+
+- Added stable, source-linked My Work items for statement staging, declared-control correction, returned correction, matching and exception resolution, and independent zero-difference close review.
+- Reused one permission-, Accounting-office-, lifecycle-, maker-checker-, and UAT-aware action query across the bank-reconciliation workspace, synchronized register export, attention counts, and exact task projection.
+- Added evidence-sensitive projection checksums and hard-stop exceptions for source/row controls, exact deposit/withdrawal/closing equations, running balances, row/match/timing-item checksums, live source snapshots, unmatched or unclassified evidence, submitted-review checksum drift, and retained return reasons.
+- Hardened every bank-reconciliation mutation with current-office checks, suppressed preparation/review actions for Finance UAT preview accounts, denied preparer/submitter decisions for both return and approval, and revalidated the submitted snapshot before reconciliation.
+- Preserved statement period, receipt, and expected-clearance dates as evidence without inventing task deadlines; exact Task IDs remain stable while evidence-sensitive revisions change.
+- Added source/screen/export/task parity, office isolation, maker-checker, UAT, ready-close, one-cent, tamper, and direct-service regression coverage. The final cross-module gate passed 266 tests in 71.825 seconds and the complete project gate passed all 511 tests across both routed databases in 117.522 seconds; Django checks and the migration-drift gate are clean.
+
 ## F1.5 exact bank-advice and returned-payment work tasks
 
 - Added stable, source-linked My Work items for bank-advice draft/returned correction, independent review, bank submission, bank-response recording, returned-payment Accounting decision, Treasury clarification, and Accounting-cleared controlled replacement.

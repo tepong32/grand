@@ -99,11 +99,21 @@ def can_view_bank_reconciliation(user):
 
 
 def can_prepare_bank_reconciliation(user):
-    return has_explicit_permission(user, "accounting.prepare_bank_reconciliation")
+    from vouchers.roles import is_finance_uat_viewer
+
+    return (
+        not is_finance_uat_viewer(user)
+        and has_explicit_permission(user, "accounting.prepare_bank_reconciliation")
+    )
 
 
 def can_approve_bank_reconciliation(user):
-    return has_explicit_permission(user, "accounting.approve_bank_reconciliation")
+    from vouchers.roles import is_finance_uat_viewer
+
+    return (
+        not is_finance_uat_viewer(user)
+        and has_explicit_permission(user, "accounting.approve_bank_reconciliation")
+    )
 
 
 def can_export_bank_reconciliation(user):

@@ -10,7 +10,10 @@ from django.utils.text import slugify
 
 from src.export_archive import archive_export
 
-from .access import can_export_bank_reconciliation, department_for_user
+from .access import (
+    can_approve_bank_reconciliation, can_export_bank_reconciliation,
+    can_prepare_bank_reconciliation, can_view_bank_reconciliation, department_for_user,
+)
 from .models import AccountingAuditEvent, BankStatementBatch, Fund
 from .services import bank_reconciliation_snapshot
 
@@ -23,6 +26,96 @@ ATTENTION_CHOICES = (
     ("for_review", "Waiting for independent review"),
     ("reconciled", "Reconciled evidence"),
 )
+
+BANK_RECONCILIATION_ACTION_SPECS = {
+    "needs_statement": {
+        "permission_check": can_prepare_bank_reconciliation,
+        "title": "Bank batches needing a statement",
+        "definition": "Draft bank batches that do not yet have a staged statement source.",
+        "next_action": "Stage the current bank statement CSV and validate its declared controls.",
+    },
+    "needs_control_correction": {
+        "permission_check": can_prepare_bank_reconciliation,
+        "title": "Staged bank controls to correct",
+        "definition": "Staged draft statements whose declared or imported controls need correction.",
+        "next_action": "Correct the declared controls or restage a reasoned source version, then validate again.",
+    },
+    "returned_correction": {
+        "permission_check": can_prepare_bank_reconciliation,
+        "title": "Returned bank reconciliations to correct",
+        "definition": "Bank reconciliations returned with an independent review reason.",
+        "next_action": "Resolve the retained return reason, revalidate the current evidence, and resubmit.",
+    },
+    "needs_matching": {
+        "permission_check": can_prepare_bank_reconciliation,
+        "title": "Validated bank statements to match",
+        "definition": "Validated bank statements ready for exact matching, timing-item classification, zero-difference resolution, and submission.",
+        "next_action": "Match statement rows, classify every ledger-only timing item, resolve the difference to zero, and submit.",
+    },
+    "for_review": {
+        "permission_check": can_approve_bank_reconciliation,
+        "title": "Bank reconciliations for independent review",
+        "definition": "Zero-difference reconciliation submissions awaiting a decision by someone other than the creator or submitter.",
+        "next_action": "Independently reproduce the source, matching, timing-item, and zero-difference evidence, then reconcile or return it.",
+    },
+}
+
+
+def visible_bank_reconciliation_batches(user):
+    """Return the current Accounting office's visible bank-reconciliation register."""
+    department = department_for_user(user)
+    if department is None or not can_view_bank_reconciliation(user):
+        return BankStatementBatch.objects.none()
+    return BankStatementBatch.objects.filter(department_id=department.pk)
+
+
+def bank_reconciliation_action_choices_for_user(user):
+    """Expose only personal actions held by a non-UAT account."""
+    from vouchers.roles import is_finance_uat_viewer
+
+    if is_finance_uat_viewer(user) or not can_view_bank_reconciliation(user):
+        return ()
+    return tuple(
+        (action, spec["title"])
+        for action, spec in BANK_RECONCILIATION_ACTION_SPECS.items()
+        if spec["permission_check"](user)
+    )
+
+
+def bank_reconciliation_attention_choices_for_user(user):
+    """Keep completed evidence available as oversight without presenting it as work."""
+    choices = list(bank_reconciliation_action_choices_for_user(user))
+    if can_view_bank_reconciliation(user):
+        choices.append(("reconciled", "Reconciled evidence"))
+    return tuple(choices)
+
+
+def bank_reconciliation_action_queryset(user, action, *, queryset=None):
+    """Return one permission-, office-, state-, checker-, and UAT-scoped action queue."""
+    from vouchers.roles import is_finance_uat_viewer
+
+    spec = BANK_RECONCILIATION_ACTION_SPECS.get(action)
+    base = visible_bank_reconciliation_batches(user) if queryset is None else queryset
+    department = department_for_user(user)
+    if (
+        spec is None or department is None or is_finance_uat_viewer(user)
+        or not can_view_bank_reconciliation(user) or not spec["permission_check"](user)
+    ):
+        return base.none(), action if spec else "", spec
+    base = base.filter(department_id=department.pk)
+    if action == "needs_statement":
+        base = base.filter(status=BankStatementBatch.DRAFT, source_version=0)
+    elif action == "needs_control_correction":
+        base = base.filter(status=BankStatementBatch.DRAFT, source_version__gt=0)
+    elif action == "returned_correction":
+        base = base.filter(status=BankStatementBatch.RETURNED)
+    elif action == "needs_matching":
+        base = base.filter(status=BankStatementBatch.VALIDATED)
+    else:
+        base = base.filter(status=BankStatementBatch.FOR_REVIEW).exclude(
+            created_by_id=user.pk,
+        ).exclude(submitted_by_id=user.pk)
+    return base.distinct(), action, spec
 
 BANK_REGISTER_COLUMNS = (
     "statement_reference", "batch_public_id", "bank_name", "bank_account_code",
@@ -41,6 +134,7 @@ BANK_REGISTER_COLUMNS = (
 
 def apply_bank_register_filters(
     queryset, *, status="", fund="", bank_account="", period_year="", attention="", search="",
+    actor=None,
 ):
     department_ids = queryset.values("department_id")
     if status in dict(BankStatementBatch.STATUS_CHOICES):
@@ -72,7 +166,11 @@ def apply_bank_register_filters(
         else:
             queryset = queryset.none()
 
-    if attention == "needs_statement":
+    if actor is not None and attention in BANK_RECONCILIATION_ACTION_SPECS:
+        queryset, attention, _spec = bank_reconciliation_action_queryset(
+            actor, attention, queryset=queryset,
+        )
+    elif attention == "needs_statement":
         queryset = queryset.filter(status=BankStatementBatch.DRAFT, source_version=0)
     elif attention == "needs_control_correction":
         queryset = queryset.filter(status=BankStatementBatch.DRAFT, source_version__gt=0)

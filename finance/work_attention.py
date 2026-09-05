@@ -238,13 +238,15 @@ def _budget_groups(user, department):
 
 def _accounting_groups(user, department):
     from accounting.access import (
-        can_approve_bank_reconciliation, can_approve_opening_balances,
-        can_approve_period_close, can_post_journals, can_post_opening_balances,
-        can_prepare_bank_reconciliation, can_prepare_journals, can_prepare_opening_balances,
+        can_approve_opening_balances, can_approve_period_close, can_post_journals,
+        can_post_opening_balances, can_prepare_journals, can_prepare_opening_balances,
         can_prepare_period_close, can_reopen_period,
     )
+    from accounting.bank_register_exports import (
+        bank_reconciliation_action_choices_for_user, bank_reconciliation_action_queryset,
+    )
     from accounting.journal_exports import journal_action_queryset
-    from accounting.models import BankStatementBatch, JournalEntry, OpeningBalanceBatch
+    from accounting.models import JournalEntry, OpeningBalanceBatch
     from accounting.period_close_register import apply_period_close_filters, period_close_runs_for_department
 
     groups = []
@@ -277,26 +279,6 @@ def _accounting_groups(user, department):
          OpeningBalanceBatch.objects.filter(department_id=department.pk, status=OpeningBalanceBatch.POSTED),
          _queue_url("accounting:opening_workspace", attention="awaiting_reconciliation"),
          "Posted opening batches awaiting zero-difference reconciliation."),
-        (can_prepare_bank_reconciliation(user), "bank-statement", "Reconciliation", "Bank batches needing a statement",
-         BankStatementBatch.objects.filter(department_id=department.pk, status=BankStatementBatch.DRAFT, source_version=0),
-         _queue_url("accounting:bank_reconciliation_workspace", attention="needs_statement"),
-         "Draft bank batches that do not yet have a staged statement source."),
-        (can_prepare_bank_reconciliation(user), "bank-control-correction", "Reconciliation", "Staged bank controls to correct",
-         BankStatementBatch.objects.filter(department_id=department.pk, status=BankStatementBatch.DRAFT, source_version__gt=0),
-         _queue_url("accounting:bank_reconciliation_workspace", attention="needs_control_correction"),
-         "Staged draft statements whose declared or imported controls need correction."),
-        (can_prepare_bank_reconciliation(user), "bank-returned", "Reconciliation", "Returned bank reconciliations to correct",
-         BankStatementBatch.objects.filter(department_id=department.pk, status=BankStatementBatch.RETURNED),
-         _queue_url("accounting:bank_reconciliation_workspace", attention="returned_correction"),
-         "Bank reconciliations returned with an independent review reason."),
-        (can_prepare_bank_reconciliation(user), "bank-matching", "Reconciliation", "Validated bank statements to match",
-         BankStatementBatch.objects.filter(department_id=department.pk, status=BankStatementBatch.VALIDATED),
-         _queue_url("accounting:bank_reconciliation_workspace", attention="needs_matching"),
-         "Validated bank statements ready for matching, classification, and explanation."),
-        (can_approve_bank_reconciliation(user), "bank-review", "Reconciliation", "Bank reconciliations for independent review",
-         BankStatementBatch.objects.filter(department_id=department.pk, status=BankStatementBatch.FOR_REVIEW),
-         _queue_url("accounting:bank_reconciliation_workspace", attention="for_review"),
-         "Zero-difference reconciliation submissions awaiting an independent decision."),
     )
     for allowed, key, area, title, queryset, url, definition in definitions:
         if allowed:
@@ -304,6 +286,21 @@ def _accounting_groups(user, department):
                 key=key, area=area, title=title, count=queryset.count(), url=url,
                 definition=definition, scope=department.name,
             ))
+    bank_keys = {
+        "needs_statement": "bank-statement",
+        "needs_control_correction": "bank-control-correction",
+        "returned_correction": "bank-returned",
+        "needs_matching": "bank-matching",
+        "for_review": "bank-review",
+    }
+    for attention, _label in bank_reconciliation_action_choices_for_user(user):
+        queryset, selected_attention, spec = bank_reconciliation_action_queryset(user, attention)
+        groups.append(_group(
+            key=bank_keys[attention], area="Reconciliation", title=spec["title"],
+            count=queryset.count(),
+            url=_queue_url("accounting:bank_reconciliation_workspace", attention=selected_attention),
+            definition=spec["definition"], scope=department.name,
+        ))
     close_specs = (
         (can_prepare_period_close(user), "period-close-preparation", "Period-close checklists to prepare or correct",
          "needs_preparation", "Draft or returned period-close evidence available to an authorized preparer."),

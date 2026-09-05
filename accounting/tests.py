@@ -26,7 +26,7 @@ from vouchers.models import (
 from .access import can_post_journals, can_prepare_journals, can_view_accounting
 from .models import (
     AccountingAuditEvent, AccountingPeriod, FiscalYear, FiscalYearReadinessApproval,
-    BankOutstandingItem, BankStatementBatch, BankStatementMatch,
+    BankOutstandingItem, BankReconciliationEvent, BankStatementBatch, BankStatementMatch,
     Fund, FundingSource, JournalEntry, JournalLine, JournalSubsidiaryLine,
     LedgerAccount, OpeningBalanceBatch, OpeningBalanceRow,
     PostingMapping, ProgramActivityProject, ResponsibilityCenter,
@@ -1704,9 +1704,27 @@ class StandaloneAccountingTests(TestCase):
         self._grant(self.preparer, "approve_bank_reconciliation")
         with self.assertRaisesMessage(ValidationError, "independent"):
             decide_bank_reconciliation(
+                submitted, self.preparer, decision=BankStatementBatch.RETURNED,
+                evidence_note="Synthetic self-return must fail.",
+            )
+        with self.assertRaisesMessage(ValidationError, "independent"):
+            decide_bank_reconciliation(
                 submitted, self.preparer, decision=BankStatementBatch.RECONCILED,
                 evidence_note="Synthetic self-review must fail.",
             )
+        submission_event = submitted.events.get(action="submitted_for_review")
+        retained_submission_snapshot = submission_event.snapshot
+        BankReconciliationEvent.objects.filter(pk=submission_event.pk).update(
+            snapshot={**retained_submission_snapshot, "snapshot_checksum": "f" * 64},
+        )
+        with self.assertRaisesMessage(ValidationError, "snapshot no longer reproduces"):
+            decide_bank_reconciliation(
+                submitted, self.setup_approver, decision=BankStatementBatch.RECONCILED,
+                evidence_note="Tampered submission evidence must fail.",
+            )
+        BankReconciliationEvent.objects.filter(pk=submission_event.pk).update(
+            snapshot=retained_submission_snapshot,
+        )
         reconciled = decide_bank_reconciliation(
             submitted, self.setup_approver, decision=BankStatementBatch.RECONCILED,
             evidence_note="Reviewed synthetic statement, GL, check register, and adjusted-balance schedule.",

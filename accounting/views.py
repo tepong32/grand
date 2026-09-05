@@ -68,8 +68,8 @@ from .period_close_register import (
     PERIOD_CLOSE_ATTENTION_CHOICES, apply_period_close_filters, period_close_runs_for_department,
 )
 from .bank_register_exports import (
-    ATTENTION_CHOICES as BANK_ATTENTION_CHOICES,
-    apply_bank_register_filters, build_bank_control_register, next_bank_action,
+    apply_bank_register_filters, bank_reconciliation_attention_choices_for_user,
+    build_bank_control_register, next_bank_action,
 )
 from .foundation_exports import build_foundation_register
 from .journal_exports import (
@@ -1141,6 +1141,7 @@ def bank_reconciliation_workspace(request):
         fund=request.GET.get("fund", "").strip(), bank_account=request.GET.get("bank_account", "").strip(),
         period_year=request.GET.get("period_year", "").strip(),
         attention=request.GET.get("attention", "").strip(), search=request.GET.get("q", ""),
+        actor=request.user,
     )
     visible_count = batches.count()
     display_batches = list(batches[:100])
@@ -1148,7 +1149,8 @@ def bank_reconciliation_workspace(request):
         batch.next_action_label = next_bank_action(batch)
     return render(request, "accounting/bank_reconciliation_workspace.html", {
         "batches": display_batches, "metrics": metrics, "visible_count": visible_count,
-        "status_choices": BankStatementBatch.STATUS_CHOICES, "attention_choices": BANK_ATTENTION_CHOICES,
+        "status_choices": BankStatementBatch.STATUS_CHOICES,
+        "attention_choices": bank_reconciliation_attention_choices_for_user(request.user),
         "fund_choices": Fund.objects.filter(department_id=department.pk).order_by("code"),
         "bank_account_choices": bank_accounts, "period_year_choices": period_years,
         "filters": {
@@ -1170,6 +1172,7 @@ def bank_reconciliation_register_export(request):
         bank_account=request.GET.get("bank_account", "").strip(),
         period_year=request.GET.get("period_year", "").strip(),
         attention=request.GET.get("attention", "").strip(), search=request.GET.get("q", ""),
+        actor=request.user,
     )
     content, filename, receipt = build_bank_control_register(
         actor=request.user, queryset=batches, status=status, fund=fund,

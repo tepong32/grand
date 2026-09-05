@@ -1,6 +1,6 @@
 # GRAND Finance continuation handoff
 
-Last updated: 2026-09-04
+Last updated: 2026-09-05
 
 ## How to resume
 
@@ -10,20 +10,20 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Last completed checkpoint
 
-Branch: `codex/finance-f1-bank-advice-tasks`
+Branch: `codex/finance-f1-bank-reconciliation-tasks`
 
-This checkpoint adds exact, source-linked bank-advice tasks for draft/returned correction, independent review, bank submission, and bank-response recording, plus returned-payment tasks for Accounting decision, Treasury clarification, and Accounting-cleared controlled replacement. The advice workspace, visible-evidence export, Finance attention counts, and My Work projection share the same permission-, office-, lifecycle-, maker-checker-, and UAT-aware action query. The exact tasks use evidence-sensitive revisions and stop on item-count, exact-total, retained-snapshot, live-instrument, advice/status, pending-authority, exception-lineage, original/reversal posting, clarification, duplicate-replacement, or replacement-posting defects. Returned-payment links open the exact authoritative page fragment and retain review/case notes without inventing deadlines.
+This checkpoint adds exact, source-linked bank-reconciliation tasks for statement staging, declared-control correction, returned correction, matching/exception resolution, and independent zero-difference close review. The Accounting workspace, synchronized register export, Finance attention counts, and My Work projection share the same permission-, office-, lifecycle-, maker-checker-, and UAT-aware action query. Evidence-sensitive revisions stop on source/row controls, one-cent differences, running-balance drift, row/match/timing-item checksum or live-snapshot drift, unmatched/unclassified evidence, a nonzero bank-to-book difference, submitted-review checksum drift, or a missing return reason. Every mutation now rechecks current Accounting-office custody; the creator/submitter can neither return nor approve the submitted reconciliation, Finance UAT preview accounts cannot prepare or review, and the service revalidates the exact submitted checksum immediately before close. Period, receipt, and expected-clearance dates remain evidence rather than invented deadlines.
 
 Verification on the final source:
 
-- Focused bank-advice and returned-payment register/task tests: 8 tests passed.
-- Focused Finance/Voucher/Accounting/Reporting/guidance gate: 261 tests passed in 62.576 seconds.
-- Complete project gate: 506 tests passed across both routed databases in 134.438 seconds.
+- Focused bank-reconciliation task/permission/service tests: 5 tests passed in 9.152 seconds; the two repaired integration cases also passed together in 16.560 seconds.
+- Focused Finance/Voucher/Accounting/Reporting/guidance gate: 266 tests passed in 71.825 seconds.
+- Complete project gate: 511 tests passed across both routed databases in 117.522 seconds.
 - `manage.py check`: clean.
 - `makemigrations --check --dry-run`: no drift.
 - `git diff --check`: clean apart from informational LF-to-CRLF notices.
 
-This checkpoint is committed and pushed. Confirm the local `HEAD` still equals `origin/codex/finance-f1-bank-advice-tasks`, then create the next `codex/finance-*` branch from it before changing code.
+This checkpoint is committed and pushed. Confirm the local `HEAD` still equals `origin/codex/finance-f1-bank-reconciliation-tasks`, then create the next `codex/finance-*` branch from it before changing code.
 
 ## Non-negotiable financial controls
 
@@ -42,9 +42,8 @@ This checkpoint is committed and pushed. Confirm the local `HEAD` still equals `
 
 Add stable item-level tasks—not only summary counts—for the existing governed queues that still lack exact projections. Do these in dependency order:
 
-1. Bank-reconciliation matching, exception resolution, independent review, and statement-close work.
-2. Accounting period-close preparation/review and controlled reopen work.
-3. Any other existing actionable Finance attention group still represented only by a count.
+1. Accounting period-close preparation/review and controlled reopen work.
+2. Any other existing actionable Finance attention group still represented only by a count.
 
 For each adapter, first identify or extract one shared permission/office/state/maker-checker queryset used by the authoritative workspace, register export, attention count, and task projection. Give each source/action a deterministic Task ID and a projection checksum that changes when relevant evidence changes. Include exact action, gate, queue, source state/version, timing basis, exception, and authoritative URL. Do not invent deadlines from transaction or period dates. Add negative tests for cross-office access, self-review, UAT preview, one-cent differences, stale/tampered evidence, and screen/export/task count parity.
 

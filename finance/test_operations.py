@@ -205,6 +205,7 @@ class FinanceOperationsEntryTests(TestCase):
             self.finance_user,
             "accounting.prepare_journal_entries",
             "accounting.prepare_opening_balances",
+            "accounting.view_bank_reconciliation",
             "accounting.prepare_bank_reconciliation",
             "reporting.generate_reports",
             "vouchers.prepare_remittances",

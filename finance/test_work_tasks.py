@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import csv
+import hashlib
+import io
+import json
+import tempfile
 from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -29,9 +34,14 @@ from vouchers.services import (
 )
 
 from accounting.journal_exports import journal_action_queryset
+from accounting.bank_register_exports import bank_reconciliation_action_queryset
 from accounting.models import (
-    AccountingAuditEvent, AccountingPeriod, FiscalYear, Fund, JournalEntry, JournalLine,
-    LedgerAccount, ResponsibilityCenter,
+    AccountingAuditEvent, AccountingPeriod, BankStatementBatch,
+    BankStatementRow, FiscalYear, Fund, JournalEntry, JournalLine, LedgerAccount,
+    PostingMapping, ResponsibilityCenter,
+)
+from accounting.services import (
+    decide_bank_reconciliation, match_bank_statement_row, submit_bank_reconciliation,
 )
 from budget.annual_exports import apply_annual_filters
 from budget.control_exports import apply_allotment_filters, apply_obligation_filters, obligation_scope_for_user
@@ -1486,6 +1496,316 @@ class FinanceAccountingWorkTaskContractTests(TestCase):
             task["task_type"].startswith("finance.journal-entry.")
             for task in finance_work_tasks(self.uat)["tasks"]
         ))
+
+
+class FinanceBankReconciliationWorkTaskContractTests(TestCase):
+    databases = {"default", "finance"}
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.accounting = Department.objects.create(
+            name="Municipal Accounting Office", slug="task-bank-reconciliation-accounting",
+        )
+        cls.other = Department.objects.create(
+            name="Other Accounting Office", slug="task-bank-reconciliation-other",
+        )
+        cls.preparer = cls._employee(
+            "task.bank.preparer", cls.accounting,
+            "view_bank_reconciliation", "prepare_bank_reconciliation",
+            "approve_bank_reconciliation", "export_bank_reconciliation",
+        )
+        cls.reviewer = cls._employee(
+            "task.bank.reviewer", cls.accounting,
+            "view_bank_reconciliation", "approve_bank_reconciliation",
+        )
+        cls.outsider = cls._employee(
+            "task.bank.outsider", cls.other,
+            "view_bank_reconciliation", "prepare_bank_reconciliation",
+            "approve_bank_reconciliation",
+        )
+        cls.uat = cls._employee(
+            "task.bank.uat", cls.accounting,
+            "view_bank_reconciliation", "prepare_bank_reconciliation",
+            "approve_bank_reconciliation",
+        )
+        cls.uat.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        cls.fund = Fund.objects.create(
+            department_id=cls.accounting.pk, department_label=cls.accounting.name,
+            code="TASK-BANK-GF", name="Task Bank General Fund",
+        )
+        cls.other_fund = Fund.objects.create(
+            department_id=cls.other.pk, department_label=cls.other.name,
+            code="TASK-BANK-OTHER", name="Other Bank Fund",
+        )
+        owner = {"department_id": cls.accounting.pk, "department_label": cls.accounting.name}
+        cls.period = AccountingPeriod.objects.create(
+            **owner, fiscal_year=2027, period_number=1, label="January 2027",
+            starts_on=date(2027, 1, 1), ends_on=date(2027, 1, 31),
+        )
+        cls.center = ResponsibilityCenter.objects.create(
+            **owner, code="TASK-BANK-CENTER", name="Task Bank Accounting",
+        )
+        cls.cash = LedgerAccount.objects.create(
+            **owner, code="TASK-BANK-101", title="Task Bank Cash",
+            account_type="asset", normal_balance="debit",
+        )
+        cls.revenue = LedgerAccount.objects.create(
+            **owner, code="TASK-BANK-401", title="Task Bank Revenue",
+            account_type="revenue", normal_balance="credit",
+        )
+        PostingMapping.objects.create(
+            **owner, category=PostingMapping.BANK, source_code="TASK-BANK-ACCOUNT",
+            label="Task bank-account mapping", account=cls.cash,
+        )
+
+    @classmethod
+    def _employee(cls, username, department, *permissions):
+        user = get_user_model().objects.create_user(
+            username=username, email=f"{username}@example.test", password="bank-task-test",
+        )
+        profile, _created = EmployeeProfile.objects.get_or_create(user=user)
+        profile.assigned_department = department
+        profile.save(update_fields=("assigned_department",))
+        user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="accounting", codename__in=permissions,
+        ))
+        return get_user_model().objects.get(pk=user.pk)
+
+    def _batch(
+        self, reference, *, department=None, fund=None, status=BankStatementBatch.DRAFT,
+        source_version=0, creator=None, submitter=None, expected_deposits=Decimal("0.00"),
+        closing_balance=Decimal("0.00"), expected_row_count=0,
+    ):
+        department = department or self.accounting
+        fund = fund or self.fund
+        creator = creator or self.preparer
+        return BankStatementBatch.objects.create(
+            department_id=department.pk, department_label=department.name,
+            statement_reference=reference, bank_account_code="TASK-BANK-ACCOUNT",
+            bank_name="Task Municipal Bank", account_number_masked="***0001", fund=fund,
+            period_start=date(2027, 1, 1), period_end=date(2027, 1, 31),
+            received_on=date(2027, 2, 1), opening_balance=Decimal("0.00"),
+            closing_balance=closing_balance, expected_row_count=expected_row_count,
+            expected_deposits=expected_deposits, expected_withdrawals=Decimal("0.00"),
+            status=status, source_version=source_version,
+            source_filename="task-statement.csv" if source_version else "",
+            source_checksum="a" * 64 if source_version else "",
+            validation_summary={
+                "valid": True, "source_version": source_version,
+                "row_count": expected_row_count, "deposits": str(expected_deposits),
+                "withdrawals": "0.00", "computed_closing": str(closing_balance), "errors": [],
+            } if status in (BankStatementBatch.VALIDATED, BankStatementBatch.FOR_REVIEW) else {},
+            created_by_id=creator.pk, created_by_label=creator.username,
+            submitted_by_id=submitter.pk if submitter else None,
+            submitted_by_label=submitter.username if submitter else "",
+            submitted_at=timezone.now() if submitter else None,
+        )
+
+    @staticmethod
+    def _row_checksum(*, source_version, row_number, transaction_date, description, deposit):
+        payload = {
+            "source_version": source_version, "row_number": row_number,
+            "transaction_date": transaction_date.isoformat(), "bank_reference": "TASK-DEP-1",
+            "description": description, "withdrawal": "0.00", "deposit": str(deposit),
+            "running_balance": str(deposit),
+        }
+        return hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+
+    def test_source_screen_export_count_and_task_share_exact_preparation_scope(self):
+        ready = self._batch("TASK-BRS-NEEDS-STATEMENT")
+        self._batch(
+            "TASK-BRS-OTHER-OFFICE", department=self.other, fund=self.other_fund,
+            creator=self.outsider,
+        )
+        source, selected, _spec = bank_reconciliation_action_queryset(
+            self.preparer, "needs_statement",
+        )
+        self.assertEqual(selected, "needs_statement")
+        self.assertEqual(set(source), {ready})
+
+        self.client.force_login(self.preparer)
+        workspace = self.client.get(
+            reverse("accounting:bank_reconciliation_workspace"), {"attention": "needs_statement"},
+        )
+        self.assertEqual(workspace.context["visible_count"], 1)
+        self.assertContains(workspace, ready.statement_reference)
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            exported = self.client.get(
+                reverse("accounting:bank_reconciliation_register_export"),
+                {"attention": "needs_statement"},
+            )
+            rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+        self.assertEqual([row["batch_public_id"] for row in rows], [str(ready.public_id)])
+
+        tasks = [
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["task_type"] == "finance.bank-reconciliation.statement-staging.v1"
+        ]
+        group = next(
+            group for group in finance_work_attention(self.preparer)["groups"]
+            if group["key"] == "bank-statement"
+        )
+        self.assertEqual(group["count"], len(tasks))
+        self.assertEqual(tasks[0]["case_id"], f"bank-reconciliation:{ready.public_id}")
+        self.assertEqual(
+            tasks[0]["url"],
+            reverse("accounting:bank_reconciliation_detail", kwargs={"public_id": ready.public_id}),
+        )
+        self.assertIsNone(tasks[0]["due_on"])
+
+        first = tasks[0]
+        BankStatementBatch.objects.filter(pk=ready.pk).update(bank_name="Task Municipal Bank Updated")
+        changed = next(
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["case_id"] == f"bank-reconciliation:{ready.public_id}"
+        )
+        self.assertEqual(changed["task_id"], first["task_id"])
+        self.assertNotEqual(changed["source_version"], first["source_version"])
+
+    def test_review_scope_excludes_creator_submitter_wrong_office_and_uat(self):
+        submitted = self._batch(
+            "TASK-BRS-FOR-REVIEW", status=BankStatementBatch.FOR_REVIEW,
+            creator=self.preparer, submitter=self.preparer,
+        )
+        self.assertFalse(bank_reconciliation_action_queryset(self.preparer, "for_review")[0].exists())
+        self.assertEqual(
+            set(bank_reconciliation_action_queryset(self.reviewer, "for_review")[0]), {submitted},
+        )
+        self.assertFalse(bank_reconciliation_action_queryset(self.outsider, "for_review")[0].exists())
+        self.assertFalse(bank_reconciliation_action_queryset(self.uat, "for_review")[0].exists())
+        self.client.force_login(self.preparer)
+        own_workspace = self.client.get(
+            reverse("accounting:bank_reconciliation_workspace"), {"attention": "for_review"},
+        )
+        self.assertEqual(own_workspace.context["visible_count"], 0)
+        self.assertNotContains(own_workspace, submitted.statement_reference)
+        self.client.force_login(self.reviewer)
+        review_workspace = self.client.get(
+            reverse("accounting:bank_reconciliation_workspace"), {"attention": "for_review"},
+        )
+        self.assertEqual(review_workspace.context["visible_count"], 1)
+        self.assertContains(review_workspace, submitted.statement_reference)
+        self.client.force_login(self.uat)
+        uat_workspace = self.client.get(reverse("accounting:bank_reconciliation_workspace"))
+        self.assertEqual(uat_workspace.context["attention_choices"], (("reconciled", "Reconciled evidence"),))
+        self.assertFalse(uat_workspace.context["can_prepare_bank"])
+        reviewer_tasks = [
+            task for task in finance_work_tasks(self.reviewer)["tasks"]
+            if task["task_type"] == "finance.bank-reconciliation.independent-close-review.v1"
+        ]
+        self.assertEqual(len(reviewer_tasks), 1)
+        self.assertIn("snapshot checksum no longer reproduces", reviewer_tasks[0]["exception"])
+        self.assertFalse(any(
+            task["task_type"].startswith("finance.bank-reconciliation.")
+            for task in finance_work_tasks(self.uat)["tasks"]
+        ))
+
+    def test_zero_difference_submission_projects_ready_independent_close_and_completes(self):
+        batch = self._batch(
+            "TASK-BRS-READY-CLOSE", status=BankStatementBatch.VALIDATED, source_version=1,
+            expected_row_count=1, expected_deposits=Decimal("100.00"),
+            closing_balance=Decimal("100.00"),
+        )
+        description = "Task cleared deposit"
+        row = BankStatementRow.objects.create(
+            batch=batch, source_version=1, row_number=1, transaction_date=date(2027, 1, 15),
+            bank_reference="TASK-DEP-1", description=description,
+            withdrawal=Decimal("0.00"), deposit=Decimal("100.00"),
+            running_balance=Decimal("100.00"),
+            row_checksum=self._row_checksum(
+                source_version=1, row_number=1, transaction_date=date(2027, 1, 15),
+                description=description, deposit=Decimal("100.00"),
+            ),
+        )
+        entry = JournalEntry.objects.create(
+            department_id=self.accounting.pk, department_label=self.accounting.name,
+            reference="TASK-DEP-1", entry_date=date(2027, 1, 15), period=self.period,
+            fund=self.fund, source_type="manual", description="Task cleared bank deposit",
+            status=JournalEntry.DRAFT, created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        bank_line = JournalLine.objects.create(
+            entry=entry, sequence=1, account=self.cash, responsibility_center=self.center,
+            debit=Decimal("100.00"), credit=Decimal("0.00"), memo="TASK-DEP-1 bank receipt",
+        )
+        JournalLine.objects.create(
+            entry=entry, sequence=2, account=self.revenue, responsibility_center=self.center,
+            debit=Decimal("0.00"), credit=Decimal("100.00"), memo="Task deposit recognition",
+        )
+        JournalEntry.objects.filter(pk=entry.pk).update(status=JournalEntry.POSTED)
+        entry.refresh_from_db()
+        match_bank_statement_row(
+            row, bank_line, self.preparer,
+            reason="Exact date, reference, amount, and direction agree.",
+        )
+        submitted = submit_bank_reconciliation(batch, self.preparer)
+        task = next(
+            task for task in finance_work_tasks(self.reviewer)["tasks"]
+            if task["case_id"] == f"bank-reconciliation:{batch.public_id}"
+        )
+        self.assertEqual(task["state"], "Ready")
+        self.assertEqual(task["exception"], "")
+        self.assertEqual(
+            task["task_type"], "finance.bank-reconciliation.independent-close-review.v1",
+        )
+        reconciled = decide_bank_reconciliation(
+            submitted, self.reviewer, decision=BankStatementBatch.RECONCILED,
+            evidence_note="Independently reproduced the exact zero-difference BRS evidence.",
+        )
+        self.assertEqual(reconciled.status, BankStatementBatch.RECONCILED)
+        self.assertFalse(any(
+            task["case_id"] == f"bank-reconciliation:{batch.public_id}"
+            for task in finance_work_tasks(self.reviewer)["tasks"]
+        ))
+
+    def test_one_cent_control_and_row_tamper_change_revision_and_stop_the_task(self):
+        batch = self._batch(
+            "TASK-BRS-CENT", source_version=1, expected_row_count=1,
+            expected_deposits=Decimal("100.00"), closing_balance=Decimal("100.00"),
+        )
+        description = "Task retained deposit"
+        row = BankStatementRow.objects.create(
+            batch=batch, source_version=1, row_number=1, transaction_date=date(2027, 1, 15),
+            bank_reference="TASK-DEP-1", description=description,
+            withdrawal=Decimal("0.00"), deposit=Decimal("99.99"),
+            running_balance=Decimal("99.99"),
+            row_checksum=self._row_checksum(
+                source_version=1, row_number=1, transaction_date=date(2027, 1, 15),
+                description=description, deposit=Decimal("99.99"),
+            ),
+        )
+        first = next(
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["case_id"] == f"bank-reconciliation:{batch.public_id}"
+        )
+        self.assertIn("deposits differ from the declared total by -0.01", first["exception"])
+        self.assertIn("differs from closing by -0.01", first["exception"])
+        BankStatementRow.objects.filter(pk=row.pk).update(description="Tampered retained deposit")
+        changed = next(
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["case_id"] == f"bank-reconciliation:{batch.public_id}"
+        )
+        self.assertEqual(changed["task_id"], first["task_id"])
+        self.assertNotEqual(changed["source_version"], first["source_version"])
+        self.assertIn("no longer reproduces its retained checksum", changed["exception"])
+
+    def test_decision_service_rejects_self_return_and_cross_office_call(self):
+        submitted = self._batch(
+            "TASK-BRS-SERVICE-SELF", status=BankStatementBatch.FOR_REVIEW,
+            creator=self.preparer, submitter=self.preparer,
+        )
+        with self.assertRaisesMessage(ValidationError, "independent"):
+            decide_bank_reconciliation(
+                submitted, self.preparer, decision=BankStatementBatch.RETURNED,
+                evidence_note="Self-return must not bypass independent review.",
+            )
+        with self.assertRaises(PermissionDenied):
+            decide_bank_reconciliation(
+                submitted, self.outsider, decision=BankStatementBatch.RETURNED,
+                evidence_note="A different office must not decide this statement.",
+            )
 
 
 class FinanceTreasuryPaymentWorkTaskContractTests(TestCase):

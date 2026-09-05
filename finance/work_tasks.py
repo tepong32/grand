@@ -1262,6 +1262,297 @@ def _treasury_payment_tasks(user, department, today):
     return tasks
 
 
+def _bank_reconciliation_tasks(user, department, today):
+    from accounting.bank_register_exports import (
+        bank_batch_snapshot, bank_reconciliation_action_choices_for_user,
+        bank_reconciliation_action_queryset, next_bank_action,
+    )
+    from accounting.models import BankOutstandingItem, BankStatementMatch
+
+    task_types = {
+        "needs_statement": "statement-staging",
+        "needs_control_correction": "control-correction",
+        "returned_correction": "returned-correction",
+        "needs_matching": "matching-and-exceptions",
+        "for_review": "independent-close-review",
+    }
+    queue_labels = {
+        "needs_statement": "Bank-statement preparers",
+        "needs_control_correction": "Bank-statement preparers",
+        "returned_correction": "Bank-reconciliation preparers",
+        "needs_matching": "Bank-reconciliation preparers",
+        "for_review": "Independent Accounting bank-reconciliation reviewers",
+    }
+
+    def retained_checksum(value):
+        encoded = json.dumps(
+            value, sort_keys=True, separators=(",", ":"), default=str,
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    def retained_decimal(value):
+        try:
+            return Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+
+    tasks = []
+    for action_key, _label in bank_reconciliation_action_choices_for_user(user):
+        queryset, _selected, spec = bank_reconciliation_action_queryset(user, action_key)
+        queryset = queryset.select_related("fund").prefetch_related("events")
+        for item in queryset.order_by("-period_end", "bank_account_code", "pk"):
+            current_rows = list(item.rows.filter(source_version=item.source_version).order_by("row_number", "pk"))
+            current_matches = list(BankStatementMatch.objects.filter(
+                batch=item, statement_row__source_version=item.source_version,
+            ).select_related("statement_row", "journal_line__entry", "journal_line__account").order_by("pk"))
+            evidence_items = list(BankOutstandingItem.objects.filter(batch=item).select_related(
+                "journal_line__entry", "journal_line__account", "carried_from__batch", "cleared_by_match__batch",
+            ).order_by("pk"))
+            events = list(item.events.all())
+            snapshot, snapshot_checksum, snapshot_error = bank_batch_snapshot(item)
+            exceptions = []
+
+            row_deposits = sum((row.deposit for row in current_rows), Decimal("0.00"))
+            row_withdrawals = sum((row.withdrawal for row in current_rows), Decimal("0.00"))
+            computed_closing = item.opening_balance + row_deposits - row_withdrawals
+            if item.source_version == 0:
+                if action_key != "needs_statement":
+                    exceptions.append("The current statement source version is missing.")
+            else:
+                if not item.source_checksum:
+                    exceptions.append("The staged statement has no retained source checksum.")
+                if len(current_rows) != item.expected_row_count:
+                    exceptions.append(
+                        f"Current statement row count is {len(current_rows)}, not the declared {item.expected_row_count}."
+                    )
+                if row_deposits != item.expected_deposits:
+                    exceptions.append(
+                        f"Statement deposits differ from the declared total by {row_deposits - item.expected_deposits:.2f}; it must equal exactly zero."
+                    )
+                if row_withdrawals != item.expected_withdrawals:
+                    exceptions.append(
+                        f"Statement withdrawals differ from the declared total by {row_withdrawals - item.expected_withdrawals:.2f}; it must equal exactly zero."
+                    )
+                if computed_closing != item.closing_balance:
+                    exceptions.append(
+                        f"Opening plus deposits less withdrawals differs from closing by {computed_closing - item.closing_balance:.2f}; it must equal exactly zero."
+                    )
+                running = item.opening_balance
+                for row in current_rows:
+                    running += row.deposit - row.withdrawal
+                    row_evidence = {
+                        "source_version": row.source_version,
+                        "row_number": row.row_number,
+                        "transaction_date": row.transaction_date.isoformat(),
+                        "bank_reference": row.bank_reference,
+                        "description": row.description,
+                        "withdrawal": str(row.withdrawal),
+                        "deposit": str(row.deposit),
+                        "running_balance": str(row.running_balance) if row.running_balance is not None else "",
+                    }
+                    if retained_checksum(row_evidence) != row.row_checksum:
+                        exceptions.append(
+                            f"Statement row {row.row_number} no longer reproduces its retained checksum."
+                        )
+                    if row.running_balance is not None and row.running_balance != running:
+                        exceptions.append(
+                            f"Statement row {row.row_number} has a running-balance difference of {row.running_balance - running:.2f}."
+                        )
+                validation = item.validation_summary or {}
+                validation_deposits = retained_decimal(validation.get("deposits", "0.00"))
+                validation_withdrawals = retained_decimal(validation.get("withdrawals", "0.00"))
+                validation_closing = retained_decimal(validation.get("computed_closing", "0.00"))
+                if item.status in (item.VALIDATED, item.FOR_REVIEW) and (
+                    not validation.get("valid")
+                    or validation.get("source_version") != item.source_version
+                    or validation.get("row_count") != len(current_rows)
+                    or validation_deposits != row_deposits
+                    or validation_withdrawals != row_withdrawals
+                    or validation_closing != computed_closing
+                ):
+                    exceptions.append("The retained validation summary no longer reproduces the current statement controls.")
+
+            for match in current_matches:
+                if retained_checksum(match.source_snapshot) != match.source_checksum:
+                    exceptions.append(
+                        f"Match evidence for statement row {match.statement_row.row_number} no longer reproduces its checksum."
+                    )
+                line = match.journal_line
+                live_match = {
+                    "statement": {
+                        "row_id": match.statement_row_id,
+                        "source_version": match.statement_row.source_version,
+                        "row_number": match.statement_row.row_number,
+                        "date": match.statement_row.transaction_date.isoformat(),
+                        "reference": match.statement_row.bank_reference,
+                        "description": match.statement_row.description,
+                        "withdrawal": str(match.statement_row.withdrawal),
+                        "deposit": str(match.statement_row.deposit),
+                        "row_checksum": match.statement_row.row_checksum,
+                    },
+                    "ledger": {
+                        "journal_line_id": line.pk,
+                        "entry_public_id": str(line.entry.public_id),
+                        "entry_reference": line.entry.reference,
+                        "entry_date": line.entry.entry_date.isoformat(),
+                        "source_type": line.entry.source_type,
+                        "source_reference": line.entry.source_reference,
+                        "account_code": line.account.code,
+                        "debit": str(line.debit),
+                        "credit": str(line.credit),
+                        "memo": line.memo,
+                    },
+                }
+                if match.status == BankStatementMatch.ACTIVE and live_match != match.source_snapshot:
+                    exceptions.append(
+                        f"Active match evidence for statement row {match.statement_row.row_number} no longer matches its retained source snapshot."
+                    )
+
+            for evidence in evidence_items:
+                if retained_checksum(evidence.source_snapshot) != evidence.source_checksum:
+                    exceptions.append(
+                        f"Timing-item evidence {evidence.pk} no longer reproduces its retained checksum."
+                    )
+                if evidence.status == BankOutstandingItem.ACTIVE:
+                    line = evidence.journal_line
+                    live_fields = {
+                        "journal_line_id": line.pk,
+                        "entry_public_id": str(line.entry.public_id),
+                        "entry_reference": line.entry.reference,
+                        "entry_date": line.entry.entry_date.isoformat(),
+                        "account_code": line.account.code,
+                        "debit": str(line.debit),
+                        "credit": str(line.credit),
+                        "kind": evidence.kind,
+                        "expected_clearance_date": evidence.expected_clearance_date.isoformat(),
+                        "evidence_reference": evidence.evidence_reference,
+                    }
+                    if any(evidence.source_snapshot.get(key) != value for key, value in live_fields.items()):
+                        exceptions.append(
+                            f"Active timing-item evidence {evidence.pk} no longer matches its retained ledger snapshot."
+                        )
+
+            if snapshot_error:
+                exceptions.append(snapshot_error)
+            elif action_key in ("needs_matching", "for_review"):
+                difference = Decimal(str(snapshot.get("difference", "0.00")))
+                if snapshot.get("unmatched_statement_row_count", 0):
+                    exceptions.append(
+                        f"{snapshot['unmatched_statement_row_count']} statement row(s) remain unmatched."
+                    )
+                if snapshot.get("unclassified_ledger_line_count", 0):
+                    exceptions.append(
+                        f"{snapshot['unclassified_ledger_line_count']} ledger-only line(s) lack timing-item evidence."
+                    )
+                if difference != 0:
+                    exceptions.append(
+                        f"Adjusted bank balance differs from the posted book balance by {difference:.2f}; it must equal exactly zero."
+                    )
+                if action_key == "for_review" and not snapshot.get("ready_for_review"):
+                    exceptions.append("The submitted reconciliation no longer satisfies its zero-difference review gate.")
+
+            submitted_event = next(
+                (event for event in events if event.action == "submitted_for_review"), None,
+            )
+            if action_key == "for_review":
+                submitted_checksum = (
+                    (submitted_event.snapshot or {}).get("snapshot_checksum", "")
+                    if submitted_event else ""
+                )
+                if not submitted_checksum or submitted_checksum != snapshot_checksum:
+                    exceptions.append("The submitted reconciliation snapshot checksum no longer reproduces.")
+
+            returned_event = next(
+                (event for event in events if event.action == "returned_for_correction"), None,
+            )
+            if action_key == "returned_correction":
+                exceptions.append(
+                    returned_event.reason.strip()
+                    if returned_event and returned_event.reason.strip()
+                    else "The reconciliation was returned without a retained correction reason."
+                )
+
+            projection = {
+                "batch": [
+                    str(item.public_id), item.department_id, item.statement_reference,
+                    item.bank_account_code, item.bank_name, item.account_number_masked, item.fund_id,
+                    item.period_start.isoformat(), item.period_end.isoformat(), item.received_on.isoformat(),
+                    str(item.opening_balance), str(item.closing_balance), item.expected_row_count,
+                    str(item.expected_deposits), str(item.expected_withdrawals), item.status,
+                    item.source_version, item.source_filename, item.source_checksum,
+                    item.validation_summary, item.created_by_id, item.submitted_by_id,
+                    item.submitted_at.isoformat() if item.submitted_at else "",
+                    item.reconciled_by_id, item.reconciled_at.isoformat() if item.reconciled_at else "",
+                    item.reconciliation_checksum, item.state_version,
+                ],
+                "snapshot": snapshot,
+                "snapshot_checksum": snapshot_checksum,
+                "snapshot_error": snapshot_error,
+                "rows": [[
+                    row.pk, row.source_version, row.row_number, row.transaction_date.isoformat(),
+                    row.bank_reference, row.description, str(row.withdrawal), str(row.deposit),
+                    str(row.running_balance) if row.running_balance is not None else "", row.row_checksum,
+                ] for row in current_rows],
+                "matches": [[
+                    match.pk, match.statement_row_id, match.journal_line_id, match.method,
+                    match.reason, match.status, match.source_snapshot, match.source_checksum,
+                    match.superseded_at.isoformat() if match.superseded_at else "",
+                ] for match in current_matches],
+                "timing_items": [[
+                    evidence.pk, evidence.journal_line_id, evidence.kind, evidence.explanation,
+                    evidence.evidence_reference, evidence.expected_clearance_date.isoformat(),
+                    evidence.status, evidence.source_snapshot, evidence.source_checksum,
+                    evidence.carried_from_id, evidence.cleared_by_match_id,
+                ] for evidence in evidence_items],
+                "events": [[
+                    event.pk, event.action, event.actor_id, event.reason, event.snapshot,
+                    event.created_at.isoformat(),
+                ] for event in events],
+            }
+            received_at = item.updated_at
+            if action_key == "for_review":
+                received_at = item.submitted_at or item.updated_at
+            elif action_key == "returned_correction" and returned_event:
+                received_at = returned_event.created_at
+            action = (
+                next_bank_action(item, snapshot, snapshot_error)
+                if action_key == "needs_matching" else spec["next_action"]
+            )
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:bank-reconciliation:{item.public_id}:{action_key.replace('_', '-')}",
+                task_type=f"finance.bank-reconciliation.{task_types[action_key]}.v1",
+                area="Bank reconciliation",
+                case_id=f"bank-reconciliation:{item.public_id}",
+                reference=f"{item.statement_reference} · {item.period_end.isoformat()}",
+                transaction_type=f"Bank reconciliation · {item.fund.code}",
+                subject=(
+                    f"{item.bank_account_code} · {item.expected_row_count} row(s) · "
+                    f"deposits {item.expected_deposits:.2f} · withdrawals {item.expected_withdrawals:.2f}"
+                ),
+                action=action,
+                gate=spec["definition"],
+                owner_queue=f"{queue_labels[action_key]} · {department.name}",
+                scope=f"Accounting office: {department.name}; fund {item.fund.code}; bank account {item.bank_account_code}",
+                received_at=received_at,
+                due_on=None,
+                due_state="No structured target",
+                calendar_basis=(
+                    "Statement period, receipt date, and timing-item expected-clearance dates are retained evidence; "
+                    "none is recast as this action's deadline."
+                ),
+                age_days=_age_days(received_at, today),
+                state=(
+                    "Returned" if action_key == "returned_correction"
+                    else "Exception" if exceptions else "Ready"
+                ),
+                source_state=item.get_status_display(),
+                source_version=f"projection-sha256:{_projection_checksum(projection)}",
+                exception=" ".join(dict.fromkeys(exceptions)),
+                url=reverse("accounting:bank_reconciliation_detail", kwargs={"public_id": item.public_id}),
+            ))
+    return tasks
+
+
 def _bank_advice_tasks(user, department, today):
     from vouchers.advice import advice_snapshot
     from vouchers.advice_register import (
@@ -2144,6 +2435,7 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks.extend(_accounting_validation_tasks(user, department, today))
     tasks.extend(_journal_tasks(user, department, today))
     tasks.extend(_treasury_payment_tasks(user, department, today))
+    tasks.extend(_bank_reconciliation_tasks(user, department, today))
     tasks.extend(_bank_advice_tasks(user, department, today))
     tasks.extend(_returned_payment_tasks(user, department, today))
     tasks.extend(_remittance_tasks(user, department, today))
@@ -2161,6 +2453,7 @@ def finance_work_tasks(user, *, display_limit=100):
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls",
             "Treasury check preparation and instrument release",
+            "Bank-statement matching, exception resolution, and independent close",
             "Bank-advice handoff and returned-payment resolution",
             "Treasury remittance and cash controls",
             "Report generation, reconciliation, review, and approval",

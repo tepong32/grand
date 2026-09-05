@@ -1486,7 +1486,16 @@ def _bank_event(batch, action, actor, *, reason="", snapshot=None):
 
 
 def record_bank_reconciliation_event(batch, action, actor, *, reason="", snapshot=None):
+    if not can_prepare_bank_reconciliation(actor):
+        raise PermissionDenied("You are not authorized to record bank-reconciliation evidence.")
+    _assert_bank_batch_office(batch, actor)
     return _bank_event(batch, action, actor, reason=reason, snapshot=snapshot)
+
+
+def _assert_bank_batch_office(batch, actor):
+    department = department_for_user(actor)
+    if department is None or batch.department_id != department.pk:
+        raise PermissionDenied("This bank reconciliation belongs to another Accounting office.")
 
 
 def _bank_money(value, label):
@@ -1572,6 +1581,7 @@ def correct_bank_statement_batch(batch, actor, *, values, reason):
     if not can_prepare_bank_reconciliation(actor):
         raise ValidationError("You are not authorized to correct bank reconciliation controls.")
     locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_office(locked, actor)
     if locked.status not in (BankStatementBatch.DRAFT, BankStatementBatch.VALIDATED, BankStatementBatch.RETURNED):
         raise ValidationError("Only a pre-submission or returned bank reconciliation can be corrected.")
     note = str(reason or "").strip()
@@ -1615,6 +1625,7 @@ def stage_bank_statement_csv(batch, actor, uploaded_file, *, change_reason=""):
     if not can_prepare_bank_reconciliation(actor):
         raise ValidationError("You are not authorized to stage bank statements.")
     locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_office(locked, actor)
     if locked.status not in (BankStatementBatch.DRAFT, BankStatementBatch.VALIDATED, BankStatementBatch.RETURNED):
         raise ValidationError("Only a pre-submission or returned bank statement can be restaged.")
     if locked.source_version and not str(change_reason or "").strip():
@@ -1720,6 +1731,7 @@ def validate_bank_statement(batch, actor):
     if not can_prepare_bank_reconciliation(actor):
         raise ValidationError("You are not authorized to validate bank statements.")
     locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_office(locked, actor)
     if locked.status not in (BankStatementBatch.DRAFT, BankStatementBatch.RETURNED, BankStatementBatch.VALIDATED):
         raise ValidationError("Only draft, returned, or validated statement staging can be validated.")
     _bank_account(locked)
@@ -1804,6 +1816,7 @@ def carry_forward_bank_outstanding(batch, actor):
     if not can_prepare_bank_reconciliation(actor):
         raise ValidationError("You are not authorized to carry bank-reconciliation timing items.")
     locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_office(locked, actor)
     _assert_bank_batch_editable(locked)
     if not locked.validation_summary.get("valid"):
         raise ValidationError("Validate the current bank statement before carrying prior timing items.")
@@ -1935,6 +1948,7 @@ def match_bank_statement_row(row, line, actor, *, reason, method=BankStatementMa
         raise ValidationError("You are not authorized to match bank statement rows.")
     locked_row = BankStatementRow.objects.select_for_update().select_related("batch").get(pk=row.pk)
     batch = BankStatementBatch.objects.select_for_update().get(pk=locked_row.batch_id)
+    _assert_bank_batch_office(batch, actor)
     _assert_bank_batch_editable(batch)
     if locked_row.source_version != batch.source_version:
         raise ValidationError("Only the current staged statement version can be matched.")
@@ -1985,6 +1999,7 @@ def auto_match_bank_statement(batch, actor):
     if not can_prepare_bank_reconciliation(actor):
         raise ValidationError("You are not authorized to match bank statements.")
     locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_office(locked, actor)
     _assert_bank_batch_editable(locked)
     rows = locked.rows.filter(source_version=locked.source_version).exclude(
         matches__status=BankStatementMatch.ACTIVE,
@@ -2021,6 +2036,7 @@ def unmatch_bank_statement_row(row, actor, *, reason):
         raise ValidationError("You are not authorized to correct bank matches.")
     locked_row = BankStatementRow.objects.select_for_update().select_related("batch").get(pk=row.pk)
     batch = BankStatementBatch.objects.select_for_update().get(pk=locked_row.batch_id)
+    _assert_bank_batch_office(batch, actor)
     _assert_bank_batch_editable(batch)
     note = str(reason or "").strip()
     if not note:
@@ -2053,6 +2069,7 @@ def classify_bank_outstanding(batch, line, actor, *, explanation, evidence_refer
     if not can_prepare_bank_reconciliation(actor):
         raise ValidationError("You are not authorized to classify outstanding bank items.")
     locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_office(locked, actor)
     _assert_bank_batch_editable(locked)
     note = str(explanation or "").strip()
     evidence = str(evidence_reference or "").strip()
@@ -2130,6 +2147,7 @@ def unclassify_bank_outstanding(batch, line, actor, *, reason):
     if not can_prepare_bank_reconciliation(actor):
         raise ValidationError("You are not authorized to correct outstanding bank items.")
     locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_office(locked, actor)
     _assert_bank_batch_editable(locked)
     note = str(reason or "").strip()
     if not note:
@@ -2226,6 +2244,7 @@ def submit_bank_reconciliation(batch, actor):
     if not can_prepare_bank_reconciliation(actor):
         raise ValidationError("You are not authorized to submit bank reconciliations.")
     locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_office(locked, actor)
     if locked.status != BankStatementBatch.VALIDATED:
         raise ValidationError("Validate the current statement staging before submission.")
     snapshot, checksum, _rows, _matches, _lines, _items = bank_reconciliation_snapshot(locked)
@@ -2251,9 +2270,12 @@ def decide_bank_reconciliation(batch, actor, *, decision, evidence_note):
     if not can_approve_bank_reconciliation(actor):
         raise ValidationError("You are not authorized to decide bank reconciliations.")
     locked = BankStatementBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_bank_batch_office(locked, actor)
     note = str(evidence_note or "").strip()
     if not note:
         raise ValidationError("Record the reviewed BRS and supporting-evidence reference.")
+    if actor.pk in (locked.created_by_id, locked.submitted_by_id):
+        raise ValidationError("The independent bank-reconciliation reviewer must differ from its preparer and submitter.")
     if decision == BankStatementBatch.RETURNED:
         if locked.status != BankStatementBatch.FOR_REVIEW:
             raise ValidationError("Only a reconciliation under review can be returned.")
@@ -2264,11 +2286,15 @@ def decide_bank_reconciliation(batch, actor, *, decision, evidence_note):
         return locked
     if decision != BankStatementBatch.RECONCILED or locked.status != BankStatementBatch.FOR_REVIEW:
         raise ValidationError("Only a reconciliation under review can be reconciled.")
-    if actor.pk in (locked.created_by_id, locked.submitted_by_id):
-        raise ValidationError("The independent bank-reconciliation reviewer must differ from its preparer and submitter.")
     snapshot, checksum, _rows, _matches, _lines, _items = bank_reconciliation_snapshot(locked)
     if not snapshot["ready_for_review"]:
         raise ValidationError("The reconciliation controls changed or no longer produce a zero difference.")
+    submitted_event = locked.events.filter(action="submitted_for_review").first()
+    submitted_checksum = (submitted_event.snapshot or {}).get("snapshot_checksum", "") if submitted_event else ""
+    if not submitted_checksum or submitted_checksum != checksum:
+        raise ValidationError(
+            "The submitted bank-reconciliation snapshot no longer reproduces. Return it for governed correction."
+        )
     locked.status = BankStatementBatch.RECONCILED
     locked.reconciled_by_id = actor.pk
     locked.reconciled_by_label = actor_label(actor)
