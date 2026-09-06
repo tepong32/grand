@@ -121,23 +121,48 @@ def can_export_bank_reconciliation(user):
 
 
 def can_manage_period_close_policies(user):
-    return has_explicit_permission(user, "accounting.manage_period_close_policies")
+    from vouchers.roles import is_finance_uat_viewer
+
+    return (
+        not is_finance_uat_viewer(user)
+        and has_explicit_permission(user, "accounting.manage_period_close_policies")
+    )
 
 
 def can_approve_period_close_policies(user):
-    return has_explicit_permission(user, "accounting.approve_period_close_policies")
+    from vouchers.roles import is_finance_uat_viewer
+
+    return (
+        not is_finance_uat_viewer(user)
+        and has_explicit_permission(user, "accounting.approve_period_close_policies")
+    )
 
 
 def can_prepare_period_close(user):
-    return has_explicit_permission(user, "accounting.prepare_period_close")
+    from vouchers.roles import is_finance_uat_viewer
+
+    return (
+        not is_finance_uat_viewer(user)
+        and has_explicit_permission(user, "accounting.prepare_period_close")
+    )
 
 
 def can_approve_period_close(user):
-    return has_explicit_permission(user, "accounting.approve_period_close")
+    from vouchers.roles import is_finance_uat_viewer
+
+    return (
+        not is_finance_uat_viewer(user)
+        and has_explicit_permission(user, "accounting.approve_period_close")
+    )
 
 
 def can_reopen_period(user):
-    return has_explicit_permission(user, "accounting.reopen_period")
+    from vouchers.roles import is_finance_uat_viewer
+
+    return (
+        not is_finance_uat_viewer(user)
+        and has_explicit_permission(user, "accounting.reopen_period")
+    )
 
 
 def can_export_period_close(user):

@@ -238,16 +238,17 @@ def _budget_groups(user, department):
 
 def _accounting_groups(user, department):
     from accounting.access import (
-        can_approve_opening_balances, can_approve_period_close, can_post_journals,
+        can_approve_opening_balances, can_post_journals,
         can_post_opening_balances, can_prepare_journals, can_prepare_opening_balances,
-        can_prepare_period_close, can_reopen_period,
     )
     from accounting.bank_register_exports import (
         bank_reconciliation_action_choices_for_user, bank_reconciliation_action_queryset,
     )
     from accounting.journal_exports import journal_action_queryset
     from accounting.models import JournalEntry, OpeningBalanceBatch
-    from accounting.period_close_register import apply_period_close_filters, period_close_runs_for_department
+    from accounting.period_close_register import (
+        period_close_action_choices_for_user, period_close_action_queryset,
+    )
 
     groups = []
     definitions = (
@@ -301,24 +302,19 @@ def _accounting_groups(user, department):
             url=_queue_url("accounting:bank_reconciliation_workspace", attention=selected_attention),
             definition=spec["definition"], scope=department.name,
         ))
-    close_specs = (
-        (can_prepare_period_close(user), "period-close-preparation", "Period-close checklists to prepare or correct",
-         "needs_preparation", "Draft or returned period-close evidence available to an authorized preparer."),
-        (can_approve_period_close(user), "period-close-review", "Period closes for independent review",
-         "awaiting_review", "Submitted close evidence awaiting an independent close-or-return decision."),
-        (can_reopen_period(user), "period-reopen-review", "Period reopen requests for decision",
-         "awaiting_reopen_decision", "Closed periods whose retained reopen request awaits an independent decision."),
-    )
-    for allowed, key, title, attention, definition in close_specs:
-        if allowed:
-            queryset, _status, selected_attention = apply_period_close_filters(
-                period_close_runs_for_department(department), attention=attention,
-            )
-            groups.append(_group(
-                key=key, area="Accounting close", title=title, count=queryset.count(),
-                url=_queue_url("accounting:period_close_workspace", attention=selected_attention),
-                definition=definition, scope=department.name,
-            ))
+    close_keys = {
+        "needs_preparation": "period-close-preparation",
+        "awaiting_review": "period-close-review",
+        "awaiting_reopen_decision": "period-reopen-review",
+    }
+    for attention, _label in period_close_action_choices_for_user(user):
+        queryset, selected_attention, spec = period_close_action_queryset(user, attention)
+        groups.append(_group(
+            key=close_keys[attention], area="Accounting close", title=spec["title"],
+            count=queryset.count(),
+            url=_queue_url("accounting:period_close_workspace", attention=selected_attention),
+            definition=spec["definition"], scope=department.name,
+        ))
     return groups
 
 

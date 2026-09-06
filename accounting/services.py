@@ -13,7 +13,8 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from .access import (
-    can_approve_bank_reconciliation, can_approve_fiscal_readiness, can_approve_opening_balances, can_manage_setup,
+    can_approve_bank_reconciliation, can_approve_fiscal_readiness, can_approve_opening_balances,
+    can_approve_period_close, can_manage_setup,
     can_post_journals, can_post_opening_balances, can_prepare_journals,
     can_prepare_opening_balances, can_reconcile_controls, can_prepare_bank_reconciliation,
     department_for_user,
@@ -1437,11 +1438,16 @@ def run_control_reconciliation(department, actor, as_of_date):
 @transaction.atomic(using=FINANCE_DB)
 def close_period(period, actor, *, approved_run=None):
     locked = AccountingPeriod.objects.select_for_update().get(pk=period.pk)
+    department = department_for_user(actor)
+    if department is None or locked.department_id != department.pk:
+        raise PermissionDenied("This accounting period belongs to another Accounting office.")
     if locked.status != AccountingPeriod.OPEN:
         raise ValidationError("This accounting period is already closed.")
     unposted = locked.journal_entries.exclude(status__in=(JournalEntry.POSTED, JournalEntry.VOIDED)).count()
     if unposted:
         raise ValidationError(f"Close or discard {unposted} unposted journal entry/entries before closing this period.")
+    if approved_run is not None and not can_approve_period_close(actor):
+        raise PermissionDenied("You are not authorized to close accounting periods.")
     if (
         approved_run is None
         or approved_run.period_id != locked.pk

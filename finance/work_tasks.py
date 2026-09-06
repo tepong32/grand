@@ -1553,6 +1553,200 @@ def _bank_reconciliation_tasks(user, department, today):
     return tasks
 
 
+def _period_close_tasks(user, department, today):
+    from accounting.close_services import (
+        _checksum, current_period_close_policy, evaluate_period_close,
+        period_close_policy_snapshot,
+    )
+    from accounting.models import AccountingPeriod, PeriodCloseRun
+    from accounting.period_close_register import (
+        period_close_action_choices_for_user, period_close_action_queryset,
+    )
+
+    task_types = {
+        "needs_preparation": "checklist-preparation",
+        "awaiting_review": "independent-close-review",
+        "awaiting_reopen_decision": "independent-reopen-decision",
+    }
+    queue_labels = {
+        "needs_preparation": "Period-close preparers",
+        "awaiting_review": "Independent Accounting close reviewers",
+        "awaiting_reopen_decision": "Independent Accounting reopen reviewers",
+    }
+    action_choices = period_close_action_choices_for_user(user)
+    if not action_choices:
+        return []
+    tasks = []
+    current_policy = current_period_close_policy(department.pk)
+    for action_key, _label in action_choices:
+        queryset, _selected, spec = period_close_action_queryset(user, action_key)
+        queryset = queryset.select_related("period", "policy", "supersedes").prefetch_related("events")
+        for item in queryset.order_by("-period__fiscal_year", "-period__period_number", "-version"):
+            events = list(item.events.all())
+            exceptions = []
+            retained_policy_checksum = _checksum(item.policy_snapshot or {})
+            retained_checklist_checksum = _checksum(item.checklist_snapshot or {})
+            if retained_policy_checksum != item.policy_checksum:
+                exceptions.append("The pinned close-policy snapshot no longer reproduces its retained checksum.")
+            if retained_checklist_checksum != item.checklist_checksum:
+                exceptions.append("The pinned close checklist no longer reproduces its retained checksum.")
+            if not item.adjustment_review_note.strip():
+                exceptions.append("The adjustment and closing-entry review note is blank.")
+            if not item.evidence_reference.strip():
+                exceptions.append("The retained close-evidence reference is blank.")
+            live_policy = period_close_policy_snapshot(item.policy)
+            if action_key != "awaiting_reopen_decision":
+                if current_policy is None or current_policy.pk != item.policy_id:
+                    exceptions.append("The pinned close policy is no longer current; prepare a successor checklist.")
+                if _checksum(live_policy) != item.policy_checksum:
+                    exceptions.append("The live close-policy record no longer matches the pinned policy checksum.")
+
+            current_checklist = {}
+            current_checklist_checksum = ""
+            if action_key != "awaiting_reopen_decision":
+                try:
+                    current_checklist = evaluate_period_close(
+                        item.period, item.policy,
+                        adjustment_review_note=item.adjustment_review_note,
+                    )
+                    current_checklist_checksum = _checksum(current_checklist)
+                except ValidationError as exc:
+                    exceptions.extend(getattr(exc, "messages", [str(exc)]))
+                else:
+                    failed_checks = [
+                        check for check in current_checklist.get("checks", [])
+                        if check.get("status") == "failed"
+                    ]
+                    for check in failed_checks:
+                        if check.get("code") == "trial_balance":
+                            difference = Decimal(str((check.get("evidence") or {}).get("difference", "0.00")))
+                            exceptions.append(
+                                f"Posted period debit and credit differ by {difference:.2f}; the required difference is exactly zero."
+                            )
+                        else:
+                            exceptions.append(
+                                f"{check.get('label', check.get('code', 'Close gate'))}: "
+                                f"{check.get('message', 'Required close evidence does not pass.')}"
+                            )
+                    if current_checklist_checksum != item.checklist_checksum:
+                        exceptions.append(
+                            "Current close evidence differs from the pinned checklist; refresh and resubmit before a decision."
+                        )
+
+            submitted_event = next((event for event in events if event.action == "submitted"), None)
+            if action_key == "awaiting_review":
+                submitted_checksum = (
+                    (submitted_event.snapshot or {}).get("checklist_checksum", "")
+                    if submitted_event else ""
+                )
+                if not submitted_checksum or submitted_checksum != item.checklist_checksum:
+                    exceptions.append("The submitted close snapshot checksum no longer reproduces.")
+
+            returned_event = next((event for event in events if event.action == "returned"), None)
+            if item.status == PeriodCloseRun.RETURNED:
+                exceptions.append(
+                    returned_event.reason.strip()
+                    if returned_event and returned_event.reason.strip()
+                    else item.review_note.strip() or "The close checklist was returned without a retained correction reason."
+                )
+
+            reopen_event = next((event for event in events if event.action == "reopen_requested"), None)
+            later_closed = []
+            if action_key == "awaiting_reopen_decision":
+                if item.period.status != AccountingPeriod.CLOSED:
+                    exceptions.append("The reopen request no longer points to a closed accounting period.")
+                if not item.reopen_reason.strip() or not item.reopen_authority_reference.strip():
+                    exceptions.append("The reopen reason or retained authority reference is blank.")
+                request_matches = bool(
+                    reopen_event
+                    and reopen_event.actor_id == item.reopen_requested_by_id
+                    and reopen_event.reason == item.reopen_reason
+                    and (reopen_event.snapshot or {}).get("authority_reference", "")
+                    == item.reopen_authority_reference
+                )
+                if not request_matches:
+                    exceptions.append("The retained reopen request no longer reproduces its event evidence.")
+                later_closed = list(AccountingPeriod.objects.filter(
+                    department_id=item.department_id, fiscal_year=item.period.fiscal_year,
+                    period_number__gt=item.period.period_number, status=AccountingPeriod.CLOSED,
+                ).order_by("period_number").values_list("period_number", "label"))
+                if later_closed:
+                    exceptions.append(
+                        "Reopen later closed periods first: "
+                        + ", ".join(f"{number} {label}" for number, label in later_closed)
+                        + "."
+                    )
+
+            projection = {
+                "run": [
+                    str(item.public_id), item.department_id, item.period_id, item.version,
+                    item.supersedes_id, item.policy_id, item.policy_snapshot, item.policy_checksum,
+                    item.checklist_snapshot, item.checklist_checksum, item.adjustment_review_note,
+                    item.evidence_reference, item.preparer_note, item.status, item.prepared_by_id,
+                    item.prepared_at.isoformat(), item.submitted_by_id,
+                    item.submitted_at.isoformat() if item.submitted_at else "",
+                    item.decided_by_id, item.decided_at.isoformat() if item.decided_at else "",
+                    item.review_note, item.reopen_requested_by_id,
+                    item.reopen_requested_at.isoformat() if item.reopen_requested_at else "",
+                    item.reopen_reason, item.reopen_authority_reference, item.reopened_by_id,
+                    item.reopened_at.isoformat() if item.reopened_at else "",
+                    item.reopen_review_note, item.state_version,
+                ],
+                "period": [
+                    item.period.pk, item.period.fiscal_year, item.period.period_number,
+                    item.period.label, item.period.starts_on.isoformat(), item.period.ends_on.isoformat(),
+                    item.period.status, item.period.closed_by_id,
+                    item.period.closed_at.isoformat() if item.period.closed_at else "",
+                ],
+                "live_policy": live_policy,
+                "current_policy_id": current_policy.pk if current_policy else None,
+                "current_checklist": current_checklist,
+                "current_checklist_checksum": current_checklist_checksum,
+                "later_closed_periods": later_closed,
+                "events": [[
+                    event.pk, event.action, event.actor_id, event.reason, event.snapshot,
+                    event.created_at.isoformat(),
+                ] for event in events],
+            }
+            received_at = item.prepared_at
+            if action_key == "awaiting_review":
+                received_at = item.submitted_at or item.updated_at
+            elif action_key == "awaiting_reopen_decision":
+                received_at = item.reopen_requested_at or item.updated_at
+            elif item.status == PeriodCloseRun.RETURNED and returned_event:
+                received_at = returned_event.created_at
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:period-close:{item.public_id}:{action_key.replace('_', '-')}",
+                task_type=f"finance.period-close.{task_types[action_key]}.v1",
+                area="Accounting close",
+                case_id=f"period-close:{item.public_id}",
+                reference=f"{item.period} · close evidence v{item.version}",
+                transaction_type=f"Period close · policy v{item.policy_snapshot.get('version', item.policy.version)}",
+                subject=(
+                    f"{item.checklist_snapshot.get('required_failure_count', 0)} required issue(s) · "
+                    f"{item.checklist_snapshot.get('warning_count', 0)} advisory warning(s)"
+                ),
+                action=spec["next_action"], gate=spec["definition"],
+                owner_queue=f"{queue_labels[action_key]} · {department.name}",
+                scope=f"Accounting office: {department.name}; fiscal year {item.period.fiscal_year}; period {item.period.period_number}",
+                received_at=received_at, due_on=None, due_state="No structured target",
+                calendar_basis=(
+                    "The accounting-period start/end and close/reopen event times are retained control evidence; "
+                    "none is recast as this action's deadline."
+                ),
+                age_days=_age_days(received_at, today),
+                state=(
+                    "Returned" if item.status == PeriodCloseRun.RETURNED
+                    else "Exception" if exceptions else "Ready"
+                ),
+                source_state=item.get_status_display(),
+                source_version=f"projection-sha256:{_projection_checksum(projection)}",
+                exception=" ".join(dict.fromkeys(exceptions)),
+                url=reverse("accounting:period_close_detail", kwargs={"public_id": item.public_id}),
+            ))
+    return tasks
+
+
 def _bank_advice_tasks(user, department, today):
     from vouchers.advice import advice_snapshot
     from vouchers.advice_register import (
@@ -2436,6 +2630,7 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks.extend(_journal_tasks(user, department, today))
     tasks.extend(_treasury_payment_tasks(user, department, today))
     tasks.extend(_bank_reconciliation_tasks(user, department, today))
+    tasks.extend(_period_close_tasks(user, department, today))
     tasks.extend(_bank_advice_tasks(user, department, today))
     tasks.extend(_returned_payment_tasks(user, department, today))
     tasks.extend(_remittance_tasks(user, department, today))
@@ -2454,6 +2649,7 @@ def finance_work_tasks(user, *, display_limit=100):
             "DV preparation and controlled custody", "Accounting validation and JEV controls",
             "Treasury check preparation and instrument release",
             "Bank-statement matching, exception resolution, and independent close",
+            "Accounting period-close preparation, independent close review, and controlled reopen decisions",
             "Bank-advice handoff and returned-payment resolution",
             "Treasury remittance and cash controls",
             "Report generation, reconciliation, review, and approval",

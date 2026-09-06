@@ -13,6 +13,7 @@ from django.utils import timezone
 from .access import (
     can_approve_period_close, can_approve_period_close_policies,
     can_manage_period_close_policies, can_prepare_period_close, can_reopen_period,
+    department_for_user,
 )
 from .models import (
     AccountingAuditEvent, AccountingPeriod, BankStatementBatch, ControlAccountReconciliation,
@@ -55,8 +56,17 @@ def current_period_close_policy(department_id):
     ).first()
 
 
+def _assert_close_office(department_id, actor):
+    department = department_for_user(actor)
+    if department is None or department.pk != department_id:
+        raise PermissionDenied("This period-close record belongs to another Accounting office.")
+
+
 @transaction.atomic(using=FINANCE_DB)
 def ensure_period_close_starter(department, actor):
+    if not can_prepare_period_close(actor):
+        raise PermissionDenied
+    _assert_close_office(department.pk, actor)
     existing = current_period_close_policy(department.pk)
     if existing:
         return existing, False
@@ -91,6 +101,7 @@ def submit_period_close_policy(policy, actor):
     if not can_manage_period_close_policies(actor):
         raise PermissionDenied
     locked = PeriodClosePolicy.objects.select_for_update().get(pk=policy.pk)
+    _assert_close_office(locked.department_id, actor)
     if not locked.is_editable:
         raise ValidationError("Only an editable close-policy draft can be submitted.")
     locked.status = PeriodClosePolicy.SUBMITTED
@@ -118,6 +129,7 @@ def decide_period_close_policy(policy, actor, *, approve, note):
     if not can_approve_period_close_policies(actor):
         raise PermissionDenied
     locked = PeriodClosePolicy.objects.select_for_update().get(pk=policy.pk)
+    _assert_close_office(locked.department_id, actor)
     note = str(note or "").strip()
     if locked.status != PeriodClosePolicy.SUBMITTED:
         raise ValidationError("Only a submitted close policy can be reviewed.")
@@ -403,6 +415,9 @@ def _record_close_event(run, action, actor, *, reason="", snapshot=None):
 def create_period_close_run(period, department, actor, *, adjustment_review_note, evidence_reference, preparer_note=""):
     if not can_prepare_period_close(actor):
         raise PermissionDenied
+    _assert_close_office(department.pk, actor)
+    if period.department_id != department.pk:
+        raise PermissionDenied("This accounting period belongs to another Accounting office.")
     policy = current_period_close_policy(department.pk)
     if not policy:
         policy, _created = ensure_period_close_starter(department, actor)
@@ -440,6 +455,7 @@ def refresh_period_close_run(run, actor, *, adjustment_review_note, evidence_ref
     if not can_prepare_period_close(actor):
         raise PermissionDenied
     locked = PeriodCloseRun.objects.select_for_update().select_related("period", "policy").get(pk=run.pk)
+    _assert_close_office(locked.department_id, actor)
     if not locked.is_editable:
         raise ValidationError("Only a draft or returned close checklist can be refreshed.")
     locked.adjustment_review_note = str(adjustment_review_note or "").strip()
@@ -470,6 +486,7 @@ def submit_period_close_run(run, actor):
     if not can_prepare_period_close(actor):
         raise PermissionDenied
     locked = PeriodCloseRun.objects.select_for_update().select_related("period", "policy").get(pk=run.pk)
+    _assert_close_office(locked.department_id, actor)
     if not locked.is_editable:
         raise ValidationError("Only a draft or returned close checklist can be submitted.")
     current_policy = current_period_close_policy(locked.department_id)
@@ -505,6 +522,7 @@ def decide_period_close_run(run, actor, *, approve, note):
     if not can_approve_period_close(actor):
         raise PermissionDenied
     locked = PeriodCloseRun.objects.select_for_update().select_related("period", "policy").get(pk=run.pk)
+    _assert_close_office(locked.department_id, actor)
     note = str(note or "").strip()
     if locked.status != PeriodCloseRun.SUBMITTED:
         raise ValidationError("Only a submitted close checklist can be reviewed.")
@@ -536,6 +554,15 @@ def decide_period_close_run(run, actor, *, approve, note):
         raise ValidationError("Close evidence changed after submission. Return, refresh, and resubmit the checklist.")
     if not current["ready"]:
         raise ValidationError("One or more required close gates no longer pass.")
+    submitted_event = locked.events.filter(action="submitted").first()
+    submitted_checksum = (
+        (submitted_event.snapshot or {}).get("checklist_checksum", "")
+        if submitted_event else ""
+    )
+    if not submitted_checksum or submitted_checksum != locked.checklist_checksum:
+        raise ValidationError(
+            "The submitted close snapshot no longer reproduces. Return, refresh, and resubmit the checklist."
+        )
     close_period(locked.period, actor, approved_run=locked)
     locked.status = PeriodCloseRun.CLOSED
     locked.decided_by_id = actor.pk
@@ -558,6 +585,7 @@ def request_period_reopen(run, actor, *, reason, authority_reference):
     if not can_prepare_period_close(actor):
         raise PermissionDenied
     locked = PeriodCloseRun.objects.select_for_update().select_related("period").get(pk=run.pk)
+    _assert_close_office(locked.department_id, actor)
     reason = str(reason or "").strip()
     authority_reference = str(authority_reference or "").strip()
     if locked.status != PeriodCloseRun.CLOSED or locked.period.status != AccountingPeriod.CLOSED:
@@ -586,13 +614,26 @@ def decide_period_reopen(run, actor, *, approve, note):
     if not can_reopen_period(actor):
         raise PermissionDenied
     locked = PeriodCloseRun.objects.select_for_update().select_related("period").get(pk=run.pk)
+    _assert_close_office(locked.department_id, actor)
     note = str(note or "").strip()
     if locked.status != PeriodCloseRun.REOPEN_REQUESTED:
         raise ValidationError("Only a submitted reopen request can be decided.")
     if actor.pk == locked.reopen_requested_by_id:
-        raise ValidationError("The reopen requester cannot approve the same request.")
+        raise ValidationError("The reopen requester cannot decide the same request.")
     if not note:
         raise ValidationError("Record the independent reopen decision basis.")
+    request_event = locked.events.filter(action="reopen_requested").first()
+    request_matches = bool(
+        request_event
+        and request_event.actor_id == locked.reopen_requested_by_id
+        and request_event.reason == locked.reopen_reason
+        and (request_event.snapshot or {}).get("authority_reference", "")
+        == locked.reopen_authority_reference
+    )
+    if not request_matches:
+        raise ValidationError(
+            "The retained reopen request no longer reproduces. Keep the period closed and submit governed evidence again."
+        )
     if not approve:
         locked.status = PeriodCloseRun.CLOSED
         locked.reopen_review_note = note

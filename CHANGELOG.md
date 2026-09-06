@@ -1,5 +1,15 @@
 # Changelog
 
+## F1.5 exact period-close and controlled-reopen work tasks
+
+- Added stable, source-linked My Work items for period-close checklist preparation/returned correction, independent close review, and independent controlled-reopen decisions.
+- Reused one permission-, Accounting-office-, lifecycle-, maker-checker-, and UAT-aware action query across the period-close workspace, synchronized register export, attention counts, and exact task projection.
+- Added evidence-sensitive projection checksums and hard-stop exceptions for pinned/current policy drift, checklist drift, required close gates, exact trial-balance differences, submitted-event checksums, return reasons, retained reopen authority, request-event evidence, and later-period chronology.
+- Hardened period-close policy, checklist, close, and reopen services with current-office checks; denied preparer/submitter close decisions and requester reopen decisions; suppressed Finance UAT actions even when permissions are accidentally combined; and revalidated retained submission/request evidence immediately before decisions.
+- Preserved accounting-period dates and close/reopen event times as evidence without inventing task deadlines, and added a spreadsheet-safe TraceSync register whose filtered rows match the source workspace.
+- Adopted risk-tiered Finance verification: focused tests during development, dependency gates only when shared risk warrants them, and one complete project suite on final executable source with routine logs captured outside model context.
+- Five task-contract and six period-close tests passed together in 4.699 seconds; the 271-test cross-module integration gate passed in 71.275 seconds; and the final complete gate passed all 516 tests across both routed databases in 134.021 seconds. Django, syntax, whitespace, and migration-drift checks are clean.
+
 ## F1.5 exact bank-reconciliation work tasks
 
 - Added stable, source-linked My Work items for statement staging, declared-control correction, returned correction, matching and exception resolution, and independent zero-difference close review.

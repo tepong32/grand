@@ -1,6 +1,6 @@
 # GRAND Finance continuation handoff
 
-Last updated: 2026-09-05
+Last updated: 2026-09-06
 
 ## How to resume
 
@@ -10,20 +10,21 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Last completed checkpoint
 
-Branch: `codex/finance-f1-bank-reconciliation-tasks`
+Branch: `codex/finance-f1-period-close-tasks`
 
-This checkpoint adds exact, source-linked bank-reconciliation tasks for statement staging, declared-control correction, returned correction, matching/exception resolution, and independent zero-difference close review. The Accounting workspace, synchronized register export, Finance attention counts, and My Work projection share the same permission-, office-, lifecycle-, maker-checker-, and UAT-aware action query. Evidence-sensitive revisions stop on source/row controls, one-cent differences, running-balance drift, row/match/timing-item checksum or live-snapshot drift, unmatched/unclassified evidence, a nonzero bank-to-book difference, submitted-review checksum drift, or a missing return reason. Every mutation now rechecks current Accounting-office custody; the creator/submitter can neither return nor approve the submitted reconciliation, Finance UAT preview accounts cannot prepare or review, and the service revalidates the exact submitted checksum immediately before close. Period, receipt, and expected-clearance dates remain evidence rather than invented deadlines.
+This checkpoint adds exact, source-linked period-close checklist preparation/correction, independent close-review, and controlled-reopen decision tasks. The Accounting workspace, synchronized register export, Finance attention counts, and My Work projection now share the same permission-, office-, lifecycle-, maker-checker-, and UAT-aware action query. Evidence-sensitive revisions stop on pinned/current policy drift, checklist drift, required gate failures, one-cent trial-balance differences, submitted-event checksum drift, missing return reasons, retained reopen authority or event drift, and later-closed-period chronology. Period-close policy, checklist, close, and reopen services recheck current Accounting-office custody; preparers/submitters cannot decide their close, reopen requesters cannot decide their request, and Finance UAT preview accounts receive no close action even with an accidental permission combination. Period dates and close/reopen event times remain evidence rather than invented deadlines.
 
 Verification on the final source:
 
-- Focused bank-reconciliation task/permission/service tests: 5 tests passed in 9.152 seconds; the two repaired integration cases also passed together in 16.560 seconds.
-- Focused Finance/Voucher/Accounting/Reporting/guidance gate: 266 tests passed in 71.825 seconds.
-- Complete project gate: 511 tests passed across both routed databases in 117.522 seconds.
+- Focused period-close task/permission/service gate: 11 tests passed in 4.699 seconds.
+- Finance/Voucher/Accounting/Reporting/guidance integration gate: 271 tests passed in 71.275 seconds.
+- Complete project gate: 516 tests passed across both routed databases in 134.021 seconds.
 - `manage.py check`: clean.
 - `makemigrations --check --dry-run`: no drift.
+- `compileall` for Accounting and Finance: clean.
 - `git diff --check`: clean apart from informational LF-to-CRLF notices.
 
-This checkpoint is committed and pushed. Confirm the local `HEAD` still equals `origin/codex/finance-f1-bank-reconciliation-tasks`, then create the next `codex/finance-*` branch from it before changing code.
+This checkpoint is committed and pushed. Confirm the local `HEAD` still equals `origin/codex/finance-f1-period-close-tasks`, then create the next `codex/finance-*` branch from it before changing code.
 
 ## Non-negotiable financial controls
 
@@ -38,14 +39,11 @@ This checkpoint is committed and pushed. Confirm the local `HEAD` still equals `
 
 ## Remaining implementation in dependency order
 
-### 1. Complete the remaining F1.5 exact My Work adapters
+### 1. Audit any remaining F1.5 count-only attention groups
 
-Add stable item-level tasks—not only summary counts—for the existing governed queues that still lack exact projections. Do these in dependency order:
+Enumerate every existing Finance attention group and compare it with the stable item-level adapters. If any actionable group is still represented only by a count, add its exact adapter before starting the cross-cycle views. Do not invent a group solely to make the list longer.
 
-1. Accounting period-close preparation/review and controlled reopen work.
-2. Any other existing actionable Finance attention group still represented only by a count.
-
-For each adapter, first identify or extract one shared permission/office/state/maker-checker queryset used by the authoritative workspace, register export, attention count, and task projection. Give each source/action a deterministic Task ID and a projection checksum that changes when relevant evidence changes. Include exact action, gate, queue, source state/version, timing basis, exception, and authoritative URL. Do not invent deadlines from transaction or period dates. Add negative tests for cross-office access, self-review, UAT preview, one-cent differences, stale/tampered evidence, and screen/export/task count parity.
+For any gap, first identify or extract one shared permission/office/state/maker-checker queryset used by the authoritative workspace, register export, attention count, and task projection. Give each source/action a deterministic Task ID and a projection checksum that changes when relevant evidence changes. Include exact action, gate, queue, source state/version, timing basis, exception, and authoritative URL. Do not invent deadlines from transaction or period dates. Add negative tests for cross-office access, self-review, UAT preview, one-cent differences, stale/tampered evidence, and screen/export/task count parity.
 
 ### 2. Complete the cross-cycle My Work contract
 
@@ -56,7 +54,7 @@ After every supported summary group has an exact adapter, implement these as sep
 3. Governed saved/shared views, search, follow/following, and notifications only after local ownership and privacy rules are recorded. Keep private saved views private by default.
 4. Authenticated desktop and narrow-layout browser verification for the expanded task table and floating `?` guide, including keyboard/focus behavior and zero application-route console errors.
 
-Commit and push each independently reversible checkpoint on its own `codex/finance-*` branch with a detailed bulleted commit body. Run focused gates during development and the complete project suite before each checkpoint push.
+Commit and push each independently reversible checkpoint on its own `codex/finance-*` branch with a detailed bulleted commit body. Follow the risk-tiered verification policy below.
 
 ### 3. Finish the real LGU acceptance sequence
 
@@ -74,9 +72,17 @@ These steps require implementing-LGU evidence and must stay visibly blocked unti
 At the end of every slice:
 
 1. Review the complete diff and confirm that no unrelated or user-owned change was altered.
-2. Run the slice-specific tests, the relevant cross-module gate, `manage.py check`, `makemigrations --check --dry-run`, and `git diff --check`.
-3. Run `manage.py test --keepdb --noinput` before declaring the checkpoint clean.
+2. Run slice-specific tests while developing. Run a dependency gate once only when shared selectors, permissions, routing, services, or cross-domain lineage make it relevant.
+3. Run `manage.py check`, `makemigrations --check --dry-run`, `git diff --check`, and `manage.py test --keepdb --noinput` once on final executable source before declaring the checkpoint clean. The complete suite subsumes the 271-test Finance integration gate; do not run both on unchanged code.
 4. Update `CHANGELOG.md`, this file, `docs/FINANCE_MY_WORK.md`, and `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md` with actual—not estimated—evidence and remaining work.
 5. Stage explicit files only; exclude `db.sqlite3`, generated outputs, secrets, and unrelated changes.
 6. Commit with a concise subject and a detailed bulleted body describing controls, authorization/immutability behavior, UX/guidance/exports, and verification.
 7. Push the checkpoint branch and verify that local `HEAD` equals its upstream. Pause if the user requested a pause.
+
+## Risk-tiered verification policy
+
+- Development loop: run the smallest meaningful test class or method set for the changed behavior, with `--keepdb --noinput -v 0` and `--failfast` where useful.
+- Dependency gate: broaden only when the change touches a shared task aggregator, permission/source query, database router, financial service boundary, or cross-domain lineage. Select the directly affected source tests and known integration regressions instead of the whole 271-test slice by habit.
+- Checkpoint gate: run the complete project suite once after executable source is final. Documentation-only edits after that green run do not invalidate it; executable code, template, configuration, or migration changes do.
+- Output control: capture full routine test output in an ignored `.tmp` log and surface only the summary or relevant failure trace. Preserve the log for diagnosis without loading ordinary application logging into the conversation.
+- Current CI runs on pull requests and pushes to `master`, not ordinary feature-branch pushes, so a local final complete-suite pass remains required before a standalone checkpoint push.

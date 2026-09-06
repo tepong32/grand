@@ -35,11 +35,16 @@ from vouchers.services import (
 
 from accounting.journal_exports import journal_action_queryset
 from accounting.bank_register_exports import bank_reconciliation_action_queryset
+from accounting.close_services import (
+    create_period_close_run, decide_period_close_run, decide_period_reopen,
+    refresh_period_close_run, request_period_reopen, submit_period_close_run,
+)
 from accounting.models import (
     AccountingAuditEvent, AccountingPeriod, BankStatementBatch,
     BankStatementRow, FiscalYear, Fund, JournalEntry, JournalLine, LedgerAccount,
-    PostingMapping, ResponsibilityCenter,
+    PeriodCloseRun, PostingMapping, ResponsibilityCenter,
 )
+from accounting.period_close_register import period_close_action_queryset
 from accounting.services import (
     decide_bank_reconciliation, match_bank_statement_row, submit_bank_reconciliation,
 )
@@ -1805,6 +1810,256 @@ class FinanceBankReconciliationWorkTaskContractTests(TestCase):
             decide_bank_reconciliation(
                 submitted, self.outsider, decision=BankStatementBatch.RETURNED,
                 evidence_note="A different office must not decide this statement.",
+            )
+
+
+class FinancePeriodCloseWorkTaskContractTests(TestCase):
+    databases = {"default", "finance"}
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.accounting = Department.objects.create(
+            name="Municipal Accounting Office", slug="task-period-close-accounting",
+        )
+        cls.other = Department.objects.create(
+            name="Other Accounting Office", slug="task-period-close-other",
+        )
+        cls.preparer = cls._employee(
+            "task.close.preparer", cls.accounting,
+            "view_accounting_workspace", "prepare_period_close", "approve_period_close",
+            "reopen_period", "export_period_close",
+        )
+        cls.reviewer = cls._employee(
+            "task.close.reviewer", cls.accounting,
+            "view_accounting_workspace", "approve_period_close", "reopen_period",
+            "export_period_close",
+        )
+        cls.outsider = cls._employee(
+            "task.close.outsider", cls.other,
+            "view_accounting_workspace", "prepare_period_close", "approve_period_close",
+            "reopen_period", "export_period_close",
+        )
+        cls.uat = cls._employee(
+            "task.close.uat", cls.accounting,
+            "view_accounting_workspace", "prepare_period_close", "approve_period_close",
+            "reopen_period", "export_period_close",
+        )
+        cls.uat.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        owner = {"department_id": cls.accounting.pk, "department_label": cls.accounting.name}
+        cls.january = AccountingPeriod.objects.create(
+            **owner, fiscal_year=2029, period_number=1, label="January 2029",
+            starts_on=date(2029, 1, 1), ends_on=date(2029, 1, 31),
+        )
+        cls.february = AccountingPeriod.objects.create(
+            **owner, fiscal_year=2029, period_number=2, label="February 2029",
+            starts_on=date(2029, 2, 1), ends_on=date(2029, 2, 28),
+        )
+        cls.march = AccountingPeriod.objects.create(
+            **owner, fiscal_year=2029, period_number=3, label="March 2029",
+            starts_on=date(2029, 3, 1), ends_on=date(2029, 3, 31),
+        )
+        cls.fund = Fund.objects.create(
+            **owner, code="TASK-CLOSE-GF", name="Task Close General Fund",
+        )
+        cls.debit_account = LedgerAccount.objects.create(
+            **owner, code="TASK-CLOSE-101", title="Task Close Debit",
+            account_type="asset", normal_balance="debit",
+        )
+        cls.credit_account = LedgerAccount.objects.create(
+            **owner, code="TASK-CLOSE-201", title="Task Close Credit",
+            account_type="liability", normal_balance="credit",
+        )
+
+    @classmethod
+    def _employee(cls, username, department, *permissions):
+        user = get_user_model().objects.create_user(
+            username=username, email=f"{username}@example.test", password="close-task-test",
+        )
+        profile, _created = EmployeeProfile.objects.get_or_create(user=user)
+        profile.assigned_department = department
+        profile.save(update_fields=("assigned_department",))
+        user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="accounting", codename__in=permissions,
+        ))
+        return get_user_model().objects.get(pk=user.pk)
+
+    def _run(self, period, *, actor=None):
+        return create_period_close_run(
+            period, self.accounting, actor or self.preparer,
+            adjustment_review_note="Reviewed adjusting and closing entries; none are required.",
+            evidence_reference=f"Task close binder / {period.fiscal_year} / {period.period_number}",
+            preparer_note="Prepared for exact task-contract verification.",
+        )
+
+    def test_source_screen_export_count_and_task_share_exact_preparation_scope(self):
+        run = self._run(self.january)
+        source, selected, _spec = period_close_action_queryset(self.preparer, "needs_preparation")
+        self.assertEqual(selected, "needs_preparation")
+        self.assertEqual(set(source), {run})
+
+        self.client.force_login(self.preparer)
+        workspace = self.client.get(
+            reverse("accounting:period_close_workspace"), {"attention": "needs_preparation"},
+        )
+        self.assertEqual(workspace.context["visible_count"], 1)
+        self.assertContains(workspace, str(run.period))
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            exported = self.client.get(
+                reverse("accounting:period_close_register_export"),
+                {"attention": "needs_preparation"},
+            )
+            rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+        self.assertEqual([row["close_run_public_id"] for row in rows], [str(run.public_id)])
+
+        tasks = [
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["task_type"] == "finance.period-close.checklist-preparation.v1"
+        ]
+        group = next(
+            group for group in finance_work_attention(self.preparer)["groups"]
+            if group["key"] == "period-close-preparation"
+        )
+        self.assertEqual(group["count"], len(tasks))
+        self.assertEqual(tasks[0]["case_id"], f"period-close:{run.public_id}")
+        self.assertEqual(
+            tasks[0]["url"],
+            reverse("accounting:period_close_detail", kwargs={"public_id": run.public_id}),
+        )
+        self.assertIsNone(tasks[0]["due_on"])
+
+        first = tasks[0]
+        refresh_period_close_run(
+            run, self.preparer,
+            adjustment_review_note=run.adjustment_review_note,
+            evidence_reference=run.evidence_reference,
+            preparer_note="Changed retained preparation note.",
+        )
+        changed = next(
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["case_id"] == f"period-close:{run.public_id}"
+        )
+        self.assertEqual(changed["task_id"], first["task_id"])
+        self.assertNotEqual(changed["source_version"], first["source_version"])
+
+    def test_review_scope_excludes_maker_wrong_office_and_uat(self):
+        run = self._run(self.january)
+        submit_period_close_run(run, self.preparer)
+        self.assertFalse(period_close_action_queryset(self.preparer, "awaiting_review")[0].exists())
+        self.assertEqual(
+            set(period_close_action_queryset(self.reviewer, "awaiting_review")[0]), {run},
+        )
+        self.assertFalse(period_close_action_queryset(self.outsider, "awaiting_review")[0].exists())
+        self.assertFalse(period_close_action_queryset(self.uat, "awaiting_review")[0].exists())
+
+        self.client.force_login(self.preparer)
+        own_workspace = self.client.get(
+            reverse("accounting:period_close_workspace"), {"attention": "awaiting_review"},
+        )
+        self.assertEqual(own_workspace.context["visible_count"], 0)
+        self.client.force_login(self.reviewer)
+        review_workspace = self.client.get(
+            reverse("accounting:period_close_workspace"), {"attention": "awaiting_review"},
+        )
+        self.assertEqual(review_workspace.context["visible_count"], 1)
+        self.assertContains(review_workspace, str(run.period))
+        self.client.force_login(self.uat)
+        uat_workspace = self.client.get(reverse("accounting:period_close_workspace"))
+        self.assertEqual(uat_workspace.context["attention_choices"], ())
+        self.assertFalse(uat_workspace.context["can_prepare_close"])
+        self.assertFalse(any(
+            task["task_type"].startswith("finance.period-close.")
+            for task in finance_work_tasks(self.uat)["tasks"]
+        ))
+
+    def test_return_reason_and_checklist_tamper_change_revision_and_stop_task(self):
+        run = self._run(self.january)
+        submit_period_close_run(run, self.preparer)
+        returned = decide_period_close_run(
+            run, self.reviewer, approve=False,
+            note="Correct the retained period-end schedule reference.",
+        )
+        first = next(
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["case_id"] == f"period-close:{run.public_id}"
+        )
+        self.assertEqual(first["state"], "Returned")
+        self.assertIn("Correct the retained period-end schedule reference", first["exception"])
+        PeriodCloseRun.objects.filter(pk=returned.pk).update(
+            checklist_snapshot={**returned.checklist_snapshot, "tampered": True},
+        )
+        changed = next(
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["case_id"] == f"period-close:{run.public_id}"
+        )
+        self.assertEqual(changed["task_id"], first["task_id"])
+        self.assertNotEqual(changed["source_version"], first["source_version"])
+        self.assertIn("checklist no longer reproduces", changed["exception"])
+
+    def test_close_then_reopen_projects_ready_independent_decision_and_completes(self):
+        run = self._run(self.january)
+        submit_period_close_run(run, self.preparer)
+        closed = decide_period_close_run(
+            run, self.reviewer, approve=True, note="Reproduced the exact close evidence.",
+        )
+        requested = request_period_reopen(
+            closed, self.preparer,
+            reason="A supported late adjustment requires governed correction.",
+            authority_reference="Municipal Accountant memo TASK-CLOSE-01.",
+        )
+        self.assertFalse(
+            period_close_action_queryset(self.preparer, "awaiting_reopen_decision")[0].exists()
+        )
+        task = next(
+            task for task in finance_work_tasks(self.reviewer)["tasks"]
+            if task["case_id"] == f"period-close:{run.public_id}"
+        )
+        self.assertEqual(task["task_type"], "finance.period-close.independent-reopen-decision.v1")
+        self.assertEqual(task["state"], "Ready")
+        self.assertEqual(task["exception"], "")
+        reopened = decide_period_reopen(
+            requested, self.reviewer, approve=True,
+            note="Verified correction authority and period chronology.",
+        )
+        self.assertEqual(reopened.status, PeriodCloseRun.REOPENED)
+        self.assertFalse(any(
+            task["case_id"] == f"period-close:{run.public_id}"
+            for task in finance_work_tasks(self.reviewer)["tasks"]
+        ))
+
+    def test_one_cent_drift_and_direct_cross_office_calls_are_blocked(self):
+        run = self._run(self.january)
+        first = next(
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["case_id"] == f"period-close:{run.public_id}"
+        )
+        entry = JournalEntry.objects.create(
+            department_id=self.accounting.pk, department_label=self.accounting.name,
+            reference="TASK-CLOSE-CENT", entry_date=date(2029, 1, 15), period=self.january,
+            fund=self.fund, description="Synthetic one-cent close drift",
+            status=JournalEntry.DRAFT, created_by_id=self.preparer.pk,
+            created_by_label=self.preparer.username,
+        )
+        JournalLine.objects.create(
+            entry=entry, sequence=1, account=self.debit_account,
+            debit=Decimal("1.00"), credit=Decimal("0.00"),
+        )
+        JournalLine.objects.create(
+            entry=entry, sequence=2, account=self.credit_account,
+            debit=Decimal("0.00"), credit=Decimal("0.99"),
+        )
+        JournalEntry.objects.filter(pk=entry.pk).update(status=JournalEntry.POSTED)
+        changed = next(
+            task for task in finance_work_tasks(self.preparer)["tasks"]
+            if task["case_id"] == f"period-close:{run.public_id}"
+        )
+        self.assertEqual(changed["task_id"], first["task_id"])
+        self.assertNotEqual(changed["source_version"], first["source_version"])
+        self.assertIn("differ by 0.01", changed["exception"])
+        with self.assertRaises(PermissionDenied):
+            refresh_period_close_run(
+                run, self.outsider,
+                adjustment_review_note=run.adjustment_review_note,
+                evidence_reference=run.evidence_reference,
             )
 
 

@@ -18,6 +18,7 @@ urlpatterns = [
     path("setup/<slug:kind>/<int:pk>/toggle/", views.setup_item_toggle, name="setup_toggle"),
     path("setup/periods/<int:pk>/close/", views.period_close, name="period_close"),
     path("period-close/", views.period_close_workspace, name="period_close_workspace"),
+    path("period-close/export/", views.period_close_register_export, name="period_close_register_export"),
     path("period-close/new/", views.period_close_create, name="period_close_create"),
     path("period-close/<uuid:public_id>/", views.period_close_detail, name="period_close_detail"),
     path("period-close/<uuid:public_id>/edit/", views.period_close_edit, name="period_close_edit"),

@@ -92,6 +92,18 @@ class GovernedPeriodCloseTests(TestCase):
             submit_period_close_run(run, self.preparer)
             decide_period_close_run(run, self.preparer, approve=True, note="Self approval")
         run.refresh_from_db()
+        with self.assertRaisesMessage(ValidationError, "cannot decide"):
+            decide_period_close_run(run, self.preparer, approve=False, note="Self return")
+        submitted_event = run.events.get(action="submitted")
+        submitted_snapshot = submitted_event.snapshot
+        PeriodCloseEvent.objects.filter(pk=submitted_event.pk).update(
+            snapshot={**submitted_snapshot, "checklist_checksum": "f" * 64},
+        )
+        with self.assertRaisesMessage(ValidationError, "snapshot no longer reproduces"):
+            decide_period_close_run(
+                run, self.reviewer, approve=True, note="Tampered submission must not close.",
+            )
+        PeriodCloseEvent.objects.filter(pk=submitted_event.pk).update(snapshot=submitted_snapshot)
         closed = decide_period_close_run(run, self.reviewer, approve=True, note="Evidence checked independently.")
         self.january.refresh_from_db()
         self.assertEqual(closed.status, PeriodCloseRun.CLOSED)
@@ -127,6 +139,16 @@ class GovernedPeriodCloseTests(TestCase):
             february_run, self.preparer, reason="February must reopen before January chronology can change.",
             authority_reference="Municipal Accountant memo ACCT-2028-05.",
         )
+        reopen_event = february_run.events.get(action="reopen_requested")
+        reopen_snapshot = reopen_event.snapshot
+        PeriodCloseEvent.objects.filter(pk=reopen_event.pk).update(
+            snapshot={**reopen_snapshot, "authority_reference": "tampered-authority"},
+        )
+        with self.assertRaisesMessage(ValidationError, "request no longer reproduces"):
+            decide_period_reopen(
+                february_run, self.reviewer, approve=True, note="Tampered request must not reopen.",
+            )
+        PeriodCloseEvent.objects.filter(pk=reopen_event.pk).update(snapshot=reopen_snapshot)
         decide_period_reopen(february_run, self.reviewer, approve=True, note="Chronology reviewed.")
         january_run.refresh_from_db()
         reopened = decide_period_reopen(january_run, self.reviewer, approve=True, note="Correction authority verified.")
@@ -193,7 +215,7 @@ class GovernedPeriodCloseTests(TestCase):
         submitted = self._run(self.january)
         submit_period_close_run(submitted, self.preparer)
         draft = self._run(self.february)
-        self.client.force_login(self.preparer)
+        self.client.force_login(self.reviewer)
 
         source = self.client.get(
             reverse("accounting:period_close_workspace"), {"attention": "awaiting_review"},

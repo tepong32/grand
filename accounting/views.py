@@ -65,7 +65,8 @@ from .close_services import (
     request_period_reopen, submit_period_close_policy, submit_period_close_run,
 )
 from .period_close_register import (
-    PERIOD_CLOSE_ATTENTION_CHOICES, apply_period_close_filters, period_close_runs_for_department,
+    apply_period_close_filters, build_period_close_register,
+    period_close_action_choices_for_user, period_close_runs_for_department,
 )
 from .bank_register_exports import (
     apply_bank_register_filters, bank_reconciliation_attention_choices_for_user,
@@ -434,6 +435,7 @@ def period_close_workspace(request):
     runs, selected_status, selected_attention = apply_period_close_filters(
         period_close_runs_for_department(department),
         status=request.GET.get("status", ""), attention=request.GET.get("attention", ""),
+        actor=request.user,
     )
     periods = AccountingPeriod.objects.filter(department_id=department.pk).order_by(
         "-fiscal_year", "-period_number",
@@ -449,11 +451,32 @@ def period_close_workspace(request):
         "can_manage_policies": can_manage_period_close_policies(request.user),
         "can_approve_policies": can_approve_period_close_policies(request.user),
         "status_choices": PeriodCloseRun.STATUS_CHOICES,
-        "attention_choices": PERIOD_CLOSE_ATTENTION_CHOICES,
+        "attention_choices": period_close_action_choices_for_user(request.user),
         "selected_status": selected_status,
         "selected_attention": selected_attention,
         "visible_count": runs.count(),
     })
+
+
+@require_GET
+@accounting_permission_required(can_export_period_close)
+def period_close_register_export(request):
+    department = department_for_user(request.user)
+    runs, selected_status, selected_attention = apply_period_close_filters(
+        period_close_runs_for_department(department),
+        status=request.GET.get("status", ""), attention=request.GET.get("attention", ""),
+        actor=request.user,
+    )
+    content, filename, receipt = build_period_close_register(
+        actor=request.user, queryset=runs, status=selected_status, attention=selected_attention,
+    )
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    response["X-GRAND-Export-Relative-Path"] = receipt["relative_path"]
+    return response
 
 
 @require_http_methods(["GET", "POST"])
