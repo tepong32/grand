@@ -10,7 +10,7 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Last completed checkpoint
 
-Branch: `codex/finance-f1-period-close-tasks`
+Branch: `master` (period-close checkpoint `d4a988c` merged and pushed)
 
 This checkpoint adds exact, source-linked period-close checklist preparation/correction, independent close-review, and controlled-reopen decision tasks. The Accounting workspace, synchronized register export, Finance attention counts, and My Work projection now share the same permission-, office-, lifecycle-, maker-checker-, and UAT-aware action query. Evidence-sensitive revisions stop on pinned/current policy drift, checklist drift, required gate failures, one-cent trial-balance differences, submitted-event checksum drift, missing return reasons, retained reopen authority or event drift, and later-closed-period chronology. Period-close policy, checklist, close, and reopen services recheck current Accounting-office custody; preparers/submitters cannot decide their close, reopen requesters cannot decide their request, and Finance UAT preview accounts receive no close action even with an accidental permission combination. Period dates and close/reopen event times remain evidence rather than invented deadlines.
 
@@ -24,7 +24,7 @@ Verification on the final source:
 - `compileall` for Accounting and Finance: clean.
 - `git diff --check`: clean apart from informational LF-to-CRLF notices.
 
-This checkpoint is committed and pushed. Confirm the local `HEAD` still equals `origin/codex/finance-f1-period-close-tasks`, then create the next `codex/finance-*` branch from it before changing code.
+This checkpoint is merged into and pushed on `master`; its completed `codex/finance-f1-period-close-tasks` branch was retired with the other fully merged Finance branches. Confirm local `master` still equals `origin/master`, then create the next `codex/finance-*` branch from that pushed checkpoint before changing code.
 
 ## Non-negotiable financial controls
 
