@@ -1707,6 +1707,12 @@ class VoucherWorkflowTests(TestCase):
             idempotency_key="full-cycle-payable-submit",
         )
         case.refresh_from_db()
+        from finance.work_tasks import finance_work_tasks
+
+        work_case_id = f"voucher-case:{case.public_id}"
+        self.assertTrue(any(task["case_id"] == work_case_id for task in finance_work_tasks(self.requesting_user, view="waiting")["tasks"]))
+        self.assertTrue(any(task["case_id"] == work_case_id and task["subject"] == "Submitted payable for Accounting review"
+                            for task in finance_work_tasks(self.requesting_user, view="completed")["tasks"]))
         review_payable_intake(
             case=case,
             actor=self.validator,
@@ -1716,6 +1722,9 @@ class VoucherWorkflowTests(TestCase):
             idempotency_key="full-cycle-payable-ready",
         )
         case.refresh_from_db()
+        self.assertTrue(any(task["case_id"] == work_case_id for task in finance_work_tasks(self.requesting_user, view="waiting")["tasks"]))
+        self.assertTrue(any(task["case_id"] == work_case_id and task["subject"] == "Accepted payable for DV preparation"
+                            for task in finance_work_tasks(self.validator, view="completed")["tasks"]))
         prepare_voucher(
             case=case,
             actor=self.preparer,

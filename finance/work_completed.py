@@ -317,3 +317,52 @@ def completed_discovery_tasks(user, department, today):
             url=reverse("finance:discovery_decision_detail", kwargs={"public_id": item.public_id}),
         ))
     return tasks
+
+
+def completed_payable_tasks(user, department, today):
+    """Payable acceptance is retained readiness for DV preparation, not payment approval."""
+    from vouchers.access import can_view_workbench
+    from vouchers.case_exports import visible_cases_for_user
+    from vouchers.models import VoucherCase, VoucherEvent
+    from vouchers.roles import is_finance_uat_viewer
+    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
+
+    if is_finance_uat_viewer(user) or not can_view_workbench(user):
+        return []
+    specs = {
+        "payable_submitted": (VoucherCase.PAYABLE_PREPARATION, VoucherCase.PAYABLE_REVIEW, "Submitted payable for Accounting review"),
+        "payable_returned": (VoucherCase.PAYABLE_REVIEW, VoucherCase.PAYABLE_PREPARATION, "Returned payable for correction"),
+        "payable_accepted": (VoucherCase.PAYABLE_REVIEW, VoucherCase.ACCOUNTING_PREPARATION, "Accepted payable for DV preparation"),
+    }
+    events = VoucherEvent.objects.filter(actor_id=user.pk, case__in=visible_cases_for_user(user), action__in=specs).select_related("case", "actor_department")
+    tasks = []
+    for event in events:
+        item = event.case
+        before, after, label = specs[event.action]
+        if event.from_stage != before or event.to_stage != after:
+            continue
+        if event.action == "payable_submitted" and event.actor_department_id != item.requesting_department_id:
+            continue
+        event_id = _source_record_identity("payable-event", event.pk)
+        revision = _projection_checksum({
+            "event_id": str(event_id), "action": event.action, "actor_id": event.actor_id,
+            "actor_department_id": event.actor_department_id, "at": event.created_at.isoformat(),
+            "metadata": event.metadata, "reason": event.reason, "source_id": str(item.public_id),
+            "from_stage": event.from_stage, "to_stage": event.to_stage, "state_version": event.state_version,
+            "current_stage": item.current_stage, "reference": item.reference_code,
+        })
+        tasks.append(FinanceWorkTask(
+            task_id=f"finwork:v1:payable-event:{event_id}:completed",
+            task_type=f"finance.payable-intake.{event.action}.completed.v1", area="Voucher case",
+            case_id=f"voucher-case:{item.public_id}", reference=item.reference_code, subject=label,
+            transaction_type="Recorded payable action", action="View recorded outcome",
+            gate=f"The retained event attributes this action to your account: {label}. Payable readiness does not authorize payment release." + (f" Reason: {event.reason}" if event.reason else ""),
+            owner_queue=f"Recorded actor account: {user.get_username()}; office: {event.actor_department.name}",
+            scope=f"Current source access; recorded acting office: {event.actor_department.name}",
+            received_at=event.created_at, due_on=None, due_state="Recorded completion",
+            calendar_basis="Elapsed calendar days since the retained payable action. Current case custody and stage remain separate.",
+            age_days=_age_days(event.created_at, today), state="Completed", source_state=item.get_current_stage_display(),
+            source_version=f"event-sha256:{revision}", exception="",
+            url=reverse("vouchers:case_detail", kwargs={"public_id": item.public_id}),
+        ))
+    return tasks

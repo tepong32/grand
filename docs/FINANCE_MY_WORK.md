@@ -217,3 +217,8 @@ Completed by me now includes retained setup release submission, return, approval
 ## v0.7.20 - personal discovery handoffs and history
 
 Personal discovery Waiting now uses retained preparer/submitter attribution and the current named-owner/reviewer or office read boundary, preserving established cross-office access. Stored review targets retain their local review meaning. Completed by me uses retained submission, return and recording events, with stable identities and current source access. Recording an unresolved finding remains distinct from LGU-confirmed acceptance and keeps the current named-scope blocker visible. Evidence locks and decision authority are unchanged. Verification: all three focused discovery handoff tests passed in 2.879 seconds; all 569 project tests passed in 149.738 seconds. System, migration-drift, compilation and diff checks are clean.
+
+
+## v0.7.21 - personal payable handoffs
+
+Personal Waiting now follows attributed payable intake through independent Accounting review and accepted-payable DV preparation. Current workbench scope, consistent intake/case stages and the shared voucher-case identity govern visibility and action exclusion before truncation. Completion uses retained payable submission, return and acceptance events with historical actor-office attribution and current source access. Acceptance means readiness for DV preparation, not authorization to release payment. Later signature, journal, advice and exception Waiting remains outside this bounded adapter. Verification: all three focused payable tests passed in 2.093 seconds; all 572 project tests passed in 153.168 seconds, including service-generated handoffs in the full transaction replay. System, migration-drift, compilation and diff checks are clean.

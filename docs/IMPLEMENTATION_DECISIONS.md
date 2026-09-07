@@ -21,6 +21,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-009:** Attribute setup completion only to retained release transition events.
 - **D-010:** Preserve named cross-office discovery access and the distinction between recorded evidence and accepted scope.
 - **D-011:** Continue with payable handoffs on the existing shared voucher identity.
+- **D-012:** Verify and close the signature task identity/state boundary before expanding signature projections.
 
 ### D-001 — Retained events determine personal completion
 
@@ -133,10 +134,20 @@ D-007 verification note: the first full run exposed two synthetic fixtures that 
 
 ### D-011 — Follow payable handoffs on the shared voucher case
 
-- Date/checkpoint: 2026-09-08; planned after v0.7.20 verification.
+- Date/checkpoint: 2026-09-08; implemented and verified in v0.7.21.
 - Decision: Prioritize payable review and accepted-payable DV preparation next in personal Waiting, then credit retained payable submission/return/acceptance events. Use the existing voucher-case identity so current related actions remove Waiting before truncation.
 - Alternatives considered: create a separate payable task lifecycle; call Accounting acceptance a payment approval; use the case's later current office as the historical review actor's office; jump directly to every downstream signature/bank/exception stage without auditing related-action exclusions.
 - Goal fit: this fills a handoff in the core Budget-to-Accounting transaction chain while preserving one traceable case. Payable readiness and authority to release payment remain separate decisions.
 - Tradeoff: the bounded first adapter ends at DV preparation; later voucher stages need explicit wet-signature, journal, advice and exception action mapping before claiming full-case Waiting. History retains the event's actor and office even after custody moves.
-- Evidence/status: source submission/review transitions, canonical task identities and current workbench visibility inspected; implementation and verification pending.
+- Evidence/status: source submission/review transitions, canonical task identities and current workbench visibility inspected; three focused tests and all 572 project tests passed.
 - Revisit when: the downstream case-action identity audit supports extending Waiting through later stages.
+
+### D-012 — Protect recorded signature custody before projecting its next handoff
+
+- Date/checkpoint: 2026-09-08; FIN-GAP-012 identified during v0.7.21 verification.
+- Decision: Finish the independent payable milestone, then reproduce and close the signature service's caller-supplied task-state gap before extending signature Waiting/history.
+- Alternatives considered: rely on the view having loaded the task; rely only on a case version; add the projection before verifying the source boundary.
+- Goal fit: a single traceable transaction history depends on trustworthy recorded custody. Source locking must protect the stored task identity and prior return attribution, not just the parent case.
+- Tradeoff: another targeted source fix precedes downstream dashboard coverage. It must preserve normal ordered recording, controlled-print gates and idempotency while rejecting stale/cross-case input.
+- Evidence/status: service inspection complete; isolated reproduction and verification pending. No actual user-data misuse is claimed.
+- Revisit when: regression proves the stored case/task boundary and normal signature flow remain correct.

@@ -48,14 +48,16 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
         )
     tasks = []
 
-    def add(item, *, kind, area, reference, subject, received, queue, scope, route, attribution, source_id=None, route_kwargs=None, due_on=None):
+    def add(item, *, kind, area, reference, subject, received, queue, scope, route, attribution, source_id=None, route_kwargs=None, due_on=None, status=None, status_label=None):
+        status = status if status is not None else item.status
+        status_label = status_label if status_label is not None else item.get_status_display()
         source_id = source_id if source_id is not None else item.public_id
         identity = f"{kind}:{source_id}"
         if identity in actionable:
             return
         missing_time = received is None
         revision = _projection_checksum({
-            "identity": identity, "status": item.status, "attribution": attribution,
+            "identity": identity, "status": status, "attribution": attribution,
             "received": received.isoformat() if received else None,
             "scope": scope, "queue": queue,
             "version": getattr(item, "state_version", getattr(item, "version", None)),
@@ -69,7 +71,7 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             owner_queue=queue, scope=scope, received_at=received,
             due_on=due_on, due_state=_due_state(due_on, today) if due_on else "No structured target",
             calendar_basis="Retained local review target for the named reviewer; age is elapsed calendar days since handoff. No working-day adjustment inferred." if due_on else "Elapsed calendar days since the retained handoff; document and ledger dates are not deadlines.",
-            age_days=_age_days(received, today), state="Waiting", source_state=item.get_status_display(),
+            age_days=_age_days(received, today), state="Waiting", source_state=status_label,
             source_version=f"projection-sha256:{revision}",
             exception="The source has no retained handoff time; age is unavailable." if missing_time else "",
             url=reverse(route, kwargs=route_kwargs if route_kwargs is not None else {"public_id": item.public_id}),
@@ -103,6 +105,27 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             subject=item.question, received=item.submitted_at, queue=f"Named decision reviewer - {item.reviewer.get_username()}",
             scope=f"{item.department.name}; {item.affected_scope}", route="finance:discovery_decision_detail",
             attribution=[item.created_by_id, item.submitted_by_id], due_on=item.due_date)
+
+    from vouchers.case_exports import visible_cases_for_user
+    from vouchers.models import PayableIntake, VoucherCase
+
+    if can_view_workbench(user):
+        cases = visible_cases_for_user(user).filter(
+            Q(current_stage=VoucherCase.PAYABLE_REVIEW, payable_intake__status=PayableIntake.FOR_REVIEW)
+            | Q(current_stage=VoucherCase.ACCOUNTING_PREPARATION, payable_intake__status=PayableIntake.READY),
+        ).filter(Q(payable_intake__prepared_by_id=user.pk) | Q(payable_intake__submitted_by_id=user.pk)).select_related(
+            "payable_intake", "requesting_department", "current_department",
+        )
+        for item in cases:
+            intake = item.payable_intake
+            reviewing = item.current_stage == VoucherCase.PAYABLE_REVIEW
+            office = item.current_department.name if item.current_department else "office assignment missing"
+            queue = f"Accounting payable reviewers - {office}" if reviewing else f"Accounting DV preparers - {office}"
+            add(item, kind="voucher-case", area="Voucher case", reference=item.reference_code,
+                subject=f"{item.payee_name} · {item.particulars}", received=intake.submitted_at if reviewing else intake.reviewed_at,
+                queue=queue, scope=f"Requesting office: {item.requesting_department.name}; current processing office: {office}",
+                route="vouchers:case_detail", attribution=[intake.prepared_by_id, intake.submitted_by_id],
+                status=item.current_stage, status_label=item.get_current_stage_display())
 
     from budget.access import can_view as can_view_budget, has_budget_permission
     from budget.control_exports import obligation_scope_for_user

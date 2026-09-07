@@ -1226,6 +1226,70 @@ class FinancePayableWorkTaskContractTests(TestCase):
             )
         return item
 
+    def test_payable_waiting_follows_own_review_and_dv_preparation_handoffs(self):
+        review = self._case("A-WAIT-REVIEW", stage=VoucherCase.PAYABLE_REVIEW, current=self.accounting,
+                            status=PayableIntake.FOR_REVIEW, submitted_by=self.preparer)
+        ready = self._case("B-WAIT-DV", stage=VoucherCase.ACCOUNTING_PREPARATION, current=self.accounting,
+                           status=PayableIntake.READY, submitted_by=self.preparer)
+        intake = ready.payable_intake
+        intake.reviewed_at = timezone.now(); intake.save(update_fields=("reviewed_at",))
+        self._case("FOREIGN-WAIT", stage=VoucherCase.PAYABLE_REVIEW, current=self.accounting,
+                   requesting=self.other_requesting, status=PayableIntake.FOR_REVIEW, submitted_by=self.preparer)
+        self._case("OTHERS-WAIT", stage=VoucherCase.PAYABLE_REVIEW, current=self.accounting,
+                   prepared_by=self.other_preparer, submitted_by=self.other_preparer, status=PayableIntake.FOR_REVIEW)
+        self._case("DRAFT-WAIT", stage=VoucherCase.PAYABLE_PREPARATION)
+        result = finance_work_tasks(self.preparer, view="waiting")
+        self.assertEqual(result["task_count"], 2)
+        self.assertEqual({task["case_id"] for task in result["tasks"]}, {f"voucher-case:{review.public_id}", f"voucher-case:{ready.public_id}"})
+        for task in result["tasks"]:
+            self.assertIsNone(task["due_on"])
+            self.assertIn(self.accounting.name, task["owner_queue"])
+        self.client.force_login(self.preparer)
+        self.assertEqual(self.client.get(result["tasks"][0]["url"]).status_code, 200)
+        ready.current_stage = VoucherCase.AWAITING_SIGNATURES; ready.save(update_fields=("current_stage",))
+        self.assertEqual(finance_work_tasks(self.preparer, view="waiting")["task_count"], 1)
+        self.preparer.user_permissions.clear()
+        self.assertEqual(finance_work_tasks(self.preparer, view="waiting")["task_count"], 0)
+
+    def test_payable_waiting_excludes_current_case_action_before_limit(self):
+        self.reviewer.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="prepare_disbursement_voucher"))
+        self._case("A-ACTIONABLE-DV", stage=VoucherCase.ACCOUNTING_PREPARATION, current=self.accounting,
+                   requesting=self.accounting, prepared_by=self.reviewer, submitted_by=self.reviewer, status=PayableIntake.READY)
+        other = self._case("Z-OTHER-OFFICE-DV", stage=VoucherCase.ACCOUNTING_PREPARATION, current=self.other_requesting,
+                           requesting=self.accounting, prepared_by=self.reviewer, submitted_by=self.reviewer, status=PayableIntake.READY)
+        result = finance_work_tasks(self.reviewer, view="waiting", display_limit=1)
+        self.assertEqual(result["task_count"], 1)
+        self.assertEqual(result["tasks"][0]["case_id"], f"voucher-case:{other.public_id}")
+        self.reviewer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertEqual(finance_work_tasks(self.reviewer, view="waiting")["task_count"], 0)
+
+    def test_payable_completion_keeps_event_custody_after_case_moves(self):
+        from vouchers.models import VoucherEvent
+
+        item = self._case("PAYABLE-HISTORY", stage=VoucherCase.TREASURY_CHECK_PREPARATION, current=self.other_requesting,
+                          status=PayableIntake.READY, submitted_by=self.preparer)
+        submitted = VoucherEvent.objects.create(case=item, actor=self.preparer, actor_department=self.requesting,
+            action="payable_submitted", from_stage=VoucherCase.PAYABLE_PREPARATION, to_stage=VoucherCase.PAYABLE_REVIEW,
+            state_version=1, idempotency_key="history-submit")
+        VoucherEvent.objects.create(case=item, actor=self.reviewer, actor_department=self.accounting,
+            action="payable_accepted", from_stage=VoucherCase.PAYABLE_REVIEW, to_stage=VoucherCase.ACCOUNTING_PREPARATION,
+            reason="Reviewed claim readiness.", state_version=2, idempotency_key="history-accept")
+        VoucherEvent.objects.create(case=item, actor=self.preparer, actor_department=self.requesting,
+            action="payable_submitted", from_stage=VoucherCase.COMPLETED, to_stage=VoucherCase.PAYABLE_REVIEW,
+            state_version=3, idempotency_key="history-inconsistent")
+        prepared = finance_work_tasks(self.preparer, view="completed")
+        self.assertEqual(prepared["task_count"], 1)
+        self.assertEqual(prepared["tasks"][0]["received_at"], submitted.created_at)
+        reviewed = finance_work_tasks(self.reviewer, view="completed")
+        self.assertEqual(reviewed["task_count"], 1)
+        task = reviewed["tasks"][0]
+        self.assertEqual(task["subject"], "Accepted payable for DV preparation")
+        self.assertIn(self.accounting.name, task["owner_queue"])
+        self.assertEqual(task["source_state"], item.get_current_stage_display())
+        self.assertIn("does not authorize payment release", task["gate"])
+        self.preparer.user_permissions.clear()
+        self.assertEqual(finance_work_tasks(self.preparer, view="completed")["task_count"], 0)
+
     def test_preparation_tasks_are_exact_requesting_office_items_with_no_invented_due_date(self):
         own = self._case(
             "PAY-TASK-PREP", stage=VoucherCase.PAYABLE_PREPARATION,

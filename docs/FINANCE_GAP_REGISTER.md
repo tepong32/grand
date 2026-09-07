@@ -133,3 +133,12 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 - Code evidence: the prior setup `awaiting_review` selector excluded every preparer/submitter; `transition_release` permits their approval when explicit office permission and an active administrator-authorized self-approval exemption both apply. Using the old queue to exclude Waiting would mislabel such a record as someone else's handoff.
 - Repair: the selector includes those existing authorized actions; the personal task explains the exemption and keeps independent return separate. No exemption or permission is granted by this change.
 - Verification: tests cover future/inactive/active exemptions, source approval parity, personal scope and action exclusion before the display cap. Four focused tests and all 564 project tests passed. This is projection drift, not an unauthorized source mutation.
+
+
+## FIN-GAP-012 - Signature return trusts caller-supplied task state
+
+- Process/module: recorded wet-signature custody and immutable return attribution.
+- Severity/status: **CRITICAL - OPEN**, identified 2026-09-08 during the downstream case-action audit. Signature projection expansion is blocked until reproduction, remediation and verification. The independent payable checkpoint may finish.
+- Code evidence: `record_signature_return` locks/reloads the case but validates `task.case_id`, `task.status`, round and sequence from the supplied model instance before saving that instance by its primary key. A stale or altered instance may therefore diverge from the locked case's stored task.
+- Expected behavior: re-fetch and lock the stored task within the authorized case before checking pending state, sequence and custody evidence. A completed return must not be overwritten, and an altered in-memory case link must not permit writing another case's task.
+- Next step: reproduce stale re-recording and altered task/case linkage with unchanged-state/audit assertions, then repair and verify before dependent signature handoff work. No real misuse or operational-data mutation is asserted.
