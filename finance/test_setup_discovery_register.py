@@ -145,7 +145,7 @@ class SetupAndDiscoveryWorkRegisterTests(TestCase):
         self.assertEqual(group["count"], source.context["visible_count"])
         self.assertEqual(group["url"], f'{reverse("finance:workspace")}?attention=needs_preparation')
         self.assertNotContains(source, "SETUP-HIDDEN-DRAFT")
-        self.assertNotContains(source, "Submitted releases awaiting independent review")
+        self.assertNotContains(source, "Submitted releases awaiting Accounting review")
 
     def test_setup_review_schedule_and_activation_are_separate_exact_queues(self):
         self.client.force_login(self.approver)

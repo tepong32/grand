@@ -147,3 +147,8 @@ Submitted setup releases can be returned to draft by an independent, explicitly 
 ## v0.7.18 - personal setup handoff views
 
 Personal Waiting now includes submitted Finance setup releases under current source read scope and retained preparer/submitter attribution. Draft releases with matching retained return events appear in Returned with the reviewer reason and return time; resubmission removes that label. Stable source identities and authorized-action exclusion apply before display truncation. The setup review selector recognizes existing active self-approval exemptions without granting them; task/source guidance distinguishes exempt approval from independent return. Effective dates remain separate from submission deadlines. Verification: four focused setup handoff tests passed in 2.864 seconds; all 564 project tests passed in 152.521 seconds. System, migration-drift, compilation and diff checks are clean.
+
+
+## v0.7.19 - attributed setup completion history
+
+Completed by me now includes retained setup release submission, return, approval, scheduling, activation, restoration and retirement actions attributed to the signed-in account. Current source read scope and event/target/office consistency are required. Repeated submissions keep separate stable event identities, and current release state remains distinct from historical completion. Draft creation or terminal status alone does not credit a handoff. Template/preflight and other child actions remain outside this adapter. Verification: both focused setup completion tests passed in 1.814 seconds; all 566 project tests passed in 215.253 seconds. System, migration-drift, compilation and diff checks are clean.

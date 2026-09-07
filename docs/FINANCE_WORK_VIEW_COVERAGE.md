@@ -1,0 +1,34 @@
+# Finance personal handoff coverage
+
+This table describes the implemented My Work views, not production or LGU acceptance. Current source authorization applies to every row. Ready/action coverage is detailed in [FINANCE_MY_WORK.md](FINANCE_MY_WORK.md); turning-point choices are in [IMPLEMENTATION_DECISIONS.md](IMPLEMENTATION_DECISIONS.md).
+
+Last reviewed: 2026-09-08, v0.7.19 verified implementation.
+
+| Source domain | Personal Waiting | Completed by me |
+| --- | --- | --- |
+| Finance setup releases | Own submitted releases; current authorized review actions excluded (v0.7.18) | Retained release transition events (v0.7.19) |
+| Discovery decisions | Next: retained preparer/submitter handoffs with named source read scope | Next: retained submission, return and recording events |
+| Budget proposals, allotments and obligations | Implemented for supported source review/certification handoffs | Retained Budget events implemented, including call/consolidation/appropriation actions |
+| Accounting JEVs | Own submitted JEVs, excluding current posting actions | Retained submission/posting/return events |
+| Opening balances | Submitted source handoffs | Retained submission, decision, posting and reconciliation events |
+| Period close/reopen | Submitted close checklist handoffs; broader reopen Waiting remains to audit | Retained close and reopen events |
+| Bank advice | Supported review, bank-submission and bank-response handoffs | Retained review, submission and recorded bank-response events |
+| Treasury remittances | Review, release and Accounting-posting handoffs; related current actions excluded | Retained review, release and posted-source synchronization events |
+| Payable intake and shared voucher processing | Remaining coverage | Remaining coverage |
+| DV print, packet, wet-signature custody and payment instruments | Remaining coverage | Remaining coverage |
+| Bank reconciliation and returned-payment exceptions | Remaining coverage | Remaining coverage |
+| Cash policy and cash position | Remaining coverage | Remaining coverage |
+| Reporting runs and accountability packages | Remaining coverage | Remaining coverage |
+| Field cycles and named nested controls | Remaining coverage | Remaining coverage |
+| Local forms | Remaining coverage | Remaining coverage |
+
+## Common rules and remaining work
+
+- Waiting means work the user prepared/submitted that is now with another queue, under current source read access. It is not all visible office work. Current actionable records are removed before the display cap.
+- Completed by me credits retained actions attributed to the account. It does not infer actions from terminal status or credit later reviewers' actions to a creator. Current source state remains separate.
+- Returned uses current actionable correction state; a historical return does not label a resubmitted record as returned. Setup draft returns additionally require a matching retained return event.
+- Upcoming/Past dates currently filter supported actionable tasks with stored targets. They do not provide an all-record calendar. The meaning of each target remains visible; no working-day or legal deadline is invented.
+- The administrator-assigned portable export permission applies to the selected supported view. Coverage and truncation are retained with the export.
+- Assignment/following rules, governed shared views and notifications remain future work. They must build on the same source contract rather than create another authoritative queue.
+
+Next source adapter: discovery handoffs. Review each remaining domain's real authority, return/recovery path and attribution before adding its personal projections. Preserve the separate post-functional scrutiny and LGU acceptance gates.

@@ -218,3 +218,53 @@ def completed_payment_handoff_tasks(user, department, today):
                 url=reverse(route, kwargs={"public_id": item.public_id}),
             ))
     return tasks
+
+
+def completed_setup_tasks(user, department, today):
+    """Credit retained release transitions under the current source read boundary."""
+    from .access import can_view_finance_setup
+    from .models import FinanceAuditEvent
+    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
+    from vouchers.roles import is_finance_uat_viewer
+
+    if is_finance_uat_viewer(user) or not can_view_finance_setup(user):
+        return []
+    labels = {
+        "submit": "Submitted setup release for review", "return": "Returned setup release for correction",
+        "approve": "Approved setup release", "schedule": "Scheduled setup release",
+        "activate": "Activated setup release", "rollback": "Restored a prior approved setup release",
+        "retire": "Retired setup release",
+    }
+    events = FinanceAuditEvent.objects.filter(
+        department_id=department.pk, release__department_id=department.pk, actor_id=user.pk,
+        target_type="financeconfigurationrelease", action__in=labels,
+    ).select_related("release")
+    tasks = []
+    for event in events:
+        item = event.release
+        if event.target_id != str(item.pk):
+            continue
+        source_id = _source_record_identity("setup-release", item.pk)
+        event_id = _source_record_identity("setup-release-event", event.pk)
+        label = labels[event.action]
+        reference = f"{item.code} v{item.version} · FY {item.fiscal_year}"
+        revision = _projection_checksum({
+            "event_id": str(event_id), "action": event.action, "actor_id": event.actor_id,
+            "department_id": event.department_id, "at": event.created_at.isoformat(),
+            "snapshot": event.snapshot, "reason": event.reason, "source_id": str(source_id),
+            "current_state": item.status, "reference": reference,
+        })
+        tasks.append(FinanceWorkTask(
+            task_id=f"finwork:v1:setup-release-event:{event_id}:completed",
+            task_type=f"finance.setup-release.{event.action}.completed.v1", area="Finance setup",
+            case_id=f"setup-release:{source_id}", reference=reference, subject=label,
+            transaction_type="Recorded setup release action", action="View recorded outcome",
+            gate=f"The retained event attributes this completed action to your account: {label}." + (f" Reason: {event.reason}" if event.reason else ""),
+            owner_queue=f"Recorded actor account: {user.get_username()}", scope=f"{department.name}; FY {item.fiscal_year}",
+            received_at=event.created_at, due_on=None, due_state="Recorded completion",
+            calendar_basis="Elapsed calendar days since this recorded action. The source's current state is shown separately.",
+            age_days=_age_days(event.created_at, today), state="Completed", source_state=item.get_status_display(),
+            source_version=f"event-sha256:{revision}", exception="",
+            url=reverse("finance:release_detail", kwargs={"pk": item.pk}),
+        ))
+    return tasks

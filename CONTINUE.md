@@ -6,13 +6,19 @@ Last updated: 2026-09-08
 
 Turning-point decisions are recorded separately in [the implementation decision log](docs/IMPLEMENTATION_DECISIONS.md), as requested by the user. Keep each choice tied to the canonical product goal, alternatives, tradeoffs, evidence and revisit conditions.
 
+Personal handoff coverage and the next source adapter are summarized in [the coverage table](docs/FINANCE_WORK_VIEW_COVERAGE.md).
+
 ## How to resume
 
 The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.18 checkpoint - personal setup handoffs
+## Current v0.7.19 checkpoint - attributed setup completion
+
+Branch: `codex/finance-setup-completion-history`, based on pushed `a1d3a7b`. Completed by me now includes retained setup release submission, return, approval, scheduling, activation, restoration and retirement actions attributed to the signed-in account. Current source read scope and event/target/office consistency are required. Repeated submissions keep separate stable event identities, and current release state remains distinct from historical completion. Draft creation or terminal status alone does not credit a handoff. Template/preflight and other child actions remain outside this adapter. Verification: both focused setup completion tests passed in 1.814 seconds; all 566 project tests passed in 215.253 seconds. System, migration-drift, compilation and diff checks are clean. Continue remaining source handoff/history coverage after verification. Preserve the user database and side-document turning-point decisions.
+
+## Prior v0.7.18 checkpoint - personal setup handoffs
 
 Branch: `codex/finance-setup-personal-handoffs`, based on pushed `1be3493`. Personal Waiting now includes submitted Finance setup releases under current source read scope and retained preparer/submitter attribution. Draft releases with matching retained return events appear in Returned with the reviewer reason and return time; resubmission removes that label. Stable source identities and authorized-action exclusion apply before display truncation. The setup review selector recognizes existing active self-approval exemptions without granting them; task/source guidance distinguishes exempt approval from independent return. Effective dates remain separate from submission deadlines. Verification: four focused setup handoff tests passed in 2.864 seconds; all 564 project tests passed in 152.521 seconds. System, migration-drift, compilation and diff checks are clean. Continue broader handoff and attributed history coverage after verification. Preserve the user database and side-document turning-point decisions.
 

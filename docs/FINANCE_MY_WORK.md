@@ -1,5 +1,7 @@
 # Finance work-attention foundation
 
+For a compact current view of implemented and remaining personal handoffs, see [the coverage table](FINANCE_WORK_VIEW_COVERAGE.md).
+
 Status: F1.5 source-task adapters and the supported shared-case stage coverage audit are implemented; cross-cycle view coverage remains in progress; bounded, explicitly permissioned task export is implemented. `/finance/my-work/` provides a live, permission-filtered overview of supported Finance setup/discovery/field operation, Budget, shared voucher, Accounting, bank reconciliation, bank-advice, returned-payment, Treasury remittance, cash-policy, cash-position, period-close/reopen, Reporting, and local-form action groups. Finance Setup releases, discovery decisions, Budget proposal versions/allotment orders/obligation requests, payable-intake preparation/review, DV preparation and controlled print/custody/signature actions, independent Accounting validation, JEV preparation/posting, Treasury check preparation and individual instrument release, bank-reconciliation staging/correction/matching/review, period-close preparation/review/reopen decisions, bank-advice and returned-payment actions, Treasury remittance and cash-policy/position actions, report generation/reconciliation/review/approval, Field-operation cycle gates and named nested actions, and Local-form actions expose stable read-only work items over their existing governed records. Any further count-only domain must still pass an explicit adapter audit.
 
 ## What the page does
@@ -205,3 +207,8 @@ Submitted setup releases can be returned to draft by an independent, explicitly 
 ## v0.7.18 - personal setup handoff views
 
 Personal Waiting now includes submitted Finance setup releases under current source read scope and retained preparer/submitter attribution. Draft releases with matching retained return events appear in Returned with the reviewer reason and return time; resubmission removes that label. Stable source identities and authorized-action exclusion apply before display truncation. The setup review selector recognizes existing active self-approval exemptions without granting them; task/source guidance distinguishes exempt approval from independent return. Effective dates remain separate from submission deadlines. Verification: four focused setup handoff tests passed in 2.864 seconds; all 564 project tests passed in 152.521 seconds. System, migration-drift, compilation and diff checks are clean.
+
+
+## v0.7.19 - attributed setup completion history
+
+Completed by me now includes retained setup release submission, return, approval, scheduling, activation, restoration and retirement actions attributed to the signed-in account. Current source read scope and event/target/office consistency are required. Repeated submissions keep separate stable event identities, and current release state remains distinct from historical completion. Draft creation or terminal status alone does not credit a handoff. Template/preflight and other child actions remain outside this adapter. Verification: both focused setup completion tests passed in 1.814 seconds; all 566 project tests passed in 215.253 seconds. System, migration-drift, compilation and diff checks are clean.

@@ -19,6 +19,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-007:** Make the advertised pre-approval setup correction path usable before adding more setup dashboard coverage.
 - **D-008:** Extend setup handoff views from current source state and retained attribution, including existing governed exemptions.
 - **D-009:** Attribute setup completion only to retained release transition events.
+- **D-010:** Preserve named cross-office discovery access and the distinction between recorded evidence and accepted scope.
 
 ### D-001 — Retained events determine personal completion
 
@@ -111,10 +112,20 @@ D-007 verification note: the first full run exposed two synthetic fixtures that 
 
 ### D-009 — Attribute setup completion to recorded release actions
 
-- Date/checkpoint: 2026-09-08; planned after v0.7.18 verification.
+- Date/checkpoint: 2026-09-08; implemented and verified in v0.7.19.
 - Decision: Extend Completed by me to retained setup submission, return, approval, scheduling, activation, rollback and retirement events attributed to the signed-in account. Recheck current source read scope and event/target/office consistency.
 - Alternatives considered: infer completion from current release status; credit the creator for every later approval; count every draft edit as a completed handoff.
 - Goal fit: one traceable history should distinguish who performed an action from what state the release is in today. Stable event identity preserves repeated submissions and corrections.
 - Tradeoff: this first setup history adapter covers release transitions; detailed template/preflight and other setup child actions remain later coverage. It does not confer new authority or claim production readiness.
-- Evidence/status: source audit events and transition actions inspected; implementation and verification pending.
+- Evidence/status: source audit events and transition actions inspected; the adapter is implemented; both focused tests and all 566 project tests passed.
 - Revisit when: additional operational actions have reliable retained attribution and a clear current source read boundary.
+
+### D-010 — Preserve named discovery custody and evidence meaning
+
+- Date/checkpoint: 2026-09-08; planned after v0.7.19 verification.
+- Decision: Extend personal discovery Waiting using retained preparer/submitter attribution and the source's named-owner/reviewer read scope, including existing cross-office access. Completion must come from retained submission/return/recording events, never from current status alone. A recorded unresolved decision remains unresolved and scope-blocking.
+- Alternatives considered: limit every discovery record to the current department; treat every assigned owner as having submitted work; label recorded discovery as local acceptance; invent submission deadlines.
+- Goal fit: the shared workflow should retain office accountability and exact evidence meaning. Named cross-office participation is existing authority, not an exception to hide. A stored review target should be identified as that target, not silently reassigned as the user's deadline.
+- Tradeoff: this adapter will cover discovery handoffs and recorded decisions; field-cycle and nested-record Waiting/history require their own source review. It does not modify discovery evidence locks, grants or acceptance rules.
+- Evidence/status: named source access, public identifiers and retained audit actions inspected; implementation and verification pending.
+- Revisit when: local staffing or review policy changes the source contract, or further nested handoffs are added.

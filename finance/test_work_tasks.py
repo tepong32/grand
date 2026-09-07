@@ -691,6 +691,62 @@ class FinanceWorkTaskContractTests(TestCase):
         transition_release(own, "approve", self.worker, "Synthetic governed exemption approval.")
         self.assertEqual(finance_work_tasks(self.worker, view="waiting")["task_count"], 0)
 
+    def test_setup_completion_credits_retained_actions_and_keeps_current_state_separate(self):
+        from .services import transition_release
+
+        today = timezone.localdate()
+        release = self._release(code="COMPLETED-SETUP", status="draft", effective_from=today + timedelta(days=5))
+        self._release(code="STATUS-ONLY", status="active", effective_from=today)
+        transition_release(release, "submit", self.worker)
+        first_id = finance_work_tasks(self.worker, view="completed")["tasks"][0]["task_id"]
+        transition_release(release, "return", self.reviewer, "Retain the correction reason.")
+        transition_release(release, "submit", self.worker)
+        transition_release(release, "approve", self.reviewer, "Reviewed corrected basis.")
+        transition_release(release, "schedule", self.reviewer)
+        prepared = finance_work_tasks(self.worker, view="completed")
+        self.assertEqual(prepared["task_count"], 2)
+        self.assertEqual(len({task["task_id"] for task in prepared["tasks"]}), 2)
+        self.assertIn(first_id, {task["task_id"] for task in prepared["tasks"]})
+        for task in prepared["tasks"]:
+            self.assertEqual(task["state"], "Completed")
+            self.assertEqual(task["source_state"], "Scheduled")
+            self.assertEqual(task["subject"], "Submitted setup release for review")
+            self.assertEqual(task["url"], reverse("finance:release_detail", args=[release.pk]))
+            self.assertIsNone(task["due_on"])
+        reviewed = finance_work_tasks(self.reviewer, view="completed", display_limit=1)
+        self.assertEqual(reviewed["task_count"], 3)
+        self.assertTrue(reviewed["tasks_truncated"])
+        self.assertEqual(reviewed["tasks"][0]["subject"], "Scheduled setup release")
+        transition_release(release, "retire", self.reviewer)
+        self.assertEqual(finance_work_tasks(self.reviewer, view="completed")["task_count"], 4)
+        self.client.force_login(self.worker)
+        response = self.client.get(reverse("finance_operations:my_work"), {"view": "completed"})
+        self.assertContains(response, "Submitted setup release for review")
+        self.assertNotContains(response, "STATUS-ONLY")
+
+    def test_setup_completion_rechecks_read_scope_and_rejects_inconsistent_event_targets(self):
+        from .models import FinanceAuditEvent
+        from .services import transition_release
+
+        today = timezone.localdate()
+        release = self._release(code="COMPLETED-SCOPE", status="draft", effective_from=today)
+        transition_release(release, "submit", self.worker)
+        base = dict(department=self.accounting, release=release, actor=self.worker,
+                    target_type="financeconfigurationrelease", target_id=str(release.pk), action="submit")
+        for changes in ({"target_id": "missing"}, {"target_type": "financetemplateversion"},
+                        {"department": self.budget}, {"actor": self.reviewer}, {"action": "created"}):
+            FinanceAuditEvent.objects.create(**{**base, **changes})
+        self.assertEqual(finance_work_tasks(self.worker, view="completed")["task_count"], 1)
+        self.worker.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertEqual(finance_work_tasks(self.worker, view="completed")["task_count"], 0)
+        self.worker.groups.clear()
+        self.worker.user_permissions.clear()
+        self.assertEqual(finance_work_tasks(self.worker, view="completed")["task_count"], 0)
+        self._grant(self.worker, "finance.view_finance_setup")
+        self.assertEqual(finance_work_tasks(self.worker, view="completed")["task_count"], 1)
+        release.department = self.budget; release.save(update_fields=("department",))
+        self.assertEqual(finance_work_tasks(self.worker, view="completed")["task_count"], 0)
+
     def test_setup_release_tasks_separate_preparation_review_schedule_and_activation(self):
         today = timezone.localdate()
         draft = self._release(code="setup-draft", status="draft", effective_from=today + timedelta(days=10))
