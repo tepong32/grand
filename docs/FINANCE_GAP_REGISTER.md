@@ -49,3 +49,14 @@ Started 2026-09-07 during continued functional implementation. This is not the c
 ### FIN-GAP-003 progress — v0.7.1
 
 The legacy Budget action now has an exact source-linked projection using the same selector as shared-case action filters and detail controls. Remaining audit items include cases waiting for initial advice batch assembly and cases whose JEV handoff has not yet materialized a JournalEntry; a batch-only or journal-only adapter is not automatically complete coverage. Keep this High finding open until every supported shared-case stage has been checked.
+
+## FIN-GAP-005 — Posting handoff trusts caller state / lacks service custody
+
+- Process/module: voucher and remittance Finance-to-core posting synchronization; remittance draft materialization.
+- Severity/status: **CRITICAL — VERIFIED** in v0.7.2. The full project suite passed 528 tests in 301.697 seconds, including both affected chains. Functional work may continue; the overall production gate remains NO-GO.
+- Basis/current behavior: handoff functions inspect the supplied JournalEntry object's status rather than reload its persisted posting evidence. Both lack a current-office service check; remittance materialization also uses the source department without checking the actor's department.
+- Expected behavior/impact: only the current Accounting office may create or synchronize its source journal; no in-memory claimed posted status may advance a voucher/remittance while the stored ledger remains draft.
+- Classification: implementation-level authority and cross-module integrity defect; apply one shared persisted-posting proof and source/ledger identity check. Preserve recoverable two-store behavior and idempotent retries.
+- Required verification: forged-status reproduction; foreign-office/UAT denial; payload/link/event/centavo drift; failed/retried synchronization and both affected complete chains. No production-ready claim before verification.
+
+FIN-GAP-005 reproduction: both `test_voucher_handoff_requires_persisted_posting` and `test_remittance_handoff_requires_persisted_posting` failed against the original functions; each accepted an in-memory `POSTED` label while the stored journal remained draft (`.tmp/handoff-reproduction.log`). The fix reloads the current-office stored entry, requires attributed posting and matching event totals, verifies source/ledger identities and payload/rule digests, restricts remittance draft materialization to its Accounting office, excludes UAT journal actions and makes successful synchronization retries idempotent. Final validation: 528 tests passed in 301.697 seconds, including forged status, foreign-office/UAT denial, posting-event centavo drift, payload drift, interrupted synchronization and idempotent retry. System, migration-drift, compilation and diff checks are clean.

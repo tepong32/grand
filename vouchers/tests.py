@@ -20,7 +20,7 @@ from django.utils import timezone
 
 from departments.models import Department
 from accounting.models import (
-    AccountingPeriod, BankStatementBatch, BankStatementMatch, FiscalYear,
+    AccountingAuditEvent, AccountingPeriod, BankStatementBatch, BankStatementMatch, FiscalYear,
     FiscalYearReadinessApproval, Fund, FundingSource, JournalEntry, JournalSubsidiaryLine,
     LedgerAccount, OpeningBalanceBatch, PostingMapping, ProgramActivityProject, ResponsibilityCenter,
 )
@@ -951,6 +951,110 @@ class VoucherWorkflowTests(TestCase):
         case.refresh_from_db()
         self.assertEqual(case.current_stage, VoucherCase.BUDGET_DRAFT)
         self.assertFalse(hasattr(case, "obligation"))
+
+    def _draft_voucher_handoff(self):
+        case = self.create_case("handoff-probe")
+        self.budget_certify(case, "handoff-budget")
+        self.accounting_prepare(case, "handoff-dv")
+        self.return_signatures(case)
+        validate_accounting(case=case, actor=self.validator, jev_number="HANDOFF-JEV", jev_date=date(2026, 8, 25),
+            note="Synthetic review", expected_version=case.state_version, idempotency_key="handoff-validation")
+        source = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
+        entry, _ = materialize_voucher_journal(source, self.preparer)
+        return case, source, entry
+
+    def _draft_remittance_handoff(self):
+        agency = self.enable_remittance_route()
+        self.ready_for_treasury()
+        choice = withholding_availability(finance_department_id=self.accounting.pk,
+            transaction_type=self.transaction_variant.code, as_of_date=date(2026, 8, 31))[0]
+        batch = create_batch(actor=self.treasury_user, configuration_release=self.release,
+            transaction_variant=self.transaction_variant, recipient_party=agency, fund_code="general-fund", bank_account_code="gf-lbp",
+            remittance_date=date(2026, 8, 31), payment_method="Electronic transfer", authority_reference="Synthetic authority", evidence_reference="Synthetic schedule")
+        add_line(batch=batch, actor=self.treasury_user, choice_key=choice["choice_key"], amount=Decimal("100.00"), reason="Synthetic schedule")
+        submit_batch(batch=batch, actor=self.treasury_user)
+        review_batch(batch=batch, actor=self.validator, approve=True, reason="Independent synthetic review")
+        source = release_batch(batch=batch, actor=self.treasury_user, release_reference="HANDOFF-BANK", acknowledgement_reference="HANDOFF-RECEIPT")
+        entry, _ = materialize_remittance_journal(source, self.preparer)
+        return batch, source, entry
+
+    def test_voucher_handoff_requires_persisted_posting(self):
+        case, source, entry = self._draft_voucher_handoff()
+        entry.status = JournalEntry.POSTED
+        with self.assertRaises(ValidationError):
+            reconcile_posted_voucher_entry(entry, self.validator)
+        case.refresh_from_db(); source.refresh_from_db(); entry.refresh_from_db()
+        self.assertEqual(entry.status, JournalEntry.DRAFT)
+        self.assertEqual(source.status, VoucherPostingRequest.MATERIALIZED)
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_POSTING)
+
+    def test_remittance_handoff_requires_persisted_posting(self):
+        batch, source, entry = self._draft_remittance_handoff()
+        entry.status = JournalEntry.POSTED
+        with self.assertRaises(ValidationError):
+            reconcile_posted_remittance_entry(entry, self.validator)
+        batch.refresh_from_db(); source.refresh_from_db(); entry.refresh_from_db()
+        self.assertEqual(entry.status, JournalEntry.DRAFT)
+        self.assertEqual(source.status, RemittancePostingRequest.MATERIALIZED)
+        self.assertEqual(batch.status, TreasuryRemittanceBatch.ACCOUNTING_POSTING)
+
+    def test_handoff_rejects_foreign_office_uat_and_tampered_posting_evidence(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        foreign = self.employee("handoff.foreign", self.requesting)
+        preview = self.employee("handoff.preview", self.accounting)
+        for actor in (foreign, preview):
+            actor.user_permissions.add(*Permission.objects.filter(content_type__app_label="accounting", codename__in=("prepare_journal_entries", "post_journal_entries")))
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        case, source, entry = self._draft_voucher_handoff()
+        for actor in (foreign, preview):
+            with self.assertRaises(PermissionDenied):
+                materialize_voucher_journal(source, actor)
+        submit_entry(entry, self.preparer); entry.refresh_from_db()
+        post_entry(entry, self.validator); entry.refresh_from_db()
+        for actor in (foreign, preview):
+            with self.assertRaises(PermissionDenied):
+                reconcile_posted_voucher_entry(entry, actor)
+        event = entry.audit_events.get(action="posted")
+        saved = event.snapshot
+        AccountingAuditEvent.objects.filter(pk=event.pk).update(snapshot={"debit": "1000.01", "credit": "1000.01"})
+        with self.assertRaises(ValidationError):
+            reconcile_posted_voucher_entry(entry, self.validator)
+        AccountingAuditEvent.objects.filter(pk=event.pk).update(snapshot=saved)
+        original_payload = source.payload
+        VoucherPostingRequest.objects.filter(pk=source.pk).update(payload={**source.payload, "particulars": "Unapproved drift"})
+        with self.assertRaises(ValidationError):
+            reconcile_posted_voucher_entry(entry, self.validator)
+        VoucherPostingRequest.objects.filter(pk=source.pk).update(payload=original_payload)
+        reconcile_posted_voucher_entry(entry, self.validator)
+        count = case.events.count()
+        reconcile_posted_voucher_entry(entry, self.validator)
+        self.assertEqual(case.events.count(), count)
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
+
+    def test_remittance_handoff_enforces_office_and_is_idempotent(self):
+        batch, source, entry = self._draft_remittance_handoff()
+        foreign = self.employee("remittance.handoff.foreign", self.requesting)
+        foreign.user_permissions.add(*Permission.objects.filter(content_type__app_label="accounting", codename__in=("prepare_journal_entries", "post_journal_entries")))
+        with self.assertRaises(PermissionDenied):
+            materialize_remittance_journal(source, foreign)
+        submit_entry(entry, self.preparer); entry.refresh_from_db()
+        post_entry(entry, self.validator); entry.refresh_from_db()
+        with self.assertRaises(PermissionDenied):
+            reconcile_posted_remittance_entry(entry, foreign)
+        with patch("vouchers.remittances._event", side_effect=RuntimeError("Synthetic handoff failure")):
+            with self.assertRaises(RuntimeError):
+                reconcile_posted_remittance_entry(entry, self.validator)
+        batch.refresh_from_db(); source.refresh_from_db()
+        self.assertEqual(batch.status, TreasuryRemittanceBatch.ACCOUNTING_POSTING)
+        self.assertEqual(source.status, RemittancePostingRequest.MATERIALIZED)
+        reconcile_posted_remittance_entry(entry, self.validator)
+        event_count = batch.events.count()
+        reconcile_posted_remittance_entry(entry, self.validator)
+        self.assertEqual(batch.events.count(), event_count)
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, TreasuryRemittanceBatch.COMPLETED)
 
     def test_complete_supplier_disbursement_route_uses_one_shared_case(self):
         case = self.ready_for_treasury()

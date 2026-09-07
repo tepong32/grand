@@ -127,3 +127,9 @@ The shared-case Budget draft stage now has a stable task tied to the exact unlin
 Continue the shared-case audit for initial advice assembly and unmaterialized JEV handoff; current batch and journal task coverage alone cannot prove those transitions covered. Cross-cycle views remain downstream of this audit.
 
 Final project suite: 524 tests passed across both databases in 139.139 seconds; system, migration, compilation and diff checks are clean. Five focused legacy/authoritative-chain tests passed in 5.146 seconds.
+
+## v0.7.2 — posting-handoff prerequisite
+
+The shared-case audit exposed FIN-GAP-005 before further task adapters. Voucher/remittance synchronization now reloads the stored JEV and verifies current-office custody, recorded posting attribution and exact posting-event totals, plus source-to-ledger identity and retained digests. UAT journal permissions are excluded at the access boundary. A successful retry returns the same verified handoff receipt without moving a later workflow stage. Remaining advice-assembly and posting-request task projections remain open; no new task coverage is claimed by this control fix.
+
+Verification: all 528 project tests passed in 301.697 seconds, including both affected chains and negative/recovery regressions. FIN-GAP-005 is verified; continue FIN-GAP-003 source-action coverage.

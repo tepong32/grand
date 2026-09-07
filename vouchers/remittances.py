@@ -481,12 +481,16 @@ def materialize_remittance_journal(posting_request, actor):
     if not can_prepare_journals(actor):
         raise PermissionDenied
     request = RemittancePostingRequest.objects.select_related("batch", "posting_rule").get(pk=posting_request.pk)
+    if request.finance_department_id != department_for_user(actor).pk:
+        raise PermissionDenied
     if request.status in {request.CANCELLED, request.POSTED}:
         raise RemittanceWorkflowError("This remittance request is no longer eligible for draft creation.")
     existing = JournalEntry.objects.filter(
         department_id=request.finance_department_id, source_type="remittance", source_reference=str(request.public_id),
     ).first()
     if existing:
+        from accounting.posted_evidence import verify_source_link
+        verify_source_link(request, existing, source_type="remittance")
         RemittancePostingRequest.objects.filter(pk=request.pk).update(status=request.MATERIALIZED, accounting_entry_public_id=existing.public_id, failure_reason="", materialized_at=timezone.now())
         return existing, False
     try:
@@ -583,13 +587,16 @@ def materialize_remittance_journal(posting_request, actor):
 
 @transaction.atomic
 def reconcile_posted_remittance_entry(entry, actor):
-    if not can_post_journals(actor):
-        raise PermissionDenied
-    if entry.source_type != "remittance" or entry.status != JournalEntry.POSTED or not entry.source_reference:
-        raise RemittanceWorkflowError("Only a posted GRAND remittance JEV can complete this handoff.")
+    from accounting.posted_evidence import require_persisted_posting, verify_source_link
+    entry = require_persisted_posting(entry, actor, source_type="remittance")
     request = RemittancePostingRequest.objects.select_for_update().select_related("batch").filter(public_id=entry.source_reference).first()
     if request is None:
         raise RemittanceWorkflowError("The posted JEV's remittance request cannot be found.")
+    verify_source_link(request, entry, source_type="remittance")
+    if request.status == request.POSTED:
+        return request
+    if request.status == request.CANCELLED:
+        raise RemittanceWorkflowError("A cancelled remittance source cannot be advanced by posting synchronization.")
     request.status = request.POSTED; request.accounting_entry_public_id = entry.public_id
     request.failure_reason = ""; request.posted_at = entry.posted_at or timezone.now(); request.save()
     batch = TreasuryRemittanceBatch.objects.select_for_update().get(pk=request.batch_id)

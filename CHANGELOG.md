@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.2 — persisted Accounting handoff proof
+
+- Reload stored, current-office posted journals before voucher/remittance synchronization; require posting attribution and exact totals matching the retained posting event.
+- Verify source/ledger office, UUID linkage, number/date and payload/rule checksums, including materialization recovery; reject cancelled/no-entry handoffs.
+- Restrict remittance materialization to its Accounting office and exclude UAT accounts from journal preparation/posting.
+- Return verified completed-handoff receipts without repeating workflow transitions or remittance events. Verified with 528 passing project tests in 301.697 seconds; system, migration-drift, compilation and diff checks are clean.
+
 ## v0.7.1 — legacy shadow Budget controls
 
 - Added an exact, permission/current-office/UAT-filtered shadow Budget certification task shared with queue and detail action scope; retained evidence-sensitive identity and no invented deadline or available budget.

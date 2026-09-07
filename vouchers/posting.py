@@ -54,6 +54,8 @@ def materialize_voucher_journal(posting_request, actor):
         department_id=department.pk, source_type="voucher", source_reference=source_reference,
     ).first()
     if existing:
+        from accounting.posted_evidence import verify_source_link
+        verify_source_link(request, existing, source_type="voucher")
         VoucherPostingRequest.objects.filter(pk=request.pk).update(
             status=VoucherPostingRequest.MATERIALIZED,
             accounting_entry_public_id=existing.public_id,
@@ -331,20 +333,19 @@ def materialize_voucher_journal(posting_request, actor):
 
 @transaction.atomic
 def reconcile_posted_voucher_entry(entry, actor):
-    """Complete the recoverable finance→core handoff after a JEV is posted."""
-    if not can_post_journals(actor):
-        raise PermissionDenied
-    if entry.source_type != "voucher" or not entry.source_reference:
-        return None
-    if entry.status != JournalEntry.POSTED:
-        raise PostingRequestError("The voucher handoff can advance only after the JEV is posted.")
+    """Complete the recoverable finance-to-core handoff from stored posting proof."""
+    from accounting.posted_evidence import require_persisted_posting, verify_source_link
+    entry = require_persisted_posting(entry, actor, source_type="voucher")
     request = VoucherPostingRequest.objects.select_for_update().select_related("case").filter(
         public_id=entry.source_reference,
     ).first()
     if request is None:
         raise PostingRequestError("The posted JEV's source request cannot be found in the Voucher Workbench.")
-    if request.accounting_entry_public_id and request.accounting_entry_public_id != entry.public_id:
-        raise PostingRequestError("The posting request is linked to a different accounting entry.")
+    verify_source_link(request, entry, source_type="voucher")
+    if request.status == VoucherPostingRequest.POSTED:
+        return request
+    if request.status in (VoucherPostingRequest.CANCELLED, VoucherPostingRequest.NOT_REQUIRED):
+        raise PostingRequestError("A cancelled or no-entry source cannot be advanced by posting synchronization.")
     request.status = VoucherPostingRequest.POSTED
     request.accounting_entry_public_id = entry.public_id
     request.failure_reason = ""

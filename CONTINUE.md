@@ -10,7 +10,13 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.1 checkpoint — legacy shadow Budget controls
+## Current v0.7.2 checkpoint — persisted posting handoff proof
+
+Branch: `codex/finance-posted-handoff-controls`, based on pushed `90609d4` (v0.7.1).
+
+Before proceeding with the remaining My Work handoff adapters, fix and verify FIN-GAP-005: voucher/remittance reconciliation trusted in-memory posted status, and remittance services lacked current-office custody. Both original status-bypass reproductions failed. This checkpoint introduces a shared stored-posting proof, retained source linkage verification, UAT exclusion and safe idempotent synchronization. Verification complete: 528 project tests passed in 301.697 seconds; system, migration-drift, compilation and diff checks are clean. Commit and push this checkpoint, then continue source-request task coverage. Preserve the legacy shadow route's separate scope and all prior milestones.
+
+## Prior v0.7.1 checkpoint — legacy shadow Budget controls
 
 Branch: `codex/finance-legacy-budget-controls`, based on pushed `29f8c44`.
 

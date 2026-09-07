@@ -75,3 +75,7 @@ Remaining software: legacy shared-case adapter audit, governed cross-cycle views
 The user requires `VERSION` bumps and versioned milestone commit titles for meaningful checkpoints. Legacy shadow Budget drafts now have exact items and shared queue/action scope; foreign-office/UAT certification, malformed amounts, unknown codes and attempts to use this compatibility certification for non-shadow cases are rejected. Initial source/posted-JEV synchronization and advice-assembly coverage remain under review, so the broader My Work contract is not complete.
 
 Five focused tests passed in 5.146 seconds, including both shadow supplier and authoritative Budget-to-report chains. Final project suite: 524 tests passed across both databases in 139.139 seconds; system, migration, compilation and diff checks are clean. No production or LGU acceptance is claimed.
+
+## v0.7.2 — posting-handoff control remediation
+
+FIN-GAP-005 was deterministically reproduced in both voucher and remittance chains: in-memory posted status could advance the core workflow while the stored Finance journal remained draft. The repair uses shared persisted posting/attribution/totals proof, exact source linkage, current-office checks, UAT exclusion and idempotent retries. Final verification: 528 project tests passed in 301.697 seconds; system, migration-drift, compilation and diff checks are clean. FIN-GAP-005 is verified; continue source-task coverage. Production remains NO-GO.
