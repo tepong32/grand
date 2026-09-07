@@ -119,6 +119,104 @@ class FinanceWorkTaskContractTests(TestCase):
                 content_type__app_label=app_label, codename=codename,
             ))
 
+    def test_work_export_requires_explicit_grant_and_matches_bounded_live_projection(self):
+        from pathlib import Path
+        from .models import FinanceAuditEvent
+        from .work_exports import build_work_export
+        today = timezone.localdate()
+        FinanceConfigurationRelease.objects.bulk_create([
+            FinanceConfigurationRelease(
+                department=self.accounting, code=f"export-{index:03}", title="=FORMULA()" if index == 0 else f"Release {index}",
+                fiscal_year=today.year, effective_from=today, created_by=self.worker,
+            ) for index in range(101)
+        ])
+        FinanceConfigurationRelease.objects.create(
+            department=self.budget, code="foreign-export", title="Foreign confidential source",
+            fiscal_year=today.year, effective_from=today, created_by=self.worker,
+        )
+        route = reverse("finance_operations:my_work_export")
+        self.client.force_login(self.worker)
+        with tempfile.TemporaryDirectory() as directory, self.settings(GRAND_EXPORT_ROOT=directory):
+            self.assertEqual(self.client.get(route).status_code, 403)
+            with self.assertRaises(PermissionDenied):
+                build_work_export(self.worker)
+            self.assertEqual(list(Path(directory).rglob("*.csv")), [])
+            self.assertFalse(self.client.get(reverse("finance_operations:my_work")).context["can_export_work"])
+            permission = Permission.objects.get(content_type__app_label="finance", codename="export_finance_work")
+            group = Group.objects.create(name="Explicit My Work Exporters")
+            group.permissions.add(permission)
+            self.worker.groups.add(group)
+            page = self.client.get(reverse("finance_operations:my_work"))
+            self.assertTrue(page.context["can_export_work"])
+            expected = finance_work_tasks(self.worker)
+            self.assertEqual(expected["task_count"], 101)
+            response = self.client.get(route)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["Cache-Control"], "private, no-store")
+            self.assertEqual(response["X-GRAND-Export-Row-Count"], "100")
+            self.assertEqual(response["X-GRAND-Export-Eligible-Count"], "101")
+            self.assertEqual(response["X-GRAND-Export-Truncated"], "true")
+            rows = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig"))))
+            self.assertEqual([row["task_id"] for row in rows], [row["task_id"] for row in expected["tasks"]])
+            self.assertEqual([row["url"] for row in rows], [row["url"] for row in expected["tasks"]])
+            self.assertEqual(rows[0]["subject"], "'=FORMULA()")
+            self.assertNotIn(b"Foreign confidential source", response.content)
+            artifacts = list(Path(directory).rglob("*.csv"))
+            self.assertEqual(len(artifacts), 1)
+            self.assertEqual(artifacts[0].read_bytes(), response.content)
+            manifest = json.loads(Path(str(artifacts[0]) + ".manifest.json").read_text(encoding="utf-8"))
+            digest = hashlib.sha256(response.content).hexdigest()
+            self.assertEqual(manifest["sha256"], digest)
+            self.assertEqual(response["X-GRAND-Export-SHA256"], digest)
+            event = FinanceAuditEvent.objects.get(action="work_exported")
+            self.assertEqual(event.actor, self.worker)
+            self.assertEqual(event.department, self.accounting)
+            self.assertEqual(event.target_id, manifest["metadata"]["export_id"])
+            self.assertEqual(event.snapshot["sha256"], digest)
+            self.assertEqual(event.snapshot["task_ids"], [row["task_id"] for row in rows])
+            self.assertTrue(event.snapshot["truncated"])
+            self.assertEqual(FinanceConfigurationRelease.objects.filter(status="draft").count(), 102)
+            for params in ({"view": "unknown"}, {"days": "999"}):
+                self.assertEqual(self.client.get(route, params).status_code, 404)
+            self.assertEqual(self.client.post(route).status_code, 405)
+            # Current action permission is re-evaluated even when export remains granted.
+            self.worker.user_permissions.remove(Permission.objects.get(content_type__app_label="finance", codename="manage_finance_configuration"))
+            empty = self.client.get(route)
+            self.assertEqual(empty.status_code, 200)
+            self.assertEqual(empty["X-GRAND-Export-Row-Count"], "0")
+            self.assertEqual(list(csv.DictReader(io.StringIO(empty.content.decode("utf-8-sig")))), [])
+            group.permissions.remove(permission)
+            self.assertEqual(self.client.get(route).status_code, 403)
+            self.uat.user_permissions.add(permission)
+            self.client.force_login(self.uat)
+            self.assertEqual(self.client.get(route).status_code, 403)
+
+    def test_work_export_preserves_view_filters_and_fails_closed_without_receipt(self):
+        from unittest.mock import patch
+        from .models import FinanceAuditEvent
+        from .work_exports import build_work_export
+        self._grant(self.worker, "finance.export_finance_work")
+        self._cycle()
+        self.client.force_login(self.worker)
+        with tempfile.TemporaryDirectory() as directory, self.settings(GRAND_EXPORT_ROOT=directory):
+            for view in ("ready", "waiting", "returned", "upcoming", "past_dates", "completed"):
+                expected = finance_work_tasks(self.worker, view=view, planned_days=14)
+                response = self.client.get(reverse("finance_operations:my_work_export"), {"view": view, "days": "14"})
+                self.assertEqual(response.status_code, 200)
+                rows = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig"))))
+                self.assertEqual([row["task_id"] for row in rows], [row["task_id"] for row in expected["tasks"]])
+                event = FinanceAuditEvent.objects.filter(action="work_exported").first()
+                self.assertEqual((event.snapshot["view"], event.snapshot["planned_days"]), (view, 14))
+            before = FinanceAuditEvent.objects.count()
+            with patch("finance.work_exports.archive_export", side_effect=OSError("Synthetic archive failure")):
+                with self.assertRaisesMessage(OSError, "Synthetic archive failure"):
+                    build_work_export(self.worker)
+            self.assertEqual(FinanceAuditEvent.objects.count(), before)
+            with patch("finance.work_exports.FinanceAuditEvent.objects.create", side_effect=RuntimeError("Synthetic audit failure")):
+                with self.assertRaisesMessage(RuntimeError, "Synthetic audit failure"):
+                    build_work_export(self.worker)
+            self.assertEqual(FinanceAuditEvent.objects.count(), before)
+
     def _form(self, department=None, code="task-form"):
         return FinanceLocalFormAcceptance.objects.create(
             department=department or self.accounting,

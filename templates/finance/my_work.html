@@ -27,6 +27,12 @@
     <a class="btn btn-outline-secondary mt-2 mt-md-0" href="{% url 'finance_operations:overview' %}">Back to Finance operations</a>
   </div>
 
+  {% if can_export_work %}
+  <div class="mb-3">
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'finance_operations:my_work_export' %}?view={{ selected_view }}&amp;days={{ planned_days }}">Export this view (CSV)</a>
+    <p class="small text-muted mt-1 mb-0">Exports up to {{ export_row_limit }} rows within your current source access. The retained receipt records the eligible count and any truncation.</p>
+  </div>
+  {% endif %}
   <nav class="mb-3" aria-label="My Work views">
     {% for key, label in work_views %}<a class="btn btn-sm mb-1 {% if selected_view == key %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?view={{ key }}&amp;days={{ planned_days }}" {% if selected_view == key %}aria-current="page"{% endif %}>{{ label }}</a> {% endfor %}
   </nav>

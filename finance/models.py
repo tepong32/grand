@@ -920,6 +920,7 @@ class FinanceAuditEvent(models.Model):
 
     class Meta:
         ordering = ("-created_at", "-pk")
+        permissions = (("export_finance_work", "Can export own currently accessible Finance work"),)
 
     def save(self, *args, **kwargs):
         if self.pk:
