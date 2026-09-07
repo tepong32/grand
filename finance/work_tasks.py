@@ -2785,7 +2785,7 @@ def _field_operation_tasks(user, department, today):
 
 def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7):
     """Return permission-filtered item projections without writing task or source state."""
-    if view not in ("ready", "waiting", "returned", "upcoming", "past_dates"):
+    if view not in ("ready", "waiting", "returned", "upcoming", "past_dates", "completed"):
         raise ValueError("Unknown work view.")
     if planned_days not in (7, 14, 30):
         raise ValueError("Choose a supported calendar window.")
@@ -2793,28 +2793,33 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
     if department is None:
         return {"tasks": [], "task_count": 0, "tasks_truncated": False, "task_coverage": ()}
     today = timezone.localdate()
-    tasks = _setup_tasks(user, department, today)
-    tasks.extend(_discovery_tasks(user, department, today))
-    tasks.extend(_budget_tasks(user, department, today))
-    tasks.extend(_legacy_budget_tasks(user, department, today))
-    tasks.extend(_payable_tasks(user, department, today))
-    tasks.extend(_dv_custody_tasks(user, department, today))
-    tasks.extend(_accounting_validation_tasks(user, department, today))
-    tasks.extend(_journal_tasks(user, department, today))
-    tasks.extend(_source_handoff_tasks(user, department, today))
-    tasks.extend(_opening_tasks(user, department, today))
-    tasks.extend(_treasury_payment_tasks(user, department, today))
-    tasks.extend(_bank_reconciliation_tasks(user, department, today))
-    tasks.extend(_period_close_tasks(user, department, today))
-    tasks.extend(_bank_advice_tasks(user, department, today))
-    tasks.extend(_initial_advice_tasks(user, department, today))
-    tasks.extend(_returned_payment_tasks(user, department, today))
-    tasks.extend(_remittance_tasks(user, department, today))
-    tasks.extend(_cash_control_tasks(user, department, today))
-    tasks.extend(_reporting_tasks(user, department, today))
-    tasks.extend(_field_operation_tasks(user, department, today))
-    tasks.extend(_local_form_tasks(user, department, today))
-    if view == "waiting":
+    tasks = []
+    if view != "completed":
+        tasks = _setup_tasks(user, department, today)
+        tasks.extend(_discovery_tasks(user, department, today))
+        tasks.extend(_budget_tasks(user, department, today))
+        tasks.extend(_legacy_budget_tasks(user, department, today))
+        tasks.extend(_payable_tasks(user, department, today))
+        tasks.extend(_dv_custody_tasks(user, department, today))
+        tasks.extend(_accounting_validation_tasks(user, department, today))
+        tasks.extend(_journal_tasks(user, department, today))
+        tasks.extend(_source_handoff_tasks(user, department, today))
+        tasks.extend(_opening_tasks(user, department, today))
+        tasks.extend(_treasury_payment_tasks(user, department, today))
+        tasks.extend(_bank_reconciliation_tasks(user, department, today))
+        tasks.extend(_period_close_tasks(user, department, today))
+        tasks.extend(_bank_advice_tasks(user, department, today))
+        tasks.extend(_initial_advice_tasks(user, department, today))
+        tasks.extend(_returned_payment_tasks(user, department, today))
+        tasks.extend(_remittance_tasks(user, department, today))
+        tasks.extend(_cash_control_tasks(user, department, today))
+        tasks.extend(_reporting_tasks(user, department, today))
+        tasks.extend(_field_operation_tasks(user, department, today))
+        tasks.extend(_local_form_tasks(user, department, today))
+    if view == "completed":
+        from .work_completed import completed_accounting_tasks
+        tasks = completed_accounting_tasks(user, department, today)
+    elif view == "waiting":
         from .work_waiting import personal_waiting_tasks
         tasks = personal_waiting_tasks(user, department, today, tasks)
     elif view == "returned":
@@ -2824,7 +2829,9 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
         tasks = [task for task in tasks if task.due_on is not None and today <= task.due_on < end]
     elif view == "past_dates":
         tasks = [task for task in tasks if task.due_on is not None and task.due_on < today]
-    if view in ("upcoming", "past_dates"):
+    if view == "completed":
+        tasks.sort(key=lambda task: (task.received_at, task.task_id), reverse=True)
+    elif view in ("upcoming", "past_dates"):
         tasks.sort(key=lambda task: (task.due_on, task.area, task.reference.lower(), task.task_id))
     else:
         tasks.sort(key=lambda task: (task.area, task.reference.lower(), task.task_type, task.task_id))
@@ -2833,7 +2840,7 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
         "tasks": [task.as_dict() for task in tasks[:display_limit]],
         "task_count": task_count,
         "tasks_truncated": task_count > display_limit,
-        "task_coverage": ("Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review and release") if view == "waiting" else (
+        "task_coverage": ("Attributed JEV submission/posting/return events", "Opening-balance submission and decision events", "Period-close and reopen decision events") if view == "completed" else ("Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review and release") if view == "waiting" else (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls", "Opening-balance controls",
             "Voucher and remittance journal creation and posted-source synchronization",

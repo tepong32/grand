@@ -88,3 +88,11 @@ Initial advice assembly now projects eligible issued checks into stable tasks an
 - Cause/next step: implementation-level authorization defect. Reproduce foreign-office/UAT review, apply shared permission/custody guards and matching action visibility, then verify unchanged state/events and the full remittance/filing chain before resuming dependent work.
 
 - FIN-GAP-007 verification: the original negative batch test failed for both foreign-office and UAT approval (1 test, 2 failures, 2.970 seconds). After service and action-scope fixes, rejected review, allocation, submission and release calls preserve retained state/events, numbering and posting requests; linked filing verification and the authorized completion chains pass. Final verification: all 536 project tests passed in 132.188 seconds. System, migration-drift, compilation and diff checks are clean. FIN-GAP-007 is verified; production remains NO-GO pending the full functional and operational gates.
+
+## FIN-GAP-008 - Budget transition service authority
+
+- Process/module: Budget call/proposal, appropriation, allotment and obligation transition services; consolidation.
+- Severity/status: **CRITICAL - OPEN**, identified while tracing Budget event attribution after v0.7.9. Budget completion-history expansion is blocked pending reproduction, remediation and verification. The isolated Accounting history slice can finish independently; production remains NO-GO.
+- Code evidence: `budget/services.py` transition entry points check lifecycle and selected maker-checker identities, but do not consistently enforce explicit action permission, owning Budget office and UAT exclusion. Obligation submission/certification has some office checks, which do not replace permission/UAT checks.
+- Expected boundary: mirror the source view's action permission and owning/requesting-office authority at the service boundary; retain exact balance, immutable movement and maker-checker controls. Read scopes must not become mutation authority.
+- Next step: reproduce foreign-office, missing-permission and UAT proposal approval; audit all six write entry points, add guards and meaningful financial-chain regressions. No local acceptance or regulatory conclusion is inferred.

@@ -1547,6 +1547,36 @@ class FinanceAccountingWorkTaskContractTests(TestCase):
         ))
 
 
+    def test_completed_actions_require_retained_attribution_and_current_source_access(self):
+        from accounting.services import submit_entry, return_entry
+        entry = self._entry("COMPLETED-ACTION")
+        submit_entry(entry, self.preparer)
+        return_entry(entry, self.poster, "Correct the retained reference")
+        self._entry("TERMINAL-WITHOUT-EVENT", status=JournalEntry.POSTED)
+        first = finance_work_tasks(self.preparer, view="completed")["tasks"]
+        self.assertEqual(len(first), 1)
+        self.assertEqual(first[0]["subject"], "Submitted JEV for posting")
+        self.assertEqual(first[0]["state"], "Completed")
+        self.assertEqual(first[0]["source_state"], "Draft")
+        self.assertEqual([task["subject"] for task in finance_work_tasks(self.poster, view="completed")["tasks"]],
+                         ["Returned JEV for correction"])
+        submit_entry(entry, self.preparer)
+        history = finance_work_tasks(self.preparer, view="completed")["tasks"]
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[1]["task_id"], first[0]["task_id"])
+        self.assertGreaterEqual(history[0]["received_at"], history[1]["received_at"])
+        self.assertEqual(finance_work_tasks(self.preparer, view="completed", display_limit=1)["task_count"], 2)
+        self.assertEqual(finance_work_tasks(self.outsider, view="completed")["task_count"], 0)
+        self.assertEqual(finance_work_tasks(self.uat, view="completed")["task_count"], 0)
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("finance_operations:my_work"), {"view": "completed"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Completed by me")
+        self.assertContains(response, "Submitted JEV for posting")
+        self.assertContains(response, "Recorded:</strong>")
+        self.preparer.user_permissions.clear()
+        self.assertEqual(finance_work_tasks(self.preparer, view="completed")["task_count"], 0)
+
     def test_waiting_is_personal_currently_authorized_and_excludes_actionable_records(self):
         own = self._entry("WAIT-OWN", status=JournalEntry.SUBMITTED, submitter=self.preparer)
         self._entry("WAIT-OTHER", status=JournalEntry.SUBMITTED, creator=self.poster, submitter=self.poster)
@@ -2110,6 +2140,8 @@ class FinancePeriodCloseWorkTaskContractTests(TestCase):
             note="Verified correction authority and period chronology.",
         )
         self.assertEqual(reopened.status, PeriodCloseRun.REOPENED)
+        completed = finance_work_tasks(self.reviewer, view="completed")["tasks"]
+        self.assertEqual([task["subject"] for task in completed], ["Reopened Accounting period", "Closed Accounting period"])
         self.assertFalse(any(
             task["case_id"] == f"period-close:{run.public_id}"
             for task in finance_work_tasks(self.reviewer)["tasks"]

@@ -10,7 +10,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.9 checkpoint - retained-date work views
+## Current v0.7.10 checkpoint - attributed Accounting completion
+
+Branch: `codex/finance-completed-work`, based on pushed `a2e3f6b` (v0.7.9). Project completed JEV, opening-balance and period-close/reopen actions only from successful retained events attributed to the signed-in user, under current source office/read access. Current source status remains distinct from historical action completion. Exclude generated opening JEV events to avoid duplicating batch-level posting. Verification: the focused attributed-history test passed in 2.099 seconds; all 543 project tests passed on the final source in 135.649 seconds. System, migration-drift, compilation and diff checks are clean. Synthetic rendered layout checks passed at 1440px and 320px with no horizontal overflow. FIN-GAP-008 was identified in Budget transition services while tracing future completion events. Finish this independent Accounting checkpoint, then reproduce/fix/verify that critical Budget authority gap before Budget completion expansion. Preserve the user's database.
+
+## Prior v0.7.9 checkpoint - retained-date work views
 
 Branch: `codex/finance-work-dates`, based on pushed `552990b` (v0.7.8). Add Upcoming dates with explicit 7/14/30-calendar-day windows including today, and Past dates. Keep source date meaning and permissions, exclude undated records, and filter before the display limit. Verification: the focused calendar-boundary test passed in 1.682 seconds; all 542 project tests passed on the final source in 170.705 seconds. System, migration-drift, compilation and diff checks are clean. Edge layout checks passed at 1440px and 320px, with 320px document width at the narrow viewport. Next: attributed completion, remaining Waiting coverage and authorized export. Preserve the user's database.
 

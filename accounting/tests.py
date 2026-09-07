@@ -331,6 +331,8 @@ class StandaloneAccountingTests(TestCase):
         self.assertIn("awaiting_posting", tasks(self.poster)[0]["task_type"])
         batch = post_opening_batch(batch, self.poster)
         self.assertIn("awaiting_reconciliation", tasks(self.poster)[0]["task_type"])
+        completed = finance_work_tasks(self.poster, view="completed")["tasks"]
+        self.assertEqual([task["subject"] for task in completed], ["Posted opening balances"])
         self.assertEqual(tasks(self.poster)[0]["exception"], "")
         with self.assertRaises(ValidationError):
             post_opening_batch(batch, self.poster)
@@ -344,6 +346,8 @@ class StandaloneAccountingTests(TestCase):
         batch, summary = reconcile_opening_batch(batch, self.poster)
         self.assertTrue(summary["reconciled"])
         self.assertFalse(tasks(self.poster))
+        completed = finance_work_tasks(self.poster, view="completed")["tasks"]
+        self.assertEqual([task["subject"] for task in completed], ["Reconciled opening balances", "Posted opening balances"])
 
     def test_opening_posting_failure_rolls_back_then_retry_reconciles(self):
         from unittest.mock import patch

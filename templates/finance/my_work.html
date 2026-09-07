@@ -21,7 +21,7 @@
   <div class="d-md-flex justify-content-between align-items-start mb-3">
     <div>
       <p class="text-uppercase text-primary small font-weight-bold mb-1">GRAND Finance</p>
-      <h1 class="h3 mb-1">Work needing attention</h1>
+      <h1 class="h3 mb-1">{% if selected_view == 'completed' %}Completed by me{% else %}Work needing attention{% endif %}</h1>
       <p class="text-muted mb-0">Source-linked work within your current access.</p>
     </div>
     <a class="btn btn-outline-secondary mt-2 mt-md-0" href="{% url 'finance_operations:overview' %}">Back to Finance operations</a>
@@ -32,6 +32,7 @@
   </nav>
   {% if selected_view == 'waiting' %}<p class="text-muted">Work you prepared or submitted that is now with another queue. Records you can act on now are excluded. Coverage is listed below.</p>{% endif %}
   {% if selected_view == 'returned' %}<p class="text-muted">Current returned work you may correct. Historical returns on resubmitted records are excluded.</p>{% endif %}
+  {% if selected_view == 'completed' %}<p class="text-muted">Your recorded actions, newest first, within current source access. Each row describes the completed action and shows the source's current state separately. Coverage is listed below.</p>{% endif %}
   {% if selected_view == 'upcoming' %}
   <p class="text-muted">Actionable work with a stored date in the next {{ planned_days }} calendar days, including today. Each row identifies its retained review target, effective date, or scheduled date.</p>
   <form method="get" class="mb-3">
@@ -115,6 +116,7 @@
             <td class="small" data-label="Queue and timing">
               <div>{{ task.owner_queue }}</div>
               <div class="text-muted"><strong>Scope:</strong> {{ task.scope }}</div>
+              {% if selected_view == 'completed' %}<div class="text-muted"><strong>Recorded:</strong> {{ task.received_at|date:'Y-m-d H:i:s T' }}</div>{% endif %}
               <div class="text-muted"><strong>Timing:</strong> {{ task.due_state }}{% if task.due_on %} · date {{ task.due_on|date:'Y-m-d' }}{% endif %}{% if task.received_at %} · age {{ task.age_days }} day{{ task.age_days|pluralize }}{% else %} · age unavailable{% endif %}</div>
               <div class="text-muted">{{ task.calendar_basis }}</div>
             </td>
