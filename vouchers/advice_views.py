@@ -19,6 +19,7 @@ from .advice import (
 from .advice_register import (
     apply_bank_advice_filters, bank_advice_action_choices_for_user,
     bank_advice_action_queryset, visible_bank_advice_batches,
+    initial_advice_instruments,
 )
 from .forms import (
     AdviceStateForm, BankAdviceBatchForm, BankAdviceResponseForm, BankAdviceReviewForm,
@@ -94,6 +95,19 @@ def create(request):
     if not can_act_on_advice(request.user, "vouchers.prepare_bank_advice"):
         raise PermissionDenied
     form = BankAdviceBatchForm(request.POST or None, actor=request.user)
+    initial_queue = request.GET.get("initial") == "1"
+    if initial_queue:
+        form.fields["instruments"].queryset = initial_advice_instruments(request.user)
+    selected_instrument = request.GET.get("instrument", "")
+    if selected_instrument:
+        from uuid import UUID
+        try:
+            selected_id = UUID(selected_instrument)
+        except (ValueError, TypeError):
+            raise Http404
+        selected = get_object_or_404(form.fields["instruments"].queryset, public_id=selected_id)
+        if request.method == "GET":
+            form.fields["instruments"].initial = [selected.pk]
     if request.method == "POST" and form.is_valid():
         try:
             batch = create_advice_batch(actor=request.user, **form.cleaned_data)
@@ -105,6 +119,8 @@ def create(request):
     return render(request, "vouchers/advice/form.html", {
         "form": form, "title": "Prepare bank-advice batch",
         "guidance": "Group issued instruments for one bank account. This creates a retained version; corrections after review use a successor.",
+        "initial_queue": initial_queue,
+        "eligible_count": form.fields["instruments"].queryset.count(),
     })
 
 

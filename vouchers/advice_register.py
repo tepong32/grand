@@ -7,6 +7,27 @@ from .models import BankAdviceBatch
 from .roles import is_finance_uat_viewer
 
 
+def initial_advice_instruments(user):
+    """Unbatched checks and checks omitted from a superseded advice need assembly."""
+    from .advice import eligible_advice_instruments
+    from .models import PaymentInstrument
+    if (is_finance_uat_viewer(user)
+            or not has_explicit_permission(user, "vouchers.view_bank_advice")
+            or not has_explicit_permission(user, "vouchers.prepare_bank_advice")):
+        return PaymentInstrument.objects.none()
+    return eligible_advice_instruments(user).filter(
+        Q(current_advice_batch__isnull=True) | Q(current_advice_batch__status=BankAdviceBatch.SUPERSEDED),
+    )
+
+
+def actionable_advice_case_ids(user):
+    case_ids = set(initial_advice_instruments(user).values_list("case_id", flat=True))
+    for action, _label in bank_advice_action_choices_for_user(user):
+        batches, *_ = bank_advice_action_queryset(user, action)
+        case_ids.update(batches.values_list("items__instrument__case_id", flat=True))
+    return case_ids - {None}
+
+
 BANK_ADVICE_ATTENTION_CHOICES = (
     ("needs_preparation", "Draft or returned for correction"),
     ("awaiting_review", "Awaiting independent Accounting review"),

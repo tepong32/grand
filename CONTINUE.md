@@ -10,7 +10,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.4 checkpoint — bank-advice service custody
+## Current v0.7.5 checkpoint — initial advice assembly
+
+Branch: `codex/finance-initial-advice-tasks`, based on pushed `d5e60e9` (v0.7.4). Project each issued instrument needing initial advice assembly; share the selector with the preselected form and attention count, keep returned advice in its correction tasks, and include instruments omitted from superseded versions. Shared-case advice/returned-item readiness now matches actual source actions. See `docs/FINANCE_SHARED_CASE_COVERAGE.md`. Validation: 2 focused tests passed in 4.550 seconds; all 534 tests passed on the final source in 130.759 seconds. System, migration-drift, compilation and diff checks are clean. Edge layout verification passed at 1440px and 390px; the final 390px document scroll width is 390px. FIN-GAP-003 is verified. Commit/push this checkpoint, then continue personal Waiting and the remaining cross-cycle views/authorized task export. Preserve the user's modified database.
+
+## Prior v0.7.4 checkpoint — bank-advice service custody
 
 Branch: `codex/finance-advice-custody`, based on pushed `58fb255` (v0.7.3). Reproduced FIN-GAP-006 for both foreign-office and UAT approval. Add service custody for Accounting advice decisions/responses and returned instruments, UAT mutation exclusion, and matching source action visibility. Preserve the documented Treasury submission role. Final verification: 3 focused tests passed in 5.389 seconds; all 532 project tests passed in 146.135 seconds. System, migration-drift, compilation and diff checks are clean. FIN-GAP-006 is verified. Commit/push and continue initial advice assembly coverage. Preserve the user's database.
 
@@ -124,3 +128,5 @@ At the end of every slice:
 - Checkpoint gate: run the complete project suite once after executable source is final. Documentation-only edits after that green run do not invalidate it; executable code, template, configuration, or migration changes do.
 - Output control: capture full routine test output in an ignored `.tmp` log and surface only the summary or relevant failure trace. Preserve the log for diagnosis without loading ordinary application logging into the conversation.
 - Current CI runs on pull requests and pushes to `master`, not ordinary feature-branch pushes, so a local final complete-suite pass remains required before a standalone checkpoint push.
+
+User-confirmed cross-cycle scope (2026-09-07): Waiting shows work the signed-in user prepared or submitted that is now with another person. It does not expand to every office-visible record, and current source-record access still applies.

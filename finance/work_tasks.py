@@ -1871,6 +1871,50 @@ def _period_close_tasks(user, department, today):
     return tasks
 
 
+def _initial_advice_tasks(user, department, today):
+    from vouchers.advice import _item_snapshot
+    from vouchers.advice_register import initial_advice_instruments
+    from vouchers.models import VoucherCase
+
+    tasks = []
+    for instrument in initial_advice_instruments(user).prefetch_related("case__events"):
+        case = instrument.case
+        arrival = next((event for event in case.events.all()
+                        if event.to_stage == VoucherCase.ACCOUNTING_BANK_ADVICE), None)
+        received = arrival.created_at if arrival else (instrument.issued_at or case.updated_at)
+        exceptions = []
+        if arrival is None:
+            exceptions.append("No retained advice-queue arrival event was found; age uses the available issue/source time.")
+        if case.configuration_release_id is None:
+            exceptions.append("The case has no pinned Finance Setup release; resolve its source evidence before assembly.")
+        if not instrument.issued_at or not instrument.issued_by_id or instrument.amount <= 0:
+            exceptions.append("The issued check lacks attribution or a positive amount; investigate its source evidence.")
+        revision = _projection_checksum({
+            "instrument": _item_snapshot(instrument), "status": instrument.status,
+            "case": [case.state_version, case.current_stage, case.current_department_id, case.configuration_release_id],
+            "prior_advice": [instrument.current_advice_batch_id,
+                             instrument.current_advice_batch.status if instrument.current_advice_batch_id else ""],
+            "arrival": [arrival.pk, arrival.created_at.isoformat()] if arrival else None,
+        })
+        tasks.append(FinanceWorkTask(
+            task_id=f"finwork:v1:payment-instrument:{instrument.public_id}:advice-assembly",
+            task_type="finance.payment-instrument.advice-assembly.v1", area="Bank advice",
+            case_id=f"voucher:{case.public_id}", reference=f"{case.reference_code} · check {instrument.check_number}",
+            transaction_type="Initial bank-advice assembly", subject=f"{instrument.bank_account_code} · {instrument.amount:.2f}",
+            action="Include the issued check in a governed advice draft",
+            gate="Issued check in the acting Accounting office with no active advice; returned versions use their existing correction task.",
+            owner_queue=f"Bank-advice preparers · {department.name}",
+            scope=f"{department.name}; bank {instrument.bank_account_code}; fund {instrument.fund_code}",
+            received_at=received, due_on=None, due_state="No structured target",
+            calendar_basis="Queue arrival or retained issue time measures age; no bank deadline is inferred.",
+            age_days=_age_days(received, today), state="Exception" if exceptions else "Ready",
+            source_state=instrument.get_status_display(), source_version=f"projection-sha256:{revision}",
+            exception=" ".join(exceptions),
+            url=reverse("vouchers:advice_create") + f"?initial=1&instrument={instrument.public_id}",
+        ))
+    return tasks
+
+
 def _bank_advice_tasks(user, department, today):
     from vouchers.advice import advice_snapshot
     from vouchers.advice_register import (
@@ -2759,6 +2803,7 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks.extend(_bank_reconciliation_tasks(user, department, today))
     tasks.extend(_period_close_tasks(user, department, today))
     tasks.extend(_bank_advice_tasks(user, department, today))
+    tasks.extend(_initial_advice_tasks(user, department, today))
     tasks.extend(_returned_payment_tasks(user, department, today))
     tasks.extend(_remittance_tasks(user, department, today))
     tasks.extend(_cash_control_tasks(user, department, today))

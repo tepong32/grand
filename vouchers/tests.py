@@ -2954,7 +2954,7 @@ class VoucherWorkflowTests(TestCase):
         self.assertFalse(any(field.name in {"gross_amount", "net_amount", "certified_amount"} for field in PacketItem._meta.fields))
         self.assertTrue(case.events.filter(action="tracepoint_item_linked", metadata__reference_number="TP-ITEM-001").exists())
 
-    def _advice_custody_fixture(self):
+    def _advice_custody_fixture(self, *, prepare=True):
         case = self.ready_for_treasury("-custody")
         instrument = issue_check(case=case, actor=self.treasury_user,
             bank_account_code="gf-lbp", fund_code="general-fund", check_number="CUSTODY-01",
@@ -2962,10 +2962,81 @@ class VoucherWorkflowTests(TestCase):
         case.refresh_from_db()
         submit_checks_for_advice(case=case, actor=self.treasury_user,
             expected_version=case.state_version, idempotency_key="custody-submit")
-        batch = create_advice_batch(actor=self.preparer, advice_number="CUSTODY-ADV", advice_date=date(2026, 8, 31),
-            instruments=[instrument], preparation_note="Synthetic matched check",
-            authority_reference="Synthetic reviewed authority", local_applicability_note="Synthetic accepted test route")
+        batch = None
+        if prepare:
+            batch = create_advice_batch(actor=self.preparer, advice_number="CUSTODY-ADV", advice_date=date(2026, 8, 31),
+                instruments=[instrument], preparation_note="Synthetic matched check",
+                authority_reference="Synthetic reviewed authority", local_applicability_note="Synthetic accepted test route")
         return case, instrument, batch
+
+    def test_initial_advice_task_form_count_and_lifecycle_correspond(self):
+        from finance.work_tasks import finance_work_tasks
+        from finance.work_attention import finance_work_attention
+        from vouchers.advice_register import initial_advice_instruments
+        from vouchers.case_exports import apply_case_filters
+
+        case, instrument, _ = self._advice_custody_fixture(prepare=False)
+        def tasks():
+            return [task for task in finance_work_tasks(self.preparer)["tasks"]
+                    if task["task_type"] == "finance.payment-instrument.advice-assembly.v1"]
+        def ready():
+            rows, *_ = apply_case_filters(VoucherCase.objects.filter(pk=case.pk),
+                actionable_stages=(VoucherCase.ACCOUNTING_BANK_ADVICE,), attention="ready_for_me", actor=self.preparer)
+            return rows.exists()
+        original = tasks()[0]
+        self.assertEqual(len(tasks()), 1)
+        self.assertEqual(original["task_id"], tasks()[0]["task_id"])
+        self.assertTrue(ready())
+        attention = finance_work_attention(self.preparer)
+        groups = attention["groups"]
+        group = next(group for group in groups if group["key"] == "bank-advice-initial")
+        self.assertEqual(group["count"], 1)
+        self.client.force_login(self.preparer)
+        response = self.client.get(original["url"])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["form"].fields["instruments"].initial, [instrument.pk])
+        self.assertEqual(response.context["eligible_count"], group["count"])
+        self.assertFalse(BankAdviceBatch.objects.filter(advice_number="INITIAL-TASK").exists())
+        response = self.client.post(original["url"], {
+            "advice_number": "INITIAL-TASK", "advice_date": "2026-08-31", "instruments": [instrument.pk],
+            "preparation_note": "Synthetic matched instrument", "authority_reference": "Synthetic approved authority",
+            "local_applicability_note": "Synthetic reviewed local route",
+        })
+        self.assertEqual(response.status_code, 302)
+        batch = BankAdviceBatch.objects.get(advice_number="INITIAL-TASK")
+        self.assertEqual(tasks(), [])
+        empty_group = next(group for group in finance_work_attention(self.preparer)["groups"]
+                           if group["key"] == "bank-advice-initial")
+        self.assertEqual(empty_group["count"], 0)
+        self.assertEqual(self.client.get(original["url"]).status_code, 404)
+        self.assertTrue(ready())  # Existing draft is its own task.
+        submit_advice_for_review(batch=batch, actor=self.preparer)
+        self.assertFalse(ready())  # Preparer must wait for the independent reviewer.
+        review_advice(batch=batch, actor=self.validator, approve=False, note="Synthetic correction request")
+        self.assertTrue(ready())
+        self.assertEqual(tasks(), [])  # Returned advice uses its retained correction task.
+        # A check omitted from a successor retains the superseded pointer and needs new assembly.
+        BankAdviceBatch.objects.filter(pk=batch.pk).update(status=BankAdviceBatch.SUPERSEDED)
+        self.assertEqual(list(initial_advice_instruments(self.preparer)), [instrument])
+        again = tasks()[0]
+        self.assertEqual(again["task_id"], original["task_id"])
+        self.assertNotEqual(again["source_version"], original["source_version"])
+
+    def test_initial_advice_tasks_exclude_foreign_office_and_uat(self):
+        from django.contrib.auth.models import Group
+        from vouchers.advice_register import initial_advice_instruments
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        case, instrument, _ = self._advice_custody_fixture(prepare=False)
+        foreign = self.employee("initial.advice.foreign", self.requesting)
+        preview = self.employee("initial.advice.preview", self.accounting)
+        for actor in (foreign, preview):
+            actor.user_permissions.add(*Permission.objects.filter(content_type__app_label="vouchers", codename__in=("view_bank_advice", "prepare_bank_advice")))
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        url = reverse("vouchers:advice_create") + f"?initial=1&instrument={instrument.public_id}"
+        for actor, expected_status in ((foreign, 404), (preview, 403)):
+            self.assertFalse(initial_advice_instruments(actor).exists())
+            self.client.force_login(actor)
+            self.assertEqual(self.client.get(url).status_code, expected_status)
 
     def test_advice_review_rejects_foreign_office_and_uat(self):
         from django.contrib.auth.models import Group

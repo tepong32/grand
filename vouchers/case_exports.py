@@ -395,6 +395,15 @@ def apply_case_filters(
             queryset = queryset.filter(~Q(current_stage=VoucherCase.BUDGET_DRAFT) | Q(pk__in=legacy_ids))
         actor_department = department_for_user(actor) if actor is not None else None
         if actor_department is not None:
+            if VoucherCase.ACCOUNTING_BANK_ADVICE in actionable_stages:
+                from .advice_register import actionable_advice_case_ids
+                queryset = queryset.filter(~Q(current_stage=VoucherCase.ACCOUNTING_BANK_ADVICE)
+                                           | Q(pk__in=actionable_advice_case_ids(actor)))
+            if VoucherCase.ACCOUNTING_RETURNED_ITEM in actionable_stages:
+                from .returned_instrument_register import returned_instrument_attention_queryset
+                reviews, *_ = returned_instrument_attention_queryset(actor, "accounting_review")
+                queryset = queryset.filter(~Q(current_stage=VoucherCase.ACCOUNTING_RETURNED_ITEM)
+                                           | Q(pk__in=reviews.values("case_id")))
             posting_stages = (VoucherCase.ACCOUNTING_POSTING, VoucherCase.ACCOUNTING_EVENT_POSTING)
             if any(stage in actionable_stages for stage in posting_stages):
                 from accounting.source_handoffs import actionable_voucher_source_ids

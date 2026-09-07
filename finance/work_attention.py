@@ -312,11 +312,20 @@ def _bank_advice_groups(user, department):
     from vouchers.access import has_explicit_permission
     from vouchers.advice_register import (
         bank_advice_action_choices_for_user, bank_advice_action_queryset,
+        initial_advice_instruments,
     )
 
     if not has_explicit_permission(user, "vouchers.view_bank_advice"):
         return []
     groups = []
+    initial = initial_advice_instruments(user)
+    if any(action == "needs_preparation" for action, _label in bank_advice_action_choices_for_user(user)):
+        groups.append(_group(
+            key="bank-advice-initial", area="Bank advice", title="Issued checks awaiting advice assembly",
+            count=initial.count(), url=_queue_url("vouchers:advice_create", initial="1"),
+            definition="Issued checks in the acting Accounting office with no active advice version; returned versions use their correction queue.",
+            scope=f"Instrument count; {department.name}",
+        ))
     keys = {
         "needs_preparation": "bank-advice-preparation",
         "awaiting_review": "bank-advice-review",

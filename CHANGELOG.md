@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.7.5 — initial advice assembly tasks
+
+- Add exact issued-check advice-assembly tasks and an instrument-count queue using the same current-office/UAT-aware source selector as the form.
+- Preselect eligible source UUIDs, reject stale or foreign links, preserve returned-batch correction tasks, and recover checks omitted from superseded versions into assembly.
+- Match shared-case advice and returned-item readiness to actual source actions. Document the supported stage-to-task coverage audit.
+- Correct the existing advice form textarea overflow at narrow widths with scoped responsive styles.
+- Validation: 2 focused tests passed in 4.550 seconds; all 534 tests passed on the final source in 130.759 seconds. System, migration-drift, compilation and diff checks are clean. Edge layout verification passed at 1440px and 390px; the final 390px document scroll width is 390px.  FIN-GAP-003 is verified for the supported shared-case routes. Production remains NO-GO.
+
 ## v0.7.4 — advice and returned-instrument custody
 
 - Deny foreign-office Accounting advice review/response and returned-instrument decisions at the service boundary; preserve explicitly permissioned Treasury bank submission.

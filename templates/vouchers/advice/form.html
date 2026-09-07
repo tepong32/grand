@@ -1,12 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+  .advice-entry-form .form-group > label { display: block; }
+  .advice-entry-form textarea,
+  .advice-entry-form select,
+  .advice-entry-form input:not([type="checkbox"]):not([type="hidden"]) {
+    display: block; width: 100%; max-width: 100%; box-sizing: border-box;
+    padding: .375rem .75rem; border: 1px solid #ced4da; border-radius: .375rem;
+    font: inherit; color: inherit; background: #fff;
+  }
+  .advice-entry-form textarea { resize: vertical; }
+</style>
 <div class="container-fluid py-3" style="max-width: 980px;">
   <p class="mb-2"><a href="{% url 'vouchers:advice_workspace' %}">← Bank advice and returned items</a></p>
   <div class="card card-outline card-primary">
     <div class="card-header"><h1 class="card-title h5 font-weight-bold mb-0">{{ title }}</h1></div>
     <div class="card-body">
       <p class="text-muted">{{ guidance }}</p>
-      <form method="post" novalidate>
+      {% if initial_queue %}<p class="small">{{ eligible_count }} issued check{{ eligible_count|pluralize }} awaiting initial assembly. Returned advice versions remain in their correction queue.</p>{% endif %}
+      <form class="advice-entry-form" method="post" novalidate>
         {% csrf_token %}
         {{ form.non_field_errors }}
         {% for field in form %}

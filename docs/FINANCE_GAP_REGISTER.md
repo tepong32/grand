@@ -25,10 +25,10 @@ Started 2026-09-07 during continued functional implementation. This is not the c
 - Reproduction/regression: tests for memo drift before submission, one-cent review drift, approved row changes before posting, balanced ledger classification drift, and failure after journal posting followed by a clean retry. The 51-test focused Accounting/affected complete-cycle run passed in 10.679 seconds; the 521-test full suite passed in 136.867 seconds. Tests are retained in `accounting/tests.py`; the affected chain is `VoucherWorkflowTests.test_authoritative_budget_to_reconciled_treasury_report_replay`.
 - Priority: immediate. This defect is cleared. Production gate remains NO-GO pending the larger functional/operational and LGU acceptance gates.
 
-## FIN-GAP-003 — Shared-case item coverage audit remains open
+## FIN-GAP-003 — Shared-case item coverage audit
 
 - Process/module: F1.5 My Work; shared Voucher Workbench attention.
-- Severity/status: **HIGH — OPEN**, functional completion remains incomplete. This is a task-discoverability gap; no financial corruption or authority bypass has been demonstrated by this finding.
+- Severity/status: **HIGH — VERIFIED** in v0.7.5 for the supported routes in `FINANCE_SHARED_CASE_COVERAGE.md`. Cross-cycle functionality remains incomplete. This is a task-discoverability gap; no financial corruption or authority bypass has been demonstrated by this finding.
 - Basis/current behavior: `voucher-ready` includes legacy `BUDGET_DRAFT` cases under `vouchers.certify_budget_obligation`, while `_budget_tasks` projects authoritative Budget obligation requests under separate permissions. The existing adapters do not establish an exact item for that legacy stage.
 - Expected behavior/impact: every supported actionable count has a reproducible source-action projection. Users can currently follow the source queue, but the exact cross-cycle item list may omit that work.
 - Workaround: use the existing permission-scoped Voucher Workbench “Open exact queue”; its service controls remain authoritative. Do not equate case counts with instrument/child-action counts.
@@ -74,3 +74,7 @@ Added exact source creation/synchronization tasks for voucher and remittance req
 - Cause/next step: likely implementation-level authorization defect. Reproduce foreign-office/UAT calls, add shared service custody guards, regress unchanged financial/events state and the affected complete advice/return chain. Do not advance dependent advice tasks before verification.
 
 FIN-GAP-006 reproduction: the original `test_advice_review_rejects_foreign_office_and_uat` failed for both actors; each could approve an advice belonging to the Accounting office (`.tmp/advice-custody-reproduction.log`). The repair adds owning-office locks for Accounting review/response, current/pinned-office guards for returned-item decisions and UAT denial for advice mutations and Treasury clarification. Source action selectors and visible detail controls follow the same custody boundary. Treasury submission remains explicitly permissioned across the documented Accounting-to-Treasury boundary. Final verification: 3 focused tests passed in 5.389 seconds; all 532 project tests passed in 146.135 seconds. System, migration-drift, compilation and diff checks are clean.
+
+### FIN-GAP-003 progress — v0.7.5
+
+Initial advice assembly now projects eligible issued checks into stable tasks and the same scoped source-form/count selector. Returned advice stays in its correction task; instruments omitted from superseded versions can re-enter initial assembly. Shared-case advice/returned-item readiness uses exact source actions. The [stage coverage audit](FINANCE_SHARED_CASE_COVERAGE.md) maps all supported shared-case action stages to their adapters. Validation: 2 focused tests passed in 4.550 seconds; all 534 tests passed on the final source in 130.759 seconds. System, migration-drift, compilation and diff checks are clean. Edge layout verification passed at 1440px and 390px; the final 390px document scroll width is 390px.  the High finding is verified for the documented supported routes.
