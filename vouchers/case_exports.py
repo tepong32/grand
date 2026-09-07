@@ -336,6 +336,17 @@ def dv_signature_task_queryset(user):
     )
 
 
+def legacy_budget_action_queryset(user, *, queryset=None):
+    base = visible_cases_for_user(user) if queryset is None else queryset
+    department = department_for_user(user)
+    if department is None or is_finance_uat_viewer(user) or not has_explicit_permission(user, "vouchers.certify_budget_obligation"):
+        return base.none()
+    return base.filter(
+        current_department_id=department.pk, current_stage=VoucherCase.BUDGET_DRAFT,
+        shadow_mode=True, authoritative_obligation_public_id__isnull=True, obligation__isnull=True,
+    )
+
+
 def apply_case_filters(
     queryset, *, actionable_stages=(), stage="", transaction_type="",
     requesting_department="", attention="", custody="", search="", actor=None,
@@ -379,6 +390,9 @@ def apply_case_filters(
     )
     if attention == "ready_for_me":
         queryset = queryset.filter(current_stage__in=actionable_stages)
+        if actor is not None and VoucherCase.BUDGET_DRAFT in actionable_stages:
+            legacy_ids = legacy_budget_action_queryset(actor).values("pk")
+            queryset = queryset.filter(~Q(current_stage=VoucherCase.BUDGET_DRAFT) | Q(pk__in=legacy_ids))
         actor_department = department_for_user(actor) if actor is not None else None
         if actor_department is not None:
             queryset = queryset.exclude(

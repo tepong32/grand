@@ -884,6 +884,74 @@ class VoucherWorkflowTests(TestCase):
         )
         self.assertIn(b"accepted outside GRAND", successor_content)
 
+    def test_legacy_budget_certification_rejects_cross_office_and_uat(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        foreign = self.employee("budget.foreign", self.accounting, "certify_budget_obligation")
+        preview = self.employee("budget.preview", self.budget, "certify_budget_obligation")
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        for actor in (foreign, preview):
+            case = self.create_case(key=f"legacy-guard-{actor.pk}")
+            before = case.events.count()
+            with self.subTest(actor=actor.username), self.assertRaises(PermissionDenied):
+                certify_budget(
+                    case=case, actor=actor, obligation_date=date(2026, 8, 25),
+                    budget_source_reference="Synthetic source",
+                    allocations=[{"fund_code": "general-fund", "responsibility_center_code": "gso", "account_code": "5-02-03", "amount": Decimal("1000.00")}],
+                    expected_version=case.state_version, idempotency_key=f"unauthorized-{actor.pk}",
+                )
+            case.refresh_from_db()
+            self.assertEqual(case.current_stage, VoucherCase.BUDGET_DRAFT)
+            self.assertEqual(case.events.count(), before)
+            self.assertFalse(hasattr(case, "obligation"))
+
+    def test_legacy_budget_task_matches_queue_and_keeps_shadow_boundary(self):
+        from finance.work_tasks import finance_work_tasks
+        from finance.work_attention import finance_work_attention
+        from vouchers.case_exports import legacy_budget_action_queryset
+        case = self.create_case("legacy-task")
+        def tasks():
+            return [t for t in finance_work_tasks(self.budget_user)["tasks"] if t["task_type"] == "finance.voucher-case.legacy_budget_certification.v1"]
+        first = tasks()[0]
+        self.assertEqual(first["url"], case.get_absolute_url())
+        self.assertIsNone(first["due_on"])
+        self.assertIn("Shadow compatibility only", first["exception"])
+        self.assertEqual(legacy_budget_action_queryset(self.budget_user).count(), 1)
+        groups = {g["key"]: g["count"] for g in finance_work_attention(self.budget_user)["groups"]}
+        self.assertEqual(groups["voucher-ready"], 1)
+        self.client.force_login(self.budget_user)
+        response = self.client.get(reverse("vouchers:workspace"), {"attention": "ready_for_me"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, case.reference_code)
+        VoucherCase.objects.filter(pk=case.pk).update(particulars="Updated synthetic source explanation")
+        revised = tasks()[0]
+        self.assertEqual(first["task_id"], revised["task_id"])
+        self.assertNotEqual(first["source_version"], revised["source_version"])
+        case.refresh_from_db()
+        self.budget_certify(case, "legacy-task-certify")
+        self.assertFalse(tasks())
+        count = case.events.count()
+        self.budget_certify(case, "legacy-task-certify")
+        self.assertEqual(case.events.count(), count)
+
+    def test_legacy_budget_certification_rejects_invalid_money_codes_and_live_route(self):
+        case = self.create_case("legacy-validation")
+        line = {"fund_code": "general-fund", "responsibility_center_code": "gso", "account_code": "5-02-03", "amount": Decimal("1000.00")}
+        invalid = [dict(line, amount=value) for value in ("NaN", "Infinity", "0", "-1", "1.001", "bad")]
+        invalid.extend((dict(line, fund_code="unknown"), dict(line, responsibility_center_code="unknown"), dict(line, account_code="unknown")))
+        for index, item in enumerate(invalid):
+            with self.subTest(item=item), self.assertRaises(ValidationError):
+                certify_budget(case=case, actor=self.budget_user, obligation_date=date(2026, 8, 25),
+                    budget_source_reference="Synthetic source", allocations=[item], expected_version=case.state_version,
+                    idempotency_key=f"invalid-legacy-{index}")
+        self.assertFalse(case.number_issues.exists())
+        VoucherCase.objects.filter(pk=case.pk).update(shadow_mode=False)
+        with self.assertRaises(ValidationError):
+            self.budget_certify(case, "non-shadow-legacy")
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.BUDGET_DRAFT)
+        self.assertFalse(hasattr(case, "obligation"))
+
     def test_complete_supplier_disbursement_route_uses_one_shared_case(self):
         case = self.ready_for_treasury()
         posting_request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)

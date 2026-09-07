@@ -339,6 +339,8 @@ def _voucher_deduction_formset(case, data=None):
 def case_detail(request, public_id):
     case = _case(public_id, request.user)
     permissions = _permissions(request.user)
+    from .case_exports import legacy_budget_action_queryset
+    permissions["certify"] = legacy_budget_action_queryset(request.user).filter(pk=case.pk).exists()
     profile = finance_workspace_profile(request.user)
     from accounting.access import can_post_journals, can_prepare_journals
     can_handle_posting = can_prepare_journals(request.user) or can_post_journals(request.user)

@@ -119,3 +119,11 @@ The count-adapter inventory is now:
 The remaining shared-case audit precedes cross-cycle Waiting/Returned/Due/Completed-by-me views and the separately authorized task export. Full post-functional operational scrutiny remains mandatory under [the completion gate](FINANCE_OPERATIONAL_SCRUTINY.md).
 
 Checkpoint verification: 51 focused Accounting/complete-cycle replay tests passed in 10.679 seconds; 521 full-project tests passed in 136.867 seconds on final executable source. Django, migration-drift, compilation and whitespace checks passed. Browser/device and real LGU acceptance remain separate.
+
+## v0.7.1 — legacy shadow Budget coverage
+
+The shared-case Budget draft stage now has a stable task tied to the exact unlinked shadow case. Current office, explicit certification permission, UAT exclusion, no-existing-OBR and shadow-only guards are shared by queue and task selection; detail actions apply the same selector. Its revision covers retained case/events, setup codes, numbering and fiscal readiness. No draft allocation amount or deadline is invented. The task plainly distinguishes referenced shadow sources from authoritative appropriation/allotment availability.
+
+Continue the shared-case audit for initial advice assembly and unmaterialized JEV handoff; current batch and journal task coverage alone cannot prove those transitions covered. Cross-cycle views remain downstream of this audit.
+
+Final project suite: 524 tests passed across both databases in 139.139 seconds; system, migration, compilation and diff checks are clean. Five focused legacy/authoritative-chain tests passed in 5.146 seconds.

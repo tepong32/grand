@@ -69,3 +69,9 @@ The prior baseline above is preserved as history. The opening checkpoint adds fi
 Focused Accounting and the affected complete synthetic Budget-to-Treasury-report chain passed 51 tests in 10.679 seconds. Final complete project gate: 521 tests passed across both routed databases in 136.867 seconds. Django system checks, migration-drift checks, compilation and whitespace checks are clean. No new browser or real LGU observation is claimed.
 
 Remaining software: legacy shared-case adapter audit, governed cross-cycle views, authorized task export, shared-view/search/following/notifications and device checks. Then execute the mandatory operational scrutiny, including current authoritative-source research, populated traceability matrix, adversarial multi-office simulation, audit reconstruction and recovery. Finance gate remains NO-GO; implemented controls and tests are not production authority.
+
+## v0.7.1 legacy shadow Budget checkpoint
+
+The user requires `VERSION` bumps and versioned milestone commit titles for meaningful checkpoints. Legacy shadow Budget drafts now have exact items and shared queue/action scope; foreign-office/UAT certification, malformed amounts, unknown codes and attempts to use this compatibility certification for non-shadow cases are rejected. Initial source/posted-JEV synchronization and advice-assembly coverage remain under review, so the broader My Work contract is not complete.
+
+Five focused tests passed in 5.146 seconds, including both shadow supplier and authoritative Budget-to-report chains. Final project suite: 524 tests passed across both databases in 139.139 seconds; system, migration, compilation and diff checks are clean. No production or LGU acceptance is claimed.

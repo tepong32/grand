@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.1 — legacy shadow Budget controls
+
+- Added an exact, permission/current-office/UAT-filtered shadow Budget certification task shared with queue and detail action scope; retained evidence-sensitive identity and no invented deadline or available budget.
+- Fixed foreign-office certification and invalid allocation handling; restricted compatibility certification to unlinked shadow cases and bound retry receipts to the original actor/office.
+- Preserved referenced shadow sources as distinct from the authoritative Budget ledger; continued the remaining shared-case handoff audit.
+- Adopted explicit versioned milestone commits at the user's request. Final project suite: 524 tests passed across both databases in 139.139 seconds; system, migration, compilation and diff checks are clean.
+
 ## F1.5 opening-balance tasks and mandatory operational gate
 
 - Registered post-functional Finance scrutiny, its Critical stopping rules, downstream phase order and gap register without erasing delivery history.

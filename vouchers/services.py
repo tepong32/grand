@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import hashlib
 import io
 import json
@@ -1245,18 +1245,47 @@ def review_payable_intake(
 
 @transaction.atomic
 def certify_budget(*, case, actor, obligation_date, budget_source_reference, allocations, expected_version, idempotency_key):
+    from .roles import is_finance_uat_viewer
+
     _require(actor, "vouchers.certify_budget_obligation")
+    if is_finance_uat_viewer(actor):
+        raise PermissionDenied
     _lock_case_foundation_boundary(case)
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
+        if existing.action != "budget_certified" or existing.actor_id != actor.pk or existing.actor_department_id != department_for_user(actor).pk:
+            raise PermissionDenied
         return case
+    _require_current_office(case, actor)
     _require_active_case_foundation(case)
     if case.current_stage != VoucherCase.BUDGET_DRAFT or hasattr(case, "obligation"):
         raise VoucherWorkflowError("Only a Budget draft without an OBR can be certified.")
-    allocations = [item for item in allocations if Decimal(item["amount"]) > 0]
-    total = sum((Decimal(item["amount"]) for item in allocations), Decimal("0.00"))
-    if not allocations or total <= 0:
-        raise VoucherWorkflowError("Enter at least one positive allocation line.")
+    if not case.shadow_mode or case.authoritative_obligation_public_id:
+        raise VoucherWorkflowError("This compatibility certification is restricted to unlinked shadow cases; use the authoritative Budget obligation route.")
+    if not budget_source_reference.strip():
+        raise VoucherWorkflowError("Reference the approved budget source for this shadow exercise.")
+    active_codes = {}
+    for category in ("fund", "responsibility_center", "account_classification"):
+        active_codes[category] = set(case.configuration_release.items.filter(
+            category=category, status="active",
+        ).values_list("code", flat=True))
+    normalized = []
+    for item in allocations:
+        try:
+            amount = Decimal(str(item.get("amount", "")))
+        except (InvalidOperation, ValueError, TypeError) as exc:
+            raise VoucherWorkflowError("Every allocation must contain a valid exact amount.") from exc
+        if not amount.is_finite() or amount <= 0 or amount.as_tuple().exponent < -2:
+            raise VoucherWorkflowError("Every allocation must be positive with at most two decimal places.")
+        if item.get("fund_code") not in active_codes["fund"] or item.get("responsibility_center_code") not in active_codes["responsibility_center"]:
+            raise VoucherWorkflowError("Use active fund and responsibility-center codes from the pinned setup.")
+        if item.get("account_code") and item["account_code"] not in active_codes["account_classification"]:
+            raise VoucherWorkflowError("Use an active account code from the pinned setup.")
+        normalized.append({**item, "amount": amount})
+    allocations = normalized
+    total = sum((item["amount"] for item in allocations), Decimal("0.00"))
+    if not allocations or total >= Decimal("10000000000000000"):
+        raise VoucherWorkflowError("Enter allocation lines within the supported exact-money range.")
     obr_number = _consume_number(case, actor, "obr")
     obligation = BudgetObligation.objects.create(
         case=case, obr_number=obr_number, obligation_date=obligation_date,

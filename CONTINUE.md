@@ -10,6 +10,14 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
+## Current v0.7.1 checkpoint — legacy shadow Budget controls
+
+Branch: `codex/finance-legacy-budget-controls`, based on pushed `29f8c44`.
+
+The user explicitly requires versioned milestone commits: bump `VERSION` for each meaningful independently verified checkpoint and use a title such as `v0.7.1 — fix(finance): ...`, with a detailed body. Do not rewrite prior commits or tag unverified work.
+
+This slice adds exact legacy shadow Budget certification tasks and fixes FIN-GAP-004 custody/input validation. FIN-GAP-003 remains open pending initial advice assembly and unmaterialized journal-handoff coverage. Continue that audit before cross-cycle views; keep the legacy route explicitly shadow-only and preserve the authoritative F4→F5 route. Final project suite: 524 tests passed across both databases in 139.139 seconds; system, migration, compilation and diff checks are clean. Commit and push this versioned checkpoint before continuing.
+
 ## Current opening-balance checkpoint
 
 Branch: `codex/finance-f1-opening-tasks` (created from synchronized `master` at `8c0f366`).

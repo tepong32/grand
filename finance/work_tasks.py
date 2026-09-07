@@ -549,6 +549,42 @@ def _budget_tasks(user, department, today):
     return tasks
 
 
+def _legacy_budget_tasks(user, department, today):
+    from accounting.models import FiscalYear
+    from vouchers.case_exports import legacy_budget_action_queryset
+    tasks = []
+    for case in legacy_budget_action_queryset(user).select_related("configuration_release", "requesting_department"):
+        release = case.configuration_release
+        year = FiscalYear.objects.filter(department_id=release.department_id, year=release.fiscal_year).first()
+        events = list(case.events.order_by("state_version", "pk").values("action", "state_version", "actor_id", "actor_department_id", "reason", "metadata"))
+        config = list(release.items.filter(category__in=("fund", "responsibility_center", "account_classification")).order_by("pk").values("pk", "category", "code", "status"))
+        sequences = list(release.numbering_sequences.filter(document_type="obr").order_by("pk").values("pk", "status", "next_number", "prefix", "padding"))
+        errors = ["Shadow compatibility only: the source reference does not prove authoritative appropriation/allotment availability. Use the linked Budget route for the full Finance chain."]
+        if year is not None and year.status != FiscalYear.ACTIVE:
+            errors.append("The fiscal foundation needs independent reapproval before issuance.")
+        revision = _projection_checksum({
+            "case": [str(case.public_id), case.state_version, case.current_stage, case.current_department_id,
+                     case.requesting_department_id, case.payee_id, case.particulars, case.shadow_mode],
+            "release": [release.pk, release.status, release.fiscal_year],
+            "year": [year.pk, year.status] if year else None,
+            "events": events, "config": config, "sequences": sequences,
+        })
+        tasks.append(FinanceWorkTask(
+            task_id=f"finwork:v1:voucher-case:{case.public_id}:legacy-budget-certification",
+            task_type="finance.voucher-case.legacy_budget_certification.v1", area="Budget shadow",
+            case_id=f"voucher-case:{case.public_id}", reference=case.reference_code,
+            transaction_type="Shadow Budget compatibility", subject=case.particulars,
+            action="Certify the shadow allocation with its source reference and exact configured lines",
+            gate="Unlinked shadow Budget draft without an OBR, in the current office under the certification permission; not an authoritative Budget approval.",
+            owner_queue="Budget shadow certification", scope=department.name,
+            received_at=case.created_at, due_on=None, due_state="No structured target",
+            calendar_basis="No target is recorded; the obligation date is not a deadline.",
+            age_days=_age_days(case.created_at, today), state="Ready", source_state=case.get_current_stage_display(),
+            source_version=f"projection-sha256:{revision}", exception=" ".join(errors), url=case.get_absolute_url(),
+        ))
+    return tasks
+
+
 def _payable_tasks(user, department, today):
     from vouchers.case_exports import payable_action_choices_for_user, payable_action_queryset
     from vouchers.models import PayableDocumentEvidence, PayableIntake
@@ -2673,6 +2709,7 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks = _setup_tasks(user, department, today)
     tasks.extend(_discovery_tasks(user, department, today))
     tasks.extend(_budget_tasks(user, department, today))
+    tasks.extend(_legacy_budget_tasks(user, department, today))
     tasks.extend(_payable_tasks(user, department, today))
     tasks.extend(_dv_custody_tasks(user, department, today))
     tasks.extend(_accounting_validation_tasks(user, department, today))

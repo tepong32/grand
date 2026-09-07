@@ -131,3 +131,7 @@ Only an output explicitly promoted through a future formal official-use decision
 - check registration, cancellation, replacement, advice, and release controls, but no direct check printing;
 - no legacy production-data import and no signature images;
 - no official-use switch before documented local validation and shadow reconciliation.
+
+## v0.7.1 shadow Budget certification boundary
+
+Compatibility OBR certification remains an unlinked shadow-only exercise; it is not the authoritative F4 obligation registry. The service rechecks current-office custody, UAT exclusion, finite positive centavo allocations, active pinned codes and the source reference. The same actor in the original office may retrieve the original idempotent success receipt after handoff without issuing another number. A new action must occur in the current office. My Work now exposes this exact action and its scope limitation; official-use workflows require the linked F4→F5 route and the mandatory Finance gate.
