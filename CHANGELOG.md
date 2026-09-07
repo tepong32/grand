@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.8 - Budget Waiting handoffs
+
+Extend personal Waiting to submitted Budget proposal versions, allotment orders awaiting independent review and obligation requests awaiting certification. The exact source route's read permission and current office/requesting-office scope still apply. Current actions are excluded before truncation. A preparer's office move or loss of allotment read permission removes now-inaccessible rows; Budget-call and obligation document dates are not inferred review deadlines. Verification: 4 focused tests passed in 3.041 seconds; all 541 project tests passed in 167.441 seconds. System, migration-drift, compilation and diff checks are clean.
+
 ## v0.7.7 - personal Waiting and Returned views
 
 My Work now offers Ready for me, personal Waiting and Returned. Waiting projects retained preparer/submission attribution for submitted JEVs, opening balances awaiting review/posting/reconciliation, submitted period-close checklists, advice awaiting review/submission/response, and remittances awaiting review/release. Each record must remain visible under its source route's current access rules; current actionable records are excluded before the display limit. UAT preview receives no personal work. Missing handoff times are disclosed rather than replaced with document dates.

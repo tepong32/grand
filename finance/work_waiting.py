@@ -46,6 +46,37 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             url=reverse(route, kwargs={"public_id": item.public_id}),
         ))
 
+    from budget.access import can_view as can_view_budget, has_budget_permission
+    from budget.control_exports import obligation_scope_for_user
+    from budget.models import AllotmentReleaseOrder, BudgetVersion, ObligationRequest
+
+    if can_view_budget(user):
+        versions = BudgetVersion.objects.filter(department_id=department.pk, status=BudgetVersion.FOR_REVIEW).filter(
+            Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk),
+        ).select_related("fiscal_year")
+        for item in versions:
+            add(item, kind="budget-version", area="Budget", reference=f"FY {item.fiscal_year.year} {item.get_kind_display()} v{item.version}",
+                subject=item.title, received=item.submitted_at, queue=f"Independent Budget proposal reviewers - {department.name}",
+                scope=f"{department.name}; {item.requesting_department_label}", route="budget:version_detail",
+                attribution=[item.created_by_id, item.submitted_by_id])
+        if has_budget_permission(user, "view_allotment_control"):
+            allotments = AllotmentReleaseOrder.objects.filter(department_id=department.pk, status=AllotmentReleaseOrder.FOR_REVIEW).filter(
+                Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk),
+            ).select_related("fiscal_year")
+            for item in allotments:
+                add(item, kind="allotment-order", area="Budget", reference=item.order_number,
+                    subject="Submitted allotment order", received=item.submitted_at, queue=f"Independent allotment reviewers - {department.name}",
+                    scope=f"{department.name}; FY {item.fiscal_year.year}", route="budget:allotment_detail",
+                    attribution=[item.created_by_id, item.submitted_by_id])
+        obligations = obligation_scope_for_user(user).filter(status=ObligationRequest.FOR_CERTIFICATION).filter(
+            Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk),
+        ).select_related("fiscal_year")
+        for item in obligations:
+            add(item, kind="obligation-request", area="Budget", reference=item.request_reference,
+                subject=item.particulars, received=item.submitted_at, queue=f"Budget certification officers - {item.department_label}",
+                scope=f"{item.requesting_department_label}; FY {item.fiscal_year.year}", route="budget:obligation_detail",
+                attribution=[item.created_by_id, item.submitted_by_id])
+
     if can_view_accounting(user):
         journals = JournalEntry.objects.filter(department_id=department.pk, status=JournalEntry.SUBMITTED).filter(
             Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk),

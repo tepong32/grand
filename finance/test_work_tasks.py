@@ -694,6 +694,26 @@ class FinanceBudgetWorkTaskContractTests(TestCase):
             submitted_at=timezone.now() if submitted_by else None,
         )
 
+    def test_budget_waiting_preserves_personal_and_source_access_boundaries(self):
+        version = self._version(8, BudgetVersion.FOR_REVIEW, self.preparer)
+        order = self._allotment("WAIT-ALLOT", AllotmentReleaseOrder.FOR_REVIEW, self.preparer)
+        obligation = self._obligation("WAIT-OBLIGATION", ObligationRequest.FOR_CERTIFICATION, self.requester)
+        own_ids = {task["case_id"] for task in finance_work_tasks(self.preparer, view="waiting")["tasks"]}
+        self.assertEqual(own_ids, {f"budget-version:{version.public_id}", f"allotment-order:{order.public_id}"})
+        self.assertEqual(finance_work_tasks(self.reviewer, view="waiting")["task_count"], 0)
+        self.assertEqual([task["case_id"] for task in finance_work_tasks(self.requester, view="waiting")["tasks"]],
+                         [f"obligation-request:{obligation.public_id}"])
+        self.client.force_login(self.requester)
+        self.assertEqual(self.client.get(reverse("budget:obligation_detail", args=(obligation.public_id,))).status_code, 200)
+        self.preparer.user_permissions.remove(Permission.objects.get(content_type__app_label="budget", codename="view_allotment_control"))
+        self.assertEqual([task["case_id"] for task in finance_work_tasks(self.preparer, view="waiting")["tasks"]],
+                         [f"budget-version:{version.public_id}"])
+        self.requester.employeeprofile.assigned_department = self.accounting
+        self.requester.employeeprofile.save(update_fields=("assigned_department",))
+        moved = get_user_model().objects.get(pk=self.requester.pk)
+        self.assertEqual(finance_work_tasks(moved, view="waiting")["task_count"], 0)
+        self.assertEqual(finance_work_tasks(self.uat, view="waiting")["task_count"], 0)
+
     def test_budget_versions_have_exact_due_dates_and_independent_review_scope(self):
         draft = self._version(1, BudgetVersion.DRAFT)
         review = self._version(2, BudgetVersion.FOR_REVIEW, self.preparer)

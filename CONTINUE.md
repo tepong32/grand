@@ -10,7 +10,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.7 checkpoint - personal Waiting and Returned views
+## Current v0.7.8 checkpoint - Budget Waiting
+
+Branch: `codex/finance-budget-waiting`, based on pushed `52f373d` (v0.7.7). Extend personal Waiting to submitted proposals, allotment orders awaiting review and obligation requests awaiting certification. Preserve exact source read permissions, requesting-office scope and action exclusion. Verification: 4 focused tests passed in 3.041 seconds; all 541 project tests passed in 167.441 seconds. System, migration-drift, compilation and diff checks are clean. Continue remaining cross-cycle work afterward; preserve the user's database.
+
+## Prior v0.7.7 checkpoint - personal Waiting and Returned views
 
 Branch: `codex/finance-personal-waiting`, based on pushed `f13647b` (v0.7.6). Add personal contribution-based Waiting for JEVs, opening balances, submitted close checklists, advice and remittance review/release; exclude current actions before truncation. Returned uses current correction state, not historical JEV returns. Verification: 24 focused tests passed in 24.629 seconds; all 540 project tests passed on the final source in 195.115 seconds. System, migration-drift, compilation and diff checks are clean. Edge layout checks passed at 1440px and 320px; the final 320px document scroll width is 320px. Preserve the user database. Broader Waiting adapters, retained-target filters, attributed completion and authorized task export remain downstream.
 

@@ -2823,7 +2823,7 @@ def finance_work_tasks(user, *, display_limit=100, view="ready"):
         "tasks": [task.as_dict() for task in tasks[:display_limit]],
         "task_count": task_count,
         "tasks_truncated": task_count > display_limit,
-        "task_coverage": ("Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review and release") if view == "waiting" else (
+        "task_coverage": ("Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review and release") if view == "waiting" else (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls", "Opening-balance controls",
             "Voucher and remittance journal creation and posted-source synchronization",
