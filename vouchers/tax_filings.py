@@ -14,6 +14,7 @@ from reporting.template_services import template_snapshot
 from src.export_archive import archive_export
 
 from .access import department_for_user, has_explicit_permission
+from .remittances import can_act_on_remittances, require_remittance_review_scope
 from .models import RemittanceEvent, TaxFilingEvidence, TreasuryRemittanceBatch, TreasuryRemittanceLine
 
 
@@ -25,7 +26,8 @@ TAX_RETURN_SUMMARY_DATASET = "finance_governed_tax_return_summary"
 
 
 def _require(actor, permission):
-    if not has_explicit_permission(actor, permission):
+    allowed = has_explicit_permission(actor, permission) if permission == "vouchers.view_remittance_workbench" else can_act_on_remittances(actor, permission)
+    if not allowed:
         raise PermissionDenied
 
 
@@ -293,6 +295,7 @@ def review_evidence(*, evidence, actor, approve, reason):
         raise TaxFilingWorkflowError("Only submitted filing evidence is awaiting review.")
     if item.created_by_id == actor.pk or item.submitted_by_id == actor.pk:
         raise TaxFilingWorkflowError("Maker-checker control: the preparer cannot verify the same filing evidence.")
+    require_remittance_review_scope(actor, item.batch)
     if not reason.strip():
         raise TaxFilingWorkflowError("Record the verification basis or correction instruction.")
     previous = item.status

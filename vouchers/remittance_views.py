@@ -17,7 +17,7 @@ from .remittance_register import (
     visible_remittance_batches,
 )
 from .remittances import (
-    add_line, create_batch, export_batch_csv, release_batch, review_batch,
+    add_line, can_act_on_remittances, create_batch, export_batch_csv, release_batch, review_batch,
     revise_line, submit_batch, withholding_availability,
 )
 from .tax_filings import (
@@ -86,16 +86,16 @@ def workspace(request):
         "selected_attention": selected_attention,
         "work_spec": work_spec,
         "attention_choices": remittance_action_choices_for_user(request.user),
-        "can_prepare": has_explicit_permission(request.user, "vouchers.prepare_remittances"),
-        "can_approve": has_explicit_permission(request.user, "vouchers.approve_remittances"),
-        "can_release": has_explicit_permission(request.user, "vouchers.release_remittances"),
+        "can_prepare": can_act_on_remittances(request.user, "vouchers.prepare_remittances"),
+        "can_approve": can_act_on_remittances(request.user, "vouchers.approve_remittances"),
+        "can_release": can_act_on_remittances(request.user, "vouchers.release_remittances"),
     })
 
 
 @require_http_methods(["GET", "POST"])
 @voucher_access_required
 def create(request):
-    if not has_explicit_permission(request.user, "vouchers.prepare_remittances"):
+    if not can_act_on_remittances(request.user, "vouchers.prepare_remittances"):
         raise PermissionDenied
     form = RemittanceBatchForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -135,15 +135,16 @@ def detail(request, public_id):
         "line_form": RemittanceLineForm(batch=batch),
         "review_form": RemittanceReviewForm(), "release_form": RemittanceReleaseForm(),
         "can_prepare": (
-            has_explicit_permission(request.user, "vouchers.prepare_remittances")
+            can_act_on_remittances(request.user, "vouchers.prepare_remittances")
             and batch.treasury_department == department_for_user(request.user)
         ),
         "can_approve": (
-            has_explicit_permission(request.user, "vouchers.approve_remittances")
+            can_act_on_remittances(request.user, "vouchers.approve_remittances")
+            and batch.finance_department_id == getattr(department_for_user(request.user), "pk", None)
             and request.user.pk not in (batch.created_by_id, batch.submitted_by_id)
         ),
         "can_release": (
-            has_explicit_permission(request.user, "vouchers.release_remittances")
+            can_act_on_remittances(request.user, "vouchers.release_remittances")
             and batch.treasury_department == department_for_user(request.user)
         ),
         "can_audit": can_audit,
@@ -254,7 +255,7 @@ def export(request, public_id):
 @voucher_access_required
 def tax_filing_create(request, public_id):
     batch = _batch(public_id, request.user)
-    if not has_explicit_permission(request.user, "vouchers.prepare_remittances"):
+    if not can_act_on_remittances(request.user, "vouchers.prepare_remittances"):
         raise PermissionDenied
     _require_treasury_action(request.user, batch)
     form = TaxFilingEvidenceForm(request.POST or None, batch=batch)
@@ -276,7 +277,7 @@ def tax_filing_create(request, public_id):
 @voucher_access_required
 def tax_filing_edit(request, public_id, evidence_id):
     evidence = _evidence(public_id, evidence_id, request.user)
-    if not has_explicit_permission(request.user, "vouchers.prepare_remittances"):
+    if not can_act_on_remittances(request.user, "vouchers.prepare_remittances"):
         raise PermissionDenied
     _require_treasury_action(request.user, evidence.batch)
     form = TaxFilingEvidenceForm(request.POST or None, instance=evidence, batch=evidence.batch)

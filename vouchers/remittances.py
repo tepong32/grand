@@ -35,9 +35,21 @@ class RemittanceWorkflowError(ValidationError):
     pass
 
 
+def can_act_on_remittances(actor, permission):
+    from .roles import is_finance_uat_viewer
+    return not is_finance_uat_viewer(actor) and has_explicit_permission(actor, permission)
+
+
 def _require(actor, permission):
-    if not has_explicit_permission(actor, permission):
+    allowed = has_explicit_permission(actor, permission) if permission == "vouchers.view_remittance_workbench" else can_act_on_remittances(actor, permission)
+    if not allowed:
         raise PermissionDenied
+
+
+def require_remittance_review_scope(actor, batch):
+    department = department_for_user(actor)
+    if department is None or batch.finance_department_id != department.pk:
+        raise PermissionDenied("Remittance review is limited to the owning Accounting office.")
 
 
 def _require_treasury_scope(actor, batch):
@@ -397,6 +409,7 @@ def review_batch(*, batch, actor, approve, reason):
         raise RemittanceWorkflowError("Only a submitted remittance is awaiting Accounting review.")
     if locked.created_by_id == actor.pk or locked.submitted_by_id == actor.pk:
         raise RemittanceWorkflowError("Maker-checker control: the preparer cannot approve the same remittance.")
+    require_remittance_review_scope(actor, locked)
     reason = str(reason or "").strip()
     if not reason:
         raise RemittanceWorkflowError("Record the review basis or correction reason.")

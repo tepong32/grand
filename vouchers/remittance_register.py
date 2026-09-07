@@ -80,6 +80,8 @@ def remittance_action_queryset(user, action, queryset=None):
         return base.none(), action if spec else "", spec
     if spec["scope"] == "treasury":
         base = base.filter(treasury_department_id=department.pk)
+    elif spec["scope"] == "finance":
+        base = base.filter(finance_department_id=department.pk)
     base = base.filter(status__in=spec["statuses"])
     if action == "review":
         base = base.exclude(Q(created_by=user) | Q(submitted_by=user))

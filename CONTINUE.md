@@ -10,7 +10,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.5 checkpoint — initial advice assembly
+## Current v0.7.6 checkpoint — remittance and filing custody prerequisite
+
+Branch: `codex/finance-remittance-custody`, based on pushed `6364132` (v0.7.5). Personal Waiting source review exposed FIN-GAP-007: Accounting remittance/filing review lacks office comparison and mutation permissions lack UAT exclusion. Reproduce, fix and verify before the dependent Waiting adapter. The user's confirmed personal Waiting scope remains unchanged. Final verification: all 536 project tests passed in 132.188 seconds. System, migration-drift, compilation and diff checks are clean. FIN-GAP-007 is verified; production remains NO-GO pending the full functional and operational gates. Commit/push this checkpoint, then continue the user-confirmed personal Waiting view. Preserve the user's database.
+
+## Prior v0.7.5 checkpoint — initial advice assembly
 
 Branch: `codex/finance-initial-advice-tasks`, based on pushed `d5e60e9` (v0.7.4). Project each issued instrument needing initial advice assembly; share the selector with the preselected form and attention count, keep returned advice in its correction tasks, and include instruments omitted from superseded versions. Shared-case advice/returned-item readiness now matches actual source actions. See `docs/FINANCE_SHARED_CASE_COVERAGE.md`. Validation: 2 focused tests passed in 4.550 seconds; all 534 tests passed on the final source in 130.759 seconds. System, migration-drift, compilation and diff checks are clean. Edge layout verification passed at 1440px and 390px; the final 390px document scroll width is 390px. FIN-GAP-003 is verified. Commit/push this checkpoint, then continue personal Waiting and the remaining cross-cycle views/authorized task export. Preserve the user's modified database.
 

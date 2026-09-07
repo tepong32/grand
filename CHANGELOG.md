@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.6 — remittance and filing-review custody
+
+Remittance and linked filing-evidence decisions require the retained owning Accounting office as well as explicit permission and independent review. UAT accounts cannot mutate remittance schedules or filing evidence. Register action selection and detail controls use the same office/UAT boundary, preserving authorized read/audit visibility and Treasury preparation/release ownership. FIN-GAP-007 was reproduced by both foreign-office and UAT batch approvals before remediation. Final verification: all 536 project tests passed in 132.188 seconds. System, migration-drift, compilation and diff checks are clean. FIN-GAP-007 is verified; production remains NO-GO pending the full functional and operational gates. Personal Waiting remains the next functional slice.
+
 ## v0.7.5 — initial advice assembly tasks
 
 - Add exact issued-check advice-assembly tasks and an instrument-count queue using the same current-office/UAT-aware source selector as the form.

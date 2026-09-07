@@ -78,3 +78,13 @@ FIN-GAP-006 reproduction: the original `test_advice_review_rejects_foreign_offic
 ### FIN-GAP-003 progress — v0.7.5
 
 Initial advice assembly now projects eligible issued checks into stable tasks and the same scoped source-form/count selector. Returned advice stays in its correction task; instruments omitted from superseded versions can re-enter initial assembly. Shared-case advice/returned-item readiness uses exact source actions. The [stage coverage audit](FINANCE_SHARED_CASE_COVERAGE.md) maps all supported shared-case action stages to their adapters. Validation: 2 focused tests passed in 4.550 seconds; all 534 tests passed on the final source in 130.759 seconds. System, migration-drift, compilation and diff checks are clean. Edge layout verification passed at 1440px and 390px; the final 390px document scroll width is 390px.  the High finding is verified for the documented supported routes.
+
+## FIN-GAP-007 — Remittance and filing-review custody
+
+- Process/module: F8 remittance batch mutation and F9 linked filing-evidence review.
+- Severity/status: **CRITICAL — VERIFIED**, identified while checking personal Waiting source access after v0.7.5. The dependent remittance Waiting projection can resume; production remains NO-GO.
+- Code evidence: remittance `review_batch` and filing `review_evidence` check the approval permission and maker-checker identity but do not compare the actor's office with the retained remittance `finance_department_id`. Their mutation permission helpers do not exclude UAT accounts.
+- Expected behavior: explicit action permission plus current owning Accounting custody for review; UAT accounts cannot mutate Treasury schedules or filing evidence even with accidentally combined permissions. Preserve authorized read/audit scope and the existing Treasury preparation/release ownership checks.
+- Cause/next step: implementation-level authorization defect. Reproduce foreign-office/UAT review, apply shared permission/custody guards and matching action visibility, then verify unchanged state/events and the full remittance/filing chain before resuming dependent work.
+
+- FIN-GAP-007 verification: the original negative batch test failed for both foreign-office and UAT approval (1 test, 2 failures, 2.970 seconds). After service and action-scope fixes, rejected review, allocation, submission and release calls preserve retained state/events, numbering and posting requests; linked filing verification and the authorized completion chains pass. Final verification: all 536 project tests passed in 132.188 seconds. System, migration-drift, compilation and diff checks are clean. FIN-GAP-007 is verified; production remains NO-GO pending the full functional and operational gates.

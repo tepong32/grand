@@ -846,6 +846,23 @@ class VoucherWorkflowTests(TestCase):
         submit_evidence(evidence=evidence, actor=self.treasury_user)
         with self.assertRaisesMessage(ValidationError, "preparer cannot verify"):
             review_evidence(evidence=evidence, actor=self.treasury_user, approve=True, reason="Self review")
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        foreign = self.employee("filing.review.foreign", self.requesting)
+        preview = self.employee("filing.review.preview", self.accounting)
+        for actor in (foreign, preview):
+            actor.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="approve_remittances"))
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        evidence.refresh_from_db()
+        retained_version = evidence.state_version
+        retained_events = batch.events.count()
+        for actor in (foreign, preview):
+            with self.assertRaises(PermissionDenied):
+                review_evidence(evidence=evidence, actor=actor, approve=True, reason="Unauthorized review")
+        evidence.refresh_from_db()
+        self.assertEqual(evidence.status, evidence.FOR_REVIEW)
+        self.assertEqual(evidence.state_version, retained_version)
+        self.assertEqual(batch.events.count(), retained_events)
         review_evidence(
             evidence=evidence, actor=self.validator, approve=True,
             reason="Matched external filing acknowledgement, payment proof, and checksummed source schedule",
@@ -963,7 +980,7 @@ class VoucherWorkflowTests(TestCase):
         entry = materialize_voucher_journal(source, self.preparer)[0] if materialize else None
         return case, source, entry
 
-    def _draft_remittance_handoff(self):
+    def _draft_remittance_handoff(self, *, stop_at=""):
         agency = self.enable_remittance_route()
         self.ready_for_treasury()
         choice = withholding_availability(finance_department_id=self.accounting.pk,
@@ -972,7 +989,11 @@ class VoucherWorkflowTests(TestCase):
             transaction_variant=self.transaction_variant, recipient_party=agency, fund_code="general-fund", bank_account_code="gf-lbp",
             remittance_date=date(2026, 8, 31), payment_method="Electronic transfer", authority_reference="Synthetic authority", evidence_reference="Synthetic schedule")
         add_line(batch=batch, actor=self.treasury_user, choice_key=choice["choice_key"], amount=Decimal("100.00"), reason="Synthetic schedule")
+        if stop_at == "draft":
+            return batch, None, None
         submit_batch(batch=batch, actor=self.treasury_user)
+        if stop_at == "review":
+            return batch, None, None
         review_batch(batch=batch, actor=self.validator, approve=True, reason="Independent synthetic review")
         source = release_batch(batch=batch, actor=self.treasury_user, release_reference="HANDOFF-BANK", acknowledgement_reference="HANDOFF-RECEIPT")
         entry, _ = materialize_remittance_journal(source, self.preparer)
@@ -1097,6 +1118,67 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(entry.status, JournalEntry.DRAFT)
         self.assertEqual(source.status, RemittancePostingRequest.MATERIALIZED)
         self.assertEqual(batch.status, TreasuryRemittanceBatch.ACCOUNTING_POSTING)
+
+    def test_remittance_review_rejects_foreign_office_and_uat(self):
+        from django.contrib.auth.models import Group
+        from django.db import transaction
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        batch, _, _ = self._draft_remittance_handoff(stop_at="review")
+        foreign = self.employee("remittance.review.foreign", self.requesting)
+        preview = self.employee("remittance.review.preview", self.accounting)
+        for actor in (foreign, preview):
+            actor.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="approve_remittances"))
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        from vouchers.remittance_register import remittance_action_queryset, visible_remittance_batches
+        batch.refresh_from_db()
+        event_count = batch.events.count()
+        retained_version = batch.state_version
+        for actor in (foreign, preview):
+            self.assertTrue(visible_remittance_batches(actor).filter(pk=batch.pk).exists())
+            self.assertFalse(remittance_action_queryset(actor, "review")[0].filter(pk=batch.pk).exists())
+            self.client.force_login(actor)
+            response = self.client.get(reverse("vouchers:remittance_detail", args=(batch.public_id,)))
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(response.context["can_approve"])
+        for actor in (foreign, preview):
+            with self.subTest(actor=actor.username):
+                with transaction.atomic():
+                    with self.assertRaises(PermissionDenied):
+                        review_batch(batch=batch, actor=actor, approve=True, reason="Unauthorized synthetic review")
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, batch.FOR_REVIEW)
+        self.assertEqual(batch.events.count(), event_count)
+        self.assertEqual(batch.state_version, retained_version)
+        self.assertTrue(remittance_action_queryset(self.validator, "review")[0].filter(pk=batch.pk).exists())
+        review_batch(batch=batch, actor=self.validator, approve=True, reason="Authorized office review")
+
+    def test_remittance_uat_cannot_change_allocations_submit_or_release(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        from vouchers.models import RemittanceNumberIssue
+        batch, _, _ = self._draft_remittance_handoff(stop_at="draft")
+        preview = self.employee("remittance.treasury.preview", self.treasury)
+        preview.user_permissions.add(*Permission.objects.filter(content_type__app_label="vouchers", codename__in=("prepare_remittances", "release_remittances")))
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        line = batch.lines.get(status=TreasuryRemittanceLine.ACTIVE)
+        batch.refresh_from_db()
+        before = (batch.state_version, batch.total_amount, batch.lines.count(), batch.events.count(), RemittanceNumberIssue.objects.count())
+        with self.assertRaises(PermissionDenied):
+            revise_line(line=line, actor=preview, amount=Decimal("99.00"), reason="Unauthorized change")
+        with self.assertRaises(PermissionDenied):
+            submit_batch(batch=batch, actor=preview)
+        batch.refresh_from_db()
+        self.assertEqual((batch.state_version, batch.total_amount, batch.lines.count(), batch.events.count(), RemittanceNumberIssue.objects.count()), before)
+        submit_batch(batch=batch, actor=self.treasury_user)
+        review_batch(batch=batch, actor=self.validator, approve=True, reason="Independent review")
+        batch.refresh_from_db()
+        before = (batch.state_version, batch.events.count(), RemittanceNumberIssue.objects.count())
+        with self.assertRaises(PermissionDenied):
+            release_batch(batch=batch, actor=preview, release_reference="UNAUTHORIZED", acknowledgement_reference="UNAUTHORIZED")
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, batch.APPROVED)
+        self.assertEqual((batch.state_version, batch.events.count(), RemittanceNumberIssue.objects.count()), before)
+        self.assertFalse(batch.posting_requests.exists())
 
     def test_handoff_rejects_foreign_office_uat_and_tampered_posting_evidence(self):
         from django.contrib.auth.models import Group
