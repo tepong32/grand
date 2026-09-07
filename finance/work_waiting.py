@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from django.db.models import Q
 from django.urls import reverse
 
@@ -10,7 +12,7 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
     from accounting.models import JournalEntry, OpeningBalanceBatch, PeriodCloseRun
     from vouchers.access import can_view_workbench, has_explicit_permission
     from vouchers.advice_register import visible_bank_advice_batches
-    from vouchers.models import BankAdviceBatch, TreasuryRemittanceBatch
+    from vouchers.models import BankAdviceBatch, RemittancePostingRequest, TreasuryRemittanceBatch
     from vouchers.remittance_register import visible_remittance_batches
     from vouchers.roles import is_finance_uat_viewer
     from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum
@@ -18,6 +20,32 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
     if is_finance_uat_viewer(user):
         return []
     actionable = {task.case_id for task in actionable_tasks}
+    # A remittance batch, its posting request and its journal have distinct stable
+    # IDs. Resolve the user's already-authorized child actions before Waiting.
+    def identities(prefix):
+        result = set()
+        for identity in actionable:
+            if identity.startswith(prefix):
+                try:
+                    result.add(UUID(identity[len(prefix):]))
+                except (ValueError, TypeError, AttributeError):
+                    continue
+        return result
+
+    source_ids = identities("remittance-source:")
+    journal_ids = identities("journal-entry:")
+    if journal_ids:
+        for reference in JournalEntry.objects.filter(public_id__in=journal_ids, source_type="remittance").values_list("source_reference", flat=True):
+            try:
+                source_ids.add(UUID(str(reference)))
+            except (ValueError, TypeError, AttributeError):
+                continue
+    if source_ids:
+        actionable.update(
+            f"treasury-remittance:{batch_id}" for batch_id in RemittancePostingRequest.objects.filter(
+                public_id__in=source_ids,
+            ).values_list("batch__public_id", flat=True)
+        )
     tasks = []
 
     def add(item, *, kind, area, reference, subject, received, queue, scope, route, attribution):
@@ -130,13 +158,16 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
     ))
     if can_view_workbench(user) and remittance_read:
         batches = visible_remittance_batches(user).filter(status__in=(
-            TreasuryRemittanceBatch.FOR_REVIEW, TreasuryRemittanceBatch.APPROVED,
-        )).filter(Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk)).select_related("treasury_department")
+            TreasuryRemittanceBatch.FOR_REVIEW, TreasuryRemittanceBatch.APPROVED, TreasuryRemittanceBatch.ACCOUNTING_POSTING,
+        )).filter(Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk) | Q(released_by_id=user.pk, status=TreasuryRemittanceBatch.ACCOUNTING_POSTING)).select_related("treasury_department")
         for item in batches:
-            queue = (f"Accounting remittance reviewers - {item.finance_department_label}"
-                     if item.status == item.FOR_REVIEW else f"Treasury release officers - {item.treasury_department}")
+            queue, received = {
+                item.FOR_REVIEW: (f"Accounting remittance reviewers - {item.finance_department_label}", item.submitted_at),
+                item.APPROVED: (f"Treasury release officers - {item.treasury_department}", item.reviewed_at),
+                item.ACCOUNTING_POSTING: (f"Accounting posting officers - {item.finance_department_label}", item.released_at),
+            }[item.status]
             add(item, kind="treasury-remittance", area="Treasury", reference=item.reference_code,
-                subject="Submitted remittance schedule", received=item.submitted_at if item.status == item.FOR_REVIEW else item.reviewed_at,
-                queue=queue, scope=f"{item.treasury_department}; fund {item.fund_code}", route="vouchers:remittance_detail",
-                attribution=[item.created_by_id, item.submitted_by_id])
+                subject="Released remittance awaiting Accounting posting" if item.status == item.ACCOUNTING_POSTING else "Submitted remittance schedule",
+                received=received, queue=queue, scope=f"{item.treasury_department}; fund {item.fund_code}", route="vouchers:remittance_detail",
+                attribution=[item.created_by_id, item.submitted_by_id, item.released_by_id])
     return tasks

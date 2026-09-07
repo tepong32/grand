@@ -2,7 +2,7 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-09-07
+Last updated: 2026-09-08
 
 Turning-point decisions are recorded separately in [the implementation decision log](docs/IMPLEMENTATION_DECISIONS.md), as requested by the user. Keep each choice tied to the canonical product goal, alternatives, tradeoffs, evidence and revisit conditions.
 
@@ -12,7 +12,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.14 checkpoint - payment handoff completion
+## Current v0.7.15 checkpoint - released remittance Waiting
+
+Branch: `codex/finance-remittance-waiting-handoff`, based on pushed `b6d7640`. Extend personal Waiting through Accounting posting after release. Use current remittance read scope and retained preparer/submitter/releaser attribution; remove Waiting when the user has a related posting-request or journal action, before truncation. Verification: both focused remittance Waiting tests passed in 5.368 seconds; all 555 project tests passed on the final source in 139.218 seconds. System, migration-drift, compilation and diff checks are clean. Commit/push, then reproduce and fix FIN-GAP-009 before setup Waiting expansion. Continue autonomous work; keep the side decision log current and preserve the user database.
+
+## Prior v0.7.14 checkpoint - payment handoff completion
 
 User resumed autonomous work after the v0.7.13 pause. Branch: `codex/finance-payment-completion-history`, based on pushed `abfe160`. Extend attributed completion to bank-advice and remittance actions under current source read access, preserving cross-office Treasury advice submission. Verification: both focused payment-handoff tests passed in 3.328 seconds; all 553 project tests passed on the final source in 147.078 seconds. System, migration-drift, compilation and diff checks are clean. Commit/push, then extend personal Waiting through released remittance posting with source/journal action exclusion. Continue autonomous work under the user's latest request. Preserve the user database.
 

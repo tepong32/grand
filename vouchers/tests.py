@@ -3217,6 +3217,72 @@ class VoucherWorkflowTests(TestCase):
         self.validator.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
         self.assertEqual(rows(self.validator), [])
 
+    def test_released_remittance_waiting_follows_contributors_until_posting_finishes(self):
+        from finance.work_tasks import finance_work_tasks
+        batch, _, _ = self._draft_remittance_handoff(stop_at="review")
+        def rows(actor):
+            return [row for row in finance_work_tasks(actor, view="waiting")["tasks"] if row["case_id"] == f"treasury-remittance:{batch.public_id}"]
+        review_wait = rows(self.treasury_user)[0]
+        review_batch(batch=batch, actor=self.validator, approve=True, reason="Reviewed retained schedule")
+        self.assertEqual(rows(self.treasury_user), [])
+        releaser = self.employee("remittance.waiting.releaser", self.treasury, "view_voucher_workbench", "view_remittance_workbench", "release_remittances")
+        observer = self.employee("remittance.waiting.observer", self.treasury, "view_voucher_workbench", "view_remittance_workbench")
+        source = release_batch(batch=batch, actor=releaser, release_reference="WAIT-BANK", acknowledgement_reference="WAIT-RECEIPT")
+        batch.refresh_from_db()
+        self.assertEqual(source.requested_by, releaser)
+        released = rows(self.treasury_user)[0]
+        self.assertEqual(released["task_id"], review_wait["task_id"])
+        self.assertEqual(released["received_at"], batch.released_at)
+        self.assertIn("Accounting posting officers", released["owner_queue"])
+        self.assertIsNone(released["due_on"])
+        self.assertEqual(len(rows(releaser)), 1)
+        self.assertEqual(rows(observer), [])
+        self.client.force_login(releaser)
+        self.assertEqual(self.client.get(released["url"]).status_code, 200)
+        self.assertContains(self.client.get(reverse("finance_operations:my_work"), {"view": "waiting"}), "Released remittance awaiting Accounting posting")
+        entry, _ = materialize_remittance_journal(source, self.preparer)
+        self.assertEqual(len(rows(releaser)), 1)
+        submit_entry(entry, self.preparer); entry.refresh_from_db()
+        post_entry(entry, self.validator); entry.refresh_from_db()
+        self.assertEqual(len(rows(releaser)), 1)
+        reconcile_posted_remittance_entry(entry, self.validator)
+        self.assertEqual(rows(releaser), [])
+        self.assertEqual(rows(self.treasury_user), [])
+
+    def test_remittance_waiting_excludes_related_source_and_journal_actions_before_limit(self):
+        from finance.work_tasks import finance_work_tasks
+        batch, _, _ = self._draft_remittance_handoff(stop_at="review")
+        review_batch(batch=batch, actor=self.validator, approve=True, reason="Reviewed retained schedule")
+        source = release_batch(batch=batch, actor=self.treasury_user, release_reference="WAIT-MIXED", acknowledgement_reference="WAIT-MIXED-RECEIPT")
+        def waiting():
+            return finance_work_tasks(self.treasury_user, view="waiting", display_limit=0)
+        self.assertEqual(waiting()["task_count"], 1)
+        self.treasury_user.employeeprofile.assigned_department = self.accounting
+        self.treasury_user.employeeprofile.save(update_fields=("assigned_department",))
+        prepare_permission = Permission.objects.get(content_type__app_label="accounting", codename="prepare_journal_entries")
+        post_permission = Permission.objects.get(content_type__app_label="accounting", codename="post_journal_entries")
+        self.treasury_user.user_permissions.add(prepare_permission)
+        ready = finance_work_tasks(self.treasury_user)["tasks"]
+        self.assertTrue(any(row["case_id"] == f"remittance-source:{source.public_id}" for row in ready))
+        self.assertEqual(waiting()["task_count"], 0)
+        entry, _ = materialize_remittance_journal(source, self.preparer)
+        # The Finance source identity still resolves the current journal action if
+        # the core receipt is absent; do not mislabel that work as another queue.
+        RemittancePostingRequest.objects.filter(pk=source.pk).update(accounting_entry_public_id=None)
+        ready = finance_work_tasks(self.treasury_user)["tasks"]
+        self.assertTrue(any(row["case_id"] == f"journal-entry:{entry.public_id}" for row in ready))
+        self.assertEqual(waiting()["task_count"], 0)
+        RemittancePostingRequest.objects.filter(pk=source.pk).update(accounting_entry_public_id=entry.public_id)
+        self.treasury_user.user_permissions.remove(prepare_permission)
+        self.assertEqual(waiting()["task_count"], 1)
+        self.treasury_user.user_permissions.add(post_permission)
+        submit_entry(entry, self.preparer); entry.refresh_from_db()
+        self.assertEqual(waiting()["task_count"], 0)
+        post_entry(entry, self.validator); entry.refresh_from_db()
+        self.assertEqual(waiting()["task_count"], 0)
+        reconcile_posted_remittance_entry(entry, self.validator)
+        self.assertEqual(waiting()["task_count"], 0)
+
     def test_personal_completed_remittance_tracks_actual_handoffs_and_resubmissions(self):
         from finance.work_tasks import finance_work_tasks
         from vouchers.models import RemittanceEvent

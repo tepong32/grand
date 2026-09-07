@@ -102,3 +102,12 @@ Initial advice assembly now projects eligible issued checks into stable tasks an
 - FIN-GAP-008 reproduction: the isolated proposal-review test failed for all three actors (foreign office, missing permission and UAT). The corrected allotment audit-failure fixture then failed independently: the order remained posted at state version 3 instead of remaining for review at version 2 after the synthetic persistence failure (1 test, 1 failure, 1.931 seconds). All six services now use the routed Finance transaction and explicit action/office/UAT guards; focused and full verification are pending.
 
 Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 547 project tests passed on the final source in 140.140 seconds. System, migration-drift, compilation and diff checks are clean. FIN-GAP-008 is verified; production remains NO-GO pending functional completion, operational scrutiny and LGU acceptance.
+
+
+## FIN-GAP-009 - Finance setup UAT mutation boundary
+
+- Process/module: Finance setup configuration preparation, approval and template management.
+- Severity/status: **CRITICAL - OPEN**, identified 2026-09-08 while reviewing the next setup Waiting adapter. Dependent setup expansion is blocked pending reproduction, remediation and verification. The independent remittance Waiting checkpoint may finish.
+- Code evidence: `can_manage_finance_configuration`, `can_approve_finance_configuration` and `can_manage_finance_templates` use current department plus explicit permission without excluding `Finance UAT Viewer`. `transition_release` relies on those checks at its mutation boundary. Setup action projections already exclude UAT, so an accidental permission combination can diverge from the source service.
+- Expected behavior: UAT remains read-only even when combined with setup action permissions. Preserve current explicit office authority, independent approval and existing governed exemption rules; preserve authorized preview reads.
+- Next step: reproduce direct UAT submission/approval with unchanged source/audit assertions; guard shared setup mutation predicates and corresponding routes, then verify the lifecycle and broader project suite before dependent setup work. This finding does not establish that any real data was changed by a UAT account.

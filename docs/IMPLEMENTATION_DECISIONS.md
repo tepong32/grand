@@ -14,6 +14,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-002:** Preserve established cross-office Treasury bank-submission access when extending history.
 - **D-003:** Keep portable export permission explicitly administrator-assigned, as the user chose; the 100-row cap is a bounded initial implementation.
 - **D-004:** Keep engineering progress separate from the production/operational acceptance gate.
+- **D-005:** Carry personal Waiting through released remittance posting, excluding current related source/journal actions.
+- **D-006:** Fix the setup UAT mutation boundary before expanding setup projections.
 
 ### D-001 — Retained events determine personal completion
 
@@ -54,3 +56,25 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - Tradeoff: software progress does not remove external evidence, form, bank, restore, training or sign-off requirements.
 - Evidence/status: see [operational scrutiny](FINANCE_OPERATIONAL_SCRUTINY.md), [gap register](FINANCE_GAP_REGISTER.md), and [completion audit](FINANCE_ROADMAP_COMPLETION_AUDIT.md). Production remains NO-GO.
 - Revisit when: required real-world evidence and authorized decisions are available; never infer them from code tests.
+
+
+### D-005 — Follow the existing remittance posting handoff in Waiting
+
+- Date/checkpoint: 2026-09-07; v0.7.15 verified.
+- Decision: Keep a contributor's released remittance in Waiting while its source status is Accounting posting. Use the retained release time, not the document date. A releaser qualifies because release creates the Accounting posting request with that actor as `requested_by`. Resolve related posting-request and journal identities so any current action for the user removes the parent from Waiting before display truncation.
+- Alternatives considered: stop Waiting at release; infer completion from cash release; ignore related child-record actions because their IDs differ from the batch.
+- Goal fit: follows the same case through departmental handoffs and distinguishes cash payment from Accounting completion without inventing a parallel state or duplicating records.
+- Tradeoff: the Waiting row uses the source's named Accounting posting queue, not undisclosed journal details or a newly inferred assignment/deadline. Source permission still controls visibility.
+- Evidence/status: release service explicitly creates the linked Accounting request. Verification: both focused remittance Waiting tests passed in 5.368 seconds; all 555 project tests passed on the final source in 139.218 seconds. System, migration-drift, compilation and diff checks are clean.
+- Revisit when: the source introduces a separately governed posting exception or assignment; use that retained authority rather than infer it in My Work.
+
+
+### D-006 — Prioritize the setup UAT authority gap over dependent features
+
+- Date/checkpoint: 2026-09-08; identified during v0.7.15 review; remediation planned next.
+- Decision: Reproduce and close FIN-GAP-009 before implementing setup Waiting. Continue the independent remittance checkpoint through its existing test gate.
+- Alternatives considered: rely on hidden UAT buttons; add the new setup projection before addressing source authority.
+- Goal fit: least privilege and a trustworthy governed source are prerequisites for a useful office dashboard. Preview access must not silently become operational authority through combined groups.
+- Tradeoff: this inserts a corrective milestone ahead of further visible coverage. It does not change local approval policy or remove governed exemptions for normal authorized actors.
+- Evidence/status: the shared setup action helpers lack UAT exclusion; direct mutation reproduction and full verification are pending. No actual misuse is asserted.
+- Revisit when: the finding is reproduced, fixed and regressed; then resume setup coverage.
