@@ -147,3 +147,74 @@ def completed_budget_tasks(user, department, today):
                 url=reverse(source_route, kwargs={"public_id": item.public_id}),
             ))
     return tasks
+
+
+def completed_payment_handoff_tasks(user, department, today):
+    """Keep bank/Accounting/Treasury event attribution within current source reads."""
+    from vouchers.access import can_view_workbench, has_explicit_permission
+    from vouchers.advice_register import visible_bank_advice_batches
+    from vouchers.models import BankAdviceEvent, RemittanceEvent
+    from vouchers.remittance_register import visible_remittance_batches
+    from vouchers.roles import is_finance_uat_viewer
+    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
+
+    if is_finance_uat_viewer(user) or not can_view_workbench(user):
+        return []
+    specs = []
+    if has_explicit_permission(user, "vouchers.view_bank_advice"):
+        specs.append((BankAdviceEvent, visible_bank_advice_batches(user), "bank-advice", "Bank advice", "vouchers:advice_detail", {
+            "advice_submitted_for_review": "Submitted bank advice for review",
+            "advice_approved": "Approved bank advice", "advice_returned_by_reviewer": "Returned bank advice for correction",
+            "advice_submitted_to_bank": "Submitted advice to the bank",
+            "advice_acknowledged_by_bank": "Recorded bank acknowledgement", "advice_returned_by_bank": "Recorded bank return",
+        }))
+    if any(has_explicit_permission(user, code) for code in (
+        "vouchers.view_remittance_workbench", "vouchers.prepare_remittances", "vouchers.approve_remittances",
+        "vouchers.release_remittances", "vouchers.view_remittance_audit",
+    )):
+        specs.append((RemittanceEvent, visible_remittance_batches(user), "treasury-remittance", "Treasury", "vouchers:remittance_detail", {
+            "submitted_for_accounting_review": "Submitted remittance for review",
+            "approved_for_release": "Approved remittance release", "returned_for_correction": "Returned remittance for correction",
+            "actual_remittance_released": "Recorded remittance release", "remittance_jev_posted": "Synchronized posted remittance",
+        }))
+    tasks = []
+    for model, visible, kind, area, route, labels in specs:
+        events = model.objects.filter(actor=user, batch__in=visible, action__in=labels).select_related("batch", "actor_department")
+        for event in events:
+            item = event.batch
+            if kind == "bank-advice":
+                # Treasury may submit Accounting advice across its established office boundary.
+                if event.action != "advice_submitted_to_bank" and event.actor_department_id != item.accounting_department_id:
+                    continue
+                reference, payload = f"{item.advice_number} v{item.version}", event.snapshot
+                scope = f"{department.name}; bank {item.bank_account_code}"
+            else:
+                expected_office = (item.treasury_department_id if event.action in (
+                    "submitted_for_accounting_review", "actual_remittance_released",
+                ) else item.finance_department_id)
+                if event.actor_department_id != expected_office:
+                    continue
+                reference, payload = item.reference_code, event.metadata
+                scope = f"{department.name}; fund {item.fund_code}"
+            event_id = _source_record_identity(f"{kind}-event", event.pk)
+            label = labels[event.action]
+            revision = _projection_checksum({
+                "event_id": str(event_id), "action": event.action, "actor_id": event.actor_id,
+                "actor_department_id": event.actor_department_id, "at": event.created_at.isoformat(),
+                "evidence": payload, "reason": event.reason, "source_id": str(item.public_id),
+                "current_state": item.status, "reference": reference,
+            })
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:{kind}-event:{event_id}:completed",
+                task_type=f"finance.{kind}.{event.action}.completed.v1", area=area,
+                case_id=f"{kind}:{item.public_id}", reference=reference, subject=label,
+                transaction_type="Recorded payment handoff", action="View recorded outcome",
+                gate=f"The retained event attributes this completed action to your account: {label}." + (f" Reason: {event.reason}" if event.reason else ""),
+                owner_queue=f"Recorded actor account: {user.get_username()}", scope=scope,
+                received_at=event.created_at, due_on=None, due_state="Recorded completion",
+                calendar_basis="Elapsed calendar days since this recorded action. The source's current state is shown separately.",
+                age_days=_age_days(event.created_at, today), state="Completed", source_state=item.get_status_display(),
+                source_version=f"event-sha256:{revision}", exception="",
+                url=reverse(route, kwargs={"public_id": item.public_id}),
+            ))
+    return tasks

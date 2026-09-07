@@ -3177,6 +3177,85 @@ class VoucherWorkflowTests(TestCase):
         case.refresh_from_db()
         self.assertEqual(case.current_stage, VoucherCase.TREASURY_RELEASE)
 
+    def test_personal_completed_advice_preserves_cross_office_submission_and_read_scope(self):
+        from django.contrib.auth.models import Group
+        from finance.work_tasks import finance_work_tasks
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        case = self.ready_for_treasury()
+        instrument = issue_check(case=case, actor=self.treasury_user, bank_account_code="gf-lbp",
+            fund_code="general-fund", check_number="HISTORY-001", amount=Decimal("900.00"),
+            expected_version=case.state_version, idempotency_key="history-issue")
+        case.refresh_from_db()
+        submit_checks_for_advice(case=case, actor=self.treasury_user, expected_version=case.state_version, idempotency_key="history-advice")
+        batch = create_advice_batch(actor=self.preparer, advice_number="HISTORY-ADV", advice_date=date(2026, 8, 31),
+            instruments=[instrument], preparation_note="Synthetic checked instruments",
+            authority_reference="Synthetic retained authority", local_applicability_note="Synthetic local route")
+        def rows(actor):
+            return [row for row in finance_work_tasks(actor, view="completed")["tasks"] if row["case_id"] == f"bank-advice:{batch.public_id}"]
+        self.assertEqual(rows(self.preparer), [])
+        submit_advice_for_review(batch=batch, actor=self.preparer)
+        original = rows(self.preparer)[0]
+        review_advice(batch=batch, actor=self.validator, approve=True, note="Checked signed control total")
+        record_advice_submission(batch=batch, actor=self.treasury_user, submission_reference="HISTORY-BANK", evidence_reference="Retained transmittal")
+        self.assertEqual([row["subject"] for row in rows(self.treasury_user)], ["Submitted advice to the bank"])
+        record_bank_response(batch=batch, actor=self.validator, acknowledged=False, response_reference="HISTORY-RETURN",
+            evidence_reference="Retained bank response", reason="Correct the advice date")
+        batch.refresh_from_db()
+        self.assertEqual({row["subject"] for row in rows(self.validator)}, {"Approved bank advice", "Recorded bank return"})
+        changed = rows(self.preparer)[0]
+        self.assertEqual(changed["task_id"], original["task_id"])
+        self.assertEqual(changed["received_at"], original["received_at"])
+        self.assertNotEqual(changed["source_version"], original["source_version"])
+        self.assertEqual(changed["source_state"], batch.get_status_display())
+        self.client.force_login(self.treasury_user)
+        self.assertEqual(self.client.get(rows(self.treasury_user)[0]["url"]).status_code, 200)
+        self.assertContains(self.client.get(reverse("finance_operations:my_work"), {"view": "completed"}), "Submitted advice to the bank")
+        self.treasury_user.user_permissions.remove(Permission.objects.get(content_type__app_label="vouchers", codename="submit_bank_advice"))
+        self.assertEqual(rows(self.treasury_user), [])
+        self.preparer.user_permissions.remove(Permission.objects.get(content_type__app_label="vouchers", codename="view_bank_advice"))
+        self.assertEqual(rows(self.preparer), [])
+        self.validator.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertEqual(rows(self.validator), [])
+
+    def test_personal_completed_remittance_tracks_actual_handoffs_and_resubmissions(self):
+        from finance.work_tasks import finance_work_tasks
+        from vouchers.models import RemittanceEvent
+        batch, _, _ = self._draft_remittance_handoff(stop_at="review")
+        def rows(actor):
+            return [row for row in finance_work_tasks(actor, view="completed")["tasks"] if row["case_id"] == f"treasury-remittance:{batch.public_id}"]
+        original = rows(self.treasury_user)[0]
+        review_batch(batch=batch, actor=self.validator, approve=False, reason="Recheck the retained return")
+        submit_batch(batch=batch, actor=self.treasury_user)
+        review_batch(batch=batch, actor=self.validator, approve=True, reason="Verified revised support")
+        source = release_batch(batch=batch, actor=self.treasury_user, release_reference="HISTORY-RELEASE", acknowledgement_reference="HISTORY-RECEIPT")
+        entry, _ = materialize_remittance_journal(source, self.preparer)
+        submit_entry(entry, self.preparer); entry.refresh_from_db()
+        post_entry(entry, self.validator); entry.refresh_from_db()
+        reconcile_posted_remittance_entry(entry, self.validator)
+        batch.refresh_from_db()
+        treasury_rows = rows(self.treasury_user)
+        self.assertEqual(len(treasury_rows), 3)
+        self.assertEqual(len({row["task_id"] for row in treasury_rows}), 3)
+        self.assertEqual({row["subject"] for row in treasury_rows}, {"Submitted remittance for review", "Recorded remittance release"})
+        retained = next(row for row in treasury_rows if row["task_id"] == original["task_id"])
+        self.assertEqual(retained["received_at"], original["received_at"])
+        self.assertNotEqual(retained["source_version"], original["source_version"])
+        self.assertEqual(retained["source_state"], batch.get_status_display())
+        self.assertEqual({row["subject"] for row in rows(self.validator)}, {
+            "Returned remittance for correction", "Approved remittance release", "Synchronized posted remittance",
+        })
+        self.assertEqual(rows(self.preparer), [])
+        self.client.force_login(self.treasury_user)
+        self.assertEqual(self.client.get(retained["url"]).status_code, 200)
+        before = rows(self.treasury_user)
+        RemittanceEvent.objects.create(batch=batch, actor=self.treasury_user, actor_department=self.accounting,
+            action="actual_remittance_released", from_status=batch.APPROVED, to_status=batch.ACCOUNTING_POSTING, state_version=2)
+        self.assertEqual(rows(self.treasury_user), before)
+        self.treasury_user.user_permissions.remove(*Permission.objects.filter(content_type__app_label="vouchers", codename__in=(
+            "view_remittance_workbench", "prepare_remittances", "approve_remittances", "release_remittances", "view_remittance_audit",
+        )))
+        self.assertEqual(rows(self.treasury_user), [])
+
     def test_f84_multi_case_advice_requires_review_bank_response_and_reasoned_successor(self):
         first_case = self.ready_for_treasury("-advice-a")
         second_case = self.ready_for_treasury("-advice-b")

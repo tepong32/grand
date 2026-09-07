@@ -4,13 +4,19 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-07
 
+Turning-point decisions are recorded separately in [the implementation decision log](docs/IMPLEMENTATION_DECISIONS.md), as requested by the user. Keep each choice tied to the canonical product goal, alternatives, tradeoffs, evidence and revisit conditions.
+
 ## How to resume
 
 The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.13 checkpoint - permissioned portable work export
+## Current v0.7.14 checkpoint - payment handoff completion
+
+User resumed autonomous work after the v0.7.13 pause. Branch: `codex/finance-payment-completion-history`, based on pushed `abfe160`. Extend attributed completion to bank-advice and remittance actions under current source read access, preserving cross-office Treasury advice submission. Verification: both focused payment-handoff tests passed in 3.328 seconds; all 553 project tests passed on the final source in 147.078 seconds. System, migration-drift, compilation and diff checks are clean. Commit/push, then extend personal Waiting through released remittance posting with source/journal action exclusion. Continue autonomous work under the user's latest request. Preserve the user database.
+
+## Prior v0.7.13 checkpoint - permissioned portable work export
 
 Branch: `codex/finance-work-portable-export`, based on pushed `5da4103` (v0.7.12). The current implementation is complete: explicitly administrator-assigned My Work export permission, bounded live CSV, scope/filter parity, retained checksum/manifest and audit event. No seeded role grants. Verification: both focused export tests passed in 4.289 seconds; all 551 project tests passed on the final source in 143.952 seconds. System, migration-drift, compilation and diff checks are clean. Synthetic Django-rendered layout checks passed in Edge at 1440px and 320px, with no mobile horizontal overflow. Commit/push this checkpoint, then remain PAUSED as the user requested. Do not begin another phase without a new continuation request. Deployment requires migration 0020 and an explicit permission grant; no live database migration or role grant was performed. Remaining future work includes broader Waiting/completion adapters and assignment/following/shared-view/notification rules. Production remains NO-GO pending the recorded functional and operational gates. Preserve the user database.
 
