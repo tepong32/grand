@@ -328,7 +328,7 @@ def dv_signature_task_queryset(user):
     ).filter(
         Q(case__voucher_template__isnull=True)
         | Q(case__voucher_template__controlled_print_required=False)
-        | Q(controlled_ready=True)
+        | Q(controlled_ready=True, case__tracepoint_item__isnull=False)
     ).select_related(
         "case", "case__requesting_department", "case__current_department", "custody_department",
     ).prefetch_related("case__print_jobs").order_by(

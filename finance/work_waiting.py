@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from django.db.models import Q
+from django.db.models import F, OuterRef, Q, Subquery
 from django.urls import reverse
 
 
@@ -107,24 +107,45 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             attribution=[item.created_by_id, item.submitted_by_id], due_on=item.due_date)
 
     from vouchers.case_exports import visible_cases_for_user
-    from vouchers.models import PayableIntake, VoucherCase
+    from vouchers.models import PayableIntake, VoucherCase, VoucherEvent, WetSignatureTask
 
     if can_view_workbench(user):
+        dv_stages = (VoucherCase.AWAITING_SIGNATURES, VoucherCase.ACCOUNTING_VALIDATION)
+        intake_owner = Q(payable_intake__prepared_by_id=user.pk) | Q(payable_intake__submitted_by_id=user.pk)
+        handoffs = VoucherEvent.objects.filter(
+            case_id=OuterRef("pk"), to_stage=OuterRef("current_stage"),
+        ).exclude(from_stage=F("to_stage")).order_by("-state_version", "-created_at", "-pk")
         cases = visible_cases_for_user(user).filter(
-            Q(current_stage=VoucherCase.PAYABLE_REVIEW, payable_intake__status=PayableIntake.FOR_REVIEW)
-            | Q(current_stage=VoucherCase.ACCOUNTING_PREPARATION, payable_intake__status=PayableIntake.READY),
-        ).filter(Q(payable_intake__prepared_by_id=user.pk) | Q(payable_intake__submitted_by_id=user.pk)).select_related(
-            "payable_intake", "requesting_department", "current_department",
-        )
+            (Q(current_stage=VoucherCase.PAYABLE_REVIEW, payable_intake__status=PayableIntake.FOR_REVIEW)
+             | Q(current_stage=VoucherCase.ACCOUNTING_PREPARATION, payable_intake__status=PayableIntake.READY)) & intake_owner
+            | Q(current_stage__in=dv_stages, disbursement_voucher__isnull=False)
+            & (intake_owner | Q(disbursement_voucher__prepared_by_id=user.pk)),
+        ).select_related(
+            "payable_intake", "disbursement_voucher", "requesting_department", "current_department",
+        ).annotate(_work_handoff_at=Subquery(handoffs.values("created_at")[:1]))
+        # Only already-authorized child actions suppress the parent handoff.
+        # Resolve this before the caller applies its display limit.
+        for task_pk, case_id in WetSignatureTask.objects.filter(case__in=cases).values_list("pk", "case__public_id"):
+            if f"wet-signature:{_source_record_identity('wet-signature', task_pk)}" in actionable:
+                actionable.add(f"voucher-case:{case_id}")
         for item in cases:
-            intake = item.payable_intake
-            reviewing = item.current_stage == VoucherCase.PAYABLE_REVIEW
+            intake = getattr(item, "payable_intake", None)
+            voucher = getattr(item, "disbursement_voucher", None)
             office = item.current_department.name if item.current_department else "office assignment missing"
-            queue = f"Accounting payable reviewers - {office}" if reviewing else f"Accounting DV preparers - {office}"
+            attribution = [intake.prepared_by_id, intake.submitted_by_id] if intake else []
+            if item.current_stage in dv_stages:
+                attribution.append(voucher.prepared_by_id)
+                received = item._work_handoff_at
+                queue = (f"DV custody and signature return - {office}" if item.current_stage == VoucherCase.AWAITING_SIGNATURES
+                         else f"Independent Accounting validation - {office}")
+            else:
+                reviewing = item.current_stage == VoucherCase.PAYABLE_REVIEW
+                received = intake.submitted_at if reviewing else intake.reviewed_at
+                queue = f"Accounting payable reviewers - {office}" if reviewing else f"Accounting DV preparers - {office}"
             add(item, kind="voucher-case", area="Voucher case", reference=item.reference_code,
-                subject=f"{item.payee_name} · {item.particulars}", received=intake.submitted_at if reviewing else intake.reviewed_at,
+                subject=f"{item.payee_name} · {item.particulars}", received=received,
                 queue=queue, scope=f"Requesting office: {item.requesting_department.name}; current processing office: {office}",
-                route="vouchers:case_detail", attribution=[intake.prepared_by_id, intake.submitted_by_id],
+                route="vouchers:case_detail", attribution=attribution,
                 status=item.current_stage, status_label=item.get_current_stage_display())
 
     from budget.access import can_view as can_view_budget, has_budget_permission

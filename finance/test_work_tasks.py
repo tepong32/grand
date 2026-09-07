@@ -1248,6 +1248,11 @@ class FinancePayableWorkTaskContractTests(TestCase):
         self.assertEqual(self.client.get(result["tasks"][0]["url"]).status_code, 200)
         ready.current_stage = VoucherCase.AWAITING_SIGNATURES; ready.save(update_fields=("current_stage",))
         self.assertEqual(finance_work_tasks(self.preparer, view="waiting")["task_count"], 1)
+        DisbursementVoucher.objects.create(
+            case=ready, dv_number="DV-PAYABLE-WAIT", voucher_date=timezone.localdate(),
+            gross_amount=Decimal("100.00"), total_deductions=Decimal("0.00"), net_amount=Decimal("100.00"),
+            prepared_by=self.reviewer, prepared_at=timezone.now())
+        self.assertEqual(finance_work_tasks(self.preparer, view="waiting")["task_count"], 2)
         self.preparer.user_permissions.clear()
         self.assertEqual(finance_work_tasks(self.preparer, view="waiting")["task_count"], 0)
 
@@ -1606,6 +1611,22 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
             {f"voucher-case:{item.public_id}" for item in expected.values()},
         )
 
+    def _attach_packet(self, item):
+        from tracepoint.models import PacketItem, TrackedPacket
+
+        packet = TrackedPacket.objects.create(
+            tracking_number=f"DV-PACKET-{item.pk}", title="Synthetic counted signing packet",
+            contents_manifest="One retained signing copy.", expected_document_count=1,
+            origin_department=self.accounting, final_destination_department=self.accounting,
+            prepared_by=self.print_operator,
+        )
+        packet_item = PacketItem.objects.create(
+            reference_number=f"DV-ITEM-{item.pk}", origin_packet=packet, current_packet=packet,
+            title="Synthetic signing copy", created_by=self.print_operator,
+        )
+        item.tracepoint_item = packet_item
+        item.save(update_fields=("tracepoint_item",))
+
     def test_only_earliest_ready_signature_is_projected_for_controlled_copy(self):
         item = self._case(
             "DV-TASK-SIGN", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True,
@@ -1624,6 +1645,14 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         self.assertFalse(dv_signature_task_queryset(self.signature_operator).exists())
 
         job = self._print_job(item, VoucherPrintJob.AWAITING_SIGNATURES)
+        from vouchers.services import VoucherWorkflowError, record_signature_return
+
+        with self.assertRaisesMessage(VoucherWorkflowError, "TracePoint"):
+            record_signature_return(case=item, task=first, actor=self.signature_operator, note="Missing packet",
+                                    expected_version=item.state_version, idempotency_key="missing-packet")
+        self.assertFalse(dv_signature_task_queryset(self.signature_operator).exists())
+        self.assertEqual(item.events.count(), 0)
+        self._attach_packet(item)
         first_query = list(dv_signature_task_queryset(self.signature_operator))
         first_task = next(
             task for task in finance_work_tasks(self.signature_operator)["tasks"]
@@ -1645,6 +1674,60 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         )
         self.assertIn("step 2", next_task["reference"])
         self.assertEqual(job.status, VoucherPrintJob.AWAITING_SIGNATURES)
+
+    def test_dv_waiting_uses_retained_stage_handoff_and_current_preparer(self):
+        from vouchers.models import VoucherEvent
+
+        item = self._case("DV-WAIT-OWN", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True)
+        self._case("DV-WAIT-OTHER", stage=VoucherCase.AWAITING_SIGNATURES,
+                   with_voucher=True, dv_prepared_by=self.validator)
+        self._case("DV-WAIT-MISSING", stage=VoucherCase.AWAITING_SIGNATURES)
+        first = VoucherEvent.objects.create(
+            case=item, action="dv_prepared", from_stage=VoucherCase.ACCOUNTING_PREPARATION,
+            to_stage=item.current_stage, actor=self.preparer, actor_department=self.accounting,
+            state_version=1, idempotency_key="prepare")
+        VoucherEvent.objects.create(
+            case=item, action="wet_signature_returned", from_stage=item.current_stage,
+            to_stage=item.current_stage, actor=self.signature_operator, actor_department=self.accounting,
+            state_version=2, idempotency_key="partial")
+        tasks = finance_work_tasks(self.preparer, view="waiting")["tasks"]
+        self.assertEqual([task["reference"] for task in tasks], [item.reference_code])
+        self.assertEqual(tasks[0]["received_at"], first.created_at)
+        self.assertIsNone(tasks[0]["due_on"])
+        self.assertEqual(tasks[0]["url"], reverse("vouchers:case_detail", kwargs={"public_id": item.public_id}))
+        identity = tasks[0]["case_id"]
+        item.current_stage = VoucherCase.ACCOUNTING_VALIDATION
+        item.save(update_fields=("current_stage",))
+        tasks = finance_work_tasks(self.preparer, view="waiting")["tasks"]
+        self.assertEqual(tasks[0]["case_id"], identity)
+        self.assertIsNone(tasks[0]["received_at"])
+        self.assertIn("no retained handoff time", tasks[0]["exception"])
+        final = VoucherEvent.objects.create(
+            case=item, action="wet_signatures_completed", from_stage=VoucherCase.AWAITING_SIGNATURES,
+            to_stage=item.current_stage, actor=self.signature_operator, actor_department=self.accounting,
+            state_version=3, idempotency_key="complete")
+        task = finance_work_tasks(self.preparer, view="waiting")["tasks"][0]
+        self.assertEqual(task["received_at"], final.created_at)
+        self.assertIn("Independent Accounting validation", task["owner_queue"])
+        self.assertFalse(finance_work_tasks(self.uat, view="waiting")["tasks"])
+        item.current_stage = VoucherCase.ACCOUNTING_POSTING
+        item.save(update_fields=("current_stage",))
+        self.assertFalse(finance_work_tasks(self.preparer, view="waiting")["tasks"])
+
+    def test_dv_waiting_excludes_authorized_signature_children_before_limit(self):
+        for reference, controlled, packet in (("A-ACTION", True, True), ("B-LEGACY", False, False), ("Z-WAIT", True, False)):
+            item = self._case(reference, stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True,
+                              controlled=controlled, dv_prepared_by=self.signature_operator)
+            WetSignatureTask.objects.create(
+                case=item, round_number=1, sequence=1, role_code="department-head",
+                signatory_name_snapshot="Synthetic Head", position_snapshot="Head",
+                custody_department=self.accounting)
+            if controlled:
+                self._print_job(item, VoucherPrintJob.AWAITING_SIGNATURES)
+            if packet:
+                self._attach_packet(item)
+        result = finance_work_tasks(self.signature_operator, view="waiting", display_limit=1)
+        self.assertEqual([task["reference"] for task in result["tasks"]], ["Z-WAIT"])
 
     def test_projection_identity_is_stable_and_checksum_tracks_print_evidence(self):
         item = self._case(

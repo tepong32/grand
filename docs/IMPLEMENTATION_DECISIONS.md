@@ -157,10 +157,12 @@ D-012 scope update (v0.7.22): reproduction confirmed the three task-identity/sta
 
 ### D-013 — Extend DV Waiting only with exact signature-action exclusion
 
-- Date/checkpoint: 2026-09-08; planned after v0.7.22 verification.
+- Date/checkpoint: 2026-09-08; v0.7.23.
 - Decision: First align the controlled-signature selector with the source-required TracePoint link (FIN-GAP-014). Then extend attributed DV handoffs through signatures and independent validation, resolving authorized child signature tasks back to their voucher case before truncation.
 - Alternatives considered: exclude only actions with the same case-id prefix; regard an awaiting-signatures print job alone as a ready packet; introduce a separate authoritative DV waiting status.
 - Goal fit: a user should see actionable custody work or Waiting consistently with the actual source gate. One case identity should tie its child tasks to the same traceable transaction.
-- Tradeoff: the bounded next slice stops before journal/advice/exception handoffs, which have their own identities. Existing non-controlled/legacy signature rules remain the source policy; no new physical-signature authority is inferred from a recording action.
-- Evidence/status: selector/source gate mismatch and child identity mapping identified; reproduction and implementation pending.
+- Tradeoff: this bounded slice stops before journal/advice/exception handoffs, which have their own identities. Existing non-controlled/legacy signature rules remain the source policy; no new physical-signature authority is inferred from a recording action.
+- Evidence/status: the original queue/source mismatch reproduced (1 test, 1 failure, 2.110 seconds); selector repair and child identity mapping implemented. Verification: all nine focused DV tests passed in 3.594 seconds; all 579 project tests passed in 260.708 seconds. System, migration-drift, compilation and diff checks are clean. FIN-GAP-014 is verified.
 - Revisit when: later handoff identities and their current source gates have been audited.
+
+D-013 attribution/timing detail: retain intake preparer/submitter eligibility and add the current DV preparer for these DV stages. Use retained stage-transition time, excluding same-stage partial signatures; do not infer a deadline from the voucher date. Missing transition evidence remains visible. Work pauses after this checkpoint under the latest user instruction.

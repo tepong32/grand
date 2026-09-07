@@ -157,7 +157,9 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-014 - Controlled signature queue omits the packet-presence gate
 
 - Process/module: source signature action selector and My Work action parity.
-- Severity/status: **HIGH - OPEN**, identified 2026-09-08 during the next signature handoff audit.
+- Severity/status: **HIGH - VERIFIED**, reproduced and repaired in v0.7.23.
 - Code evidence: `dv_signature_task_queryset` accepts a matching awaiting-signatures print job without requiring the case's TracePoint item. `record_signature_return` requires both the matching job and a linked TracePoint item for controlled templates. The existing selector fixture likewise marks a job ready without linking an item.
 - Expected behavior: controlled signature tasks become actionable only with the source-required packet link; preserve the existing non-controlled/legacy source rules. Waiting exclusion must not rely on an action that the source rejects for missing custody evidence.
 - Next step: after FIN-GAP-012/013 verification, reproduce the queue/source mismatch, correct the shared selector, and regress packet gating and parent-case action exclusion before expanding signature Waiting. The source already rejects the missing-packet mutation; this finding concerns misleading action readiness.
+
+- FIN-GAP-014 reproduction: the source rejected the missing TracePoint packet while the selector still returned an actionable task (1 test, 1 failure, 2.110 seconds). The controlled selector now requires both the matching print job and the linked TracePoint item. Verification: all nine focused DV tests passed in 3.594 seconds; all 579 project tests passed in 260.708 seconds. System, migration-drift, compilation and diff checks are clean. FIN-GAP-014 is verified.
