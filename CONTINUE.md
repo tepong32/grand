@@ -10,7 +10,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.11 checkpoint - Budget service authority
+## Current v0.7.12 checkpoint - attributed Budget completion
+
+Branch: `codex/finance-budget-completed-work`, based on pushed `23bef64` (v0.7.11). Extend Completed by me to retained Budget call/proposal/consolidation/appropriation/allotment/obligation actions. Require exact current source read access and event actor/office/target consistency. Resolve appropriation events to their retained authority link; keep requesting-office obligation access. Verification: both focused Budget event-history tests passed in 2.928 seconds; all 549 project tests passed on the final source in 178.424 seconds. System, migration-drift, compilation and diff checks are clean. Commit/push, then start bounded My Work portable export. User confirmed that administrators assign its separate permission explicitly to selected users or groups; do not seed grants into operational roles. Preserve the user database.
+
+## Prior v0.7.11 checkpoint - Budget service authority
 
 Branch: `codex/finance-budget-service-authority`, based on pushed `1ae2af4` (v0.7.10). FIN-GAP-008 is reproduced, fixed and verified: all six services now require explicit action permission, current owning/requesting-office custody and UAT exclusion, with Finance-database atomicity. Source mutation controls and My Work action selectors match while read scopes remain intact. Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 547 project tests passed on the final source in 140.140 seconds. System, migration-drift, compilation and diff checks are clean. FIN-GAP-008 is verified; production remains NO-GO pending functional completion, operational scrutiny and LGU acceptance. Commit/push, then continue attributed Budget completion. Preserve the user database.
 

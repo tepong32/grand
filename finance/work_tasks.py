@@ -2817,8 +2817,9 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
         tasks.extend(_field_operation_tasks(user, department, today))
         tasks.extend(_local_form_tasks(user, department, today))
     if view == "completed":
-        from .work_completed import completed_accounting_tasks
+        from .work_completed import completed_accounting_tasks, completed_budget_tasks
         tasks = completed_accounting_tasks(user, department, today)
+        tasks.extend(completed_budget_tasks(user, department, today))
     elif view == "waiting":
         from .work_waiting import personal_waiting_tasks
         tasks = personal_waiting_tasks(user, department, today, tasks)
@@ -2840,7 +2841,7 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
         "tasks": [task.as_dict() for task in tasks[:display_limit]],
         "task_count": task_count,
         "tasks_truncated": task_count > display_limit,
-        "task_coverage": ("Attributed JEV submission/posting/return events", "Opening-balance submission and decision events", "Period-close and reopen decision events") if view == "completed" else ("Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review and release") if view == "waiting" else (
+        "task_coverage": ("Attributed Budget call, proposal, appropriation, allotment and obligation events", "Attributed JEV submission/posting/return events", "Opening-balance submission and decision events", "Period-close and reopen decision events") if view == "completed" else ("Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review and release") if view == "waiting" else (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls", "Opening-balance controls",
             "Voucher and remittance journal creation and posted-source synchronization",

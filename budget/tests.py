@@ -527,6 +527,97 @@ class AnnualBudgetPreparationTests(TestCase):
         self.assertEqual(self.client.get(reverse("budget:obligation_create")).status_code, 403)
         self.assertEqual(BudgetAuditEvent.objects.count(), before)
 
+    def test_completed_budget_work_uses_actor_events_and_current_source_access(self):
+        from django.contrib.auth.models import Group
+        from finance.work_tasks import finance_work_tasks
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        authority = self.make_executable_authority()
+        call = self.make_call()
+        self.add_ceiling(call)
+        call = transition_call(call, "submit", self.preparer)
+        call = transition_call(call, "publish", self.reviewer, "Reviewed ceilings")
+        proposal = self.make_version(call)
+        self.add_line(proposal)
+        proposal = transition_version(proposal, "submit", self.preparer)
+        proposal = transition_version(proposal, "return", self.reviewer, "Clarify work target")
+        proposal = transition_version(proposal, "submit", self.preparer)
+        proposal = transition_version(proposal, "approve", self.reviewer, "Accepted revised work target")
+        consolidate_versions(sources=[proposal], user=self.reviewer, title="Retained executive proposal", change_explanation="Approved sources")
+        reviewer_rows = finance_work_tasks(self.reviewer, view="completed")["tasks"]
+        self.assertEqual({row["subject"] for row in reviewer_rows}, {
+            "Published Budget call", "Returned Budget proposal", "Approved Budget proposal", "Consolidated Budget proposals",
+        })
+        prepared = finance_work_tasks(self.preparer, view="completed")
+        self.assertEqual(prepared["task_count"], 5)
+        proposal_rows = [row for row in prepared["tasks"] if row["case_id"] == f"budget-version:{proposal.public_id}"]
+        self.assertEqual(len(proposal_rows), 2)
+        self.assertEqual(len({row["task_id"] for row in proposal_rows}), 2)
+        self.assertTrue(all(row["source_state"] == proposal.get_status_display() for row in proposal_rows))
+
+        obligation = self.make_obligation_request(authority)
+        self.add_obligation_line(obligation)
+        obligation = transition_obligation_request(obligation, "submit", self.requester)
+        first = finance_work_tasks(self.requester, view="completed")["tasks"][0]
+        obligation = transition_obligation_request(obligation, "return", self.certifier, "Clarify supporting evidence")
+        obligation = transition_obligation_request(obligation, "submit", self.requester)
+        obligation = transition_obligation_request(obligation, "certify", self.certifier, "Verified revised support", "OBR-COMPLETED")
+        requester = finance_work_tasks(self.requester, view="completed")
+        self.assertEqual(requester["task_count"], 2)
+        self.assertEqual({row["source_state"] for row in requester["tasks"]}, {obligation.get_status_display()})
+        retained = next(row for row in requester["tasks"] if row["task_id"] == first["task_id"])
+        self.assertNotEqual(retained["source_version"], first["source_version"])
+        self.assertEqual(retained["received_at"], first["received_at"])
+        bounded = finance_work_tasks(self.requester, view="completed", display_limit=1)
+        self.assertEqual(bounded["task_count"], 2)
+        self.assertTrue(bounded["tasks_truncated"])
+        self.assertEqual(bounded["tasks"], requester["tasks"][:1])
+        self.client.force_login(self.requester)
+        self.assertEqual(self.client.get(retained["url"]).status_code, 200)
+        response = self.client.get("/finance/my-work/", {"view": "completed"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Submitted obligation request")
+        self.assertEqual(finance_work_tasks(self.certifier, view="completed")["task_count"], 2)
+
+        authorizer = finance_work_tasks(self.authorizer, view="completed")
+        self.assertEqual({row["subject"] for row in authorizer["tasks"]}, {"Authorized appropriation", "Posted allotment order"})
+        authority_row = next(row for row in authorizer["tasks"] if row["subject"] == "Authorized appropriation")
+        self.assertEqual(authority_row["url"], reverse("budget:authorization_detail", args=(authority.public_id,)))
+        self.authorizer.user_permissions.remove(Permission.objects.get(content_type__app_label="budget", codename="view_allotment_control"))
+        self.assertEqual(finance_work_tasks(self.authorizer, view="completed")["task_count"], 1)
+        self.requester.user_permissions.remove(Permission.objects.get(content_type__app_label="budget", codename="initiate_obligation_requests"))
+        self.assertEqual(finance_work_tasks(self.requester, view="completed")["task_count"], 0)
+        self.preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertEqual(finance_work_tasks(self.preparer, view="completed")["task_count"], 0)
+        self.reviewer.employeeprofile.assigned_department = self.other_office
+        self.reviewer.employeeprofile.save(update_fields=("assigned_department",))
+        self.assertEqual(finance_work_tasks(self.reviewer, view="completed")["task_count"], 0)
+
+    def test_completed_budget_work_rejects_unresolved_or_mismatched_authority_events(self):
+        from finance.work_tasks import finance_work_tasks
+        authority = self.make_authorized_appropriation()
+        other = self.make_authorized_appropriation(suffix="202")
+        before = finance_work_tasks(self.authorizer, view="completed")
+        self.assertEqual(before["task_count"], 2)
+        for snapshot in ({}, {"authorization_id": "invalid"}, {"authorization_id": str(other.public_id)}):
+            BudgetAuditEvent.objects.create(
+                department_id=self.budget_office.pk, department_label=self.budget_office.name,
+                target_type="budgetversion", target_id=str(authority.version.public_id),
+                action="appropriation_authorize", actor_id=self.authorizer.pk,
+                actor_label=self.authorizer.username, snapshot=snapshot,
+            )
+        BudgetAuditEvent.objects.create(
+            department_id=self.other_office.pk, department_label=self.other_office.name,
+            target_type="budgetversion", target_id=str(authority.version.public_id),
+            action="approve", actor_id=self.authorizer.pk, actor_label=self.authorizer.username,
+        )
+        BudgetAuditEvent.objects.create(
+            department_id=self.budget_office.pk, department_label=self.budget_office.name,
+            target_type="budgetversion", target_id=str(authority.version.public_id),
+            action="exported", actor_id=self.authorizer.pk, actor_label=self.authorizer.username,
+        )
+        self.assertEqual(finance_work_tasks(self.authorizer, view="completed"), before)
+
     def test_allotment_failed_audit_rolls_back_finance_movements_and_state(self):
         authorization = self.make_authorized_appropriation()
         order = self.make_allotment_order(authorization)
