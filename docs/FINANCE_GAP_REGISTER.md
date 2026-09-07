@@ -92,7 +92,13 @@ Initial advice assembly now projects eligible issued checks into stable tasks an
 ## FIN-GAP-008 - Budget transition service authority
 
 - Process/module: Budget call/proposal, appropriation, allotment and obligation transition services; consolidation.
-- Severity/status: **CRITICAL - OPEN**, identified while tracing Budget event attribution after v0.7.9. Budget completion-history expansion is blocked pending reproduction, remediation and verification. The isolated Accounting history slice can finish independently; production remains NO-GO.
+- Severity/status: **CRITICAL - VERIFIED** in v0.7.11, identified while tracing Budget event attribution after v0.7.9. Budget completion-history expansion may resume. The isolated Accounting history slice can finish independently; production remains NO-GO.
 - Code evidence: `budget/services.py` transition entry points check lifecycle and selected maker-checker identities, but do not consistently enforce explicit action permission, owning Budget office and UAT exclusion. Obligation submission/certification has some office checks, which do not replace permission/UAT checks.
 - Expected boundary: mirror the source view's action permission and owning/requesting-office authority at the service boundary; retain exact balance, immutable movement and maker-checker controls. Read scopes must not become mutation authority.
 - Next step: reproduce foreign-office, missing-permission and UAT proposal approval; audit all six write entry points, add guards and meaningful financial-chain regressions. No local acceptance or regulatory conclusion is inferred.
+
+- FIN-GAP-008 transaction evidence: all six write entry points use the default atomic decorator even though `FinanceDatabaseRouter` routes Budget models to `finance`. Add a deterministic post-movement audit-failure rollback test and move transaction ownership to the routed Finance database.
+
+- FIN-GAP-008 reproduction: the isolated proposal-review test failed for all three actors (foreign office, missing permission and UAT). The corrected allotment audit-failure fixture then failed independently: the order remained posted at state version 3 instead of remaining for review at version 2 after the synthetic persistence failure (1 test, 1 failure, 1.931 seconds). All six services now use the routed Finance transaction and explicit action/office/UAT guards; focused and full verification are pending.
+
+Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 547 project tests passed on the final source in 140.140 seconds. System, migration-drift, compilation and diff checks are clean. FIN-GAP-008 is verified; production remains NO-GO pending functional completion, operational scrutiny and LGU acceptance.

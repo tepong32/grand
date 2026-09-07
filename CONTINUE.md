@@ -10,7 +10,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.10 checkpoint - attributed Accounting completion
+## Current v0.7.11 checkpoint - Budget service authority
+
+Branch: `codex/finance-budget-service-authority`, based on pushed `1ae2af4` (v0.7.10). FIN-GAP-008 is reproduced, fixed and verified: all six services now require explicit action permission, current owning/requesting-office custody and UAT exclusion, with Finance-database atomicity. Source mutation controls and My Work action selectors match while read scopes remain intact. Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 547 project tests passed on the final source in 140.140 seconds. System, migration-drift, compilation and diff checks are clean. FIN-GAP-008 is verified; production remains NO-GO pending functional completion, operational scrutiny and LGU acceptance. Commit/push, then continue attributed Budget completion. Preserve the user database.
+
+## Prior v0.7.10 checkpoint - attributed Accounting completion
 
 Branch: `codex/finance-completed-work`, based on pushed `a2e3f6b` (v0.7.9). Project completed JEV, opening-balance and period-close/reopen actions only from successful retained events attributed to the signed-in user, under current source office/read access. Current source status remains distinct from historical action completion. Exclude generated opening JEV events to avoid duplicating batch-level posting. Verification: the focused attributed-history test passed in 2.099 seconds; all 543 project tests passed on the final source in 135.649 seconds. System, migration-drift, compilation and diff checks are clean. Synthetic rendered layout checks passed at 1440px and 320px with no horizontal overflow. FIN-GAP-008 was identified in Budget transition services while tracing future completion events. Finish this independent Accounting checkpoint, then reproduce/fix/verify that critical Budget authority gap before Budget completion expansion. Preserve the user's database.
 

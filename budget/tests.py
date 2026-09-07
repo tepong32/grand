@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -160,6 +160,7 @@ class AnnualBudgetPreparationTests(TestCase):
         self.add_ceiling(call)
         call = transition_call(call, "submit", self.preparer)
         self.assertEqual(call.status, BudgetCall.FOR_REVIEW)
+        self.preparer.user_permissions.add(Permission.objects.get(content_type__app_label="budget", codename="approve_budget_calls"))
         with self.assertRaisesMessage(ValidationError, "cannot approve"):
             transition_call(call, "publish", self.preparer)
         call = transition_call(call, "publish", self.reviewer, "Reviewed synthetic ceiling schedule.")
@@ -169,6 +170,27 @@ class AnnualBudgetPreparationTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "editable only"):
             ceiling.full_clean()
 
+    def test_proposal_review_rejects_foreign_office_missing_permission_and_uat(self):
+        from django.contrib.auth.models import Group
+        from django.core.exceptions import PermissionDenied
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        call = self.make_call(BudgetCall.PUBLISHED)
+        self.add_ceiling(call)
+        version = self.make_version(call)
+        self.add_line(version)
+        version = transition_version(version, "submit", self.preparer)
+        foreign = self.employee(self.other_office, "budget.review.foreign", "review_budget_proposals")
+        preview = self.employee(self.budget_office, "budget.review.preview", "review_budget_proposals")
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        before = (version.status, version.state_version, BudgetAuditEvent.objects.count())
+        for actor in (foreign, self.certifier, preview):
+            with self.subTest(actor=actor.username):
+                with transaction.atomic(using="finance"):
+                    with self.assertRaises(PermissionDenied):
+                        transition_version(version, "approve", actor, "Unauthorized synthetic approval")
+        version.refresh_from_db()
+        self.assertEqual((version.status, version.state_version, BudgetAuditEvent.objects.count()), before)
+
     def test_approved_proposal_stays_nonspendable_and_within_ceiling(self):
         call = self.make_call(BudgetCall.PUBLISHED)
         self.add_ceiling(call)
@@ -176,6 +198,7 @@ class AnnualBudgetPreparationTests(TestCase):
         self.add_line(version)
         version = transition_version(version, "submit", self.preparer)
         self.assertEqual(version.status, BudgetVersion.FOR_REVIEW)
+        self.preparer.user_permissions.add(Permission.objects.get(content_type__app_label="budget", codename="review_budget_proposals"))
         with self.assertRaisesMessage(ValidationError, "cannot approve"):
             transition_version(version, "approve", self.preparer, "Self review")
         version = transition_version(version, "approve", self.reviewer, "Compared to ceiling and work target.")
@@ -392,6 +415,7 @@ class AnnualBudgetPreparationTests(TestCase):
             created_by_label=self.preparer.username,
         )
         authorization = transition_authorization(authorization, "submit", self.preparer)
+        self.preparer.user_permissions.add(Permission.objects.get(content_type__app_label="budget", codename="authorize_appropriations"))
         with self.assertRaisesMessage(ValidationError, "cannot authorize"):
             transition_authorization(authorization, "authorize", self.preparer, "Self authorization")
         authorization = transition_authorization(
@@ -437,12 +461,92 @@ class AnnualBudgetPreparationTests(TestCase):
             from pathlib import Path
             self.assertEqual(len(list(Path(directory).rglob("*.manifest.json"))), 1)
 
+    def test_budget_service_boundaries_reject_unauthorized_actors_without_writes(self):
+        from django.contrib.auth.models import Group
+        from budget.access import BUDGET_ACTION_PERMISSIONS
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        authorization = self.make_executable_authority()
+        order = self.make_allotment_order(authorization, number="ARO-GUARD")
+        self.add_allotment_line(order, "60000")
+        obligation = self.make_obligation_request(authorization)
+        self.add_obligation_line(obligation)
+        call = authorization.version.budget_call
+        proposal = self.make_version(call)
+        self.add_line(proposal)
+        proposal.status = BudgetVersion.APPROVED
+        proposal.save(update_fields=("status",))
+        foreign = self.employee(self.other_office, "budget.guard.foreign", *BUDGET_ACTION_PERMISSIONS)
+        no_permission = self.employee(self.budget_office, "budget.guard.none", "view_budget_workspace")
+        preview = self.employee(self.budget_office, "budget.guard.preview", *BUDGET_ACTION_PERMISSIONS)
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        attempts = [
+            (lambda actor, action=action: transition_call(call, action, actor, "Synthetic reason"))
+            for action in ("submit", "publish", "return", "close")
+        ] + [
+            (lambda actor, action=action: transition_version(proposal, action, actor, "Synthetic reason"))
+            for action in ("submit", "approve", "return")
+        ] + [
+            (lambda actor, action=action: transition_authorization(authorization, action, actor, "Synthetic reason"))
+            for action in ("submit", "authorize", "return")
+        ] + [
+            (lambda actor, action=action: transition_allotment_order(order, action, actor, "Synthetic reason"))
+            for action in ("submit", "post", "return")
+        ] + [
+            (lambda actor, action=action: transition_obligation_request(obligation, action, actor, "Synthetic reason", "OBR-GUARD"))
+            for action in ("submit", "certify", "return")
+        ] + [lambda actor: consolidate_versions(sources=[proposal], user=actor, title="Forbidden copy", change_explanation="Synthetic reason")]
+        before = (BudgetAuditEvent.objects.count(), BudgetVersion.objects.count(), AllotmentMovement.objects.count(), ObligationMovement.objects.count())
+        for actor in (foreign, no_permission, preview):
+            for index, attempt in enumerate(attempts):
+                with self.subTest(actor=actor.username, action=index):
+                    with self.assertRaises(PermissionDenied):
+                        attempt(actor)
+        self.assertEqual((BudgetAuditEvent.objects.count(), BudgetVersion.objects.count(), AllotmentMovement.objects.count(), ObligationMovement.objects.count()), before)
+        for item in (call, proposal, authorization, order, obligation):
+            before_state = (item.status, item.state_version)
+            item.refresh_from_db()
+            self.assertEqual((item.status, item.state_version), before_state)
+
+    def test_uat_budget_actions_hidden_and_denied_while_reads_remain_available(self):
+        from django.contrib.auth.models import Group
+        from budget.access import BUDGET_ACTION_PERMISSIONS
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        preview = self.employee(self.budget_office, "budget.preview.views", *BUDGET_ACTION_PERMISSIONS, "view_allotment_control")
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        call = self.make_call()
+        self.client.force_login(preview)
+        response = self.client.get(reverse("budget:call_detail", args=(call.public_id,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["can_prepare"])
+        self.assertFalse(response.context["can_approve"])
+        before = BudgetAuditEvent.objects.count()
+        self.assertEqual(self.client.post(reverse("budget:call_action", args=(call.public_id, "submit"))).status_code, 403)
+        self.assertEqual(self.client.get(reverse("budget:call_create")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("budget:obligation_create")).status_code, 403)
+        self.assertEqual(BudgetAuditEvent.objects.count(), before)
+
+    def test_allotment_failed_audit_rolls_back_finance_movements_and_state(self):
+        authorization = self.make_authorized_appropriation()
+        order = self.make_allotment_order(authorization)
+        self.add_allotment_line(order, "60000")
+        order = transition_allotment_order(order, "submit", self.preparer)
+        before = (order.status, order.state_version, BudgetAuditEvent.objects.count())
+        with patch("budget.services.record_event", side_effect=RuntimeError("Synthetic audit persistence failure")):
+            with self.assertRaisesMessage(RuntimeError, "Synthetic audit persistence failure"):
+                transition_allotment_order(order, "post", self.authorizer, "Verified retained schedule")
+        order.refresh_from_db()
+        self.assertEqual((order.status, order.state_version, BudgetAuditEvent.objects.count()), before)
+        self.assertFalse(order.movements.exists())
+
     def test_allotment_release_posts_once_with_independent_control_and_exact_balances(self):
         authorization = self.make_authorized_appropriation()
         order = self.make_allotment_order(authorization)
         line = self.add_allotment_line(order, "60000")
         order = transition_allotment_order(order, "submit", self.preparer)
         self.assertEqual(order.status, AllotmentReleaseOrder.FOR_REVIEW)
+        self.preparer.user_permissions.add(Permission.objects.get(content_type__app_label="budget", codename="approve_allotment_releases"))
         with self.assertRaisesMessage(ValidationError, "cannot post"):
             transition_allotment_order(order, "post", self.preparer, "Self posting")
         order = transition_allotment_order(order, "post", self.authorizer, "Matched signed ARO and schedule total.")
@@ -665,7 +769,7 @@ class AnnualBudgetPreparationTests(TestCase):
         source = self.add_obligation_line(item)
         item = transition_obligation_request(item, "submit", self.requester)
         self.assertEqual(item.status, ObligationRequest.FOR_CERTIFICATION)
-        with self.assertRaisesMessage(ValidationError, "owning Budget office"):
+        with self.assertRaises(PermissionDenied):
             transition_obligation_request(item, "certify", self.requester, "Self certification", "OBR-2027-0001")
         item = transition_obligation_request(
             item, "certify", self.certifier, "Matched authority, classification, support, and unobligated allotment.", "OBR-2027-0001",

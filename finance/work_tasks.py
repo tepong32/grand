@@ -381,7 +381,7 @@ def _budget_control_exception(item):
 
 
 def _budget_tasks(user, department, today):
-    from budget.access import has_budget_permission
+    from budget.access import has_budget_permission, can_act_on_budget
     from budget.annual_exports import apply_annual_filters, next_annual_action
     from budget.control_exports import (
         apply_allotment_filters, apply_obligation_filters,
@@ -395,12 +395,12 @@ def _budget_tasks(user, department, today):
         return tasks
     version_specs = (
         (
-            has_budget_permission(user, "prepare_budget_proposals"),
+            can_act_on_budget(user, "prepare_budget_proposals"),
             "needs_preparation", "preparation", "Budget proposal preparers",
             "Draft or returned budget versions available to a proposal preparer.",
         ),
         (
-            has_budget_permission(user, "review_budget_proposals"),
+            can_act_on_budget(user, "review_budget_proposals"),
             "awaiting_proposal_review", "review", "Independent Budget proposal reviewers",
             "This submitted version awaits review, and the signed-in reviewer did not submit it.",
         ),
@@ -449,12 +449,12 @@ def _budget_tasks(user, department, today):
 
     allotment_specs = (
         (
-            has_budget_permission(user, "prepare_allotment_releases"),
+            can_act_on_budget(user, "prepare_allotment_releases"),
             "needs_preparation", "preparation", "Allotment order preparers",
             "This draft or returned order is editable in the acting Budget office before submission.",
         ),
         (
-            has_budget_permission(user, "approve_allotment_releases"),
+            can_act_on_budget(user, "approve_allotment_releases"),
             "awaiting_review", "review", "Independent allotment reviewers",
             "This submitted order awaits post-or-return review, and the signed-in reviewer did not submit it.",
         ),
@@ -497,8 +497,8 @@ def _budget_tasks(user, department, today):
             ))
 
     can_view_registry = has_budget_permission(user, "view_obligation_registry")
-    can_certify = has_budget_permission(user, "certify_obligations")
-    can_initiate = has_budget_permission(user, "initiate_obligation_requests")
+    can_certify = can_act_on_budget(user, "certify_obligations")
+    can_initiate = can_act_on_budget(user, "initiate_obligation_requests")
     obligation_specs = (
         (
             can_initiate and not (can_view_registry or can_certify),

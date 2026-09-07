@@ -5,9 +5,11 @@ from decimal import Decimal
 import hashlib
 import json
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.utils import timezone
+
+from .access import can_act_on_budget, department_for_user
 
 from .models import (
     AllotmentMovement, AllotmentOrderLine, AllotmentReleaseOrder,
@@ -15,6 +17,13 @@ from .models import (
     BudgetProposalLine, BudgetResourceEstimate, BudgetVersion, BudgetVersionSource,
     ObligationMovement, ObligationRequest, ObligationRequestLine, PayableObligationAllocation,
 )
+
+
+def _require_action(user, target, permission, *, requesting_office=False):
+    department = department_for_user(user)
+    owner_id = target.requesting_department_id if requesting_office else target.department_id
+    if not can_act_on_budget(user, permission) or not department or department.pk != owner_id:
+        raise PermissionDenied("This Budget action requires its explicit permission and current office custody.")
 
 
 def actor_label(user):
@@ -35,9 +44,10 @@ def record_event(target, action, user, reason="", snapshot=None):
     )
 
 
-@transaction.atomic
+@transaction.atomic(using="finance")
 def transition_call(call, action, user, reason=""):
     call = BudgetCall.objects.select_for_update().get(pk=call.pk)
+    _require_action(user, call, "approve_budget_calls" if action in ("publish", "return") else "prepare_budget_calls")
     now, label = timezone.now(), actor_label(user)
     if action == "submit" and call.status in (BudgetCall.DRAFT, BudgetCall.RETURNED):
         if not call.ceilings.exists():
@@ -88,9 +98,10 @@ def validate_version_for_submission(version):
         raise ValidationError("The proposal exceeds one or more approved department ceilings.")
 
 
-@transaction.atomic
+@transaction.atomic(using="finance")
 def transition_version(version, action, user, reason=""):
     version = BudgetVersion.objects.select_for_update().select_related("budget_call").get(pk=version.pk)
+    _require_action(user, version, "review_budget_proposals" if action in ("approve", "return") else "prepare_budget_proposals")
     now, label = timezone.now(), actor_label(user)
     if action == "submit" and version.status in (BudgetVersion.DRAFT, BudgetVersion.RETURNED):
         validate_version_for_submission(version)
@@ -129,12 +140,16 @@ def compare_versions(left, right):
     ]
 
 
-@transaction.atomic
+@transaction.atomic(using="finance")
 def consolidate_versions(*, sources, user, title, change_explanation):
     source_ids = [item.pk for item in sources]
     sources = list(BudgetVersion.objects.select_for_update().filter(pk__in=source_ids).select_related("budget_call", "fiscal_year"))
     if not sources:
         raise ValidationError("Choose at least one independently approved department proposal.")
+    if len(sources) != len(set(source_ids)):
+        raise ValidationError("A selected consolidation source no longer exists.")
+    for source in sources:
+        _require_action(user, source, "review_budget_proposals")
     first = sources[0]
     if any(item.status != BudgetVersion.APPROVED or item.kind != BudgetVersion.DEPARTMENT for item in sources):
         raise ValidationError("Only approved department proposal versions may be consolidated.")
@@ -183,9 +198,10 @@ def consolidate_versions(*, sources, user, title, change_explanation):
     return target
 
 
-@transaction.atomic
+@transaction.atomic(using="finance")
 def transition_authorization(authorization, action, user, reason=""):
     authorization = AppropriationAuthorization.objects.select_for_update().select_related("version").get(pk=authorization.pk)
+    _require_action(user, authorization, "authorize_appropriations" if action in ("authorize", "return") else "prepare_budget_proposals")
     now, label = timezone.now(), actor_label(user)
     if action == "submit" and authorization.status in (AppropriationAuthorization.DRAFT, AppropriationAuthorization.RETURNED):
         if authorization.review_status not in (AppropriationAuthorization.FAVORABLE, AppropriationAuthorization.CONDITIONAL):
@@ -337,11 +353,12 @@ def validate_allotment_order(order, *, lock_lines=False):
     return lines, projected
 
 
-@transaction.atomic
+@transaction.atomic(using="finance")
 def transition_allotment_order(order, action, user, reason=""):
     order = AllotmentReleaseOrder.objects.select_for_update().select_related(
         "authorization", "authorization__version", "fiscal_year"
     ).get(pk=order.pk)
+    _require_action(user, order, "approve_allotment_releases" if action in ("post", "return") else "prepare_allotment_releases")
     now, label = timezone.now(), actor_label(user)
     if action == "submit" and order.status in (AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED):
         validate_allotment_order(order, lock_lines=True)
@@ -513,11 +530,15 @@ def validate_obligation_request(request, *, lock_lines=False):
     return lines
 
 
-@transaction.atomic
+@transaction.atomic(using="finance")
 def transition_obligation_request(request, action, user, reason="", obligation_number=""):
     request = ObligationRequest.objects.select_for_update().select_related(
         "authorization", "authorization__version", "fiscal_year", "corrects"
     ).get(pk=request.pk)
+    _require_action(
+        user, request, "initiate_obligation_requests" if action == "submit" else "certify_obligations",
+        requesting_office=action == "submit",
+    )
     now, label = timezone.now(), actor_label(user)
     actor_department = getattr(getattr(user, "employeeprofile", None), "assigned_department", None)
     if action == "submit" and request.status in (ObligationRequest.DRAFT, ObligationRequest.RETURNED):

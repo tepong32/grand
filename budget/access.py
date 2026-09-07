@@ -8,6 +8,22 @@ def department_for_user(user):
     return getattr(getattr(user, "employeeprofile", None), "assigned_department", None)
 
 
+BUDGET_ACTION_PERMISSIONS = frozenset((
+    "prepare_budget_calls", "approve_budget_calls", "prepare_budget_proposals",
+    "review_budget_proposals", "authorize_appropriations", "prepare_allotment_releases",
+    "approve_allotment_releases", "initiate_obligation_requests", "certify_obligations",
+))
+
+
+def can_act_on_budget(user, codename):
+    from vouchers.roles import is_finance_uat_viewer
+    return (
+        codename in BUDGET_ACTION_PERMISSIONS
+        and not is_finance_uat_viewer(user)
+        and has_budget_permission(user, codename)
+    )
+
+
 def has_budget_permission(user, codename):
     department = department_for_user(user)
     if not department or not getattr(user, "is_active", False):
@@ -48,7 +64,8 @@ def budget_permission_required(codename):
         def wrapper(request, *args, **kwargs):
             if not request.user.is_authenticated:
                 return redirect_to_login(request.get_full_path())
-            if not has_budget_permission(request.user, codename):
+            check = can_act_on_budget if codename in BUDGET_ACTION_PERMISSIONS else has_budget_permission
+            if not check(request.user, codename):
                 raise PermissionDenied
             return view(request, *args, **kwargs)
         return wrapper

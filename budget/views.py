@@ -12,7 +12,7 @@ from src.export_archive import archive_export
 
 from accounting.models import FiscalYear
 
-from .access import budget_access_required, budget_permission_required, department_for_user, has_budget_permission
+from .access import budget_access_required, budget_permission_required, department_for_user, has_budget_permission, can_act_on_budget
 from .forms import (
     AllotmentOrderLineForm, AllotmentReleaseOrderForm, AppropriationAuthorizationForm,
     BudgetCallForm, BudgetCeilingForm, BudgetConsolidationForm, BudgetProposalLineForm,
@@ -98,8 +98,8 @@ def workspace(request):
         "kind_choices": BudgetVersion.KIND_CHOICES,
         "status_choices": BudgetVersion.STATUS_CHOICES,
         "attention_choices": ANNUAL_ATTENTION_CHOICES,
-        "can_prepare_calls": has_budget_permission(request.user, "prepare_budget_calls"),
-        "can_prepare_proposals": has_budget_permission(request.user, "prepare_budget_proposals"),
+        "can_prepare_calls": can_act_on_budget(request.user, "prepare_budget_calls"),
+        "can_prepare_proposals": can_act_on_budget(request.user, "prepare_budget_proposals"),
         "can_view_allotments": has_budget_permission(request.user, "view_allotment_control"),
         "can_view_obligations": any(has_budget_permission(request.user, code) for code in (
             "view_obligation_registry", "initiate_obligation_requests", "certify_obligations",
@@ -167,8 +167,8 @@ def call_detail(request, public_id):
     call = get_object_or_404(BudgetCall.objects.select_related("fiscal_year").prefetch_related("ceilings__fund", "versions"), public_id=public_id, department_id=department.pk)
     return render(request, "budget/call_detail.html", {
         "call": call,
-        "can_prepare": has_budget_permission(request.user, "prepare_budget_calls"),
-        "can_approve": has_budget_permission(request.user, "approve_budget_calls"),
+        "can_prepare": can_act_on_budget(request.user, "prepare_budget_calls"),
+        "can_approve": can_act_on_budget(request.user, "approve_budget_calls"),
     })
 
 
@@ -197,7 +197,7 @@ def call_action(request, public_id, action):
     department = department_for_user(request.user)
     call = get_object_or_404(BudgetCall, public_id=public_id, department_id=department.pk)
     permission = "approve_budget_calls" if action in ("publish", "return") else "prepare_budget_calls"
-    if not has_budget_permission(request.user, permission):
+    if not can_act_on_budget(request.user, permission):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     try:
@@ -235,8 +235,8 @@ def version_detail(request, public_id):
     return render(request, "budget/version_detail.html", {
         "version": version, "ceiling_rows": ceiling_differences(version), "events": events,
         "comment_form": BudgetReviewCommentForm(),
-        "can_prepare": has_budget_permission(request.user, "prepare_budget_proposals"),
-        "can_review": has_budget_permission(request.user, "review_budget_proposals"),
+        "can_prepare": can_act_on_budget(request.user, "prepare_budget_proposals"),
+        "can_review": can_act_on_budget(request.user, "review_budget_proposals"),
     })
 
 
@@ -302,7 +302,7 @@ def version_action(request, public_id, action):
     department = department_for_user(request.user)
     version = get_object_or_404(BudgetVersion, public_id=public_id, department_id=department.pk)
     permission = "review_budget_proposals" if action in ("approve", "return") else "prepare_budget_proposals"
-    if not has_budget_permission(request.user, permission):
+    if not can_act_on_budget(request.user, permission):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     try:
@@ -384,8 +384,8 @@ def authorization_detail(request, public_id):
     item = get_object_or_404(AppropriationAuthorization.objects.select_related("version", "version__fiscal_year").prefetch_related("schedule_lines"), public_id=public_id, department_id=department.pk)
     return render(request, "budget/authorization_detail.html", {
         "authorization": item,
-        "can_prepare": has_budget_permission(request.user, "prepare_budget_proposals"),
-        "can_authorize": has_budget_permission(request.user, "authorize_appropriations"),
+        "can_prepare": can_act_on_budget(request.user, "prepare_budget_proposals"),
+        "can_authorize": can_act_on_budget(request.user, "authorize_appropriations"),
     })
 
 
@@ -395,7 +395,7 @@ def authorization_action(request, public_id, action):
     department = department_for_user(request.user)
     item = get_object_or_404(AppropriationAuthorization, public_id=public_id, department_id=department.pk)
     permission = "authorize_appropriations" if action in ("authorize", "return") else "prepare_budget_proposals"
-    if not has_budget_permission(request.user, permission):
+    if not can_act_on_budget(request.user, permission):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     try:
@@ -460,7 +460,7 @@ def allotment_workspace(request):
         "kind_choices": AllotmentReleaseOrder.KIND_CHOICES,
         "status_choices": AllotmentReleaseOrder.STATUS_CHOICES,
         "attention_choices": ALLOTMENT_ATTENTION_CHOICES,
-        "can_prepare": has_budget_permission(request.user, "prepare_allotment_releases"),
+        "can_prepare": can_act_on_budget(request.user, "prepare_allotment_releases"),
     })
 
 
@@ -551,8 +551,8 @@ def allotment_detail(request, public_id):
     ]
     return render(request, "budget/allotment_detail.html", {
         "order": item, "line_rows": line_rows,
-        "can_prepare": has_budget_permission(request.user, "prepare_allotment_releases"),
-        "can_post": has_budget_permission(request.user, "approve_allotment_releases"),
+        "can_prepare": can_act_on_budget(request.user, "prepare_allotment_releases"),
+        "can_post": can_act_on_budget(request.user, "approve_allotment_releases"),
     })
 
 
@@ -639,7 +639,7 @@ def allotment_action(request, public_id, action):
     department = department_for_user(request.user)
     item = get_object_or_404(AllotmentReleaseOrder, public_id=public_id, department_id=department.pk)
     permission = "approve_allotment_releases" if action in ("post", "return") else "prepare_allotment_releases"
-    if not has_budget_permission(request.user, permission):
+    if not can_act_on_budget(request.user, permission):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     try:
@@ -731,8 +731,8 @@ def obligation_workspace(request):
         "selected_attention": selected_attention,
         "kind_choices": ObligationRequest.KIND_CHOICES, "form_choices": ObligationRequest.FORM_CHOICES,
         "status_choices": ObligationRequest.STATUS_CHOICES, "attention_choices": OBLIGATION_ATTENTION_CHOICES,
-        "can_initiate": has_budget_permission(request.user, "initiate_obligation_requests"),
-        "can_certify": has_budget_permission(request.user, "certify_obligations"),
+        "can_initiate": can_act_on_budget(request.user, "initiate_obligation_requests"),
+        "can_certify": can_act_on_budget(request.user, "certify_obligations"),
         "can_registry": can_registry,
     })
 
@@ -770,7 +770,8 @@ def obligation_register_export(request):
 
 @budget_access_required
 def obligation_create(request):
-    _require_obligation_permission(request.user, "initiate_obligation_requests")
+    if not can_act_on_budget(request.user, "initiate_obligation_requests"):
+        raise PermissionDenied
     department = department_for_user(request.user)
     form = ObligationRequestForm(request.POST or None, requesting_department=department)
     if request.method == "POST" and form.is_valid():
@@ -794,7 +795,8 @@ def obligation_create(request):
 
 @budget_access_required
 def obligation_edit(request, public_id):
-    _require_obligation_permission(request.user, "initiate_obligation_requests")
+    if not can_act_on_budget(request.user, "initiate_obligation_requests"):
+        raise PermissionDenied
     department = department_for_user(request.user)
     item = get_object_or_404(
         ObligationRequest, public_id=public_id, requesting_department_id=department.pk,
@@ -832,15 +834,16 @@ def obligation_detail(request, public_id):
     department = department_for_user(request.user)
     return render(request, "budget/obligation_detail.html", {
         "obligation": item, "line_rows": line_rows,
-        "can_edit": has_budget_permission(request.user, "initiate_obligation_requests") and item.requesting_department_id == department.pk,
-        "can_certify": has_budget_permission(request.user, "certify_obligations") and item.department_id == department.pk,
+        "can_edit": can_act_on_budget(request.user, "initiate_obligation_requests") and item.requesting_department_id == department.pk,
+        "can_certify": can_act_on_budget(request.user, "certify_obligations") and item.department_id == department.pk,
         "downstream_boundary": downstream_issuance_boundary(item),
     })
 
 
 @budget_access_required
 def obligation_line_create(request, public_id):
-    _require_obligation_permission(request.user, "initiate_obligation_requests")
+    if not can_act_on_budget(request.user, "initiate_obligation_requests"):
+        raise PermissionDenied
     department = department_for_user(request.user)
     item = get_object_or_404(
         ObligationRequest.objects.select_related("authorization"), public_id=public_id,
@@ -869,7 +872,8 @@ def obligation_line_create(request, public_id):
 
 @budget_access_required
 def obligation_line_edit(request, public_id, line_id):
-    _require_obligation_permission(request.user, "initiate_obligation_requests")
+    if not can_act_on_budget(request.user, "initiate_obligation_requests"):
+        raise PermissionDenied
     department = department_for_user(request.user)
     item = get_object_or_404(
         ObligationRequest.objects.select_related("authorization"), public_id=public_id,
@@ -901,7 +905,8 @@ def obligation_line_edit(request, public_id, line_id):
 @require_POST
 @budget_access_required
 def obligation_line_delete(request, public_id, line_id):
-    _require_obligation_permission(request.user, "initiate_obligation_requests")
+    if not can_act_on_budget(request.user, "initiate_obligation_requests"):
+        raise PermissionDenied
     department = department_for_user(request.user)
     item = get_object_or_404(
         ObligationRequest, public_id=public_id, requesting_department_id=department.pk,
@@ -921,9 +926,9 @@ def obligation_line_delete(request, public_id, line_id):
 def obligation_action(request, public_id, action):
     _require_obligation_permission(request.user, "initiate_obligation_requests", "certify_obligations")
     item = get_object_or_404(_obligation_scope(request.user), public_id=public_id)
-    if action == "submit" and not has_budget_permission(request.user, "initiate_obligation_requests"):
+    if action == "submit" and not can_act_on_budget(request.user, "initiate_obligation_requests"):
         raise PermissionDenied
-    if action in ("certify", "return") and not has_budget_permission(request.user, "certify_obligations"):
+    if action in ("certify", "return") and not can_act_on_budget(request.user, "certify_obligations"):
         raise PermissionDenied
     try:
         transition_obligation_request(

@@ -158,7 +158,7 @@ def _voucher_groups(user, department):
 
 
 def _budget_groups(user, department):
-    from budget.access import has_budget_permission
+    from budget.access import has_budget_permission, can_act_on_budget
     from budget.annual_exports import apply_annual_filters
     from budget.control_exports import (
         apply_allotment_filters, apply_obligation_filters, obligation_scope_for_user,
@@ -171,9 +171,9 @@ def _budget_groups(user, department):
 
     groups = []
     can_view_obligation_registry = has_budget_permission(user, "view_obligation_registry")
-    can_certify_obligations = has_budget_permission(user, "certify_obligations")
-    can_initiate_obligations = has_budget_permission(user, "initiate_obligation_requests")
-    if has_budget_permission(user, "prepare_budget_proposals"):
+    can_certify_obligations = can_act_on_budget(user, "certify_obligations")
+    can_initiate_obligations = can_act_on_budget(user, "initiate_obligation_requests")
+    if can_act_on_budget(user, "prepare_budget_proposals"):
         queryset, _kind, _status, _attention = apply_annual_filters(
             BudgetVersion.objects.filter(department_id=department.pk),
             attention="needs_preparation", actor=user,
@@ -183,7 +183,7 @@ def _budget_groups(user, department):
             count=queryset.count(), url=_queue_url("budget:workspace", attention="needs_preparation"),
             definition="Draft or returned budget versions available to a proposal preparer.", scope=department.name,
         ))
-    if has_budget_permission(user, "review_budget_proposals"):
+    if can_act_on_budget(user, "review_budget_proposals"):
         queryset, _kind, _status, _attention = apply_annual_filters(
             BudgetVersion.objects.filter(department_id=department.pk),
             attention="awaiting_proposal_review", actor=user,
@@ -193,7 +193,7 @@ def _budget_groups(user, department):
             count=queryset.count(), url=_queue_url("budget:workspace", attention="awaiting_proposal_review"),
             definition="Submitted budget versions awaiting a permitted independent review.", scope=department.name,
         ))
-    if has_budget_permission(user, "prepare_allotment_releases"):
+    if can_act_on_budget(user, "prepare_allotment_releases"):
         queryset, _kind, _status, _attention = apply_allotment_filters(
             AllotmentReleaseOrder.objects.filter(department_id=department.pk),
             attention="needs_preparation", actor=user,
@@ -203,7 +203,7 @@ def _budget_groups(user, department):
             count=queryset.count(), url=_queue_url("budget:allotment_workspace", attention="needs_preparation"),
             definition="Draft or returned allotment orders available to a preparer.", scope=department.name,
         ))
-    if has_budget_permission(user, "approve_allotment_releases"):
+    if can_act_on_budget(user, "approve_allotment_releases"):
         queryset, _kind, _status, _attention = apply_allotment_filters(
             AllotmentReleaseOrder.objects.filter(department_id=department.pk),
             attention="awaiting_review", actor=user,
