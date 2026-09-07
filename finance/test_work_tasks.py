@@ -747,6 +747,84 @@ class FinanceWorkTaskContractTests(TestCase):
         release.department = self.budget; release.save(update_fields=("department",))
         self.assertEqual(finance_work_tasks(self.worker, view="completed")["task_count"], 0)
 
+    def test_discovery_waiting_preserves_named_cross_office_access_and_review_target(self):
+        from .discovery_services import submit_discovery_decision, review_discovery_decision
+
+        today = timezone.localdate()
+        named_owner = self._employee("discovery.cross.office.owner", self.budget)
+        item = self._decision(code="WAIT-DISCOVERY", status=FinanceDiscoveryDecision.DRAFT, due_date=today + timedelta(days=3))
+        item.owner = named_owner; item.save()
+        submit_discovery_decision(item, named_owner)
+        result = finance_work_tasks(named_owner, view="waiting", display_limit=1)
+        self.assertEqual(result["task_count"], 1)
+        task = result["tasks"][0]
+        self.assertEqual(task["case_id"], f"discovery-decision:{item.public_id}")
+        self.assertEqual(task["due_on"], item.due_date)
+        self.assertIn("Retained local review target", task["calendar_basis"])
+        self.assertIn(self.reviewer.username, task["owner_queue"])
+        self.assertIn(self.accounting.name, task["scope"])
+        self.client.force_login(named_owner)
+        self.assertEqual(self.client.get(task["url"]).status_code, 200)
+        page = self.client.get(reverse("finance_operations:my_work"), {"view": "waiting"})
+        self.assertContains(page, "WAIT-DISCOVERY")
+        self.assertContains(page, "Retained local review target")
+        self.assertEqual(finance_work_tasks(self.reviewer, view="waiting")["task_count"], 0)
+        review_discovery_decision(item, self.reviewer, record=False, reason="Retain the exact local control.")
+        self.assertEqual(finance_work_tasks(named_owner, view="waiting")["task_count"], 0)
+        self.assertEqual(finance_work_tasks(named_owner, view="returned")["task_count"], 1)
+        submit_discovery_decision(item, named_owner)
+        self.assertEqual(finance_work_tasks(named_owner, view="waiting")["task_count"], 1)
+        named_owner.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertEqual(finance_work_tasks(named_owner, view="waiting")["task_count"], 0)
+
+    def test_discovery_completion_retains_attribution_without_claiming_scope_acceptance(self):
+        from .discovery_services import submit_discovery_decision, review_discovery_decision
+
+        today = timezone.localdate()
+        item = self._decision(code="HISTORY-DISCOVERY", status=FinanceDiscoveryDecision.DRAFT, due_date=today)
+        submit_discovery_decision(item, self.worker)
+        first_id = finance_work_tasks(self.worker, view="completed")["tasks"][0]["task_id"]
+        review_discovery_decision(item, self.reviewer, record=False, reason="Clarify the unresolved control.")
+        submit_discovery_decision(item, self.worker)
+        review_discovery_decision(item, self.reviewer, record=True, reason="Record the unresolved finding; keep its scope blocked.")
+        item.refresh_from_db()
+        self.assertTrue(item.is_current_blocker)
+        self.assertEqual(finance_work_tasks(self.worker, view="waiting")["task_count"], 0)
+        prepared = finance_work_tasks(self.worker, view="completed")
+        self.assertEqual(prepared["task_count"], 2)
+        self.assertIn(first_id, {task["task_id"] for task in prepared["tasks"]})
+        reviewed = finance_work_tasks(self.reviewer, view="completed", display_limit=1)
+        self.assertEqual(reviewed["task_count"], 2)
+        self.assertTrue(reviewed["tasks_truncated"])
+        task = reviewed["tasks"][0]
+        self.assertEqual(task["subject"], "Recorded discovery decision")
+        self.assertIn("Unresolved", task["exception"])
+        self.assertIn("scope remains blocked", task["exception"])
+        self.assertIn("does not itself establish local acceptance", task["gate"])
+        self.assertEqual(task["source_state"], item.get_status_display())
+
+    def test_discovery_history_requires_current_named_or_office_read_access(self):
+        from .discovery_services import submit_discovery_decision
+        from .models import FinanceAuditEvent
+
+        today = timezone.localdate()
+        named_owner = self._employee("discovery.history.owner", self.budget)
+        item = self._decision(code="READ-DISCOVERY", status=FinanceDiscoveryDecision.DRAFT, due_date=None)
+        item.owner = named_owner; item.save()
+        submit_discovery_decision(item, named_owner)
+        base = dict(department=self.accounting, actor=named_owner, target_type="financediscoverydecision",
+                    target_id=str(item.pk), action="discovery_decision_submitted")
+        for changes in ({"department": self.budget}, {"target_id": "missing"}, {"target_type": "financeconfigurationrelease"}):
+            FinanceAuditEvent.objects.create(**{**base, **changes})
+        self.assertEqual(finance_work_tasks(named_owner, view="completed")["task_count"], 1)
+        self.worker.user_permissions.clear()
+        self.assertEqual(finance_work_tasks(self.worker, view="waiting")["task_count"], 0)
+        named_owner.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertEqual(finance_work_tasks(named_owner, view="completed")["task_count"], 0)
+        named_owner.groups.clear()
+        named_owner.is_active = False; named_owner.save(update_fields=("is_active",))
+        self.assertEqual(finance_work_tasks(named_owner, view="completed")["task_count"], 0)
+
     def test_setup_release_tasks_separate_preparation_review_schedule_and_activation(self):
         today = timezone.localdate()
         draft = self._release(code="setup-draft", status="draft", effective_from=today + timedelta(days=10))

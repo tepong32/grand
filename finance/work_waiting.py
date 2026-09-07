@@ -15,7 +15,7 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
     from vouchers.models import BankAdviceBatch, RemittancePostingRequest, TreasuryRemittanceBatch
     from vouchers.remittance_register import visible_remittance_batches
     from vouchers.roles import is_finance_uat_viewer
-    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
+    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity, _due_state
 
     if is_finance_uat_viewer(user):
         return []
@@ -48,7 +48,7 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
         )
     tasks = []
 
-    def add(item, *, kind, area, reference, subject, received, queue, scope, route, attribution, source_id=None, route_kwargs=None):
+    def add(item, *, kind, area, reference, subject, received, queue, scope, route, attribution, source_id=None, route_kwargs=None, due_on=None):
         source_id = source_id if source_id is not None else item.public_id
         identity = f"{kind}:{source_id}"
         if identity in actionable:
@@ -59,7 +59,7 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             "received": received.isoformat() if received else None,
             "scope": scope, "queue": queue,
             "version": getattr(item, "state_version", getattr(item, "version", None)),
-            "reference": reference, "subject": subject,
+            "reference": reference, "subject": subject, "due_on": due_on.isoformat() if due_on else None,
         })
         tasks.append(FinanceWorkTask(
             task_id=f"finwork:v1:{identity}:waiting", task_type=f"finance.{kind}.waiting.v1",
@@ -67,8 +67,8 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             transaction_type=item._meta.verbose_name.title(), action="View submitted work",
             gate="You prepared or submitted this record. Its current handoff is with the named queue; no supported action on this record is available to you now.",
             owner_queue=queue, scope=scope, received_at=received,
-            due_on=None, due_state="No structured target",
-            calendar_basis="Elapsed calendar days since the retained handoff; document and ledger dates are not deadlines.",
+            due_on=due_on, due_state=_due_state(due_on, today) if due_on else "No structured target",
+            calendar_basis="Retained local review target for the named reviewer; age is elapsed calendar days since handoff. No working-day adjustment inferred." if due_on else "Elapsed calendar days since the retained handoff; document and ledger dates are not deadlines.",
             age_days=_age_days(received, today), state="Waiting", source_state=item.get_status_display(),
             source_version=f"projection-sha256:{revision}",
             exception="The source has no retained handoff time; age is unavailable." if missing_time else "",
@@ -88,6 +88,21 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
                 scope=f"{department.name}; FY {item.fiscal_year}", route="finance:release_detail",
                 attribution=[item.created_by_id, item.submitted_by_id], source_id=_source_record_identity("setup-release", item.pk),
                 route_kwargs={"pk": item.pk})
+
+    from .access import can_view_finance_discovery_decision
+    from .discovery_register import visible_discovery_decisions
+    from .models import FinanceDiscoveryDecision
+
+    decisions = visible_discovery_decisions(user).filter(status=FinanceDiscoveryDecision.SUBMITTED).filter(
+        Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk),
+    )
+    for item in decisions:
+        if not can_view_finance_discovery_decision(user, item):
+            continue
+        add(item, kind="discovery-decision", area="Finance decisions", reference=f"{item.code} v{item.version} · {item.phase}",
+            subject=item.question, received=item.submitted_at, queue=f"Named decision reviewer - {item.reviewer.get_username()}",
+            scope=f"{item.department.name}; {item.affected_scope}", route="finance:discovery_decision_detail",
+            attribution=[item.created_by_id, item.submitted_by_id], due_on=item.due_date)
 
     from budget.access import can_view as can_view_budget, has_budget_permission
     from budget.control_exports import obligation_scope_for_user

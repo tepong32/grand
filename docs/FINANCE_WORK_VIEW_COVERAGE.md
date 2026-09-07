@@ -2,12 +2,12 @@
 
 This table describes the implemented My Work views, not production or LGU acceptance. Current source authorization applies to every row. Ready/action coverage is detailed in [FINANCE_MY_WORK.md](FINANCE_MY_WORK.md); turning-point choices are in [IMPLEMENTATION_DECISIONS.md](IMPLEMENTATION_DECISIONS.md).
 
-Last reviewed: 2026-09-08, v0.7.19 verified implementation.
+Last reviewed: 2026-09-08, v0.7.20 verified implementation.
 
 | Source domain | Personal Waiting | Completed by me |
 | --- | --- | --- |
 | Finance setup releases | Own submitted releases; current authorized review actions excluded (v0.7.18) | Retained release transition events (v0.7.19) |
-| Discovery decisions | Next: retained preparer/submitter handoffs with named source read scope | Next: retained submission, return and recording events |
+| Discovery decisions | Retained preparer/submitter handoffs with named source read scope (v0.7.20) | Retained submission, return and recording events (v0.7.20) |
 | Budget proposals, allotments and obligations | Implemented for supported source review/certification handoffs | Retained Budget events implemented, including call/consolidation/appropriation actions |
 | Accounting JEVs | Own submitted JEVs, excluding current posting actions | Retained submission/posting/return events |
 | Opening balances | Submitted source handoffs | Retained submission, decision, posting and reconciliation events |
@@ -31,4 +31,4 @@ Last reviewed: 2026-09-08, v0.7.19 verified implementation.
 - The administrator-assigned portable export permission applies to the selected supported view. Coverage and truncation are retained with the export.
 - Assignment/following rules, governed shared views and notifications remain future work. They must build on the same source contract rather than create another authoritative queue.
 
-Next source adapter: discovery handoffs. Review each remaining domain's real authority, return/recovery path and attribution before adding its personal projections. Preserve the separate post-functional scrutiny and LGU acceptance gates.
+Next source adapter: payable review/DV-preparation handoffs on the shared voucher case. Review each remaining domain's real authority, return/recovery path and attribution before adding its personal projections. Preserve the separate post-functional scrutiny and LGU acceptance gates.

@@ -20,6 +20,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-008:** Extend setup handoff views from current source state and retained attribution, including existing governed exemptions.
 - **D-009:** Attribute setup completion only to retained release transition events.
 - **D-010:** Preserve named cross-office discovery access and the distinction between recorded evidence and accepted scope.
+- **D-011:** Continue with payable handoffs on the existing shared voucher identity.
 
 ### D-001 — Retained events determine personal completion
 
@@ -122,10 +123,20 @@ D-007 verification note: the first full run exposed two synthetic fixtures that 
 
 ### D-010 — Preserve named discovery custody and evidence meaning
 
-- Date/checkpoint: 2026-09-08; planned after v0.7.19 verification.
+- Date/checkpoint: 2026-09-08; implemented and verified in v0.7.20.
 - Decision: Extend personal discovery Waiting using retained preparer/submitter attribution and the source's named-owner/reviewer read scope, including existing cross-office access. Completion must come from retained submission/return/recording events, never from current status alone. A recorded unresolved decision remains unresolved and scope-blocking.
 - Alternatives considered: limit every discovery record to the current department; treat every assigned owner as having submitted work; label recorded discovery as local acceptance; invent submission deadlines.
 - Goal fit: the shared workflow should retain office accountability and exact evidence meaning. Named cross-office participation is existing authority, not an exception to hide. A stored review target should be identified as that target, not silently reassigned as the user's deadline.
 - Tradeoff: this adapter will cover discovery handoffs and recorded decisions; field-cycle and nested-record Waiting/history require their own source review. It does not modify discovery evidence locks, grants or acceptance rules.
-- Evidence/status: named source access, public identifiers and retained audit actions inspected; implementation and verification pending.
+- Evidence/status: named source access, public identifiers and retained audit actions inspected; adapters implemented; three focused tests and all 569 project tests passed.
 - Revisit when: local staffing or review policy changes the source contract, or further nested handoffs are added.
+
+### D-011 — Follow payable handoffs on the shared voucher case
+
+- Date/checkpoint: 2026-09-08; planned after v0.7.20 verification.
+- Decision: Prioritize payable review and accepted-payable DV preparation next in personal Waiting, then credit retained payable submission/return/acceptance events. Use the existing voucher-case identity so current related actions remove Waiting before truncation.
+- Alternatives considered: create a separate payable task lifecycle; call Accounting acceptance a payment approval; use the case's later current office as the historical review actor's office; jump directly to every downstream signature/bank/exception stage without auditing related-action exclusions.
+- Goal fit: this fills a handoff in the core Budget-to-Accounting transaction chain while preserving one traceable case. Payable readiness and authority to release payment remain separate decisions.
+- Tradeoff: the bounded first adapter ends at DV preparation; later voucher stages need explicit wet-signature, journal, advice and exception action mapping before claiming full-case Waiting. History retains the event's actor and office even after custody moves.
+- Evidence/status: source submission/review transitions, canonical task identities and current workbench visibility inspected; implementation and verification pending.
+- Revisit when: the downstream case-action identity audit supports extending Waiting through later stages.

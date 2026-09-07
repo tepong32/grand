@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.20 - personal discovery handoffs and history
+
+Personal discovery Waiting now uses retained preparer/submitter attribution and the current named-owner/reviewer or office read boundary, preserving established cross-office access. Stored review targets retain their local review meaning. Completed by me uses retained submission, return and recording events, with stable identities and current source access. Recording an unresolved finding remains distinct from LGU-confirmed acceptance and keeps the current named-scope blocker visible. Evidence locks and decision authority are unchanged. Verification: all three focused discovery handoff tests passed in 2.879 seconds; all 569 project tests passed in 149.738 seconds. System, migration-drift, compilation and diff checks are clean.
+
 ## v0.7.19 - attributed setup completion history
 
 Completed by me now includes retained setup release submission, return, approval, scheduling, activation, restoration and retirement actions attributed to the signed-in account. Current source read scope and event/target/office consistency are required. Repeated submissions keep separate stable event identities, and current release state remains distinct from historical completion. Draft creation or terminal status alone does not credit a handoff. Template/preflight and other child actions remain outside this adapter. Verification: both focused setup completion tests passed in 1.814 seconds; all 566 project tests passed in 215.253 seconds. System, migration-drift, compilation and diff checks are clean.

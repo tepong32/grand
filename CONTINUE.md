@@ -14,7 +14,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.19 checkpoint - attributed setup completion
+## Current v0.7.20 checkpoint - personal discovery handoffs
+
+Branch: `codex/finance-discovery-personal-handoffs`, based on pushed `e85288e`. Personal discovery Waiting now uses retained preparer/submitter attribution and the current named-owner/reviewer or office read boundary, preserving established cross-office access. Stored review targets retain their local review meaning. Completed by me uses retained submission, return and recording events, with stable identities and current source access. Recording an unresolved finding remains distinct from LGU-confirmed acceptance and keeps the current named-scope blocker visible. Evidence locks and decision authority are unchanged. Verification: all three focused discovery handoff tests passed in 2.879 seconds; all 569 project tests passed in 149.738 seconds. System, migration-drift, compilation and diff checks are clean. Continue remaining source handoff/history coverage after verification. Preserve the user database and side-document turning-point decisions.
+
+## Prior v0.7.19 checkpoint - attributed setup completion
 
 Branch: `codex/finance-setup-completion-history`, based on pushed `a1d3a7b`. Completed by me now includes retained setup release submission, return, approval, scheduling, activation, restoration and retirement actions attributed to the signed-in account. Current source read scope and event/target/office consistency are required. Repeated submissions keep separate stable event identities, and current release state remains distinct from historical completion. Draft creation or terminal status alone does not credit a handoff. Template/preflight and other child actions remain outside this adapter. Verification: both focused setup completion tests passed in 1.814 seconds; all 566 project tests passed in 215.253 seconds. System, migration-drift, compilation and diff checks are clean. Continue remaining source handoff/history coverage after verification. Preserve the user database and side-document turning-point decisions.
 

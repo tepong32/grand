@@ -268,3 +268,52 @@ def completed_setup_tasks(user, department, today):
             url=reverse("finance:release_detail", kwargs={"pk": item.pk}),
         ))
     return tasks
+
+
+def completed_discovery_tasks(user, department, today):
+    """Retain named cross-office access without equating recorded evidence to acceptance."""
+    from .access import can_view_finance_discovery_decision
+    from .discovery_register import visible_discovery_decisions
+    from .models import FinanceAuditEvent
+    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
+    from vouchers.roles import is_finance_uat_viewer
+
+    if not getattr(user, "is_active", False) or is_finance_uat_viewer(user):
+        return []
+    labels = {
+        "discovery_decision_submitted": "Submitted discovery decision for review",
+        "discovery_decision_returned": "Returned discovery decision for correction",
+        "discovery_decision_recorded": "Recorded discovery decision",
+    }
+    sources = {str(item.pk): item for item in visible_discovery_decisions(user)}
+    events = FinanceAuditEvent.objects.filter(actor_id=user.pk, target_type="financediscoverydecision", action__in=labels, target_id__in=sources)
+    tasks = []
+    for event in events:
+        item = sources.get(event.target_id)
+        if item is None or event.department_id != item.department_id or not can_view_finance_discovery_decision(user, item):
+            continue
+        event_id = _source_record_identity("discovery-decision-event", event.pk)
+        label = labels[event.action]
+        reference = f"{item.code} v{item.version} · {item.phase}"
+        revision = _projection_checksum({
+            "event_id": str(event_id), "action": event.action, "actor_id": event.actor_id,
+            "department_id": event.department_id, "at": event.created_at.isoformat(),
+            "snapshot": event.snapshot, "reason": event.reason, "source_id": str(item.public_id),
+            "current_state": item.status, "reference": reference,
+            "evidence_label": item.evidence_label, "scope_blocked": item.is_current_blocker,
+        })
+        tasks.append(FinanceWorkTask(
+            task_id=f"finwork:v1:discovery-decision-event:{event_id}:completed",
+            task_type=f"finance.discovery-decision.{event.action}.completed.v1", area="Finance decisions",
+            case_id=f"discovery-decision:{item.public_id}", reference=reference, subject=label,
+            transaction_type="Recorded discovery action", action="View recorded outcome",
+            gate=f"The retained event attributes this action to your account: {label}. Recording a finding does not itself establish local acceptance." + (f" Reason: {event.reason}" if event.reason else ""),
+            owner_queue=f"Recorded actor account: {user.get_username()}", scope=f"{item.department.name}; {item.affected_scope}",
+            received_at=event.created_at, due_on=None, due_state="Recorded completion",
+            calendar_basis="Elapsed calendar days since this recorded action. Current evidence and source state remain separate.",
+            age_days=_age_days(event.created_at, today), state="Completed", source_state=item.get_status_display(),
+            source_version=f"event-sha256:{revision}",
+            exception=f"Current evidence: {item.get_evidence_label_display()}." + (" The named scope remains blocked." if item.is_current_blocker else ""),
+            url=reverse("finance:discovery_decision_detail", kwargs={"public_id": item.public_id}),
+        ))
+    return tasks
