@@ -22,8 +22,16 @@ from .models import (
 )
 
 
+def can_act_on_advice(actor, permission):
+    from .roles import is_finance_uat_viewer
+    return not is_finance_uat_viewer(actor) and has_explicit_permission(actor, permission)
+
+
 def _require(actor, permission):
-    if not has_explicit_permission(actor, permission):
+    allowed = (has_explicit_permission(actor, permission)
+               if permission in ("vouchers.view_bank_advice", "vouchers.export_bank_advice")
+               else can_act_on_advice(actor, permission))
+    if not allowed:
         raise PermissionDenied
 
 
@@ -229,10 +237,12 @@ def create_advice_batch(
     return batch
 
 
-def _lock_batch(batch, expected_version):
+def _lock_batch(batch, expected_version, *, accounting_actor=None):
     locked = BankAdviceBatch.objects.select_for_update().select_related(
         "accounting_department", "configuration_release", "created_by",
     ).get(pk=batch.pk)
+    if accounting_actor is not None and locked.accounting_department_id != department_for_user(accounting_actor).pk:
+        raise PermissionDenied("This advice action belongs to its owning Accounting office.")
     if expected_version is not None and locked.state_version != expected_version:
         raise ValidationError("This advice changed after the page was opened. Reload before acting.")
     return locked
@@ -241,7 +251,7 @@ def _lock_batch(batch, expected_version):
 @transaction.atomic
 def submit_advice_for_review(*, batch, actor, expected_version=None):
     _require(actor, "vouchers.prepare_bank_advice")
-    locked = _lock_batch(batch, expected_version)
+    locked = _lock_batch(batch, expected_version, accounting_actor=actor)
     if locked.accounting_department != department_for_user(actor) or locked.status != locked.DRAFT:
         raise ValidationError("Only the owning Accounting office may submit a prepared draft.")
     _verify_snapshot(locked)
@@ -257,7 +267,7 @@ def submit_advice_for_review(*, batch, actor, expected_version=None):
 @transaction.atomic
 def review_advice(*, batch, actor, approve, note, expected_version=None):
     _require(actor, "vouchers.approve_bank_advice")
-    locked = _lock_batch(batch, expected_version)
+    locked = _lock_batch(batch, expected_version, accounting_actor=actor)
     note = str(note or "").strip()
     if locked.status != locked.FOR_REVIEW or not note:
         raise ValidationError("Review an advice awaiting decision and record the decision basis.")
@@ -325,7 +335,7 @@ def record_bank_response(
     reason="", expected_version=None,
 ):
     _require(actor, "vouchers.acknowledge_bank_advice")
-    locked = _lock_batch(batch, expected_version)
+    locked = _lock_batch(batch, expected_version, accounting_actor=actor)
     response_reference = str(response_reference or "").strip()
     evidence_reference = str(evidence_reference or "").strip()
     reason = str(reason or "").strip()
@@ -465,6 +475,10 @@ def decide_returned_instrument(
         "case", "instrument", "exception__policy", "prepared_by",
     ).get(pk=review.pk)
     case = VoucherCase.objects.select_for_update().get(pk=locked.case_id)
+    department = department_for_user(actor)
+    if (case.current_department_id != department.pk
+            or case.configuration_release.department_id != department.pk):
+        raise PermissionDenied("Returned-instrument decisions belong to the owning Accounting office.")
     if expected_version is not None and locked.state_version != expected_version:
         raise ValidationError("This returned-item review changed. Reload before acting.")
     if locked.status != locked.AWAITING_REVIEW or case.current_stage != VoucherCase.ACCOUNTING_RETURNED_ITEM:

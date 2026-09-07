@@ -103,6 +103,8 @@ def bank_advice_action_queryset(user, action, *, queryset=None):
     ):
         return base.none(), action if spec else "", spec
     base = base.filter(status__in=BANK_ADVICE_ATTENTION_STATUSES[action])
+    if action != "awaiting_bank_submission":
+        base = base.filter(accounting_department=department_for_user(user))
     if action == "awaiting_review":
         base = base.exclude(created_by=user).exclude(review_submitted_by=user)
     return base.distinct(), action, spec

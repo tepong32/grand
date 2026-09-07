@@ -2954,6 +2954,76 @@ class VoucherWorkflowTests(TestCase):
         self.assertFalse(any(field.name in {"gross_amount", "net_amount", "certified_amount"} for field in PacketItem._meta.fields))
         self.assertTrue(case.events.filter(action="tracepoint_item_linked", metadata__reference_number="TP-ITEM-001").exists())
 
+    def _advice_custody_fixture(self):
+        case = self.ready_for_treasury("-custody")
+        instrument = issue_check(case=case, actor=self.treasury_user,
+            bank_account_code="gf-lbp", fund_code="general-fund", check_number="CUSTODY-01",
+            amount=Decimal("900.00"), expected_version=case.state_version, idempotency_key="custody-issue")
+        case.refresh_from_db()
+        submit_checks_for_advice(case=case, actor=self.treasury_user,
+            expected_version=case.state_version, idempotency_key="custody-submit")
+        batch = create_advice_batch(actor=self.preparer, advice_number="CUSTODY-ADV", advice_date=date(2026, 8, 31),
+            instruments=[instrument], preparation_note="Synthetic matched check",
+            authority_reference="Synthetic reviewed authority", local_applicability_note="Synthetic accepted test route")
+        return case, instrument, batch
+
+    def test_advice_review_rejects_foreign_office_and_uat(self):
+        from django.contrib.auth.models import Group
+        from django.db import transaction
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        case, instrument, batch = self._advice_custody_fixture()
+        foreign = self.employee("advice.foreign", self.requesting)
+        preview = self.employee("advice.preview", self.accounting)
+        for actor in (foreign, preview):
+            actor.user_permissions.add(*Permission.objects.filter(content_type__app_label="vouchers", codename__in=(
+                "view_bank_advice", "prepare_bank_advice", "approve_bank_advice", "submit_bank_advice", "acknowledge_bank_advice")))
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        initial_events = batch.events.count()
+        for actor in (foreign, preview):
+            with self.assertRaises(PermissionDenied):
+                submit_advice_for_review(batch=batch, actor=actor)
+        with self.assertRaises(PermissionDenied):
+            create_advice_batch(actor=preview, advice_number="UAT-MUST-NOT-CREATE", advice_date=date(2026, 8, 31),
+                instruments=[instrument], preparation_note="Synthetic", authority_reference="Synthetic", local_applicability_note="Synthetic")
+        self.assertEqual(batch.events.count(), initial_events)
+        submit_advice_for_review(batch=batch, actor=self.preparer)
+        submitted_events = batch.events.count()
+        from vouchers.advice_register import bank_advice_action_queryset
+        for actor in (foreign, preview):
+            rows, *_ = bank_advice_action_queryset(actor, "awaiting_review", queryset=BankAdviceBatch.objects.all())
+            self.assertFalse(rows.exists())
+        for actor in (foreign, preview):
+            with self.subTest(actor=actor.username):
+                with transaction.atomic():
+                    with self.assertRaises(PermissionDenied):
+                        review_advice(batch=batch, actor=actor, approve=True, note="Unauthorized synthetic review")
+        batch.refresh_from_db(); instrument.refresh_from_db()
+        self.assertEqual(batch.status, batch.FOR_REVIEW)
+        self.assertEqual(instrument.status, instrument.ISSUED)
+        self.assertEqual(batch.events.count(), submitted_events)
+        self.client.force_login(preview)
+        response = self.client.get(reverse("vouchers:advice_detail", args=[batch.public_id]))
+        self.assertEqual(response.status_code, 200)
+        for key in ("can_prepare", "can_review", "can_submit", "can_acknowledge"):
+            self.assertFalse(response.context[key])
+        review_advice(batch=batch, actor=self.validator, approve=True, note="Independent synthetic review")
+        with self.assertRaises(PermissionDenied):
+            record_advice_submission(batch=batch, actor=preview, submission_reference="UAT-NO", evidence_reference="Synthetic")
+        # Preserve the documented Treasury submission role across office boundaries.
+        self.treasury_user.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="submit_bank_advice"))
+        record_advice_submission(batch=batch, actor=self.treasury_user, submission_reference="TREASURY-SUB", evidence_reference="Synthetic transmittal")
+        bank_events = batch.events.count()
+        for actor in (foreign, preview):
+            with self.assertRaises(PermissionDenied):
+                record_bank_response(batch=batch, actor=actor, acknowledged=True, response_reference="UNAUTHORIZED", evidence_reference="Synthetic")
+        batch.refresh_from_db(); case.refresh_from_db()
+        self.assertEqual(batch.status, batch.SUBMITTED)
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_BANK_ADVICE)
+        self.assertEqual(batch.events.count(), bank_events)
+        record_bank_response(batch=batch, actor=self.validator, acknowledged=True, response_reference="AUTHORIZED", evidence_reference="Synthetic bank response")
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.TREASURY_RELEASE)
+
     def test_f84_multi_case_advice_requires_review_bank_response_and_reasoned_successor(self):
         first_case = self.ready_for_treasury("-advice-a")
         second_case = self.ready_for_treasury("-advice-b")
@@ -3130,6 +3200,21 @@ class VoucherWorkflowTests(TestCase):
         review = exception.accounting_reviews.get()
         case.refresh_from_db()
         self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_RETURNED_ITEM)
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        outsider = self.employee("returned.review.foreign", self.requesting)
+        preview = self.employee("returned.review.preview", self.accounting)
+        for actor in (outsider, preview):
+            actor.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="review_returned_instruments"))
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        before_events = case.events.count()
+        for actor in (outsider, preview):
+            with self.assertRaises(PermissionDenied):
+                decide_returned_instrument(review=review, actor=actor, approve=False,
+                    decision_reason="Unauthorized decision", evidence_reference="Synthetic")
+        review.refresh_from_db()
+        self.assertEqual(review.status, review.AWAITING_REVIEW)
+        self.assertEqual(case.events.count(), before_events)
         decide_returned_instrument(
             review=review, actor=self.validator, approve=False,
             decision_reason="Clarify the exact bank return memorandum reference.",
@@ -3137,6 +3222,12 @@ class VoucherWorkflowTests(TestCase):
             expected_version=review.state_version,
         )
         review.refresh_from_db()
+        treasury_preview = self.employee("returned.clarify.preview", self.treasury)
+        treasury_preview.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="manage_payment_exceptions"))
+        treasury_preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        with self.assertRaises(PermissionDenied):
+            clarify_returned_instrument_review(review=review, actor=treasury_preview,
+                note="Unauthorized clarification", evidence_reference="Synthetic")
         clarified = clarify_returned_instrument_review(
             review=review, actor=self.treasury_user,
             note="Confirmed unpaid return; corrected memorandum reference and attached bank copy.",

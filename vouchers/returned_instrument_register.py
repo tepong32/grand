@@ -84,6 +84,7 @@ def returned_instrument_attention_queryset(user, attention):
     if spec["scope_kind"] == "accounting":
         query = query.filter(
             case__configuration_release__department=department,
+            case__current_department=department,
             case__current_stage=VoucherCase.ACCOUNTING_RETURNED_ITEM,
         ).exclude(prepared_by=user)
     else:

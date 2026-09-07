@@ -12,7 +12,7 @@ from finance.models import FinanceConfigurationItem
 
 from .access import department_for_user, has_explicit_permission, voucher_access_required
 from .advice import (
-    clarify_returned_instrument_review, create_advice_batch, decide_returned_instrument,
+    can_act_on_advice, clarify_returned_instrument_review, create_advice_batch, decide_returned_instrument,
     export_bank_advice_csv, record_advice_submission, record_bank_response,
     review_advice, submit_advice_for_review,
 )
@@ -70,12 +70,12 @@ def workspace(request):
         "batches": batches,
         "returned_reviews": reviews,
         "profile": finance_workspace_profile(request.user),
-        "can_prepare": has_explicit_permission(request.user, "vouchers.prepare_bank_advice"),
-        "can_review": has_explicit_permission(request.user, "vouchers.approve_bank_advice"),
-        "can_submit": has_explicit_permission(request.user, "vouchers.submit_bank_advice"),
-        "can_acknowledge": has_explicit_permission(request.user, "vouchers.acknowledge_bank_advice"),
-        "can_review_returns": has_explicit_permission(request.user, "vouchers.review_returned_instruments"),
-        "can_manage_returns": has_explicit_permission(request.user, "vouchers.manage_payment_exceptions"),
+        "can_prepare": can_act_on_advice(request.user, "vouchers.prepare_bank_advice"),
+        "can_review": can_act_on_advice(request.user, "vouchers.approve_bank_advice"),
+        "can_submit": can_act_on_advice(request.user, "vouchers.submit_bank_advice"),
+        "can_acknowledge": can_act_on_advice(request.user, "vouchers.acknowledge_bank_advice"),
+        "can_review_returns": can_act_on_advice(request.user, "vouchers.review_returned_instruments"),
+        "can_manage_returns": can_act_on_advice(request.user, "vouchers.manage_payment_exceptions"),
         "can_export": has_explicit_permission(request.user, "vouchers.export_bank_advice"),
         "status_choices": BankAdviceBatch.STATUS_CHOICES,
         "attention_choices": bank_advice_action_choices_for_user(request.user),
@@ -91,7 +91,7 @@ def workspace(request):
 
 @voucher_access_required
 def create(request):
-    if not has_explicit_permission(request.user, "vouchers.prepare_bank_advice"):
+    if not can_act_on_advice(request.user, "vouchers.prepare_bank_advice"):
         raise PermissionDenied
     form = BankAdviceBatchForm(request.POST or None, actor=request.user)
     if request.method == "POST" and form.is_valid():
@@ -111,7 +111,7 @@ def create(request):
 @voucher_access_required
 def successor(request, public_id):
     prior = _batch(public_id, request.user)
-    if not has_explicit_permission(request.user, "vouchers.prepare_bank_advice"):
+    if not can_act_on_advice(request.user, "vouchers.prepare_bank_advice"):
         raise PermissionDenied
     if prior.status not in (BankAdviceBatch.REVIEW_RETURNED, BankAdviceBatch.RETURNED):
         raise Http404
@@ -133,16 +133,17 @@ def successor(request, public_id):
 @voucher_access_required
 def detail(request, public_id):
     batch = _batch(public_id, request.user)
+    owns_accounting = batch.accounting_department_id == department_for_user(request.user).pk
     return render(request, "vouchers/advice/detail.html", {
         "batch": batch,
         "submit_form": AdviceStateForm(batch=batch),
         "review_form": BankAdviceReviewForm(batch=batch),
         "submission_form": BankAdviceSubmissionForm(batch=batch),
         "response_form": BankAdviceResponseForm(batch=batch),
-        "can_prepare": has_explicit_permission(request.user, "vouchers.prepare_bank_advice"),
-        "can_review": has_explicit_permission(request.user, "vouchers.approve_bank_advice"),
-        "can_submit": has_explicit_permission(request.user, "vouchers.submit_bank_advice"),
-        "can_acknowledge": has_explicit_permission(request.user, "vouchers.acknowledge_bank_advice"),
+        "can_prepare": owns_accounting and can_act_on_advice(request.user, "vouchers.prepare_bank_advice"),
+        "can_review": owns_accounting and can_act_on_advice(request.user, "vouchers.approve_bank_advice"),
+        "can_submit": can_act_on_advice(request.user, "vouchers.submit_bank_advice"),
+        "can_acknowledge": owns_accounting and can_act_on_advice(request.user, "vouchers.acknowledge_bank_advice"),
         "can_export": has_explicit_permission(request.user, "vouchers.export_bank_advice"),
     })
 

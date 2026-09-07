@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.4 — advice and returned-instrument custody
+
+- Deny foreign-office Accounting advice review/response and returned-instrument decisions at the service boundary; preserve explicitly permissioned Treasury bank submission.
+- Exclude UAT accounts from advice creation, mutation and returned-item clarification, including accidental permission combinations. Align detail action visibility and source selectors.
+- Reproduced both unauthorized advice approvals before remediation. Final verification: 3 focused tests passed in 5.389 seconds; all 532 project tests passed in 146.135 seconds. System, migration-drift, compilation and diff checks are clean.  production remains NO-GO.
+
 ## v0.7.3 — exact source-handoff work
 
 - Project current-office voucher/remittance journal creation and posted-source synchronization into My Work with stable source/action IDs, retained-evidence revisions and source-linked detail pages. Existing draft and submitted journals remain their own tasks.
