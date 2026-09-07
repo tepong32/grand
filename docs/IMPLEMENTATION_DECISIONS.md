@@ -22,6 +22,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-010:** Preserve named cross-office discovery access and the distinction between recorded evidence and accepted scope.
 - **D-011:** Continue with payable handoffs on the existing shared voucher identity.
 - **D-012:** Verify and close the signature task identity/state boundary before expanding signature projections.
+- **D-013:** Match signature packet gates and map child actions back to the shared case before extending DV Waiting.
 
 ### D-001 — Retained events determine personal completion
 
@@ -149,5 +150,17 @@ D-007 verification note: the first full run exposed two synthetic fixtures that 
 - Alternatives considered: rely on the view having loaded the task; rely only on a case version; add the projection before verifying the source boundary.
 - Goal fit: a single traceable transaction history depends on trustworthy recorded custody. Source locking must protect the stored task identity and prior return attribution, not just the parent case.
 - Tradeoff: another targeted source fix precedes downstream dashboard coverage. It must preserve normal ordered recording, controlled-print gates and idempotency while rejecting stale/cross-case input.
-- Evidence/status: service inspection complete; isolated reproduction and verification pending. No actual user-data misuse is claimed.
+- Evidence/status: service inspection and reproduction complete; five focused tests and all 577 project tests passed. No actual user-data misuse is claimed.
 - Revisit when: regression proves the stored case/task boundary and normal signature flow remain correct.
+
+D-012 scope update (v0.7.22): reproduction confirmed the three task-identity/state paths plus combined UAT/signature permission (5 tests, 4 failures). Inspection found the latter comes from the shared voucher-service mutation guard; its callers mutate case workflow, evidence or outputs. Fix that shared guard, preserving separate raw read predicates, instead of guarding only the signature function. FIN-GAP-013 records this related authority finding. Stored task identity, status, round and sequence are reloaded under the authorized case lock. Verification passed: five focused tests and all 577 project tests. No user data was used.
+
+### D-013 — Extend DV Waiting only with exact signature-action exclusion
+
+- Date/checkpoint: 2026-09-08; planned after v0.7.22 verification.
+- Decision: First align the controlled-signature selector with the source-required TracePoint link (FIN-GAP-014). Then extend attributed DV handoffs through signatures and independent validation, resolving authorized child signature tasks back to their voucher case before truncation.
+- Alternatives considered: exclude only actions with the same case-id prefix; regard an awaiting-signatures print job alone as a ready packet; introduce a separate authoritative DV waiting status.
+- Goal fit: a user should see actionable custody work or Waiting consistently with the actual source gate. One case identity should tie its child tasks to the same traceable transaction.
+- Tradeoff: the bounded next slice stops before journal/advice/exception handoffs, which have their own identities. Existing non-controlled/legacy signature rules remain the source policy; no new physical-signature authority is inferred from a recording action.
+- Evidence/status: selector/source gate mismatch and child identity mapping identified; reproduction and implementation pending.
+- Revisit when: later handoff identities and their current source gates have been audited.

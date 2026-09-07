@@ -60,7 +60,10 @@ STAGE_PERMISSION = {
 
 
 def _require(actor, permission):
-    if not has_explicit_permission(actor, permission):
+    """Authority for voucher service mutations; preview reads use separate predicates."""
+    from .roles import is_finance_uat_viewer
+
+    if is_finance_uat_viewer(actor) or not has_explicit_permission(actor, permission):
         raise PermissionDenied
 
 
@@ -1412,6 +1415,10 @@ def record_signature_return(*, case, task, actor, note, expected_version, idempo
     if existing:
         return case
     _require_current_office(case, actor)
+    try:
+        task = WetSignatureTask.objects.select_for_update().get(pk=task.pk, case_id=case.pk)
+    except WetSignatureTask.DoesNotExist as exc:
+        raise VoucherWorkflowError("This wet-signature task does not belong to the locked voucher.") from exc
     if case.current_stage != VoucherCase.AWAITING_SIGNATURES or task.case_id != case.pk or task.status != WetSignatureTask.PENDING:
         raise VoucherWorkflowError("This wet-signature task is not awaiting return.")
     print_job = None

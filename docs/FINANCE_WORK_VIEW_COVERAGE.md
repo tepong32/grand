@@ -2,7 +2,7 @@
 
 This table describes the implemented My Work views, not production or LGU acceptance. Current source authorization applies to every row. Ready/action coverage is detailed in [FINANCE_MY_WORK.md](FINANCE_MY_WORK.md); turning-point choices are in [IMPLEMENTATION_DECISIONS.md](IMPLEMENTATION_DECISIONS.md).
 
-Last reviewed: 2026-09-08, v0.7.21 verified implementation.
+Last reviewed: 2026-09-08, v0.7.22 verified source-control repair. Personal view coverage remains at v0.7.21.
 
 | Source domain | Personal Waiting | Completed by me |
 | --- | --- | --- |
@@ -31,4 +31,4 @@ Last reviewed: 2026-09-08, v0.7.21 verified implementation.
 - The administrator-assigned portable export permission applies to the selected supported view. Coverage and truncation are retained with the export.
 - Assignment/following rules, governed shared views and notifications remain future work. They must build on the same source contract rather than create another authoritative queue.
 
-Next priority: reproduce and close FIN-GAP-012 before expanding signature handoff coverage. Review each remaining domain's real authority, return/recovery path and attribution before adding its personal projections. Preserve the separate post-functional scrutiny and LGU acceptance gates.
+Next priority: reproduce/fix FIN-GAP-014 and map child signature actions before extending DV Waiting. Review each remaining domain's real authority, return/recovery path and attribution before adding its personal projections. Preserve the separate post-functional scrutiny and LGU acceptance gates.

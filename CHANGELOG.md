@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.22 - signature custody and voucher mutation authority
+
+Wet-signature return now locks and reloads the stored task within the authorized voucher case before checking pending state, round and sequence. Caller-supplied stale state or altered linkage/order cannot overwrite prior custody or write another case. The shared voucher-service mutation guard also excludes UAT despite combined operational permissions; separate workbench read predicates remain intact. Original isolated reproduction accepted all four forbidden paths (5 tests, 4 failures). Normal ordered recording and same-key retry remain supported. FIN-GAP-012/013 are verified: all five focused boundary tests passed in 0.070 seconds; all 577 project tests passed in 162.985 seconds. System, migration-drift, compilation and diff checks are clean.
+
 ## v0.7.21 - personal payable handoffs
 
 Personal Waiting now follows attributed payable intake through independent Accounting review and accepted-payable DV preparation. Current workbench scope, consistent intake/case stages and the shared voucher-case identity govern visibility and action exclusion before truncation. Completion uses retained payable submission, return and acceptance events with historical actor-office attribution and current source access. Acceptance means readiness for DV preparation, not authorization to release payment. Later signature, journal, advice and exception Waiting remains outside this bounded adapter. Verification: all three focused payable tests passed in 2.093 seconds; all 572 project tests passed in 153.168 seconds, including service-generated handoffs in the full transaction replay. System, migration-drift, compilation and diff checks are clean.

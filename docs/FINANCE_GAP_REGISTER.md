@@ -138,7 +138,26 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-012 - Signature return trusts caller-supplied task state
 
 - Process/module: recorded wet-signature custody and immutable return attribution.
-- Severity/status: **CRITICAL - OPEN**, identified 2026-09-08 during the downstream case-action audit. Signature projection expansion is blocked until reproduction, remediation and verification. The independent payable checkpoint may finish.
+- Severity/status: **CRITICAL - VERIFIED**, reproduced and repaired in v0.7.22.
 - Code evidence: `record_signature_return` locks/reloads the case but validates `task.case_id`, `task.status`, round and sequence from the supplied model instance before saving that instance by its primary key. A stale or altered instance may therefore diverge from the locked case's stored task.
 - Expected behavior: re-fetch and lock the stored task within the authorized case before checking pending state, sequence and custody evidence. A completed return must not be overwritten, and an altered in-memory case link must not permit writing another case's task.
 - Next step: reproduce stale re-recording and altered task/case linkage with unchanged-state/audit assertions, then repair and verify before dependent signature handoff work. No real misuse or operational-data mutation is asserted.
+
+- FIN-GAP-012 reproduction: the original isolated tests accepted stale pending state, altered case linkage and altered sequence instead of raising the workflow error. In the same five-test run, combined UAT/signature permission was also accepted; normal ordered/idempotent recording passed (5 tests, 4 failures, 0.068 seconds). The supplied object is now reloaded and locked by stored primary key within the authorized case. FIN-GAP-012/013 are verified: all five focused boundary tests passed in 0.070 seconds; all 577 project tests passed in 162.985 seconds. System, migration-drift, compilation and diff checks are clean.
+
+## FIN-GAP-013 - Shared voucher mutation helper lacks UAT exclusion
+
+- Process/module: voucher service mutation authority, including signature recording.
+- Severity/status: **CRITICAL - VERIFIED**, reproduced and repaired in v0.7.22 while closing FIN-GAP-012.
+- Code evidence: `vouchers.services._require` checks raw explicit permission without UAT exclusion. Its callers are voucher service mutations, including case preparation, payable handoffs, DV/validation, payment, custody and generated case outputs. Read predicates are separate. The original combined-permission signature test completed instead of raising `PermissionDenied`.
+- Repair: exclude UAT at this shared mutation guard while preserving current explicit permission, office checks, normal governed exemptions and read-only workbench predicates. Other modules' separate guards are not changed by this helper repair.
+- Verification: isolated reproduction is part of the five-test signature boundary run (4 failures total); five focused tests and all 577 project tests passed. No real misuse or operational-data mutation is asserted.
+
+
+## FIN-GAP-014 - Controlled signature queue omits the packet-presence gate
+
+- Process/module: source signature action selector and My Work action parity.
+- Severity/status: **HIGH - OPEN**, identified 2026-09-08 during the next signature handoff audit.
+- Code evidence: `dv_signature_task_queryset` accepts a matching awaiting-signatures print job without requiring the case's TracePoint item. `record_signature_return` requires both the matching job and a linked TracePoint item for controlled templates. The existing selector fixture likewise marks a job ready without linking an item.
+- Expected behavior: controlled signature tasks become actionable only with the source-required packet link; preserve the existing non-controlled/legacy source rules. Waiting exclusion must not rely on an action that the source rejects for missing custody evidence.
+- Next step: after FIN-GAP-012/013 verification, reproduce the queue/source mismatch, correct the shared selector, and regress packet gating and parent-case action exclusion before expanding signature Waiting. The source already rejects the missing-packet mutation; this finding concerns misleading action readiness.
