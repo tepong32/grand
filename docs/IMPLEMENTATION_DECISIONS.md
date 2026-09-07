@@ -17,6 +17,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-005:** Carry personal Waiting through released remittance posting, excluding current related source/journal actions.
 - **D-006:** Fix the setup UAT mutation boundary before expanding setup projections.
 - **D-007:** Make the advertised pre-approval setup correction path usable before adding more setup dashboard coverage.
+- **D-008:** Extend setup handoff views from current source state and retained attribution, including existing governed exemptions.
 
 ### D-001 — Retained events determine personal completion
 
@@ -72,7 +73,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ### D-006 — Prioritize the setup UAT authority gap over dependent features
 
-- Date/checkpoint: 2026-09-08; identified during v0.7.15 review; remediation planned next.
+- Date/checkpoint: 2026-09-08; identified during v0.7.15 review and verified in v0.7.16.
 - Decision: Reproduce and close FIN-GAP-009 before implementing setup Waiting. Continue the independent remittance checkpoint through its existing test gate.
 - Alternatives considered: rely on hidden UAT buttons; add the new setup projection before addressing source authority.
 - Goal fit: least privilege and a trustworthy governed source are prerequisites for a useful office dashboard. Preview access must not silently become operational authority through combined groups.
@@ -85,10 +86,24 @@ D-006 update (2026-09-08): isolated reproduction confirmed all three setup mutat
 
 ### D-007 — Prefer a usable governed correction path over misleading review guidance
 
-- Date/checkpoint: 2026-09-08; FIN-GAP-010 identified, implementation pending.
+- Date/checkpoint: 2026-09-08; FIN-GAP-010 reproduced, implemented and verified in v0.7.17.
 - Decision: After the UAT authority fix, address the missing pre-approval setup return/correction flow. It must retain a reviewer reason and correction evidence, allow resubmission, and preserve the lock on approved/active records.
 - Alternatives considered: remove the words "or return" and leave no correction handoff; add a return button without a usable correction path; unlock approved data.
 - Goal fit: the end-to-end office workflow must handle corrections safely and clearly, rather than strand staff on an approval screen or require silent administrative edits.
 - Tradeoff: source correction work precedes additional setup Waiting coverage. The bounded implementation must be tested through return, correction, resubmission and independent approval; broader edit capabilities are not assumed.
-- Evidence/status: setup guidance advertises return, the release service lacks it, and preflight accepts draft templates only. Reproduction and implementation remain pending.
+- Evidence/status: original source rejected return with `Unsupported finance release action` (isolated test, 1 error). The return/correction implementation, 24 focused tests and 561 full project tests pass.
 - Revisit when: additional locally evidenced correction cases require their own guided source changes; preserve version and audit lineage.
+
+D-007 implementation choice (v0.7.17, verified): use a reasoned return from submitted to draft, retaining the previous submission attribution and immutable return event. Only an independent approver can return; the existing self-approval exemption does not imply self-return authority. Submitted child records return to draft together. Workbook correction retains the previous file under its original storage path and records before/after checksums; fresh preflight is mandatory. Release-first row locks coordinate correction/preflight with review. Approved/active records remain locked. This covers workbook replacement and missing preflight, not arbitrary edits to every setup master record. A failed database transaction can leave an unreferenced replacement file in storage; it cannot commit the correction without its audit event. Evidence retention/cleanup is deliberately separate from this source correction flow.
+
+### D-008 — Keep setup handoffs aligned with current source authority
+
+- Date/checkpoint: 2026-09-08; planned after v0.7.17 verification.
+- Decision: Start setup Waiting with submitted releases the user prepared/submitted. Project Returned only for current drafts with a retained return event; resubmission removes that label. Resolve stable source identities and filter actual actions before the display cap.
+- Alternatives considered: all office submissions; a separate persisted task status; treating effective dates as submission deadlines; ignoring an already authorized self-approval exemption.
+- Goal fit: the dashboard should explain the authoritative office workflow without duplicating its state or inventing timing/authority. Existing exemptions must remain explicit and governed, never automatically granted.
+- Tradeoff: approved/scheduled release waiting and broader source completion remain subsequent coverage. The existing setup review selector excludes all preparers, even when an active exemption permits source approval; align this selector before relying on it for Waiting exclusion, and distinguish approval under exemption from independent return.
+- Evidence/status: source review and selector inspection complete; implementation and verification pending. No permission grants or exemption changes are authorized by this projection work.
+- Revisit when: later lifecycle coverage or local operating evidence calls for additional handoff projections.
+
+D-007 verification note: the first full run exposed two synthetic fixtures that preflighted templates under already-active releases. They now preflight during draft fixture construction before synthetic activation. The stricter current-parent-state check remains in place; the final full run passed all 561 tests in 143.087 seconds.

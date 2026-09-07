@@ -27,7 +27,7 @@ from .services import (
     FinanceTemplateError, build_finance_starter_workbook, create_payment_event_posting_starters,
     create_recognition_posting_starter,
     evaluate_readiness, inspect_finance_workbook, payment_event_policy_error, posting_rule_snapshot, preflight_finance_template,
-    record_event, synthetic_preview, transition_release,
+    correct_finance_template, record_event, synthetic_preview, transition_release,
 )
 
 
@@ -117,6 +117,125 @@ class FinanceSetupCenterTests(TestCase):
         transition_release(self.release, "approve", self.approver, "Synthetic local Accounting review for automated testing.")
         self.release.refresh_from_db()
         return template
+
+    def test_submitted_release_can_be_returned_for_preflight_correction(self):
+        template = self._template()
+        item = self._item("fund")
+        transition_release(self.release, "submit", self.manager)
+        transition_release(self.release, "return", self.approver, "Correct workbook placements before approval.")
+        self.release.refresh_from_db(); template.refresh_from_db(); item.refresh_from_db()
+        self.assertEqual((self.release.status, template.status, item.status), ("draft", "draft", "draft"))
+        self.assertEqual(self.release.submitted_by_id, self.manager.pk)
+        event = self.release.events.get(action="return")
+        self.assertEqual(event.actor_id, self.approver.pk)
+        self.assertEqual(event.reason, "Correct workbook placements before approval.")
+        preflight_finance_template(template, self.manager)
+        transition_release(self.release, "submit", self.manager)
+        transition_release(self.release, "approve", self.approver, "Corrected workbook checked.")
+        self.release.refresh_from_db()
+        self.assertEqual(self.release.status, "approved")
+
+    def test_workbook_correction_retains_prior_evidence_and_requires_fresh_preflight(self):
+        import hashlib
+
+        template = self._template()
+        preflight_finance_template(template, self.manager)
+        old_name, old_checksum = template.workbook.name, template.workbook_checksum
+        with template.workbook.storage.open(old_name, "rb") as original:
+            old_payload = original.read()
+        transition_release(self.release, "submit", self.manager)
+        self.client.force_login(self.approver)
+        detail_url = reverse("finance:release_detail", args=[self.release.pk])
+        self.assertContains(self.client.get(detail_url), "Return for correction")
+        response = self.client.post(reverse("finance:release_action", args=[self.release.pk, "return"]), {"reason": "Adjust the workbook layout."})
+        self.assertEqual(response.status_code, 302)
+        self.client.force_login(self.manager)
+        correction_url = reverse("finance:template_correct", args=[template.pk])
+        self.assertContains(self.client.get(detail_url), "Correct workbook")
+        self.assertContains(self.client.get(correction_url), "Correction reason")
+        replacement = self._workbook(formula="=1+1")
+        response = self.client.post(correction_url, {"reason": "Corrected the local layout.", "workbook": SimpleUploadedFile("corrected.xlsx", replacement)})
+        self.assertEqual(response.status_code, 302)
+        template.refresh_from_db()
+        self.assertNotEqual(template.workbook.name, old_name)
+        self.assertIsNone(template.preflighted_at)
+        self.assertEqual((template.mapping, template.workbook_checksum, template.preflight_result), ({}, "", {}))
+        with template.workbook.storage.open(old_name, "rb") as retained:
+            self.assertEqual(retained.read(), old_payload)
+        event = self.release.events.get(action="workbook_corrected")
+        self.assertEqual(event.snapshot["correction"]["before"]["workbook"], old_name)
+        self.assertEqual(event.snapshot["correction"]["before"]["retained_workbook_checksum"], old_checksum)
+        self.assertEqual(event.snapshot["correction"]["replacement_checksum"], hashlib.sha256(replacement).hexdigest())
+        transition_release(self.release, "submit", self.manager)
+        with self.assertRaisesMessage(ValidationError, "pass preflight"):
+            transition_release(self.release, "approve", self.approver, "Cannot skip preflight.")
+        transition_release(self.release, "return", self.approver, "Run fresh preflight.")
+        template.refresh_from_db()
+        preflight_finance_template(template, self.manager)
+        transition_release(self.release, "submit", self.manager)
+        transition_release(self.release, "approve", self.approver, "Corrected evidence reviewed.")
+        self.assertEqual(self.client.get(correction_url).status_code, 403)
+        with self.assertRaises(ValidationError):
+            correct_finance_template(template, self.manager, SimpleUploadedFile("late.xlsx", replacement), "Too late")
+        with self.assertRaises(ValidationError):
+            preflight_finance_template(template, self.manager)
+        with self.assertRaises(ValidationError):
+            transition_release(self.release, "return", self.approver, "Cannot unlock approved data.")
+
+    def test_return_and_workbook_correction_enforce_authority_reason_and_current_state(self):
+        template = self._template()
+        transition_release(self.release, "submit", self.manager)
+        count = self.release.events.count()
+        for actor in (self.viewer, self.outsider, self.superuser):
+            with self.subTest(actor=actor.username), self.assertRaises(PermissionDenied):
+                transition_release(self.release, "return", actor, "Denied")
+        with self.assertRaisesMessage(ValidationError, "correction reason"):
+            transition_release(self.release, "return", self.approver, "  ")
+        self._grant(self.manager, "approve_finance_configuration")
+        manager = get_user_model().objects.get(pk=self.manager.pk)
+        with self.assertRaisesMessage(ValidationError, "different"):
+            transition_release(self.release, "return", manager, "Self return")
+        with self.assertRaises(ValidationError):
+            correct_finance_template(template, self.manager, SimpleUploadedFile("stale.xlsx", self._workbook()), "Stale draft object")
+        self.assertEqual(self.release.events.count(), count)
+        transition_release(self.release, "return", self.approver, "Independent correction request")
+        preview = self._employee("correction.preview", self.accounting)
+        self._grant(preview, "manage_finance_templates", "approve_finance_configuration", "view_finance_setup")
+        preview.groups.add(Group.objects.get_or_create(name="Finance UAT Viewer")[0])
+        for actor in (self.viewer, self.outsider, self.superuser, preview):
+            with self.subTest(actor=actor.username), self.assertRaises(PermissionDenied):
+                correct_finance_template(template, actor, SimpleUploadedFile("denied.xlsx", self._workbook()), "Denied")
+        with self.assertRaisesMessage(ValidationError, "correction reason"):
+            correct_finance_template(template, self.manager, SimpleUploadedFile("blank.xlsx", self._workbook()), " ")
+        with self.assertRaisesMessage(ValidationError, ".xlsx"):
+            correct_finance_template(template, self.manager, SimpleUploadedFile("wrong.xlsm", self._workbook()), "Wrong format")
+        transition_release(self.release, "submit", self.manager)
+        with self.assertRaises(PermissionDenied):
+            transition_release(self.release, "return", preview, "UAT remains read only")
+        self.client.force_login(preview)
+        self.assertEqual(self.client.post(reverse("finance:template_correct", args=[template.pk]), {}).status_code, 403)
+
+    def test_setup_correction_rolls_back_when_audit_retention_fails(self):
+        from unittest.mock import patch
+
+        template = self._template()
+        preflight_finance_template(template, self.manager)
+        old_name, old_checksum = template.workbook.name, template.workbook_checksum
+        transition_release(self.release, "submit", self.manager)
+        count = self.release.events.count()
+        with patch("finance.services.FinanceAuditEvent.objects.create", side_effect=RuntimeError("Audit unavailable")):
+            with self.assertRaises(RuntimeError):
+                transition_release(self.release, "return", self.approver, "Return must be retained")
+        self.release.refresh_from_db(); template.refresh_from_db()
+        self.assertEqual((self.release.status, template.status), ("submitted", "submitted"))
+        self.assertEqual(self.release.events.count(), count)
+        transition_release(self.release, "return", self.approver, "Correct with retained evidence")
+        with patch("finance.services.FinanceAuditEvent.objects.create", side_effect=RuntimeError("Audit unavailable")):
+            with self.assertRaises(RuntimeError):
+                correct_finance_template(template, self.manager, SimpleUploadedFile("rollback.xlsx", self._workbook()), "Correction must be retained")
+        template.refresh_from_db()
+        self.assertEqual((template.workbook.name, template.workbook_checksum), (old_name, old_checksum))
+        self.assertFalse(self.release.events.filter(action="workbook_corrected").exists())
 
     def test_explicit_roles_and_department_boundary_do_not_use_superuser_bypass(self):
         self.assertTrue(can_manage_finance_configuration(self.manager, self.accounting))

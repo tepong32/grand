@@ -499,6 +499,19 @@ def transition_release(release, action, actor, reason=""):
         release.numbering_sequences.filter(status="draft").update(status="submitted")
         release.transaction_variants.filter(status="draft").update(status="submitted")
         fields = ("status", "submitted_by", "submitted_at", "updated_at")
+    elif action == "return":
+        if not can_approve_finance_configuration(actor, release.department):
+            raise PermissionDenied
+        if release.status != "submitted":
+            raise ValidationError("Only submitted releases can be returned for correction.")
+        if actor.pk in {release.created_by_id, release.submitted_by_id}:
+            raise ValidationError("The reviewer returning a release must be different from its preparer and submitter.")
+        if not reason.strip():
+            raise ValidationError("Record the correction reason before returning the release.")
+        release.status = "draft"
+        for related_name in ("items", "templates", "signatories", "parties", "numbering_sequences", "transaction_variants"):
+            getattr(release, related_name).filter(status="submitted").update(status="draft")
+        fields = ("status", "updated_at")
     elif action == "approve":
         if not can_approve_finance_configuration(actor, release.department):
             raise PermissionDenied
@@ -788,8 +801,53 @@ def inspect_finance_workbook(payload, document_type="disbursement-voucher"):
     }
 
 
+def _lock_draft_template(template, actor):
+    # Release-first locking matches review transitions and serializes corrections/preflight.
+    release_id = FinanceTemplateVersion.objects.values_list("release_id", flat=True).get(pk=template.pk)
+    release = FinanceConfigurationRelease.objects.select_for_update().get(pk=release_id)
+    current = FinanceTemplateVersion.objects.select_for_update().get(pk=template.pk)
+    if not can_manage_finance_templates(actor, current.department):
+        raise PermissionDenied
+    if current.status != "draft" or release.status != "draft":
+        raise ValidationError("Only templates in a draft release can be corrected or preflighted.")
+    return current
+
+
+@transaction.atomic
+def correct_finance_template(template, actor, workbook, reason):
+    from uuid import uuid4
+
+    template = _lock_draft_template(template, actor)
+    if not reason.strip():
+        raise ValidationError("Record the workbook correction reason.")
+    if not workbook.name.lower().endswith(".xlsx"):
+        raise ValidationError("Upload a macro-free .xlsx workbook only.")
+    before = _snapshot(template)
+    before["retained_workbook_checksum"] = hashlib.sha256(_workbook_bytes(template)).hexdigest()
+    payload = workbook.read()
+    workbook.seek(0)
+    template.workbook.save(f"correction-{uuid4().hex}.xlsx", workbook, save=False)
+    template.mapping = {}
+    template.workbook_checksum = ""
+    template.mapping_checksum = ""
+    template.preflight_result = {}
+    template.preflighted_by = None
+    template.preflighted_at = None
+    template.full_clean()
+    template.save(update_fields=("workbook", "mapping", "workbook_checksum", "mapping_checksum", "preflight_result", "preflighted_by", "preflighted_at"))
+    snapshot = _snapshot(template)
+    snapshot["correction"] = {"before": before, "replacement_checksum": hashlib.sha256(payload).hexdigest()}
+    FinanceAuditEvent.objects.create(
+        department=template.department, release=template.release, target_type=template._meta.model_name,
+        target_id=str(template.pk), action="workbook_corrected", actor=actor, reason=reason.strip(), snapshot=snapshot,
+    )
+    return template
+
+
 @transaction.atomic
 def preflight_finance_template(template, actor):
+    _lock_draft_template(template, actor)
+    template.refresh_from_db()
     if not can_manage_finance_templates(actor, template.department):
         raise PermissionDenied
     if template.status != "draft":

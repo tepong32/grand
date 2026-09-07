@@ -54,7 +54,7 @@ from .forms import (
     FinanceCutoverQualificationPlanForm,
     FinanceShadowSourceUploadForm, FinanceSignatoryForm,
     FinanceStakeholderAcceptanceForm, FinanceStakeholderDecisionForm,
-    FinanceTemplateForm, FinanceStarterTemplateForm, FinanceTaxRuleForm, FinanceTransactionVariantForm,
+    FinanceTemplateCorrectionForm, FinanceTemplateForm, FinanceStarterTemplateForm, FinanceTaxRuleForm, FinanceTransactionVariantForm,
 )
 from .models import (
     FinanceAuditEvent, FinanceConfigurationRelease, FinanceCutoverDecision, FinanceCutoverReadinessExercise,
@@ -69,7 +69,7 @@ from .models import (
 from .services import (
     FinanceTemplateError, build_finance_starter_workbook, create_payment_event_posting_starters,
     create_recognition_posting_starter, evaluate_readiness, preflight_finance_template,
-    record_event, synthetic_preview, transition_release,
+    correct_finance_template, record_event, synthetic_preview, transition_release,
 )
 from .setup_register import (
     setup_attention_choices_for_user, setup_attention_queryset, setup_releases_for_department,
@@ -134,6 +134,8 @@ def release_detail(request, pk):
         "can_manage": can_manage_finance_configuration(request.user, department),
         "can_approve": can_approve_finance_configuration(request.user, department),
         "can_manage_templates": can_manage_finance_templates(request.user, department),
+        "can_return": can_approve_finance_configuration(request.user, department) and request.user.pk not in {release.created_by_id, release.submitted_by_id},
+        "correction_return": release.events.filter(action="return", target_type="financeconfigurationrelease", target_id=str(release.pk)).order_by("-created_at", "-pk").first() if release.status == "draft" else None,
     })
 
 
@@ -356,6 +358,26 @@ def claimant_create(request, party_pk):
         messages.success(request, "Authorized check claimant added to the draft party.")
         return redirect("finance:release_detail", pk=party.release_id)
     return render(request, "finance/form.html", {"form": form, "title": f"Add authorized claimant — {party.display_name}", "guidance": "Record a selectable claimant name and validity period; do not copy identity-document numbers into this label."})
+
+
+@finance_permission_required(can_manage_finance_templates)
+def template_correct(request, pk):
+    template = get_object_or_404(FinanceTemplateVersion.objects.select_related("release"), pk=pk, department=department_for_user(request.user))
+    if template.status != "draft" or template.release.status != "draft":
+        raise PermissionDenied
+    form = FinanceTemplateCorrectionForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            correct_finance_template(template, request.user, form.cleaned_data["workbook"], form.cleaned_data["reason"])
+        except (ValidationError, FinanceTemplateError) as exc:
+            form.add_error(None, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+        else:
+            messages.success(request, "Workbook correction retained. Run preflight again before submitting for review.")
+            return redirect("finance:release_detail", pk=template.release_id)
+    return render(request, "finance/form.html", {
+        "form": form, "title": f"Correct draft workbook — {template.title}", "multipart": True,
+        "guidance": "The previous workbook and correction reason remain in the audit evidence. This draft revision requires fresh preflight and independent release review.",
+    })
 
 
 @finance_permission_required(can_manage_finance_templates)

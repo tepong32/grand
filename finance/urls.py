@@ -34,6 +34,7 @@ urlpatterns = [
     path("parties/new/", views.party_create, name="party_create"),
     path("parties/<int:party_pk>/claimants/new/", views.claimant_create, name="claimant_create"),
     path("sequences/new/", views.sequence_create, name="sequence_create"),
+    path("templates/<int:pk>/correct/", views.template_correct, name="template_correct"),
     path("templates/new/", views.template_create, name="template_create"),
     path("templates/starter/", views.starter_template, name="starter_template"),
     path("templates/<int:pk>/preflight/", views.template_preflight, name="template_preflight"),

@@ -174,7 +174,7 @@ class VoucherWorkflowTests(TestCase):
 
         cls.release = FinanceConfigurationRelease.objects.create(
             department=cls.accounting, code="synthetic-pilot", version=1, title="Synthetic voucher pilot setup",
-            fiscal_year=timezone.localdate().year, status="active", effective_from=date(2026, 1, 1),
+            fiscal_year=timezone.localdate().year, status="draft", effective_from=date(2026, 1, 1),
             created_by=cls.preparer, activated_by=cls.validator, activated_at=timezone.now(),
         )
         for category, code, label in (
@@ -285,6 +285,8 @@ class VoucherWorkflowTests(TestCase):
             controlled_print_required=False, effective_from=date(2026, 1, 1), created_by=cls.preparer,
         )
         preflight_finance_template(cls.template, cls.preparer)
+        cls.release.status = "active"
+        cls.release.save(update_fields=("status",))
         cls.template.status = "active"; cls.template.save(update_fields=("status",))
 
     @classmethod

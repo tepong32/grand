@@ -685,7 +685,7 @@ class FinanceLocalFormAcceptanceTests(TestCase):
     def test_active_preflighted_finance_workbook_is_supported_source(self):
         release = FinanceConfigurationRelease.objects.create(
             department=self.department, code="f102-workbook-release", version=1,
-            title="Synthetic active workbook release", fiscal_year=2027, status="active",
+            title="Synthetic active workbook release", fiscal_year=2027, status="draft",
             effective_from=date(2027, 1, 1), created_by=self.preparer,
             approved_by=self.witness, approved_at=timezone.now(),
             activated_by=self.witness, activated_at=timezone.now(),
@@ -714,6 +714,8 @@ class FinanceLocalFormAcceptanceTests(TestCase):
             effective_from=date(2027, 1, 1), created_by=self.preparer,
         )
         preflight_finance_template(template, self.preparer)
+        release.status = "active"
+        release.save(update_fields=("status",))
         template.status = "active"
         template.full_clean()
         template.save(update_fields=("status",))

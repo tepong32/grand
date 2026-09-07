@@ -118,7 +118,9 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-010 - Setup review lacks its advertised correction return
 
 - Process/module: submitted Finance configuration review and pre-approval correction.
-- Severity/status: **HIGH - OPEN**, identified 2026-09-08 during source-coverage review.
+- Severity/status: **HIGH - VERIFIED**, reproduced and repaired in v0.7.17 for return, workbook correction and missing preflight. Broader master-data edit coverage is not implied.
 - Code evidence: `SETUP_ATTENTION_SPECS["awaiting_review"]` promises an approve-or-return decision, but `transition_release` implements no return action and the release detail offers only approval for a submitted release. Template preflight also accepts draft templates only, while submission moves them to submitted.
 - Expected behavior: an independent authorized reviewer can return a submitted, unapproved release with a retained reason; the preparer can make governed corrections and resubmit. Approved/active data must not be unlocked. The correction path must be usable for the affected evidence, not merely a new button.
 - Next step: after FIN-GAP-009 verification, reproduce the missing return and implement/regress a bounded pre-approval return/correction flow, preserving immutable audit evidence and normal approval gates. This is a source-workflow gap, not proof of local policy acceptance.
+
+- FIN-GAP-010 reproduction: original isolated return test failed with `Unsupported finance release action` (1 test, 1 error, 1.560 seconds). The bounded return/workbook-correction repair is implemented. FIN-GAP-010 is verified for the bounded return/workbook-correction flow: all 24 focused Finance tests passed in 3.942 seconds; all 561 project tests passed in 143.087 seconds. System, migration-drift, compilation and diff checks are clean. Synthetic review/correction layout checks cover desktop and 320px, with corrected narrow forms and wrapping draft actions.

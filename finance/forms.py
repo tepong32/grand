@@ -362,6 +362,17 @@ class FinancePostingRuleLineForm(forms.ModelForm):
             ).select_related("variant", "variant__release").order_by("variant__label", "event_kind")
 
 
+class FinanceTemplateCorrectionForm(forms.Form):
+    workbook = forms.FileField(label="Corrected XLSX workbook", widget=forms.ClearableFileInput(attrs={"class": "form-control-file", "style": "max-width:100%"}))
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3, "class": "form-control"}), label="Correction reason")
+
+    def clean_workbook(self):
+        workbook = self.cleaned_data["workbook"]
+        if not workbook.name.lower().endswith(".xlsx"):
+            raise forms.ValidationError("Upload a macro-free .xlsx workbook only.")
+        return workbook
+
+
 class FinanceTemplateForm(forms.ModelForm):
     class Meta:
         model = FinanceTemplateVersion
