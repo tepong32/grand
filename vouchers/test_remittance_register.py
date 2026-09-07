@@ -123,6 +123,15 @@ class RemittanceWorkRegisterTests(TestCase):
             ) else "",
         )
 
+    def test_personal_waiting_remittance_excludes_ready_release_and_other_preparers(self):
+        waiting = self._batch("REM-WAIT", status=TreasuryRemittanceBatch.FOR_REVIEW)
+        self._batch("REM-RELEASE", status=TreasuryRemittanceBatch.APPROVED)
+        other = self._batch("REM-OTHER", status=TreasuryRemittanceBatch.FOR_REVIEW)
+        TreasuryRemittanceBatch.objects.filter(pk=other.pk).update(created_by=self.reviewer, submitted_by=self.reviewer)
+        result = finance_work_tasks(self.preparer, view="waiting")
+        self.assertEqual([task["case_id"] for task in result["tasks"]], [f"treasury-remittance:{waiting.public_id}"])
+        self.assertEqual(finance_work_tasks(self.uat, view="waiting")["task_count"], 0)
+
     def test_preparation_source_workspace_group_and_exact_task_share_office_scope(self):
         own = self._batch("REM-TASK-OWN")
         hidden = self._batch("REM-TASK-HIDDEN", owner=self.other)

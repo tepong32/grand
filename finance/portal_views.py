@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render
+from django.http import Http404
 
 from .operations import finance_operations_access, finance_operations_areas
 from .work_attention import finance_work_attention
@@ -26,6 +27,11 @@ def my_work(request):
     access = finance_operations_access(request.user)
     if not access["allowed"]:
         raise PermissionDenied
+    selected_view = request.GET.get("view", "ready")
+    if selected_view not in ("ready", "waiting", "returned"):
+        raise Http404("Unknown work view.")
     attention = finance_work_attention(request.user)
-    attention.update(finance_work_tasks(request.user))
+    attention.update(finance_work_tasks(request.user, view=selected_view))
+    attention["selected_view"] = selected_view
+    attention["work_views"] = (("ready", "Ready for me"), ("waiting", "Waiting"), ("returned", "Returned"))
     return render(request, "finance/my_work.html", attention)

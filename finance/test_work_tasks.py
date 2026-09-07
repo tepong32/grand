@@ -1503,6 +1503,48 @@ class FinanceAccountingWorkTaskContractTests(TestCase):
         ))
 
 
+    def test_waiting_is_personal_currently_authorized_and_excludes_actionable_records(self):
+        own = self._entry("WAIT-OWN", status=JournalEntry.SUBMITTED, submitter=self.preparer)
+        self._entry("WAIT-OTHER", status=JournalEntry.SUBMITTED, creator=self.poster, submitter=self.poster)
+        self._entry("WAIT-DRAFT")
+        result = finance_work_tasks(self.preparer, view="waiting", display_limit=1)
+        self.assertEqual(result["task_count"], 1)
+        self.assertEqual(result["tasks"][0]["case_id"], f"journal-entry:{own.public_id}")
+        self.assertEqual(result["tasks"][0]["state"], "Waiting")
+        self.assertIsNone(result["tasks"][0]["due_on"])
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("finance_operations:my_work"), {"view": "waiting"})
+        self.assertContains(response, "Work you prepared or submitted")
+        self.assertEqual(response.context["task_count"], 1)
+        self.assertEqual(self.client.get(reverse("finance_operations:my_work"), {"view": "unknown"}).status_code, 404)
+        FinanceWorkflowExemption.objects.create(
+            department=self.accounting, control_code=FinanceWorkflowExemption.JOURNAL_PREPARER_SELF_POSTING,
+            subject_user=self.preparer, rationale="Synthetic named exemption", created_by=self.poster,
+        )
+        self.assertEqual(finance_work_tasks(self.preparer, view="waiting")["task_count"], 0)
+        self.assertEqual(finance_work_tasks(self.outsider, view="waiting")["task_count"], 0)
+        self.assertEqual(finance_work_tasks(self.uat, view="waiting")["task_count"], 0)
+        self.preparer.user_permissions.clear()
+        self.assertEqual(finance_work_tasks(self.preparer, view="waiting")["task_count"], 0)
+
+    def test_returned_filter_uses_current_stage_and_precedes_display_limit(self):
+        self._entry("A-READY")
+        returned = self._entry("Z-RETURNED")
+        resubmitted = self._entry("B-RESUBMITTED", status=JournalEntry.SUBMITTED, creator=self.poster, submitter=self.poster)
+        for entry in (returned, resubmitted):
+            AccountingAuditEvent.objects.create(
+                department_id=self.accounting.pk, department_label=self.accounting.name,
+                entry=entry, action="returned", actor_id=self.poster.pk,
+                actor_label=self.poster.username, reason="Retained correction instruction",
+            )
+        result = finance_work_tasks(self.preparer, view="returned", display_limit=1)
+        self.assertEqual(result["task_count"], 1)
+        self.assertEqual(result["tasks"][0]["case_id"], f"journal-entry:{returned.public_id}")
+        self.assertFalse(result["tasks_truncated"])
+        self.assertFalse(any(task["case_id"] == f"journal-entry:{resubmitted.public_id}"
+                             for task in finance_work_tasks(self.poster, view="returned")["tasks"]))
+
+
 class FinanceBankReconciliationWorkTaskContractTests(TestCase):
     databases = {"default", "finance"}
 
@@ -1944,6 +1986,9 @@ class FinancePeriodCloseWorkTaskContractTests(TestCase):
     def test_review_scope_excludes_maker_wrong_office_and_uat(self):
         run = self._run(self.january)
         submit_period_close_run(run, self.preparer)
+        waiting = finance_work_tasks(self.preparer, view="waiting")["tasks"]
+        self.assertEqual([task["case_id"] for task in waiting], [f"period-close:{run.public_id}"])
+        self.assertEqual(finance_work_tasks(self.reviewer, view="waiting")["task_count"], 0)
         self.assertFalse(period_close_action_queryset(self.preparer, "awaiting_review")[0].exists())
         self.assertEqual(
             set(period_close_action_queryset(self.reviewer, "awaiting_review")[0]), {run},

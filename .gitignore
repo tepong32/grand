@@ -219,3 +219,4 @@ output/uat/**/deck/*.webp
 # Synthetic source-handoff browser verification captures
 output/playwright/finance-source-handoffs/
 output/playwright/finance-initial-advice/
+output/playwright/finance-personal-waiting/

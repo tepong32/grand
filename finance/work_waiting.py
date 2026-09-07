@@ -1,0 +1,111 @@
+from __future__ import annotations
+
+from django.db.models import Q
+from django.urls import reverse
+
+
+def personal_waiting_tasks(user, department, today, actionable_tasks):
+    """Project attributed handoffs only after current source-record authorization."""
+    from accounting.access import can_view_accounting
+    from accounting.models import JournalEntry, OpeningBalanceBatch, PeriodCloseRun
+    from vouchers.access import can_view_workbench, has_explicit_permission
+    from vouchers.advice_register import visible_bank_advice_batches
+    from vouchers.models import BankAdviceBatch, TreasuryRemittanceBatch
+    from vouchers.remittance_register import visible_remittance_batches
+    from vouchers.roles import is_finance_uat_viewer
+    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum
+
+    if is_finance_uat_viewer(user):
+        return []
+    actionable = {task.case_id for task in actionable_tasks}
+    tasks = []
+
+    def add(item, *, kind, area, reference, subject, received, queue, scope, route, attribution):
+        identity = f"{kind}:{item.public_id}"
+        if identity in actionable:
+            return
+        missing_time = received is None
+        revision = _projection_checksum({
+            "identity": identity, "status": item.status, "attribution": attribution,
+            "received": received.isoformat() if received else None,
+            "scope": scope, "queue": queue,
+            "version": getattr(item, "state_version", getattr(item, "version", None)),
+            "reference": reference, "subject": subject,
+        })
+        tasks.append(FinanceWorkTask(
+            task_id=f"finwork:v1:{identity}:waiting", task_type=f"finance.{kind}.waiting.v1",
+            area=area, case_id=identity, reference=reference, subject=subject,
+            transaction_type=item._meta.verbose_name.title(), action="View submitted work",
+            gate="You prepared or submitted this record. Its current handoff is with the named queue; no supported action on this record is available to you now.",
+            owner_queue=queue, scope=scope, received_at=received,
+            due_on=None, due_state="No structured target",
+            calendar_basis="Elapsed calendar days since the retained handoff; document and ledger dates are not deadlines.",
+            age_days=_age_days(received, today), state="Waiting", source_state=item.get_status_display(),
+            source_version=f"projection-sha256:{revision}",
+            exception="The source has no retained handoff time; age is unavailable." if missing_time else "",
+            url=reverse(route, kwargs={"public_id": item.public_id}),
+        ))
+
+    if can_view_accounting(user):
+        journals = JournalEntry.objects.filter(department_id=department.pk, status=JournalEntry.SUBMITTED).filter(
+            Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk),
+        ).select_related("period", "fund")
+        for item in journals:
+            add(item, kind="journal-entry", area="Accounting", reference=item.reference,
+                subject=item.description, received=item.submitted_at,
+                queue=f"Independent Accounting JEV posters - {department.name}",
+                scope=f"{department.name}; {item.period}; fund {item.fund.code}", route="accounting:entry_detail",
+                attribution=[item.created_by_id, item.submitted_by_id])
+        openings = OpeningBalanceBatch.objects.filter(department_id=department.pk, status__in=(
+            OpeningBalanceBatch.FOR_REVIEW, OpeningBalanceBatch.APPROVED, OpeningBalanceBatch.POSTED,
+        )).filter(Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk)).select_related("period")
+        for item in openings:
+            queue, received = {
+                item.FOR_REVIEW: ("Independent opening-balance reviewers", item.submitted_at),
+                item.APPROVED: ("Opening-balance posters", item.approved_at),
+                item.POSTED: ("Opening-balance reconciliation", item.posted_at),
+            }[item.status]
+            add(item, kind="opening-batch", area="Accounting", reference=item.source_reference,
+                subject=item.title, received=received, queue=f"{queue} - {department.name}",
+                scope=f"{department.name}; {item.period}", route="accounting:opening_detail",
+                attribution=[item.created_by_id, item.submitted_by_id])
+        closes = PeriodCloseRun.objects.filter(department_id=department.pk, status=PeriodCloseRun.SUBMITTED).filter(
+            Q(prepared_by_id=user.pk) | Q(submitted_by_id=user.pk),
+        ).select_related("period")
+        for item in closes:
+            add(item, kind="period-close", area="Accounting", reference=f"{item.period} v{item.version}",
+                subject="Submitted period-close checklist", received=item.submitted_at,
+                queue=f"Independent period-close reviewers - {department.name}",
+                scope=f"{department.name}; {item.period}", route="accounting:period_close_detail",
+                attribution=[item.prepared_by_id, item.submitted_by_id])
+
+    if can_view_workbench(user) and has_explicit_permission(user, "vouchers.view_bank_advice"):
+        advice = visible_bank_advice_batches(user).filter(status__in=(
+            BankAdviceBatch.FOR_REVIEW, BankAdviceBatch.APPROVED, BankAdviceBatch.SUBMITTED,
+        )).filter(Q(created_by_id=user.pk) | Q(review_submitted_by_id=user.pk) | Q(bank_submitted_by_id=user.pk))
+        for item in advice:
+            queue, received = {
+                item.FOR_REVIEW: ("Independent Accounting advice reviewers", item.review_submitted_at),
+                item.APPROVED: ("Authorized bank-submission officers", item.approved_at),
+                item.SUBMITTED: ("Accounting bank-response officers", item.bank_submitted_at),
+            }[item.status]
+            add(item, kind="bank-advice", area="Bank advice", reference=item.advice_number,
+                subject="Submitted bank-advice batch", received=received, queue=queue,
+                scope=f"{item.accounting_department}; bank {item.bank_account_code}", route="vouchers:advice_detail",
+                attribution=[item.created_by_id, item.review_submitted_by_id, item.bank_submitted_by_id])
+    remittance_read = any(has_explicit_permission(user, permission) for permission in (
+        "vouchers.view_remittance_workbench", "vouchers.prepare_remittances", "vouchers.approve_remittances",
+        "vouchers.release_remittances", "vouchers.view_remittance_audit",
+    ))
+    if can_view_workbench(user) and remittance_read:
+        batches = visible_remittance_batches(user).filter(status__in=(
+            TreasuryRemittanceBatch.FOR_REVIEW, TreasuryRemittanceBatch.APPROVED,
+        )).filter(Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk)).select_related("treasury_department")
+        for item in batches:
+            queue = (f"Accounting remittance reviewers - {item.finance_department_label}"
+                     if item.status == item.FOR_REVIEW else f"Treasury release officers - {item.treasury_department}")
+            add(item, kind="treasury-remittance", area="Treasury", reference=item.reference_code,
+                subject="Submitted remittance schedule", received=item.submitted_at if item.status == item.FOR_REVIEW else item.reviewed_at,
+                queue=queue, scope=f"{item.treasury_department}; fund {item.fund_code}", route="vouchers:remittance_detail",
+                attribution=[item.created_by_id, item.submitted_by_id])
+    return tasks

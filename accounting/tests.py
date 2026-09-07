@@ -317,7 +317,11 @@ class StandaloneAccountingTests(TestCase):
         batch = stage_opening_csv(self._opening_batch(year), self.preparer, self._opening_file())
         batch = validate_opening_batch(batch, self.preparer)
         batch = submit_opening_batch(batch, self.preparer)
+        waiting = finance_work_tasks(self.preparer, view="waiting")["tasks"]
+        self.assertEqual([task["case_id"] for task in waiting], [f"opening-batch:{batch.public_id}"])
+        self.assertEqual(finance_work_tasks(self.setup_approver, view="waiting")["task_count"], 0)
         batch = decide_opening_batch(batch, self.setup_approver, decision=OpeningBalanceBatch.RETURNED, evidence_note="Clarify the opening evidence")
+        self.assertEqual(finance_work_tasks(self.preparer, view="waiting")["task_count"], 0)
         def tasks(user):
             return [t for t in finance_work_tasks(user)["tasks"] if t["case_id"] == f"opening-batch:{batch.public_id}"]
         self.assertEqual(tasks(self.preparer)[0]["state"], "Returned")

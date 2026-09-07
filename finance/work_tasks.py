@@ -27,7 +27,7 @@ class FinanceWorkTask:
     gate: str
     owner_queue: str
     scope: str
-    received_at: datetime
+    received_at: datetime | None
     due_on: date | None
     due_state: str
     calendar_basis: str
@@ -1091,7 +1091,7 @@ def _journal_tasks(user, department, today):
             lines = list(item.lines.all())
             subsidiary_lines = list(item.subsidiary_lines.all())
             events = list(item.audit_events.all())
-            latest_return = next((event for event in events if event.action == "returned"), None)
+            latest_return = next((event for event in events if event.action == "returned"), None) if action_key == "preparation" else None
             total_debit = sum((line.debit for line in lines), start=Decimal("0.00"))
             total_credit = sum((line.credit for line in lines), start=Decimal("0.00"))
             difference = total_debit - total_credit
@@ -2783,8 +2783,10 @@ def _field_operation_tasks(user, department, today):
     return tasks
 
 
-def finance_work_tasks(user, *, display_limit=100):
+def finance_work_tasks(user, *, display_limit=100, view="ready"):
     """Return permission-filtered item projections without writing task or source state."""
+    if view not in ("ready", "waiting", "returned"):
+        raise ValueError("Unknown work view.")
     department = getattr(getattr(user, "employeeprofile", None), "assigned_department", None)
     if department is None:
         return {"tasks": [], "task_count": 0, "tasks_truncated": False, "task_coverage": ()}
@@ -2810,13 +2812,18 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks.extend(_reporting_tasks(user, department, today))
     tasks.extend(_field_operation_tasks(user, department, today))
     tasks.extend(_local_form_tasks(user, department, today))
+    if view == "waiting":
+        from .work_waiting import personal_waiting_tasks
+        tasks = personal_waiting_tasks(user, department, today, tasks)
+    elif view == "returned":
+        tasks = [task for task in tasks if task.state == "Returned"]
     tasks.sort(key=lambda task: (task.area, task.reference.lower(), task.task_type, task.task_id))
     task_count = len(tasks)
     return {
         "tasks": [task.as_dict() for task in tasks[:display_limit]],
         "task_count": task_count,
         "tasks_truncated": task_count > display_limit,
-        "task_coverage": (
+        "task_coverage": ("Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review and release") if view == "waiting" else (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls", "Opening-balance controls",
             "Voucher and remittance journal creation and posted-source synchronization",

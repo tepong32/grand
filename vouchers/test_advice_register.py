@@ -47,6 +47,14 @@ class BankAdviceRegisterAttentionTests(TestCase):
             created_by=user,
         )
 
+    def test_personal_waiting_advice_hides_actionable_and_foreign_sources(self):
+        result = finance_work_tasks(self.user, view="waiting")
+        self.assertEqual([task["case_id"] for task in result["tasks"]], [f"bank-advice:{self.approved.public_id}"])
+        self.assertIsNone(result["tasks"][0]["received_at"])
+        self.assertIn("no retained handoff time", result["tasks"][0]["exception"])
+        self.user.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="submit_bank_advice"))
+        self.assertEqual(finance_work_tasks(self.user, view="waiting")["task_count"], 0)
+
     def test_source_attention_filter_is_exact_and_department_scoped(self):
         self.client.force_login(self.user)
 

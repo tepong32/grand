@@ -3,6 +3,9 @@
 {% block content %}
 <style>
   .finance-work-table code { overflow-wrap: anywhere; }
+  .finance-work-items { table-layout: fixed; }
+  .finance-work-items td { overflow-wrap: anywhere; vertical-align: top; }
+  .finance-work-items th:last-child { width: 8rem; }
   @media (max-width: 767.98px) {
     .finance-work-scroll { overflow-x: visible; }
     .finance-work-table, .finance-work-table tbody, .finance-work-table tr, .finance-work-table td { display: block; width: 100%; }
@@ -19,11 +22,17 @@
     <div>
       <p class="text-uppercase text-primary small font-weight-bold mb-1">GRAND Finance</p>
       <h1 class="h3 mb-1">Work needing attention</h1>
-      <p class="text-muted mb-0">A read-only starting point for the source queues your account may act on.</p>
+      <p class="text-muted mb-0">Source-linked work within your current access.</p>
     </div>
     <a class="btn btn-outline-secondary mt-2 mt-md-0" href="{% url 'finance_operations:overview' %}">Back to Finance operations</a>
   </div>
 
+  <nav class="mb-3" aria-label="My Work views">
+    {% for key, label in work_views %}<a class="btn btn-sm mb-1 {% if selected_view == key %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?view={{ key }}" {% if selected_view == key %}aria-current="page"{% endif %}>{{ label }}</a> {% endfor %}
+  </nav>
+  {% if selected_view == 'waiting' %}<p class="text-muted">Work you prepared or submitted that is now with another queue. Records you can act on now are excluded. Coverage is listed below.</p>{% endif %}
+  {% if selected_view == 'returned' %}<p class="text-muted">Current returned work you may correct. Historical returns on resubmitted records are excluded.</p>{% endif %}
+  {% if selected_view == 'ready' %}
   <div class="alert alert-info">
     <strong>{{ action_count|default:0 }} visible action{{ action_count|default:0|pluralize }}</strong>
     across the attention groups currently supported here.
@@ -62,19 +71,20 @@
   </div></div>
   {% endfor %}
 
+  {% endif %}
   <section class="card card-outline card-secondary">
     <div class="card-header">
       <h2 class="card-title font-weight-bold">Exact work items</h2>
     </div>
     <div class="card-body">
-      <p class="mb-1"><strong>{{ task_count }} source-linked task{{ task_count|pluralize }}</strong> in the current item-level contract.</p>
+      <p class="mb-1"><strong>{{ task_count }} source-linked task{{ task_count|pluralize }}</strong> in this view.</p>
       <p class="small text-muted mb-0">
         Current coverage: {{ task_coverage|join:", " }}. Each Task ID identifies one action on one authoritative record; it is not a second transaction, assignment, or approval.
       </p>
     </div>
     {% if tasks %}
     <div class="table-responsive finance-work-scroll">
-      <table class="table table-hover mb-0 finance-work-table">
+      <table class="table table-hover mb-0 finance-work-table finance-work-items">
         <caption class="sr-only">Exact permission-filtered Finance work items</caption>
         <thead><tr><th>Task and source</th><th>Action and gate</th><th>Queue and timing</th><th>State</th><th></th></tr></thead>
         <tbody>
@@ -94,7 +104,7 @@
             <td class="small" data-label="Queue and timing">
               <div>{{ task.owner_queue }}</div>
               <div class="text-muted"><strong>Scope:</strong> {{ task.scope }}</div>
-              <div class="text-muted"><strong>Timing:</strong> {{ task.due_state }}{% if task.due_on %} · target {{ task.due_on|date:'Y-m-d' }}{% endif %} · age {{ task.age_days }} day{{ task.age_days|pluralize }}</div>
+              <div class="text-muted"><strong>Timing:</strong> {{ task.due_state }}{% if task.due_on %} · target {{ task.due_on|date:'Y-m-d' }}{% endif %}{% if task.received_at %} · age {{ task.age_days }} day{{ task.age_days|pluralize }}{% else %} · age unavailable{% endif %}</div>
               <div class="text-muted">{{ task.calendar_basis }}</div>
             </td>
             <td class="small" data-label="State">
@@ -110,7 +120,7 @@
     </div>
     {% if tasks_truncated %}<div class="card-footer small text-muted">Showing the first 100 items in a deterministic order. Use each exact source queue for the complete filtered register.</div>{% endif %}
     {% else %}
-    <div class="card-body border-top"><p class="text-muted mb-0">No source record in the currently covered areas requires an action from this account.</p></div>
+    <div class="card-body border-top"><p class="text-muted mb-0">No source record matches this view within your current access and the coverage listed above.</p></div>
     {% endif %}
   </section>
 
