@@ -107,7 +107,18 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-009 - Finance setup UAT mutation boundary
 
 - Process/module: Finance setup configuration preparation, approval and template management.
-- Severity/status: **CRITICAL - OPEN**, identified 2026-09-08 while reviewing the next setup Waiting adapter. Dependent setup expansion is blocked pending reproduction, remediation and verification. The independent remittance Waiting checkpoint may finish.
+- Severity/status: **CRITICAL - VERIFIED**, reproduced, fixed and regressed in v0.7.16.
 - Code evidence: `can_manage_finance_configuration`, `can_approve_finance_configuration` and `can_manage_finance_templates` use current department plus explicit permission without excluding `Finance UAT Viewer`. `transition_release` relies on those checks at its mutation boundary. Setup action projections already exclude UAT, so an accidental permission combination can diverge from the source service.
 - Expected behavior: UAT remains read-only even when combined with setup action permissions. Preserve current explicit office authority, independent approval and existing governed exemption rules; preserve authorized preview reads.
 - Next step: reproduce direct UAT submission/approval with unchanged source/audit assertions; guard shared setup mutation predicates and corresponding routes, then verify the lifecycle and broader project suite before dependent setup work. This finding does not establish that any real data was changed by a UAT account.
+
+- FIN-GAP-009 reproduction: the original isolated UAT mutation test failed all three subcases (submission, independent approval and workbook preflight) because `PermissionDenied` was not raised (1 test, 3 failures, 1.866 seconds). No operational data was used. Audit of the shared helper family also found the same missing UAT condition in shadow management/reconciliation/cutover and discovery management/named action checks. The shared mutation repair covers those callers while leaving read predicates intact. FIN-GAP-009 is verified: all 20 focused Finance control tests passed in 3.225 seconds; all 557 project tests passed on the final source in 144.110 seconds. System, migration-drift, compilation and diff checks are clean.
+
+
+## FIN-GAP-010 - Setup review lacks its advertised correction return
+
+- Process/module: submitted Finance configuration review and pre-approval correction.
+- Severity/status: **HIGH - OPEN**, identified 2026-09-08 during source-coverage review.
+- Code evidence: `SETUP_ATTENTION_SPECS["awaiting_review"]` promises an approve-or-return decision, but `transition_release` implements no return action and the release detail offers only approval for a submitted release. Template preflight also accepts draft templates only, while submission moves them to submitted.
+- Expected behavior: an independent authorized reviewer can return a submitted, unapproved release with a retained reason; the preparer can make governed corrections and resubmit. Approved/active data must not be unlocked. The correction path must be usable for the affected evidence, not merely a new button.
+- Next step: after FIN-GAP-009 verification, reproduce the missing return and implement/regress a bounded pre-approval return/correction flow, preserving immutable audit evidence and normal approval gates. This is a source-workflow gap, not proof of local policy acceptance.

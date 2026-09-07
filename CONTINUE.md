@@ -12,7 +12,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.15 checkpoint - released remittance Waiting
+## Current v0.7.16 checkpoint - Finance control UAT authority
+
+Branch: `codex/finance-control-uat-authority`, based on pushed `3cd16c0`. Reproduce direct UAT setup submission/approval/template-preflight with combined permissions, then fix FIN-GAP-009 before dependent setup expansion. Inspect shared Finance mutation predicates and preserve current preview reads, normal explicit office authority and governed exemptions. FIN-GAP-009 is verified: all 20 focused Finance control tests passed in 3.225 seconds; all 557 project tests passed on the final source in 144.110 seconds. System, migration-drift, compilation and diff checks are clean. Commit/push, then reproduce and address FIN-GAP-010 before dependent setup coverage. Keep turning-point choices side-documented and preserve the user database.
+
+## Prior v0.7.15 checkpoint - released remittance Waiting
 
 Branch: `codex/finance-remittance-waiting-handoff`, based on pushed `b6d7640`. Extend personal Waiting through Accounting posting after release. Use current remittance read scope and retained preparer/submitter/releaser attribution; remove Waiting when the user has a related posting-request or journal action, before truncation. Verification: both focused remittance Waiting tests passed in 5.368 seconds; all 555 project tests passed on the final source in 139.218 seconds. System, migration-drift, compilation and diff checks are clean. Commit/push, then reproduce and fix FIN-GAP-009 before setup Waiting expansion. Continue autonomous work; keep the side decision log current and preserve the user database.
 

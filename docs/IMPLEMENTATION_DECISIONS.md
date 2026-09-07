@@ -16,6 +16,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-004:** Keep engineering progress separate from the production/operational acceptance gate.
 - **D-005:** Carry personal Waiting through released remittance posting, excluding current related source/journal actions.
 - **D-006:** Fix the setup UAT mutation boundary before expanding setup projections.
+- **D-007:** Make the advertised pre-approval setup correction path usable before adding more setup dashboard coverage.
 
 ### D-001 — Retained events determine personal completion
 
@@ -76,5 +77,18 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - Alternatives considered: rely on hidden UAT buttons; add the new setup projection before addressing source authority.
 - Goal fit: least privilege and a trustworthy governed source are prerequisites for a useful office dashboard. Preview access must not silently become operational authority through combined groups.
 - Tradeoff: this inserts a corrective milestone ahead of further visible coverage. It does not change local approval policy or remove governed exemptions for normal authorized actors.
-- Evidence/status: the shared setup action helpers lack UAT exclusion; direct mutation reproduction and full verification are pending. No actual misuse is asserted.
+- Evidence/status: the shared setup action helpers lacked UAT exclusion; direct mutation reproduction confirmed the gap and v0.7.16 verification passed. No actual misuse is asserted.
 - Revisit when: the finding is reproduced, fixed and regressed; then resume setup coverage.
+
+D-006 update (2026-09-08): isolated reproduction confirmed all three setup mutations were accepted for the UAT actor (1 test, 3 failures). The same helper pattern is also used by shadow and discovery control mutations. The repair therefore centralizes the active, authenticated, non-UAT mutation boundary for that helper family and for named discovery actions, preserving separate preview reads and ordinary governed exemptions. FIN-GAP-009 is verified: all 20 focused Finance control tests passed in 3.225 seconds; all 557 project tests passed on the final source in 144.110 seconds. System, migration-drift, compilation and diff checks are clean.
+
+
+### D-007 — Prefer a usable governed correction path over misleading review guidance
+
+- Date/checkpoint: 2026-09-08; FIN-GAP-010 identified, implementation pending.
+- Decision: After the UAT authority fix, address the missing pre-approval setup return/correction flow. It must retain a reviewer reason and correction evidence, allow resubmission, and preserve the lock on approved/active records.
+- Alternatives considered: remove the words "or return" and leave no correction handoff; add a return button without a usable correction path; unlock approved data.
+- Goal fit: the end-to-end office workflow must handle corrections safely and clearly, rather than strand staff on an approval screen or require silent administrative edits.
+- Tradeoff: source correction work precedes additional setup Waiting coverage. The bounded implementation must be tested through return, correction, resubmission and independent approval; broader edit capabilities are not assumed.
+- Evidence/status: setup guidance advertises return, the release service lacks it, and preflight accepts draft templates only. Reproduction and implementation remain pending.
+- Revisit when: additional locally evidenced correction cases require their own guided source changes; preserve version and audit lineage.

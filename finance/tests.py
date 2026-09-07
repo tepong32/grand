@@ -200,6 +200,72 @@ class FinanceSetupCenterTests(TestCase):
             )
         )
 
+    def test_uat_combined_setup_permissions_cannot_mutate_release_or_template(self):
+        from django.db import transaction
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        preview = self._employee("finance.setup.preview", self.accounting)
+        self._grant(preview, "manage_finance_configuration", "approve_finance_configuration", "manage_finance_templates")
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        submitted = FinanceConfigurationRelease.objects.create(
+            department=self.accounting, code="uat-review", version=1, title="Synthetic submitted release",
+            fiscal_year=2027, effective_from=date(2027, 1, 1), status="submitted",
+            created_by=self.manager, submitted_by=self.manager, submitted_at=timezone.now(),
+        )
+        template = self._template()
+        before = FinanceAuditEvent.objects.count()
+        actions = (
+            ("submit", lambda: transition_release(self.release, "submit", preview)),
+            ("approve", lambda: transition_release(submitted, "approve", preview, "Synthetic independent review")),
+            ("preflight", lambda: preflight_finance_template(template, preview)),
+        )
+        for name, action in actions:
+            with self.subTest(action=name), transaction.atomic():
+                with self.assertRaises(PermissionDenied):
+                    action()
+        self.release.refresh_from_db(); submitted.refresh_from_db(); template.refresh_from_db()
+        self.assertEqual(self.release.status, "draft")
+        self.assertEqual(submitted.status, "submitted")
+        self.assertIsNone(template.preflighted_at)
+        self.assertEqual(FinanceAuditEvent.objects.count(), before)
+
+    def test_uat_control_routes_and_named_discovery_actions_stay_read_only(self):
+        from . import access
+        from .models import FinanceDiscoveryDecision
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        preview = self._employee("finance.controls.preview", self.accounting)
+        self._grant(preview, "manage_finance_configuration", "approve_finance_configuration", "manage_finance_templates",
+            "manage_shadow_operation", "review_shadow_reconciliation", "authorize_finance_cutover", "manage_finance_discovery")
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        for check in (access.can_manage_finance_configuration, access.can_approve_finance_configuration,
+            access.can_manage_finance_templates, access.can_manage_shadow_operation, access.can_review_shadow_reconciliation,
+            access.can_authorize_finance_cutover, access.can_manage_finance_discovery):
+            with self.subTest(check=check.__name__):
+                self.assertFalse(check(preview, self.accounting))
+        self.assertTrue(access.can_view_finance_setup(preview, self.accounting))
+        self.assertTrue(access.can_view_shadow_workspace(preview))
+        decision = FinanceDiscoveryDecision(department=self.accounting, owner=preview, reviewer=self.approver, created_by=self.manager)
+        self.assertTrue(access.can_view_finance_discovery_decision(preview, decision))
+        self.assertFalse(access.can_prepare_finance_discovery_decision(preview, decision))
+        decision.owner, decision.reviewer = self.manager, preview
+        self.assertTrue(access.can_view_finance_discovery_decision(preview, decision))
+        self.assertFalse(access.can_review_finance_discovery_decision(preview, decision))
+        self.client.force_login(preview)
+        response = self.client.get(reverse("finance:release_detail", args=(self.release.pk,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["can_manage"])
+        self.assertFalse(response.context["can_approve"])
+        self.assertFalse(response.context["can_manage_templates"])
+        before = FinanceAuditEvent.objects.count()
+        for route in ("release_create", "item_create", "template_create", "shadow_cycle_create", "discovery_decision_create"):
+            with self.subTest(route=route):
+                self.assertEqual(self.client.get(reverse(f"finance:{route}")).status_code, 403)
+                self.assertEqual(self.client.post(reverse(f"finance:{route}"), {}).status_code, 403)
+        self.assertEqual(FinanceAuditEvent.objects.count(), before)
+        # Normal explicitly authorized actors keep their existing authority.
+        self.assertTrue(access.can_manage_finance_configuration(self.manager, self.accounting))
+        self.assertTrue(access.can_approve_finance_configuration(self.approver, self.accounting))
+        self.assertFalse(access.can_manage_finance_configuration(self.manager, self.other))
+
     def test_release_transitions_append_audit_events_and_lock_governed_fields(self):
         self._complete_release()
         self.assertEqual(list(self.release.events.values_list("action", flat=True))[:2], ["approve", "submit"])

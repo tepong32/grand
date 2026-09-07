@@ -38,32 +38,44 @@ def can_view_finance_setup(user, department=None):
     ))
 
 
+def _operational_actor(user):
+    from vouchers.roles import is_finance_uat_viewer
+    return bool(
+        getattr(user, "is_authenticated", False) and getattr(user, "is_active", False)
+        and not is_finance_uat_viewer(user)
+    )
+
+
+def _action_permission(user, permission, department=None):
+    return _operational_actor(user) and _in_department(user, department) and _explicit_permission(user, permission)
+
+
 def can_manage_finance_configuration(user, department=None):
-    return _in_department(user, department) and _explicit_permission(user, "finance.manage_finance_configuration")
+    return _action_permission(user, "finance.manage_finance_configuration", department)
 
 
 def can_approve_finance_configuration(user, department=None):
-    return _in_department(user, department) and _explicit_permission(user, "finance.approve_finance_configuration")
+    return _action_permission(user, "finance.approve_finance_configuration", department)
 
 
 def can_manage_finance_templates(user, department=None):
-    return _in_department(user, department) and _explicit_permission(user, "finance.manage_finance_templates")
+    return _action_permission(user, "finance.manage_finance_templates", department)
 
 
 def can_manage_shadow_operation(user, department=None):
-    return _in_department(user, department) and _explicit_permission(user, "finance.manage_shadow_operation")
+    return _action_permission(user, "finance.manage_shadow_operation", department)
 
 
 def can_review_shadow_reconciliation(user, department=None):
-    return _in_department(user, department) and _explicit_permission(user, "finance.review_shadow_reconciliation")
+    return _action_permission(user, "finance.review_shadow_reconciliation", department)
 
 
 def can_authorize_finance_cutover(user, department=None):
-    return _in_department(user, department) and _explicit_permission(user, "finance.authorize_finance_cutover")
+    return _action_permission(user, "finance.authorize_finance_cutover", department)
 
 
 def can_manage_finance_discovery(user, department=None):
-    return _in_department(user, department) and _explicit_permission(user, "finance.manage_finance_discovery")
+    return _action_permission(user, "finance.manage_finance_discovery", department)
 
 
 def can_view_finance_discovery_decision(user, decision):
@@ -78,7 +90,7 @@ def can_view_finance_discovery_decision(user, decision):
 
 
 def can_prepare_finance_discovery_decision(user, decision):
-    return bool(
+    return _operational_actor(user) and bool(
         can_manage_finance_discovery(user, decision.department)
         or user.pk == decision.owner_id
     )
@@ -86,8 +98,7 @@ def can_prepare_finance_discovery_decision(user, decision):
 
 def can_review_finance_discovery_decision(user, decision):
     return bool(
-        getattr(user, "is_authenticated", False)
-        and getattr(user, "is_active", False)
+        _operational_actor(user)
         and user.pk == decision.reviewer_id
         and user.pk not in {decision.owner_id, decision.created_by_id, decision.submitted_by_id}
     )
