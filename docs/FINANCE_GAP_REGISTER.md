@@ -124,3 +124,12 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 - Next step: after FIN-GAP-009 verification, reproduce the missing return and implement/regress a bounded pre-approval return/correction flow, preserving immutable audit evidence and normal approval gates. This is a source-workflow gap, not proof of local policy acceptance.
 
 - FIN-GAP-010 reproduction: original isolated return test failed with `Unsupported finance release action` (1 test, 1 error, 1.560 seconds). The bounded return/workbook-correction repair is implemented. FIN-GAP-010 is verified for the bounded return/workbook-correction flow: all 24 focused Finance tests passed in 3.942 seconds; all 561 project tests passed in 143.087 seconds. System, migration-drift, compilation and diff checks are clean. Synthetic review/correction layout checks cover desktop and 320px, with corrected narrow forms and wrapping draft actions.
+
+
+## FIN-GAP-011 - Setup review queue omits authorized exemption actions
+
+- Process/module: setup review queue and personal Waiting exclusion.
+- Severity/status: **MEDIUM - VERIFIED**, identified, corrected and regressed in v0.7.18.
+- Code evidence: the prior setup `awaiting_review` selector excluded every preparer/submitter; `transition_release` permits their approval when explicit office permission and an active administrator-authorized self-approval exemption both apply. Using the old queue to exclude Waiting would mislabel such a record as someone else's handoff.
+- Repair: the selector includes those existing authorized actions; the personal task explains the exemption and keeps independent return separate. No exemption or permission is granted by this change.
+- Verification: tests cover future/inactive/active exemptions, source approval parity, personal scope and action exclusion before the display cap. Four focused tests and all 564 project tests passed. This is projection drift, not an unauthorized source mutation.

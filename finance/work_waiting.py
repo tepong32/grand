@@ -15,7 +15,7 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
     from vouchers.models import BankAdviceBatch, RemittancePostingRequest, TreasuryRemittanceBatch
     from vouchers.remittance_register import visible_remittance_batches
     from vouchers.roles import is_finance_uat_viewer
-    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum
+    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
 
     if is_finance_uat_viewer(user):
         return []
@@ -48,8 +48,9 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
         )
     tasks = []
 
-    def add(item, *, kind, area, reference, subject, received, queue, scope, route, attribution):
-        identity = f"{kind}:{item.public_id}"
+    def add(item, *, kind, area, reference, subject, received, queue, scope, route, attribution, source_id=None, route_kwargs=None):
+        source_id = source_id if source_id is not None else item.public_id
+        identity = f"{kind}:{source_id}"
         if identity in actionable:
             return
         missing_time = received is None
@@ -71,8 +72,22 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             age_days=_age_days(received, today), state="Waiting", source_state=item.get_status_display(),
             source_version=f"projection-sha256:{revision}",
             exception="The source has no retained handoff time; age is unavailable." if missing_time else "",
-            url=reverse(route, kwargs={"public_id": item.public_id}),
+            url=reverse(route, kwargs=route_kwargs if route_kwargs is not None else {"public_id": item.public_id}),
         ))
+
+    from .access import can_view_finance_setup
+    from .models import FinanceConfigurationRelease
+
+    if can_view_finance_setup(user):
+        releases = FinanceConfigurationRelease.objects.filter(department_id=department.pk, status="submitted").filter(
+            Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk),
+        )
+        for item in releases:
+            add(item, kind="setup-release", area="Finance setup", reference=f"{item.code} v{item.version} · FY {item.fiscal_year}",
+                subject=item.title, received=item.submitted_at, queue=f"Independent Accounting configuration approvers - {department.name}",
+                scope=f"{department.name}; FY {item.fiscal_year}", route="finance:release_detail",
+                attribution=[item.created_by_id, item.submitted_by_id], source_id=_source_record_identity("setup-release", item.pk),
+                route_kwargs={"pk": item.pk})
 
     from budget.access import can_view as can_view_budget, has_budget_permission
     from budget.control_exports import obligation_scope_for_user

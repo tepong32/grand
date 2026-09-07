@@ -263,6 +263,7 @@ def _local_form_tasks(user, department, today):
 
 def _setup_tasks(user, department, today):
     from finance.setup_register import setup_attention_choices_for_user, setup_attention_queryset
+    from .models import FinanceAuditEvent
 
     role_labels = {
         "needs_preparation": "Finance configuration preparers",
@@ -273,9 +274,19 @@ def _setup_tasks(user, department, today):
     tasks = []
     for action_key, _label in setup_attention_choices_for_user(user, department):
         queryset, _selected, spec = setup_attention_queryset(user, action_key, as_of=today)
+        returns = {}
+        if action_key == "needs_preparation":
+            for event in FinanceAuditEvent.objects.filter(
+                department_id=department.pk, release_id__in=queryset.values("pk"),
+                target_type="financeconfigurationrelease", action="return",
+            ).order_by("-created_at", "-pk"):
+                if event.target_id == str(event.release_id):
+                    returns.setdefault(event.release_id, event)
         for item in queryset.order_by("-fiscal_year", "code", "-version", "pk"):
             source_id = _source_record_identity("setup-release", item.pk)
-            received_at = item.created_at
+            returned = returns.get(item.pk)
+            exempt_review = action_key == "awaiting_review" and user.pk in {item.created_by_id, item.submitted_by_id}
+            received_at = returned.created_at if returned else item.created_at
             due_on = None
             due_state = "No structured target"
             calendar_basis = "The retained effective date is not treated as an action deadline."
@@ -299,19 +310,19 @@ def _setup_tasks(user, department, today):
                 reference=f"{item.code} v{item.version} · FY {item.fiscal_year}",
                 transaction_type="Finance configuration release",
                 subject=item.title,
-                action=spec["next_action"],
-                gate=spec["definition"],
-                owner_queue=f"{role_labels[action_key]} · {department.name}",
+                action="Review the retained basis and approve under the administrator-authorized exemption." if exempt_review else spec["next_action"],
+                gate="Current explicit approval permission and an active governed self-approval exemption apply. Independent return is unavailable to the preparer/submitter." if exempt_review else spec["definition"],
+                owner_queue=f"Accounting configuration approval under exemption · {department.name}" if exempt_review else f"{role_labels[action_key]} · {department.name}",
                 scope=f"{department.name}; FY {item.fiscal_year}; effectivity {item.effective_from.isoformat()}",
                 received_at=received_at,
                 due_on=due_on,
                 due_state=due_state,
                 calendar_basis=calendar_basis,
                 age_days=_age_days(received_at, today),
-                state="Ready",
+                state="Returned" if returned else "Ready",
                 source_state=item.get_status_display(),
                 source_version=f"updated:{item.updated_at.isoformat()}",
-                exception="",
+                exception=returned.reason if returned else "",
                 url=reverse("finance:release_detail", kwargs={"pk": item.pk}),
             ))
     return tasks
@@ -2842,7 +2853,7 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
         "tasks": [task.as_dict() for task in tasks[:display_limit]],
         "task_count": task_count,
         "tasks_truncated": task_count > display_limit,
-        "task_coverage": ("Attributed bank-advice and remittance handoff events", "Attributed Budget call, proposal, appropriation, allotment and obligation events", "Attributed JEV submission/posting/return events", "Opening-balance submission and decision events", "Period-close and reopen decision events") if view == "completed" else ("Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review, release and Accounting posting") if view == "waiting" else (
+        "task_coverage": ("Attributed bank-advice and remittance handoff events", "Attributed Budget call, proposal, appropriation, allotment and obligation events", "Attributed JEV submission/posting/return events", "Opening-balance submission and decision events", "Period-close and reopen decision events") if view == "completed" else ("Submitted Finance setup releases", "Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review, release and Accounting posting") if view == "waiting" else (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls", "Opening-balance controls",
             "Voucher and remittance journal creation and posted-source synchronization",

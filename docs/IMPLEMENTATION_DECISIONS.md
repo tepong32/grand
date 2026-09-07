@@ -18,6 +18,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-006:** Fix the setup UAT mutation boundary before expanding setup projections.
 - **D-007:** Make the advertised pre-approval setup correction path usable before adding more setup dashboard coverage.
 - **D-008:** Extend setup handoff views from current source state and retained attribution, including existing governed exemptions.
+- **D-009:** Attribute setup completion only to retained release transition events.
 
 ### D-001 — Retained events determine personal completion
 
@@ -98,12 +99,22 @@ D-007 implementation choice (v0.7.17, verified): use a reasoned return from subm
 
 ### D-008 — Keep setup handoffs aligned with current source authority
 
-- Date/checkpoint: 2026-09-08; planned after v0.7.17 verification.
+- Date/checkpoint: 2026-09-08; implemented and verified in v0.7.18.
 - Decision: Start setup Waiting with submitted releases the user prepared/submitted. Project Returned only for current drafts with a retained return event; resubmission removes that label. Resolve stable source identities and filter actual actions before the display cap.
 - Alternatives considered: all office submissions; a separate persisted task status; treating effective dates as submission deadlines; ignoring an already authorized self-approval exemption.
 - Goal fit: the dashboard should explain the authoritative office workflow without duplicating its state or inventing timing/authority. Existing exemptions must remain explicit and governed, never automatically granted.
 - Tradeoff: approved/scheduled release waiting and broader source completion remain subsequent coverage. The existing setup review selector excludes all preparers, even when an active exemption permits source approval; align this selector before relying on it for Waiting exclusion, and distinguish approval under exemption from independent return.
-- Evidence/status: source review and selector inspection complete; implementation and verification pending. No permission grants or exemption changes are authorized by this projection work.
+- Evidence/status: source review, selector alignment and projections implemented; four focused tests and all 564 project tests passed. No permission grants or exemption changes are authorized by this projection work.
 - Revisit when: later lifecycle coverage or local operating evidence calls for additional handoff projections.
 
 D-007 verification note: the first full run exposed two synthetic fixtures that preflighted templates under already-active releases. They now preflight during draft fixture construction before synthetic activation. The stricter current-parent-state check remains in place; the final full run passed all 561 tests in 143.087 seconds.
+
+### D-009 — Attribute setup completion to recorded release actions
+
+- Date/checkpoint: 2026-09-08; planned after v0.7.18 verification.
+- Decision: Extend Completed by me to retained setup submission, return, approval, scheduling, activation, rollback and retirement events attributed to the signed-in account. Recheck current source read scope and event/target/office consistency.
+- Alternatives considered: infer completion from current release status; credit the creator for every later approval; count every draft edit as a completed handoff.
+- Goal fit: one traceable history should distinguish who performed an action from what state the release is in today. Stable event identity preserves repeated submissions and corrections.
+- Tradeoff: this first setup history adapter covers release transitions; detailed template/preflight and other setup child actions remain later coverage. It does not confer new authority or claim production readiness.
+- Evidence/status: source audit events and transition actions inspected; implementation and verification pending.
+- Revisit when: additional operational actions have reliable retained attribution and a clear current source read boundary.

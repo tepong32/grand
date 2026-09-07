@@ -15,7 +15,7 @@ from .models import FinanceConfigurationRelease
 
 SETUP_ATTENTION_CHOICES = (
     ("needs_preparation", "Draft releases to prepare or correct"),
-    ("awaiting_review", "Submitted releases awaiting independent review"),
+    ("awaiting_review", "Submitted releases awaiting Accounting review"),
     ("ready_to_schedule", "Approved future releases ready to schedule"),
     ("ready_to_activate", "Approved or scheduled releases ready to activate"),
 )
@@ -29,8 +29,8 @@ SETUP_ATTENTION_SPECS = {
     },
     "awaiting_review": {
         "role": "approve",
-        "title": "Configuration releases awaiting independent review",
-        "definition": "Submitted office releases awaiting an authorized Accounting approve-or-return decision.",
+        "title": "Configuration releases awaiting Accounting review",
+        "definition": "Submitted office releases awaiting authorized Accounting review; self-approval requires an active governed exemption, while return remains independent.",
         "next_action": "Review the retained local basis and preflight evidence, then approve or return without rewriting the submitted version.",
     },
     "ready_to_schedule": {
@@ -85,7 +85,12 @@ def setup_attention_queryset(user, attention, *, as_of=None):
     if attention == "needs_preparation":
         query = query.filter(status="draft")
     elif attention == "awaiting_review":
-        query = query.filter(status="submitted").exclude(Q(created_by=user) | Q(submitted_by=user))
+        from .exemptions import workflow_exemption_for
+        from .models import FinanceWorkflowExemption
+
+        query = query.filter(status="submitted")
+        if workflow_exemption_for(actor=user, control_code=FinanceWorkflowExemption.RELEASE_SELF_APPROVAL, department_id=department.pk) is None:
+            query = query.exclude(Q(created_by=user) | Q(submitted_by=user))
     elif attention == "ready_to_schedule":
         query = query.filter(status="approved", effective_from__gt=as_of)
     elif attention == "ready_to_activate":

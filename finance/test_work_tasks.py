@@ -611,6 +611,86 @@ class FinanceWorkTaskContractTests(TestCase):
         self.assertContains(response, authority_task["task_id"])
         self.assertContains(response, "Proposed cutover is upcoming")
 
+    def test_setup_waiting_is_personal_and_rechecks_current_source_access(self):
+        from .services import transition_release
+        from .work_tasks import _source_record_identity
+
+        today = timezone.localdate()
+        own = self._release(code="Z-own-submission", status="draft", effective_from=today)
+        transition_release(own, "submit", self.worker)
+        other = self._release(code="A-other-submission", status="submitted", effective_from=today)
+        other.created_by = self.reviewer; other.submitted_by = self.reviewer
+        other.save(update_fields=("created_by", "submitted_by"))
+        foreign = self._release(code="A-foreign-submission", status="submitted", effective_from=today)
+        foreign.department = self.budget; foreign.save(update_fields=("department",))
+        self._release(code="A-draft", status="draft", effective_from=today)
+        self._release(code="A-approved", status="approved", effective_from=today)
+        result = finance_work_tasks(self.worker, view="waiting", display_limit=1)
+        self.assertEqual(result["task_count"], 1)
+        task = result["tasks"][0]
+        self.assertEqual(task["case_id"], f"setup-release:{_source_record_identity('setup-release', own.pk)}")
+        self.assertEqual(task["url"], reverse("finance:release_detail", args=[own.pk]))
+        self.assertIsNone(task["due_on"])
+        self.assertEqual(task["state"], "Waiting")
+        self.client.force_login(self.worker)
+        self.assertEqual(self.client.get(task["url"]).status_code, 200)
+        uat_owned = self._release(code="UAT-owned", status="submitted", effective_from=today)
+        uat_owned.created_by = self.uat; uat_owned.submitted_by = self.uat
+        uat_owned.save(update_fields=("created_by", "submitted_by"))
+        self._grant(self.uat, "finance.manage_finance_configuration", "finance.approve_finance_configuration")
+        self.assertEqual(finance_work_tasks(self.uat, view="waiting")["task_count"], 0)
+        self.worker.user_permissions.clear()
+        self.assertEqual(finance_work_tasks(self.worker, view="waiting")["task_count"], 0)
+
+    def test_setup_returned_uses_retained_reason_and_current_draft_state_before_limit(self):
+        from .services import transition_release
+
+        today = timezone.localdate()
+        self._release(code="A-ordinary-draft", status="draft", effective_from=today)
+        returned = self._release(code="Z-returned", status="draft", effective_from=today)
+        transition_release(returned, "submit", self.worker)
+        transition_release(returned, "return", self.reviewer, "Correct the retained workbook evidence.")
+        resubmitted = self._release(code="B-resubmitted", status="draft", effective_from=today)
+        transition_release(resubmitted, "submit", self.worker)
+        transition_release(resubmitted, "return", self.reviewer, "Earlier correction")
+        transition_release(resubmitted, "submit", self.worker)
+        result = finance_work_tasks(self.worker, view="returned", display_limit=1)
+        self.assertEqual(result["task_count"], 1)
+        task = result["tasks"][0]
+        self.assertIn("Z-returned", task["reference"])
+        self.assertEqual(task["exception"], "Correct the retained workbook evidence.")
+        self.assertEqual(task["source_state"], "Draft")
+        self.assertEqual(task["received_at"], returned.events.get(action="return").created_at)
+        self.assertEqual(finance_work_tasks(self.reviewer, view="returned")["task_count"], 0)
+        transition_release(returned, "submit", self.worker)
+        self.assertEqual(finance_work_tasks(self.worker, view="returned")["task_count"], 0)
+        self.assertEqual(finance_work_tasks(self.worker, view="waiting")["task_count"], 2)
+
+    def test_setup_waiting_excludes_current_governed_approval_before_truncation(self):
+        from .services import transition_release
+        from .setup_register import setup_attention_queryset
+
+        today = timezone.localdate()
+        own = self._release(code="Z-exempt-review", status="submitted", effective_from=today)
+        self._grant(self.worker, "finance.approve_finance_configuration")
+        exemption = FinanceWorkflowExemption.objects.create(
+            department=self.accounting, control_code=FinanceWorkflowExemption.RELEASE_SELF_APPROVAL,
+            subject_user=self.worker, rationale="Synthetic authorized exception", created_by=self.reviewer,
+            effective_from=today + timedelta(days=1),
+        )
+        self.assertEqual(finance_work_tasks(self.worker, view="waiting", display_limit=1)["task_count"], 1)
+        exemption.effective_from = today; exemption.save(update_fields=("effective_from",))
+        self.assertTrue(setup_attention_queryset(self.worker, "awaiting_review")[0].filter(pk=own.pk).exists())
+        self.assertEqual(finance_work_tasks(self.worker, view="waiting", display_limit=1)["task_count"], 0)
+        task = next(task for task in finance_work_tasks(self.worker)["tasks"] if "Z-exempt-review" in task["reference"])
+        self.assertIn("exemption", task["action"])
+        self.assertIn("Independent return is unavailable", task["gate"])
+        exemption.is_active = False; exemption.save(update_fields=("is_active",))
+        self.assertEqual(finance_work_tasks(self.worker, view="waiting")["task_count"], 1)
+        exemption.is_active = True; exemption.save(update_fields=("is_active",))
+        transition_release(own, "approve", self.worker, "Synthetic governed exemption approval.")
+        self.assertEqual(finance_work_tasks(self.worker, view="waiting")["task_count"], 0)
+
     def test_setup_release_tasks_separate_preparation_review_schedule_and_activation(self):
         today = timezone.localdate()
         draft = self._release(code="setup-draft", status="draft", effective_from=today + timedelta(days=10))
