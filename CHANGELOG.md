@@ -1,5 +1,14 @@
 # Changelog
 
+## F1.5 opening-balance tasks and mandatory operational gate
+
+- Registered post-functional Finance scrutiny, its Critical stopping rules, downstream phase order and gap register without erasing delivery history.
+- Added five exact opening actions with stable identities, evidence-sensitive revisions, source links and no invented deadlines; shared action scope across workspace/export/count/tasks while preserving read-only status oversight.
+- Fixed cross-office opening mutations and accidentally permissioned UAT actions; preserved independent review/posting and current-office custody across all opening services.
+- Recomputed exact source/row controls at submission, approval and posting, retained validation digests/events, and checked source-to-posted line classifications during reconciliation. Legacy evidence fails closed rather than receiving invented historical approval.
+- Added deterministic authorization, parity, stale/one-cent evidence, returned lifecycle, duplicate posting, classification drift and post-failure rollback/retry regressions; refreshed Accounting guidance and continuation records.
+- Focused Accounting and affected complete-cycle replay: 51 tests passed in 10.679 seconds. Final complete project gate: 521 tests passed across both routed databases in 136.867 seconds. Django system checks, migration-drift checks, compilation and whitespace checks are clean.
+
 ## F1.5 exact period-close and controlled-reopen work tasks
 
 - Added stable, source-linked My Work items for period-close checklist preparation/returned correction, independent close review, and independent controlled-reopen decisions.

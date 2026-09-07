@@ -41,6 +41,41 @@ OPENING_NEXT_ACTIONS = {
     OpeningBalanceBatch.RECONCILED: "Complete; retain evidence",
 }
 
+OPENING_ACTION_PERMISSIONS = {
+    "needs_preparation": "can_prepare_opening_balances",
+    "ready_to_submit": "can_prepare_opening_balances",
+    "awaiting_review": "can_approve_opening_balances",
+    "awaiting_posting": "can_post_opening_balances",
+    "awaiting_reconciliation": "can_post_opening_balances",
+}
+
+OPENING_ACTION_KEYS = {
+    "needs_preparation": "opening-preparation",
+    "ready_to_submit": "opening-submission",
+    "awaiting_review": "opening-review",
+    "awaiting_posting": "opening-posting",
+    "awaiting_reconciliation": "opening-reconciliation",
+}
+
+
+def opening_action_choices_for_user(user):
+    from . import access
+    return tuple((key, title) for key, title in OPENING_ATTENTION_CHOICES
+                 if key in OPENING_ACTION_PERMISSIONS
+                 and getattr(access, OPENING_ACTION_PERMISSIONS[key])(user))
+
+
+def opening_action_queryset(user, action, *, queryset=None):
+    department = department_for_user(user)
+    base = OpeningBalanceBatch.objects.all() if queryset is None else queryset
+    if department is None or action not in dict(opening_action_choices_for_user(user)):
+        return base.none()
+    base = base.filter(department_id=department.pk, status__in=OPENING_ATTENTION_STATUSES[action])
+    if action in ("awaiting_review", "awaiting_posting"):
+        base = base.exclude(created_by_id=user.pk).exclude(submitted_by_id=user.pk)
+    return base
+
+
 OPENING_REGISTER_COLUMNS = (
     "batch_public_id",
     "department",
@@ -79,7 +114,7 @@ def _csv_safe(value):
     return value
 
 
-def apply_opening_filters(queryset, *, fiscal_year=None, status="", attention=""):
+def apply_opening_filters(queryset, *, fiscal_year=None, status="", attention="", actor=None):
     """Apply only recognized F2.2 filters so screen and export remain synchronized."""
     if fiscal_year is not None:
         queryset = queryset.filter(fiscal_year=fiscal_year)
@@ -88,7 +123,10 @@ def apply_opening_filters(queryset, *, fiscal_year=None, status="", attention=""
     else:
         status = ""
     if attention in OPENING_ATTENTION_STATUSES:
-        queryset = queryset.filter(status__in=OPENING_ATTENTION_STATUSES[attention])
+        if actor is not None and attention in OPENING_ACTION_PERMISSIONS:
+            queryset = opening_action_queryset(actor, attention, queryset=queryset)
+        else:
+            queryset = queryset.filter(status__in=OPENING_ATTENTION_STATUSES[attention])
     else:
         attention = ""
     return queryset, status, attention
@@ -108,6 +146,8 @@ def build_opening_register(department, actor, queryset, *, fiscal_year=None, sta
     if queryset.exclude(department_id=department.pk).exists():
         raise ValidationError("The opening register may contain only the current Accounting office.")
 
+    if attention in OPENING_ACTION_PERMISSIONS:
+        queryset = opening_action_queryset(actor, attention, queryset=queryset)
     batches = list(queryset.select_related("fiscal_year", "period"))
     stream = io.StringIO(newline="")
     writer = csv.writer(stream)

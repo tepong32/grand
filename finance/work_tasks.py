@@ -947,6 +947,55 @@ def _accounting_validation_tasks(user, department, today):
     return tasks
 
 
+def _opening_tasks(user, department, today):
+    from accounting.opening_controls import opening_evidence, opening_transition_errors, opening_posting_errors
+    from accounting.opening_exports import opening_action_choices_for_user, opening_action_queryset, next_opening_action
+    tasks = []
+    for action, title in opening_action_choices_for_user(user):
+        for batch in opening_action_queryset(user, action).select_related("fiscal_year", "period"):
+            evidence, checksum, errors = opening_evidence(batch)
+            if action != "needs_preparation":
+                if action == "awaiting_reconciliation":
+                    errors.extend(opening_posting_errors(batch))
+                    if checksum != (batch.validation_summary or {}).get("evidence_checksum"):
+                        errors.append("Approved opening evidence has changed.")
+                else:
+                    errors.extend(opening_transition_errors(batch))
+            events = list(batch.events.exclude(action="exported").values("action", "actor_id", "reason", "snapshot", "created_at"))
+            if batch.status == batch.RETURNED and not batch.events.filter(action=batch.RETURNED).exclude(reason="").exists():
+                errors.append("Returned opening evidence needs a retained correction reason.")
+            postings = [
+                [p.pk, p.fund_id, p.entry_id, str(p.debit), str(p.credit), p.row_count,
+                 p.entry.status, p.entry.source_snapshot,
+                 list(p.entry.lines.order_by("sequence", "pk").values("account_id", "responsibility_center_id", "debit", "credit"))]
+                for p in batch.postings.select_related("entry")
+            ]
+            revision = _projection_checksum(json.loads(json.dumps({
+                "evidence": evidence, "checksum": checksum, "summary": batch.validation_summary,
+                "state": batch.status, "version": batch.state_version,
+                "actors": [batch.created_by_id, batch.submitted_by_id, batch.approved_by_id, batch.posted_by_id],
+                "period": batch.period.status, "year": batch.fiscal_year.status,
+                "events": events, "postings": postings, "errors": sorted(set(errors)),
+            }, default=str)))
+            received = batch.submitted_at or batch.created_at
+            tasks.append(FinanceWorkTask(
+                task_id=f"finwork:v1:opening-batch:{batch.public_id}:{action.replace('_', '-')}",
+                task_type=f"finance.opening-batch.{action}.v1", area="Accounting opening",
+                case_id=f"opening-batch:{batch.public_id}", reference=batch.source_reference,
+                transaction_type="Opening-balance control", subject=batch.title,
+                action=next_opening_action(batch.status),
+                gate=f"{title}; current office and action permission required, with independent review and posting.",
+                owner_queue=f"Accounting opening - {title}", scope=department.name,
+                received_at=received, due_on=None, due_state="No structured target",
+                calendar_basis="Opening and period dates are financial evidence, not action deadlines.",
+                age_days=_age_days(received, today), state="Returned" if batch.status == batch.RETURNED else "Ready",
+                source_state=batch.get_status_display(), source_version=f"projection-sha256:{revision}",
+                exception=" ".join(dict.fromkeys(errors)),
+                url=reverse("accounting:opening_detail", kwargs={"public_id": batch.public_id}),
+            ))
+    return tasks
+
+
 def _journal_tasks(user, department, today):
     from accounting.journal_exports import (
         journal_action_choices_for_user, journal_action_queryset, next_journal_action,
@@ -2628,6 +2677,7 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks.extend(_dv_custody_tasks(user, department, today))
     tasks.extend(_accounting_validation_tasks(user, department, today))
     tasks.extend(_journal_tasks(user, department, today))
+    tasks.extend(_opening_tasks(user, department, today))
     tasks.extend(_treasury_payment_tasks(user, department, today))
     tasks.extend(_bank_reconciliation_tasks(user, department, today))
     tasks.extend(_period_close_tasks(user, department, today))
@@ -2646,7 +2696,7 @@ def finance_work_tasks(user, *, display_limit=100):
         "tasks_truncated": task_count > display_limit,
         "task_coverage": (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
-            "DV preparation and controlled custody", "Accounting validation and JEV controls",
+            "DV preparation and controlled custody", "Accounting validation and JEV controls", "Opening-balance controls",
             "Treasury check preparation and instrument release",
             "Bank-statement matching, exception resolution, and independent close",
             "Accounting period-close preparation, independent close review, and controlled reopen decisions",

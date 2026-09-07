@@ -1,6 +1,8 @@
 # GRAND Finance continuation handoff
 
-Last updated: 2026-09-06
+Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
+
+Last updated: 2026-09-07
 
 ## How to resume
 
@@ -8,7 +10,21 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Last completed checkpoint
+## Current opening-balance checkpoint
+
+Branch: `codex/finance-f1-opening-tasks` (created from synchronized `master` at `8c0f366`).
+
+Registered both attached operational-scrutiny documents as a mandatory post-functional completion gate in `docs/FINANCE_OPERATIONAL_SCRUTINY.md`, with Critical stop rules and a gap register. Do not run the full scrutiny prematurely or call Finance production-ready.
+
+Added exact opening staging/correction, submission, independent review, posting and reconciliation tasks. Workspace action filters, export, attention and tasks share one current-office/permission/lifecycle/checker selector. UAT accounts cannot act. All eight opening mutation services now check current-office custody. Validation retains a source/resolved-row digest; submission/approval/posting compare live exact controls and retained events. Reconciliation verifies source-to-posted line classifications and amounts. Row correction locks the batch before the row to serialize against transitions. Posting failure rolls back before retry.
+
+The cross-office and UAT validation defect was reproduced before remediation (two failing subcases). Focused Accounting plus the complete synthetic budget-to-Treasury-report replay: 51 tests passed in 10.679 seconds. Final complete project gate: 521 tests passed across both routed databases in 136.867 seconds. Django system checks, migration-drift checks, compilation and whitespace checks are clean.
+
+Legacy validated evidence must be revalidated; submitted/approved evidence must be returned first. Posted legacy evidence without the digest requires controlled investigation; do not backfill historical approval proof. No production files/databases were migrated. No new authenticated desktop/mobile browser pass is claimed; source routes and screen/export parity were exercised by Django tests.
+
+Do not redo completed adapters. Finish the remaining legacy shared-case coverage audit, then proceed with governed cross-cycle views and authorized task export. Real LGU discovery, forms, opening balances, redacted replay, backup/restore and seven-party acceptance remain external prerequisites. The full scrutiny must produce current-source research and a populated traceability matrix later; neither is represented as completed here.
+
+## Prior merged checkpoint (historical evidence)
 
 Branch: `master` (period-close checkpoint `d4a988c` merged and pushed)
 
@@ -24,7 +40,7 @@ Verification on the final source:
 - `compileall` for Accounting and Finance: clean.
 - `git diff --check`: clean apart from informational LF-to-CRLF notices.
 
-This checkpoint is merged into and pushed on `master`; its completed `codex/finance-f1-period-close-tasks` branch was retired with the other fully merged Finance branches. Confirm local `master` still equals `origin/master`, then create the next `codex/finance-*` branch from that pushed checkpoint before changing code.
+This checkpoint is merged into and pushed on `master`; its completed `codex/finance-f1-period-close-tasks` branch was retired with the other fully merged Finance branches. That branch-start instruction was completed for the current opening checkpoint. Continue on the current checkpoint branch until committed/pushed; do not discard it or restart from old master.
 
 ## Non-negotiable financial controls
 
@@ -41,7 +57,7 @@ This checkpoint is merged into and pushed on `master`; its completed `codex/fina
 
 ### 1. Audit any remaining F1.5 count-only attention groups
 
-Enumerate every existing Finance attention group and compare it with the stable item-level adapters. If any actionable group is still represented only by a count, add its exact adapter before starting the cross-cycle views. Do not invent a group solely to make the list longer.
+The domain inventory in `docs/FINANCE_MY_WORK.md` identified and filled all five opening actions. Next inspect the legacy shared voucher `BUDGET_DRAFT` compatibility stage and verify every other shared-case stage maps to an exact source action. Do not claim full adapter coverage until this case-to-action audit is complete, and do not invent new groups. Then proceed with cross-cycle views.
 
 For any gap, first identify or extract one shared permission/office/state/maker-checker queryset used by the authoritative workspace, register export, attention count, and task projection. Give each source/action a deterministic Task ID and a projection checksum that changes when relevant evidence changes. Include exact action, gate, queue, source state/version, timing basis, exception, and authoritative URL. Do not invent deadlines from transaction or period dates. Add negative tests for cross-office access, self-review, UAT preview, one-cent differences, stale/tampered evidence, and screen/export/task count parity.
 

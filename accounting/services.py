@@ -607,11 +607,18 @@ def _opening_money(raw_value):
     return value.quantize(Decimal("0.01"))
 
 
+def _assert_opening_office(batch, actor):
+    department = department_for_user(actor)
+    if department is None or department.pk != batch.department_id:
+        raise ValidationError("Opening-balance actions require custody in the current Accounting office.")
+
+
 @transaction.atomic(using=FINANCE_DB)
 def stage_opening_csv(batch, actor, uploaded_file):
     if not can_prepare_opening_balances(actor):
         raise ValidationError("You are not authorized to stage opening balances.")
     locked = OpeningBalanceBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_opening_office(locked, actor)
     if locked.status not in (OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED):
         raise ValidationError("Return the opening batch to staging before replacing its source rows.")
     if locked.is_zero_balance_declaration:
@@ -680,6 +687,7 @@ def validate_opening_batch(batch, actor):
     if not can_prepare_opening_balances(actor):
         raise ValidationError("You are not authorized to validate opening balances.")
     locked = OpeningBalanceBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_opening_office(locked, actor)
     if locked.status not in (
         OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED, OpeningBalanceBatch.VALIDATED,
     ):
@@ -778,6 +786,8 @@ def validate_opening_batch(batch, actor):
         "fund_totals": serialized_funds,
         "source_checksum": locked.source_checksum,
     }
+    from .opening_controls import opening_evidence
+    locked.validation_summary["evidence_checksum"] = opening_evidence(locked)[1]
     locked.state_version += 1
     locked.full_clean()
     locked.save(update_fields=("status", "validation_summary", "state_version", "updated_at"))
@@ -797,7 +807,11 @@ def correct_opening_row(row, actor, *, values, reason):
     reason = reason.strip()
     if not reason:
         raise ValidationError("Explain the staged-row correction and cite its source evidence.")
-    locked = OpeningBalanceRow.objects.select_for_update().select_related("batch").get(pk=row.pk)
+    batch_id = OpeningBalanceRow.objects.values_list("batch_id", flat=True).get(pk=row.pk)
+    batch = OpeningBalanceBatch.objects.select_for_update().get(pk=batch_id)
+    _assert_opening_office(batch, actor)
+    locked = OpeningBalanceRow.objects.select_for_update().get(pk=row.pk, batch_id=batch.pk)
+    locked.batch = batch
     if locked.batch.status not in (OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED):
         raise ValidationError("Only draft or returned rows can be corrected.")
     before = _audit_snapshot(locked)
@@ -844,6 +858,7 @@ def correct_opening_batch(batch, actor, *, values, reason):
     if not reason:
         raise ValidationError("Explain the control-total or source-reference correction.")
     locked = OpeningBalanceBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_opening_office(locked, actor)
     if locked.status not in (OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED):
         raise ValidationError("Only a draft or returned opening batch can be corrected.")
     if values.get("is_zero_balance_declaration") and locked.rows.exists():
@@ -880,8 +895,13 @@ def submit_opening_batch(batch, actor):
     if not can_prepare_opening_balances(actor):
         raise ValidationError("You are not authorized to submit opening balances.")
     locked = OpeningBalanceBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_opening_office(locked, actor)
     if locked.status != OpeningBalanceBatch.VALIDATED or not locked.validation_summary.get("valid"):
         raise ValidationError("Resolve every row and control-total difference, then validate again before submission.")
+    from .opening_controls import opening_transition_errors
+    control_errors = opening_transition_errors(locked)
+    if control_errors:
+        raise ValidationError(control_errors)
     locked.status = OpeningBalanceBatch.FOR_REVIEW
     locked.submitted_by_id = actor.pk
     locked.submitted_by_label = actor_label(actor)
@@ -900,6 +920,7 @@ def decide_opening_batch(batch, actor, *, decision, evidence_note):
     if not note:
         raise ValidationError("Record the approval or return basis and supporting evidence.")
     locked = OpeningBalanceBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_opening_office(locked, actor)
     if decision == OpeningBalanceBatch.APPROVED and locked.status != OpeningBalanceBatch.FOR_REVIEW:
         raise ValidationError("Only an opening batch under review can be approved.")
     if decision == OpeningBalanceBatch.RETURNED and locked.status not in (
@@ -908,6 +929,11 @@ def decide_opening_batch(batch, actor, *, decision, evidence_note):
         raise ValidationError("Only an opening batch under review or approved-but-unposted can be returned.")
     if actor.pk in {locked.created_by_id, locked.submitted_by_id}:
         raise ValidationError("The opening-balance approver must be different from its preparer and submitter.")
+    if decision == OpeningBalanceBatch.APPROVED:
+        from .opening_controls import opening_transition_errors
+        control_errors = opening_transition_errors(locked)
+        if control_errors:
+            raise ValidationError(control_errors)
     if decision == OpeningBalanceBatch.APPROVED:
         locked.status = OpeningBalanceBatch.APPROVED
         locked.approved_by_id = actor.pk
@@ -931,6 +957,7 @@ def post_opening_batch(batch, actor):
     if not can_post_opening_balances(actor):
         raise ValidationError("You are not authorized to post opening balances.")
     locked = OpeningBalanceBatch.objects.select_for_update().select_related("fiscal_year", "period").get(pk=batch.pk)
+    _assert_opening_office(locked, actor)
     if locked.status != OpeningBalanceBatch.APPROVED:
         raise ValidationError("Only an independently approved opening batch can be posted.")
     if actor.pk in {locked.created_by_id, locked.submitted_by_id}:
@@ -939,6 +966,10 @@ def post_opening_batch(batch, actor):
         raise ValidationError("The selected opening accounting period is closed.")
     if locked.fiscal_year.status not in (FiscalYear.APPROVED, FiscalYear.ACTIVE):
         raise ValidationError("Approve the fiscal-year definition before posting opening balances.")
+    from .opening_controls import opening_transition_errors
+    control_errors = opening_transition_errors(locked)
+    if control_errors:
+        raise ValidationError(control_errors)
     grouped = {}
     for row in locked.rows.select_related("fund", "account", "responsibility_center").order_by("row_number"):
         if row.validation_status != OpeningBalanceRow.VALID or not row.fund_id or not row.account_id:
@@ -1027,8 +1058,16 @@ def reconcile_opening_batch(batch, actor):
     if not can_post_opening_balances(actor):
         raise ValidationError("You are not authorized to reconcile opening balances.")
     locked = OpeningBalanceBatch.objects.select_for_update().get(pk=batch.pk)
+    _assert_opening_office(locked, actor)
     if locked.status != OpeningBalanceBatch.POSTED:
         raise ValidationError("Only a posted opening batch can be reconciled.")
+    from .opening_controls import opening_evidence, opening_posting_errors
+    _, checksum, errors = opening_evidence(locked)
+    if checksum != locked.validation_summary.get("evidence_checksum"):
+        errors.append("Approved opening evidence has changed.")
+    errors.extend(opening_posting_errors(locked))
+    if errors:
+        raise ValidationError(errors)
     postings = list(locked.postings.select_related("entry"))
     posted_debit = Decimal("0.00")
     posted_credit = Decimal("0.00")

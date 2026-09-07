@@ -1,6 +1,8 @@
 # GRAND Finance roadmap completion audit
 
-Audit date: 2026-09-06
+Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
+
+Historical merged-baseline audit date: 2026-09-06
 
 Code position: `master` at the merged period-close checkpoint `d4a988c`, including the F1.2 permission-shaped Finance entry, F1.3 permission-filtered shared voucher-to-release case finder, F1.4 private current-scope-rechecked saved case views, F1.5 exact-drill cross-domain work-attention foundation, setup/discovery/field-operation/local-form/bank-reconciliation/bank-advice/returned-payment/period-close/reopen/cash-policy/cash-position/report-run source adapters, and the stable item-level contract for Finance Setup releases, discovery decisions, Budget proposal/allotment/obligation controls, payable-intake preparation/review, DV preparation, controlled print/custody, ordered wet-signature return, independent Accounting validation, JEV preparation/posting, Treasury check preparation/individual release, bank-statement staging/control correction/returned correction/matching/independent close, period-close checklist preparation/independent close review/controlled reopen decision, bank-advice preparation/review/submission/response, returned-payment Accounting decision/Treasury clarification/controlled replacement, remittance preparation/review/release, cash-policy/position preparation/review, report generation/blocked correction/review/approval, Field-operation cycle gates, named nested field actions, and Local-form work; plus the F0.2–F0.5 discovery controls, F2.1–F2.2 governed setup/opening registers, F3 guided annual-budget triage/export, F4 guided allotment/obligation control, F5 role-shaped payable triage, F6 controlled-paper/custody triage, F7 Accounting JEV triage, F8 bank-reconciliation triage, F9 reporting-run triage, F10 local-form acceptance triage, and F11.1–F11.9 field-operation controls
 
@@ -49,7 +51,7 @@ The full suite exercises role and department access, maker–checker decisions, 
 
 ## Current blockers to a truthful completion claim
 
-No repository defect currently blocks continued preparation. The remaining blockers are evidence or authority inputs that code cannot manufacture safely:
+At the 2026-09-06 checkpoint no repository defect had been recorded as blocking continued preparation. The 2026-09-07 opening review subsequently found Critical defects; their current status is recorded in `FINANCE_GAP_REGISTER.md`. External blockers remain evidence or authority inputs that code cannot manufacture safely:
 
 - current locally applicable COA, DBM, BIR, ordinance, bank, records, and office-procedure decisions for the enabled scope;
 - actual approved master data, opening balances, redacted field transactions, source registers/files, accepted blank/completed forms, and signed outputs;
@@ -59,3 +61,11 @@ No repository defect currently blocks continued preparation. The remaining block
 - attributable stakeholder and cutover decisions.
 
 Until those are entered and independently accepted through the implemented controls, GRAND Finance remains a validated software-control system in shadow/UAT status—not a locally authorized production replacement.
+
+## 2026-09-07 opening controls and mandatory gate update
+
+The prior baseline above is preserved as history. The opening checkpoint adds five exact tasks, synchronized actor-scoped action filters, current-office and UAT mutation guards, source/row/event digest validation, and source-to-posting reconciliation. It reproduces and remediates FIN-GAP-001 and FIN-GAP-002; final verification status belongs in the gap register.
+
+Focused Accounting and the affected complete synthetic Budget-to-Treasury-report chain passed 51 tests in 10.679 seconds. Final complete project gate: 521 tests passed across both routed databases in 136.867 seconds. Django system checks, migration-drift checks, compilation and whitespace checks are clean. No new browser or real LGU observation is claimed.
+
+Remaining software: legacy shared-case adapter audit, governed cross-cycle views, authorized task export, shared-view/search/following/notifications and device checks. Then execute the mandatory operational scrutiny, including current authoritative-source research, populated traceability matrix, adversarial multi-office simulation, audit reconstruction and recovery. Finance gate remains NO-GO; implemented controls and tests are not production authority.

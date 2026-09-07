@@ -238,14 +238,13 @@ def _budget_groups(user, department):
 
 def _accounting_groups(user, department):
     from accounting.access import (
-        can_approve_opening_balances, can_post_journals,
-        can_post_opening_balances, can_prepare_journals, can_prepare_opening_balances,
+        can_post_journals, can_prepare_journals,
     )
     from accounting.bank_register_exports import (
         bank_reconciliation_action_choices_for_user, bank_reconciliation_action_queryset,
     )
     from accounting.journal_exports import journal_action_queryset
-    from accounting.models import JournalEntry, OpeningBalanceBatch
+    from accounting.models import JournalEntry
     from accounting.period_close_register import (
         period_close_action_choices_for_user, period_close_action_queryset,
     )
@@ -260,26 +259,6 @@ def _accounting_groups(user, department):
          journal_action_queryset(user, "posting")[0],
          _queue_url("accounting:workspace", attention="for_posting"),
          "Balanced submitted JEVs awaiting a permitted post-or-return decision."),
-        (can_prepare_opening_balances(user), "opening-preparation", "Accounting", "Opening batches to prepare or correct",
-         OpeningBalanceBatch.objects.filter(department_id=department.pk, status__in=(OpeningBalanceBatch.DRAFT, OpeningBalanceBatch.RETURNED)),
-         _queue_url("accounting:opening_workspace", attention="needs_preparation"),
-         "Draft or returned opening batches in the preparer's governed route."),
-        (can_prepare_opening_balances(user), "opening-submission", "Accounting", "Validated opening batches ready to submit",
-         OpeningBalanceBatch.objects.filter(department_id=department.pk, status=OpeningBalanceBatch.VALIDATED),
-         _queue_url("accounting:opening_workspace", attention="ready_to_submit"),
-         "Validated opening batches ready for the preparer to submit for independent review."),
-        (can_approve_opening_balances(user), "opening-review", "Accounting", "Opening batches for independent review",
-         OpeningBalanceBatch.objects.filter(department_id=department.pk, status=OpeningBalanceBatch.FOR_REVIEW),
-         _queue_url("accounting:opening_workspace", attention="awaiting_review"),
-         "Opening batches submitted for an independent approve-or-return decision."),
-        (can_post_opening_balances(user), "opening-posting", "Accounting", "Approved opening batches awaiting posting",
-         OpeningBalanceBatch.objects.filter(department_id=department.pk, status=OpeningBalanceBatch.APPROVED),
-         _queue_url("accounting:opening_workspace", attention="awaiting_posting"),
-         "Approved opening batches awaiting an authorized posting action."),
-        (can_post_opening_balances(user), "opening-reconciliation", "Accounting", "Posted opening batches awaiting reconciliation",
-         OpeningBalanceBatch.objects.filter(department_id=department.pk, status=OpeningBalanceBatch.POSTED),
-         _queue_url("accounting:opening_workspace", attention="awaiting_reconciliation"),
-         "Posted opening batches awaiting zero-difference reconciliation."),
     )
     for allowed, key, area, title, queryset, url, definition in definitions:
         if allowed:
@@ -287,6 +266,17 @@ def _accounting_groups(user, department):
                 key=key, area=area, title=title, count=queryset.count(), url=url,
                 definition=definition, scope=department.name,
             ))
+    from accounting.opening_exports import (
+        OPENING_ACTION_KEYS, opening_action_choices_for_user, opening_action_queryset,
+    )
+    for attention, title in opening_action_choices_for_user(user):
+        groups.append(_group(
+            key=OPENING_ACTION_KEYS[attention], area="Accounting", title=title,
+            count=opening_action_queryset(user, attention).count(),
+            url=_queue_url("accounting:opening_workspace", attention=attention),
+            definition="Current-office opening work under the action permission and independent review/posting rules.",
+            scope=department.name,
+        ))
     bank_keys = {
         "needs_statement": "bank-statement",
         "needs_control_correction": "bank-control-correction",

@@ -212,6 +212,161 @@ class StandaloneAccountingTests(TestCase):
             created_by_label=self.preparer.username,
         )
 
+    def test_opening_services_reject_cross_office_and_uat_actions(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        from accounting.opening_exports import opening_action_queryset
+        year = self._fiscal_foundation()
+        batch = self._opening_batch(year)
+        batch = stage_opening_csv(batch, self.preparer, self._opening_file())
+        row = batch.rows.first()
+        self._grant(self.outsider, "prepare_opening_balances", "approve_opening_balances", "post_opening_balances")
+        self._grant(self.viewer, "prepare_opening_balances", "approve_opening_balances", "post_opening_balances")
+        self.viewer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        for actor in (self.outsider, self.viewer):
+            actions = (
+                (OpeningBalanceBatch.DRAFT, lambda: stage_opening_csv(batch, actor, self._opening_file())),
+                (OpeningBalanceBatch.DRAFT, lambda: validate_opening_batch(batch, actor)),
+                (OpeningBalanceBatch.DRAFT, lambda: correct_opening_row(row, actor, values={}, reason="Unauthorized correction")),
+                (OpeningBalanceBatch.DRAFT, lambda: correct_opening_batch(batch, actor, values={}, reason="Unauthorized correction")),
+                (OpeningBalanceBatch.VALIDATED, lambda: submit_opening_batch(batch, actor)),
+                (OpeningBalanceBatch.FOR_REVIEW, lambda: decide_opening_batch(batch, actor, decision=OpeningBalanceBatch.APPROVED, evidence_note="Unauthorized approval")),
+                (OpeningBalanceBatch.APPROVED, lambda: post_opening_batch(batch, actor)),
+                (OpeningBalanceBatch.POSTED, lambda: reconcile_opening_batch(batch, actor)),
+            )
+            for status, action in actions:
+                with self.subTest(actor=actor.username, status=status, action=action):
+                    OpeningBalanceBatch.objects.filter(pk=batch.pk).update(status=status)
+                    before = batch.events.count()
+                    with self.assertRaises(ValidationError):
+                        action()
+                    batch.refresh_from_db()
+                    self.assertEqual(batch.status, status)
+                    self.assertEqual(batch.events.count(), before)
+            self.assertFalse(opening_action_queryset(actor, "awaiting_reconciliation").exists())
+
+    def test_opening_work_tasks_match_scoped_screen_export_and_attention(self):
+        from finance.work_tasks import finance_work_tasks
+        from finance.work_attention import finance_work_attention
+        from accounting.opening_exports import opening_action_queryset
+        year = self._fiscal_foundation()
+        batch = self._opening_batch(year)
+        batch = stage_opening_csv(batch, self.preparer, self._opening_file())
+        self._grant(self.preparer, "approve_opening_balances", "post_opening_balances")
+        def tasks(user):
+            return [t for t in finance_work_tasks(user)["tasks"] if t["case_id"].startswith("opening-batch:")]
+        first = tasks(self.preparer)[0]
+        self.assertIsNone(first["due_on"])
+        self.assertEqual(first["exception"], "")
+        batch = validate_opening_batch(batch, self.preparer)
+        ready = tasks(self.preparer)[0]
+        self.assertIn("ready_to_submit", ready["task_type"])
+        self.assertEqual(ready["exception"], "")
+        batch = submit_opening_batch(batch, self.preparer)
+        self.assertFalse(tasks(self.preparer))
+        self.assertFalse(opening_action_queryset(self.preparer, "awaiting_review").exists())
+        reviewer_tasks = tasks(self.setup_approver)
+        self.assertEqual(len(reviewer_tasks), 1)
+        self.client.force_login(self.setup_approver)
+        query = {"attention": "awaiting_review"}
+        screen = self.client.get(reverse("accounting:opening_workspace"), query)
+        self.assertEqual([b.pk for b in screen.context["batches"]], [batch.pk])
+        groups = {g["key"]: g["count"] for g in finance_work_attention(self.setup_approver)["groups"]}
+        self.assertEqual(groups["opening-review"], len(reviewer_tasks))
+        with tempfile.TemporaryDirectory() as archive_root, self.settings(GRAND_EXPORT_ROOT=archive_root):
+            exported = self.client.get(reverse("accounting:opening_register_export"), query)
+        self.assertEqual(exported.status_code, 200)
+        rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+        self.assertEqual([r["batch_public_id"] for r in rows], [str(batch.public_id)])
+        self.client.force_login(self.preparer)
+        screen = self.client.get(reverse("accounting:opening_workspace"), query)
+        self.assertFalse(screen.context["batches"])
+        before = reviewer_tasks[0]
+        OpeningBalanceRow.objects.filter(batch=batch, row_number=2).update(debit=Decimal("100.01"))
+        after = tasks(self.setup_approver)[0]
+        self.assertEqual(before["task_id"], after["task_id"])
+        self.assertNotEqual(before["source_version"], after["source_version"])
+        self.assertIn("zero difference", after["exception"])
+        with self.assertRaises(ValidationError):
+            decide_opening_batch(batch, self.setup_approver, decision=OpeningBalanceBatch.APPROVED, evidence_note="Synthetic independent review")
+
+    def test_opening_evidence_drift_blocks_submission_and_posting(self):
+        year = self._fiscal_foundation()
+        year.status = FiscalYear.APPROVED
+        year.save(update_fields=("status",))
+        batch = self._opening_batch(year)
+        batch = stage_opening_csv(batch, self.preparer, self._opening_file())
+        batch = validate_opening_batch(batch, self.preparer)
+        OpeningBalanceRow.objects.filter(batch=batch, row_number=2).update(memo="Changed evidence")
+        with self.assertRaises(ValidationError):
+            submit_opening_batch(batch, self.preparer)
+        batch = validate_opening_batch(batch, self.preparer)
+        batch = submit_opening_batch(batch, self.preparer)
+        batch = decide_opening_batch(batch, self.setup_approver, decision=OpeningBalanceBatch.APPROVED, evidence_note="Reviewed source")
+        OpeningBalanceRow.objects.filter(batch=batch).update(debit=Decimal("0.00"), credit=Decimal("0.00"))
+        with self.assertRaises(ValidationError):
+            post_opening_batch(batch, self.poster)
+        self.assertFalse(batch.postings.exists())
+        self.assertFalse(JournalEntry.objects.filter(source_type="opening").exists())
+
+    def test_opening_tasks_follow_full_lifecycle_and_reject_reconciliation_line_drift(self):
+        from finance.work_tasks import finance_work_tasks
+        year = self._fiscal_foundation()
+        year.status = FiscalYear.APPROVED
+        year.save(update_fields=("status",))
+        batch = stage_opening_csv(self._opening_batch(year), self.preparer, self._opening_file())
+        batch = validate_opening_batch(batch, self.preparer)
+        batch = submit_opening_batch(batch, self.preparer)
+        batch = decide_opening_batch(batch, self.setup_approver, decision=OpeningBalanceBatch.RETURNED, evidence_note="Clarify the opening evidence")
+        def tasks(user):
+            return [t for t in finance_work_tasks(user)["tasks"] if t["case_id"] == f"opening-batch:{batch.public_id}"]
+        self.assertEqual(tasks(self.preparer)[0]["state"], "Returned")
+        batch = validate_opening_batch(batch, self.preparer)
+        batch = submit_opening_batch(batch, self.preparer)
+        batch = decide_opening_batch(batch, self.setup_approver, decision=OpeningBalanceBatch.APPROVED, evidence_note="Independent confirmation")
+        self.assertIn("awaiting_posting", tasks(self.poster)[0]["task_type"])
+        batch = post_opening_batch(batch, self.poster)
+        self.assertIn("awaiting_reconciliation", tasks(self.poster)[0]["task_type"])
+        self.assertEqual(tasks(self.poster)[0]["exception"], "")
+        with self.assertRaises(ValidationError):
+            post_opening_batch(batch, self.poster)
+        self.assertEqual(batch.postings.count(), 1)
+        line = batch.postings.get().entry.lines.order_by("sequence").first()
+        JournalLine.objects.filter(pk=line.pk).update(account_id=self.payable.pk)
+        self.assertIn("lineage", tasks(self.poster)[0]["exception"])
+        with self.assertRaises(ValidationError):
+            reconcile_opening_batch(batch, self.poster)
+        JournalLine.objects.filter(pk=line.pk).update(account_id=line.account_id)
+        batch, summary = reconcile_opening_batch(batch, self.poster)
+        self.assertTrue(summary["reconciled"])
+        self.assertFalse(tasks(self.poster))
+
+    def test_opening_posting_failure_rolls_back_then_retry_reconciles(self):
+        from unittest.mock import patch
+        year = self._fiscal_foundation()
+        year.status = FiscalYear.APPROVED
+        year.save(update_fields=("status",))
+        batch = stage_opening_csv(self._opening_batch(year), self.preparer, self._opening_file())
+        batch = validate_opening_batch(batch, self.preparer)
+        batch = submit_opening_batch(batch, self.preparer)
+        batch = decide_opening_batch(batch, self.setup_approver, decision=OpeningBalanceBatch.APPROVED, evidence_note="Independent approval")
+        original_post = post_entry
+        def fail_after_post(*args, **kwargs):
+            original_post(*args, **kwargs)
+            raise RuntimeError("Synthetic interruption after journal posting")
+        with patch("accounting.services.post_entry", side_effect=fail_after_post):
+            with self.assertRaises(RuntimeError):
+                post_opening_batch(batch, self.poster)
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, OpeningBalanceBatch.APPROVED)
+        self.assertFalse(batch.postings.exists())
+        self.assertFalse(JournalEntry.objects.filter(source_type="opening").exists())
+        self.assertFalse(batch.events.filter(action="posted").exists())
+        batch = post_opening_batch(batch, self.poster)
+        batch, summary = reconcile_opening_batch(batch, self.poster)
+        self.assertTrue(summary["reconciled"])
+        self.assertEqual(batch.postings.count(), 1)
+
     def test_typed_fiscal_year_requires_independent_layered_readiness_before_activation(self):
         fiscal_year = self._fiscal_foundation()
         self._grant(self.preparer, "approve_fiscal_readiness")
@@ -899,7 +1054,7 @@ class StandaloneAccountingTests(TestCase):
         with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
             response = self.client.get(reverse("accounting:opening_register_export"), {
                 "fiscal_year": fiscal_year.pk,
-                "attention": "awaiting_review",
+                "status": OpeningBalanceBatch.FOR_REVIEW,
             })
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response["X-GRAND-Export-Archived"], "true")
@@ -913,7 +1068,7 @@ class StandaloneAccountingTests(TestCase):
             self.assertIn(slugify(self.viewer.username), artifacts[0].parts)
             manifest = json.loads(Path(str(artifacts[0]) + ".manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["sha256"], response["X-GRAND-Export-SHA256"])
-            self.assertEqual(manifest["metadata"]["attention_filter"], "awaiting_review")
+            self.assertEqual(manifest["metadata"]["status_filter"], OpeningBalanceBatch.FOR_REVIEW)
             self.assertEqual(manifest["metadata"]["batch_count"], 1)
             event = AccountingAuditEvent.objects.get(action="opening_register_exported")
             self.assertEqual(event.actor_id, self.viewer.pk)

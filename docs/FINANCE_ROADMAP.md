@@ -1,5 +1,7 @@
 # GRAND Finance complete-cycle roadmap
 
+Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
+
 Status: canonical delivery roadmap for the professional GRAND Finance sub-application. The current implementation is a shadow/UAT foundation, not yet the LGU's authoritative finance system.
 
 ## Product outcome
@@ -357,3 +359,7 @@ No phase may be called complete merely because its screens exist. Completion req
 - arbitrary SQL, formulas, macros, scripts, or user-authored posting logic;
 - replacing procurement, payroll, HR, Records, or TracePoint with duplicate finance-owned copies;
 - public disclosure of confidential financial, employee, supplier, claimant, or banking data.
+
+## Current continuation overlay — 2026-09-07
+
+Preserve the delivery history above. Subsequent checkpoints implemented DV/custody, Accounting, Treasury, Reporting, bank, period-close and opening item adapters; [My Work](FINANCE_MY_WORK.md) now contains the explicit attention-domain inventory. Next audit legacy shared-case stage coverage, then implement governed cross-cycle views and separately permissioned task export. Functional completion precedes the mandatory operational scrutiny, populated traceability matrix, regulatory refresh and gap remediation. Production remains NO-GO until those and the independent LGU acceptance gates pass.

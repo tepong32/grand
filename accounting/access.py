@@ -67,15 +67,21 @@ def can_govern_setup(user):
 
 
 def can_prepare_opening_balances(user):
-    return has_explicit_permission(user, "accounting.prepare_opening_balances")
+    from vouchers.roles import is_finance_uat_viewer
+
+    return not is_finance_uat_viewer(user) and has_explicit_permission(user, "accounting.prepare_opening_balances")
 
 
 def can_approve_opening_balances(user):
-    return has_explicit_permission(user, "accounting.approve_opening_balances")
+    from vouchers.roles import is_finance_uat_viewer
+
+    return not is_finance_uat_viewer(user) and has_explicit_permission(user, "accounting.approve_opening_balances")
 
 
 def can_post_opening_balances(user):
-    return has_explicit_permission(user, "accounting.post_opening_balances")
+    from vouchers.roles import is_finance_uat_viewer
+
+    return not is_finance_uat_viewer(user) and has_explicit_permission(user, "accounting.post_opening_balances")
 
 
 def can_prepare_journals(user):

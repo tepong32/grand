@@ -80,3 +80,6 @@ The [portfolio screenshot guide](../output/playwright/grand-portfolio/README.md)
 - An approved budget, released allotment, recorded obligation, accounting recognition, and cash disbursement are distinct authorities and balances.
 - A finance screen is not complete merely because it is implemented; the applicable roadmap exit gate and process-owner evidence are required before official use.
 - Local databases, uploaded citizen files, secrets, and generated official reports do not belong in source control.
+
+- [Mandatory Finance operational scrutiny](FINANCE_OPERATIONAL_SCRUTINY.md) defines the post-functional completion gate, evidence and stop rules.
+- [Finance gap register](FINANCE_GAP_REGISTER.md) tracks blocking discoveries and verified remediation.

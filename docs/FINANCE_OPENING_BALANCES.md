@@ -79,3 +79,11 @@ This is stricter than the broader voucher/check issuance boundary because ledger
 ## Synthetic acceptance
 
 Acceptance requires tests showing department isolation, permission gates, rejected unknown codes, reasoned correction, exact row and control totals, per-fund balance, independent approval, immutable posted JEVs, explicit zero declaration, reconciliation to zero difference, synchronized action filtering, and scoped control/row exports. Production migration, historical conversion, and official-form fidelity remain outside this slice.
+
+## Exact opening work and retained controls (2026-09-07)
+
+My Work links each opening action to its authoritative batch. Preparation, submission, independent review, posting and reconciliation use the same office-, permission-, state- and checker-scoped query as source action filters and register export. Read-only status filters remain oversight. No opening date is promoted into a task deadline.
+
+Every opening mutation rechecks current office custody and excludes Finance UAT accounts. Validation retains a checksum over declared/source evidence and resolved rows. Submission, approval and posting compare fresh controls and retained evidence; submitted/approved drift requires a governed return. Reconciliation verifies posted fund/entry/line identity and exact control totals. Failed posting rolls back the Finance transaction and can be retried through the original approved batch.
+
+Legacy validated batches require fresh validation to acquire this evidence. Return submitted/approved legacy batches before revalidation. Do not synthesize checksums for historical posted evidence: investigate and resolve through accepted correction/recovery procedures. This is a software-control checkpoint, not field acceptance.

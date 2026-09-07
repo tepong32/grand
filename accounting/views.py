@@ -78,7 +78,7 @@ from .journal_exports import (
     apply_journal_filters, build_journal_control_register, next_journal_action,
 )
 from .opening_exports import (
-    OPENING_ATTENTION_CHOICES, apply_opening_filters, build_opening_register, next_opening_action,
+    opening_action_choices_for_user, apply_opening_filters, build_opening_register, next_opening_action,
 )
 
 
@@ -767,7 +767,7 @@ def opening_workspace(request):
         fiscal_year = get_object_or_404(FiscalYear, pk=selected_fiscal_year, department_id=department.pk)
     batches, selected_status, selected_attention = apply_opening_filters(
         department_batches,
-        fiscal_year=fiscal_year,
+        actor=request.user, fiscal_year=fiscal_year,
         status=request.GET.get("status", "").strip(),
         attention=request.GET.get("attention", "").strip(),
     )
@@ -791,7 +791,7 @@ def opening_workspace(request):
         "selected_status": selected_status,
         "selected_attention": selected_attention,
         "status_choices": OpeningBalanceBatch.STATUS_CHOICES,
-        "attention_choices": OPENING_ATTENTION_CHOICES,
+        "attention_choices": (*opening_action_choices_for_user(request.user), ("complete", "Reconciled / complete")),
         "can_prepare_opening": can_prepare_opening_balances(request.user),
         "can_approve_opening": can_approve_opening_balances(request.user),
         "can_post_opening": can_post_opening_balances(request.user),
@@ -808,7 +808,7 @@ def opening_register_export(request):
         fiscal_year = get_object_or_404(FiscalYear, pk=selected_fiscal_year, department_id=department.pk)
     batches, selected_status, selected_attention = apply_opening_filters(
         OpeningBalanceBatch.objects.filter(department_id=department.pk),
-        fiscal_year=fiscal_year,
+        actor=request.user, fiscal_year=fiscal_year,
         status=request.GET.get("status", "").strip(),
         attention=request.GET.get("attention", "").strip(),
     )
@@ -901,8 +901,8 @@ def opening_detail(request, public_id):
         "events": batch.events.all()[:50],
         "import_form": OpeningBalanceImportForm(),
         "can_prepare_opening": can_prepare_opening_balances(request.user),
-        "can_approve_opening": can_approve_opening_balances(request.user),
-        "can_post_opening": can_post_opening_balances(request.user),
+        "can_approve_opening": can_approve_opening_balances(request.user) and request.user.pk not in {batch.created_by_id, batch.submitted_by_id},
+        "can_post_opening": can_post_opening_balances(request.user) and (batch.status == OpeningBalanceBatch.POSTED or request.user.pk not in {batch.created_by_id, batch.submitted_by_id}),
     })
 
 
