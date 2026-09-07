@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from uuid import UUID, uuid5
 
@@ -2783,10 +2783,12 @@ def _field_operation_tasks(user, department, today):
     return tasks
 
 
-def finance_work_tasks(user, *, display_limit=100, view="ready"):
+def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7):
     """Return permission-filtered item projections without writing task or source state."""
-    if view not in ("ready", "waiting", "returned"):
+    if view not in ("ready", "waiting", "returned", "upcoming", "past_dates"):
         raise ValueError("Unknown work view.")
+    if planned_days not in (7, 14, 30):
+        raise ValueError("Choose a supported calendar window.")
     department = getattr(getattr(user, "employeeprofile", None), "assigned_department", None)
     if department is None:
         return {"tasks": [], "task_count": 0, "tasks_truncated": False, "task_coverage": ()}
@@ -2817,7 +2819,15 @@ def finance_work_tasks(user, *, display_limit=100, view="ready"):
         tasks = personal_waiting_tasks(user, department, today, tasks)
     elif view == "returned":
         tasks = [task for task in tasks if task.state == "Returned"]
-    tasks.sort(key=lambda task: (task.area, task.reference.lower(), task.task_type, task.task_id))
+    elif view == "upcoming":
+        end = today + timedelta(days=planned_days)
+        tasks = [task for task in tasks if task.due_on is not None and today <= task.due_on < end]
+    elif view == "past_dates":
+        tasks = [task for task in tasks if task.due_on is not None and task.due_on < today]
+    if view in ("upcoming", "past_dates"):
+        tasks.sort(key=lambda task: (task.due_on, task.area, task.reference.lower(), task.task_id))
+    else:
+        tasks.sort(key=lambda task: (task.area, task.reference.lower(), task.task_type, task.task_id))
     task_count = len(tasks)
     return {
         "tasks": [task.as_dict() for task in tasks[:display_limit]],

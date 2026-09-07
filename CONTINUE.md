@@ -10,7 +10,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.8 checkpoint - Budget Waiting
+## Current v0.7.9 checkpoint - retained-date work views
+
+Branch: `codex/finance-work-dates`, based on pushed `552990b` (v0.7.8). Add Upcoming dates with explicit 7/14/30-calendar-day windows including today, and Past dates. Keep source date meaning and permissions, exclude undated records, and filter before the display limit. Verification: the focused calendar-boundary test passed in 1.682 seconds; all 542 project tests passed on the final source in 170.705 seconds. System, migration-drift, compilation and diff checks are clean. Edge layout checks passed at 1440px and 320px, with 320px document width at the narrow viewport. Next: attributed completion, remaining Waiting coverage and authorized export. Preserve the user's database.
+
+## Prior v0.7.8 checkpoint - Budget Waiting
 
 Branch: `codex/finance-budget-waiting`, based on pushed `52f373d` (v0.7.7). Extend personal Waiting to submitted proposals, allotment orders awaiting review and obligation requests awaiting certification. Preserve exact source read permissions, requesting-office scope and action exclusion. Verification: 4 focused tests passed in 3.041 seconds; all 541 project tests passed in 167.441 seconds. System, migration-drift, compilation and diff checks are clean. Continue remaining cross-cycle work afterward; preserve the user's database.
 

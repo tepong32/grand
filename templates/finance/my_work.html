@@ -28,10 +28,21 @@
   </div>
 
   <nav class="mb-3" aria-label="My Work views">
-    {% for key, label in work_views %}<a class="btn btn-sm mb-1 {% if selected_view == key %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?view={{ key }}" {% if selected_view == key %}aria-current="page"{% endif %}>{{ label }}</a> {% endfor %}
+    {% for key, label in work_views %}<a class="btn btn-sm mb-1 {% if selected_view == key %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?view={{ key }}&amp;days={{ planned_days }}" {% if selected_view == key %}aria-current="page"{% endif %}>{{ label }}</a> {% endfor %}
   </nav>
   {% if selected_view == 'waiting' %}<p class="text-muted">Work you prepared or submitted that is now with another queue. Records you can act on now are excluded. Coverage is listed below.</p>{% endif %}
   {% if selected_view == 'returned' %}<p class="text-muted">Current returned work you may correct. Historical returns on resubmitted records are excluded.</p>{% endif %}
+  {% if selected_view == 'upcoming' %}
+  <p class="text-muted">Actionable work with a stored date in the next {{ planned_days }} calendar days, including today. Each row identifies its retained review target, effective date, or scheduled date.</p>
+  <form method="get" class="mb-3">
+    <input type="hidden" name="view" value="upcoming">
+    <label for="work-days">Calendar window</label>
+    <select id="work-days" name="days" class="custom-select w-auto">{% for days in planned_windows %}<option value="{{ days }}" {% if planned_days == days %}selected{% endif %}>{{ days }} days</option>{% endfor %}</select>
+    <button class="btn btn-outline-primary" type="submit">Apply</button>
+  </form>
+  {% elif selected_view == 'past_dates' %}
+  <p class="text-muted">Actionable work whose stored date is before today. Use each row's retained date basis and source record to assess its timing.</p>
+  {% endif %}
   {% if selected_view == 'ready' %}
   <div class="alert alert-info">
     <strong>{{ action_count|default:0 }} visible action{{ action_count|default:0|pluralize }}</strong>
@@ -104,7 +115,7 @@
             <td class="small" data-label="Queue and timing">
               <div>{{ task.owner_queue }}</div>
               <div class="text-muted"><strong>Scope:</strong> {{ task.scope }}</div>
-              <div class="text-muted"><strong>Timing:</strong> {{ task.due_state }}{% if task.due_on %} · target {{ task.due_on|date:'Y-m-d' }}{% endif %}{% if task.received_at %} · age {{ task.age_days }} day{{ task.age_days|pluralize }}{% else %} · age unavailable{% endif %}</div>
+              <div class="text-muted"><strong>Timing:</strong> {{ task.due_state }}{% if task.due_on %} · date {{ task.due_on|date:'Y-m-d' }}{% endif %}{% if task.received_at %} · age {{ task.age_days }} day{{ task.age_days|pluralize }}{% else %} · age unavailable{% endif %}</div>
               <div class="text-muted">{{ task.calendar_basis }}</div>
             </td>
             <td class="small" data-label="State">

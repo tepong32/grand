@@ -220,3 +220,4 @@ output/uat/**/deck/*.webp
 output/playwright/finance-source-handoffs/
 output/playwright/finance-initial-advice/
 output/playwright/finance-personal-waiting/
+output/playwright/finance-date-views/

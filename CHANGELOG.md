@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.9 - retained-date work views
+
+Upcoming dates filters actionable records to an explicit 7-, 14- or 30-calendar-day window including today; Past dates selects stored dates before today. Records without a structured date remain outside both date views. Source permissions, current action eligibility, retained date meaning and counts apply before display truncation. Review targets, effectivity dates and scheduled dates stay distinguished; there is no inferred holiday, working-day or official-deadline rule. Verification: the focused calendar-boundary test passed in 1.682 seconds; all 542 project tests passed on the final source in 170.705 seconds. System, migration-drift, compilation and diff checks are clean. Edge layout checks passed at 1440px and 320px, with 320px document width at the narrow viewport.
+
 ## v0.7.8 - Budget Waiting handoffs
 
 Extend personal Waiting to submitted Budget proposal versions, allotment orders awaiting independent review and obligation requests awaiting certification. The exact source route's read permission and current office/requesting-office scope still apply. Current actions are excluded before truncation. A preparer's office move or loss of allotment read permission removes now-inaccessible rows; Budget-call and obligation document dates are not inferred review deadlines. Verification: 4 focused tests passed in 3.041 seconds; all 541 project tests passed in 167.441 seconds. System, migration-drift, compilation and diff checks are clean.

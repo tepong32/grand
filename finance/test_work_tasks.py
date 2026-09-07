@@ -318,6 +318,30 @@ class FinanceWorkTaskContractTests(TestCase):
         self.assertEqual(result["task_count"], 0)
         self.assertEqual(result["tasks"], [])
 
+    def test_date_views_use_retained_calendar_boundaries_before_truncation(self):
+        today = timezone.localdate()
+        self._decision(code="a-undated", status=FinanceDiscoveryDecision.DRAFT, due_date=None)
+        past = self._decision(code="b-past", status=FinanceDiscoveryDecision.DRAFT, due_date=today - timedelta(days=1))
+        current = self._decision(code="c-today", status=FinanceDiscoveryDecision.DRAFT, due_date=today)
+        last = self._decision(code="a-last-dated", status=FinanceDiscoveryDecision.DRAFT, due_date=today + timedelta(days=6))
+        next_week = self._decision(code="e-next", status=FinanceDiscoveryDecision.DRAFT, due_date=today + timedelta(days=7))
+        result = finance_work_tasks(self.worker, view="upcoming", display_limit=1)
+        self.assertEqual(result["task_count"], 2)
+        self.assertTrue(result["tasks_truncated"])
+        self.assertEqual(result["tasks"][0]["case_id"], f"discovery-decision:{current.public_id}")
+        self.assertEqual({task["case_id"] for task in finance_work_tasks(self.worker, view="upcoming", planned_days=14)["tasks"]},
+                         {f"discovery-decision:{item.public_id}" for item in (current, last, next_week)})
+        self.assertEqual([task["case_id"] for task in finance_work_tasks(self.worker, view="past_dates")["tasks"]],
+                         [f"discovery-decision:{past.public_id}"])
+        self.assertEqual(finance_work_tasks(self.uat, view="upcoming")["task_count"], 0)
+        self.assertEqual(finance_work_tasks(self.reviewer, view="upcoming")["task_count"], 0)
+        self.client.force_login(self.worker)
+        response = self.client.get(reverse("finance_operations:my_work"), {"view": "upcoming", "days": "14"})
+        self.assertEqual(response.context["task_count"], 3)
+        self.assertContains(response, "including today")
+        self.assertContains(response, "Retained local review target")
+        self.assertEqual(self.client.get(reverse("finance_operations:my_work"), {"view": "upcoming", "days": "-1"}).status_code, 404)
+
     def test_my_work_displays_contract_and_authoritative_record_link(self):
         item = self._form()
         self.client.force_login(self.worker)

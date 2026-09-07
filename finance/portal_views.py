@@ -28,10 +28,16 @@ def my_work(request):
     if not access["allowed"]:
         raise PermissionDenied
     selected_view = request.GET.get("view", "ready")
-    if selected_view not in ("ready", "waiting", "returned"):
+    if selected_view not in ("ready", "waiting", "returned", "upcoming", "past_dates"):
         raise Http404("Unknown work view.")
+    raw_days = request.GET.get("days", "7")
+    if raw_days not in ("7", "14", "30"):
+        raise Http404("Unknown calendar window.")
+    planned_days = int(raw_days)
     attention = finance_work_attention(request.user)
-    attention.update(finance_work_tasks(request.user, view=selected_view))
+    attention.update(finance_work_tasks(request.user, view=selected_view, planned_days=planned_days))
+    attention["planned_days"] = planned_days
+    attention["planned_windows"] = (7, 14, 30)
     attention["selected_view"] = selected_view
-    attention["work_views"] = (("ready", "Ready for me"), ("waiting", "Waiting"), ("returned", "Returned"))
+    attention["work_views"] = (("ready", "Ready for me"), ("waiting", "Waiting"), ("returned", "Returned"), ("upcoming", "Upcoming dates"), ("past_dates", "Past dates"))
     return render(request, "finance/my_work.html", attention)
