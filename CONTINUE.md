@@ -10,7 +10,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.2 checkpoint — persisted posting handoff proof
+## Current v0.7.3 checkpoint — source-handoff tasks
+
+Branch: `codex/finance-source-handoff-tasks`, based on pushed `1ee1e0e` (v0.7.2). Exact creation and synchronization tasks now derive from stored voucher/remittance source and journal states. Draft/review JEVs remain in existing tasks; shared-case posting readiness uses their actual actor gates. Source detail routes retain current-office scope. Synchronization can recover a lost core receipt through immutable source identity; a dangling retained journal link blocks creation. Validation: 3 focused tests passed in 4.509 seconds and all 531 project tests passed in 147.486 seconds. System, migration-drift, compilation and diff checks are clean. Captured Django-rendered pages were visually checked in Edge at 1440px and 390px; this is template-layout verification, not live LGU acceptance. After committing/pushing this milestone, reproduce and remediate FIN-GAP-006 bank-advice service custody before initial advice assembly coverage; FIN-GAP-003 stays open. Preserve the user's modified `db.sqlite3`.
+
+## Prior v0.7.2 checkpoint — persisted posting handoff proof
 
 Branch: `codex/finance-posted-handoff-controls`, based on pushed `90609d4` (v0.7.1).
 

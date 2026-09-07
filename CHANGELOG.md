@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.3 — exact source-handoff work
+
+- Project current-office voucher/remittance journal creation and posted-source synchronization into My Work with stable source/action IDs, retained-evidence revisions and source-linked detail pages. Existing draft and submitted journals remain their own tasks.
+- Match shared-case posting readiness to actual source or maker-checker-aware journal actions.
+- Recover a lost core receipt by immutable source identity; reject journal creation when a retained receipt points to a missing journal.
+- Validation: 3 focused tests passed in 4.509 seconds and all 531 project tests passed in 147.486 seconds. System, migration-drift, compilation and diff checks are clean. Captured Django-rendered pages were visually checked in Edge at 1440px and 390px; this is template-layout verification, not live LGU acceptance. Initial advice assembly remains an open FIN-GAP-003 coverage item; production remains NO-GO.
+
 ## v0.7.2 — persisted Accounting handoff proof
 
 - Reload stored, current-office posted journals before voucher/remittance synchronization; require posting attribution and exact totals matching the retained posting event.

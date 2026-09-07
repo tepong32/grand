@@ -493,6 +493,8 @@ def materialize_remittance_journal(posting_request, actor):
         verify_source_link(request, existing, source_type="remittance")
         RemittancePostingRequest.objects.filter(pk=request.pk).update(status=request.MATERIALIZED, accounting_entry_public_id=existing.public_id, failure_reason="", materialized_at=timezone.now())
         return existing, False
+    if request.accounting_entry_public_id:
+        raise RemittanceWorkflowError("The retained JEV link cannot be found in this office's ledger. Investigate before recovery.")
     try:
         if _digest(request.payload) != request.payload_checksum or _digest(request.posting_rule_snapshot) != request.posting_rule_checksum:
             raise RemittanceWorkflowError("The immutable remittance or posting-rule checksum no longer matches its content.")

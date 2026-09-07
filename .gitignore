@@ -215,3 +215,6 @@ output/uat/**/deck/rendered/
 output/uat/**/deck/verified-render/
 output/uat/**/*.inspect.ndjson
 output/uat/**/deck/*.webp
+
+# Synthetic source-handoff browser verification captures
+output/playwright/finance-source-handoffs/

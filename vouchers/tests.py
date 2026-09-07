@@ -952,7 +952,7 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(case.current_stage, VoucherCase.BUDGET_DRAFT)
         self.assertFalse(hasattr(case, "obligation"))
 
-    def _draft_voucher_handoff(self):
+    def _draft_voucher_handoff(self, *, materialize=True):
         case = self.create_case("handoff-probe")
         self.budget_certify(case, "handoff-budget")
         self.accounting_prepare(case, "handoff-dv")
@@ -960,7 +960,7 @@ class VoucherWorkflowTests(TestCase):
         validate_accounting(case=case, actor=self.validator, jev_number="HANDOFF-JEV", jev_date=date(2026, 8, 25),
             note="Synthetic review", expected_version=case.state_version, idempotency_key="handoff-validation")
         source = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
-        entry, _ = materialize_voucher_journal(source, self.preparer)
+        entry = materialize_voucher_journal(source, self.preparer)[0] if materialize else None
         return case, source, entry
 
     def _draft_remittance_handoff(self):
@@ -987,6 +987,106 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(entry.status, JournalEntry.DRAFT)
         self.assertEqual(source.status, VoucherPostingRequest.MATERIALIZED)
         self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_POSTING)
+
+    def test_source_tasks_follow_creation_journal_and_synchronization_gates(self):
+        from accounting.source_handoffs import source_handoffs
+        from finance.work_tasks import finance_work_tasks
+        from vouchers.case_exports import apply_case_filters
+
+        case, source, _ = self._draft_voucher_handoff(materialize=False)
+        def tasks(actor):
+            return [task for task in finance_work_tasks(actor)["tasks"]
+                    if task["task_type"].startswith("finance.voucher-source.")]
+        def ready(actor):
+            rows, *_ = apply_case_filters(VoucherCase.objects.filter(pk=case.pk),
+                actionable_stages=(VoucherCase.ACCOUNTING_POSTING,), attention="ready_for_me", actor=actor)
+            return rows.exists()
+
+        first = tasks(self.preparer)
+        self.assertEqual(len(first), 1)
+        self.assertEqual(first[0]["task_type"], "finance.voucher-source.materialize.v1")
+        self.assertTrue(ready(self.preparer))
+        self.client.force_login(self.preparer)
+        response = self.client.get(first[0]["url"])
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Create journal")
+        source.refresh_from_db()
+        self.assertEqual(source.status, source.PENDING)
+        self.assertEqual(tasks(self.preparer)[0]["task_id"], first[0]["task_id"])
+        entry, _ = materialize_voucher_journal(source, self.preparer)
+        self.assertEqual(tasks(self.preparer), [])
+        self.assertTrue(ready(self.preparer))
+        submit_entry(entry, self.preparer); entry.refresh_from_db()
+        self.assertFalse(ready(self.preparer))
+        self.assertTrue(ready(self.validator))
+        post_entry(entry, self.validator); entry.refresh_from_db()
+        projected = tasks(self.validator)
+        self.assertEqual(projected[0]["task_type"], "finance.voucher-source.synchronize.v1")
+        self.assertEqual(projected[0]["state"], "Ready")
+        self.assertTrue(ready(self.validator))
+        # Lost core receipt is recoverable from immutable source identity.
+        VoucherPostingRequest.objects.filter(pk=source.pk).update(accounting_entry_public_id=None)
+        self.assertEqual(len(source_handoffs(self.validator, kind="voucher")), 1)
+        self.client.force_login(self.validator)
+        response = self.client.post(reverse("accounting:voucher_source_reconcile", args=[source.public_id]))
+        self.assertEqual(response.status_code, 302)
+        source.refresh_from_db()
+        self.assertEqual(source.status, source.POSTED)
+        self.assertEqual(source.accounting_entry_public_id, entry.public_id)
+        self.assertEqual(tasks(self.validator), [])
+
+    def test_source_task_custody_evidence_and_orphaned_receipt(self):
+        from uuid import uuid4
+        from accounting.source_handoffs import source_handoffs
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        case, source, _ = self._draft_voucher_handoff(materialize=False)
+        foreign = self.employee("source.tasks.foreign", self.requesting)
+        preview = self.employee("source.tasks.preview", self.accounting)
+        for actor in (foreign, preview):
+            actor.user_permissions.add(*Permission.objects.filter(content_type__app_label="accounting", codename__in=("prepare_journal_entries", "post_journal_entries")))
+        preview.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertEqual(source_handoffs(foreign), [])
+        self.assertEqual(source_handoffs(preview), [])
+        self.client.force_login(foreign)
+        response = self.client.get(reverse("accounting:source_handoff_detail", args=["voucher", source.public_id]))
+        self.assertEqual(response.status_code, 404)
+        VoucherPostingRequest.objects.filter(pk=source.pk).update(accounting_entry_public_id=uuid4())
+        projection = source_handoffs(self.preparer)[0]
+        self.assertIn("missing", projection.exception)
+        with self.assertRaises(ValidationError):
+            materialize_voucher_journal(source, self.preparer)
+        self.assertFalse(JournalEntry.objects.filter(source_reference=str(source.public_id)).exists())
+        VoucherPostingRequest.objects.filter(pk=source.pk).update(accounting_entry_public_id=None)
+        entry, _ = materialize_voucher_journal(source, self.preparer)
+        submit_entry(entry, self.preparer); entry.refresh_from_db()
+        post_entry(entry, self.validator); entry.refresh_from_db()
+        VoucherPostingRequest.objects.filter(pk=source.pk).update(payload={**source.payload, "particulars": "drift"})
+        projection = source_handoffs(self.validator)[0]
+        self.assertIn("checksum", projection.exception)
+        with self.assertRaises(ValidationError):
+            reconcile_posted_voucher_entry(entry, self.validator)
+
+    def test_remittance_source_task_recovers_posted_receipt(self):
+        from accounting.source_handoffs import source_handoffs
+        from finance.work_tasks import finance_work_tasks
+        batch, source, entry = self._draft_remittance_handoff()
+        self.assertEqual(source_handoffs(self.preparer, kind="remittance"), [])
+        submit_entry(entry, self.preparer); entry.refresh_from_db()
+        post_entry(entry, self.validator); entry.refresh_from_db()
+        RemittancePostingRequest.objects.filter(pk=source.pk).update(accounting_entry_public_id=None)
+        projected = [task for task in finance_work_tasks(self.validator)["tasks"]
+                     if task["task_type"] == "finance.remittance-source.synchronize.v1"]
+        self.assertEqual(len(projected), 1)
+        self.client.force_login(self.validator)
+        self.assertContains(self.client.get(projected[0]["url"]), "Synchronize posted journal")
+        response = self.client.post(reverse("accounting:remittance_source_reconcile", args=[source.public_id]))
+        self.assertEqual(response.status_code, 302)
+        source.refresh_from_db(); batch.refresh_from_db()
+        self.assertEqual(source.status, source.POSTED)
+        self.assertEqual(batch.status, batch.COMPLETED)
+        self.assertEqual(source_handoffs(self.validator, kind="remittance"), [])
 
     def test_remittance_handoff_requires_persisted_posting(self):
         batch, source, entry = self._draft_remittance_handoff()

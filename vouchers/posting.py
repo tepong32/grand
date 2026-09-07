@@ -64,6 +64,8 @@ def materialize_voucher_journal(posting_request, actor):
         )
         return existing, False
 
+    if request.accounting_entry_public_id:
+        raise PostingRequestError("The retained JEV link cannot be found in this office's ledger. Investigate before recovery.")
     payload = request.payload
     try:
         payload_checksum = hashlib.sha256(

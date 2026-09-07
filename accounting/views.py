@@ -1860,6 +1860,30 @@ def entry_reverse(request, public_id):
     })
 
 
+@require_GET
+@accounting_access_required
+def source_handoff_detail(request, kind, public_id):
+    from vouchers.models import RemittancePostingRequest, VoucherPostingRequest
+    from .source_handoffs import source_handoffs
+
+    models = {"voucher": VoucherPostingRequest, "remittance": RemittancePostingRequest}
+    if kind not in models:
+        raise Http404
+    department = department_for_user(request.user)
+    source = get_object_or_404(models[kind], public_id=public_id, finance_department_id=department.pk)
+    handoffs = source_handoffs(request.user, kind=kind, public_id=public_id)
+    handoff = handoffs[0] if handoffs else None
+    entry = JournalEntry.objects.filter(
+        department_id=department.pk, source_type=kind, source_reference=str(source.public_id),
+    ).first()
+    return render(request, "accounting/source_handoff_detail.html", {
+        "source": source, "kind": kind, "handoff": handoff, "entry": entry,
+        "origin": source.case if kind == "voucher" else source.batch,
+        "action_url": reverse(f"accounting:{kind}_source_{'reconcile' if handoff.action == 'synchronize' else 'materialize'}",
+                              kwargs={"public_id": public_id}) if handoff else "",
+    })
+
+
 @require_POST
 @accounting_permission_required(can_prepare_journals)
 def voucher_source_materialize(request, public_id):
@@ -1882,10 +1906,7 @@ def voucher_source_reconcile(request, public_id):
     from vouchers.posting import reconcile_posted_voucher_entry
     department = department_for_user(request.user)
     source = get_object_or_404(VoucherPostingRequest, public_id=public_id, finance_department_id=department.pk)
-    if not source.accounting_entry_public_id:
-        messages.error(request, "Create the GRAND JEV before retrying the handoff.")
-        return redirect("accounting:workspace")
-    entry = get_object_or_404(JournalEntry, public_id=source.accounting_entry_public_id, department_id=department.pk)
+    entry = get_object_or_404(JournalEntry, source_type="voucher", source_reference=str(source.public_id), department_id=department.pk)
     try:
         reconcile_posted_voucher_entry(entry, request.user)
     except ValidationError as exc:
@@ -1917,10 +1938,7 @@ def remittance_source_reconcile(request, public_id):
     from vouchers.remittances import reconcile_posted_remittance_entry
     department = department_for_user(request.user)
     source = get_object_or_404(RemittancePostingRequest, public_id=public_id, finance_department_id=department.pk)
-    if not source.accounting_entry_public_id:
-        messages.error(request, "Create the GRAND remittance JEV before retrying the handoff.")
-        return redirect("accounting:workspace")
-    entry = get_object_or_404(JournalEntry, public_id=source.accounting_entry_public_id, department_id=department.pk)
+    entry = get_object_or_404(JournalEntry, source_type="remittance", source_reference=str(source.public_id), department_id=department.pk)
     try:
         reconcile_posted_remittance_entry(entry, request.user)
     except ValidationError as exc:

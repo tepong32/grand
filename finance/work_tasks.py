@@ -1032,6 +1032,45 @@ def _opening_tasks(user, department, today):
     return tasks
 
 
+def _source_handoff_tasks(user, department, today):
+    from accounting.source_handoffs import source_handoffs
+
+    tasks = []
+    for handoff in source_handoffs(user):
+        source, entry = handoff.source, handoff.entry
+        origin = source.case if handoff.kind == "voucher" else source.batch
+        revision = _projection_checksum({
+            "source": [str(source.public_id), source.version, source.status,
+                       str(source.accounting_entry_public_id or ""), source.failure_reason],
+            "payload": source.payload, "payload_checksum": source.payload_checksum,
+            "rule": source.posting_rule_snapshot, "rule_checksum": source.posting_rule_checksum,
+            "entry": [str(entry.public_id), entry.status, entry.updated_at.isoformat()] if entry else None,
+            "exception": handoff.exception,
+        })
+        tasks.append(FinanceWorkTask(
+            task_id=f"finwork:v1:{handoff.kind}-source:{source.public_id}:{handoff.action}",
+            task_type=f"finance.{handoff.kind}-source.{handoff.action}.v1",
+            area="Accounting", case_id=f"{handoff.kind}-source:{source.public_id}",
+            reference=f"{origin.reference_code} · {source.jev_number or 'JEV pending'}",
+            transaction_type=f"{handoff.kind.title()} posting handoff",
+            subject=f"Retained source version {source.version}",
+            action=("Create the journal from the retained source" if handoff.action == "materialize"
+                    else "Synchronize the posted journal with its source"),
+            gate=("Current-office journal preparation from retained source evidence."
+                  if handoff.action == "materialize" else
+                  "Current-office synchronization requires stored posting attribution, exact totals and matching source evidence."),
+            owner_queue=f"Accounting {'preparers' if handoff.action == 'materialize' else 'posters'} · {department.name}",
+            scope=department.name, received_at=source.requested_at,
+            due_on=None, due_state="No structured target",
+            calendar_basis="The requested JEV date is a ledger date, not an action deadline.",
+            age_days=_age_days(source.requested_at, today),
+            state="Exception" if handoff.exception else "Ready", source_state=source.get_status_display(),
+            source_version=f"projection-sha256:{revision}", exception=handoff.exception,
+            url=reverse("accounting:source_handoff_detail", kwargs={"kind": handoff.kind, "public_id": source.public_id}),
+        ))
+    return tasks
+
+
 def _journal_tasks(user, department, today):
     from accounting.journal_exports import (
         journal_action_choices_for_user, journal_action_queryset, next_journal_action,
@@ -2714,6 +2753,7 @@ def finance_work_tasks(user, *, display_limit=100):
     tasks.extend(_dv_custody_tasks(user, department, today))
     tasks.extend(_accounting_validation_tasks(user, department, today))
     tasks.extend(_journal_tasks(user, department, today))
+    tasks.extend(_source_handoff_tasks(user, department, today))
     tasks.extend(_opening_tasks(user, department, today))
     tasks.extend(_treasury_payment_tasks(user, department, today))
     tasks.extend(_bank_reconciliation_tasks(user, department, today))
@@ -2734,6 +2774,7 @@ def finance_work_tasks(user, *, display_limit=100):
         "task_coverage": (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls", "Opening-balance controls",
+            "Voucher and remittance journal creation and posted-source synchronization",
             "Treasury check preparation and instrument release",
             "Bank-statement matching, exception resolution, and independent close",
             "Accounting period-close preparation, independent close review, and controlled reopen decisions",

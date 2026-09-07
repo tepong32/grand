@@ -395,6 +395,17 @@ def apply_case_filters(
             queryset = queryset.filter(~Q(current_stage=VoucherCase.BUDGET_DRAFT) | Q(pk__in=legacy_ids))
         actor_department = department_for_user(actor) if actor is not None else None
         if actor_department is not None:
+            posting_stages = (VoucherCase.ACCOUNTING_POSTING, VoucherCase.ACCOUNTING_EVENT_POSTING)
+            if any(stage in actionable_stages for stage in posting_stages):
+                from accounting.source_handoffs import actionable_voucher_source_ids
+                from .models import VoucherPostingRequest
+
+                ready_cases = VoucherPostingRequest.objects.filter(
+                    public_id__in=actionable_voucher_source_ids(actor),
+                    finance_department_id=actor_department.pk,
+                    status__in=(VoucherPostingRequest.PENDING, VoucherPostingRequest.FAILED, VoucherPostingRequest.MATERIALIZED),
+                ).values("case_id")
+                queryset = queryset.filter(~Q(current_stage__in=posting_stages) | Q(pk__in=ready_cases))
             queryset = queryset.exclude(
                 Q(current_stage__in=actionable_stages)
                 & ~Q(current_department_id=actor_department.pk)
