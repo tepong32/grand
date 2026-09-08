@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.55 - Voucher detail action parity and readability
+
+The voucher validation form and main-step banner now use the existing source-action selector, preserving independent reviewers, current-office custody and governed self-validation exceptions. Scoped notice colors, a readable pinned workbook label, focusable scrolling evidence tables and responsive reason fields repair the browser-observed source-page defects. All 77 focused voucher tests passed in 46.346 seconds. All 84 My Work/operations/signature dependency tests passed in 56.615 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.54 - Readable My Work details
 
 My Work now puts coverage, technical record identifiers and view mechanics in native disclosures. Task actions, gates, exceptions, office scope, timing and source state stay visible. Source-specific accessible names and keyboard focus styling preserve support/audit access without crowding the task list. All 79 My Work/operations tests passed in 61.874 seconds. System, migration-drift and diff checks passed. Isolated authenticated browser checks verified desktop/narrow layouts, keyboard disclosures and exact source navigation. Full regression NOT RUN for this template-only change; v0.7.53 passed 674 tests.

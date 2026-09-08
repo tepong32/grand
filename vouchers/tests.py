@@ -2158,6 +2158,10 @@ class VoucherWorkflowTests(TestCase):
             )
         override = request_override(case=case, actor=self.preparer, action_code="accounting-self-validation", reason="Emergency staffing shortage")
         approve_override(override=override, actor=self.validator)
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertContains(response, "Validate and request GRAND JEV")
+        self.assertTrue(response.context["case_ready_for_user"])
         validate_accounting(
             case=case, actor=self.preparer, jev_number="JEV-SOD", jev_date=date(2026, 8, 25), note="Emergency override used",
             expected_version=case.state_version, idempotency_key="sod-approved",
@@ -2180,6 +2184,10 @@ class VoucherWorkflowTests(TestCase):
             effective_from=date(2026, 1, 1),
             created_by=self.validator,
         )
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertContains(response, "Validate and request GRAND JEV")
+        self.assertTrue(response.context["case_ready_for_user"])
         validate_accounting(
             case=case,
             actor=self.preparer,
@@ -4219,3 +4227,43 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(amendment.status, VoucherNonFinancialAmendment.AWAITING_SIGNATURES)
         self.assertTrue(case.signature_tasks.filter(round_number=replacement.signature_round, status=WetSignatureTask.PENDING).exists())
         self.assertFalse(case.events.filter(idempotency_key="failed-return-supersession").exists())
+
+    def test_voucher_detail_does_not_offer_unapproved_self_validation(self):
+        case = self.create_case("detail-self-validation")
+        self.budget_certify(case)
+        self.accounting_prepare(case)
+        self.return_signatures(case)
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertEqual(response.status_code, 200)
+        with self.subTest(control="validation form"):
+            self.assertNotContains(response, "Validate and request GRAND JEV")
+        with self.subTest(control="next-task banner"):
+            self.assertFalse(response.context["case_ready_for_user"])
+
+    def test_voucher_validation_detail_preserves_independent_review_and_current_office(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        case = self.create_case("detail-validation-scope")
+        self.budget_certify(case)
+        self.accounting_prepare(case)
+        self.return_signatures(case)
+        self.client.force_login(self.validator)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertContains(response, "Validate and request GRAND JEV")
+        self.assertTrue(response.context["case_ready_for_user"])
+        self.assertContains(response, "Synthetic controlled DV v1")
+        self.assertNotContains(response, "FinanceTemplateVersion object")
+        self.treasury_user.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="validate_accounting_voucher"))
+        self.client.force_login(self.treasury_user)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Validate and request GRAND JEV")
+        self.assertFalse(response.context["case_ready_for_user"])
+        self.validator.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.validator)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertContains(response, "Read-only UAT review")
+        self.assertNotContains(response, "Validate and request GRAND JEV")
+        self.assertFalse(response.context["case_ready_for_user"])

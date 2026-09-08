@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-045:** Use the existing Accounting validation selector on the voucher page, preserving governed exceptions and readable source notices.
+
 - **D-044:** Put My Work actions first; keep coverage and record identifiers in native, keyboard-accessible disclosures.
 
 - **D-043:** A reasoned DV return supersedes obsolete signing authority and interrupted amendments; corrected work must receive fresh review.
@@ -540,3 +542,12 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: removing metadata would weaken traceability; leaving every field expanded put the mobile task below multiple screens of explanation. Native details/summary supports keyboard use without another JavaScript state or permission contract. Exports and selectors are unchanged.
 - Evidence: all 79 My Work/operations tests passed in 61.874 seconds. System, migration-drift and diff checks passed. Isolated authenticated browser checks covered desktop, 390px and 320px layouts, native Space/Enter toggling, Tab navigation, visible focus, exact source navigation and console inspection. See [browser QA](FINANCE_MY_WORK_BROWSER_QA.md). Full suite NOT RUN for this isolated template-only change; v0.7.53 passed all 674 project tests.
 - Revisit when: adding substantive task fields or changing export/support identifiers. Keep operational constraints visible and details accessible.
+
+## D-045 - Voucher detail follows the real validation action
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.55.
+- Decision: derive the validation form permission and main-step banner from accounting_validation_action_queryset, the same selector already used by the source action queue and My Work. Keep service-level validation authoritative and preserve independently approved case overrides and effective administrator exemptions. Clarify the routing message without implying all correction controls are unavailable.
+- Goal: the source page and personal handoff must agree about which office/account can perform the next review; users should not be invited into a predictable maker-checker rejection.
+- Alternatives/tradeoffs: copying self-review logic into the template would create another policy definition; broadening My Work would surface unauthorized work. Reuse the existing selector and leave its source-service rules intact. Scoped notice contrast and a human-readable pinned template title/version address browser-observed readability defects without restyling shared global UI.
+- Evidence: two source-page assertions failed in 3.190 seconds before repair. Independent review, self-review exclusion, current-office custody, governed exceptions and UAT verified. Desktop/320px source pages and keyboard-scrollable evidence checked; fixed-width reason fields and raw template labels corrected. All 77 focused voucher tests passed in 46.346 seconds. All 84 My Work/operations/signature dependency tests passed in 56.615 seconds. System, migration-drift, compilation and diff checks passed. See [source browser QA](FINANCE_VOUCHER_DETAIL_QA.md).
+- Revisit when: extending detail-page parity to another stage; reuse that stage's source selector and distinguish a main workflow action from separate correction controls.

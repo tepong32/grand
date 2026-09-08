@@ -306,7 +306,17 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-027 - Voucher detail offers self-validation excluded from the real action queue
 
 - Process/module: DV source detail action form and next-task banner.
-- Severity/status: **MEDIUM - OPEN**, browser/source finding awaiting regression reproduction.
+- Severity/status: **MEDIUM - VERIFIED**, reproduced and repaired in v0.7.55.
 - Evidence: the isolated accounting.preparer account sees a validation form and a next-task banner on its own corrected DV. The same case correctly appears in personal Waiting. case_detail derives validation permission and its banner from generic permission/stage checks; accounting_validation_action_queryset additionally enforces current custody and preparer exclusion, honoring governed exceptions. validate_accounting independently checks the source controls and self-validation exception.
 - Expected behavior: the source page should use the existing source-action selector so it does not invite a blocked self-review or a wrong-office review. Preserve legitimate independent reviewers and separately governed self-validation exceptions.
-- Next step: reproduce page/queue mismatch, share the existing selector at the source-page boundary, and verify independent reviewer, preparer, wrong-office and exception cases. The browser also exposed low-contrast voucher notices and a raw template object label; retain those as subsequent presentation follow-ups.
+- Closure: source-page validation and main-step visibility share the existing action selector; authorized exceptions remain. Source notices, template label, evidence-table scrolling and reason-field sizing verified in the isolated browser.
+
+- Reproduction: one source-page test produced two failed assertions in 3.190 seconds: the unapproved preparer saw both the validation form and the next-task banner. The page now uses accounting_validation_action_queryset; All 77 focused voucher tests passed in 46.346 seconds. All 84 My Work/operations/signature dependency tests passed in 56.615 seconds. System, migration-drift, compilation and diff checks passed. Scoped source-page styles also address white-on-pale notices, raw template labeling, uncontained evidence tables and fixed-width reason textareas found in the isolated browser.
+
+## FIN-GAP-028 - Voucher return form lists routes unavailable from the current stage
+
+- Process/module: reasoned voucher return form.
+- Severity/status: **MEDIUM - OPEN**, browser/source finding awaiting reproduction.
+- Evidence: at Accounting validation the source form defaults to Requesting-office payable preparation, while return_case permits only Accounting preparation or renewed signatures from that stage. ReturnCaseForm defines a static destination list rather than consuming the service's stage map. The source service rejects unsupported destinations; the form still invites a predictable failed submission.
+- Expected behavior: source return controls should offer current permitted destinations, respect current-office authority and disclose retained-posting restrictions. Preserve the reason, state-version/idempotency and posted-JEV correction boundaries.
+- Next step: reproduce source form/return-service parity, then reuse an explicit shared return-route contract without weakening source mutation checks. Complete this before detailed DV history projections.
