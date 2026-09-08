@@ -1843,6 +1843,13 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(case.current_stage, VoucherCase.COMPLETED)
         self.assertEqual(case.authoritative_obligation_public_id, obligation.public_id)
         self.assertEqual(case.disbursement_voucher.net_amount, instrument.amount)
+        instrument_history = [task for task in finance_work_tasks(self.treasury_user, view="completed")["tasks"]
+                              if task["task_type"].startswith("finance.payment-instrument.")]
+        self.assertEqual({task["task_type"] for task in instrument_history}, {
+            "finance.payment-instrument.check_issued.completed.v1",
+            "finance.payment-instrument.checks_submitted_for_advice.completed.v1",
+            "finance.payment-instrument.disbursement_completed.completed.v1"})
+        self.assertEqual(len(instrument_history), 3)
 
         payment_bank_line = payment_entry.lines.get(account__code="1-01-02")
         statement_start = payment_entry.entry_date.replace(day=1)
@@ -1968,6 +1975,14 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(replacement_request.payload["trigger"]["replaces_instrument_public_id"], str(cancelled.public_id))
         self.assertEqual(replacement.replaces, cancelled)
         self.assertEqual(case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
+        from finance.work_tasks import finance_work_tasks
+        history = [task for task in finance_work_tasks(self.treasury_user, view="completed")["tasks"]
+                   if task["task_type"].startswith("finance.payment-instrument.")]
+        self.assertEqual({task["task_type"] for task in history}, {
+            "finance.payment-instrument.check_issued.completed.v1",
+            "finance.payment-instrument.check_cancelled.completed.v1",
+            "finance.payment-instrument.replacement_check_issued.completed.v1"})
+        self.assertEqual(len(history), 3)
 
     def test_discarded_payment_event_draft_gets_controlled_successor(self):
         self.enable_payment_event_rules()

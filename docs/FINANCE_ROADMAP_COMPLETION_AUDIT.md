@@ -202,3 +202,8 @@ Verification: all three focused tests passed in 6.576 seconds; all 166 My Work/v
 ## v0.7.29 - attributed returned-payment history
 
 Verification: all three focused identity/outcome/replay tests passed in 5.961 seconds; all 168 My Work/voucher dependency tests passed in 84.528 seconds. System, migration-drift, compilation and diff checks passed. Scope: focused identity/actor/outcome tests and real reversal/replacement history replay, followed by all My Work/voucher tests. Full-project suite: NOT RUN - OUT OF SCOPE for a read-only history adapter with no service, schema or infrastructure change; affected source workflows and projection consumers receive dependency coverage.
+
+
+## v0.7.30 - attributed instrument-action history
+
+Verification: all three focused attribution/payment/cancellation replays passed in 10.454 seconds; all 169 My Work/voucher dependency tests passed in 91.877 seconds. System, migration-drift, compilation and diff checks passed. Scope: focused attribution/physical-release test, full Budget-to-report replay and cancellation/replacement no-entry replay, then all My Work/voucher dependency tests. Full-project suite: NOT RUN - OUT OF SCOPE for read-only event projection; no service, schema or infrastructure change.

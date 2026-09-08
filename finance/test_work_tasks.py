@@ -1675,6 +1675,42 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         self.assertIn("step 2", next_task["reference"])
         self.assertEqual(job.status, VoucherPrintJob.AWAITING_SIGNATURES)
 
+    def test_instrument_history_keeps_physical_release_separate_from_posting(self):
+        from vouchers.models import VoucherEvent
+
+        item = self._case("INSTRUMENT-HISTORY", stage=VoucherCase.ACCOUNTING_EVENT_POSTING, with_voucher=True)
+        instrument = PaymentInstrument.objects.create(case=item, bank_account_code="synthetic", check_number="HISTORY-CHECK",
+            amount=Decimal("90.00"), status=PaymentInstrument.RELEASED,
+            issued_by=self.print_operator, issued_at=timezone.now(), released_by=self.print_operator, released_at=timezone.now())
+        for index, (action, before, after) in enumerate((
+            ("check_issued", VoucherCase.TREASURY_CHECK_PREPARATION, VoucherCase.TREASURY_CHECK_PREPARATION),
+            ("disbursement_completed", VoucherCase.TREASURY_RELEASE, VoucherCase.ACCOUNTING_EVENT_POSTING),
+        )):
+            VoucherEvent.objects.create(case=item, action=action, from_stage=before, to_stage=after,
+                actor=self.print_operator, actor_department=self.other, state_version=index+1,
+                idempotency_key=f"instrument-history-{index}",
+                metadata={"instrument_id": str(instrument.public_id), "check_number": instrument.check_number})
+        for key, actor, instrument_id, number in (
+            ("bad-id", self.print_operator, "invalid", instrument.check_number),
+            ("wrong-number", self.print_operator, str(instrument.public_id), "ANOTHER-CHECK"),
+            ("wrong-actor", self.preparer, str(instrument.public_id), instrument.check_number),
+        ):
+            VoucherEvent.objects.create(case=item, action="disbursement_completed", from_stage=VoucherCase.TREASURY_RELEASE,
+                to_stage=VoucherCase.ACCOUNTING_EVENT_POSTING, actor=actor, actor_department=self.accounting,
+                state_version=3, idempotency_key=key, metadata={"instrument_id": instrument_id, "check_number": number})
+        tasks = finance_work_tasks(self.print_operator, view="completed")["tasks"]
+        self.assertEqual(len(tasks), 2)
+        self.assertEqual(len({task["task_id"] for task in tasks}), 2)
+        self.assertTrue(any(task["subject"] == "Recorded final check release" for task in tasks))
+        for task in tasks:
+            self.assertIn(item.get_current_stage_display(), task["source_state"])
+            self.assertIn(self.other.name, task["scope"])
+            self.assertIn("does not by itself complete", task["exception"])
+            self.assertIsNone(task["due_on"])
+        self.assertFalse(finance_work_tasks(self.preparer, view="completed")["tasks"])
+        self.print_operator.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertFalse(finance_work_tasks(self.print_operator, view="completed")["tasks"])
+
     def test_event_posting_waiting_maps_authorized_source_before_limit(self):
         from vouchers.models import VoucherPostingRequest
 

@@ -493,3 +493,79 @@ def completed_returned_payment_tasks(user, department, today):
             url=reverse("vouchers:case_detail", kwargs={"public_id": item.public_id}),
         ))
     return tasks
+
+
+def completed_instrument_tasks(user, department, today):
+    """Physical instrument actions remain distinct from ledger completion."""
+    from uuid import UUID
+    from vouchers.access import can_view_workbench
+    from vouchers.case_exports import visible_cases_for_user
+    from vouchers.models import PaymentInstrument, VoucherCase, VoucherEvent
+    from vouchers.roles import is_finance_uat_viewer
+    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
+
+    if is_finance_uat_viewer(user) or not can_view_workbench(user):
+        return []
+    preparation = {VoucherCase.TREASURY_CHECK_PREPARATION}
+    event_posting = {VoucherCase.ACCOUNTING_EVENT_POSTING}
+    release = {VoucherCase.TREASURY_RELEASE}
+    active_stages = set(dict(VoucherCase.STAGE_CHOICES)) - {VoucherCase.COMPLETED, VoucherCase.CANCELLED}
+    specs = {
+        "check_issued": (preparation, preparation | event_posting, "Registered an issued physical check", "issued_by_id"),
+        "replacement_check_issued": (preparation, preparation | event_posting, "Registered a controlled replacement check", "issued_by_id"),
+        "checks_submitted_for_advice": (preparation, {VoucherCase.ACCOUNTING_BANK_ADVICE}, "Submitted issued checks for bank advice", None),
+        "check_released": (release, release | event_posting, "Recorded a physical check release", "released_by_id"),
+        "disbursement_completed": (release, {VoucherCase.COMPLETED} | event_posting, "Recorded final check release", "released_by_id"),
+        "check_cancelled": (active_stages, preparation | event_posting, "Cancelled a physical check", "cancelled_by_id"),
+    }
+    cases = visible_cases_for_user(user)
+    instruments = {item.public_id: item for item in PaymentInstrument.objects.filter(case__in=cases).select_related("replaces")}
+    events = VoucherEvent.objects.filter(actor_id=user.pk, case__in=cases, action__in=specs).select_related("case", "actor_department")
+    tasks = []
+    for event in events:
+        before, after, label, actor_field = specs[event.action]
+        if event.from_stage not in before or event.to_stage not in after or not isinstance(event.metadata, dict):
+            continue
+        instrument = None
+        if actor_field:
+            try:
+                instrument = instruments.get(UUID(str(event.metadata.get("instrument_id"))))
+            except (ValueError, TypeError, AttributeError):
+                continue
+            if (instrument is None or instrument.case_id != event.case_id or getattr(instrument, actor_field) != event.actor_id
+                    or event.metadata.get("check_number") != instrument.check_number):
+                continue
+            if event.action == "replacement_check_issued":
+                if not instrument.replaces_id or event.metadata.get("replaces_instrument_id") != str(instrument.replaces.public_id):
+                    continue
+            elif event.action == "check_issued" and instrument.replaces_id:
+                continue
+        item = event.case
+        event_id = _source_record_identity("instrument-event", event.pk)
+        revision = _projection_checksum({
+            "event_id": str(event_id), "action": event.action, "actor_id": event.actor_id,
+            "actor_department_id": event.actor_department_id, "at": event.created_at.isoformat(),
+            "metadata": event.metadata, "reason": event.reason, "case_id": str(item.public_id),
+            "from_stage": event.from_stage, "to_stage": event.to_stage, "state_version": event.state_version,
+            "instrument_id": str(instrument.public_id) if instrument else None,
+            "instrument_status": instrument.status if instrument else None,
+            "current_stage": item.current_stage, "reference": item.reference_code,
+        })
+        tasks.append(FinanceWorkTask(
+            task_id=f"finwork:v1:instrument-event:{event_id}:completed",
+            task_type=f"finance.payment-instrument.{event.action}.completed.v1", area="Treasury disbursement",
+            case_id=f"voucher-case:{item.public_id}",
+            reference=f"{item.reference_code} · check {instrument.check_number}" if instrument else item.reference_code,
+            subject=label, transaction_type="Recorded instrument action", action="View source case",
+            gate=f"The retained event attributes this action to your account: {label}." + (f" Reason: {event.reason}" if event.reason else ""),
+            owner_queue=f"Recorded actor account: {user.get_username()}; office: {event.actor_department.name}",
+            scope=f"Current case read access; recorded acting office: {event.actor_department.name}",
+            received_at=event.created_at, due_on=None, due_state="Recorded completion",
+            calendar_basis="Elapsed calendar days since the retained instrument action; no deadline inferred.",
+            age_days=_age_days(event.created_at, today), state="Completed",
+            source_state=(f"{instrument.get_status_display()} · " if instrument else "") + item.get_current_stage_display(),
+            source_version=f"event-sha256:{revision}",
+            exception="Physical issue, cancellation or release does not by itself complete required Accounting posting.",
+            url=reverse("vouchers:case_detail", kwargs={"public_id": item.public_id}),
+        ))
+    return tasks

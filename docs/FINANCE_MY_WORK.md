@@ -262,3 +262,8 @@ Personal Waiting now includes attributed returned-payment reviews through indepe
 ## v0.7.29 - attributed returned-payment history
 
 Completed by me now includes retained returned-payment submission, clarified submission, return-for-clarification and Accounting-decision events. Projection requires matching review/case identity, stored actor attribution, valid transitions and matching clarification/outcome evidence, under current review-register and case read access. Superseded versions retain their own historical entries. These decisions do not claim that required posting, replacement or payment release is complete. See [D-019](IMPLEMENTATION_DECISIONS.md) and [validation](FINANCE_ROADMAP_COMPLETION_AUDIT.md). Posting synchronization and replacement issuance history remain separate adapters.
+
+
+## v0.7.30 - attributed instrument-action history
+
+Completed by me now credits retained check issuance, controlled replacement issuance, advice submission, cancellation and physical release events. Instrument actions require matching current case read scope, stored actor, instrument identity, check number and replacement lineage where applicable. Current instrument/case states remain separate from the recorded action. Final physical release is labelled as such even when required Accounting posting remains open. See [D-020](IMPLEMENTATION_DECISIONS.md) and [validation](FINANCE_ROADMAP_COMPLETION_AUDIT.md). Posting synchronization and print/packet/amendment history remain separate scope.

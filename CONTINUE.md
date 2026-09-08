@@ -14,7 +14,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.29 checkpoint - attributed returned-payment history
+## Current v0.7.30 checkpoint - attributed instrument-action history
+
+Branch: `codex/finance-instrument-completion-history`, based on pushed `4938e5b`. Completed by me now credits retained check issuance, controlled replacement issuance, advice submission, cancellation and physical release events. Instrument actions require matching current case read scope, stored actor, instrument identity, check number and replacement lineage where applicable. Current instrument/case states remain separate from the recorded action. Final physical release is labelled as such even when required Accounting posting remains open. Verification: all three focused attribution/payment/cancellation replays passed in 10.454 seconds; all 169 My Work/voucher dependency tests passed in 91.877 seconds. System, migration-drift, compilation and diff checks passed. D-020 records scope and terminology. Continue remaining Finance phases; preserve the user database.
+
+## Prior v0.7.29 checkpoint - attributed returned-payment history
 
 Branch: `codex/finance-returned-payment-history`, based on pushed `c6705d5`. Completed by me now includes retained returned-payment submission, clarified submission, return-for-clarification and Accounting-decision events. Projection requires matching review/case identity, stored actor attribution, valid transitions and matching clarification/outcome evidence, under current review-register and case read access. Superseded versions retain their own historical entries. These decisions do not claim that required posting, replacement or payment release is complete. Verification: all three focused identity/outcome/replay tests passed in 5.961 seconds; all 168 My Work/voucher dependency tests passed in 84.528 seconds. System, migration-drift, compilation and diff checks passed. D-019 records the decision. Continue remaining Finance phases; preserve the user database.
 

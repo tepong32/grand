@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.30 - attributed instrument-action history
+
+Completed by me now credits retained check issuance, controlled replacement issuance, advice submission, cancellation and physical release events. Instrument actions require matching current case read scope, stored actor, instrument identity, check number and replacement lineage where applicable. Current instrument/case states remain separate from the recorded action. Final physical release is labelled as such even when required Accounting posting remains open. Verification: all three focused attribution/payment/cancellation replays passed in 10.454 seconds; all 169 My Work/voucher dependency tests passed in 91.877 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.29 - attributed returned-payment history
 
 Completed by me now includes retained returned-payment submission, clarified submission, return-for-clarification and Accounting-decision events. Projection requires matching review/case identity, stored actor attribution, valid transitions and matching clarification/outcome evidence, under current review-register and case read access. Superseded versions retain their own historical entries. These decisions do not claim that required posting, replacement or payment release is complete. Verification: all three focused identity/outcome/replay tests passed in 5.961 seconds; all 168 My Work/voucher dependency tests passed in 84.528 seconds. System, migration-drift, compilation and diff checks passed.

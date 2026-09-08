@@ -35,6 +35,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 - **D-019:** Attribute returned-payment history to matching retained review-version events, including superseded versions.
 
+- **D-020:** Describe instrument event history as physical actions, preserving required Accounting completion as a separate outcome.
+
 ### D-001 — Retained events determine personal completion
 
 - Date/checkpoint: 2026-09-07; v0.7.10–v0.7.12 implemented; payment-handoff extension verified in v0.7.14.
@@ -243,3 +245,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Tradeoff: malformed or inconsistent historical evidence is excluded; no audit-history repair is inferred. Posting synchronization and instrument issuance history remain separate work. Current read loss can hide prior personal history.
 - Evidence/status: inspected retained event emission and immutable review-source fields. Focused tests check malformed/cross-case metadata, actor/outcome mismatch and real superseded/successor history; all three focused tests and 168 dependent My Work/voucher tests passed.
 - Revisit when: adding later posting/issuance history or exposing evidence inconsistencies through an audit repair workflow.
+
+
+### D-020 — Name physical instrument actions precisely
+
+- Date/checkpoint: 2026-09-08; v0.7.30.
+- Decision: Credit retained issue/replacement/advice-handoff/cancellation/release events under current case read access. Validate instrument-bound actor, identifier, check number and replacement linkage. Label the final physical release accurately even when its legacy event name is disbursement_completed and the case enters event posting.
+- Alternatives considered: infer completion from current instrument status; display the event name as a claim of final disbursement completion; credit altered instrument linkage or a different recorder.
+- Goal fit: one traceable transaction should distinguish physical custody and ledger work, retaining who performed each action without implying extra authority.
+- Tradeoff: later status changes remain visible separately. Inconsistent historical linkage is excluded; no repair is inferred. Posting synchronization and print/packet/amendment history remain separate adapters.
+- Evidence/status: source issue/replacement reloads stored linkage under lock; source release can route into event posting. All three focused tests/replays and 169 My Work/voucher dependency tests passed.
+- Revisit when: expanding posting completion or correcting legacy evidence; keep action labels and authority precise.
