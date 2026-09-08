@@ -386,4 +386,16 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
                 received=received, queue=f"{queue} - {department.name}",
                 scope=f"{department.name}; dataset {item.definition.dataset_key}",
                 route="reporting:run_detail", attribution=[item.created_by_id, item.reviewed_by_id])
+    from reporting.accountability_register import visible_accountability_records
+    for kind in ("profile", "package"):
+        records = visible_accountability_records(user, kind)
+        for item in records.filter(status=records.model.SUBMITTED).filter(
+            Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk),
+        ):
+            add(item, kind=f"accountability-{kind}", area="Reporting",
+                reference=f"{item.name if kind == 'profile' else item.title} v{item.version}",
+                subject=f"Your submitted accountability {kind}", received=item.submitted_at,
+                queue=f"Independent accountability {kind} reviewers - {department.name}",
+                scope=department.name, route=f"reporting:accountability_{kind}_detail",
+                attribution=[item.created_by_id, item.submitted_by_id])
     return tasks

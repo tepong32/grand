@@ -313,3 +313,96 @@ class FinanceAccountabilityPackageTests(TestCase):
         response = self.client.get(reverse("reporting:workspace"))
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["accountability_packages_enabled"])
+
+
+    def work_rows(self, actor, record, view="ready"):
+        from finance.work_tasks import finance_work_tasks
+        kind = "profile" if isinstance(record, FinanceAccountabilityPackageProfile) else "package"
+        return [row for row in finance_work_tasks(actor, view=view)["tasks"]
+                if row["case_id"] == f"accountability-{kind}:{record.public_id}"]
+
+    def test_profile_personal_handoffs_match_independent_source_lifecycle(self):
+        from .accountability_register import accountability_action_queryset
+        profile = create_profile_successor(self.active_profile(), self.config_preparer, reason="Reviewed recipe correction")
+        self.assertEqual(len(self.work_rows(self.config_preparer, profile)), 1)
+        submit_profile(profile, self.config_preparer)
+        self.assertEqual(len(self.work_rows(self.config_preparer, profile, "waiting")), 1)
+        self.assertFalse(accountability_action_queryset(self.config_preparer, "profile_review").filter(pk=profile.pk).exists())
+        self.assertEqual(self.work_rows(self.config_preparer, profile), [])
+        review_rows = self.work_rows(self.config_approver, profile)
+        self.assertEqual(len(review_rows), 1)
+        self.client.force_login(self.config_approver)
+        self.assertEqual(self.client.get(review_rows[0]["url"]).status_code, 200)
+        review_profile(profile, self.config_approver, approve=False, note="Clarify recipe wording.")
+        self.assertEqual(self.work_rows(self.config_preparer, profile)[0]["state"], "Returned")
+        self.assertEqual(self.work_rows(self.config_preparer, profile, "waiting"), [])
+        submit_profile(profile, self.config_preparer)
+        self.assertEqual(len(self.work_rows(self.config_preparer, profile, "completed")), 2)
+        review_profile(profile, self.config_approver, approve=True, note="Recipe independently accepted.")
+        self.assertEqual(self.work_rows(self.config_preparer, profile, "waiting"), [])
+        self.assertEqual(len(self.work_rows(self.config_approver, profile, "completed")), 2)
+
+    def test_package_personal_handoffs_preserve_cross_office_evidence_and_history(self):
+        profile = self.active_profile()
+        package = create_package(profile=profile, department=self.accounting, actor=self.preparer,
+                                 title="Personal accountability package", period_start=date(2027, 1, 1), period_end=date(2027, 12, 31))
+        self.assertEqual(self.work_rows(self.preparer, package)[0]["state"], "Exception")
+        select_source(package.slots.get(), self.preparer, source_public_id=self.run_one.public_id)
+        self.assertEqual(self.work_rows(self.preparer, package)[0]["state"], "Ready")
+        submit_package(package, self.preparer)
+        self.preparer.user_permissions.add(Permission.objects.get(codename="review_accountability_packages"))
+        self.preparer = get_user_model().objects.get(pk=self.preparer.pk)
+        self.assertEqual(self.work_rows(self.preparer, package), [])
+        self.assertEqual(len(self.work_rows(self.preparer, package, "waiting")), 1)
+        self.assertEqual(self.work_rows(self.reviewer, package, "waiting"), [])
+        self.assertEqual(len(self.work_rows(self.reviewer, package)), 1)
+        self.assertEqual(self.work_rows(self.outsider, package), [])
+        review_package(package, self.reviewer, approve=False, note="Clarify the preparation note.")
+        self.assertEqual(self.work_rows(self.preparer, package, "returned")[0]["state"], "Returned")
+        submit_package(package, self.preparer)
+        review_package(package, self.reviewer, approve=True, note="Cross-office approved evidence checked.")
+        self.assertEqual(self.work_rows(self.preparer, package, "waiting"), [])
+        prior_history = self.work_rows(self.preparer, package, "completed")
+        self.assertEqual(len(prior_history), 2)
+        successor = create_package_successor(package, self.preparer, reason="Corrected cover sheet")
+        submit_package(successor, self.preparer)
+        review_package(successor, self.reviewer, approve=True, note="Successor checked.")
+        history = self.work_rows(self.preparer, package, "completed")
+        self.assertEqual([row["task_id"] for row in history], [row["task_id"] for row in prior_history])
+        self.assertNotEqual(history[0]["source_version"], prior_history[0]["source_version"])
+        self.assertEqual(len(self.work_rows(self.reviewer, package, "completed")), 2)
+
+    def test_accountability_work_views_recheck_read_scope_and_uat(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        profile = self.active_profile()
+        package = create_package(profile=profile, department=self.accounting, actor=self.preparer,
+                                 title="Scoped package", period_start=date(2027, 1, 1), period_end=date(2027, 12, 31))
+        select_source(package.slots.get(), self.preparer, source_public_id=self.run_one.public_id)
+        submit_package(package, self.preparer)
+        group = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0]
+        self.preparer.groups.add(group)
+        for view in ("ready", "waiting", "completed"):
+            self.assertEqual(self.work_rows(self.preparer, package, view), [])
+            self.assertEqual(self.work_rows(self.outsider, package, view), [])
+        self.preparer.groups.remove(group)
+        self.preparer.user_permissions.remove(Permission.objects.get(codename="view_reporting_workspace"))
+        actor = get_user_model().objects.get(pk=self.preparer.pk)
+        for view in ("ready", "waiting", "completed"):
+            self.assertEqual(self.work_rows(actor, package, view), [])
+
+    def test_package_review_task_explains_changed_pinned_evidence(self):
+        profile = self.active_profile()
+        package = create_package(profile=profile, department=self.accounting, actor=self.preparer,
+                                 title="Drifted package", period_start=date(2027, 1, 1), period_end=date(2027, 12, 31))
+        select_source(package.slots.get(), self.preparer, source_public_id=self.run_one.public_id)
+        submit_package(package, self.preparer)
+        before = self.work_rows(self.reviewer, package)[0]
+        FinanceAccountabilityPackage.objects.filter(pk=package.pk).update(package_checksum="0" * 64)
+        changed = self.work_rows(self.reviewer, package)[0]
+        self.assertEqual(changed["task_id"], before["task_id"])
+        self.assertNotEqual(changed["source_version"], before["source_version"])
+        self.assertEqual(changed["state"], "Exception")
+        with self.assertRaises(ValidationError):
+            review_package(package, self.reviewer, approve=True, note="Must reject drift.")
+        review_package(package, self.reviewer, approve=False, note="Return for evidence correction.")

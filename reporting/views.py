@@ -12,6 +12,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from src.export_archive import archive_export
 
+from .accountability_register import visible_accountability_records
 from .access import (
     can_activate_template_promotions, can_approve_template_promotions,
     can_manage_statement_mappings, can_review_statement_mappings,
@@ -664,9 +665,7 @@ def local_form_export(request, public_id):
 
 def _accountability_profile_for_user(user, public_id):
     return get_object_or_404(
-        FinanceAccountabilityPackageProfile.objects.filter(
-            department=department_for_user(user),
-        ).select_related(
+        visible_accountability_records(user, "profile").select_related(
             "department", "created_by", "submitted_by", "reviewed_by", "supersedes",
         ).prefetch_related(
             "requirements__source_department", "requirements__report_definition", "events__actor",
@@ -677,9 +676,7 @@ def _accountability_profile_for_user(user, public_id):
 
 def _accountability_package_for_user(user, public_id):
     return get_object_or_404(
-        FinanceAccountabilityPackage.objects.filter(
-            department=department_for_user(user),
-        ).select_related(
+        visible_accountability_records(user, "package").select_related(
             "department", "profile", "created_by", "submitted_by", "reviewed_by", "supersedes",
         ).prefetch_related(
             "slots__source_department", "slots__report_definition", "slots__selections__selected_by",
@@ -692,10 +689,10 @@ def _accountability_package_for_user(user, public_id):
 @reporting_access_required
 def accountability_workspace(request):
     department = department_for_user(request.user)
-    profiles = FinanceAccountabilityPackageProfile.objects.filter(department=department).select_related(
+    profiles = visible_accountability_records(request.user, "profile").select_related(
         "created_by", "reviewed_by",
     ).prefetch_related("requirements")
-    packages = FinanceAccountabilityPackage.objects.filter(department=department).select_related(
+    packages = visible_accountability_records(request.user, "package").select_related(
         "profile", "created_by", "reviewed_by", "supersedes",
     )
     return render(request, "reporting/accountability_workspace.html", {

@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-031:** Add accountability source-action parity before personal Waiting, preserving independent profile/package decisions and cross-office evidence recipes.
+
 - **D-030:** Project report Waiting from creator/reviewer handoffs and completion from explicit personal events, excluding automated generation credit.
 
 - **D-029:** Generate from persisted report/template/schedule evidence and retain failed-run recovery under the existing trusted scheduler policy.
@@ -374,3 +376,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: all visible office reports would violate the user's chosen personal Waiting scope. Report events retain an account identity but no separate historical department label; current source office/read scope is enforced without inventing a historical office snapshot. Period dates are coverage dates, not deadlines; generation/review timestamps explain elapsed handoff age.
 - Evidence: All 29 focused Finance reporting tests passed in 6.530 seconds; all 184 My Work/reporting dependency tests passed on final executable source in 62.449 seconds. System, migration-drift, compilation and diff checks passed. Existing read/download and service mutation rules are unchanged.
 - Revisit when: adding explicit report assignment, notifications, richer historical actor snapshots or background-worker identity. Accountability packages remain a separate adapter.
+
+
+## D-031 - Accountability action parity and personal handoffs
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.41.
+- Decision: introduce current-office read selectors shared by source views and My Work. Preparation and independent review actions follow the existing profile/package permissions, editable/submitted state and maker-checker exclusions. Existing source validation and pinned checksums explain exceptions; invalid approval evidence does not hide the legitimate return action. Waiting follows own submitted versions, and completion credits explicit submitted/returned/activated-or-approved events.
+- Goal: make the accountability endpoint of the financial chain visible without treating recipe activation as package approval or copying source authority into task state.
+- Alternatives/tradeoffs: adding Waiting alone would omit the next person's work queue. A generic department-wide queue would ignore current grants and independent review. Approved cross-office evidence remains readable through the accepted package recipe; package mutation still belongs to its owning office. Draft/evidence selection detail and automatic predecessor supersession stay in source audit rather than being credited as additional completed decisions.
+- Evidence: All 13 focused accountability tests passed in 7.533 seconds; all 188 My Work/reporting dependency tests passed in 66.194 seconds. System, migration-drift, compilation and diff checks passed. No mutation rules, schema or money calculations changed.
+- Revisit when: accepted local policy changes recipe ownership, authorized reviewers or evidence disclosure; richer actor-office history still requires retained source evidence.

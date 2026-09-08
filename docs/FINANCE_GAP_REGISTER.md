@@ -220,3 +220,12 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 
 
 - FIN-GAP-019 reproduction: unsaved manual and scheduled template titles were pinned into generated evidence (2 assertion failures), and a forged failed status entered the dataset builder for an already generated run (1 error from the intentionally empty mocked builder), in 1.130 seconds. Repair reloads the manual template, serializes generation on stored run state, and reloads/locks schedule configuration and advancement. Failed-attempt evidence remains committed before the exception is propagated; inactive stored schedules reject execution. All 69 focused reporting tests passed in 8.257 seconds; all 633 project tests passed in 191.264 seconds. System, migration-drift, compilation and diff checks passed.
+
+
+## FIN-GAP-020 - Named field-operation assignments omit operational-actor exclusion
+
+- Process/module: readiness exercise submission/witness review, assigned defect resolution and named stakeholder acceptance.
+- Severity/status: **HIGH - OPEN**, source finding awaiting reproduction before field-operation handoffs.
+- Code evidence: cutover_services.submit_cutover_readiness_exercise, review_cutover_readiness_exercise, submit_shadow_defect_resolution and decide_stakeholder_acceptance reload records but authorize by assigned account id without the active/non-UAT gate used by ordinary Finance action helpers. The field task selectors already exclude UAT, so source and queue authority may differ.
+- Expected behavior: named assignments preserve their legitimate cross-office access, but cannot authorize mutation by an inactive or UAT account. Keep assigned read/export access separate.
+- Next step: reproduce isolated assigned-actor mutations, then repair source/service/queue controls before adding field personal projections. No operational misuse is asserted.

@@ -2825,6 +2825,8 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
         tasks.extend(_remittance_tasks(user, department, today))
         tasks.extend(_cash_control_tasks(user, department, today))
         tasks.extend(_reporting_tasks(user, department, today))
+        from .work_accountability import accountability_tasks
+        tasks.extend(accountability_tasks(user, department, today))
         tasks.extend(_field_operation_tasks(user, department, today))
         tasks.extend(_local_form_tasks(user, department, today))
     if view == "completed":
@@ -2835,6 +2837,8 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
         tasks.extend(completed_instrument_tasks(user, department, today))
         tasks.extend(completed_cash_tasks(user, department, today))
         tasks.extend(completed_report_tasks(user, department, today))
+        from .work_accountability import completed_accountability_tasks
+        tasks.extend(completed_accountability_tasks(user, department, today))
         tasks.extend(completed_setup_tasks(user, department, today))
         tasks.extend(completed_discovery_tasks(user, department, today))
         tasks.extend(completed_accounting_tasks(user, department, today))
@@ -2861,7 +2865,7 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
         "tasks": [task.as_dict() for task in tasks[:display_limit]],
         "task_count": task_count,
         "tasks_truncated": task_count > display_limit,
-        "task_coverage": ("Attributed manual report generation and report decision events", "Attributed cash policy and position submission/decision events", "Attributed bank-reconciliation submission and decision events", "Attributed instrument issue, advice handoff, release and cancellation events", "Attributed returned-payment review-version events", "Attributed DV preparation, signature-return recording and validation events", "Attributed payable review handoffs", "Attributed discovery decision events", "Attributed setup release transitions", "Attributed bank-advice and remittance handoff events", "Attributed Budget call, proposal, appropriation, allotment and obligation events", "Attributed JEV submission/posting/return events", "Opening-balance submission and decision events", "Period-close and reopen decision events") if view == "completed" else ("Own generated reports awaiting review or approval", "Submitted cash policies and positions", "Payable, DV, Accounting posting, Treasury, bank-advice and event-posting handoffs", "Submitted bank reconciliations", "Returned-payment review, clarification, posting and replacement handoffs", "Submitted discovery decisions", "Submitted Finance setup releases", "Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review, release and Accounting posting") if view == "waiting" else (
+        "task_coverage": ("Attributed accountability profile/package submission and decision events", "Attributed manual report generation and report decision events", "Attributed cash policy and position submission/decision events", "Attributed bank-reconciliation submission and decision events", "Attributed instrument issue, advice handoff, release and cancellation events", "Attributed returned-payment review-version events", "Attributed DV preparation, signature-return recording and validation events", "Attributed payable review handoffs", "Attributed discovery decision events", "Attributed setup release transitions", "Attributed bank-advice and remittance handoff events", "Attributed Budget call, proposal, appropriation, allotment and obligation events", "Attributed JEV submission/posting/return events", "Opening-balance submission and decision events", "Period-close and reopen decision events") if view == "completed" else ("Own submitted accountability profiles and packages", "Own generated reports awaiting review or approval", "Submitted cash policies and positions", "Payable, DV, Accounting posting, Treasury, bank-advice and event-posting handoffs", "Submitted bank reconciliations", "Returned-payment review, clarification, posting and replacement handoffs", "Submitted discovery decisions", "Submitted Finance setup releases", "Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review, release and Accounting posting") if view == "waiting" else (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls", "Opening-balance controls",
             "Voucher and remittance journal creation and posted-source synchronization",
@@ -2871,6 +2875,7 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
             "Bank-advice handoff and returned-payment resolution",
             "Treasury remittance and cash controls",
             "Report generation, reconciliation, review, and approval",
+            "Accountability profile and package preparation, correction and independent review",
             "Field-operation cycle and nested-record gates", "Local forms",
         ),
     }
