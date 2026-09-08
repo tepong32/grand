@@ -2745,6 +2745,7 @@ def _field_operation_tasks(user, department, today):
         "needs_source": "Field-operation preparers",
         "ready_to_prepare": "Field-operation preparers",
         "running": "Field-operation preparers",
+        "prepare_successor": "Field-operation preparers",
         "for_review": "Independent reconciliation reviewers",
     }
     tasks = []
@@ -2768,6 +2769,21 @@ def _field_operation_tasks(user, department, today):
             exception = ""
             if action_key == "needs_source":
                 exception = "The redacted source checksum or layout signature is incomplete."
+            received = item.created_at
+            due_on = item.planned_end
+            url = reverse("finance:shadow_cycle_detail", kwargs={"pk": item.pk})
+            revision = f"updated:{item.updated_at.isoformat()}"
+            if action_key == "prepare_successor":
+                from .models import FinanceAuditEvent
+                returned = FinanceAuditEvent.objects.filter(
+                    department=item.department, target_type="financeshadowcycle", target_id=str(item.pk),
+                    action="shadow_cycle_returned", snapshot__cycle_public_id=str(item.public_id),
+                ).order_by("-created_at", "-pk").first()
+                received = returned.created_at if returned else None
+                due_on = None
+                exception = returned.reason if returned else "The retained return event is missing; inspect the source audit before preparing a successor."
+                url = f"{reverse('finance:shadow_cycle_create')}?predecessor={item.pk}"
+                revision = f"projection-sha256:{_projection_checksum({'id': str(item.public_id), 'status': item.status, 'updated': item.updated_at.isoformat(), 'return_event': returned.pk if returned else None, 'reason': exception})}"
             tasks.append(FinanceWorkTask(
                 task_id=f"finwork:v1:field-cycle:{item.public_id}:{action_key.replace('_', '-')}",
                 task_type=f"finance.field-cycle.{action_key}.v1",
@@ -2780,16 +2796,16 @@ def _field_operation_tasks(user, department, today):
                 gate=spec["definition"],
                 owner_queue=f"{role_labels[action_key]} · {item.department.name}",
                 scope=f"{item.department.name}; {item.enabled_scope}",
-                received_at=item.created_at,
-                due_on=item.planned_end,
-                due_state=_due_state(item.planned_end, today),
-                calendar_basis="Calendar date retained in the field-cycle plan; no holiday adjustment inferred.",
-                age_days=_age_days(item.created_at, today),
-                state="Ready",
+                received_at=received,
+                due_on=due_on,
+                due_state=_due_state(due_on, today),
+                calendar_basis="Elapsed calendar days since the retained return; the old cycle dates are not a successor deadline." if action_key == "prepare_successor" else "Calendar date retained in the field-cycle plan; no holiday adjustment inferred.",
+                age_days=_age_days(received, today),
+                state="Returned" if action_key == "prepare_successor" else "Ready",
                 source_state=item.get_status_display(),
-                source_version=f"updated:{item.updated_at.isoformat()}",
+                source_version=revision,
                 exception=exception,
-                url=reverse("finance:shadow_cycle_detail", kwargs={"pk": item.pk}),
+                url=url,
             ))
     return tasks
 

@@ -552,7 +552,15 @@ def shadow_cycle_register_export(request):
 @finance_permission_required(can_manage_shadow_operation)
 def shadow_cycle_create(request):
     department = department_for_user(request.user)
-    form = FinanceShadowCycleForm(request.POST or None, department=department)
+    initial = {}
+    if request.method == "GET" and request.GET.get("predecessor"):
+        try:
+            predecessor_id = int(request.GET["predecessor"])
+        except (TypeError, ValueError):
+            raise Http404
+        predecessor = get_object_or_404(FinanceShadowCycle, pk=predecessor_id, department=department)
+        initial["predecessor"] = predecessor.pk
+    form = FinanceShadowCycleForm(request.POST or None, department=department, initial=initial)
     if request.method == "POST" and form.is_valid():
         cycle = form.save(False)
         cycle.department, cycle.created_by = department, request.user
@@ -605,6 +613,10 @@ def shadow_cycle_detail(request, pk):
     acceptances = list(cycle.stakeholder_acceptances.select_related("office", "assigned_reviewer", "decided_by"))
     for item in acceptances:
         item.can_record_decision = can_act_on_finance_assignment(request.user, item.assigned_reviewer_id) and item.decision == item.PENDING and cycle.status == cycle.RECONCILED
+    from .shadow_register_exports import shadow_action_queryset, visible_shadow_cycles
+    successor_candidates, _selected, _spec = shadow_action_queryset(
+        request.user, "prepare_successor", queryset=visible_shadow_cycles(request.user),
+    )
     return render(request, "finance/shadow_cycle_detail.html", {
         "cycle": cycle,
         "source_versions": cycle.source_versions.select_related("staged_by", "reviewed_by"),
@@ -628,6 +640,7 @@ def shadow_cycle_detail(request, pk):
         "acceptances": acceptances,
         "decision": decision,
         "readiness": cutover_readiness(cycle),
+        "can_prepare_successor": successor_candidates.filter(pk=cycle.pk).exists(),
         "can_manage": can_manage_shadow_operation(request.user, department),
         "can_review": can_review_shadow_reconciliation(request.user, department),
         "can_authorize": can_authorize_finance_cutover(request.user, department),

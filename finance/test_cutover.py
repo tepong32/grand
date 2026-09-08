@@ -1829,3 +1829,61 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertEqual(self.field_work_rows(self.outsider, "field-defect", defect, "waiting"), [])
         self.assertEqual(len(self.field_work_rows(self.outsider, "field-defect", defect, "completed")), 2)
         self.assertEqual(len(self.field_work_rows(self.reconciler, "field-defect", defect, "completed")), 2)
+
+
+    def _returned_personal_cycle(self):
+        cycle = self._cycle(code="returned-personal-cycle")
+        start_shadow_cycle(cycle, self.manager)
+        self._matched_comparison(cycle)
+        self._review_current_run(cycle)
+        submit_shadow_cycle(cycle, self.manager)
+        review_shadow_cycle(cycle, self.reconciler, accept=False, reason="Repeat with the corrected source layout")
+        cycle.refresh_from_db()
+        return cycle
+
+    def test_returned_cycle_action_creates_linked_fresh_successor(self):
+        cycle = self._returned_personal_cycle()
+        rows = self.field_work_rows(self.manager, "field-cycle", cycle, "returned")
+        self.assertEqual(len(rows), 1)
+        self.assertIsNone(rows[0]["due_on"])
+        self.assertIn("corrected source layout", rows[0]["exception"])
+        before = (cycle.status, cycle.source_checksum, cycle.source_schema_signature, cycle.evidence_checksum)
+        self.client.force_login(self.manager)
+        source = self.client.get(reverse("finance:shadow_workspace"), {"attention": "prepare_successor"})
+        self.assertEqual(source.context["cycles"], [cycle])
+        detail = self.client.get(reverse("finance:shadow_cycle_detail", args=(cycle.pk,)))
+        self.assertContains(detail, "Plan linked successor")
+        form_page = self.client.get(rows[0]["url"])
+        self.assertEqual(form_page.status_code, 200)
+        self.assertEqual(form_page.context["form"].initial["predecessor"], cycle.pk)
+        response = self.client.post(reverse("finance:shadow_cycle_create"), {
+            "code": "returned-personal-successor", "title": "Corrected successor plan", "fiscal_year": 2027,
+            "run_kind": cycle.run_kind, "enabled_scope": "Synthetic corrected scope",
+            "source_system_label": "Retained local process", "source_extract_reference": "New redacted packet",
+            "planned_start": "2027-02-01", "planned_end": "2027-02-26", "predecessor": cycle.pk,
+        })
+        self.assertEqual(response.status_code, 302)
+        successor = FinanceShadowCycle.objects.get(code="returned-personal-successor")
+        self.assertEqual(successor.predecessor, cycle)
+        self.assertEqual(successor.status, successor.DRAFT)
+        self.assertEqual((successor.source_checksum, successor.source_schema_signature, successor.evidence_checksum), ("", "", ""))
+        cycle.refresh_from_db()
+        self.assertEqual((cycle.status, cycle.source_checksum, cycle.source_schema_signature, cycle.evidence_checksum), before)
+        self.assertEqual(self.field_work_rows(self.manager, "field-cycle", cycle, "returned"), [])
+        self.assertFalse(self.client.get(reverse("finance:shadow_cycle_detail", args=(cycle.pk,))).context["can_prepare_successor"])
+
+    def test_returned_cycle_successor_prefill_respects_current_office_and_preview(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        cycle = self._returned_personal_cycle()
+        url = f"{reverse('finance:shadow_cycle_create')}?predecessor={cycle.pk}"
+        self._grant(self.outsider, "manage_shadow_operation")
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.field_work_rows(self.outsider, "field-cycle", cycle, "returned"), [])
+        self.manager.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.manager)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertEqual(self.field_work_rows(self.manager, "field-cycle", cycle, "returned"), [])
+        self.manager.groups.clear()
+        self.assertEqual(self.client.get(reverse("finance:shadow_cycle_create"), {"predecessor": "invalid"}).status_code, 404)

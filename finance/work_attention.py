@@ -82,6 +82,7 @@ def _field_operation_groups(user, department):
         "needs_source": "field-source-lock",
         "ready_to_prepare": "field-cycle-preparation",
         "running": "field-cycle-execution",
+        "prepare_successor": "field-cycle-successor",
         "for_review": "field-cycle-review",
         "my_defects": "field-defect-correction",
         "review_defects": "field-defect-review",

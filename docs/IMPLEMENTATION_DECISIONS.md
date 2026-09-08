@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-034:** Make returned field-cycle correction a linked-successor action, retaining prior evidence and using fresh source locks.
+
 - **D-033:** Preserve separate cycle/exercise/defect handoffs and resolve retained field events through matching current source custody.
 
 - **D-032:** Keep named cross-office field assignments, but require active non-UAT identity at every assigned-actor mutation boundary.
@@ -410,3 +412,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: a single cycle-level completion would hide who submitted and who independently accepted a result. Reporting every event as completion would over-credit setup/export detail. Original exercise/correction due times are not invented as new reviewer deadlines; Waiting ages from retained submission. Current source status stays separate from historical action.
 - Evidence: All 36 focused field-workflow tests passed in 13.056 seconds; all 224 field/My Work/reporting dependency tests passed in 80.786 seconds. System, migration-drift, compilation and diff checks passed. No source mutations or financial calculations changed.
 - Revisit when: extending reconciliation/readiness/qualification plan and run coverage, stakeholder/cutover decision history or returned-cycle successor work. These remain separate coverage items.
+
+
+## D-034 - Returned field-cycle successor action
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.44.
+- Decision: add a preparation-role source action for returned cycles without a linked successor. Share it across the source register, My Work groups/Returned view and the source detail link. Prefill only the predecessor on the existing new-cycle form; the user supplies the new plan and stages fresh source evidence. Once a successor exists, the old preparation action disappears while its returned record remains.
+- Goal: make the prescribed correction path discoverable without editing rejected evidence or treating the previous cycle dates as the new cycle's deadline.
+- Alternatives/tradeoffs: reopening the returned cycle would blur retained evidence; leaving it only in oversight would hide the preparer's next step. The shortcut preserves the existing form's current-office predecessor choices and does not introduce a new mutation rule or automatically copy authority/source locks.
+- Evidence: All 38 focused field tests passed in 14.222 seconds; all 117 field/My Work/operations dependency tests passed in 60.348 seconds. System, migration-drift, compilation and diff checks passed.
+- Revisit when: local procedure requires explicit branching or a separate approved successor authorization. Existing linked cycles remain visible as historical evidence.

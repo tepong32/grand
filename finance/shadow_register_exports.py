@@ -31,6 +31,7 @@ ATTENTION_CHOICES = (
     ("needs_source", "Draft needs its redacted source lock"),
     ("ready_to_prepare", "Draft has a source lock; complete local plans"),
     ("running", "Field cycle in progress"),
+    ("prepare_successor", "Returned cycles needing a linked successor"),
     ("for_review", "Waiting for independent reconciliation"),
     ("my_defects", "Open defects assigned to me"),
     ("review_defects", "Defect corrections for independent review"),
@@ -44,6 +45,12 @@ ATTENTION_CHOICES = (
 )
 
 SHADOW_ACTION_SPECS = {
+    "prepare_successor": {
+        "role": "manage",
+        "title": "Returned cycles needing a linked successor",
+        "definition": "Returned cycles in the acting Finance office with no linked successor yet.",
+        "next_action": "Read the retained return reason and plan a linked successor with corrected scope, dates and fresh evidence.",
+    },
     "needs_source": {
         "role": "manage",
         "title": "Field cycles needing a redacted source lock",
@@ -183,6 +190,8 @@ def shadow_action_queryset(user, attention, *, queryset):
         queryset = queryset.filter(department=department, status=FinanceShadowCycle.DRAFT).exclude(
             Q(source_checksum="") | Q(source_schema_signature=""),
         )
+    elif attention == "prepare_successor":
+        queryset = queryset.filter(department=department, status=FinanceShadowCycle.RETURNED, successor_cycles__isnull=True)
     elif attention == "running":
         queryset = queryset.filter(department=department, status=FinanceShadowCycle.RUNNING)
     elif attention == "for_review":
