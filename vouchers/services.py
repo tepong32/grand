@@ -443,6 +443,36 @@ def _create_signature_round_from_signatories(case, signatories):
     return round_number, bool(signatories)
 
 
+def _copy_signature_round(case, source_round):
+    """A paper replacement retains the selected signatories and custody evidence."""
+    source = list(case.signature_tasks.filter(round_number=source_round).order_by("sequence", "pk"))
+    if not source:
+        raise VoucherWorkflowError("The printed signing round has no retained signatory evidence. Investigate before reprinting.")
+    previous_round = case.signature_tasks.order_by("-round_number").values_list("round_number", flat=True).first()
+    round_number = previous_round + 1
+    for task in source:
+        WetSignatureTask.objects.create(
+            case=case, round_number=round_number, sequence=task.sequence, role_code=task.role_code,
+            signatory_name_snapshot=task.signatory_name_snapshot, position_snapshot=task.position_snapshot,
+            custody_department_id=task.custody_department_id, custody_instructions=task.custody_instructions,
+        )
+    return round_number
+
+
+def _print_round_descends_from(job, case_id, original_round):
+    visited = set()
+    previous_version = None
+    while job is not None and job.pk not in visited:
+        if job.case_id != case_id or (previous_version is not None and job.version >= previous_version):
+            return False
+        if job.signature_round == original_round:
+            return True
+        visited.add(job.pk)
+        previous_version = job.version
+        job = job.supersedes
+    return False
+
+
 def _signatory_snapshot(signatory):
     return {
         "assignment_id": signatory.pk,
@@ -1438,16 +1468,18 @@ def record_signature_return(*, case, task, actor, note, expected_version, idempo
         case.save(update_fields=("state_version", "updated_at"))
         _event(case, actor, "wet_signature_returned", case.current_stage, note, {"role_code": task.role_code}, idempotency_key)
         return case
+    amendment = case.nonfinancial_amendments.filter(
+        status=VoucherNonFinancialAmendment.AWAITING_SIGNATURES,
+    ).first()
+    if amendment and task.round_number != amendment.signature_round_number:
+        if not print_job or not _print_round_descends_from(print_job, case.pk, amendment.signature_round_number):
+            raise VoucherWorkflowError("The pending amendment cannot be matched to the retained print lineage. Investigate before completing signatures.")
     if print_job:
         print_job.status = VoucherPrintJob.SIGNED_PACKET_RETURNED
         print_job.signed_returned_by = actor
         print_job.signed_returned_at = timezone.now()
         print_job.full_clean()
         print_job.save(update_fields=("status", "signed_returned_by", "signed_returned_at"))
-    amendment = case.nonfinancial_amendments.filter(
-        status=VoucherNonFinancialAmendment.AWAITING_SIGNATURES,
-        signature_round_number=task.round_number,
-    ).first()
     if amendment:
         amendment.status = VoucherNonFinancialAmendment.COMPLETED
         amendment.completed_at = timezone.now()
@@ -1459,7 +1491,12 @@ def record_signature_return(*, case, task, actor, note, expected_version, idempo
             "nonfinancial_amendment_signatures_completed",
             idempotency_key,
             note,
-            {"amendment_id": amendment.pk, "amendment_version": amendment.version},
+            {
+                "amendment_id": amendment.pk, "amendment_version": amendment.version,
+                "signature_round": task.round_number,
+                "amendment_signature_round": amendment.signature_round_number,
+                "print_job_id": print_job.pk if print_job else None,
+            },
         )
     return _advance(case, actor, VoucherCase.ACCOUNTING_VALIDATION, "wet_signatures_completed", idempotency_key, note)
 
@@ -2301,7 +2338,7 @@ def prepare_controlled_dv_print(*, case, actor, replacement_reason, expected_ver
                 round_number=active.signature_round,
                 status=WetSignatureTask.PENDING,
             ).update(status=WetSignatureTask.DECLINED, note="Superseded by a controlled DV reprint.")
-            _create_signature_round(case, case.disbursement_voucher.voucher_date)
+            _copy_signature_round(case, active.signature_round)
         _supersede_print_job(active, reason)
     predecessor = active or (latest if latest and latest.status == VoucherPrintJob.SUPERSEDED else None)
     if predecessor and not reason:

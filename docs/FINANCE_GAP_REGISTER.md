@@ -285,7 +285,18 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-025 - Controlled reprint may lose pending amendment signature lineage
 
 - Process/module: replacing a printed signing copy while a non-financial amendment awaits signatures.
-- Severity/status: **HIGH - OPEN**, source finding awaiting reproduction.
+- Severity/status: **HIGH - VERIFIED**, reproduced and repaired in v0.7.52.
 - Code evidence: prepare_controlled_dv_print starts a new signature round from the current active release signatories when replacing printed/circulating copies. record_signature_return completes an amendment only when its immutable original round equals the returned task round. A reprint can therefore lose the amendment's selected signatories or leave its original amendment pending after replacement signatures finish.
 - Expected behavior: replacing damaged paper must preserve the governed signatory/custody snapshots and follow retained print-supersession lineage back to the pending amendment, without rewriting the immutable original amendment or treating old signed copies as current.
-- Next step: reproduce both selected-signatory preservation and completion/resume behavior through an actual controlled reprint, then repair and verify before projecting detailed custody history.
+- Closure: selected signature/custody and generated output snapshots are preserved; repeated reprints complete through retained lineage. Broken lineage refuses final advancement.
+
+
+- FIN-GAP-025 reproduction: the replacement round added an unselected old department head, and a completed replacement signature round left the amendment pending (2 failed assertions, 3.120 seconds). Replacement rounds now copy retained signatory/custody snapshots; final amendment completion resolves the same-case, descending-version print lineage to the original immutable round. All 76 focused voucher/signature tests passed in 43.931 seconds. All 670 project tests passed in 272.577 seconds. System, migration-drift, compilation and diff checks passed.
+
+## FIN-GAP-026 - DV return correction may retain an obsolete signing copy or pending amendment
+
+- Process/module: returning a DV from wet signatures or validation to preparation, then preparing its correction.
+- Severity/status: **HIGH - OPEN**, source finding awaiting reproduction.
+- Code evidence: return_case declines pending tasks but does not supersede existing controlled print jobs or resolve a pending non-financial amendment. prepare_voucher creates a fresh round, while the old print job can remain active. A later reprint may follow the obsolete round, and a pending amendment may retain a resume stage that is no longer appropriate for a material correction.
+- Expected behavior: a reasoned financial/document correction must invalidate obsolete signing-copy authority while retaining the old files and signature evidence. Its new review round must follow the corrected DV, and must not inherit the prior amendment's shortcut to a later stage.
+- Next step: reproduce through the actual return/correct/print services after FIN-GAP-025 validation. Determine the smallest explicit supersession state needed to preserve the amendment audit; do not mark an interrupted amendment completed or silently rewrite its original evidence.

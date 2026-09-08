@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-042:** Preserve signatory snapshots across paper reprints and resolve pending amendments through retained print lineage.
+
 - **D-041:** Bind non-financial DV amendment to the pinned Finance owner while retaining Accounting authority after a Treasury handoff.
 
 - **D-040:** Keep scheduled-run exceptions and qualifying-cycle evidence distinct, with personal history resolved through the controlling cycle.
@@ -506,3 +508,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: requiring current custody would block the established Accounting-to-Treasury amendment test; accepting a generic grant from every office lacks an object boundary. This default follows the pinned Finance owner, not the current department of a historical employee. It does not create a cross-office delegation policy or claim LGU policy acceptance.
 - Evidence: two denial assertions failed in 3.461 seconds before repair. All 69 focused voucher-workflow tests passed in 42.735 seconds; all 668 project tests passed in 272.103 seconds. System, migration-drift, compilation and diff checks passed. Existing post-JEV amendment replay is the compatibility contract for owning Accounting authority; wrong-office, UAT, stale caller, idempotent replay and unchanged financial evidence were verified.
 - Revisit when: an implementing LGU explicitly delegates this correction to another office; represent that delegation as governed source scope rather than widening a global permission.
+
+
+## D-042 - Amendment-aware controlled reprint lineage
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.52.
+- Decision: a replacement signing copy must clone the governed signature/custody snapshots of the superseded printed round, resetting signature return status without reselecting live master signatories. Resolve a pending amendment through the same-case print-supersession chain to its immutable original signature round. Refuse final completion if that linkage cannot be established.
+- Goal: distinguish paper replacement from a new date/signatory decision, preserve who was actually selected, and resume the correct Accounting/Treasury stage only after replacement signatures complete.
+- Alternatives/tradeoffs: rewriting the amendment's original round would destroy immutable evidence; re-querying active signatories can change a deliberate acting assignment. Existing print-supersession relationships can retain the round lineage without a new mutable amendment pointer or a historical data backfill. Original signed/declined tasks and obsolete output files remain historical evidence.
+- Evidence: two reproduced failures in 3.120 seconds. Repeated reprints, selected output/task snapshots, missing-lineage rollback and unchanged original amendment evidence verified. All 76 focused voucher/signature tests passed in 43.931 seconds. All 670 project tests passed in 272.577 seconds. System, migration-drift, compilation and diff checks passed.
+- Revisit when: introducing a distinct governed signatory change while an amendment is already pending. A paper reprint must not silently perform that policy change.

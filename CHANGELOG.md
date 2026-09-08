@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.52 - Amendment-aware controlled reprint lineage
+
+Controlled reprints preserve the selected signatory and custody snapshots from the superseded printed round. Replacement signatures complete a pending amendment only through retained same-case, descending-version print lineage; broken linkage rolls back the final signature. Original amendment rounds, financial snapshots and superseded copies remain intact. All 76 focused voucher/signature tests passed in 43.931 seconds. All 670 project tests passed in 272.577 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.51 - DV amendment owner authority
 
 Non-financial DV amendment now requires an explicitly authorized active non-UAT actor in the stored case's pinned Finance Setup office. The service and source control share this boundary, including idempotent replay. Owning Accounting may still amend after Treasury handoff before instrument issuance; permitted fields, financial totals and posted JEV evidence remain unchanged. All 69 focused voucher-workflow tests passed in 42.735 seconds; all 668 project tests passed in 272.103 seconds. System, migration-drift, compilation and diff checks passed.

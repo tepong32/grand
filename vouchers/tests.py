@@ -4019,3 +4019,99 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual((case.current_stage, case.state_version), (original_stage, original_version))
         self.assertEqual(case.disbursement_voucher.voucher_date, original_date)
         self.assertFalse(case.nonfinancial_amendments.exists())
+
+
+    def _pending_amendment_reprint(self, *, replace_head=False):
+        self.template.controlled_print_required = True
+        self.template.save(update_fields=("controlled_print_required",))
+        case = self.create_case("amend-reprint-create")
+        self.budget_certify(case, "amend-reprint-budget")
+        self.accounting_prepare(case, "amend-reprint-dv")
+        case.refresh_from_db()
+        signatories = list(FinanceSignatory.objects.filter(release=self.release, status="active").order_by("role_code", "pk"))
+        if replace_head:
+            replacement_head = FinanceSignatory.objects.create(
+                department=self.accounting, release=self.release, role_code="department-head",
+                display_name="Selected Acting Head", position_title="Acting Department Head", acting=True,
+                valid_from=date(2026, 8, 26), status="active", created_by=self.preparer,
+                custody_instructions="Retain the selected acting-head custody instruction.",
+            )
+            signatories = [replacement_head if row.role_code == "department-head" else row for row in signatories]
+        amendment = amend_nonfinancial_voucher(
+            case=case, actor=self.preparer, voucher_date=date(2026, 8, 26), signatories=signatories,
+            reason="Correct the document date and selected signatories before circulation.",
+            expected_version=case.state_version, idempotency_key="amend-reprint-amendment",
+        )
+        case.refresh_from_db()
+        first = prepare_controlled_dv_print(case=case, actor=self.preparer, replacement_reason="",
+            expected_version=case.state_version, idempotency_key="amend-reprint-first")
+        case.refresh_from_db()
+        record_dv_printed(case=case, actor=self.preparer, copy_count=2, printer_or_form_stock="Synthetic A4 test stock",
+            print_note="Original amended copies printed.", expected_version=case.state_version, idempotency_key="amend-reprint-printed")
+        case.refresh_from_db()
+        replacement = prepare_controlled_dv_print(case=case, actor=self.preparer, replacement_reason="Damaged amended signing copies; retain prior copies as do-not-sign.",
+            expected_version=case.state_version, idempotency_key="amend-reprint-replacement")
+        return case, amendment, first, replacement
+
+    def test_amendment_reprint_preserves_selected_signature_and_custody_snapshots(self):
+        case, amendment, first, replacement = self._pending_amendment_reprint(replace_head=True)
+        fields = ("sequence", "role_code", "signatory_name_snapshot", "position_snapshot", "custody_department_id", "custody_instructions")
+        original = list(case.signature_tasks.filter(round_number=amendment.signature_round_number).order_by("sequence").values_list(*fields))
+        reprinted = list(case.signature_tasks.filter(round_number=replacement.signature_round).order_by("sequence").values_list(*fields))
+        self.assertEqual(reprinted, original)
+        self.assertGreater(replacement.signature_round, amendment.signature_round_number)
+        self.assertEqual(replacement.supersedes_id, first.pk)
+
+        self.assertEqual(replacement.output.input_snapshot["signatories"], [
+            {"role_code": row[1], "display_name": row[2], "position_title": row[3]}
+            for row in original
+        ])
+
+    def test_amendment_finishes_after_reprinted_signature_round_returns(self):
+        case, amendment, first, replacement = self._pending_amendment_reprint()
+        original_round = amendment.signature_round_number
+        original_financial_snapshot = amendment.financial_snapshot.copy()
+        case.refresh_from_db()
+        record_dv_printed(case=case, actor=self.preparer, copy_count=2, printer_or_form_stock="Synthetic A4 replacement stock",
+            print_note="Replacement copies printed.", expected_version=case.state_version, idempotency_key="amend-reprint-replacement-printed")
+        case.refresh_from_db()
+        second = replacement
+        replacement = prepare_controlled_dv_print(case=case, actor=self.preparer,
+            replacement_reason="Second amended paper copy damaged; preserve the same selected signatories.",
+            expected_version=case.state_version, idempotency_key="amend-reprint-third")
+        case.refresh_from_db()
+        record_dv_printed(case=case, actor=self.preparer, copy_count=2, printer_or_form_stock="Synthetic A4 third stock",
+            print_note="Third copies printed.", expected_version=case.state_version, idempotency_key="amend-reprint-third-printed")
+        case.refresh_from_db()
+        assemble_finance_packet(case=case, actor=self.preparer, expected_document_count=2, expected_page_count=4,
+            confidentiality=TrackedPacket.RESTRICTED, assembly_note="Counted amended replacement signing packet.",
+            expected_version=case.state_version, idempotency_key="amend-reprint-packet")
+        tasks = list(case.signature_tasks.filter(round_number=replacement.signature_round).order_by("sequence"))
+        for task in tasks:
+            case.refresh_from_db()
+            if task.pk == tasks[-1].pk:
+                # Simulate broken retained lineage and prove the final signature does not advance anything.
+                VoucherPrintJob.objects.filter(pk=replacement.pk).update(supersedes=None)
+                with self.assertRaisesMessage(ValidationError, "retained print lineage"):
+                    record_signature_return(case=case, task=task, actor=self.preparer, note="Broken lineage cannot finish the amendment.",
+                        expected_version=case.state_version, idempotency_key="amend-reprint-broken-lineage")
+                task.refresh_from_db(); replacement.refresh_from_db(); amendment.refresh_from_db()
+                self.assertEqual(task.status, task.PENDING)
+                self.assertEqual(replacement.status, VoucherPrintJob.AWAITING_SIGNATURES)
+                self.assertEqual(amendment.status, VoucherNonFinancialAmendment.AWAITING_SIGNATURES)
+                self.assertFalse(case.events.filter(idempotency_key="amend-reprint-broken-lineage").exists())
+                VoucherPrintJob.objects.filter(pk=replacement.pk).update(supersedes=second)
+            record_signature_return(case=case, task=task, actor=self.preparer, note="Replacement amended copy signed and returned.",
+                expected_version=case.state_version, idempotency_key=f"amend-reprint-return-{task.pk}")
+        amendment.refresh_from_db(); case.refresh_from_db()
+        self.assertEqual(amendment.status, VoucherNonFinancialAmendment.COMPLETED)
+        self.assertEqual(amendment.signature_round_number, original_round)
+        self.assertEqual(case.current_stage, amendment.resume_stage)
+        self.assertEqual(amendment.financial_snapshot, original_financial_snapshot)
+        event = case.events.get(action="nonfinancial_amendment_signatures_completed")
+        self.assertEqual(event.metadata["signature_round"], replacement.signature_round)
+        self.assertEqual(event.metadata["amendment_signature_round"], original_round)
+        self.assertEqual(event.metadata["print_job_id"], replacement.pk)
+        first.refresh_from_db(); second.refresh_from_db()
+        self.assertEqual(first.status, VoucherPrintJob.SUPERSEDED)
+        self.assertEqual(second.status, VoucherPrintJob.SUPERSEDED)

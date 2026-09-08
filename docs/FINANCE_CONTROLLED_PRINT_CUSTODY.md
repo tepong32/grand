@@ -61,3 +61,6 @@ Until those checks pass, use the feature only as an implemented synthetic contro
 
 
 The amendment service rechecks the stored pinned owner before an idempotent replay as well as a new amendment. Generic grants to other offices do not delegate ownership. The current custodian is not substituted for the owning Accounting office. See D-041 in [the decision log](IMPLEMENTATION_DECISIONS.md).
+
+
+Controlled reprints copy the selected signature and custody snapshots from the replaced printed round. They do not select active master signatories again. A pending amendment retains its original immutable round; completion follows the same-case print-supersession chain back to that round and records both original/current round IDs. Missing or inconsistent lineage blocks final advancement and rolls back that return attempt. See D-042 in [the decision log](IMPLEMENTATION_DECISIONS.md).
