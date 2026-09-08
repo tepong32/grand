@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-037:** Preserve checksum-blocked acceptance while allowing an independently authorized, reasoned return with explicit integrity evidence.
+
 - **D-036:** Complete local-form action parity and personal handoffs, distinguishing preparation from current witness waits and final acceptance.
 
 - **D-035:** Project prepared stakeholder/submitted cutover handoffs and label each retained decision outcome without implying broader acceptance.
@@ -446,3 +448,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: a generic preparation row would hide all witness waits; a generic completion row would blur test failure, pass and form acceptance. Obsolete test attempts remain in retained history but no longer count as required current witness work. Source task revisions now reflect test-state changes within a form version.
 - Evidence: both source/queue mismatches reproduced (2 failures, 1.267 seconds); All 26 focused local-form tests passed in 26.042 seconds; all 200 reporting/My Work/operations dependency tests passed in 183.489 seconds. System, migration-drift, compilation and diff checks passed. A Python 3.11 multiline f-string syntax error in the first static check was corrected before tests were started.
 - Revisit when: local policy changes required test categories, witness roles or accepted form routes. The remaining field plans/runs and detailed transaction history stay explicitly open.
+
+
+## D-037 - Field integrity failures and governed negative decisions
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.47.
+- Decision: resolve detected checksum mismatch recovery before adding remaining field-plan work projections. Keep positive acceptance blocked on a mismatch. Permit the existing independent reviewer or assigned witness to return a still-pending record with a reason, retaining the stored digest, recomputed digest and mismatch in the new audit event. Existing submission events remain unchanged.
+- Goal: make recovery from a detected integrity failure explicit and traceable, without turning a negative decision into approval of changed evidence or requiring direct status edits.
+- Alternatives/tradeoffs: silently resetting the digest hides the discrepancy; blocking both decisions leaves the source's own return instruction unusable. Ordinary model immutability, reviewer authority, maker-checker, UAT exclusion and required reasons remain in force. The planned change does not bypass structural model validation; invalid relations or unparseable source data still require controlled investigation.
+- Evidence: seven paths reproduced blocked returns in 2.738 seconds. All 112 focused field/My Work tests passed in 65.532 seconds; all 657 project tests passed in 239.539 seconds. System, migration-drift, compilation and diff checks passed. Positive approval, unauthorized return, self-review and missing reason are checked separately from the intended negative decision.
+- Revisit when: introducing a dedicated integrity-incident process or changing local correction authority. A returned cycle continues through a successor; plans and tests continue through their existing permitted correction/rerun paths.

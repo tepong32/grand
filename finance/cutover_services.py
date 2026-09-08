@@ -637,6 +637,18 @@ def _checksum_payload(payload):
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _review_integrity(stored_checksum, observed_checksum, *, accept, error):
+    """Retain the discrepancy on a governed return; never approve changed evidence."""
+    check = {
+        "stored_checksum": stored_checksum,
+        "observed_checksum": observed_checksum,
+        "matches": stored_checksum == observed_checksum,
+    }
+    if accept and not check["matches"]:
+        raise ValidationError(error)
+    return check
+
+
 RECOVERY_REHEARSAL_FIELDS = (
     "backup_id", "manifest_sha256", "default_artifact_sha256", "finance_artifact_sha256",
     "off_host_copy_reference", "off_host_copy_verified",
@@ -791,8 +803,10 @@ def review_reconciliation_plan(plan, actor, *, approve, reason):
     snapshot["approved_by_id"] = None
     snapshot["approved_at"] = None
     snapshot["review_note"] = ""
-    if _checksum_payload(snapshot) != stored:
-        raise ValidationError("The local plan changed after submission. Return it rather than approving altered controls.")
+    integrity = _review_integrity(
+        stored, _checksum_payload(snapshot), accept=approve,
+        error="The local plan changed after submission. Return it rather than approving altered controls.",
+    )
     plan.status = FinanceShadowReconciliationPlan.APPROVED if approve else FinanceShadowReconciliationPlan.RETURNED
     plan.review_note = str(reason).strip()
     if approve:
@@ -806,7 +820,7 @@ def review_reconciliation_plan(plan, actor, *, approve, reason):
     _event(
         plan.cycle, actor,
         "shadow_reconciliation_plan_approved" if approve else "shadow_reconciliation_plan_returned",
-        reason=reason, snapshot=_plan_data(plan),
+        reason=reason, snapshot={**_plan_data(plan), "integrity_check": integrity},
     )
     return plan
 
@@ -863,8 +877,10 @@ def review_cutover_readiness_plan(plan, actor, *, approve, reason):
     snapshot["approved_by_id"] = None
     snapshot["approved_at"] = None
     snapshot["review_note"] = ""
-    if _checksum_payload(snapshot) != stored:
-        raise ValidationError("The readiness plan changed after submission. Return it rather than approving altered controls.")
+    integrity = _review_integrity(
+        stored, _checksum_payload(snapshot), accept=approve,
+        error="The readiness plan changed after submission. Return it rather than approving altered controls.",
+    )
     plan.status = FinanceCutoverReadinessPlan.APPROVED if approve else FinanceCutoverReadinessPlan.RETURNED
     plan.review_note = str(reason).strip()
     if approve:
@@ -880,7 +896,7 @@ def review_cutover_readiness_plan(plan, actor, *, approve, reason):
     _event(
         plan.cycle, actor,
         "cutover_readiness_plan_approved" if approve else "cutover_readiness_plan_returned",
-        reason=reason, snapshot=_readiness_plan_data(plan),
+        reason=reason, snapshot={**_readiness_plan_data(plan), "integrity_check": integrity},
     )
     return plan
 
@@ -942,8 +958,10 @@ def review_cutover_qualification_plan(plan, actor, *, approve, reason):
         "approved_at": None,
         "review_note": "",
     })
-    if _checksum_payload(snapshot) != stored:
-        raise ValidationError("The qualification plan changed after submission. Return it rather than approving altered controls.")
+    integrity = _review_integrity(
+        stored, _checksum_payload(snapshot), accept=approve,
+        error="The qualification plan changed after submission. Return it rather than approving altered controls.",
+    )
     plan.status = FinanceCutoverQualificationPlan.APPROVED if approve else FinanceCutoverQualificationPlan.RETURNED
     plan.review_note = str(reason).strip()
     if approve:
@@ -959,7 +977,7 @@ def review_cutover_qualification_plan(plan, actor, *, approve, reason):
     _event(
         plan.cycle, actor,
         "cutover_qualification_plan_approved" if approve else "cutover_qualification_plan_returned",
-        reason=reason, snapshot=_qualification_plan_data(plan),
+        reason=reason, snapshot={**_qualification_plan_data(plan), "integrity_check": integrity},
     )
     return plan
 
@@ -1031,8 +1049,10 @@ def review_cutover_qualification_evidence(item, actor, *, accept, reason):
         "reviewed_at": None,
         "review_note": "",
     })
-    if _checksum_payload(snapshot) != stored:
-        raise ValidationError("The field-cycle evidence changed after submission. Return it instead of accepting altered evidence.")
+    integrity = _review_integrity(
+        stored, _checksum_payload(snapshot), accept=accept,
+        error="The field-cycle evidence changed after submission. Return it instead of accepting altered evidence.",
+    )
     item.status = FinanceCutoverQualificationEvidence.ACCEPTED if accept else FinanceCutoverQualificationEvidence.RETURNED
     item.review_note = str(reason).strip()
     if accept:
@@ -1048,7 +1068,7 @@ def review_cutover_qualification_evidence(item, actor, *, accept, reason):
     _event(
         item.plan.cycle, actor,
         "cutover_qualification_evidence_accepted" if accept else "cutover_qualification_evidence_returned",
-        reason=reason, snapshot=_qualification_evidence_data(item),
+        reason=reason, snapshot={**_qualification_evidence_data(item), "integrity_check": integrity},
     )
     return item
 
@@ -1155,8 +1175,10 @@ def review_cutover_readiness_exercise(exercise, actor, *, accept, reason):
     snapshot["reviewed_by_id"] = None
     snapshot["reviewed_at"] = None
     snapshot["review_note"] = ""
-    if _checksum_payload(snapshot) != stored:
-        raise ValidationError("The exercise evidence changed after submission. Return it rather than accepting altered evidence.")
+    integrity = _review_integrity(
+        stored, _checksum_payload(snapshot), accept=accept,
+        error="The exercise evidence changed after submission. Return it rather than accepting altered evidence.",
+    )
     exercise.review_note = str(reason).strip()
     if accept:
         exercise.status = FinanceCutoverReadinessExercise.PASSED
@@ -1172,7 +1194,7 @@ def review_cutover_readiness_exercise(exercise, actor, *, accept, reason):
     _event(
         exercise.cycle, actor,
         "cutover_readiness_exercise_passed" if accept else "cutover_readiness_exercise_returned",
-        reason=reason, snapshot=_readiness_exercise_data(exercise),
+        reason=reason, snapshot={**_readiness_exercise_data(exercise), "integrity_check": integrity},
     )
     return exercise
 
@@ -1396,8 +1418,10 @@ def review_reconciliation_run(run, actor, *, accept, reason):
     payload["reviewed_by_id"] = None
     payload["reviewed_at"] = None
     payload["review_note"] = ""
-    if _checksum_payload(payload) != stored:
-        raise ValidationError("The scheduled-run evidence changed after submission. Return it rather than accepting altered evidence.")
+    integrity = _review_integrity(
+        stored, _checksum_payload(payload), accept=accept,
+        error="The scheduled-run evidence changed after submission. Return it rather than accepting altered evidence.",
+    )
     if accept:
         run.status = (
             FinanceShadowReconciliationRun.REVIEWED_WITH_EXCEPTIONS
@@ -1414,7 +1438,7 @@ def review_reconciliation_run(run, actor, *, accept, reason):
     _event(
         run.cycle, actor,
         "shadow_reconciliation_run_reviewed" if accept else "shadow_reconciliation_run_returned",
-        reason=reason, snapshot=_run_data(run),
+        reason=reason, snapshot={**_run_data(run), "integrity_check": integrity},
     )
     return run
 
@@ -1502,8 +1526,10 @@ def review_shadow_cycle(cycle, actor, *, accept, reason):
     if not reason.strip():
         raise ValidationError("Record the review basis or the specific return reason.")
     payload, checksum = shadow_cycle_evidence(cycle)
-    if checksum != cycle.evidence_checksum:
-        raise ValidationError("The comparison evidence changed after submission. Start a successor cycle rather than accepting altered evidence.")
+    integrity = _review_integrity(
+        cycle.evidence_checksum, checksum, accept=accept,
+        error="The comparison evidence changed after submission. Return it and prepare a successor cycle rather than accepting altered evidence.",
+    )
     if accept:
         cycle.status = FinanceShadowCycle.RECONCILED
         cycle.reconciled_by = actor
@@ -1514,6 +1540,7 @@ def review_shadow_cycle(cycle, actor, *, accept, reason):
         action = "shadow_cycle_returned"
     cycle.save(update_fields=("status", "reconciled_by", "reconciled_at", "updated_at"))
     payload["evidence_checksum"] = checksum
+    payload["integrity_check"] = integrity
     _event(cycle, actor, action, reason=reason, snapshot=payload)
     return cycle
 

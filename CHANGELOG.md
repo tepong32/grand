@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.47 - governed field integrity returns
+
+Seven field-review paths now permit an independently authorized, reasoned return after a detected checksum mismatch while continuing to block positive acceptance. New review events retain stored and observed digests and their match result; prior submission events remain unchanged. Existing model immutability, current source authority, UAT denial and maker-checker remain in force. All 112 focused field/My Work tests passed in 65.532 seconds; all 657 project tests passed in 239.539 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.46 - local-form actions and personal handoffs
 
 Local-form queues now show remaining preparation and valid submission actions, and exclude obsolete or locked witness work. Personal Waiting follows own current test and form submissions; completed history preserves test failures, retries, witnessing and independent form acceptance with exact attempt/evidence attribution. All 26 focused local-form tests passed in 26.042 seconds; all 200 reporting/My Work/operations dependency tests passed in 183.489 seconds. System, migration-drift, compilation and diff checks passed.

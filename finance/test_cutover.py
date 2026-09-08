@@ -1931,3 +1931,116 @@ class FinanceShadowCutoverTests(TestCase):
         group = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0]
         self.requesting_reviewer.groups.add(group)
         self.assertEqual(self.field_work_rows(self.requesting_reviewer, "field-stakeholder", acceptance, "completed"), [])
+
+
+    def test_changed_field_evidence_can_be_returned_but_never_accepted(self):
+        from unittest.mock import patch
+
+        cases = []
+        with patch("finance.test_cutover.review_reconciliation_plan"):
+            cycle = self._cycle(code="integrity-reconciliation-plan")
+        cases.append((cycle.reconciliation_plan, review_reconciliation_plan, "approve", "shadow_reconciliation_plan_returned", cycle))
+        cycle = self._cycle(code="integrity-readiness-plan")
+        with patch("finance.test_cutover.review_cutover_readiness_plan"):
+            plan = self._approve_readiness_plan(cycle)
+        cases.append((plan, review_cutover_readiness_plan, "approve", "cutover_readiness_plan_returned", cycle))
+        cycle = self._cycle(code="integrity-qualification-plan")
+        with patch("finance.test_cutover.review_cutover_qualification_plan"):
+            plan = self._approve_qualification(cycle, [])
+        cases.append((plan, review_cutover_qualification_plan, "approve", "cutover_qualification_plan_returned", cycle))
+        cycle = self._cycle(code="integrity-exercise")
+        self._approve_readiness_plan(cycle)
+        with patch("finance.test_cutover.review_cutover_readiness_exercise"):
+            exercise = self._pass_readiness_exercise(
+                cycle, kind=FinanceCutoverReadinessExercise.SECURITY_ACCESS, code="integrity-access",
+                owner=self.manager, witness=self.reconciler,
+            )
+        cases.append((exercise, review_cutover_readiness_exercise, "accept", "cutover_readiness_exercise_returned", cycle))
+        cycle = self._cycle(code="integrity-run")
+        start_shadow_cycle(cycle, self.manager)
+        cycle.refresh_from_db()
+        self._matched_comparison(cycle)
+        with patch("finance.test_cutover.review_reconciliation_run"):
+            run = self._review_current_run(cycle)
+        cases.append((run, review_reconciliation_run, "accept", "shadow_reconciliation_run_returned", cycle))
+        with patch("finance.test_cutover.review_shadow_cycle"):
+            cycle = self._reconciled_cycle(code="integrity-cycle")
+        cases.append((cycle, review_shadow_cycle, "accept", "shadow_cycle_returned", cycle))
+        cycle = self._reconciled_cycle(code="integrity-qualification-evidence")
+        with patch("finance.test_cutover.review_cutover_qualification_evidence"):
+            plan = self._approve_qualification(cycle, [cycle])
+        evidence = plan.cycle_evidence.get()
+        cases.append((evidence, review_cutover_qualification_evidence, "accept", "cutover_qualification_evidence_returned", cycle))
+
+        for item, review, decision_key, action, cycle in cases:
+            with self.subTest(action=action):
+                item.refresh_from_db()
+                original_checksum = item.evidence_checksum
+                original_status = item.status
+                before_events = list(FinanceAuditEvent.objects.filter(
+                    target_type="financeshadowcycle", target_id=str(cycle.pk),
+                ).values_list("pk", "snapshot"))
+                # Simulate detected stored corruption; ordinary edits remain governed by the model.
+                type(item).objects.filter(pk=item.pk).update(evidence_checksum="0" * 64)
+                with self.assertRaisesMessage(ValidationError, "changed after submission"):
+                    review(item, self.reconciler, **{decision_key: True}, reason="Must not accept changed evidence.")
+                item.refresh_from_db()
+                self.assertEqual(item.status, original_status)
+                with self.assertRaises(PermissionDenied):
+                    review(item, self.outsider, **{decision_key: False}, reason="No source authority.")
+                with self.assertRaises((ValidationError, PermissionDenied)):
+                    review(item, self.manager, **{decision_key: False}, reason="No independent decision.")
+                with self.assertRaises(ValidationError):
+                    review(item, self.reconciler, **{decision_key: False}, reason="")
+                uat_group, _ = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)
+                self.reconciler.groups.add(uat_group)
+                try:
+                    with self.assertRaises(PermissionDenied):
+                        review(item, get_user_model().objects.get(pk=self.reconciler.pk), **{decision_key: False}, reason="UAT cannot return even with review authority.")
+                finally:
+                    self.reconciler.groups.remove(uat_group)
+                review(item, self.reconciler, **{decision_key: False}, reason="Investigate detected integrity mismatch and prepare governed correction.")
+                item.refresh_from_db()
+                self.assertEqual(item.status, item.RETURNED)
+                event = FinanceAuditEvent.objects.get(
+                    target_type="financeshadowcycle", target_id=str(cycle.pk), action=action,
+                )
+                self.assertEqual(event.actor_id, self.reconciler.pk)
+                self.assertEqual(event.snapshot["integrity_check"], {
+                    "stored_checksum": "0" * 64, "observed_checksum": original_checksum, "matches": False,
+                })
+                self.assertEqual(before_events, list(FinanceAuditEvent.objects.filter(
+                    pk__in=[pk for pk, _ in before_events],
+                ).values_list("pk", "snapshot")))
+
+
+    def test_field_integrity_return_allows_controlled_resubmission_with_fresh_evidence(self):
+        from unittest.mock import patch
+
+        with patch("finance.test_cutover.review_reconciliation_plan"):
+            cycle = self._cycle(code="integrity-correction-replay")
+        plan = cycle.reconciliation_plan
+        original = FinanceAuditEvent.objects.get(
+            target_type="financeshadowcycle", target_id=str(cycle.pk), action="shadow_reconciliation_plan_submitted",
+        )
+        original_snapshot = original.snapshot
+        plan.grace_minutes += 10
+        with self.assertRaisesMessage(ValidationError, "immutable"):
+            plan.save()
+        FinanceShadowReconciliationPlan.objects.filter(pk=plan.pk).update(grace_minutes=75)
+        with self.assertRaisesMessage(ValidationError, "changed after submission"):
+            review_reconciliation_plan(plan, self.reconciler, approve=True, reason="Changed controls cannot pass.")
+        review_reconciliation_plan(plan, self.reconciler, approve=False, reason="Investigate source discrepancy and resubmit corrected controls.")
+        plan.refresh_from_db()
+        plan.grace_minutes = 90
+        plan.save()
+        plan = submit_reconciliation_plan(plan, self.manager)
+        self.assertNotEqual(plan.evidence_checksum, original_snapshot["evidence_checksum"])
+        plan = review_reconciliation_plan(plan, self.reconciler, approve=True, reason="Independently revalidated the corrected controls and fresh submission.")
+        self.assertEqual(plan.status, plan.APPROVED)
+        approved = FinanceAuditEvent.objects.get(
+            target_type="financeshadowcycle", target_id=str(cycle.pk), action="shadow_reconciliation_plan_approved",
+        )
+        self.assertTrue(approved.snapshot["integrity_check"]["matches"])
+        original.refresh_from_db()
+        self.assertEqual(original.snapshot, original_snapshot)

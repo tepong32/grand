@@ -249,7 +249,10 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-022 - Field evidence drift blocks the instructed return path
 
 - Process/module: reconciliation/readiness/qualification plan review, qualification evidence, exercise/run and cycle review.
-- Severity/status: **MEDIUM - OPEN**, source finding awaiting isolated reproduction.
+- Severity/status: **MEDIUM - VERIFIED**, reproduced and repaired in v0.7.47.
 - Code evidence: checksum comparisons in cutover_services reject both positive acceptance and negative return, even where the error instructs the reviewer to return altered evidence. The normal model guards prevent ordinary edits of submitted controls; this concerns recovery from detected drift, not permission to edit submitted evidence.
 - Expected behavior: preserve the acceptance block, independent reviewer, current-office or assigned authority, and required reason. A governed return should retain the original submission and the observed integrity difference rather than silently relabeling changed evidence as valid.
 - Next step: reproduce the recovery dead end, then verify a traced negative decision before expanding the corresponding personal work adapters.
+
+
+- FIN-GAP-022 reproduction: one isolated seven-path test produced seven blocked-return errors in 2.738 seconds, after separately verifying positive acceptance denial, outsider/self-review denial and required reasons. The repair retains stored/observed checksums and mismatch status in the new decision audit without rewriting earlier events. All 112 focused field/My Work tests passed in 65.532 seconds; all 657 project tests passed in 239.539 seconds. System, migration-drift, compilation and diff checks passed.
