@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-044:** Put My Work actions first; keep coverage and record identifiers in native, keyboard-accessible disclosures.
+
 - **D-043:** A reasoned DV return supersedes obsolete signing authority and interrupted amendments; corrected work must receive fresh review.
 
 - **D-042:** Preserve signatory snapshots across paper reprints and resolve pending amendments through retained print lineage.
@@ -529,3 +531,12 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: blocking every return until an amendment completes prevents legitimate correction; silently completing the amendment misstates evidence. Rewriting its original round or resume stage loses lineage. One additive status choice plus the retained return event records supersession without duplicating reason/actor/time fields or backfilling historical decisions.
 - Evidence: two source-service assertions failed in 3.056 seconds before repair. Obsolete copies, interrupted amendment status, corrected/renewed rounds and final review stage, signed historical evidence, replay and audit-failure rollback verified. All 80 focused voucher/signature tests passed in 43.644 seconds. All 674 project tests passed in 304.236 seconds. System, migration-drift, compilation and diff checks passed.
 - Revisit when: introducing a dedicated amendment withdrawal/resubmission process; preserve governed return reasons and distinguish actual completion from supersession.
+
+## D-044 - My Work actions before implementation detail
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.54.
+- Decision: collapse the long coverage explanation, technical task/case/type/revision identifiers and view mechanics under native disclosures. Keep task subject, next action, source gate, exceptions, office scope, timing and source state visible. Give each record disclosure a source-specific accessible name and an explicit keyboard focus outline.
+- Goal: employees should find the work and owning queue without reading implementation detail; retain identifiers and coverage for support, audit and export comparison.
+- Alternatives/tradeoffs: removing metadata would weaken traceability; leaving every field expanded put the mobile task below multiple screens of explanation. Native details/summary supports keyboard use without another JavaScript state or permission contract. Exports and selectors are unchanged.
+- Evidence: all 79 My Work/operations tests passed in 61.874 seconds. System, migration-drift and diff checks passed. Isolated authenticated browser checks covered desktop, 390px and 320px layouts, native Space/Enter toggling, Tab navigation, visible focus, exact source navigation and console inspection. See [browser QA](FINANCE_MY_WORK_BROWSER_QA.md). Full suite NOT RUN for this isolated template-only change; v0.7.53 passed all 674 project tests.
+- Revisit when: adding substantive task fields or changing export/support identifiers. Keep operational constraints visible and details accessible.

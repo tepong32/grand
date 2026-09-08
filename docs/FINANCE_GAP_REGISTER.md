@@ -302,3 +302,11 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 - Closure: obsolete signing authority and interrupted amendments are explicitly superseded, with original evidence and affected identities retained. Fresh correction and renewed-signature flows verified.
 
 - Reproduction: both assertions failed in 3.056 seconds. The reasoned return left the old signing job ready to print and the interrupted amendment awaiting signatures. Repair introduces explicit pending-amendment supersession, invalidates obsolete signing jobs/outputs, and records affected identities in the return event. All 80 focused voucher/signature tests passed in 43.644 seconds. All 674 project tests passed in 304.236 seconds. System, migration-drift, compilation and diff checks passed.
+
+## FIN-GAP-027 - Voucher detail offers self-validation excluded from the real action queue
+
+- Process/module: DV source detail action form and next-task banner.
+- Severity/status: **MEDIUM - OPEN**, browser/source finding awaiting regression reproduction.
+- Evidence: the isolated accounting.preparer account sees a validation form and a next-task banner on its own corrected DV. The same case correctly appears in personal Waiting. case_detail derives validation permission and its banner from generic permission/stage checks; accounting_validation_action_queryset additionally enforces current custody and preparer exclusion, honoring governed exceptions. validate_accounting independently checks the source controls and self-validation exception.
+- Expected behavior: the source page should use the existing source-action selector so it does not invite a blocked self-review or a wrong-office review. Preserve legitimate independent reviewers and separately governed self-validation exceptions.
+- Next step: reproduce page/queue mismatch, share the existing selector at the source-page boundary, and verify independent reviewer, preparer, wrong-office and exception cases. The browser also exposed low-contrast voucher notices and a raw template object label; retain those as subsequent presentation follow-ups.

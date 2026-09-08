@@ -6,6 +6,9 @@
   .finance-work-items { table-layout: fixed; }
   .finance-work-items td { overflow-wrap: anywhere; vertical-align: top; }
   .finance-work-items th:last-child { width: 8rem; }
+  .finance-work-disclosure summary { cursor: pointer; color: #173f63; }
+  .finance-work-disclosure summary:focus-visible { outline: 3px solid #005a9c; outline-offset: 3px; border-radius: 2px; }
+  .finance-work-disclosure[open] summary { margin-bottom: .5rem; }
   @media (max-width: 767.98px) {
     .finance-work-scroll { overflow-x: visible; }
     .finance-work-table, .finance-work-table tbody, .finance-work-table tr, .finance-work-table td { display: block; width: 100%; }
@@ -96,9 +99,12 @@
     </div>
     <div class="card-body">
       <p class="mb-1"><strong>{{ task_count }} source-linked task{{ task_count|pluralize }}</strong> in this view.</p>
-      <p class="small text-muted mb-0">
+      <details class="finance-work-disclosure small mt-2">
+        <summary>What this view includes</summary>
+        <p class="text-muted mb-0">
         Current coverage: {{ task_coverage|join:", " }}. Each Task ID identifies one action on one authoritative record; it is not a second transaction, assignment, or approval.
-      </p>
+        </p>
+      </details>
     </div>
     {% if tasks %}
     <div class="table-responsive finance-work-scroll">
@@ -111,8 +117,13 @@
             <td class="small" data-label="Task and source">
               <div class="font-weight-bold">{{ task.reference }}</div>
               <div>{{ task.subject }}</div>
-              <div class="text-muted"><strong>Task ID:</strong> <code>{{ task.task_id }}</code></div>
-              <div class="text-muted"><strong>Type:</strong> {{ task.task_type }}</div>
+              <details class="finance-work-disclosure mt-2">
+                <summary>Record details<span class="sr-only"> for {{ task.reference }} — {{ task.subject }}</span></summary>
+                <div class="text-muted"><strong>Task ID:</strong> <code>{{ task.task_id }}</code></div>
+                <div class="text-muted"><strong>Type:</strong> {{ task.task_type }}</div>
+                <div class="text-muted"><strong>Case ID:</strong> {{ task.case_id }}</div>
+                <div class="text-muted"><strong>Source version:</strong> {{ task.source_version }}</div>
+              </details>
             </td>
             <td class="small" data-label="Action and gate">
               <div><strong>Do:</strong> {{ task.action }}</div>
@@ -128,8 +139,6 @@
             </td>
             <td class="small" data-label="State">
               <div><strong>{{ task.state }}</strong> · source: {{ task.source_state }}</div>
-              <div class="text-muted"><strong>Source version:</strong> {{ task.source_version }}</div>
-              <div class="text-muted"><strong>Case ID:</strong> {{ task.case_id }}</div>
             </td>
             <td class="text-right" data-label="Continue"><a class="btn btn-sm btn-outline-primary" href="{{ task.url }}">Open record</a></td>
           </tr>
@@ -146,7 +155,10 @@
   <div class="card bg-light">
     <div class="card-body small text-muted">
       <p class="mb-1"><strong>Generated:</strong> {{ generated_at|date:"Y-m-d H:i:s T" }}{% if department %} · <strong>Department:</strong> {{ department.name }}{% endif %}</p>
-      <p class="mb-0"><strong>Control boundary:</strong> This page does not create assignments, approvals, notifications, or a second status. The linked Budget, Voucher, Accounting, Treasury, and Reporting records remain authoritative. Item-level coverage will expand through separate rollbackable checkpoints.</p>
+      <details class="finance-work-disclosure mt-2">
+        <summary>How this view works</summary>
+        <p class="mb-0"><strong>Control boundary:</strong> This page does not create assignments, approvals, notifications, or a second status. The linked Budget, Voucher, Accounting, Treasury, and Reporting records remain authoritative. Open the linked record for its full history and available actions.</p>
+      </details>
     </div>
   </div>
 

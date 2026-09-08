@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.54 - Readable My Work details
+
+My Work now puts coverage, technical record identifiers and view mechanics in native disclosures. Task actions, gates, exceptions, office scope, timing and source state stay visible. Source-specific accessible names and keyboard focus styling preserve support/audit access without crowding the task list. All 79 My Work/operations tests passed in 61.874 seconds. System, migration-drift and diff checks passed. Isolated authenticated browser checks verified desktop/narrow layouts, keyboard disclosures and exact source navigation. Full regression NOT RUN for this template-only change; v0.7.53 passed 674 tests.
+
 ## v0.7.53 - Returned DV signing-authority supersession
 
 Governed DV returns to preparation or renewed signatures supersede obsolete signing jobs and outputs. An interrupted pending amendment receives an explicit superseded status; its original evidence and previously completed amendments remain intact. The reasoned return event retains affected print, output and amendment identities. Corrected work uses its new signature round and fresh review. All 80 focused voucher/signature tests passed in 43.644 seconds. All 674 project tests passed in 304.236 seconds. System, migration-drift, compilation and diff checks passed.
