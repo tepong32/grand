@@ -801,15 +801,14 @@ class SubmitChecksForm(WorkflowForm):
 
 
 class ReturnCaseForm(WorkflowForm):
-    target_stage = forms.ChoiceField(choices=(
-        (VoucherCase.PAYABLE_PREPARATION, "Requesting-office payable preparation"),
-        (VoucherCase.ACCOUNTING_PREPARATION, "Accounting DV preparation"),
-        (VoucherCase.AWAITING_SIGNATURES, "Wet signatures"),
-        (VoucherCase.ACCOUNTING_VALIDATION, "Accounting validation"),
-        (VoucherCase.TREASURY_CHECK_PREPARATION, "Treasury check preparation"),
-        (VoucherCase.ACCOUNTING_BANK_ADVICE, "Accounting bank advice"),
-    ))
+    target_stage = forms.ChoiceField(choices=())
     reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+
+    def __init__(self, *args, case=None, **kwargs):
+        super().__init__(*args, case=case, **kwargs)
+        from .return_routes import return_route_options
+        choices, self.route_blockers = return_route_options(case)
+        self.fields["target_stage"].choices = choices
 
 
 class CancelCheckForm(WorkflowForm):

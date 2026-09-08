@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-046:** Share existing return destinations and posted/draft-JEV blockers between the source service and form; expose the control only to its current office.
+
 - **D-045:** Use the existing Accounting validation selector on the voucher page, preserving governed exceptions and readable source notices.
 
 - **D-044:** Put My Work actions first; keep coverage and record identifiers in native, keyboard-accessible disclosures.
@@ -551,3 +553,12 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: copying self-review logic into the template would create another policy definition; broadening My Work would surface unauthorized work. Reuse the existing selector and leave its source-service rules intact. Scoped notice contrast and a human-readable pinned template title/version address browser-observed readability defects without restyling shared global UI.
 - Evidence: two source-page assertions failed in 3.190 seconds before repair. Independent review, self-review exclusion, current-office custody, governed exceptions and UAT verified. Desktop/320px source pages and keyboard-scrollable evidence checked; fixed-width reason fields and raw template labels corrected. All 77 focused voucher tests passed in 46.346 seconds. All 84 My Work/operations/signature dependency tests passed in 56.615 seconds. System, migration-drift, compilation and diff checks passed. See [source browser QA](FINANCE_VOUCHER_DETAIL_QA.md).
 - Revisit when: extending detail-page parity to another stage; reuse that stage's source selector and distinguish a main workflow action from separate correction controls.
+
+## D-046 - Reasoned voucher return routes follow source state
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.56.
+- Decision: extract the existing stage-to-return-destination map and retained DV/instrument/posted-JEV/materialized-draft restrictions into a small shared source contract. Use it in both the locked return service and ReturnCaseForm. Keep the reason, version/idempotency and mutation checks; scope the visible return control to the current office. Show a retained-source blocker when no route is available instead of an unusable form.
+- Goal: an employee should select a real governed correction destination without discovering predictable restrictions only after submission. Posted financial evidence must still require its adjustment/reversal/replacement route.
+- Alternatives/tradeoffs: filtering a copied template list would diverge again; removing service restrictions would weaken retained financial controls. Share only existing routes and blockers, with no new route or automatic financial reversal. Preserve each existing rejection reason and transaction boundary.
+- Evidence: Two route/current-office assertions failed in 3.132 seconds before repair. Verified current stage choices, current office/UAT, posted/materialized blockers and draft discard recovery, forged targets/caller stage, successful correction and existing rollback/history behavior. All 84 focused voucher/custody tests passed in 46.247 seconds. All 678 full-project tests passed in 334.918 seconds. System, migration-drift, compilation and diff checks passed. Isolated browser confirms the two permitted validation-stage destinations.
+- Revisit when: adding a new governed correction route or changing posting recovery; update the shared contract and service tests together.

@@ -343,6 +343,11 @@ def case_detail(request, public_id):
     permissions["certify"] = legacy_budget_action_queryset(request.user).filter(pk=case.pk).exists()
     validation_cases, _, _ = accounting_validation_action_queryset(request.user)
     permissions["validate"] = validation_cases.filter(pk=case.pk).exists()
+    acting_department = department_for_user(request.user)
+    permissions["return"] = bool(
+        permissions["return"] and not is_finance_uat_viewer(request.user)
+        and acting_department and case.current_department_id == acting_department.pk
+    )
     profile = finance_workspace_profile(request.user)
     from accounting.access import can_post_journals, can_prepare_journals
     can_handle_posting = can_prepare_journals(request.user) or can_post_journals(request.user)

@@ -316,7 +316,25 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-028 - Voucher return form lists routes unavailable from the current stage
 
 - Process/module: reasoned voucher return form.
-- Severity/status: **MEDIUM - OPEN**, browser/source finding awaiting reproduction.
+- Severity/status: **MEDIUM - VERIFIED**, reproduced and repaired in v0.7.56.
 - Evidence: at Accounting validation the source form defaults to Requesting-office payable preparation, while return_case permits only Accounting preparation or renewed signatures from that stage. ReturnCaseForm defines a static destination list rather than consuming the service's stage map. The source service rejects unsupported destinations; the form still invites a predictable failed submission.
 - Expected behavior: source return controls should offer current permitted destinations, respect current-office authority and disclose retained-posting restrictions. Preserve the reason, state-version/idempotency and posted-JEV correction boundaries.
-- Next step: reproduce source form/return-service parity, then reuse an explicit shared return-route contract without weakening source mutation checks. Complete this before detailed DV history projections.
+- Closure: the form and locked source service share the existing route and retained-source contract; current-office/UAT display and posted/draft restrictions are covered. No source route was broadened.
+
+- Reproduction: one test produced two failed assertions in 3.132 seconds: stage-incompatible destinations and a return control in another office. The form and locked service now share vouchers.return_routes; the current-office source page shows only permitted choices and retained blockers. All 84 focused voucher/custody tests passed in 46.247 seconds. All 678 full-project tests passed in 334.918 seconds. System, migration-drift, compilation and diff checks passed.
+
+## FIN-GAP-029 - Remaining voucher detail controls use generic grants instead of source actions
+
+- Process/module: source-page preparation, payable review, custody/payment controls and pending-amendment presentation.
+- Severity/status: **MEDIUM - OPEN**, source finding awaiting bounded reproduction.
+- Evidence: _permissions reports generic explicit grants, including for UAT accounts with combined operational grants. The source page uses many of those flags directly. FIN-GAP-027 bound validation to its real selector, and FIN-GAP-028 now scopes return; other controls still need equivalent review against their source current-office, maker-checker and pending-work rules. can_amend_nonfinancial does not yet exclude a pending amendment even though its service does.
+- Expected behavior: keep separately authorized read/audit access while showing only source-authorized controls. Preserve the pinned-owner amendment exception across custody, named roles and governed workflow exemptions; do not apply a blanket current-office rule to the owning amendment route.
+- Next step: reproduce the remaining combined-grant UAT, wrong-office and maker/pending-work invitations, then reuse their existing source selectors and guards. Do not weaken mutation services or invent new ownership rules. Complete before detailed DV personal-history expansion.
+
+## FIN-GAP-030 - DV output generation and legacy packet linking lack stored case-owner checks
+
+- Process/module: generated DV artifact and legacy TracePoint item association services.
+- Severity/status: **HIGH - OPEN**, source finding awaiting reproduction.
+- Evidence: generate_shadow_dv reloads its case but checks only a generic preparation grant, and returns an existing output before any office check. link_tracepoint_item reloads its case and checks visibility on the caller-supplied item, but does not bind the actor to the stored case owner or reload the linked item before evaluating its packet. Existing tests deliberately allow owning Accounting output generation after Treasury handoff and owning Accounting packet linking while the case is still with Budget.
+- Expected behavior: preserve those existing across-custody owning-Accounting workflows while excluding unrelated offices with generic grants. Resolve authority and item visibility from stored records before writes/replay; preserve immutable files, source amounts and existing packet-visibility policy.
+- Next step: reproduce output/link office violations and forged item/case inputs. Reconcile ownership with the existing pinned Finance-owner boundary rather than imposing a current-custody-only restriction that breaks legitimate flows. Prioritize this source mutation finding before FIN-GAP-029 presentation work.

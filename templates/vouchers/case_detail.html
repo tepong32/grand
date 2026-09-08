@@ -75,7 +75,10 @@
     {% if case.current_stage == 'accounting_bank_advice' and permissions.advice %}{% include 'vouchers/workflow_form.html' with title='Prepare bank advice' form=advice_form action='finalize-advice' button='Prepare and send for review' %}{% endif %}
     {% if case.current_stage == 'treasury_release' and permissions.release %}{% include 'vouchers/workflow_form.html' with title='Release advised check' form=release_form action='release-check' button='Record check release' %}{% endif %}
     {% if permissions.exceptions and case.payment_instruments.exists and case.current_stage != 'completed' %}{% include 'vouchers/workflow_form.html' with title='Cancel / spoil a check' form=cancel_form action='cancel-check' button='Cancel check' button_class='btn-outline-danger' %}{% endif %}
-    {% if permissions.return and case.current_stage != 'budget_draft' and case.current_stage != 'payable_preparation' and case.current_stage != 'payable_review' and case.current_stage != 'accounting_event_posting' and case.current_stage != 'completed' and case.current_stage != 'cancelled' %}{% include 'vouchers/workflow_form.html' with title='Return for correction' form=return_form action='return' button='Return same case' button_class='btn-outline-warning' %}{% endif %}
+    {% if permissions.return %}
+      {% if return_form.fields.target_stage.choices %}{% include 'vouchers/workflow_form.html' with title='Return for correction' form=return_form action='return' button='Return same case' button_class='btn-outline-warning' %}{% endif %}
+      {% if return_form.route_blockers %}<div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Unavailable return routes</h2></div><div class="card-body">{% for blocker in return_form.route_blockers %}<p><strong>{{ blocker.label }}:</strong> {{ blocker.reason }}</p>{% endfor %}</div></div>{% endif %}
+    {% endif %}
     {% if permissions.tracepoint_link and not case.tracepoint_item and not case.voucher_template.controlled_print_required %}{% include 'vouchers/workflow_form.html' with title='Link physical custody' form=tracepoint_form action='link-tracepoint' button='Link TracePoint item' button_class='btn-outline-secondary' %}{% endif %}
   </div></div>
 </div>

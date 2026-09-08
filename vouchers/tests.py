@@ -2125,6 +2125,15 @@ class VoucherWorkflowTests(TestCase):
         entry, _created = materialize_voucher_journal(posting_request, self.preparer)
 
         self.client.force_login(self.preparer)
+        blocked = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertFalse(blocked.context["return_form"].fields["target_stage"].choices)
+        self.assertContains(blocked, "Discard the draft GRAND JEV")
+        self.assertNotContains(blocked, "Return same case")
+        case.refresh_from_db()
+        with self.assertRaisesMessage(ValidationError, "Discard the draft GRAND JEV"):
+            return_case(case=case, actor=self.validator, target_stage=VoucherCase.ACCOUNTING_VALIDATION,
+                reason="Cannot bypass the materialized draft.", expected_version=case.state_version,
+                idempotency_key="materialized-return-denied")
         response = self.client.post(
             reverse("accounting:entry_discard", args=(entry.public_id,)),
             {"reason": "Correct the source voucher and regenerate"},
@@ -2135,6 +2144,9 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(entry.status, JournalEntry.VOIDED)
         self.assertEqual(posting_request.status, VoucherPostingRequest.CANCELLED)
 
+        available = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertEqual(list(available.context["return_form"].fields["target_stage"].choices),
+            [(VoucherCase.ACCOUNTING_VALIDATION, "Accounting validation")])
         return_case(
             case=case,
             actor=self.validator,
@@ -4267,3 +4279,64 @@ class VoucherWorkflowTests(TestCase):
         self.assertContains(response, "Read-only UAT review")
         self.assertNotContains(response, "Validate and request GRAND JEV")
         self.assertFalse(response.context["case_ready_for_user"])
+
+    def test_voucher_return_form_follows_current_stage_and_office(self):
+        from django.contrib.auth.models import Group
+        from vouchers.forms import ReturnCaseForm
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        case = self.create_case("return-form-routes")
+        self.budget_certify(case)
+        self.accounting_prepare(case)
+        self.return_signatures(case)
+        self.client.force_login(self.validator)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        with self.subTest(control="allowed destinations"):
+            self.assertEqual({value for value, label in response.context["return_form"].fields["target_stage"].choices},
+                {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.AWAITING_SIGNATURES})
+        self.client.force_login(self.treasury_user)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertEqual(response.status_code, 200)
+        with self.subTest(control="current office"):
+            self.assertNotContains(response, "Return same case")
+
+        original_version = case.state_version
+        form = ReturnCaseForm({"target_stage": VoucherCase.PAYABLE_PREPARATION, "reason": "Unsupported route",
+            "state_version": original_version, "idempotency_key": "forged-return-form"}, case=case)
+        self.assertFalse(form.is_valid())
+        self.assertIn("target_stage", form.errors)
+        case.current_stage = VoucherCase.ACCOUNTING_PREPARATION
+        with self.assertRaisesMessage(ValidationError, "allowed earlier stage"):
+            return_case(case=case, actor=self.validator, target_stage=VoucherCase.PAYABLE_PREPARATION,
+                reason="A forged caller stage must not widen the route.", expected_version=original_version,
+                idempotency_key="forged-return-service")
+        case.refresh_from_db()
+        self.assertEqual((case.current_stage, case.state_version), (VoucherCase.ACCOUNTING_VALIDATION, original_version))
+        self.assertFalse(case.events.filter(idempotency_key="forged-return-service").exists())
+        self.client.force_login(self.validator)
+        response = self.client.post(reverse("vouchers:case_action", args=(case.public_id, "return")), {
+            "target_stage": VoucherCase.AWAITING_SIGNATURES, "reason": "Renew the signatures with source evidence.",
+            "state_version": original_version, "idempotency_key": "valid-return-form",
+        })
+        self.assertEqual(response.status_code, 302)
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.AWAITING_SIGNATURES)
+        self.assertTrue(case.events.filter(idempotency_key="valid-return-form", action="returned_for_correction").exists())
+        self.validator.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertContains(response, "Read-only UAT review")
+        self.assertNotContains(response, "Return same case")
+
+    def test_posted_voucher_return_form_preserves_the_adjustment_boundary(self):
+        case = self.ready_for_treasury("return-posted-form")
+        self.client.force_login(self.treasury_user)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["return_form"].fields["target_stage"].choices)
+        self.assertContains(response, "Unavailable return routes")
+        self.assertContains(response, "already has a posted JEV")
+        self.assertNotContains(response, "Return same case")
+        with self.assertRaisesMessage(ValidationError, "already has a posted JEV"):
+            return_case(case=case, actor=self.treasury_user, target_stage=VoucherCase.ACCOUNTING_VALIDATION,
+                reason="A submitted form must not bypass posted evidence.", expected_version=case.state_version,
+                idempotency_key="posted-form-return-denied")

@@ -2122,22 +2122,13 @@ def return_case(*, case, actor, target_stage, reason, expected_version, idempote
     if existing:
         return case
     _require_current_office(case, actor)
-    allowed = {
-        VoucherCase.ACCOUNTING_PREPARATION: {VoucherCase.PAYABLE_PREPARATION},
-        VoucherCase.AWAITING_SIGNATURES: {VoucherCase.ACCOUNTING_PREPARATION},
-        VoucherCase.ACCOUNTING_VALIDATION: {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.AWAITING_SIGNATURES},
-        VoucherCase.ACCOUNTING_POSTING: {VoucherCase.ACCOUNTING_VALIDATION},
-        VoucherCase.TREASURY_CHECK_PREPARATION: {VoucherCase.ACCOUNTING_VALIDATION},
-        VoucherCase.ACCOUNTING_BANK_ADVICE: {VoucherCase.TREASURY_CHECK_PREPARATION},
-        VoucherCase.TREASURY_RELEASE: {VoucherCase.TREASURY_CHECK_PREPARATION, VoucherCase.ACCOUNTING_BANK_ADVICE},
-    }
-    if target_stage not in allowed.get(case.current_stage, set()) or not reason.strip():
-        raise VoucherWorkflowError("Choose an allowed earlier stage and record the correction reason.")
+    from .return_routes import INVALID_RETURN, return_route_blocker
+    if not reason.strip():
+        raise VoucherWorkflowError(INVALID_RETURN)
+    blocker = return_route_blocker(case, target_stage)
+    if blocker:
+        raise VoucherWorkflowError(blocker)
     if target_stage == VoucherCase.PAYABLE_PREPARATION:
-        if hasattr(case, "disbursement_voucher") or case.payment_instruments.exists():
-            raise VoucherWorkflowError(
-                "A DV or check already exists; use the later voucher/payment correction route instead of reopening payable allocations."
-            )
         intake = case.payable_intake
         intake.status = PayableIntake.RETURNED
         intake.reviewed_by = actor
@@ -2153,11 +2144,6 @@ def return_case(*, case, actor, target_stage, reason, expected_version, idempote
             "obligation_adjustment_decision", "obligation_adjustment_basis",
         ))
     if target_stage in {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.ACCOUNTING_VALIDATION}:
-        if case.posting_requests.filter(status=VoucherPostingRequest.POSTED).exists():
-            raise VoucherWorkflowError("This voucher already has a posted JEV. Use an adjusting/reversal entry and a replacement case instead of rewriting it.")
-        materialized = case.posting_requests.filter(status=VoucherPostingRequest.MATERIALIZED).exists()
-        if materialized:
-            raise VoucherWorkflowError("Discard the draft GRAND JEV before returning this voucher for correction.")
         case.posting_requests.filter(status=VoucherPostingRequest.PENDING).update(status=VoucherPostingRequest.CANCELLED)
     supersession = {}
     if target_stage in {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.AWAITING_SIGNATURES}:

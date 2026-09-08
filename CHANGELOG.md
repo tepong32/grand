@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.56 - Source-state voucher return routes
+
+Voucher return forms and the locked return service now share the existing source-stage destinations and retained DV/payment/posted-JEV/draft blockers. The source page restricts the control to the current office and excludes combined-grant UAT users. Posted financial evidence still requires its governed adjustment route; a discarded draft restores the existing return route. All 84 focused voucher/custody tests passed in 46.247 seconds. All 678 full-project tests passed in 334.918 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.55 - Voucher detail action parity and readability
 
 The voucher validation form and main-step banner now use the existing source-action selector, preserving independent reviewers, current-office custody and governed self-validation exceptions. Scoped notice colors, a readable pinned workbook label, focusable scrolling evidence tables and responsive reason fields repair the browser-observed source-page defects. All 77 focused voucher tests passed in 46.346 seconds. All 84 My Work/operations/signature dependency tests passed in 56.615 seconds. System, migration-drift, compilation and diff checks passed.
