@@ -242,3 +242,8 @@ Completed by me now includes retained DV preparation/correction, ordinary partia
 ## v0.7.25 - personal voucher posting handoffs
 
 Personal Waiting now continues through Accounting posting for the retained intake/DV preparer or submitter and the requester of an open recognition posting request. Already-authorized source-creation, journal preparation/posting and source-synchronization actions resolve to the shared voucher case before the display cap. Current source read access and retained stage-handoff timing remain required; ledger dates are not deadlines. Treasury preparation and later exception/payment stages remain separate coverage. Verification: both focused handoff/replay tests passed in 8.410 seconds; all 582 project tests passed in 187.761 seconds. System, migration-drift, compilation and diff checks are clean. The full suite was run because action mapping spans vouchers, Accounting and both databases.
+
+
+## v0.7.26 - Treasury and advice personal handoffs
+
+Waiting includes Treasury preparation and Accounting advice on the shared case. Current authorized initial-assembly/batch actions suppress the case; issued/advised instrument issuers retain personal advice attribution. Historical batch membership and cancelled checks do not determine the current queue. See [D-016](IMPLEMENTATION_DECISIONS.md#d-016--preserve-current-instrumentadvice-lineage-in-personal-waiting) for rationale and [the completion audit](FINANCE_ROADMAP_COMPLETION_AUDIT.md) for validation. Release and post-release work remains separate coverage.

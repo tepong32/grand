@@ -1775,7 +1775,8 @@ class VoucherWorkflowTests(TestCase):
         self.assertFalse(waiting_for_case(self.validator))  # Authorized source synchronization.
         self.assertEqual(len(waiting_for_case(self.requesting_user)), 1)
         reconcile_posted_voucher_entry(recognition_entry, self.validator)
-        self.assertFalse(waiting_for_case(self.requesting_user))  # Next phase has separate coverage.
+        self.assertEqual(len(waiting_for_case(self.requesting_user)), 1)
+        self.assertFalse(waiting_for_case(self.treasury_user))  # Authorized check preparation.
 
         case.refresh_from_db()
         instrument = issue_check(
@@ -1795,6 +1796,8 @@ class VoucherWorkflowTests(TestCase):
             idempotency_key="full-cycle-submit-advice",
         )
         case.refresh_from_db()
+        self.assertEqual(len(waiting_for_case(self.treasury_user)), 1)  # Check issuer awaits advice.
+        self.assertFalse(waiting_for_case(self.preparer))  # Initial advice assembly action.
         advice = finalize_bank_advice(
             case=case,
             actor=self.preparer,
@@ -1806,8 +1809,11 @@ class VoucherWorkflowTests(TestCase):
             authority_reference="Synthetic locally reviewed bank-advice procedure.",
             local_applicability_note="Synthetic Accounting, Treasury, and bank-owner UAT acceptance only.",
         )
+        self.assertFalse(waiting_for_case(self.validator))  # Independent batch-review action.
+        self.assertEqual(len(waiting_for_case(self.treasury_user)), 1)
         self.acknowledge_advice(advice, reference="BANK-ACK-2026-CYCLE-001")
         case.refresh_from_db()
+        self.assertFalse(waiting_for_case(self.requesting_user))  # Release is the next adapter.
         instrument.refresh_from_db()
         release_check(
             case=case,

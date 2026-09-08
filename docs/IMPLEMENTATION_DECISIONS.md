@@ -27,6 +27,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 - **D-015:** Continue personal Waiting through Accounting posting by resolving authorized source and journal actions to the same voucher case.
 
+- **D-016:** Keep Treasury/advice Waiting tied to current instrument and batch lineage, with issuer attribution through advice.
+
 ### D-001 — Retained events determine personal completion
 
 - Date/checkpoint: 2026-09-07; v0.7.10–v0.7.12 implemented; payment-handoff extension verified in v0.7.14.
@@ -191,3 +193,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Tradeoff: cancelled/closed request authorship alone does not confer Waiting attribution. Later payment and exception handoffs require their own stage and attribution audit.
 - Evidence/status: shared source-handoff and journal authorization inspected; focused before-limit test and full service-generated Budget-to-report replay expanded. Both pass in 8.410 seconds. The initial replay failed because its one-row cap could select the legitimate journal Waiting row instead of the case; the replay now finds the case within the default view, while the dedicated cap test remains strict. All 582 project tests passed in 187.761 seconds; system, migration-drift, compilation and diff checks passed.
 - Revisit when: expanding Treasury/advice/event-posting Waiting; audit all corresponding child identities first.
+
+
+### D-016 — Preserve current instrument/advice lineage in personal Waiting
+
+- Date/checkpoint: 2026-09-08; v0.7.26.
+- Decision: Extend existing intake/DV contributor Waiting through Treasury preparation and bank advice. Map initial assembly and already-authorized current-batch actions to the shared case. Add the issuer of an issued/advised check during the advice phase.
+- Alternatives considered: match all historical advice item memberships; let advice actions and Waiting overlap; infer issuer participation from a cancelled instrument; extend release/exception coverage without auditing its child actions.
+- Goal fit: one traceable case remains visible across office handoffs without suggesting it is waiting when the account can act. Historical advice versions remain evidence, while current lineage governs the queue.
+- Tradeoff: issuer-only Waiting ends on cancellation or leaving the advice phase. Release and post-release exceptions require separate coverage. Bank-advice batch Waiting may coexist with a case row because each links to a different governed source.
+- Evidence/status: advice approval marks instruments advised before bank acknowledgement, so both issued/advised states retain issuer attribution. All three focused tests passed in 9.558 seconds and all 584 project tests passed in 187.754 seconds.
+- Revisit when: extending release, replacement or post-release event posting; resolve their exact authorized child actions before adding Waiting.

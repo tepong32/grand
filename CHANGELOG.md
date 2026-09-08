@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.26 - Treasury and advice personal handoffs
+
+Personal Waiting now follows attributed cases through Treasury check preparation and Accounting bank advice. Initial advice assembly and authorized current-batch actions resolve to the same voucher case before truncation. An issuer retains Waiting while their issued/advised instrument is in the advice phase; cancelled instruments alone do not confer attribution. Current workbench scope, historical handoff time and the existing advice maker-checker controls remain intact. Treasury release and post-release exceptions are not included in this slice. Verification: all three focused cap/issuer/replay tests passed in 9.558 seconds; all 584 project tests passed in 187.754 seconds on the merged branch. System, migration-drift, compilation and diff checks passed. Broad regression covers the cross-module case/instrument/advice relationships; LGU acceptance remains unperformed.
+
 ## v0.7.25 - personal voucher posting handoffs
 
 Personal Waiting now continues through Accounting posting for the retained intake/DV preparer or submitter and the requester of an open recognition posting request. Already-authorized source-creation, journal preparation/posting and source-synchronization actions resolve to the shared voucher case before the display cap. Current source read access and retained stage-handoff timing remain required; ledger dates are not deadlines. Treasury preparation and later exception/payment stages remain separate coverage. Verification: both focused handoff/replay tests passed in 8.410 seconds; all 582 project tests passed in 187.761 seconds. System, migration-drift, compilation and diff checks are clean. The full suite was run because action mapping spans vouchers, Accounting and both databases.

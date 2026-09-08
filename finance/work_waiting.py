@@ -107,10 +107,20 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             attribution=[item.created_by_id, item.submitted_by_id], due_on=item.due_date)
 
     from vouchers.case_exports import visible_cases_for_user
-    from vouchers.models import PayableIntake, VoucherCase, VoucherEvent, VoucherPostingRequest, WetSignatureTask
+    from vouchers.models import BankAdviceItem, PayableIntake, PaymentInstrument, VoucherCase, VoucherEvent, VoucherPostingRequest, WetSignatureTask
 
     if can_view_workbench(user):
-        dv_stages = (VoucherCase.AWAITING_SIGNATURES, VoucherCase.ACCOUNTING_VALIDATION, VoucherCase.ACCOUNTING_POSTING)
+        dv_stages = (VoucherCase.AWAITING_SIGNATURES, VoucherCase.ACCOUNTING_VALIDATION, VoucherCase.ACCOUNTING_POSTING,
+                     VoucherCase.TREASURY_CHECK_PREPARATION, VoucherCase.ACCOUNTING_BANK_ADVICE)
+        actionable.update(f"voucher-case:{case_id}" for case_id in identities("voucher:"))
+        actionable.update(
+            f"voucher-case:{case_id}" for case_id in BankAdviceItem.objects.filter(
+                batch__public_id__in=identities("bank-advice:"), instrument__current_advice_batch_id=F("batch_id"),
+            ).values_list("instrument__case__public_id", flat=True)
+        )
+        issued = PaymentInstrument.objects.filter(
+            case_id=OuterRef("pk"), issued_by_id=user.pk, status__in=(PaymentInstrument.ISSUED, PaymentInstrument.ADVISED),
+        )
         voucher_source_ids = identities("voucher-source:")
         if journal_ids:
             for reference in JournalEntry.objects.filter(public_id__in=journal_ids, source_type="voucher").values_list("source_reference", flat=True):
@@ -131,12 +141,13 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
         handoffs = VoucherEvent.objects.filter(
             case_id=OuterRef("pk"), to_stage=OuterRef("current_stage"),
         ).exclude(from_stage=F("to_stage")).order_by("-state_version", "-created_at", "-pk")
-        cases = visible_cases_for_user(user).annotate(_work_posting_requester=Exists(requested)).filter(
+        cases = visible_cases_for_user(user).annotate(_work_posting_requester=Exists(requested), _work_instrument_issuer=Exists(issued)).filter(
             (Q(current_stage=VoucherCase.PAYABLE_REVIEW, payable_intake__status=PayableIntake.FOR_REVIEW)
              | Q(current_stage=VoucherCase.ACCOUNTING_PREPARATION, payable_intake__status=PayableIntake.READY)) & intake_owner
             | Q(current_stage__in=dv_stages, disbursement_voucher__isnull=False)
             & (intake_owner | Q(disbursement_voucher__prepared_by_id=user.pk)
-               | Q(current_stage=VoucherCase.ACCOUNTING_POSTING, _work_posting_requester=True)),
+               | Q(current_stage=VoucherCase.ACCOUNTING_POSTING, _work_posting_requester=True)
+               | Q(current_stage=VoucherCase.ACCOUNTING_BANK_ADVICE, _work_instrument_issuer=True)),
         ).select_related(
             "payable_intake", "disbursement_voucher", "requesting_department", "current_department",
         ).annotate(_work_handoff_at=Subquery(handoffs.values("created_at")[:1]))
@@ -157,8 +168,11 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
                     VoucherCase.AWAITING_SIGNATURES: f"DV custody and signature return - {office}",
                     VoucherCase.ACCOUNTING_VALIDATION: f"Independent Accounting validation - {office}",
                     VoucherCase.ACCOUNTING_POSTING: f"Accounting journal preparation, posting and source synchronization - {office}",
+                    VoucherCase.TREASURY_CHECK_PREPARATION: f"Treasury check preparation - {office}",
+                    VoucherCase.ACCOUNTING_BANK_ADVICE: f"Accounting bank-advice preparation and response - {office}",
                 }[item.current_stage]
-                if item.current_stage == VoucherCase.ACCOUNTING_POSTING and item._work_posting_requester:
+                if (item.current_stage == VoucherCase.ACCOUNTING_POSTING and item._work_posting_requester
+                        or item.current_stage == VoucherCase.ACCOUNTING_BANK_ADVICE and item._work_instrument_issuer):
                     attribution.append(user.pk)
             else:
                 reviewing = item.current_stage == VoucherCase.PAYABLE_REVIEW
