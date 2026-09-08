@@ -1675,6 +1675,25 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         self.assertIn("step 2", next_task["reference"])
         self.assertEqual(job.status, VoucherPrintJob.AWAITING_SIGNATURES)
 
+    def test_event_posting_waiting_maps_authorized_source_before_limit(self):
+        from vouchers.models import VoucherPostingRequest
+
+        self.preparer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="accounting", codename="prepare_journal_entries"))
+        for reference, office in (("A-EVENT-ACTION", self.accounting), ("Z-EVENT-WAIT", self.other)):
+            item = self._case(reference, stage=VoucherCase.ACCOUNTING_EVENT_POSTING,
+                              current=office, with_voucher=True, dv_prepared_by=self.signature_operator)
+            request = VoucherPostingRequest.objects.create(
+                case=item, kind=VoucherPostingRequest.PAYMENT, jev_date=timezone.localdate(),
+                finance_department_id=office.pk, finance_department_label=office.name,
+                requested_by=self.preparer, payload={}, payload_checksum="a" * 64)
+        result = finance_work_tasks(self.preparer, view="waiting", display_limit=1)
+        self.assertEqual([task["reference"] for task in result["tasks"]], ["Z-EVENT-WAIT"])
+        self.assertFalse(result["tasks_truncated"])
+        request.status = VoucherPostingRequest.CANCELLED
+        request.save(update_fields=("status",))
+        self.assertFalse(finance_work_tasks(self.preparer, view="waiting")["tasks"])
+
     def test_advice_waiting_excludes_initial_and_batch_actions_before_limit(self):
         from vouchers.models import BankAdviceItem
 
@@ -1696,7 +1715,7 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         self.assertFalse(result["tasks_truncated"])
         self.assertFalse(finance_work_tasks(self.uat, view="waiting")["tasks"])
 
-    def test_advice_waiting_keeps_issuer_until_acknowledgement_or_cancellation(self):
+    def test_advice_waiting_keeps_issuer_through_release_and_excludes_cancellation(self):
         item = self._case("ISSUER-WAIT", stage=VoucherCase.ACCOUNTING_BANK_ADVICE, with_voucher=True)
         instrument = PaymentInstrument.objects.create(case=item, bank_account_code="synthetic", check_number="ISSUER-WAIT",
             amount=Decimal("90.00"), status=PaymentInstrument.ISSUED, issued_by=self.print_operator, issued_at=timezone.now())
@@ -1712,6 +1731,9 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         instrument.status = PaymentInstrument.ADVISED
         instrument.save(update_fields=("status",))
         item.current_stage = VoucherCase.TREASURY_RELEASE
+        item.save(update_fields=("current_stage",))
+        self.assertEqual(len(finance_work_tasks(self.print_operator, view="waiting")["tasks"]), 1)
+        item.current_stage = VoucherCase.COMPLETED
         item.save(update_fields=("current_stage",))
         self.assertFalse(finance_work_tasks(self.print_operator, view="waiting")["tasks"])
 
@@ -1840,7 +1862,7 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         self.assertEqual(task["received_at"], final.created_at)
         self.assertIn("Independent Accounting validation", task["owner_queue"])
         self.assertFalse(finance_work_tasks(self.uat, view="waiting")["tasks"])
-        item.current_stage = VoucherCase.TREASURY_RELEASE
+        item.current_stage = VoucherCase.COMPLETED
         item.save(update_fields=("current_stage",))
         self.assertFalse(finance_work_tasks(self.preparer, view="waiting")["tasks"])
 

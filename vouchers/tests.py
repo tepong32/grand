@@ -1813,7 +1813,8 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(len(waiting_for_case(self.treasury_user)), 1)
         self.acknowledge_advice(advice, reference="BANK-ACK-2026-CYCLE-001")
         case.refresh_from_db()
-        self.assertFalse(waiting_for_case(self.requesting_user))  # Release is the next adapter.
+        self.assertEqual(len(waiting_for_case(self.requesting_user)), 1)
+        self.assertFalse(waiting_for_case(self.treasury_user))  # Authorized claimant/check release.
         instrument.refresh_from_db()
         release_check(
             case=case,
@@ -1825,6 +1826,9 @@ class VoucherWorkflowTests(TestCase):
             idempotency_key="full-cycle-release-check",
         )
         case.refresh_from_db()
+        self.assertEqual(len(waiting_for_case(self.requesting_user)), 1)
+        self.assertEqual(len(waiting_for_case(self.treasury_user)), 1)  # Release requester awaits event posting.
+        self.assertFalse(waiting_for_case(self.preparer))  # Authorized payment source creation.
         payment_request = case.posting_requests.get(kind=VoucherPostingRequest.PAYMENT)
         self.assertEqual(payment_request.posting_rule, payment_rule)
         payment_entry, created = materialize_voucher_journal(payment_request, self.preparer)
@@ -1834,6 +1838,8 @@ class VoucherWorkflowTests(TestCase):
         payment_entry.refresh_from_db()
         reconcile_posted_voucher_entry(payment_entry, self.validator)
         case.refresh_from_db()
+        self.assertFalse(waiting_for_case(self.requesting_user))
+        self.assertFalse(waiting_for_case(self.treasury_user))
         self.assertEqual(case.current_stage, VoucherCase.COMPLETED)
         self.assertEqual(case.authoritative_obligation_public_id, obligation.public_id)
         self.assertEqual(case.disbursement_voucher.net_amount, instrument.amount)

@@ -139,6 +139,22 @@ class ReturnedInstrumentWorkRegisterTests(TestCase):
             treasury_note="Synthetic Treasury note.", prepared_by=user,
         )
 
+    def test_related_replacement_action_excludes_personal_case_waiting(self):
+        from django.utils import timezone
+        from .models import DisbursementVoucher
+
+        case = self.treasury_replacement.case
+        DisbursementVoucher.objects.create(case=case, dv_number="RET-WAIT-DV", voucher_date=date(2026, 9, 3),
+            gross_amount=Decimal("100.00"), total_deductions=Decimal("0.00"), net_amount=Decimal("100.00"),
+            prepared_by=self.treasury_user, prepared_at=timezone.now())
+        parent = f"voucher-case:{case.public_id}"
+        child = f"returned-payment:{self.treasury_replacement.public_id}"
+        self.assertTrue(any(task["case_id"] == child for task in finance_work_tasks(self.treasury_user)["tasks"]))
+        self.assertFalse(any(task["case_id"] == parent for task in finance_work_tasks(self.treasury_user, view="waiting")["tasks"]))
+        self.treasury_user.user_permissions.remove(Permission.objects.get(
+            content_type__app_label="vouchers", codename="issue_payment_instruments"))
+        self.assertTrue(any(task["case_id"] == parent for task in finance_work_tasks(self.treasury_user, view="waiting")["tasks"]))
+
     def test_accounting_review_source_and_my_work_are_exact_and_office_scoped(self):
         self.client.force_login(self.reviewer)
 

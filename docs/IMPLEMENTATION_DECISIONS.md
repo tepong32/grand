@@ -29,6 +29,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 - **D-016:** Keep Treasury/advice Waiting tied to current instrument and batch lineage, with issuer attribution through advice.
 
+- **D-017:** Follow physical release into required Accounting event posting without claiming premature case completion.
+
 ### D-001 — Retained events determine personal completion
 
 - Date/checkpoint: 2026-09-07; v0.7.10–v0.7.12 implemented; payment-handoff extension verified in v0.7.14.
@@ -204,3 +206,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Tradeoff: issuer-only Waiting ends on cancellation or leaving the advice phase. Release and post-release exceptions require separate coverage. Bank-advice batch Waiting may coexist with a case row because each links to a different governed source.
 - Evidence/status: advice approval marks instruments advised before bank acknowledgement, so both issued/advised states retain issuer attribution. All three focused tests passed in 9.558 seconds and all 584 project tests passed in 187.754 seconds.
 - Revisit when: extending release, replacement or post-release event posting; resolve their exact authorized child actions before adding Waiting.
+
+
+### D-017 — Keep release and Accounting event completion distinct
+
+- Date/checkpoint: 2026-09-08; v0.7.27.
+- Decision: Extend shared-case Waiting through Treasury release and Accounting event posting. Retain active issued/advised instrument issuers during release, and current open supported event-request authors during posting. Resolve authorized returned-payment, source and journal child actions before the display cap.
+- Alternatives considered: mark the case complete at physical release; infer continuing attribution from cancelled/closed requests; omit returned-payment children because their IDs differ from the case.
+- Goal fit: financial facts and custody remain traceable through the ledger handoff. Staff should see the actual remaining responsibility without duplicate authoritative state or invented deadlines.
+- Tradeoff: completed cases leave Waiting; event-completion history is a separate adapter. Returned-item-specific Waiting still needs its own ownership/state audit. Existing request kinds and source gates are preserved.
+- Evidence/status: inspected source routing into ACCOUNTING_EVENT_POSTING and retained resume stages. Focused tests cover active requester attribution, cap ordering, issuer release visibility and returned-payment action exclusion, plus the real Budget-to-report replay. Verification: all four focused attribution/action/replay tests passed in 11.728 seconds; all 586 project tests passed in 190.924 seconds. System, migration-drift, compilation and diff checks passed. Full regression covers cross-module source/journal/returned-payment mapping; operational LGU acceptance is not claimed.
+- Revisit when: adding correction/returned-item history and remaining completion adapters; require exact retained attribution and current source access.

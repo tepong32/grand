@@ -187,3 +187,8 @@ Personal Waiting now continues through Accounting posting for the retained intak
 ## v0.7.26 - Treasury and advice personal handoffs
 
 Verification: all three focused cap/issuer/replay tests passed in 9.558 seconds; all 584 project tests passed in 187.754 seconds on the merged branch. System, migration-drift, compilation and diff checks passed. Broad regression covers the cross-module case/instrument/advice relationships; LGU acceptance remains unperformed. Scope and rationale: [My Work](FINANCE_MY_WORK.md) and [D-016](IMPLEMENTATION_DECISIONS.md). The master merge changed guidance only; it preserved development/publication distinctions and did not change the database hash.
+
+
+## v0.7.27 - release and event-posting personal handoffs
+
+Verification: all four focused attribution/action/replay tests passed in 11.728 seconds; all 586 project tests passed in 190.924 seconds. System, migration-drift, compilation and diff checks passed. Full regression covers cross-module source/journal/returned-payment mapping; operational LGU acceptance is not claimed. Scope: [My Work](FINANCE_MY_WORK.md), with [D-017](IMPLEMENTATION_DECISIONS.md) preserving physical-release versus Accounting completion. Broader regression is warranted by cross-module source, journal and returned-payment action mapping.

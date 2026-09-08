@@ -247,3 +247,8 @@ Personal Waiting now continues through Accounting posting for the retained intak
 ## v0.7.26 - Treasury and advice personal handoffs
 
 Waiting includes Treasury preparation and Accounting advice on the shared case. Current authorized initial-assembly/batch actions suppress the case; issued/advised instrument issuers retain personal advice attribution. Historical batch membership and cancelled checks do not determine the current queue. See [D-016](IMPLEMENTATION_DECISIONS.md#d-016--preserve-current-instrumentadvice-lineage-in-personal-waiting) for rationale and [the completion audit](FINANCE_ROADMAP_COMPLETION_AUDIT.md) for validation. Release and post-release work remains separate coverage.
+
+
+## v0.7.27 - release and event-posting personal handoffs
+
+Personal Waiting now covers Treasury release and Accounting event posting. Issued/advised instrument issuers retain release-phase attribution; open payment/remittance/cancellation/replacement/reversal requesters retain event-posting attribution. Authorized returned-payment, source and journal actions resolve to the shared case before truncation. Current read scope and retained stage transitions remain authoritative. A physical release does not imply that required journal posting is complete; completed cases leave Waiting. See [D-017](IMPLEMENTATION_DECISIONS.md) for attribution choices and [the completion audit](FINANCE_ROADMAP_COMPLETION_AUDIT.md) for verification. Returned-item-specific Waiting remains outside this adapter.

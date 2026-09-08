@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.27 - release and event-posting personal handoffs
+
+Personal Waiting now covers Treasury release and Accounting event posting. Issued/advised instrument issuers retain release-phase attribution; open payment/remittance/cancellation/replacement/reversal requesters retain event-posting attribution. Authorized returned-payment, source and journal actions resolve to the shared case before truncation. Current read scope and retained stage transitions remain authoritative. A physical release does not imply that required journal posting is complete; completed cases leave Waiting. Verification: all four focused attribution/action/replay tests passed in 11.728 seconds; all 586 project tests passed in 190.924 seconds. System, migration-drift, compilation and diff checks passed. Full regression covers cross-module source/journal/returned-payment mapping; operational LGU acceptance is not claimed.
+
 ## v0.7.26 - Treasury and advice personal handoffs
 
 Personal Waiting now follows attributed cases through Treasury check preparation and Accounting bank advice. Initial advice assembly and authorized current-batch actions resolve to the same voucher case before truncation. An issuer retains Waiting while their issued/advised instrument is in the advice phase; cancelled instruments alone do not confer attribution. Current workbench scope, historical handoff time and the existing advice maker-checker controls remain intact. Treasury release and post-release exceptions are not included in this slice. Verification: all three focused cap/issuer/replay tests passed in 9.558 seconds; all 584 project tests passed in 187.754 seconds on the merged branch. System, migration-drift, compilation and diff checks passed. Broad regression covers the cross-module case/instrument/advice relationships; LGU acceptance remains unperformed.
