@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.39 - stored report generation evidence
+
+Manual report generation reloads stored template evidence. Generation locks and reloads run state before rendering, preventing forged retries against retained outputs. Scheduled execution reloads stored configuration, rejects inactive schedules and locks advancement while preserving idempotent retries and retained failure audits. Verification: All 69 focused reporting tests passed in 8.257 seconds; all 633 project tests passed in 191.264 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.38 - reporting configuration authority
 
 Finance definition/schedule forms and template preflight/promotion services now enforce stored source office and action authority, with UAT exclusion for Finance sources. Page controls share the boundary; non-Finance roles and separate read/export remain supported. Finance promotion previews additionally require generation authority. Verification: All 65 focused reporting tests passed in 8.300 seconds; all 629 project tests passed in 187.484 seconds. System, migration-drift, compilation and diff checks passed.

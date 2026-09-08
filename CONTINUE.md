@@ -14,9 +14,9 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.38 checkpoint - reporting configuration authority
+## Current v0.7.39 checkpoint - stored report generation evidence
 
-Branch: `codex/finance-report-configuration-authority`, based on pushed `fdce263`. Finance definition/schedule forms and template preflight/promotion services now enforce stored source office and action authority, with UAT exclusion for Finance sources. Page controls share the boundary; non-Finance roles and separate read/export remain supported. Finance promotion previews additionally require generation authority. All 65 focused reporting tests passed in 8.300 seconds; all 629 project tests passed in 187.484 seconds. System, migration-drift, compilation and diff checks passed. FIN-GAP-018 is verified across v0.7.36–38. D-028 records the choice. Next: reproduce FIN-GAP-019 stored generation evidence, then continue reporting personal handoffs. Preserve the user database.
+Branch: `codex/finance-report-stored-generation`, based on pushed `37cf2b3`. Manual report generation reloads stored template evidence. Generation locks and reloads run state before rendering, preventing forged retries against retained outputs. Scheduled execution reloads stored configuration, rejects inactive schedules and locks advancement while preserving idempotent retries and retained failure audits. All 69 focused reporting tests passed in 8.257 seconds; all 633 project tests passed in 191.264 seconds. System, migration-drift, compilation and diff checks passed. FIN-GAP-019 is verified; D-029 records the choice and storage/concurrency qualification limits. Next: reporting run personal Waiting and retained completion events, then accountability and remaining handoff domains. Preserve the user database.
 
 ## Active instructions and repository continuity
 

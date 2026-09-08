@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-029:** Generate from persisted report/template/schedule evidence and retain failed-run recovery under the existing trusted scheduler policy.
+
 - **D-028:** Enforce stored source authority for reporting configuration while preserving non-Finance roles and separately authorized read/export.
 
 - **D-001:** Continue My Work as a projection of governed source records, including attributed history. No new parallel task status.
@@ -350,3 +352,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: a global reporting UAT prohibition would also remove established non-Finance roles. Domain-aware checks retain those roles and separately authorized reading/export. Service reloads preserve the existing caller refresh contract; this does not claim comprehensive concurrent template lifecycle repair.
 - Evidence: four unauthorized configuration paths reproduced before repair; 65 focused and 629 project tests passed, including stored-owner checks and the authorized non-Finance preview-role promotion lifecycle.
 - Revisit when: accepted local policy authorizes cross-office configuration ownership or introduces a different Finance namespace. Stored report generation evidence is tracked separately as FIN-GAP-019.
+
+
+## D-029 - Persisted generation evidence and lifecycle
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.39.
+- Decision: reload manual templates before readiness checks and snapshots. Lock/reload the run before generation; retained states remain no-ops. Read schedule configuration from stored records, reject inactive schedules and lock current advancement. Preserve caller refresh behavior, idempotent ledger entries and retained failure audits for retries.
+- Goal: ensure report outputs remain traceable to stored configuration and cannot rewrite retained evidence because a caller holds stale or altered objects.
+- Alternatives/tradeoffs: adding end-user mutation permissions to trusted scheduler execution would change the existing automation contract. This repair preserves that contract while making persisted evidence authoritative. Generation holds the default-store run lock while rendering; Finance source reads remain in the separate store. Database transactions cannot roll back file storage, and this checkpoint does not claim an off-host concurrency/storage-failure qualification.
+- Evidence: two altered-title assertions failed and a forged retry reached the mocked dataset builder before repair. All 69 focused reporting tests passed in 8.257 seconds; all 633 project tests passed in 191.264 seconds. System, migration-drift, compilation and diff checks passed.
+- Revisit when: introducing queued workers, a new renderer or a stronger cross-store snapshot contract; qualify lock behavior with the deployment database before production acceptance.

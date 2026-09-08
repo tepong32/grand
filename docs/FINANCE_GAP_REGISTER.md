@@ -213,7 +213,10 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-019 - Report generation trusts caller-supplied evidence context
 
 - Process/module: manual report template snapshots, generation entry state and scheduled execution context.
-- Severity/status: **HIGH - OPEN**, source finding awaiting reproduction.
+- Severity/status: **HIGH - VERIFIED**, reproduced and repaired in v0.7.39.
 - Code evidence: create_manual_run reloads the definition but uses supplied template fields for readiness and retained snapshots. generate_report checks supplied run status and related objects without a stored reload. execute_schedule likewise consumes supplied schedule relations and parameters.
 - Expected behavior: persisted source identity, template evidence and run lifecycle must govern generation. An altered in-memory object must not change approved template evidence or regenerate an already retained output. Preserve trusted scheduled execution and failed-run recovery.
 - Next step: reproduce on isolated fixtures, then repair the confirmed boundaries before reporting handoff adapters. No operational misuse is asserted.
+
+
+- FIN-GAP-019 reproduction: unsaved manual and scheduled template titles were pinned into generated evidence (2 assertion failures), and a forged failed status entered the dataset builder for an already generated run (1 error from the intentionally empty mocked builder), in 1.130 seconds. Repair reloads the manual template, serializes generation on stored run state, and reloads/locks schedule configuration and advancement. Failed-attempt evidence remains committed before the exception is propagated; inactive stored schedules reject execution. All 69 focused reporting tests passed in 8.257 seconds; all 633 project tests passed in 191.264 seconds. System, migration-drift, compilation and diff checks passed.

@@ -391,6 +391,24 @@ GENERATORS = {ReportDefinition.FORMAT_CSV: _generate_csv, ReportDefinition.FORMA
 
 
 def generate_report(run):
+    # Serialize against review/approval and decide from persisted lifecycle state.
+    # Keep a failed attempt's audit record committed before propagating its error.
+    error = None
+    with transaction.atomic():
+        stored = ReportRun.objects.select_for_update().select_related(
+            "definition__department", "template_version", "created_by",
+        ).get(pk=run.pk)
+        try:
+            _generate_stored_report(stored)
+        except Exception as exc:
+            error = exc
+        run.refresh_from_db()
+    if error is not None:
+        raise error
+    return run
+
+
+def _generate_stored_report(run):
     if run.status not in (ReportRun.DRAFT, ReportRun.FAILED):
         return run
     try:
@@ -502,6 +520,7 @@ def create_manual_run(definition, template_version, output_format, period_start,
         not can_generate_reports(actor) or not report_source_mutation_allowed(actor, definition)
     ):
         raise PermissionDenied("Finance report generation requires current owning-office operational authority.")
+    template_version = ReportTemplateVersion.objects.select_related("definition").get(pk=template_version.pk)
     if not template_version.supports_format(output_format):
         raise ValueError("The selected template does not support this output format.")
     if not template_version.is_mapping_ready:
@@ -603,16 +622,25 @@ def advance_schedule(schedule):
 
 
 def execute_schedule(schedule, scheduled_for=None):
-    scheduled_for = scheduled_for or schedule.next_run_at
-    period_start, period_end = period_for_schedule(schedule, scheduled_for)
-    key = f"schedule:{schedule.pk}:{scheduled_for.isoformat()}:{period_start}:{period_end}"
+    original = schedule
     with transaction.atomic():
+        schedule = ReportSchedule.objects.select_for_update().select_related(
+            "definition", "template_version", "created_by",
+        ).get(pk=schedule.pk)
+        if not schedule.is_active:
+            raise ValueError("Inactive report schedules cannot generate new output.")
+        scheduled_for = scheduled_for or schedule.next_run_at
+        period_start, period_end = period_for_schedule(schedule, scheduled_for)
+        key = f"schedule:{schedule.pk}:{scheduled_for.isoformat()}:{period_start}:{period_end}"
         run, created = ReportRun.objects.get_or_create(
             idempotency_key=key,
             defaults={"definition": schedule.definition, "template_version": schedule.template_version, "schedule": schedule, "output_format": schedule.output_format, "period_start": period_start, "period_end": period_end, "parameters": run_parameters(schedule.definition, schedule.parameters, schedule.template_version), "scheduled_for": scheduled_for, "created_by": schedule.created_by},
         )
     if created or run.status == ReportRun.FAILED:
         generate_report(run)
-    if schedule.next_run_at <= scheduled_for:
-        advance_schedule(schedule)
+    with transaction.atomic():
+        schedule = ReportSchedule.objects.select_for_update().get(pk=schedule.pk)
+        if schedule.next_run_at <= scheduled_for:
+            advance_schedule(schedule)
+    original.refresh_from_db()
     return run, created

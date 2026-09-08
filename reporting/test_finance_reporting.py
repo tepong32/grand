@@ -1002,5 +1002,64 @@ class FinanceAccountabilityReportingTests(TestCase):
         self.assertFalse(schedule.context["form"].fields["definition"].queryset.filter(pk=run.definition_id).exists())
 
 
+
+    def test_manual_generation_pins_stored_template_evidence(self):
+        template = self.accounting_definition.current_template
+        title = template.title
+        template.title = "Unsaved altered title"
+        run = create_manual_run(
+            self.accounting_definition, template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer,
+        )
+        self.assertEqual(run.parameters["_template_snapshot"]["title"], title)
+
+    def test_generation_ignores_forged_retry_state_on_retained_run(self):
+        from unittest.mock import patch
+        from .services import generate_report
+        run = self.generate_accounting()
+        before = (run.status, run.checksum, run.events.count(), run.source_records.count())
+        run.status = ReportRun.FAILED
+        with patch("reporting.services.build_dataset") as build:
+            generate_report(run)
+        build.assert_not_called()
+        run.refresh_from_db()
+        self.assertEqual((run.status, run.checksum, run.events.count(), run.source_records.count()), before)
+
+    def test_schedule_generation_uses_stored_template_and_parameters(self):
+        from .models import ReportSchedule
+        from .services import execute_schedule
+        due = timezone.now()
+        template = self.accounting_definition.current_template
+        title = template.title
+        schedule = ReportSchedule.objects.create(
+            definition=self.accounting_definition, template_version=template,
+            name="Stored Finance schedule", frequency=ReportSchedule.MONTHLY,
+            output_format="xlsx", next_run_at=due, created_by=self.accounting_preparer,
+        )
+        schedule.template_version.title = "Unsaved scheduled title"
+        schedule.parameters = {"unpersisted_parameter": "caller supplied"}
+        run, created = execute_schedule(schedule, due)
+        self.assertTrue(created)
+        self.assertEqual(run.parameters["_template_snapshot"]["title"], title)
+        self.assertNotIn("unpersisted_parameter", run.parameters)
+
+
+
+    def test_stored_inactive_schedule_cannot_be_reenabled_in_memory(self):
+        from .models import ReportSchedule
+        from .services import execute_schedule
+        schedule = ReportSchedule.objects.create(
+            definition=self.accounting_definition,
+            template_version=self.accounting_definition.current_template,
+            name="Disabled Finance schedule", frequency=ReportSchedule.MONTHLY,
+            output_format="xlsx", next_run_at=timezone.now(),
+            created_by=self.accounting_preparer, is_active=False,
+        )
+        schedule.is_active = True
+        with self.assertRaisesMessage(ValueError, "Inactive"):
+            execute_schedule(schedule)
+        self.assertFalse(ReportRun.objects.filter(schedule=schedule).exists())
+
+
 def tearDownModule():
     shutil.rmtree(FINANCE_REPORT_MEDIA_ROOT, ignore_errors=True)
