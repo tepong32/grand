@@ -1750,7 +1750,7 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertEqual(shadow_action_choices_for_user(self.requesting_reviewer), ())
 
 
-    def field_work_rows(self, actor, kind, record, view):
+    def field_work_rows(self, actor, kind, record, view="ready"):
         from finance.work_tasks import finance_work_tasks, _source_record_identity
         identity = record.public_id if kind == "field-cycle" else _source_record_identity(kind, record.pk)
         return [row for row in finance_work_tasks(actor, view=view)["tasks"] if row["case_id"] == f"{kind}:{identity}"]
@@ -2044,3 +2044,83 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertTrue(approved.snapshot["integrity_check"]["matches"])
         original.refresh_from_db()
         self.assertEqual(original.snapshot, original_snapshot)
+
+
+    def test_field_plan_personal_handoffs_share_independent_source_actions(self):
+        from unittest.mock import patch
+        from .work_tasks import finance_work_tasks
+
+        with patch("finance.test_cutover.review_reconciliation_plan"):
+            cycle = self._cycle(code="personal-reconciliation-plan")
+        cases = [(cycle.reconciliation_plan, "reconciliation_plan", "field-reconciliation-plan", submit_reconciliation_plan, review_reconciliation_plan)]
+        cycle = self._cycle(code="personal-readiness-plan")
+        with patch("finance.test_cutover.review_cutover_readiness_plan"):
+            plan = self._approve_readiness_plan(cycle)
+        cases.append((plan, "readiness_plan", "field-readiness-plan", submit_cutover_readiness_plan, review_cutover_readiness_plan))
+        cycle = self._cycle(code="personal-qualification-plan")
+        with patch("finance.test_cutover.review_cutover_qualification_plan"):
+            plan = self._approve_qualification(cycle, [])
+        cases.append((plan, "qualification_plan", "field-qualification-plan", submit_cutover_qualification_plan, review_cutover_qualification_plan))
+        for plan, family, kind, submit, review in cases:
+            with self.subTest(family=family):
+                self.assertEqual(len(self.field_work_rows(self.manager, kind, plan, "waiting")), 1)
+                self.assertEqual(self.field_work_rows(self.manager, kind, plan), [])
+                action = self.field_work_rows(self.reconciler, kind, plan)[0]
+                self.assertEqual(action["task_type"], f"finance.{kind}.review.v1")
+                self.assertIsNone(action["due_on"])
+                self.client.force_login(self.reconciler)
+                source = self.client.get(reverse("finance:shadow_workspace"), {"attention": f"review_{family}"})
+                self.assertIn(plan.cycle, source.context["cycles"])
+                self.assertEqual(self.client.get(action["url"]).status_code, 200)
+                review(plan, self.reconciler, approve=False, reason="Clarify the retained local procedure before approval.")
+                returned = self.field_work_rows(self.manager, kind, plan, "returned")
+                self.assertEqual(len(returned), 1)
+                self.assertIn("Clarify", returned[0]["exception"])
+                self.assertEqual(self.field_work_rows(self.manager, kind, plan, "waiting"), [])
+                self.assertEqual(self.field_work_rows(self.reconciler, kind, plan), [])
+                self.client.force_login(self.manager)
+                source = self.client.get(reverse("finance:shadow_workspace"), {"attention": f"prepare_{family}"})
+                self.assertIn(plan.cycle, source.context["cycles"])
+                submit(plan, self.manager)
+                self.assertEqual(len(self.field_work_rows(self.manager, kind, plan, "waiting")), 1)
+                self.assertEqual(self.field_work_rows(self.manager, kind, plan, "returned"), [])
+                review(plan, self.reconciler, approve=True, reason="Independently reviewed the corrected plan.")
+                self.assertEqual(self.field_work_rows(self.manager, kind, plan, "waiting"), [])
+                self.assertEqual(len(self.field_work_rows(self.manager, kind, plan, "completed")), 2)
+                self.assertEqual(len(self.field_work_rows(self.reconciler, kind, plan, "completed")), 2)
+                for view in ("ready", "waiting", "completed"):
+                    self.assertEqual(self.field_work_rows(self.outsider, kind, plan, view), [])
+        self.manager.user_permissions.clear()
+        actor = get_user_model().objects.get(pk=self.manager.pk)
+        self.assertFalse(any(row["case_id"].startswith(tuple(kind + ":" for _, _, kind, _, _ in cases))
+                             for row in finance_work_tasks(actor, view="completed")["tasks"]))
+
+    def test_field_plan_history_scope_and_visible_integrity_review(self):
+        from unittest.mock import patch
+        from .work_tasks import finance_work_tasks
+
+        with patch("finance.test_cutover.review_reconciliation_plan"):
+            cycle = self._cycle(code="visible-integrity-review")
+        plan = cycle.reconciliation_plan
+        FinanceShadowReconciliationPlan.objects.filter(pk=plan.pk).update(evidence_checksum="0" * 64)
+        review_reconciliation_plan(plan, self.reconciler, approve=False, reason="Investigate the synthetic retained checksum discrepancy.")
+        self.client.force_login(self.manager)
+        detail = self.client.get(reverse("finance:shadow_cycle_detail", args=(cycle.pk,)))
+        self.assertContains(detail, "Evidence mismatch recorded")
+        self.assertContains(detail, "Investigate the synthetic retained checksum discrepancy.")
+        self.assertContains(detail, "0" * 64)
+        self.assertNotContains(detail, "shadow_reconciliation_plan_returned")
+        history = self.field_work_rows(self.reconciler, "field-reconciliation-plan", plan, "completed")
+        FinanceAuditEvent.objects.create(
+            department=self.accounting, target_type="financeshadowcycle", target_id=str(cycle.pk),
+            action="shadow_reconciliation_plan_returned", actor=self.reconciler,
+            snapshot={"plan_id": plan.pk + 10000}, reason="Orphan event must not earn credit.",
+        )
+        self.assertEqual(self.field_work_rows(self.reconciler, "field-reconciliation-plan", plan, "completed"), history)
+        uat, _ = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)
+        self.reconciler.groups.add(uat)
+        actor = get_user_model().objects.get(pk=self.reconciler.pk)
+        for view in ("ready", "waiting", "completed"):
+            self.assertEqual(finance_work_tasks(actor, view=view)["tasks"], [])
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(reverse("finance:shadow_cycle_detail", args=(cycle.pk,))).status_code, 403)

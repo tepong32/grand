@@ -113,6 +113,11 @@ SHADOW_ACTION_SPECS = {
     },
 }
 
+from .field_plan_register import FIELD_PLAN_ACTION_SPECS, field_plan_action_records
+
+SHADOW_ACTION_SPECS.update(FIELD_PLAN_ACTION_SPECS)
+ATTENTION_CHOICES += tuple((key, spec["title"]) for key, spec in FIELD_PLAN_ACTION_SPECS.items())
+
 SHADOW_OVERSIGHT_CHOICES = tuple(
     choice for choice in ATTENTION_CHOICES if choice[0] not in SHADOW_ACTION_SPECS
 )
@@ -182,6 +187,9 @@ def shadow_action_queryset(user, attention, *, queryset):
     if department is None or not _shadow_action_role_allowed(user, department, spec["role"]):
         return queryset.none(), attention, spec
 
+    if attention in FIELD_PLAN_ACTION_SPECS:
+        records = field_plan_action_records(user, attention, cycles=queryset)
+        return queryset.filter(pk__in=records.values("cycle_id")).distinct(), attention, spec
     if attention == "needs_source":
         queryset = queryset.filter(department=department, status=FinanceShadowCycle.DRAFT).filter(
             Q(source_checksum="") | Q(source_schema_signature=""),
@@ -244,6 +252,8 @@ def shadow_action_record_queryset(user, attention, *, queryset):
     """Return the exact source records behind one field-operation action filter."""
     cycles, selected, spec = shadow_action_queryset(user, attention, queryset=queryset)
     cycle_ids = cycles.values("pk")
+    if attention in FIELD_PLAN_ACTION_SPECS:
+        return field_plan_action_records(user, attention, cycles=cycles), selected, spec
     if attention == "my_defects":
         records = FinanceShadowDefect.objects.filter(
             cycle_id__in=cycle_ids, owner=user, status=FinanceShadowDefect.OPEN,

@@ -256,3 +256,12 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 
 
 - FIN-GAP-022 reproduction: one isolated seven-path test produced seven blocked-return errors in 2.738 seconds, after separately verifying positive acceptance denial, outsider/self-review denial and required reasons. The repair retains stored/observed checksums and mismatch status in the new decision audit without rewriting earlier events. All 112 focused field/My Work tests passed in 65.532 seconds; all 657 project tests passed in 239.539 seconds. System, migration-drift, compilation and diff checks passed.
+
+
+## FIN-GAP-023 - Qualification evidence has submission and return but no reference-correction route
+
+- Process/module: draft/returned qualifying-cycle evidence on the field acceptance screen.
+- Severity/status: **MEDIUM - OPEN**, source finding awaiting reproduction.
+- Code evidence: cutover_qualification_evidence_create always constructs a new record. Existing draft/returned rows expose only submission; the form has editable execution/rules references, but there is no existing-record correction route. The unique plan/cycle and plan/sequence constraints prevent replacing an existing row with an identical new one.
+- Expected behavior: a preparer should correct draft/returned evidence references under the owning plan's office and existing state gates, with retained correction attribution. Submitted/accepted evidence remains locked and qualifying-cycle lineage must not be silently replaced.
+- Next step: reproduce the missing correction path before adding personal qualification-evidence projections; distinguish reference corrections from a real cycle rerun requiring its governed successor.

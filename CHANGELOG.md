@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.48 - field-plan actions and personal handoffs
+
+Reconciliation, readiness/support and qualification plans now have distinct source-aligned preparation/review actions, personal submitted Waiting and attributed submission/approval/return history. The cycle screen exposes the latest 20 reviews with retained checksum comparisons under current source access. All 43 focused field tests passed in 33.763 seconds; all 122 field/My Work/operations dependency tests passed in 95.255 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.47 - governed field integrity returns
 
 Seven field-review paths now permit an independently authorized, reasoned return after a detected checksum mismatch while continuing to block positive acceptance. New review events retain stored and observed digests and their match result; prior submission events remain unchanged. Existing model immutability, current source authority, UAT denial and maker-checker remain in force. All 112 focused field/My Work tests passed in 65.532 seconds; all 657 project tests passed in 239.539 seconds. System, migration-drift, compilation and diff checks passed.

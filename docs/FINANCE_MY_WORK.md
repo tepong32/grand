@@ -306,3 +306,8 @@ Personal Waiting now follows prepared stakeholder records once their cycle opens
 ## v0.7.46 - local-form actions and personal handoffs
 
 Local-form queues now show remaining preparation and valid submission actions, and exclude obsolete or locked witness work. Personal Waiting follows own current test and form submissions; completed history preserves test failures, retries, witnessing and independent form acceptance with exact attempt/evidence attribution. All 26 focused local-form tests passed in 26.042 seconds; all 200 reporting/My Work/operations dependency tests passed in 183.489 seconds. System, migration-drift, compilation and diff checks passed. Pending witnesses alone do not create preparer work. Current actionable forms are excluded from Waiting before the common cap; deadlines are not inferred.
+
+
+## v0.7.48 - field-plan actions and personal handoffs
+
+Reconciliation, readiness/support and qualification plans now have distinct source-aligned preparation/review actions, personal submitted Waiting and attributed submission/approval/return history. The cycle screen exposes the latest 20 reviews with retained checksum comparisons under current source access. All 43 focused field tests passed in 33.763 seconds; all 122 field/My Work/operations dependency tests passed in 95.255 seconds. System, migration-drift, compilation and diff checks passed. Plan preparation, review and historical decisions share the owning source identity. Current actions exclude Waiting before the cap, creator/submitter cannot self-review, and plan dates are not inferred deadlines.

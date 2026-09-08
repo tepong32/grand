@@ -18,6 +18,10 @@ def completed_field_tasks(user, department, today):
     exercises = {str(item.pk): item for item in FinanceCutoverReadinessExercise.objects.filter(cycle_id__in=cycles)}
     stakeholders = {str(item.pk): item for item in FinanceStakeholderAcceptance.objects.filter(cycle_id__in=cycles)}
     decisions = {str(item.pk): item for item in FinanceCutoverDecision.objects.filter(cycle_id__in=cycles)}
+    from .field_plan_register import FIELD_PLAN_TYPES
+    plans = {kind: {str(item.pk): item for item in model.objects.filter(cycle_id__in=cycles)}
+             for model, kind, _label, _route in FIELD_PLAN_TYPES.values()}
+    plan_labels = {kind: label for _model, kind, label, _route in FIELD_PLAN_TYPES.values()}
     specs = {
         "stakeholder_acceptance_recorded": ("field-stakeholder", "Recorded stakeholder decision"),
         "cutover_decision_submitted": ("field-cutover", "Submitted cutover authority record"),
@@ -35,6 +39,13 @@ def completed_field_tasks(user, department, today):
         "cutover_readiness_exercise_passed": ("field-exercise", "Independently witnessed exercise pass"),
         "cutover_readiness_exercise_returned": ("field-exercise", "Returned exercise for rerun"),
     }
+    for prefix, kind in (
+        ("shadow_reconciliation_plan", "field-reconciliation-plan"),
+        ("cutover_readiness_plan", "field-readiness-plan"),
+        ("cutover_qualification_plan", "field-qualification-plan"),
+    ):
+        for action, label in (("submitted", "Submitted"), ("approved", "Independently approved"), ("returned", "Returned for correction")):
+            specs[f"{prefix}_{action}"] = (kind, f"{label}: {plan_labels[kind]}")
     events = FinanceAuditEvent.objects.filter(
         target_type="financeshadowcycle", target_id__in=cycles, actor=user, action__in=specs,
     )
@@ -50,6 +61,7 @@ def completed_field_tasks(user, department, today):
             item, source_id = cycle, cycle.public_id
         else:
             records, key = {
+                **{plan_kind: (items, "plan_id") for plan_kind, items in plans.items()},
                 "field-defect": (defects, "defect_id"), "field-exercise": (exercises, "exercise_id"),
                 "field-stakeholder": (stakeholders, "acceptance_id"), "field-cutover": (decisions, "decision_id"),
             }[kind]
@@ -69,6 +81,8 @@ def completed_field_tasks(user, department, today):
             reference += f" - {item.code}"
         elif kind == "field-stakeholder":
             reference += f" - {item.get_stakeholder_kind_display()}"
+        elif kind in plan_labels:
+            reference += f" - {plan_labels[kind]}"
         elif kind == "field-cutover":
             reference += " - cutover decision"
         event_id = _source_record_identity("field-event", event.pk)

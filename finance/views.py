@@ -617,8 +617,15 @@ def shadow_cycle_detail(request, pk):
     successor_candidates, _selected, _spec = shadow_action_queryset(
         request.user, "prepare_successor", queryset=visible_shadow_cycles(request.user),
     )
+    review_history = list(FinanceAuditEvent.objects.filter(
+        department=cycle.department, target_type="financeshadowcycle", target_id=str(cycle.pk),
+        snapshot__integrity_check__isnull=False,
+    ).select_related("actor").order_by("-created_at", "-pk")[:20])
+    for event in review_history:
+        event.display_action = event.action.replace("_", " ").capitalize()
     return render(request, "finance/shadow_cycle_detail.html", {
         "cycle": cycle,
+        "review_history": review_history,
         "source_versions": cycle.source_versions.select_related("staged_by", "reviewed_by"),
         "reconciliation_plan": plan,
         "cutover_readiness_plan": readiness_plan,

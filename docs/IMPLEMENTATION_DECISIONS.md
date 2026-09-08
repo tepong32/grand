@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-038:** Give each governed field plan its own source-aligned work identity and expose retained review integrity on the cycle screen.
+
 - **D-037:** Preserve checksum-blocked acceptance while allowing an independently authorized, reasoned return with explicit integrity evidence.
 
 - **D-036:** Complete local-form action parity and personal handoffs, distinguishing preparation from current witness waits and final acceptance.
@@ -458,3 +460,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: silently resetting the digest hides the discrepancy; blocking both decisions leaves the source's own return instruction unusable. Ordinary model immutability, reviewer authority, maker-checker, UAT exclusion and required reasons remain in force. The planned change does not bypass structural model validation; invalid relations or unparseable source data still require controlled investigation.
 - Evidence: seven paths reproduced blocked returns in 2.738 seconds. All 112 focused field/My Work tests passed in 65.532 seconds; all 657 project tests passed in 239.539 seconds. System, migration-drift, compilation and diff checks passed. Positive approval, unauthorized return, self-review and missing reason are checked separately from the intended negative decision.
 - Revisit when: introducing a dedicated integrity-incident process or changing local correction authority. A returned cycle continues through a successor; plans and tests continue through their existing permitted correction/rerun paths.
+
+
+## D-038 - Separate field-plan handoffs and inspectable review history
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.48.
+- Decision: reconciliation, readiness/support and qualification plans have distinct preparation/review actions, personal submission Waiting and attributed submission/approval/return history. Source register filters and My Work share the same selectors, independent creator/submitter exclusions and acting-office authority. Cycle execution work remains a separate identity.
+- Goal: make the owning office's next governance step visible without implying that a submitted plan completes the cycle or its actual field acceptance.
+- Alternatives/tradeoffs: a single cycle task cannot distinguish simultaneous plan reviews; copying plan status into a task store would create competing authority. Plan dates do not become review deadlines. Returned age uses the retained matching plan event, with missing evidence disclosed. A cycle screen now shows the latest 20 integrity-backed reviews and their stored/observed digests; earlier audit history remains retained and older reviews without this metadata are not retroactively certified.
+- Evidence: All 43 focused field tests passed in 33.763 seconds; all 122 field/My Work/operations dependency tests passed in 95.255 seconds. System, migration-drift, compilation and diff checks passed. An initial focused run was stopped after spotting a missing default in the new test-helper call; the helper was corrected before restarting tests.
+- Revisit when: local policy adds assignment, explicit deadlines or governed plan successors. Scheduled reconciliation runs and qualification-cycle evidence remain the next separate child families.

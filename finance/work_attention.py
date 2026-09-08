@@ -91,6 +91,8 @@ def _field_operation_groups(user, department):
         "my_acceptances": "field-stakeholder-decision",
         "authorize_cutover": "field-cutover-authority",
     }
+    from .field_plan_register import FIELD_PLAN_ACTION_SPECS
+    keys.update({key: key.replace("_", "-") for key in FIELD_PLAN_ACTION_SPECS})
     named_roles = {
         "my_defects": "Open defects naming you as correction owner",
         "my_exercises": "Readiness exercises naming you as owner",
