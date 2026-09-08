@@ -2,7 +2,7 @@
 
 This table describes the implemented My Work views, not production or LGU acceptance. Current source authorization applies to every row. Ready/action coverage is detailed in [FINANCE_MY_WORK.md](FINANCE_MY_WORK.md); turning-point choices are in [IMPLEMENTATION_DECISIONS.md](IMPLEMENTATION_DECISIONS.md).
 
-Last reviewed: 2026-09-09, v0.7.48 field-plan handoffs.
+Last reviewed: 2026-09-09, v0.7.50 field-control handoffs.
 
 | Source domain | Personal Waiting | Completed by me |
 | --- | --- | --- |
@@ -25,7 +25,7 @@ Last reviewed: 2026-09-09, v0.7.48 field-plan handoffs.
 | Field cycles, readiness exercises and defect corrections | Own submitted reconciliation/results/corrections under current cycle access (v0.7.43) | Retained start/submission/independent decision events with matching cycle/child identity (v0.7.43) |
 | Stakeholder and cutover decisions | Own prepared stakeholder records with open decisions and submitted cutover records (v0.7.45) | Retained stakeholder decision, cutover submission/authorization/decline/rollback events (v0.7.45) |
 | Field reconciliation, readiness and qualification plans | Own submitted plans under current cycle access; distinct source actions (v0.7.48) | Attributed submission, independent approval and return events (v0.7.48) |
-| Other field controls | Scheduled reconciliation runs and qualification-cycle evidence remain; returned-cycle successor action added in v0.7.44 | Other run/evidence history remains |
+| Scheduled reconciliation runs and qualification evidence | Own submitted runs/evidence under the controlling cycle access; current source actions excluded (v0.7.50) | Attributed run opening/submission/review/return and qualification submission/correction/acceptance/return events; open exceptions remain explicit (v0.7.50) |
 | Local forms | Own current test and form acceptance submissions; real preparation/current actions excluded (v0.7.46) | Retained test submission/pass/failure/not-applicable and form submission/return/acceptance events (v0.7.46) |
 
 ## Common rules and remaining work
@@ -37,4 +37,4 @@ Last reviewed: 2026-09-09, v0.7.48 field-plan handoffs.
 - The administrator-assigned portable export permission applies to the selected supported view. Coverage and truncation are retained with the export.
 - Assignment/following rules, governed shared views and notifications remain future work. They must build on the same source contract rather than create another authoritative queue.
 
-Next: remaining field nested controls and detailed completion history. FIN-GAP-023 qualification-evidence correction was verified in v0.7.49. FIN-GAP-022 return recovery was verified in v0.7.47. FIN-GAP-020 was verified in v0.7.42. Review each remaining domain's real authority, return/recovery path and attribution before adding its personal projections. Preserve the separate post-functional scrutiny and LGU acceptance gates.
+Next: FIN-GAP-024 DV amendment authority, then detailed print/packet/amendment and posting/reopen history. Field source staging/drift and other detailed helper events remain in their source audit. FIN-GAP-023 qualification-evidence correction was verified in v0.7.49. FIN-GAP-022 return recovery was verified in v0.7.47. FIN-GAP-020 was verified in v0.7.42. Review each remaining domain's real authority, return/recovery path and attribution before adding its personal projections. Preserve the separate post-functional scrutiny and LGU acceptance gates.

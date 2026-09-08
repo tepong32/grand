@@ -402,6 +402,19 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
     from .models import FinanceShadowCycle, FinanceShadowDefect, FinanceCutoverReadinessExercise
     from .shadow_register_exports import visible_shadow_cycles
     cycles = visible_shadow_cycles(user)
+    from .field_control_register import FIELD_CONTROL_TYPES, control_cycle
+    for _family, (model, kind, label, parent) in FIELD_CONTROL_TYPES.items():
+        for item in model.objects.filter(**{f"{parent}__in": cycles}, status=model.SUBMITTED).filter(
+            Q(prepared_by=user) | Q(submitted_by=user),
+        ).select_related("cycle", "plan__cycle__department"):
+            cycle = control_cycle(item)
+            if not can_view_shadow_cycle(user, cycle):
+                continue
+            add(item, kind=kind, area="Field operation", reference=f"{cycle.code} - {label} #{item.sequence}",
+                subject=f"Your submitted {label.lower()}", received=item.submitted_at,
+                queue="Independent field evidence reviewers", scope=f"{cycle.department.name}; {cycle.enabled_scope}",
+                route="finance:shadow_cycle_detail", route_kwargs={"pk": cycle.pk},
+                source_id=_source_record_identity(kind, item.pk), attribution=[item.prepared_by_id, item.submitted_by_id])
     from .field_plan_register import FIELD_PLAN_TYPES
     for _family, (model, kind, label, _route) in FIELD_PLAN_TYPES.items():
         for item in model.objects.filter(cycle__in=cycles, status=model.SUBMITTED).filter(

@@ -268,3 +268,12 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 
 
 - FIN-GAP-023 reproduction: both draft and returned evidence lacked the correction link (2 failed assertions in 3.552 seconds). A reference-only correction form/service now reloads stored identity, locks and validates state/office authority, requires a reason, and atomically retains before/after audit evidence. All 46 focused field tests passed in 38.724 seconds; all 662 project tests passed in 273.285 seconds. System, migration-drift, compilation and diff checks passed.
+
+
+## FIN-GAP-024 - Non-financial DV amendment lacks a stored office boundary
+
+- Process/module: reasoned DV date/signatory amendment before payment-instrument issuance.
+- Severity/status: **HIGH - OPEN**, source finding awaiting reproduction and authority confirmation against existing behavior.
+- Code evidence: amend_nonfinancial_voucher reloads the case and checks an explicit permission, stage and payment cutoff, but does not bind the actor's office to the stored case. The source button likewise checks permission/stage. Existing tests deliberately allow the owning Accounting preparer to amend after the case reaches Treasury.
+- Expected behavior: preserve legitimate owning-Accounting amendment and unchanged financial/posting evidence, while preventing an unrelated office with the same generic grant from amending another office's DV. Do not substitute a current-custody-only check that breaks the established Accounting workflow.
+- Next step: reproduce the unrelated-office service mutation, reconcile the source ownership rule, then verify service/page boundaries before extending amendment history.

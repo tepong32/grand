@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-040:** Keep scheduled-run exceptions and qualifying-cycle evidence distinct, with personal history resolved through the controlling cycle.
+
 - **D-039:** Restore a reasoned reference-correction route for draft/returned qualification evidence without changing qualifying-cycle lineage.
 
 - **D-038:** Give each governed field plan its own source-aligned work identity and expose retained review integrity on the cycle screen.
@@ -482,3 +484,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: recreating the row collides with its retained plan/cycle identity; editing every model field would blur actual cycle reruns with clerical reference corrections. Wrong-cycle/sequence changes and real reruns remain governed separately; this route is deliberately limited to evidence references.
 - Evidence: two source-link failures reproduced in 3.552 seconds. All 46 focused field tests passed in 38.724 seconds; all 662 project tests passed in 273.285 seconds. System, migration-drift, compilation and diff checks passed.
 - Revisit when: adding explicit cycle replacement or withdrawal policy. Preserve the old submitted snapshots and the independent reviewer requirement.
+
+
+## D-040 - Scheduled runs and qualifying-cycle handoffs
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.50.
+- Decision: add shared source selectors and distinct personal actions/Waiting/history for scheduled reconciliation runs and qualification evidence. Qualification authority, routes and audit custody resolve through the qualification plan's cycle; the observed cycle stays a separate evidence identity. Run review retains its existing submitter exclusion, while qualification review excludes both preparer and submitter. Opening a scheduled run is attributed separately from submitting its evidence.
+- Goal: show the actual owning office and next step while preserving exact qualifying-cycle lineage and the distinction between a reconciled run and one reviewed with open exceptions.
+- Alternatives/tradeoffs: flattening these records into the cycle hides simultaneous work and risks attributing evidence to the wrong parent. Scheduled-run targets remain the original plan date plus configured grace in actionable rows; returns do not extend them. Waiting age follows retained submission without inventing another approval deadline. The source panel adds before/after reference corrections alongside integrity-backed reviews.
+- Evidence: All 48 focused field tests passed in 41.326 seconds; all 127 field/My Work/operations dependency tests passed in 94.146 seconds. System, migration-drift, compilation and diff checks passed.
+- Revisit when: changing schedule policy, qualifying-cycle replacement or review separation; preserve existing source authority before changing task selection.

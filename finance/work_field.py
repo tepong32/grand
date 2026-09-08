@@ -22,6 +22,9 @@ def completed_field_tasks(user, department, today):
     plans = {kind: {str(item.pk): item for item in model.objects.filter(cycle_id__in=cycles)}
              for model, kind, _label, _route in FIELD_PLAN_TYPES.values()}
     plan_labels = {kind: label for _model, kind, label, _route in FIELD_PLAN_TYPES.values()}
+    from .field_control_register import FIELD_CONTROL_TYPES, control_cycle
+    controls = {kind: {str(item.pk): item for item in model.objects.filter(**{f"{parent}_id__in": cycles}).select_related("cycle", "plan__cycle")}
+                for model, kind, _label, parent in FIELD_CONTROL_TYPES.values()}
     specs = {
         "stakeholder_acceptance_recorded": ("field-stakeholder", "Recorded stakeholder decision"),
         "cutover_decision_submitted": ("field-cutover", "Submitted cutover authority record"),
@@ -46,6 +49,16 @@ def completed_field_tasks(user, department, today):
     ):
         for action, label in (("submitted", "Submitted"), ("approved", "Independently approved"), ("returned", "Returned for correction")):
             specs[f"{prefix}_{action}"] = (kind, f"{label}: {plan_labels[kind]}")
+    specs.update({
+        "shadow_reconciliation_run_opened": ("field-reconciliation-run", "Opened scheduled reconciliation run"),
+        "shadow_reconciliation_run_submitted": ("field-reconciliation-run", "Submitted scheduled run"),
+        "shadow_reconciliation_run_reviewed": ("field-reconciliation-run", "Independently reviewed scheduled run"),
+        "shadow_reconciliation_run_returned": ("field-reconciliation-run", "Returned scheduled run for correction"),
+        "cutover_qualification_evidence_submitted": ("field-qualification-evidence", "Submitted qualification evidence"),
+        "cutover_qualification_evidence_accepted": ("field-qualification-evidence", "Independently accepted qualification evidence"),
+        "cutover_qualification_evidence_returned": ("field-qualification-evidence", "Returned qualification evidence"),
+        "cutover_qualification_evidence_corrected": ("field-qualification-evidence", "Corrected qualification evidence references"),
+    })
     events = FinanceAuditEvent.objects.filter(
         target_type="financeshadowcycle", target_id__in=cycles, actor=user, action__in=specs,
     )
@@ -62,11 +75,18 @@ def completed_field_tasks(user, department, today):
         else:
             records, key = {
                 **{plan_kind: (items, "plan_id") for plan_kind, items in plans.items()},
+                "field-reconciliation-run": (controls["field-reconciliation-run"], "run_id"),
+                "field-qualification-evidence": (controls["field-qualification-evidence"], "evidence_id"),
                 "field-defect": (defects, "defect_id"), "field-exercise": (exercises, "exercise_id"),
                 "field-stakeholder": (stakeholders, "acceptance_id"), "field-cutover": (decisions, "decision_id"),
             }[kind]
             item = records.get(str(event.snapshot.get(key)))
-            if item is None or item.cycle_id != cycle.pk:
+            if item is None:
+                continue
+            parent_id = control_cycle(item).pk if kind in controls else item.cycle_id
+            if parent_id != cycle.pk:
+                continue
+            if kind == "field-qualification-evidence" and event.snapshot.get("cycle_id") != item.cycle_id:
                 continue
             source_id = _source_record_identity(kind, item.pk)
         current_state = item.decision if kind == "field-stakeholder" else item.status
@@ -76,11 +96,20 @@ def completed_field_tasks(user, department, today):
             if decision not in (item.ACCEPTED, item.CONDITIONAL, item.REJECTED):
                 continue
             label = f"Recorded stakeholder decision: {dict(item.DECISION_CHOICES)[decision]}"
+        if event.action == "shadow_reconciliation_run_reviewed":
+            reviewed_status = event.snapshot.get("status")
+            if reviewed_status not in (item.RECONCILED, item.REVIEWED_WITH_EXCEPTIONS):
+                continue
+            label = "Reviewed scheduled run with open exceptions" if reviewed_status == item.REVIEWED_WITH_EXCEPTIONS else "Independently reconciled scheduled run"
         reference = cycle.code
         if kind in ("field-defect", "field-exercise"):
             reference += f" - {item.code}"
         elif kind == "field-stakeholder":
             reference += f" - {item.get_stakeholder_kind_display()}"
+        elif kind == "field-reconciliation-run":
+            reference += f" - run #{item.sequence}"
+        elif kind == "field-qualification-evidence":
+            reference += f" - qualification #{item.sequence}: {item.cycle.code}"
         elif kind in plan_labels:
             reference += f" - {plan_labels[kind]}"
         elif kind == "field-cutover":

@@ -621,7 +621,8 @@ def shadow_cycle_detail(request, pk):
     )
     review_history = list(FinanceAuditEvent.objects.filter(
         department=cycle.department, target_type="financeshadowcycle", target_id=str(cycle.pk),
-        snapshot__integrity_check__isnull=False,
+    ).filter(
+        Q(snapshot__integrity_check__isnull=False) | Q(action="cutover_qualification_evidence_corrected"),
     ).select_related("actor").order_by("-created_at", "-pk")[:20])
     for event in review_history:
         event.display_action = event.action.replace("_", " ").capitalize()

@@ -608,6 +608,8 @@ class FinanceShadowCutoverTests(TestCase):
         run.refresh_from_db()
         self.assertEqual(run.status, FinanceShadowReconciliationRun.REVIEWED_WITH_EXCEPTIONS)
         self.assertEqual(run.open_defect_count, 1)
+        history = self.field_work_rows(self.reconciler, "field-reconciliation-run", run, "completed")
+        self.assertEqual(history[0]["subject"], "Reviewed scheduled run with open exceptions")
         run.review_note = "Attempted rewrite"
         with self.assertRaisesMessage(ValidationError, "immutable"):
             run.save()
@@ -2235,3 +2237,95 @@ class FinanceShadowCutoverTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "Only draft or returned"):
             correct_cutover_qualification_evidence(item, self.manager, **changes)
         self.assertEqual(FinanceAuditEvent.objects.filter(action="cutover_qualification_evidence_corrected", snapshot__evidence_id=item.pk).count(), 1)
+
+
+    def test_scheduled_run_handoffs_preserve_submitter_review_rule_and_return_history(self):
+        from .work_tasks import finance_work_tasks
+
+        cycle = self._cycle(code="personal-scheduled-run")
+        start_shadow_cycle(cycle, self.manager)
+        cycle.refresh_from_db()
+        self._matched_comparison(cycle)
+        run = open_next_reconciliation_run(cycle, self.manager)
+        kind = "field-reconciliation-run"
+        action = self.field_work_rows(self.manager, kind, run)[0]
+        self.assertEqual(action["due_on"], timezone.localtime(run.due_at).date())
+        self.assertIn("configured grace", action["calendar_basis"])
+        self.client.force_login(self.manager)
+        source = self.client.get(reverse("finance:shadow_workspace"), {"attention": "prepare_reconciliation_run"})
+        self.assertIn(cycle, source.context["cycles"])
+        submit_reconciliation_run(run, self.manager)
+        self.assertEqual(len(self.field_work_rows(self.manager, kind, run, "waiting")), 1)
+        self.assertEqual(self.field_work_rows(self.manager, kind, run), [])
+        self.assertEqual(len(self.field_work_rows(self.reconciler, kind, run)), 1)
+        review_reconciliation_run(run, self.reconciler, accept=False, reason="Clarify the retained comparison worksheet.")
+        returned = self.field_work_rows(self.manager, kind, run, "returned")[0]
+        self.assertIn("Clarify", returned["exception"])
+        self.assertEqual(returned["due_on"], action["due_on"])
+        self.assertEqual(self.field_work_rows(self.manager, kind, run, "waiting"), [])
+        self._grant(self.other_reviewer, "manage_shadow_operation", "view_finance_setup")
+        submitter = get_user_model().objects.get(pk=self.other_reviewer.pk)
+        submit_reconciliation_run(run, submitter)
+        # Opening a run is distinct from submitting its actual evidence. Preserve the source rule.
+        self.assertEqual(len(self.field_work_rows(self.manager, kind, run)), 1)
+        self.assertEqual(self.field_work_rows(self.manager, kind, run, "waiting"), [])
+        capped = finance_work_tasks(self.manager, view="waiting", display_limit=1)
+        self.assertFalse(any(row["case_id"] == action["case_id"] for row in capped["tasks"]))
+        review_reconciliation_run(run, self.manager, accept=True, reason="Independently reviewed the other submitter's retained evidence.")
+        self.assertEqual(len(self.field_work_rows(self.manager, kind, run, "completed")), 3)
+        self.assertEqual(len(self.field_work_rows(submitter, kind, run, "completed")), 1)
+        self.assertEqual(self.field_work_rows(submitter, kind, run, "waiting"), [])
+        for view in ("ready", "waiting", "completed"):
+            self.assertEqual(self.field_work_rows(self.outsider, kind, run, view), [])
+
+    def test_qualification_handoffs_use_owning_plan_cycle_and_retain_reference_corrections(self):
+        from unittest.mock import patch
+        from .cutover_services import correct_cutover_qualification_evidence
+
+        observed = self._reconciled_cycle(code="personal-qualification-observed")
+        candidate = self._reconciled_cycle(code="personal-qualification-candidate", predecessor=observed, run_kind=FinanceShadowCycle.PARALLEL)
+        with patch("finance.test_cutover.review_cutover_qualification_evidence"):
+            plan = self._approve_qualification(candidate, [observed, candidate])
+        item = plan.cycle_evidence.get(cycle=observed)
+        kind = "field-qualification-evidence"
+        waiting = self.field_work_rows(self.manager, kind, item, "waiting")[0]
+        expected_url = reverse("finance:shadow_cycle_detail", args=(candidate.pk,))
+        self.assertEqual(waiting["url"], expected_url)
+        self.assertEqual(self.field_work_rows(self.manager, kind, item), [])
+        self.assertEqual(self.field_work_rows(self.reconciler, kind, item)[0]["url"], expected_url)
+        self.client.force_login(self.reconciler)
+        source = self.client.get(reverse("finance:shadow_workspace"), {"attention": "review_qualification_evidence"})
+        self.assertEqual(source.context["cycles"], [candidate])
+        review_cutover_qualification_evidence(item, self.reconciler, accept=False, reason="Correct the observed-cycle packet reference.")
+        self.assertEqual(len(self.field_work_rows(self.manager, kind, item, "returned")), 1)
+        item = correct_cutover_qualification_evidence(item, self.manager,
+            field_execution_reference="Corrected observed-cycle packet", rules_forms_reference=item.rules_forms_reference,
+            reason="The retained packet reference was transcribed incorrectly.")
+        self.client.force_login(self.manager)
+        detail = self.client.get(expected_url)
+        self.assertContains(detail, "Reference correction recorded")
+        self.assertContains(detail, "Previous execution reference")
+        self.assertContains(detail, "Corrected observed-cycle packet")
+        submit_cutover_qualification_evidence(item, self.manager)
+        review_cutover_qualification_evidence(item, self.reconciler, accept=True, reason="Independently checked the correct observed-cycle packet.")
+        self.assertEqual(len(self.field_work_rows(self.manager, kind, item, "completed")), 3)
+        self.assertEqual(len(self.field_work_rows(self.reconciler, kind, item, "completed")), 2)
+        FinanceAuditEvent.objects.create(
+            department=self.accounting, target_type="financeshadowcycle", target_id=str(observed.pk),
+            action="cutover_qualification_evidence_submitted", actor=self.manager,
+            snapshot={"evidence_id": item.pk, "cycle_id": observed.pk}, reason="Wrong controlling cycle must not earn credit.",
+        )
+        self.assertEqual(len(self.field_work_rows(self.manager, kind, item, "completed")), 3)
+        profile = self.manager.employeeprofile
+        profile.assigned_department = self.requesting
+        profile.save(update_fields=("assigned_department",))
+        FinanceStakeholderAcceptance.objects.create(
+            cycle=observed, stakeholder_kind=FinanceStakeholderAcceptance.IT, office=self.requesting,
+            assigned_reviewer=self.manager, enabled_scope=observed.enabled_scope, created_by=self.reconciler,
+        )
+        actor = get_user_model().objects.get(pk=self.manager.pk)
+        from .access import can_view_shadow_cycle
+        self.assertTrue(can_view_shadow_cycle(actor, observed))
+        self.assertFalse(can_view_shadow_cycle(actor, candidate))
+        for view in ("ready", "waiting", "completed"):
+            self.assertEqual(self.field_work_rows(actor, kind, item, view), [])

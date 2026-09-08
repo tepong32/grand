@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.50 - scheduled-run and qualification-evidence handoffs
+
+Scheduled reconciliation runs and qualification evidence now have shared source actions, personal submitted Waiting and attributed history. Qualification custody resolves through the controlling plan cycle, while the observed cycle remains explicit. Run history distinguishes reconciliation from review with open exceptions, and the source history panel shows before/after reference corrections. All 48 focused field tests passed in 41.326 seconds; all 127 field/My Work/operations dependency tests passed in 94.146 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.49 - qualification evidence reference corrections
 
 Draft and returned qualification evidence now has an authorized reference-correction form. The stored-record service locks and rechecks office/state authority, requires a reason, preserves cycle/plan/sequence/preparer identity, and atomically retains before/after reference evidence. Submitted and accepted records remain locked; corrections require fresh submission and independent acceptance. All 46 focused field tests passed in 38.724 seconds; all 662 project tests passed in 273.285 seconds. System, migration-drift, compilation and diff checks passed.

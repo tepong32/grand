@@ -115,6 +115,10 @@ SHADOW_ACTION_SPECS = {
 
 from .field_plan_register import FIELD_PLAN_ACTION_SPECS, field_plan_action_records
 
+from .field_control_register import FIELD_CONTROL_ACTION_SPECS, FIELD_CONTROL_TYPES, field_control_action_records
+
+SHADOW_ACTION_SPECS.update(FIELD_CONTROL_ACTION_SPECS)
+ATTENTION_CHOICES += tuple((key, spec["title"]) for key, spec in FIELD_CONTROL_ACTION_SPECS.items())
 SHADOW_ACTION_SPECS.update(FIELD_PLAN_ACTION_SPECS)
 ATTENTION_CHOICES += tuple((key, spec["title"]) for key, spec in FIELD_PLAN_ACTION_SPECS.items())
 
@@ -187,6 +191,10 @@ def shadow_action_queryset(user, attention, *, queryset):
     if department is None or not _shadow_action_role_allowed(user, department, spec["role"]):
         return queryset.none(), attention, spec
 
+    if attention in FIELD_CONTROL_ACTION_SPECS:
+        records = field_control_action_records(user, attention, cycles=queryset)
+        parent = FIELD_CONTROL_TYPES[FIELD_CONTROL_ACTION_SPECS[attention]["family"]][3]
+        return queryset.filter(pk__in=records.values(f"{parent}__pk")).distinct(), attention, spec
     if attention in FIELD_PLAN_ACTION_SPECS:
         records = field_plan_action_records(user, attention, cycles=queryset)
         return queryset.filter(pk__in=records.values("cycle_id")).distinct(), attention, spec
@@ -252,6 +260,8 @@ def shadow_action_record_queryset(user, attention, *, queryset):
     """Return the exact source records behind one field-operation action filter."""
     cycles, selected, spec = shadow_action_queryset(user, attention, queryset=queryset)
     cycle_ids = cycles.values("pk")
+    if attention in FIELD_CONTROL_ACTION_SPECS:
+        return field_control_action_records(user, attention, cycles=cycles), selected, spec
     if attention in FIELD_PLAN_ACTION_SPECS:
         return field_plan_action_records(user, attention, cycles=cycles), selected, spec
     if attention == "my_defects":
