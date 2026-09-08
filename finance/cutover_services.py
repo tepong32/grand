@@ -983,6 +983,34 @@ def review_cutover_qualification_plan(plan, actor, *, approve, reason):
 
 
 @transaction.atomic
+def correct_cutover_qualification_evidence(item, actor, *, field_execution_reference, rules_forms_reference, reason):
+    item = FinanceCutoverQualificationEvidence.objects.select_for_update().select_related(
+        "plan", "plan__cycle", "plan__cycle__department", "cycle",
+    ).get(pk=item.pk)
+    if not can_manage_shadow_operation(actor, item.plan.cycle.department):
+        raise PermissionDenied
+    if item.status not in {item.DRAFT, item.RETURNED}:
+        raise ValidationError("Only draft or returned qualification evidence references can be corrected.")
+    reason = str(reason or "").strip()
+    if not reason:
+        raise ValidationError("Record why the evidence references need correction.")
+    before = _qualification_evidence_data(item)
+    references = {
+        "field_execution_reference": str(field_execution_reference or "").strip(),
+        "rules_forms_reference": str(rules_forms_reference or "").strip(),
+    }
+    if all(getattr(item, field) == value for field, value in references.items()):
+        raise ValidationError("Change at least one evidence reference before recording a correction.")
+    for field, value in references.items():
+        setattr(item, field, value)
+    item.save(update_fields=(*references, "updated_at"))
+    _event(item.plan.cycle, actor, "cutover_qualification_evidence_corrected", reason=reason, snapshot={
+        **_qualification_evidence_data(item), "before_correction": before,
+    })
+    return item
+
+
+@transaction.atomic
 def submit_cutover_qualification_evidence(item, actor):
     item = FinanceCutoverQualificationEvidence.objects.select_for_update().select_related(
         "plan", "plan__cycle", "plan__cycle__department", "cycle",

@@ -240,7 +240,7 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 - Severity/status: **MEDIUM - VERIFIED**, reproduced and repaired in v0.7.46.
 - Code evidence: witness_tests selects any form with an unreviewed test, although review_test_attempt rejects non-editable forms. A reasoned newer attempt may supersede an older unreviewed test before form submission. Existing preparation actions cover mapping/reference/candidate/returned work but not a fully ready draft's submission.
 - Expected behavior: witness work must respect the source form's editable gate, and a valid fully tested draft must expose its existing submission step. Preserve test lineage, independent witness/acceptance and current source validation.
-- Next step: reproduce both queue/source mismatches, repair shared selectors and verify before adding local-form Waiting/history. No unauthorized source mutation is asserted.
+- Closure: shared selectors and local-form handoffs verified in v0.7.46. No unauthorized source mutation was asserted.
 
 
 - FIN-GAP-021 reproduction: the fully tested draft had no submission task, and a locked form with an older unreviewed attempt still appeared in the witness queue (2 failed assertions, 1.267 seconds). Shared witness selection now requires current attempts on editable forms. Preparation validation distinguishes actual preparer work from only pending witnesses; new preparation/submission actions use the unchanged source validation result. All 26 focused local-form tests passed in 26.042 seconds; all 200 reporting/My Work/operations dependency tests passed in 183.489 seconds. System, migration-drift, compilation and diff checks passed.
@@ -252,7 +252,7 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 - Severity/status: **MEDIUM - VERIFIED**, reproduced and repaired in v0.7.47.
 - Code evidence: checksum comparisons in cutover_services reject both positive acceptance and negative return, even where the error instructs the reviewer to return altered evidence. The normal model guards prevent ordinary edits of submitted controls; this concerns recovery from detected drift, not permission to edit submitted evidence.
 - Expected behavior: preserve the acceptance block, independent reviewer, current-office or assigned authority, and required reason. A governed return should retain the original submission and the observed integrity difference rather than silently relabeling changed evidence as valid.
-- Next step: reproduce the recovery dead end, then verify a traced negative decision before expanding the corresponding personal work adapters.
+- Closure: traced negative decisions and full regression verified in v0.7.47; remaining personal adapters continue separately.
 
 
 - FIN-GAP-022 reproduction: one isolated seven-path test produced seven blocked-return errors in 2.738 seconds, after separately verifying positive acceptance denial, outsider/self-review denial and required reasons. The repair retains stored/observed checksums and mismatch status in the new decision audit without rewriting earlier events. All 112 focused field/My Work tests passed in 65.532 seconds; all 657 project tests passed in 239.539 seconds. System, migration-drift, compilation and diff checks passed.
@@ -261,7 +261,10 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-023 - Qualification evidence has submission and return but no reference-correction route
 
 - Process/module: draft/returned qualifying-cycle evidence on the field acceptance screen.
-- Severity/status: **MEDIUM - OPEN**, source finding awaiting reproduction.
+- Severity/status: **MEDIUM - VERIFIED**, reproduced and repaired in v0.7.49.
 - Code evidence: cutover_qualification_evidence_create always constructs a new record. Existing draft/returned rows expose only submission; the form has editable execution/rules references, but there is no existing-record correction route. The unique plan/cycle and plan/sequence constraints prevent replacing an existing row with an identical new one.
 - Expected behavior: a preparer should correct draft/returned evidence references under the owning plan's office and existing state gates, with retained correction attribution. Submitted/accepted evidence remains locked and qualifying-cycle lineage must not be silently replaced.
-- Next step: reproduce the missing correction path before adding personal qualification-evidence projections; distinguish reference corrections from a real cycle rerun requiring its governed successor.
+- Closure: reference-correction service, authenticated route and full regression verified in v0.7.49. Real cycle reruns remain separate from reference correction; personal qualification-evidence projections continue next.
+
+
+- FIN-GAP-023 reproduction: both draft and returned evidence lacked the correction link (2 failed assertions in 3.552 seconds). A reference-only correction form/service now reloads stored identity, locks and validates state/office authority, requires a reason, and atomically retains before/after audit evidence. All 46 focused field tests passed in 38.724 seconds; all 662 project tests passed in 273.285 seconds. System, migration-drift, compilation and diff checks passed.

@@ -18,6 +18,7 @@ from .access import (
     finance_permission_required, shadow_access_required,
 )
 from .cutover_services import (
+    correct_cutover_qualification_evidence,
     build_cutover_evidence_package, cutover_readiness, decide_cutover,
     decide_stakeholder_acceptance, record_cutover_rollback, review_shadow_cycle,
     review_shadow_source_drift, stage_shadow_external_lock, stage_shadow_source_csv,
@@ -41,6 +42,7 @@ from .discovery_register import (
     visible_discovery_decisions,
 )
 from .forms import (
+    FinanceCutoverQualificationEvidenceCorrectionForm,
     FinanceCutoverDecisionForm,
     FinanceDiscoveryCoverageStarterForm, FinanceDiscoveryDecisionForm,
     FinanceDocumentRuleForm, FinanceItemForm,
@@ -912,6 +914,34 @@ def cutover_qualification_evidence_create(request, cycle_pk):
             "Record references to actual retained field evidence. Do not use synthetic UAT alone, invent signatures, "
             "or imply that a starter template is a locally accepted form."
         ),
+    })
+
+
+@finance_permission_required(can_manage_shadow_operation)
+def cutover_qualification_evidence_correct(request, pk):
+    item = get_object_or_404(
+        FinanceCutoverQualificationEvidence.objects.select_related("plan__cycle__department", "cycle"),
+        pk=pk, plan__cycle__department=department_for_user(request.user),
+    )
+    candidate = item.plan.cycle
+    if item.status not in {item.DRAFT, item.RETURNED}:
+        messages.error(request, "Only draft or returned qualification evidence references can be corrected.")
+        return redirect("finance:shadow_cycle_detail", pk=candidate.pk)
+    form = FinanceCutoverQualificationEvidenceCorrectionForm(request.POST or None, initial={
+        "field_execution_reference": item.field_execution_reference,
+        "rules_forms_reference": item.rules_forms_reference,
+    })
+    if request.method == "POST" and form.is_valid():
+        try:
+            correct_cutover_qualification_evidence(item, request.user, **form.cleaned_data)
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Evidence reference correction retained. Submit the corrected evidence for independent review.")
+            return redirect("finance:shadow_cycle_detail", pk=candidate.pk)
+    return render(request, "finance/cutover_form.html", {
+        "form": form, "title": f"Correct evidence references — {item.cycle.code}", "cycle": candidate,
+        "guidance": "Correct the retained execution or rules/forms references and explain why. The selected cycle, sequence and preparer remain fixed; an actual rerun follows the governed successor process.",
     })
 
 

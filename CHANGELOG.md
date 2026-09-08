@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.49 - qualification evidence reference corrections
+
+Draft and returned qualification evidence now has an authorized reference-correction form. The stored-record service locks and rechecks office/state authority, requires a reason, preserves cycle/plan/sequence/preparer identity, and atomically retains before/after reference evidence. Submitted and accepted records remain locked; corrections require fresh submission and independent acceptance. All 46 focused field tests passed in 38.724 seconds; all 662 project tests passed in 273.285 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.48 - field-plan actions and personal handoffs
 
 Reconciliation, readiness/support and qualification plans now have distinct source-aligned preparation/review actions, personal submitted Waiting and attributed submission/approval/return history. The cycle screen exposes the latest 20 reviews with retained checksum comparisons under current source access. All 43 focused field tests passed in 33.763 seconds; all 122 field/My Work/operations dependency tests passed in 95.255 seconds. System, migration-drift, compilation and diff checks passed.

@@ -62,6 +62,7 @@ urlpatterns = [
     path("shadow-cutover/qualification-plans/<int:pk>/forms/<int:row_pk>/delete/", views.cutover_qualification_form_delete, name="cutover_qualification_form_delete"),
     path("shadow-cutover/qualification-plans/<int:pk>/<slug:action>/", views.cutover_qualification_plan_action, name="cutover_qualification_plan_action"),
     path("shadow-cutover/cycles/<int:cycle_pk>/qualification-evidence/new/", views.cutover_qualification_evidence_create, name="cutover_qualification_evidence_create"),
+    path("shadow-cutover/qualification-evidence/<int:pk>/references/", views.cutover_qualification_evidence_correct, name="cutover_qualification_evidence_correct"),
     path("shadow-cutover/qualification-evidence/<int:pk>/<slug:action>/", views.cutover_qualification_evidence_action, name="cutover_qualification_evidence_action"),
     path("shadow-cutover/cycles/<int:cycle_pk>/reconciliation-runs/open/", views.shadow_reconciliation_run_open, name="shadow_reconciliation_run_open"),
     path("shadow-cutover/reconciliation-runs/<int:pk>/<slug:action>/", views.shadow_reconciliation_run_action, name="shadow_reconciliation_run_action"),

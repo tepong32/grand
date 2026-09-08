@@ -923,6 +923,12 @@ class FinanceCutoverQualificationEvidenceForm(forms.ModelForm):
             )
 
 
+class FinanceCutoverQualificationEvidenceCorrectionForm(forms.Form):
+    field_execution_reference = forms.CharField(widget=forms.Textarea(attrs={"rows": 4}))
+    rules_forms_reference = forms.CharField(widget=forms.Textarea(attrs={"rows": 4}))
+    reason = forms.CharField(label="Reason for correction", widget=forms.Textarea(attrs={"rows": 3}))
+
+
 class FinanceCutoverDecisionForm(forms.ModelForm):
     class Meta:
         model = FinanceCutoverDecision

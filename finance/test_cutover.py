@@ -2124,3 +2124,114 @@ class FinanceShadowCutoverTests(TestCase):
             self.assertEqual(finance_work_tasks(actor, view=view)["tasks"], [])
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.get(reverse("finance:shadow_cycle_detail", args=(cycle.pk,))).status_code, 403)
+
+
+    def test_draft_and_returned_qualification_evidence_expose_reference_correction(self):
+        from unittest.mock import patch
+
+        for returned in (False, True):
+            with self.subTest(returned=returned):
+                cycle = self._reconciled_cycle(code=f"qualification-correction-{returned}")
+                with patch("finance.test_cutover.review_cutover_qualification_evidence"):
+                    plan = self._approve_qualification(cycle, [cycle])
+                item = plan.cycle_evidence.get()
+                review_cutover_qualification_evidence(item, self.reconciler, accept=False, reason="Correct the execution-reference transcription.")
+                if not returned:
+                    # Reuse the same validated fixture as an unsubmitted draft.
+                    FinanceCutoverQualificationEvidence.objects.filter(pk=item.pk).update(
+                        status=FinanceCutoverQualificationEvidence.DRAFT, submitted_by=None, submitted_at=None,
+                    )
+                self.client.force_login(self.manager)
+                response = self.client.get(reverse("finance:shadow_cycle_detail", args=(cycle.pk,)))
+                self.assertContains(response, "Correct evidence references")
+
+
+    def _returned_qualification_evidence(self, code):
+        from unittest.mock import patch
+        cycle = self._reconciled_cycle(code=code)
+        with patch("finance.test_cutover.review_cutover_qualification_evidence"):
+            plan = self._approve_qualification(cycle, [cycle])
+        item = plan.cycle_evidence.get()
+        return review_cutover_qualification_evidence(item, self.reconciler, accept=False, reason="Correct reference transcription before resubmission.")
+
+    def test_qualification_reference_correction_reloads_lineage_and_preserves_submission(self):
+        from .cutover_services import correct_cutover_qualification_evidence
+
+        item = self._returned_qualification_evidence("qualification-service-correction")
+        identity = (item.plan_id, item.cycle_id, item.sequence, item.prepared_by_id)
+        old_reference = item.field_execution_reference
+        submitted = FinanceAuditEvent.objects.get(
+            target_type="financeshadowcycle", target_id=str(item.plan.cycle_id),
+            action="cutover_qualification_evidence_submitted",
+        )
+        snapshot = submitted.snapshot
+        item.plan_id, item.cycle_id, item.sequence, item.prepared_by_id = (99999, 99999, 99999, self.outsider.pk)
+        item.status = item.ACCEPTED  # A stale caller cannot define stored identity or state.
+        corrected = correct_cutover_qualification_evidence(
+            item, self.manager, field_execution_reference="Corrected retained packet FIELD-CORRECTED-001",
+            rules_forms_reference="Corrected retained form register FORM-CORRECTED-001", reason="Transcribed the wrong retained packet references.",
+        )
+        self.assertEqual((corrected.plan_id, corrected.cycle_id, corrected.sequence, corrected.prepared_by_id), identity)
+        self.assertEqual(corrected.status, corrected.RETURNED)
+        event = FinanceAuditEvent.objects.get(action="cutover_qualification_evidence_corrected", snapshot__evidence_id=item.pk)
+        self.assertEqual(event.actor_id, self.manager.pk)
+        self.assertEqual(event.snapshot["before_correction"]["field_execution_reference"], old_reference)
+        self.assertEqual(event.snapshot["field_execution_reference"], corrected.field_execution_reference)
+        self.assertEqual(event.target_id, str(corrected.plan.cycle_id))
+        corrected = submit_cutover_qualification_evidence(corrected, self.manager)
+        corrected = review_cutover_qualification_evidence(corrected, self.reconciler, accept=True, reason="Rechecked the corrected retained references and exact form set.")
+        submitted.refresh_from_db()
+        self.assertEqual(submitted.snapshot, snapshot)
+        corrected.status = corrected.DRAFT
+        with self.assertRaisesMessage(ValidationError, "Only draft or returned"):
+            correct_cutover_qualification_evidence(corrected, self.manager, field_execution_reference="Must not overwrite accepted evidence", rules_forms_reference="No", reason="Forged caller state")
+        corrected.refresh_from_db()
+        self.assertEqual(corrected.status, corrected.ACCEPTED)
+        self.assertEqual(corrected.field_execution_reference, "Corrected retained packet FIELD-CORRECTED-001")
+
+    def test_qualification_reference_correction_http_authority_reason_and_audit_atomicity(self):
+        from unittest.mock import patch
+        from .cutover_services import correct_cutover_qualification_evidence
+
+        item = self._returned_qualification_evidence("qualification-http-correction")
+        url = reverse("finance:cutover_qualification_evidence_correct", args=(item.pk,))
+        original = (item.plan_id, item.cycle_id, item.sequence, item.prepared_by_id, item.field_execution_reference)
+        changes = {"field_execution_reference": "Corrected packet via authorized form", "rules_forms_reference": "Corrected local register", "reason": "Reference transcription correction"}
+        self.client.force_login(self.manager)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertEqual(self.client.post(url, {**changes, "reason": ""}).status_code, 200)
+        item.refresh_from_db()
+        self.assertEqual(item.field_execution_reference, original[-1])
+        with patch("finance.cutover_services._event", side_effect=RuntimeError("Synthetic audit failure")):
+            with self.assertRaises(RuntimeError):
+                correct_cutover_qualification_evidence(item, self.manager, **changes)
+        item.refresh_from_db()
+        self.assertEqual(item.field_execution_reference, original[-1])
+        self.assertEqual(self.client.post(url, {**changes, "cycle": 99999, "plan": 99999, "sequence": 99999, "prepared_by": self.outsider.pk}).status_code, 302)
+        item.refresh_from_db()
+        self.assertEqual((item.plan_id, item.cycle_id, item.sequence, item.prepared_by_id), original[:4])
+        self.assertEqual(item.field_execution_reference, changes["field_execution_reference"])
+        self._grant(self.outsider, "manage_shadow_operation")
+        outsider = get_user_model().objects.get(pk=self.outsider.pk)
+        self.client.force_login(outsider)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.post(url, changes).status_code, 404)
+        with self.assertRaises(PermissionDenied):
+            correct_cutover_qualification_evidence(item, outsider, **changes)
+        self.client.force_login(self.reconciler)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        uat, _ = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)
+        self.manager.groups.add(uat)
+        actor = get_user_model().objects.get(pk=self.manager.pk)
+        self.client.force_login(actor)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertEqual(self.client.post(url, changes).status_code, 403)
+        with self.assertRaises(PermissionDenied):
+            correct_cutover_qualification_evidence(item, actor, **changes)
+        self.manager.groups.remove(uat)
+        submit_cutover_qualification_evidence(item, self.manager)
+        self.client.force_login(self.manager)
+        self.assertEqual(self.client.post(url, changes).status_code, 302)
+        with self.assertRaisesMessage(ValidationError, "Only draft or returned"):
+            correct_cutover_qualification_evidence(item, self.manager, **changes)
+        self.assertEqual(FinanceAuditEvent.objects.filter(action="cutover_qualification_evidence_corrected", snapshot__evidence_id=item.pk).count(), 1)

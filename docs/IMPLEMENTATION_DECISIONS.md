@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-039:** Restore a reasoned reference-correction route for draft/returned qualification evidence without changing qualifying-cycle lineage.
+
 - **D-038:** Give each governed field plan its own source-aligned work identity and expose retained review integrity on the cycle screen.
 
 - **D-037:** Preserve checksum-blocked acceptance while allowing an independently authorized, reasoned return with explicit integrity evidence.
@@ -470,3 +472,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: a single cycle task cannot distinguish simultaneous plan reviews; copying plan status into a task store would create competing authority. Plan dates do not become review deadlines. Returned age uses the retained matching plan event, with missing evidence disclosed. A cycle screen now shows the latest 20 integrity-backed reviews and their stored/observed digests; earlier audit history remains retained and older reviews without this metadata are not retroactively certified.
 - Evidence: All 43 focused field tests passed in 33.763 seconds; all 122 field/My Work/operations dependency tests passed in 95.255 seconds. System, migration-drift, compilation and diff checks passed. An initial focused run was stopped after spotting a missing default in the new test-helper call; the helper was corrected before restarting tests.
 - Revisit when: local policy adds assignment, explicit deadlines or governed plan successors. Scheduled reconciliation runs and qualification-cycle evidence remain the next separate child families.
+
+
+## D-039 - Qualification evidence reference correction
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.49.
+- Decision: allow existing draft/returned evidence to correct execution and rules/forms references through a service that reloads and locks the stored record, checks the owning qualification plan's office and management authority, requires a reason, and records before/after evidence. Keep cycle, plan, sequence and preparer fixed. Submitted/accepted evidence stays locked; new acceptance requires a fresh submission.
+- Goal: make a reviewer's requested reference correction achievable without duplicate rows, direct database edits or silent replacement of the qualifying cycle.
+- Alternatives/tradeoffs: recreating the row collides with its retained plan/cycle identity; editing every model field would blur actual cycle reruns with clerical reference corrections. Wrong-cycle/sequence changes and real reruns remain governed separately; this route is deliberately limited to evidence references.
+- Evidence: two source-link failures reproduced in 3.552 seconds. All 46 focused field tests passed in 38.724 seconds; all 662 project tests passed in 273.285 seconds. System, migration-drift, compilation and diff checks passed.
+- Revisit when: adding explicit cycle replacement or withdrawal policy. Preserve the old submitted snapshots and the independent reviewer requirement.
