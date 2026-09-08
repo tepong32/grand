@@ -204,3 +204,5 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 - Next step: inspect each source entry point, reproduce representative financial governance mutations, and apply domain-aware checks before expanding dependent reporting handoffs. Findings here are not yet all reproduced.
 
 - FIN-GAP-018 statement slice: UAT/head, foreign-office and ungranted note review all succeeded (3 failed denial tests, 1.397 seconds). Seven statement service entry points and corresponding source mutation controls repaired in v0.7.36; all 28 focused tests and 612 project tests passed. Accountability, local-form and template/schedule boundaries remain OPEN; this partial repair does not close the parent finding.
+
+- FIN-GAP-018 package/form slice: UAT profile review, foreign-office profile review and UAT local-form return succeeded (3 failed denial tests, 2.699 seconds). Eight accountability and six local-form service entry points plus page controls repaired in v0.7.37; all 31 focused tests and 622 project tests passed. Template/definition/schedule governance remains OPEN.

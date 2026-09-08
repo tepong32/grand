@@ -12,7 +12,7 @@ from django.utils.text import slugify
 
 from finance.models import FinanceTemplateVersion
 
-from .access import department_for_user
+from .access import department_for_user, require_finance_reporting_permission as _require
 from .local_form_starters import DBM_BOM_URL, DBM_FORM_STARTERS_BY_KEY
 from .models import (
     FinanceLocalFormAcceptance, FinanceLocalFormEvent, FinanceLocalFormSection,
@@ -27,6 +27,7 @@ SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 @transaction.atomic
 def create_local_form_from_starter(department, actor, *, starter_key):
     """Create one editable, non-authoritative F10 record from a built-in DBM starter."""
+    _require(actor, "reporting.manage_local_form_acceptance", department)
     starter = DBM_FORM_STARTERS_BY_KEY.get(starter_key)
     if starter is None:
         raise ValidationError("Choose a recognized DBM local-form starter.")
@@ -523,6 +524,7 @@ def record_test_attempt(
     locked = FinanceLocalFormAcceptance.objects.select_for_update().select_related(
         "department", "report_template__definition", "finance_template__release", "supersedes",
     ).get(pk=form.pk)
+    _require(actor, "reporting.manage_local_form_acceptance", locked.department)
     if not locked.is_editable:
         raise ValidationError("Only an editable local-form record can receive a test attempt.")
     valid_categories = dict(FinanceLocalFormTestAttempt.CATEGORY_CHOICES)
@@ -561,6 +563,7 @@ def record_test_attempt(
 @transaction.atomic
 def review_test_attempt(attempt, actor, *, action, note):
     locked = FinanceLocalFormTestAttempt.objects.select_for_update().select_related("form").get(pk=attempt.pk)
+    _require(actor, "reporting.witness_local_form_tests", locked.form.department)
     if not locked.form.is_editable:
         raise ValidationError("Tests cannot be reviewed after the local-form record is submitted.")
     if locked.status != FinanceLocalFormTestAttempt.SUBMITTED:
@@ -597,6 +600,7 @@ def submit_local_form(form, actor):
     locked = FinanceLocalFormAcceptance.objects.select_for_update().select_related(
         "department", "report_template__definition", "finance_template__release", "supersedes",
     ).get(pk=form.pk)
+    _require(actor, "reporting.manage_local_form_acceptance", locked.department)
     if not locked.is_editable:
         raise ValidationError("Only an editable local-form record can be submitted.")
     validation = validate_local_form(locked)
@@ -633,6 +637,7 @@ def review_local_form(form, actor, *, approve, note):
     locked = FinanceLocalFormAcceptance.objects.select_for_update().select_related(
         "department", "report_template__definition", "finance_template__release", "supersedes",
     ).get(pk=form.pk)
+    _require(actor, "reporting.review_local_form_acceptance", locked.department)
     if locked.status != FinanceLocalFormAcceptance.SUBMITTED:
         raise ValidationError("Only a submitted local-form record can be reviewed.")
     if actor.pk in (locked.created_by_id, locked.submitted_by_id):
@@ -689,6 +694,7 @@ def review_local_form(form, actor, *, approve, note):
 @transaction.atomic
 def create_local_form_successor(form, actor, *, reason):
     prior = FinanceLocalFormAcceptance.objects.select_for_update().get(pk=form.pk)
+    _require(actor, "reporting.manage_local_form_acceptance", prior.department)
     if prior.status != FinanceLocalFormAcceptance.ACCEPTED:
         raise ValidationError("Only an accepted local form can be changed through a successor.")
     reason = (reason or "").strip()

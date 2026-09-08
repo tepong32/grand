@@ -8,6 +8,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.utils import timezone
 
+from .access import require_finance_reporting_permission as _require
 from .models import (
     FinanceAccountabilityPackage, FinanceAccountabilityPackageEvent,
     FinanceAccountabilityPackageProfile, FinanceAccountabilityPackageProfileEvent,
@@ -79,6 +80,7 @@ def validate_profile(profile):
 @transaction.atomic
 def submit_profile(profile, actor):
     locked = FinanceAccountabilityPackageProfile.objects.select_for_update().get(pk=profile.pk)
+    _require(actor, "reporting.manage_accountability_package_profiles", locked.department)
     if not locked.is_editable:
         raise ValidationError("Only an editable package profile can be submitted.")
     validation = validate_profile(locked)
@@ -105,6 +107,7 @@ def submit_profile(profile, actor):
 @transaction.atomic
 def review_profile(profile, actor, *, approve, note=""):
     locked = FinanceAccountabilityPackageProfile.objects.select_for_update().get(pk=profile.pk)
+    _require(actor, "reporting.approve_accountability_package_profiles", locked.department)
     if locked.status != FinanceAccountabilityPackageProfile.SUBMITTED:
         raise ValidationError("Only a submitted package profile can be reviewed.")
     if actor.pk in (locked.created_by_id, locked.submitted_by_id):
@@ -159,6 +162,7 @@ def review_profile(profile, actor, *, approve, note=""):
 @transaction.atomic
 def create_profile_successor(profile, actor, *, reason):
     prior = FinanceAccountabilityPackageProfile.objects.select_for_update().get(pk=profile.pk)
+    _require(actor, "reporting.manage_accountability_package_profiles", prior.department)
     if prior.status != FinanceAccountabilityPackageProfile.ACTIVE:
         raise ValidationError("Only an active package profile can be modified through a successor.")
     reason = (reason or "").strip()
@@ -224,6 +228,7 @@ def _slot_snapshot(slot):
 @transaction.atomic
 def create_package(*, profile, department, actor, title, period_start, period_end, preparation_note=""):
     locked_profile = FinanceAccountabilityPackageProfile.objects.select_for_update().get(pk=profile.pk)
+    _require(actor, "reporting.prepare_accountability_packages", locked_profile.department)
     if locked_profile.department_id != department.pk:
         raise ValidationError("Choose an accountability profile owned by this Accounting office.")
     if locked_profile.status != FinanceAccountabilityPackageProfile.ACTIVE:
@@ -464,6 +469,7 @@ def select_source(slot, actor, *, source_public_id, reason=""):
     locked_slot = FinanceAccountabilityPackageSlot.objects.select_for_update().select_related(
         "package", "report_definition", "source_department",
     ).get(pk=slot.pk)
+    _require(actor, "reporting.prepare_accountability_packages", locked_slot.package.department)
     if not locked_slot.package.is_editable:
         raise ValidationError("Locked packages cannot change evidence. Return the package or create a successor.")
     matched = [entry for entry in source_choices(locked_slot) if entry[0] == str(source_public_id)]
@@ -577,6 +583,7 @@ def package_snapshot(package):
 @transaction.atomic
 def submit_package(package, actor):
     locked = FinanceAccountabilityPackage.objects.select_for_update().get(pk=package.pk)
+    _require(actor, "reporting.prepare_accountability_packages", locked.department)
     if not locked.is_editable:
         raise ValidationError("Only an editable accountability package can be submitted.")
     validation = validate_package(locked)
@@ -604,6 +611,7 @@ def submit_package(package, actor):
 @transaction.atomic
 def review_package(package, actor, *, approve, note=""):
     locked = FinanceAccountabilityPackage.objects.select_for_update().get(pk=package.pk)
+    _require(actor, "reporting.review_accountability_packages", locked.department)
     if locked.status != FinanceAccountabilityPackage.SUBMITTED:
         raise ValidationError("Only a submitted accountability package can be reviewed.")
     if actor.pk in (locked.created_by_id, locked.submitted_by_id):
@@ -656,6 +664,7 @@ def review_package(package, actor, *, approve, note=""):
 @transaction.atomic
 def create_package_successor(package, actor, *, reason):
     prior = FinanceAccountabilityPackage.objects.select_for_update().select_related("profile").get(pk=package.pk)
+    _require(actor, "reporting.prepare_accountability_packages", prior.department)
     if prior.status != FinanceAccountabilityPackage.APPROVED:
         raise ValidationError("Only an approved package can be corrected through a successor.")
     reason = (reason or "").strip()

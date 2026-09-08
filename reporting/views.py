@@ -15,6 +15,7 @@ from src.export_archive import archive_export
 from .access import (
     can_activate_template_promotions, can_approve_template_promotions,
     can_manage_statement_mappings, can_review_statement_mappings,
+    has_accountability_workspace_role, has_local_form_workspace_role,
     can_approve_accountability_profiles, can_export_accountability_packages,
     can_approve_reports, can_download_reports, can_generate_reports, can_manage_definitions,
     can_manage_accountability_profiles, can_prepare_accountability_packages,
@@ -212,18 +213,10 @@ def workspace(request):
         ).select_related("run__definition", "created_by", "reviewed_by")[:5],
         "explained_measures": _explained_finance_measures(visible_runs),
         "statement_mappings_enabled": statement_mappings_enabled,
-        "accountability_packages_enabled": bool(
-            can_manage_accountability_profiles(request.user)
-            or can_prepare_accountability_packages(request.user)
-            or can_review_accountability_packages(request.user)
-            or can_export_accountability_packages(request.user)
-        ),
+        "accountability_packages_enabled": has_accountability_workspace_role(request.user),
         "local_form_acceptance_enabled": bool(
             FinanceLocalFormAcceptance.objects.filter(department=department).exists()
-            or can_manage_local_form_acceptance(request.user)
-            or can_witness_local_form_tests(request.user)
-            or can_review_local_form_acceptance(request.user)
-            or can_export_local_form_acceptance(request.user)
+            or has_local_form_workspace_role(request.user)
         ),
     })
 

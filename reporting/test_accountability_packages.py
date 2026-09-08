@@ -7,7 +7,7 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -120,6 +120,8 @@ class FinanceAccountabilityPackageTests(TestCase):
             required=True, instructions="Choose the independently approved annual Budget schedule.",
         )
         submit_profile(profile, self.config_preparer)
+        self.config_preparer.user_permissions.add(Permission.objects.get(codename="approve_accountability_package_profiles"))
+        self.config_preparer = get_user_model().objects.get(pk=self.config_preparer.pk)
         with self.assertRaisesMessage(ValidationError, "preparer or submitter"):
             review_profile(profile, self.config_preparer, approve=True)
         review_profile(profile, self.config_approver, approve=True, note="Recipe independently checked.")
@@ -159,6 +161,8 @@ class FinanceAccountabilityPackageTests(TestCase):
         self.assertEqual(second.version, 2)
 
         submit_package(package, self.preparer)
+        self.preparer.user_permissions.add(Permission.objects.get(codename="review_accountability_packages"))
+        self.preparer = get_user_model().objects.get(pk=self.preparer.pk)
         with self.assertRaisesMessage(ValidationError, "preparer or submitter"):
             review_package(package, self.preparer, approve=True)
         review_package(package, self.reviewer, approve=True, note="Every source and checksum independently checked.")
@@ -220,3 +224,92 @@ class FinanceAccountabilityPackageTests(TestCase):
         self.assertIn("reporting.prepare_accountability_packages", package_preparer)
         self.assertNotIn("reporting.review_accountability_packages", package_preparer)
         self.assertIn("reporting.review_accountability_packages", package_reviewer)
+
+    def _assert_profile_return_denied(self, actor):
+        profile = self.active_profile()
+        successor = create_profile_successor(profile, self.config_preparer, reason="Reviewed recipe correction")
+        submit_profile(successor, self.config_preparer)
+        before = successor.events.count()
+        with self.assertRaises(PermissionDenied):
+            review_profile(successor, actor, approve=False, note="Correction required")
+        successor.refresh_from_db()
+        self.assertEqual(successor.status, FinanceAccountabilityPackageProfile.SUBMITTED)
+        self.assertEqual(successor.events.count(), before)
+
+    def test_uat_cannot_review_accountability_profile(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        # Build the submitted fixture before adding preview membership.
+        profile = self.active_profile()
+        successor = create_profile_successor(profile, self.config_preparer, reason="Recipe correction")
+        submit_profile(successor, self.config_preparer)
+        self.config_approver.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        with self.assertRaises(PermissionDenied):
+            review_profile(successor, self.config_approver, approve=False, note="Preview return")
+        successor.refresh_from_db()
+        self.assertEqual(successor.status, FinanceAccountabilityPackageProfile.SUBMITTED)
+
+    def test_foreign_office_cannot_review_accountability_profile(self):
+        self.outsider.user_permissions.add(Permission.objects.get(codename="approve_accountability_package_profiles"))
+        self._assert_profile_return_denied(self.outsider)
+
+    def test_accountability_mutations_use_stored_package_office(self):
+        profile = self.active_profile()
+        package = create_package(profile=profile, department=self.accounting, actor=self.preparer,
+                                 title="Office-bound package", period_start=date(2027, 1, 1), period_end=date(2027, 12, 31))
+        slot = package.slots.get()
+        self.outsider.user_permissions.add(*Permission.objects.filter(codename__in=(
+            "manage_accountability_package_profiles", "approve_accountability_package_profiles", "review_accountability_packages",
+        )))
+        profile.department = self.budget
+        package.department = self.budget
+        slot.package.department = self.budget
+        calls = (
+            lambda: submit_profile(profile, self.outsider),
+            lambda: review_profile(profile, self.outsider, approve=False, note="Foreign review"),
+            lambda: create_profile_successor(profile, self.outsider, reason="Foreign successor"),
+            lambda: create_package(profile=profile, department=self.budget, actor=self.outsider,
+                                   title="Foreign package", period_start=date(2027, 1, 1), period_end=date(2027, 12, 31)),
+            lambda: select_source(slot, self.outsider, source_public_id=self.run_one.public_id),
+            lambda: submit_package(package, self.outsider),
+            lambda: review_package(package, self.outsider, approve=False, note="Foreign review"),
+            lambda: create_package_successor(package, self.outsider, reason="Foreign successor"),
+        )
+        before = (profile.events.count(), package.events.count())
+        for index, call in enumerate(calls):
+            with self.subTest(entry_point=index), self.assertRaises(PermissionDenied):
+                call()
+        profile.refresh_from_db()
+        package.refresh_from_db()
+        self.assertEqual(profile.department, self.accounting)
+        self.assertEqual(package.department, self.accounting)
+        self.assertEqual((profile.events.count(), package.events.count()), before)
+        self.assertFalse(slot.selections.exists())
+
+    def test_ungranted_actor_cannot_review_accountability_profile(self):
+        observer = self.employee(self.accounting, "package.observer", "view_reporting_workspace")
+        self._assert_profile_return_denied(observer)
+
+    def test_uat_package_pages_keep_read_export_and_hide_mutations(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        profile = self.active_profile()
+        package = create_package(profile=profile, department=self.accounting, actor=self.preparer,
+                                 title="Preview package", period_start=date(2027, 1, 1), period_end=date(2027, 12, 31))
+        self.preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.preparer)
+        detail = self.client.get(reverse("reporting:accountability_package_detail", args=(package.public_id,)))
+        self.assertEqual(detail.status_code, 200)
+        self.assertFalse(detail.context["can_prepare"])
+        self.assertFalse(detail.context["can_review"])
+        self.assertTrue(detail.context["can_export"])
+        self.assertEqual(self.client.post(reverse("reporting:accountability_package_submit", args=(package.public_id,))).status_code, 403)
+
+    def test_uat_profile_manager_retains_workspace_navigation_without_export(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        self.config_preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.config_preparer)
+        response = self.client.get(reverse("reporting:workspace"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["accountability_packages_enabled"])

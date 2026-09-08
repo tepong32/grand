@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.37 - accountability and local-form authority
+
+Accountability profile/package and local-form starter/test/acceptance/successor services now require current stored office, action authority and non-UAT identity. Source controls share these checks. Read/export grants, preview navigation and authorized cross-office package evidence links remain intact. Verification: all 31 focused accountability/local-form tests passed in 8.234 seconds; all 622 project tests passed in 189.529 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.36 - statement governance authority
 
 Statement mapping, note-package and reference-comparison services now enforce action authority, current stored office and UAT exclusion. Mapping submission is atomic and mapping decisions reload stored evidence. Note creation reloads both source runs. Statement page controls use the same Finance-specific authority while read/export permissions remain separate. Verification: all 28 focused statement/Finance reporting tests passed in 5.072 seconds; all 612 project tests passed in 184.317 seconds. System, migration-drift, compilation and diff checks passed.

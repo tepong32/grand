@@ -9,7 +9,7 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -192,6 +192,8 @@ class FinanceLocalFormAcceptanceTests(TestCase):
         item = self.local_form()
         self.pass_all_tests(item)
         submit_local_form(item, self.preparer)
+        self.preparer.user_permissions.add(Permission.objects.get(codename="review_local_form_acceptance"))
+        self.preparer = get_user_model().objects.get(pk=self.preparer.pk)
         with self.assertRaisesMessage(ValidationError, "preparer or submitter"):
             review_local_form(item, self.preparer, approve=True, note="Self acceptance.")
         review_local_form(
@@ -407,6 +409,8 @@ class FinanceLocalFormAcceptanceTests(TestCase):
             evidence_checksum="a" * 64,
         )
         self.witness = self.grant_finance_entry(self.witness)
+        self.witness.user_permissions.add(Permission.objects.get(codename="manage_local_form_acceptance"))
+        self.witness = get_user_model().objects.get(pk=self.witness.pk)
         record_test_attempt(
             self.local_form("self-witness-test"), self.witness,
             category=FinanceLocalFormTestAttempt.DATA_CONTROL,
@@ -495,7 +499,7 @@ class FinanceLocalFormAcceptanceTests(TestCase):
         self.assertEqual(FinanceLocalFormAcceptance.objects.filter(
             department=self.department, code="lbe-form-2",
         ).count(), 1)
-        with self.assertRaisesMessage(ValidationError, "actor's assigned department"):
+        with self.assertRaises(PermissionDenied):
             create_local_form_from_starter(
                 self.other_department, self.preparer, starter_key="lbe-form-2",
             )
@@ -617,6 +621,8 @@ class FinanceLocalFormAcceptanceTests(TestCase):
             observed_result="Heading was missing on page two.", environment="PDF and office printer.",
             evidence_reference="Retained failed overflow sample.", evidence_checksum="a" * 64,
         )
+        self.preparer.user_permissions.add(Permission.objects.get(codename="witness_local_form_tests"))
+        self.preparer = get_user_model().objects.get(pk=self.preparer.pk)
         with self.assertRaisesMessage(ValidationError, "cannot witness"):
             review_test_attempt(first, self.preparer, action="pass", note="Self witness.")
         review_test_attempt(first, self.witness, action="fail", note="Page-two heading is missing.")
@@ -746,3 +752,66 @@ class FinanceLocalFormAcceptanceTests(TestCase):
         self.assertIn("reporting.witness_local_form_tests", approver)
         self.assertIn("reporting.review_local_form_acceptance", approver)
         self.assertNotIn("reporting.manage_local_form_acceptance", approver)
+
+    def test_uat_cannot_review_local_form_acceptance(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        item = self.local_form()
+        self.pass_all_tests(item)
+        submit_local_form(item, self.preparer)
+        self.witness.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        before = item.events.count()
+        with self.assertRaises(PermissionDenied):
+            review_local_form(item, self.witness, approve=False, note="Preview return")
+        item.refresh_from_db()
+        self.assertEqual(item.status, FinanceLocalFormAcceptance.SUBMITTED)
+        self.assertEqual(item.events.count(), before)
+
+    def test_local_form_mutations_use_stored_office(self):
+        item = self.local_form()
+        attempts = self.pass_all_tests(item)
+        self.outsider.user_permissions.add(*Permission.objects.filter(codename__in=("witness_local_form_tests", "review_local_form_acceptance")))
+        item.department = self.other_department
+        attempts[0].form.department = self.other_department
+        calls = (
+            lambda: create_local_form_from_starter(self.department, self.outsider, starter_key="lbe-form-2"),
+            lambda: record_test_attempt(item, self.outsider, category=attempts[0].category,
+                                        test_steps="Foreign test", expected_result="Pass", observed_result="Pass",
+                                        environment="Synthetic", evidence_reference="Synthetic evidence",
+                                        evidence_checksum="a" * 64, change_reason="Foreign retry"),
+            lambda: review_test_attempt(attempts[0], self.outsider, action="pass", note="Foreign witness"),
+            lambda: submit_local_form(item, self.outsider),
+            lambda: review_local_form(item, self.outsider, approve=False, note="Foreign return"),
+            lambda: create_local_form_successor(item, self.outsider, reason="Foreign successor"),
+        )
+        before = item.events.count()
+        for index, call in enumerate(calls):
+            with self.subTest(entry_point=index), self.assertRaises(PermissionDenied):
+                call()
+        item.refresh_from_db()
+        self.assertEqual(item.department, self.department)
+        self.assertEqual(item.status, FinanceLocalFormAcceptance.DRAFT)
+        self.assertEqual(item.events.count(), before)
+
+    def test_uat_local_form_page_retains_read_and_export_controls(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        item = self.local_form()
+        self.preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.preparer)
+        detail = self.client.get(reverse("reporting:local_form_detail", args=(item.public_id,)))
+        self.assertEqual(detail.status_code, 200)
+        self.assertFalse(detail.context["can_manage"])
+        self.assertFalse(detail.context["can_review"])
+        self.assertTrue(detail.context["can_export"])
+        self.assertEqual(self.client.post(reverse("reporting:local_form_submit", args=(item.public_id,))).status_code, 403)
+
+    def test_uat_form_manager_retains_workspace_navigation_without_export(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        self.preparer.user_permissions.remove(Permission.objects.get(codename="export_local_form_acceptance"))
+        self.preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("reporting:workspace"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["local_form_acceptance_enabled"])

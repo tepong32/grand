@@ -96,19 +96,19 @@ def can_activate_template_promotions(user, department=None):
 
 
 def can_manage_accountability_profiles(user, department=None):
-    return _authorized(user, "reporting.manage_accountability_package_profiles", department)
+    return can_mutate_finance_reporting(user, "reporting.manage_accountability_package_profiles", department)
 
 
 def can_approve_accountability_profiles(user, department=None):
-    return _authorized(user, "reporting.approve_accountability_package_profiles", department)
+    return can_mutate_finance_reporting(user, "reporting.approve_accountability_package_profiles", department)
 
 
 def can_prepare_accountability_packages(user, department=None):
-    return _authorized(user, "reporting.prepare_accountability_packages", department)
+    return can_mutate_finance_reporting(user, "reporting.prepare_accountability_packages", department)
 
 
 def can_review_accountability_packages(user, department=None):
-    return _authorized(user, "reporting.review_accountability_packages", department)
+    return can_mutate_finance_reporting(user, "reporting.review_accountability_packages", department)
 
 
 def can_export_accountability_packages(user, department=None):
@@ -116,15 +116,15 @@ def can_export_accountability_packages(user, department=None):
 
 
 def can_manage_local_form_acceptance(user, department=None):
-    return _authorized(user, "reporting.manage_local_form_acceptance", department)
+    return can_mutate_finance_reporting(user, "reporting.manage_local_form_acceptance", department)
 
 
 def can_witness_local_form_tests(user, department=None):
-    return _authorized(user, "reporting.witness_local_form_tests", department)
+    return can_mutate_finance_reporting(user, "reporting.witness_local_form_tests", department)
 
 
 def can_review_local_form_acceptance(user, department=None):
-    return _authorized(user, "reporting.review_local_form_acceptance", department)
+    return can_mutate_finance_reporting(user, "reporting.review_local_form_acceptance", department)
 
 
 def can_export_local_form_acceptance(user, department=None):
@@ -188,3 +188,23 @@ def can_manage_statement_mappings(user, department=None):
 
 def can_review_statement_mappings(user, department=None):
     return can_mutate_finance_reporting(user, "reporting.approve_reports", department)
+
+
+def require_finance_reporting_permission(actor, permission, department):
+    if not can_mutate_finance_reporting(actor, permission, department):
+        raise PermissionDenied("Finance governance requires current owning-office action authority.")
+
+
+def has_accountability_workspace_role(user):
+    """Navigation discovery preserves role-based read access, including preview."""
+    return any(_authorized(user, permission) for permission in (
+        "reporting.manage_accountability_package_profiles", "reporting.prepare_accountability_packages",
+        "reporting.review_accountability_packages", "reporting.export_accountability_packages",
+    ))
+
+
+def has_local_form_workspace_role(user):
+    return any(_authorized(user, permission) for permission in (
+        "reporting.manage_local_form_acceptance", "reporting.witness_local_form_tests",
+        "reporting.review_local_form_acceptance", "reporting.export_local_form_acceptance",
+    ))

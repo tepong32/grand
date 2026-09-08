@@ -44,6 +44,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-024:** Preserve Treasury ownership and cross-office review in personal cash handoffs.
 - **D-025:** Apply the Finance report mutation boundary by source domain while retaining non-Finance authority.
 - **D-026:** Enforce statement governance at service boundaries without changing read/export roles.
+- **D-027:** Enforce package/form mutation ownership while preserving cross-office evidence and preview discovery.
 
 ### D-001 — Retained events determine personal completion
 
@@ -327,3 +328,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Revisit when: changing governance action roles or adding new service entry points; keep source reads and retained exports independently authorized.
 
 - v0.7.36 continuity maintenance: archived superseded checkpoint instructions in FINANCE_CHECKPOINT_HISTORY.md and made CONTINUE.md a current handoff. Replaced its stale universal-full-suite rule with the pulled master AGENTS.md proportional-testing policy; preserved all historical evidence and external gates.
+
+### D-027 — Preserve evidence visibility while enforcing package/form authority
+
+- Date/checkpoint: 2026-09-09; v0.7.37.
+- Decision: apply the shared Finance governance guard to accountability recipes/packages and local-form starter, test, acceptance and successor services. Check the stored owning office after reload. Preserve role-based navigation independently of mutation authority and retain separately permitted read/export access.
+- Alternatives considered: trust view permissions; require every package source to belong to its assembling office; remove preview navigation when mutation rights disappear; treat a new scope denial as a business-validation error.
+- Goal fit: assembling traceable inter-office evidence requires authorized source links while only accountable office actors may alter the bundle or its acceptance evidence.
+- Tradeoff: starter cross-office denial is now PermissionDenied. Maker-checker fixtures explicitly grant both duties and refresh permission caches. Generic template/definition/schedule governance remains a separate open slice.
+- Evidence/status: three unauthorized profile/form reviews succeeded before repair (2.699 seconds). All 31 focused tests and 622 project tests passed, including preview-navigation checks without export grants.
+- Revisit when: local acceptance introduces authorized cross-office witnesses or a different package ownership policy; do not infer those rights from readable evidence.
