@@ -2,7 +2,7 @@
 
 This table describes the implemented My Work views, not production or LGU acceptance. Current source authorization applies to every row. Ready/action coverage is detailed in [FINANCE_MY_WORK.md](FINANCE_MY_WORK.md); turning-point choices are in [IMPLEMENTATION_DECISIONS.md](IMPLEMENTATION_DECISIONS.md).
 
-Last reviewed: 2026-09-08, v0.7.31 bank-reconciliation handoffs.
+Last reviewed: 2026-09-08, v0.7.34 cash handoffs.
 
 | Source domain | Personal Waiting | Completed by me |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ Last reviewed: 2026-09-08, v0.7.31 bank-reconciliation handoffs.
 | Payment instruments | Shared case through Treasury/advice/release/event posting (v0.7.27); returned reviews use their own adapter (v0.7.28) | Retained issuance/replacement/advice-submission/cancellation/release events (v0.7.30) |
 | Bank reconciliation | Own submitted batches under current bank-register access (v0.7.31) | Retained submission/return/reconciliation events (v0.7.31) |
 | Returned-payment reviews | Current attributed review/clarification/posting/replacement handoffs (v0.7.28) | Retained submission/clarification/return/decision events (v0.7.29); later posting remains; issuance uses instrument history (v0.7.30) |
-| Cash policy and cash position | Remaining coverage | Remaining coverage |
+| Cash policy and cash position | Own submitted controls under current source read scope (v0.7.34) | Retained submission, activation/approval and return events (v0.7.34); draft creation and detailed instrument-exception actions remain in source audit |
 | Reporting runs and accountability packages | Remaining coverage | Remaining coverage |
 | Field cycles and named nested controls | Remaining coverage | Remaining coverage |
 | Local forms | Remaining coverage | Remaining coverage |

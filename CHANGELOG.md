@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.34 - cash personal handoffs
+
+Personal Waiting now follows the user's submitted cash policies and positions under current source access. Completed by me credits retained submission, activation/approval and return events with matching actor office and valid policy/position linkage. Explicit cross-office reviewer visibility remains supported; current state stays separate from historical actions. Verification: all 17 focused cash contracts/lifecycle tests passed in 7.664 seconds; all 179 My Work/voucher dependency tests passed in 83.618 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.33 - stored cash custody
 
 Cash preparation and manual exception-resolution services now check owning-office custody on locked stored records. Policy-specific export reloads stored ownership before authorization and archive attribution. Independent cross-office review and existing read/export permissions remain unchanged. Verification: all 15 focused cash contracts/lifecycle tests passed in 12.682 seconds; all 599 project tests passed in 370.798 seconds. System, migration-drift, compilation and diff checks passed.

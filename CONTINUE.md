@@ -14,7 +14,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.33 checkpoint - stored cash custody
+## Current v0.7.34 checkpoint - cash personal handoffs
+
+Branch: `codex/finance-cash-personal-handoffs`, based on pushed `7e6fdb4`. Personal Waiting now follows the user's submitted cash policies and positions under current source access. Completed by me credits retained submission, activation/approval and return events with matching actor office and valid policy/position linkage. Explicit cross-office reviewer visibility remains supported; current state stays separate from historical actions. Verification: all 17 focused cash contracts/lifecycle tests passed in 7.664 seconds; all 179 My Work/voucher dependency tests passed in 83.618 seconds. System, migration-drift, compilation and diff checks passed. D-024 records scope. Next: reproduce FIN-GAP-017 with domain-aware Finance reporting fixtures before reporting handoffs, then continue remaining Finance adapters. Preserve the user database.
+
+## Previous v0.7.33 checkpoint - stored cash custody
 
 Branch: `codex/finance-cash-stored-custody`, based on pushed `7711624`. Cash preparation and manual exception-resolution services now check owning-office custody on locked stored records. Policy-specific export reloads stored ownership before authorization and archive attribution. Independent cross-office review and existing read/export permissions remain unchanged. FIN-GAP-016 reproduced: foreign policy submission with altered in-memory ownership succeeded (1 failed denial test, 1.818 seconds). Verification: all 15 focused cash contracts/lifecycle tests passed in 12.682 seconds; all 599 project tests passed in 370.798 seconds. System, migration-drift, compilation and diff checks passed. D-023 records the decision. Next: cash personal Waiting/completion, then verify FIN-GAP-017 before reporting handoffs and continue the remaining documented Finance adapters. Preserve the user database.
 

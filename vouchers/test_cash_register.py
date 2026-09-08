@@ -341,3 +341,52 @@ class CashWorkRegisterTests(TestCase):
             with self.assertRaises(PermissionDenied):
                 export_cash_position_csv(actor=self.user, policy=self.hidden_policy)
             archive.assert_not_called()
+
+    def test_cash_waiting_is_personal_scoped_and_excludes_actions_before_limit(self):
+        own = {f"treasury-cash-policy:{self.review_policy.public_id}", f"treasury-cash-position:{self.review_position.public_id}"}
+        waiting = finance_work_tasks(self.user, view="waiting")["tasks"]
+        self.assertEqual({row["case_id"] for row in waiting}, own)
+        self.client.force_login(self.user)
+        for row in waiting:
+            self.assertEqual(self.client.get(row["url"]).status_code, 200)
+            self.assertIsNone(row["due_on"])
+        self.assertFalse(finance_work_tasks(self.reviewer, view="waiting")["tasks"])
+        self.user.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="approve_cash_position",
+        ))
+        actionable = self._policy(self.release, self.treasury, self.reviewer, TreasuryCashPolicy.FOR_REVIEW, 5)
+        self.assertIn(f"treasury-cash-policy:{actionable.public_id}", {
+            row["case_id"] for row in finance_work_tasks(self.user)["tasks"]
+        })
+        limited = finance_work_tasks(self.user, view="waiting", display_limit=1)["tasks"]
+        self.assertEqual(len(limited), 1)
+        self.assertNotEqual(limited[0]["case_id"], f"treasury-cash-policy:{actionable.public_id}")
+        self.user.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertFalse(finance_work_tasks(self.user, view="waiting")["tasks"])
+
+    def test_cash_history_retains_actor_actions_under_current_source_read_scope(self):
+        submitted = submit_policy(policy=self.draft_policy, actor=self.user)
+        self.assertIn(f"treasury-cash-policy:{submitted.public_id}", {
+            row["case_id"] for row in finance_work_tasks(self.user, view="waiting")["tasks"]
+        })
+        decide_policy(policy=submitted, actor=self.reviewer, approve=False, reason="Correct authority evidence")
+        own = finance_work_tasks(self.user, view="completed")["tasks"]
+        self.assertEqual(len(own), 1)
+        self.assertIn("Submitted cash policy", own[0]["subject"])
+        self.assertEqual(own[0]["source_state"], "Returned for correction")
+        reviewed = finance_work_tasks(self.reviewer, view="completed")["tasks"]
+        self.assertEqual(len(reviewed), 1)
+        self.assertIn("Returned cash policy", reviewed[0]["subject"])
+        TreasuryCashEvent.objects.create(policy=submitted, actor=self.reviewer, actor_department=self.treasury,
+                                        action="cash_policy_returned")
+        TreasuryCashEvent.objects.create(policy=submitted, position=self.review_position, actor=self.reviewer,
+                                        actor_department=self.other, action="cash_position_submitted")
+        self.assertEqual(len(finance_work_tasks(self.reviewer, view="completed")["tasks"]), 1)
+        self.reviewer.user_permissions.remove(Permission.objects.get(
+            content_type__app_label="vouchers", codename="approve_cash_position",
+        ))
+        self.assertFalse(finance_work_tasks(self.reviewer, view="completed")["tasks"])
+        self.user.user_permissions.remove(*Permission.objects.filter(
+            content_type__app_label="vouchers", codename__in=("view_cash_position", "prepare_cash_position"),
+        ))
+        self.assertFalse(finance_work_tasks(self.user, view="completed")["tasks"])

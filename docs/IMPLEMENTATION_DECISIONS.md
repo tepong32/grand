@@ -41,6 +41,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 - **D-022:** Reproduce and fix the cash UAT mutation boundary before extending cash projections.
 - **D-023:** Verify cash preparation and manual-resolution custody against locked stored records.
+- **D-024:** Preserve Treasury ownership and cross-office review in personal cash handoffs.
 
 ### D-001 — Retained events determine personal completion
 
@@ -292,3 +293,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Tradeoff: preserve current independent review scope; no new role or workflow is introduced.
 - Evidence/status: four mutation entry points inspect caller ownership before reload; policy-specific export also trusts supplied ownership. Foreign policy submission was accepted using altered in-memory ownership (1 failed denial test, 1.818 seconds). Stored-custody repair implemented; all 599 project tests passed in 370.798 seconds.
 - Revisit when: regressions prove foreign ownership cannot be substituted and normal financial lifecycle remains valid.
+
+### D-024 — Preserve cash source scope in personal handoffs
+
+- Date/checkpoint: 2026-09-08; v0.7.34.
+- Decision: project own submitted cash policies/positions and retained submission/decision events through the existing source read rules. Centralize the existing read predicate for source pages and projections; require actor-office continuity and matching policy/position event linkage for history.
+- Alternatives considered: restrict all cash records to the current Treasury office, which would hide authorized independent cross-office review; infer completion from status; treat policy/as-of dates as deadlines.
+- Goal fit: one source of cash evidence should preserve who prepared and reviewed each version without widening access or implying a deadline.
+- Tradeoff: draft creation and instrument-exception detail history remain in source audit. Current source status is separate from historical actions; read loss hides projections.
+- Evidence/status: focused cash contracts and actual lifecycle replay cover handoffs, review outcomes, UAT, office/read loss and malformed event linkage; all 17 focused tests and 179 dependent tests passed.
+- Revisit when: expanding detailed exception completion or when an accepted local workflow supplies actual structured targets.

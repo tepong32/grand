@@ -272,3 +272,7 @@ Completed by me now credits retained check issuance, controlled replacement issu
 ## v0.7.31 - bank-reconciliation personal handoffs
 
 Personal Waiting now includes the user’s submitted bank reconciliations under current bank-register access. Completed by me includes retained submission, return and reconciliation events with matching event/batch office and actor attribution. Current batch state remains separate from historical actions. Statement coverage dates are not deadlines; individual matching/classification actions remain outside this completion slice. See [D-021](IMPLEMENTATION_DECISIONS.md) and [validation](FINANCE_ROADMAP_COMPLETION_AUDIT.md).
+
+### Cash policy and position personal handoffs (v0.7.34)
+
+Personal Waiting now follows the user's submitted cash policies and positions under current source access. Completed by me credits retained submission, activation/approval and return events with matching actor office and valid policy/position linkage. Explicit cross-office reviewer visibility remains supported; current state stays separate from historical actions. Effective dates and position as-of dates are context, not deadlines. Draft creation and individual instrument-exception actions remain in the source audit. Submitted cash controls open their existing policy detail, which retains the policy and its position versions.

@@ -77,6 +77,30 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             url=reverse(route, kwargs=route_kwargs if route_kwargs is not None else {"public_id": item.public_id}) + fragment,
         ))
 
+    from vouchers.cash_register import can_view_cash, visible_cash_policies
+    from vouchers.models import TreasuryCashPolicy, TreasuryCashPosition
+
+    if can_view_cash(user):
+        cash_policies = visible_cash_policies(user)
+        policies = cash_policies.filter(status=TreasuryCashPolicy.FOR_REVIEW).filter(
+            Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk),
+        )
+        positions = TreasuryCashPosition.objects.filter(
+            policy__in=cash_policies, status=TreasuryCashPosition.FOR_REVIEW,
+        ).filter(Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk)).select_related("policy__treasury_department")
+        for kind, items in (("treasury-cash-policy", policies), ("treasury-cash-position", positions)):
+            for item in items:
+                policy = item if kind == "treasury-cash-policy" else item.policy
+                reference = f"{policy.bank_account_code} / {policy.fund_code} · policy v{policy.version}"
+                if kind == "treasury-cash-position":
+                    reference += f" · position {item.as_of_date} v{item.version}"
+                add(item, kind=kind, area="Treasury", reference=reference,
+                    subject="Submitted cash policy" if kind == "treasury-cash-policy" else "Submitted cash position",
+                    received=item.submitted_at, queue="Independent cash-control reviewers",
+                    scope=f"{policy.treasury_department.name}; bank {policy.bank_account_code}; fund {policy.fund_code}",
+                    route="vouchers:cash_policy_detail", route_kwargs={"public_id": policy.public_id},
+                    attribution=[item.created_by_id, item.submitted_by_id])
+
     from .access import can_view_finance_setup
     from .models import FinanceConfigurationRelease
 

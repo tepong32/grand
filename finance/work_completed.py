@@ -580,3 +580,61 @@ def completed_instrument_tasks(user, department, today):
             url=reverse("vouchers:case_detail", kwargs={"public_id": item.public_id}),
         ))
     return tasks
+
+
+def completed_cash_tasks(user, department, today):
+    from vouchers.cash_register import can_view_cash, visible_cash_policies
+    from vouchers.models import TreasuryCashEvent
+    from vouchers.roles import is_finance_uat_viewer
+    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
+
+    if is_finance_uat_viewer(user) or not can_view_cash(user):
+        return []
+    labels = {
+        "cash_policy_submitted": "Submitted cash policy for independent review",
+        "cash_policy_activated": "Activated cash policy",
+        "cash_policy_returned": "Returned cash policy for correction",
+        "cash_position_submitted": "Submitted cash position for independent review",
+        "cash_position_approved": "Approved cash position",
+        "cash_position_returned": "Returned cash position for correction",
+    }
+    events = TreasuryCashEvent.objects.filter(
+        policy__in=visible_cash_policies(user), actor=user, actor_department=department,
+        action__in=labels, instrument__isnull=True,
+    ).select_related("policy__treasury_department", "position")
+    tasks = []
+    for event in events:
+        is_position = event.action.startswith("cash_position_")
+        if is_position and (event.position_id is None or event.position.policy_id != event.policy_id):
+            continue
+        if not is_position and event.position_id is not None:
+            continue
+        item = event.position if is_position else event.policy
+        policy = event.policy
+        kind = "treasury-cash-position" if is_position else "treasury-cash-policy"
+        event_id = _source_record_identity(f"{kind}-event", event.pk)
+        reference = f"{policy.bank_account_code} / {policy.fund_code} · policy v{policy.version}"
+        if is_position:
+            reference += f" · position {item.as_of_date} v{item.version}"
+        label = labels[event.action]
+        revision = _projection_checksum({
+            "event_id": str(event_id), "action": event.action, "actor_id": event.actor_id,
+            "actor_department_id": event.actor_department_id, "at": event.created_at.isoformat(),
+            "snapshot": event.snapshot, "reason": event.reason, "source_id": str(item.public_id),
+            "current_state": item.status, "reference": reference,
+        })
+        tasks.append(FinanceWorkTask(
+            task_id=f"finwork:v1:{kind}-event:{event_id}:completed",
+            task_type=f"finance.{kind}.{event.action}.completed.v1", area="Treasury",
+            case_id=f"{kind}:{item.public_id}", reference=reference, subject=label,
+            transaction_type="Recorded cash-control action", action="View recorded outcome",
+            gate=f"The retained event attributes this completed action to you: {label}." + (f" Reason: {event.reason}" if event.reason else ""),
+            owner_queue=f"Recorded actor: {user.get_full_name() or user.username}",
+            scope=f"{policy.treasury_department.name}; bank {policy.bank_account_code}; fund {policy.fund_code}",
+            received_at=event.created_at, due_on=None, due_state="Recorded completion",
+            calendar_basis="Elapsed calendar days since this recorded action. Current source state is shown separately.",
+            age_days=_age_days(event.created_at, today), state="Completed", source_state=item.get_status_display(),
+            source_version=f"event-sha256:{revision}", exception="",
+            url=reverse("vouchers:cash_policy_detail", kwargs={"public_id": policy.public_id}),
+        ))
+    return tasks

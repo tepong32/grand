@@ -3707,7 +3707,19 @@ class VoucherWorkflowTests(TestCase):
                 with self.assertRaises(PermissionDenied):
                     operation(**forged)
                 self.assertEqual(TreasuryCashEvent.objects.count(), before)
-            return operation(**kwargs)
+            result = operation(**kwargs)
+            if operation in (submit_policy, submit_position, decide_policy, decide_position):
+                from finance.work_tasks import finance_work_tasks
+                kind = "treasury-cash-position" if operation in (submit_position, decide_position) else "treasury-cash-policy"
+                identity = f"{kind}:{result.public_id}"
+                history = finance_work_tasks(actor, view="completed")["tasks"]
+                self.assertTrue(any(row["case_id"] == identity for row in history))
+                waiting = {row["case_id"] for row in finance_work_tasks(self.treasury_user, view="waiting")["tasks"]}
+                if operation in (submit_policy, submit_position):
+                    self.assertIn(identity, waiting)
+                else:
+                    self.assertNotIn(identity, waiting)
+            return result
 
         self.treasury_user.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="vouchers",

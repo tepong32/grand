@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.db.models import Q
 
-from .access import department_for_user, has_explicit_permission
+from .access import can_view_workbench, department_for_user, has_explicit_permission
 from .models import TreasuryCashPolicy, TreasuryCashPosition
 from .roles import is_finance_uat_viewer
 
@@ -48,6 +48,13 @@ CASH_ATTENTION_SPECS = {
         "next_action": "Independently compare the position with its pinned reconciliation and decide it.",
     },
 }
+
+
+def can_view_cash(user):
+    return can_view_workbench(user) and any(has_explicit_permission(user, permission) for permission in (
+        "vouchers.view_cash_position", "vouchers.prepare_cash_position",
+        "vouchers.approve_cash_position", "vouchers.export_cash_position",
+    ))
 
 
 def visible_cash_policies(user):

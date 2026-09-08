@@ -17,19 +17,12 @@ from .cash_positions import (
     open_instrument_exception, policy_availability, resolve_instrument_exception,
     submit_policy, submit_position,
 )
-from .cash_register import CASH_ATTENTION_CHOICES, cash_attention_queryset, visible_cash_policies
+from .cash_register import CASH_ATTENTION_CHOICES, can_view_cash as _can_view, cash_attention_queryset, visible_cash_policies
 from .forms import (
     InstrumentExceptionForm, InstrumentExceptionResolutionForm, TreasuryCashPolicyForm,
     TreasuryCashPositionForm, TreasuryCashReviewForm,
 )
 from .models import PaymentInstrument, PaymentInstrumentException, TreasuryCashPolicy, TreasuryCashPosition
-
-
-def _can_view(user):
-    return any(has_explicit_permission(user, permission) for permission in (
-        "vouchers.view_cash_position", "vouchers.prepare_cash_position",
-        "vouchers.approve_cash_position", "vouchers.export_cash_position",
-    ))
 
 
 def _error(request, exc):
