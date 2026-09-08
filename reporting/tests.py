@@ -633,3 +633,17 @@ class ReportingPlatformTests(TestCase):
         self.assertEqual(self.client.get(reverse("reporting:template_mapping", args=(template.pk,))).status_code, 404)
         self.client.force_login(self.operator)
         self.assertEqual(self.client.get(reverse("reporting:template_mapping", args=(template.pk,))).status_code, 403)
+
+    def test_finance_preview_membership_preserves_nonfinance_reporting_role(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        from .run_register_exports import report_action_queryset
+
+        group = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0]
+        self.operator.groups.add(group)
+        self.reviewer.groups.add(group)
+        run = self._generate()
+        self.assertTrue(report_action_queryset(self.reviewer, "needs_review")[0].filter(pk=run.pk).exists())
+        transition_run(run, "review", self.reviewer, "Non-Finance review remains authorized")
+        transition_run(run, "approve", self.reviewer, "Non-Finance approval remains authorized")
+        self.assertEqual(run.status, ReportRun.APPROVED)

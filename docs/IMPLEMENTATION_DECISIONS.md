@@ -42,6 +42,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-022:** Reproduce and fix the cash UAT mutation boundary before extending cash projections.
 - **D-023:** Verify cash preparation and manual-resolution custody against locked stored records.
 - **D-024:** Preserve Treasury ownership and cross-office review in personal cash handoffs.
+- **D-025:** Apply the Finance report mutation boundary by source domain while retaining non-Finance authority.
 
 ### D-001 — Retained events determine personal completion
 
@@ -303,3 +304,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Tradeoff: draft creation and instrument-exception detail history remain in source audit. Current source status is separate from historical actions; read loss hides projections.
 - Evidence/status: focused cash contracts and actual lifecycle replay cover handoffs, review outcomes, UAT, office/read loss and malformed event linkage; all 17 focused tests and 179 dependent tests passed.
 - Revisit when: expanding detailed exception completion or when an accepted local workflow supplies actual structured targets.
+
+### D-025 — Apply report mutation authority by source domain
+
+- Date/checkpoint: 2026-09-08; v0.7.35.
+- Decision: require Finance operational authority for manual generation and run decisions using the stored definition's finance_ dataset namespace; retained control-gate evidence also identifies Finance decisions. UAT membership overrides Finance operational/head grants. Keep non-Finance roles, read/download permissions and trusted scheduler execution separate.
+- Alternatives considered: deny all reporting mutations for UAT membership, including unrelated social-welfare roles; rely only on hidden controls; trust the caller's definition fields; alter automated schedule execution during a user-action repair.
+- Goal fit: financial preview must remain read-only without weakening the shared municipal reporting platform or inventing new approvals.
+- Tradeoff: related configuration, template, schedule and Finance control mutations require their own source audit (FIN-GAP-018). This checkpoint closes the named manual/run boundary only.
+- Evidence/status: UAT generation and department-head review both succeeded before the fix (2 failed denial tests, 1.137 seconds). All 50 focused reporting tests and 606 project tests passed.
+- Revisit when: adding a new Finance dataset namespace or governing automated execution identities; preserve source-domain classification and current stored ownership.

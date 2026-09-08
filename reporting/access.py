@@ -153,3 +153,17 @@ def reporting_permission_required(check):
             return view_func(request, *args, **kwargs)
         return wrapper
     return decorator
+
+
+def report_source_mutation_allowed(user, definition, *, control_gate_required=False):
+    """Additional Finance boundary; callers still require their action permission."""
+    from vouchers.roles import is_finance_uat_viewer
+
+    if not definition.dataset_key.startswith("finance_") and not control_gate_required:
+        return True
+    department = department_for_user(user)
+    return bool(
+        getattr(user, "is_authenticated", False) and getattr(user, "is_active", False)
+        and department and department.pk == definition.department_id
+        and not is_finance_uat_viewer(user)
+    )

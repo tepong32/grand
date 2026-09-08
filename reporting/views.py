@@ -24,7 +24,7 @@ from .access import (
     can_prepare_template_promotions,
     can_view_department_reports, can_prepare_reference_comparisons, can_prepare_statement_notes,
     can_review_reference_comparisons, can_review_statement_notes, can_export_statement_packages,
-    reporting_access_required, reporting_permission_required,
+    reporting_access_required, reporting_permission_required, report_source_mutation_allowed,
 )
 from .forms import (
     FinanceAccountabilityPackageForm, FinanceAccountabilityPackageProfileForm,
@@ -1541,7 +1541,7 @@ def definition_detail(request, pk):
     definition = _department_object(ReportDefinition.objects.all(), request.user, pk=pk)
     form = ManualReportForm(request.POST or None, definition=definition)
     if request.method == "POST":
-        if not can_generate_reports(request.user):
+        if not (can_generate_reports(request.user) and report_source_mutation_allowed(request.user, definition)):
             from django.core.exceptions import PermissionDenied
             raise PermissionDenied
         if form.is_valid():
@@ -1559,7 +1559,7 @@ def definition_detail(request, pk):
         "templates": definition.template_versions.select_related(
             "created_by", "approved_by", "fidelity_validated_by",
         ).all(),
-        "can_generate": can_generate_reports(request.user),
+        "can_generate": (can_generate_reports(request.user) and report_source_mutation_allowed(request.user, definition)),
         "can_manage_templates": can_manage_templates(request.user),
         "can_manage_definitions": can_manage_definitions(request.user),
         "can_approve_templates": can_approve_reports(request.user),
@@ -1891,8 +1891,8 @@ def run_detail(request, public_id):
         ).select_related("record").first()
         official_record = association.record if association else None
     return render(request, "reporting/run_detail.html", {
-        "run": run, "can_review": can_review_reports(request.user),
-        "can_approve": can_approve_reports(request.user), "can_download": can_download,
+        "run": run, "can_review": (can_review_reports(request.user) and report_source_mutation_allowed(request.user, run.definition, control_gate_required=run.control_gate_required)),
+        "can_approve": (can_approve_reports(request.user) and report_source_mutation_allowed(request.user, run.definition, control_gate_required=run.control_gate_required)), "can_download": can_download,
         "can_print": can_download and run.is_printable, "official_record": official_record,
         "source_records": run.source_records.all()[:100],
         "statement_comparison_controls": comparison_controls(run),
@@ -1906,7 +1906,7 @@ def run_detail(request, public_id):
 @require_POST
 def run_transition(request, public_id, action):
     run = get_object_or_404(_runs_visible_to(request.user), public_id=public_id)
-    allowed = (action == "review" and can_review_reports(request.user)) or (action in ("approve", "supersede") and can_approve_reports(request.user))
+    allowed = (action == "review" and (can_review_reports(request.user) and report_source_mutation_allowed(request.user, run.definition, control_gate_required=run.control_gate_required))) or (action in ("approve", "supersede") and (can_approve_reports(request.user) and report_source_mutation_allowed(request.user, run.definition, control_gate_required=run.control_gate_required)))
     if not allowed:
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied

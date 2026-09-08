@@ -2,7 +2,7 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 Turning-point decisions are recorded separately in [the implementation decision log](docs/IMPLEMENTATION_DECISIONS.md), as requested by the user. Keep each choice tied to the canonical product goal, alternatives, tradeoffs, evidence and revisit conditions.
 
@@ -14,7 +14,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.34 checkpoint - cash personal handoffs
+## Current v0.7.35 checkpoint - Finance report run authority
+
+Branch: `codex/finance-report-run-authority`, based on pushed `4e12236`. Finance manual report generation now checks stored definition ownership, action authority and UAT exclusion before persistence. Finance review/approval/supersession rejects UAT even with department-head grants; source controls and run task selectors agree. Existing non-Finance reporting authority, read/download access and trusted scheduled generation remain separate. FIN-GAP-017 reproduced: UAT generation and department-head review succeeded (2 failed denial tests, 1.137 seconds). Verification: all 50 focused Finance/general reporting tests passed in 15.362 seconds; all 606 project tests passed on the final patch in 217.869 seconds. System, migration-drift, compilation and diff checks passed. D-025 records the domain boundary. Next: audit FIN-GAP-018 (related Finance reporting configuration/controls and schedule creation) before further reporting handoffs, then continue remaining Finance phases. Preserve the user database.
+
+## Previous v0.7.34 checkpoint - cash personal handoffs
 
 Branch: `codex/finance-cash-personal-handoffs`, based on pushed `7e6fdb4`. Personal Waiting now follows the user's submitted cash policies and positions under current source access. Completed by me credits retained submission, activation/approval and return events with matching actor office and valid policy/position linkage. Explicit cross-office reviewer visibility remains supported; current state stays separate from historical actions. Verification: all 17 focused cash contracts/lifecycle tests passed in 7.664 seconds; all 179 My Work/voucher dependency tests passed in 83.618 seconds. System, migration-drift, compilation and diff checks passed. D-024 records scope. Next: reproduce FIN-GAP-017 with domain-aware Finance reporting fixtures before reporting handoffs, then continue remaining Finance adapters. Preserve the user database.
 

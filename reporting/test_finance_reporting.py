@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -810,6 +810,80 @@ class FinanceAccountabilityReportingTests(TestCase):
         self.assertEqual(exception_run.status, ReportRun.GENERATED)
         self.assertEqual(exception_run.control_status, ReportRun.CONTROL_EXCEPTION)
         self.assertEqual(exception_run.control_totals["evidence_exception_count"], 1)
+
+    def test_uat_combined_generator_cannot_create_finance_report(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        self.accounting_preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        before = ReportRun.objects.count()
+        with self.assertRaises(PermissionDenied):
+            self.generate_accounting()
+        self.assertEqual(ReportRun.objects.count(), before)
+
+    def test_uat_department_head_cannot_review_finance_report(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        run = self.generate_accounting()
+        before = run.events.count()
+        self.accounting_reviewer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        with self.assertRaises(PermissionDenied):
+            transition_run(run, "review", self.accounting_reviewer, "Preview must remain read-only")
+        run.refresh_from_db()
+        self.assertEqual(run.status, ReportRun.GENERATED)
+        self.assertEqual(run.events.count(), before)
+
+
+    def test_finance_manual_generation_rechecks_stored_source_and_actor_authority(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        self.accounting_preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.accounting_definition.dataset_key = "mswd_assistance_volume"
+        with self.assertRaises(PermissionDenied):
+            self.generate_accounting()
+        self.accounting_definition.refresh_from_db()
+        with self.assertRaises(PermissionDenied):
+            self.generate_accounting(actor=self.budget_preparer)
+        self.accounting_reviewer.is_active = False
+        with self.assertRaises(PermissionDenied):
+            self.generate_accounting(actor=self.accounting_reviewer)
+        self.accounting_preparer.groups.clear()
+        self.accounting_preparer.user_permissions.clear()
+        self.accounting_preparer = get_user_model().objects.get(pk=self.accounting_preparer.pk)
+        with self.assertRaises(PermissionDenied):
+            self.generate_accounting()
+        self.assertFalse(ReportRun.objects.exists())
+
+    def test_finance_uat_run_controls_match_service_and_keep_read_download(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        from .run_register_exports import report_action_queryset
+
+        run = self.generate_accounting()
+        group = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0]
+        self.accounting_reviewer.groups.add(group)
+        self.client.force_login(self.accounting_reviewer)
+        detail = self.client.get(reverse("reporting:run_detail", args=(run.public_id,)))
+        self.assertEqual(detail.status_code, 200)
+        self.assertFalse(detail.context["can_review"])
+        self.assertFalse(detail.context["can_approve"])
+        self.assertTrue(detail.context["can_download"])
+        self.assertEqual(self.client.get(reverse("reporting:run_download", args=(run.public_id,))).status_code, 200)
+        self.assertFalse(report_action_queryset(self.accounting_reviewer, "needs_review")[0].exists())
+        self.assertEqual(self.client.post(reverse("reporting:run_transition", args=(run.public_id, "review"))).status_code, 403)
+        definition = self.client.get(reverse("reporting:definition_detail", args=(run.definition_id,)))
+        self.assertFalse(definition.context["can_generate"])
+        self.assertEqual(self.client.post(reverse("reporting:definition_detail", args=(run.definition_id,)), {}).status_code, 403)
+        self.accounting_reviewer.groups.remove(group)
+        transition_run(run, "review", self.accounting_reviewer, "Independent review")
+        self.accounting_reviewer.groups.add(group)
+        with self.assertRaises(PermissionDenied):
+            transition_run(run, "approve", self.accounting_reviewer, "Preview approval")
+        run.refresh_from_db()
+        self.assertEqual(run.status, ReportRun.REVIEWED)
+        self.assertFalse(report_action_queryset(self.accounting_reviewer, "needs_approval")[0].exists())
 
 
 def tearDownModule():

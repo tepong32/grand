@@ -86,6 +86,9 @@ def report_action_choices_for_user(user):
 
 def report_action_queryset(user, action, queryset=None):
     base = visible_report_runs(user, queryset)
+    from vouchers.roles import is_finance_uat_viewer
+    if is_finance_uat_viewer(user) or not getattr(user, "is_active", False):
+        base = base.exclude(Q(definition__dataset_key__startswith="finance_") | Q(control_gate_required=True))
     spec = RUN_ACTION_SPECS.get(action)
     allowed = {
         "generate": can_generate_reports(user),

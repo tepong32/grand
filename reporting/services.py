@@ -495,6 +495,13 @@ def generate_report(run):
 
 
 def create_manual_run(definition, template_version, output_format, period_start, period_end, parameters, actor):
+    from .access import can_generate_reports, report_source_mutation_allowed
+
+    definition = ReportDefinition.objects.select_related("department").get(pk=definition.pk)
+    if definition.dataset_key.startswith("finance_") and (
+        not can_generate_reports(actor) or not report_source_mutation_allowed(actor, definition)
+    ):
+        raise PermissionDenied("Finance report generation requires current owning-office operational authority.")
     if not template_version.supports_format(output_format):
         raise ValueError("The selected template does not support this output format.")
     if not template_version.is_mapping_ready:
@@ -511,11 +518,13 @@ def create_manual_run(definition, template_version, output_format, period_start,
 
 @transaction.atomic
 def transition_run(run, action, actor, note=""):
-    from .access import can_approve_reports, can_review_reports, department_for_user
+    from .access import can_approve_reports, can_review_reports, department_for_user, report_source_mutation_allowed
 
     locked = ReportRun.objects.select_for_update().select_related(
         "definition__department", "template_version",
     ).get(pk=run.pk)
+    if not report_source_mutation_allowed(actor, locked.definition, control_gate_required=locked.control_gate_required):
+        raise PermissionDenied("Finance report decisions require current owning-office operational authority.")
     actor_department = department_for_user(actor)
     if actor_department is None or locked.definition.department_id != actor_department.pk:
         raise PermissionDenied("Report decisions are limited to the acting user's department.")

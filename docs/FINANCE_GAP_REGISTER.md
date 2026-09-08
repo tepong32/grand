@@ -187,8 +187,18 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 
 ## FIN-GAP-017 - Review Finance reporting UAT mutation authority
 
-- Process/module: Finance report generation/review/approval and related reporting controls.
-- Severity/status: **HIGH - OPEN**, source inspection while cash custody regression runs.
+- Process/module: Finance manual report generation and run review/approval/supersession.
+- Severity/status: **HIGH - VERIFIED**, reproduced and repaired in v0.7.35.
 - Code evidence: reporting.access._authorized does not distinguish the Finance UAT Viewer role; reporting.services.transition_run uses can_review_reports/can_approve_reports. create_manual_run relies on callers for action authority. Reporting also serves non-Finance domains, so the correct boundary needs domain-aware verification.
 - Expected behavior: Finance preview access cannot become Finance report mutation authority through combined grants. Preserve separately governed non-Finance reporting roles, read/download permissions and trusted scheduled execution.
 - Next step: reproduce against a Finance report fixture before the reporting personal-handoff phase, audit generation and review callers, and document the domain boundary before repair. No production misuse is asserted.
+
+- FIN-GAP-017 reproduction: both UAT generation and department-head review succeeded (2 failed denial tests, 1.137 seconds). Finance run service/selector/page repair implemented in v0.7.35; all 606 project tests passed in 217.869 seconds. Non-Finance operations and trusted scheduled generation retain their existing policy.
+
+## FIN-GAP-018 - Audit related Finance reporting governance authority
+
+- Process/module: Finance report definition/template/schedule mutations, statement/control mappings and notes, reference comparisons, accountability packages and local form acceptance.
+- Severity/status: **HIGH - OPEN**, identified while isolating the Finance run boundary.
+- Code evidence: shared reporting permission helpers do not exclude Finance UAT Viewer membership. Statement, accountability, form-acceptance and template-promotion services also omit their own action/office checks in inspected entry points. Definition/template views use permission helpers directly; schedule creation remains to audit.
+- Expected behavior: financial governance services must enforce action authority and current stored owning-office custody, including UAT exclusion, independently of their HTTP callers. Preserve existing non-Finance reporting roles, explicit read/export authority and authorized automated execution.
+- Next step: inspect each source entry point, reproduce representative financial governance mutations, and apply domain-aware checks before expanding dependent reporting handoffs. Findings here are not yet all reproduced.

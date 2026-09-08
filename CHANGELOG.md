@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.35 - Finance report run authority
+
+Finance manual report generation now checks stored definition ownership, action authority and UAT exclusion before persistence. Finance review/approval/supersession rejects UAT even with department-head grants; source controls and run task selectors agree. Existing non-Finance reporting authority, read/download access and trusted scheduled generation remain separate. Verification: all 50 focused Finance/general reporting tests passed in 15.362 seconds; all 606 project tests passed on the final patch in 217.869 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.34 - cash personal handoffs
 
 Personal Waiting now follows the user's submitted cash policies and positions under current source access. Completed by me credits retained submission, activation/approval and return events with matching actor office and valid policy/position linkage. Explicit cross-office reviewer visibility remains supported; current state stays separate from historical actions. Verification: all 17 focused cash contracts/lifecycle tests passed in 7.664 seconds; all 179 My Work/voucher dependency tests passed in 83.618 seconds. System, migration-drift, compilation and diff checks passed.
