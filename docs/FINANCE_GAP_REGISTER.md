@@ -168,7 +168,17 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-015 - Cash-service mutation guard appears to omit UAT exclusion
 
 - Process/module: Treasury cash policy/position mutations and instrument-exception service entry points.
-- Severity/status: **CRITICAL - OPEN**, identified during the cash-adapter source audit after bank-reconciliation implementation.
+- Severity/status: **CRITICAL - VERIFIED**, reproduced and repaired in v0.7.32.
 - Code evidence: vouchers.cash_positions._require checks raw explicit permission without the UAT exclusion used by cash task selectors. Policy creation/submission/decision, position creation/submission/decision and exception entry points use it. Cash policy create views also check raw permission before calling the service.
 - Expected behavior: a Finance UAT Viewer with combined operational permissions cannot mutate cash controls or exception evidence. Preserve legitimate cross-office cash approval and separate existing read/export authority.
 - Next step: reproduce accepted UAT mutations against isolated fixtures, then repair the service boundary and regress normal source flows before expanding cash projections. No real operational misuse is asserted.
+
+- FIN-GAP-015 reproduction: both isolated policy submission/approval denial tests failed (2 tests, 1.762 seconds). Shared mutation guard and page controls repaired in v0.7.32; all 597 project tests passed in 424.974 seconds. Export retains its separate explicit read permission.
+
+## FIN-GAP-016 - Cash custody checks precede stored-record reload
+
+- Process/module: cash policy submission, position creation/submission and manual instrument-exception resolution.
+- Severity/status: **HIGH - OPEN**, source inspection during v0.7.32 regression.
+- Code evidence: submit_policy, create_position and submit_position call _require_preparer_scope on caller-supplied objects before their select_for_update reload. resolve_instrument_exception likewise checks caller-supplied policy ownership before loading the stored exception.
+- Expected behavior: owning-office authority must be checked on locked persisted records, regardless of altered or stale caller attributes. Preserve explicitly authorized independent cross-office approvals.
+- Next step: reproduce with isolated foreign-office records and altered in-memory ownership, then repair and verify before cash projections. No operational misuse is asserted.

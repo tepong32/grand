@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
@@ -14,7 +14,8 @@ from finance.work_tasks import finance_work_tasks
 from profiles.models import EmployeeProfile
 
 from .cash_register import cash_attention_queryset
-from .models import TreasuryCashPolicy, TreasuryCashPosition
+from .models import TreasuryCashEvent, TreasuryCashPolicy, TreasuryCashPosition
+from .cash_positions import submit_policy, decide_policy
 from .roles import FINANCE_UAT_VIEWER_GROUP
 
 
@@ -279,3 +280,41 @@ class CashWorkRegisterTests(TestCase):
         self.assertNotIn(self.returned_policy, policies)
         self.assertIn(successor_position, positions)
         self.assertNotIn(self.returned_position, positions)
+
+    def test_uat_combined_preparer_cannot_submit_cash_policy(self):
+        self.user.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        before = TreasuryCashEvent.objects.count()
+        with self.assertRaises(PermissionDenied):
+            submit_policy(policy=self.draft_policy, actor=self.user)
+        self.draft_policy.refresh_from_db()
+        self.assertEqual(self.draft_policy.status, TreasuryCashPolicy.DRAFT)
+        self.assertEqual(TreasuryCashEvent.objects.count(), before)
+
+    def test_uat_combined_reviewer_cannot_approve_cash_policy(self):
+        self.reviewer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        before = TreasuryCashEvent.objects.count()
+        with self.assertRaises(PermissionDenied):
+            decide_policy(policy=self.review_policy, actor=self.reviewer, approve=True, reason="Reviewed")
+        self.review_policy.refresh_from_db()
+        self.active_policy.refresh_from_db()
+        self.assertEqual(self.review_policy.status, TreasuryCashPolicy.FOR_REVIEW)
+        self.assertEqual(self.active_policy.status, TreasuryCashPolicy.ACTIVE)
+        self.assertEqual(TreasuryCashEvent.objects.count(), before)
+
+    def test_uat_cash_pages_hide_mutations_and_post_does_not_submit(self):
+        self.user.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.user)
+        for route, args in [("cash_workspace", ()), ("cash_policy_detail", (self.draft_policy.public_id,))]:
+            response = self.client.get(reverse("vouchers:" + route, args=args))
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(response.context["can_prepare"])
+            self.assertFalse(response.context["can_approve"])
+        self.assertEqual(self.client.get(reverse("vouchers:cash_policy_create")).status_code, 403)
+        self.client.post(reverse("vouchers:cash_policy_submit", args=(self.draft_policy.public_id,)))
+        self.draft_policy.refresh_from_db()
+        self.assertEqual(self.draft_policy.status, TreasuryCashPolicy.DRAFT)
+
+    def test_cross_office_operational_cash_approval_remains_authorized(self):
+        decided = decide_policy(policy=self.review_policy, actor=self.reviewer, approve=True, reason="Independent review")
+        self.assertEqual(decided.status, TreasuryCashPolicy.ACTIVE)
+        self.assertEqual(decided.approved_by, self.reviewer)

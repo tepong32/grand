@@ -40,6 +40,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-021:** Project bank-reconciliation handoffs and lifecycle history under the specific bank-register read permission.
 
 - **D-022:** Reproduce and fix the cash UAT mutation boundary before extending cash projections.
+- **D-023:** Verify cash preparation and manual-resolution custody against locked stored records.
 
 ### D-001 — Retained events determine personal completion
 
@@ -264,7 +265,7 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 
 ### D-021 — Reuse bank-reconciliation scope and immutable lifecycle events
 
-- Date/checkpoint: 2026-09-08; v0.7.31 in progress.
+- Date/checkpoint: 2026-09-08; v0.7.31.
 - Decision: Follow own submitted reconciliation batches in Waiting; credit retained submission/return/reconciliation events in Completed. Require the specific current bank-reconciliation read permission and matching current office for both batch and event. Reuse the Accounting completion projection with bank-specific reference/period scope.
 - Alternatives considered: expose bank history to every Accounting reader; infer completion from batch status; treat statement period dates as action targets; include every individual matching operation in this slice.
 - Goal fit: preserve independent reconciliation review and one source history without expanding sensitive bank-register access or inventing deadlines.
@@ -275,9 +276,19 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 
 ### D-022 — Verify cash mutation authority before dependent projections
 
-- Date/checkpoint: 2026-09-08; planned after v0.7.31 verification.
+- Date/checkpoint: 2026-09-08; v0.7.32.
 - Decision: Reproduce FIN-GAP-015 and fix cash service entry points if the combined UAT/operational role can mutate controls. Audit all callers of the shared guard while preserving existing read/export behavior and legitimate cross-office approval.
 - Alternatives considered: rely on dashboard action hiding; add more cash projections before testing the source boundary; change cross-office approval scope without evidence of a policy defect.
 - Goal fit: a read-only preview role must not gain financial mutation authority through extra permissions. Source integrity takes precedence over dashboard coverage.
-- Evidence/status: shared guard and raw-permission view paths inspected; reproduction pending. Existing export is a read operation with separate retained permissions and must be assessed independently.
+- Evidence/status: two isolated denial tests failed before the fix (1.762 seconds). Mutation guard and page controls now exclude UAT; all 597 project tests passed in 424.974 seconds. Existing export is a read operation with separate retained permissions and must be assessed independently.
 - Revisit when: isolated regressions confirm UAT denial and normal operational paths still pass.
+
+### D-023 — Enforce cash custody from persisted records
+
+- Date/checkpoint: 2026-09-08; next after v0.7.32.
+- Decision: reproduce FIN-GAP-016 before extending cash personal projections. Check preparation/manual-resolution custody after locking and reloading authoritative records if confirmed.
+- Alternatives considered: trust objects supplied by current HTTP views; conflate preparation ownership with authorized cross-office review.
+- Goal fit: office-owned work must retain its boundary across every service caller, including stale or altered in-memory objects.
+- Tradeoff: preserve current independent review scope; no new role or workflow is introduced.
+- Evidence/status: four service entry points inspect caller ownership before reload; reproduction pending.
+- Revisit when: regressions prove foreign ownership cannot be substituted and normal financial lifecycle remains valid.

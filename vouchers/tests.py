@@ -3672,6 +3672,25 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(self.client.get(reverse("vouchers:advice_workspace")).status_code, 403)
 
     def test_f83_cash_enforcement_reservation_ageing_and_portable_export(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        from vouchers.cash_positions import resolve_instrument_exception
+        from vouchers.models import TreasuryCashEvent
+
+        preview_group = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0]
+
+        def uat_checked_call(operation, **kwargs):
+            actor = kwargs["actor"]
+            before = TreasuryCashEvent.objects.count()
+            actor.groups.add(preview_group)
+            try:
+                with self.assertRaises(PermissionDenied):
+                    operation(**kwargs)
+                self.assertEqual(TreasuryCashEvent.objects.count(), before)
+            finally:
+                actor.groups.remove(preview_group)
+            return operation(**kwargs)
+
         self.treasury_user.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="vouchers",
             codename__in=("view_cash_position", "prepare_cash_position", "approve_cash_position", "export_cash_position"),
@@ -3681,7 +3700,7 @@ class VoucherWorkflowTests(TestCase):
             codename__in=("view_cash_position", "approve_cash_position", "export_cash_position"),
         ))
         self.enable_payment_event_rules()
-        policy = create_policy(
+        policy = uat_checked_call(create_policy,
             actor=self.treasury_user,
             configuration_release=self.release,
             bank_account_code="gf-lbp",
@@ -3695,10 +3714,10 @@ class VoucherWorkflowTests(TestCase):
             authority_reference="Synthetic reviewed COA/DBM/bank and local Treasury authority.",
             local_applicability_note="Synthetic Treasury and Accounting UAT acceptance only.",
         )
-        submit_policy(policy=policy, actor=self.treasury_user)
+        uat_checked_call(submit_policy, policy=policy, actor=self.treasury_user)
         with self.assertRaises(ValidationError):
-            decide_policy(policy=policy, actor=self.treasury_user, approve=True, reason="Self-review must fail.")
-        decide_policy(policy=policy, actor=self.validator, approve=True, reason="Independent synthetic route review.")
+            uat_checked_call(decide_policy, policy=policy, actor=self.treasury_user, approve=True, reason="Self-review must fail.")
+        uat_checked_call(decide_policy, policy=policy, actor=self.validator, approve=True, reason="Independent synthetic route review.")
         policy.refresh_from_db()
         self.assertEqual(policy.status, TreasuryCashPolicy.ACTIVE)
 
@@ -3731,7 +3750,7 @@ class VoucherWorkflowTests(TestCase):
             reconciled_at=timezone.now(),
         )
 
-        position = create_position(
+        position = uat_checked_call(create_position,
             policy=policy,
             actor=self.treasury_user,
             as_of_date=date(2026, 8, 31),
@@ -3742,10 +3761,10 @@ class VoucherWorkflowTests(TestCase):
             preparation_note="UAT cash position.",
         )
         self.assertEqual(position.approved_available_cash, Decimal("1300.00"))
-        submit_position(position=position, actor=self.treasury_user)
+        uat_checked_call(submit_position, position=position, actor=self.treasury_user)
         with self.assertRaises(ValidationError):
-            decide_position(position=position, actor=self.treasury_user, approve=True, reason="Self-review must fail.")
-        decide_position(position=position, actor=self.validator, approve=True, reason="Compared with reconciled evidence.")
+            uat_checked_call(decide_position, position=position, actor=self.treasury_user, approve=True, reason="Self-review must fail.")
+        uat_checked_call(decide_position, position=position, actor=self.validator, approve=True, reason="Compared with reconciled evidence.")
         position.refresh_from_db()
         self.assertEqual(position.status, TreasuryCashPosition.APPROVED)
         position.other_holds = Decimal("101.00")
@@ -3753,12 +3772,12 @@ class VoucherWorkflowTests(TestCase):
             position.save()
         position.refresh_from_db()
         with self.assertRaises(ValidationError):
-            create_position(
+            uat_checked_call(create_position,
                 policy=policy, actor=self.treasury_user, as_of_date=date(2026, 8, 31),
                 confirmed_inflows=Decimal("1500.00"), confirmed_outflows=Decimal("0.00"),
                 other_holds=Decimal("90.00"), evidence_reference="Corrected synthetic restriction schedule.",
             )
-        successor = create_position(
+        successor = uat_checked_call(create_position,
             policy=policy, actor=self.treasury_user, as_of_date=date(2026, 8, 31),
             confirmed_inflows=Decimal("1500.00"), confirmed_outflows=Decimal("0.00"),
             other_holds=Decimal("90.00"), evidence_reference="Corrected synthetic restriction schedule.",
@@ -3781,7 +3800,7 @@ class VoucherWorkflowTests(TestCase):
                 case=case, bank_account_code="gf-lbp", fund_code="general-fund", amount=Decimal("400.01"),
             )
 
-        successor_policy = create_policy(
+        successor_policy = uat_checked_call(create_policy,
             actor=self.treasury_user, configuration_release=self.release,
             bank_account_code="gf-lbp", fund_code="general-fund", mode=TreasuryCashPolicy.ENFORCE,
             minimum_reserve=Decimal("100.00"), position_max_age_days=35,
@@ -3789,18 +3808,18 @@ class VoucherWorkflowTests(TestCase):
             authority_reference="Synthetic reviewed successor authority.",
             local_applicability_note="Successor keeps the accepted route and threshold for UAT.",
         )
-        submit_policy(policy=successor_policy, actor=self.treasury_user)
-        decide_policy(
+        uat_checked_call(submit_policy, policy=successor_policy, actor=self.treasury_user)
+        uat_checked_call(decide_policy,
             policy=successor_policy, actor=self.validator, approve=True,
             reason="Independently reviewed successor policy.",
         )
-        successor_position = create_position(
+        successor_position = uat_checked_call(create_position,
             policy=successor_policy, actor=self.treasury_user, as_of_date=date(2026, 8, 31),
             confirmed_inflows=Decimal("1500.00"), confirmed_outflows=Decimal("0.00"),
             other_holds=Decimal("100.00"), evidence_reference="Successor position uses the same reconciled UAT evidence.",
         )
-        submit_position(position=successor_position, actor=self.treasury_user)
-        decide_position(
+        uat_checked_call(submit_position, position=successor_position, actor=self.treasury_user)
+        uat_checked_call(decide_position,
             position=successor_position, actor=self.validator, approve=True,
             reason="Compared successor with the retained reconciliation.",
         )
@@ -3827,12 +3846,12 @@ class VoucherWorkflowTests(TestCase):
         old_issue = timezone.now() - timedelta(days=181)
         PaymentInstrument.objects.filter(pk=instrument.pk).update(issued_at=old_issue)
         instrument.refresh_from_db()
-        unclaimed = open_instrument_exception(
+        unclaimed = uat_checked_call(open_instrument_exception,
             instrument=instrument, actor=self.treasury_user, kind=PaymentInstrumentException.UNCLAIMED,
             observed_on=observed_on, reason="Claimant has not collected the advised check.",
             evidence_reference="Treasury release log follow-up 1.",
         )
-        stale = open_instrument_exception(
+        stale = uat_checked_call(open_instrument_exception,
             instrument=instrument, actor=self.treasury_user, kind=PaymentInstrumentException.STALE,
             observed_on=observed_on, reason="Instrument exceeded the locally reviewed validity threshold.",
             evidence_reference="Treasury stale-check review 1.",
@@ -3848,6 +3867,14 @@ class VoucherWorkflowTests(TestCase):
                 receipt_reference="BLOCKED-STale", expected_version=case.state_version,
                 idempotency_key="f83-block-stale-release",
             )
+        self.treasury_user.groups.add(preview_group)
+        try:
+            with self.assertRaises(PermissionDenied):
+                resolve_instrument_exception(exception=stale, actor=self.treasury_user, resolution="Reviewed")
+            stale.refresh_from_db()
+            self.assertEqual(stale.status, PaymentInstrumentException.OPEN)
+        finally:
+            self.treasury_user.groups.remove(preview_group)
         cancel_check(
             case=case, instrument=instrument, actor=self.treasury_user,
             reason="Cancel after locally reviewed stale classification and prepare a controlled replacement if still payable.",
@@ -3873,3 +3900,12 @@ class VoucherWorkflowTests(TestCase):
         exported = self.client.get(reverse("vouchers:cash_policy_export", args=(policy.public_id,)))
         self.assertEqual(exported.status_code, 200)
         self.assertEqual(exported["X-GRAND-Export-Archived"], "true")
+        self.treasury_user.groups.add(preview_group)
+        preview_detail = self.client.get(reverse("vouchers:cash_policy_detail", args=(policy.public_id,)))
+        self.assertEqual(preview_detail.status_code, 200)
+        self.assertFalse(preview_detail.context["can_prepare"])
+        self.assertFalse(preview_detail.context["can_approve"])
+        self.assertTrue(preview_detail.context["can_export"])
+        preview_export = self.client.get(reverse("vouchers:cash_policy_export", args=(policy.public_id,)))
+        self.assertEqual(preview_export.status_code, 200)
+        self.assertEqual(preview_export["X-GRAND-Export-Archived"], "true")

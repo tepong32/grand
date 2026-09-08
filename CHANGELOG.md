@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.32 - cash UAT mutation authority
+
+Cash policy/position and instrument-exception mutation entry points now reject Finance UAT Viewers even with explicit operational grants. Page controls share this predicate. Existing authorized read/export access, independent cross-office cash approval and trusted internal exception closure remain intact. Verification: all 13 focused cash contracts/lifecycle tests passed in 12.463 seconds; all 597 project tests passed on the final patch in 424.974 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.31 - bank-reconciliation personal handoffs
 
 Personal Waiting now includes the user’s submitted bank reconciliations under current bank-register access. Completed by me includes retained submission, return and reconciliation events with matching event/batch office and actor attribution. Current batch state remains separate from historical actions. Statement coverage dates are not deadlines; individual matching/classification actions remain outside this completion slice. Verification: all 7 focused bank contracts passed in 9.872 seconds; all 128 My Work/Accounting/dependent replay tests passed in 124.300 seconds. System, migration-drift, compilation and diff checks passed.

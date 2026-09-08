@@ -18,14 +18,19 @@ from finance.models import FinanceConfigurationItem
 from src.export_archive import archive_export
 
 from .access import department_for_user, has_explicit_permission
+from .roles import is_finance_uat_viewer
 from .models import (
     PaymentInstrument, PaymentInstrumentException, TreasuryCashEvent, TreasuryCashPolicy,
     TreasuryCashPosition, TreasuryCashReservation,
 )
 
 
+def can_mutate_cash(user, permission):
+    return not is_finance_uat_viewer(user) and has_explicit_permission(user, permission)
+
+
 def _require(actor, permission):
-    if not has_explicit_permission(actor, permission):
+    if not can_mutate_cash(actor, permission):
         raise PermissionDenied
 
 
@@ -520,7 +525,8 @@ def resolve_instrument_exception(*, exception, actor, resolution, permission_req
 
 
 def export_cash_position_csv(*, actor, policy=None):
-    _require(actor, "vouchers.export_cash_position")
+    if not has_explicit_permission(actor, "vouchers.export_cash_position"):
+        raise PermissionDenied
     policies = TreasuryCashPolicy.objects.all().select_related("configuration_release", "treasury_department")
     if policy:
         if not has_explicit_permission(actor, "vouchers.approve_cash_position") and policy.treasury_department != department_for_user(actor):

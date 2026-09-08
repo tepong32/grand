@@ -212,3 +212,7 @@ Verification: all three focused attribution/payment/cancellation replays passed 
 ## v0.7.31 - bank-reconciliation personal handoffs
 
 Verification: all 7 focused bank contracts passed in 9.872 seconds; all 128 My Work/Accounting/dependent replay tests passed in 124.300 seconds. System, migration-drift, compilation and diff checks passed. Scope: focused bank task contracts, all My Work and Accounting regressions, and the Budget-to-reconciled-report voucher replay. Full-project suite: NOT RUN - OUT OF SCOPE for this read-only adapter; the shared Accounting completion projection and affected source consumers receive dependency coverage. No schema, service authority or calculation changes.
+
+## v0.7.32 - cash UAT mutation authority
+
+Cash policy/position and instrument-exception mutation entry points now reject Finance UAT Viewers even with explicit operational grants. Page controls share this predicate. Existing authorized read/export access, independent cross-office cash approval and trusted internal exception closure remain intact. FIN-GAP-015 reproduced with two failed denial tests in 1.762 seconds. Verification: all 13 focused cash contracts/lifecycle tests passed in 12.463 seconds; all 597 project tests passed on the final patch in 424.974 seconds. System, migration-drift, compilation and diff checks passed. Scope: vouchers.test_cash_register and the F8.3 cash lifecycle replay, followed by the full project suite for this security boundary change.

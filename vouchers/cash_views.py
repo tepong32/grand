@@ -13,7 +13,7 @@ from finance.models import FinanceConfigurationItem, FinanceConfigurationRelease
 from .access import department_for_user, has_explicit_permission, voucher_access_required
 from .roles import is_finance_uat_viewer
 from .cash_positions import (
-    create_policy, create_position, decide_policy, decide_position, export_cash_position_csv,
+    can_mutate_cash, create_policy, create_position, decide_policy, decide_position, export_cash_position_csv,
     open_instrument_exception, policy_availability, resolve_instrument_exception,
     submit_policy, submit_position,
 )
@@ -82,10 +82,10 @@ def workspace(request):
         "selected_attention": selected_attention,
         "attention_choices": CASH_ATTENTION_CHOICES,
         "exception_form": InstrumentExceptionForm(),
-        "can_prepare": has_explicit_permission(request.user, "vouchers.prepare_cash_position"),
-        "can_approve": has_explicit_permission(request.user, "vouchers.approve_cash_position"),
+        "can_prepare": can_mutate_cash(request.user, "vouchers.prepare_cash_position"),
+        "can_approve": can_mutate_cash(request.user, "vouchers.approve_cash_position"),
         "can_export": has_explicit_permission(request.user, "vouchers.export_cash_position"),
-        "can_exceptions": has_explicit_permission(request.user, "vouchers.manage_payment_exceptions"),
+        "can_exceptions": can_mutate_cash(request.user, "vouchers.manage_payment_exceptions"),
     })
 
 
@@ -122,7 +122,7 @@ def starter(request):
 @require_http_methods(["GET", "POST"])
 @voucher_access_required
 def policy_create(request):
-    if not has_explicit_permission(request.user, "vouchers.prepare_cash_position"):
+    if not can_mutate_cash(request.user, "vouchers.prepare_cash_position"):
         raise PermissionDenied
     form = TreasuryCashPolicyForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -150,8 +150,8 @@ def policy_detail(request, public_id):
         "policy": policy, "positions": policy.positions.select_related("created_by", "submitted_by", "approved_by"),
         "availability": availability, "position_form": TreasuryCashPositionForm(),
         "review_form": TreasuryCashReviewForm(),
-        "can_prepare": has_explicit_permission(request.user, "vouchers.prepare_cash_position"),
-        "can_approve": has_explicit_permission(request.user, "vouchers.approve_cash_position"),
+        "can_prepare": can_mutate_cash(request.user, "vouchers.prepare_cash_position"),
+        "can_approve": can_mutate_cash(request.user, "vouchers.approve_cash_position"),
         "can_export": has_explicit_permission(request.user, "vouchers.export_cash_position"),
     })
 
