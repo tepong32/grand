@@ -26,7 +26,7 @@ from finance.services import (
 from profiles.models import EmployeeProfile
 from src.export_archive import archive_export
 
-from .access import department_for_user, has_explicit_permission
+from .access import can_amend_nonfinancial_case, department_for_user, has_explicit_permission
 from .models import (
     AccountingValidation, BankAdviceBatch, BankAdviceItem, BudgetAllocationLine,
     BudgetObligation, ControlOverride, DisbursementVoucher, PaymentInstrument,
@@ -1469,6 +1469,8 @@ def amend_nonfinancial_voucher(*, case, actor, voucher_date, signatories, reason
     """Change only the DV date/signatory evidence before any check has been issued."""
     _require(actor, "vouchers.amend_nonfinancial_voucher")
     case, existing = _locked(case, expected_version, idempotency_key)
+    if not can_amend_nonfinancial_case(actor, case):
+        raise PermissionDenied
     if existing:
         return case.nonfinancial_amendments.get(pk=existing.metadata["amendment_id"])
     allowed_stages = {

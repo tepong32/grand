@@ -39,7 +39,7 @@ The exact bytes and sibling manifest are archived under `department/user/finance
 
 ## Modification and reprint rules
 
-- Before check/payment-instrument issuance, an authorized user may correct permitted non-financial DV dates/signatories through the existing reasoned amendment route; related signing outputs and active print jobs are superseded and a new round is required.
+- Before check/payment-instrument issuance, an explicitly authorized active non-UAT member of the case's pinned Finance Setup office may correct permitted non-financial DV dates/signatories through the existing reasoned amendment route, including after Treasury handoff; related signing outputs and active print jobs are superseded and a new round is required.
 - A damaged, smudged, misaligned, incomplete, or otherwise wrong signing copy may be replaced while the case is awaiting signatures. A specific reason is mandatory.
 - The old output and print job remain stored as `Superseded — do not sign`; pending tasks in its signature round are declined, and printed physical copies must be marked **DO NOT SIGN** and controlled under the local disposal/records procedure.
 - The successor receives a new output checksum, print version, and—when printing/circulation had begun—a new signature round. Printing and packet assembly must be recorded again.
@@ -58,3 +58,6 @@ The exact bytes and sibling manifest are archived under `department/user/finance
 - Obtain named Budget, Accounting, Treasury, requesting-office, Records/IT, and authorized local acceptance for the enabled scope.
 
 Until those checks pass, use the feature only as an implemented synthetic control and pilot comparison—not as an official-use declaration.
+
+
+The amendment service rechecks the stored pinned owner before an idempotent replay as well as a new amendment. Generic grants to other offices do not delegate ownership. The current custodian is not substituted for the owning Accounting office. See D-041 in [the decision log](IMPLEMENTATION_DECISIONS.md).

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.51 - DV amendment owner authority
+
+Non-financial DV amendment now requires an explicitly authorized active non-UAT actor in the stored case's pinned Finance Setup office. The service and source control share this boundary, including idempotent replay. Owning Accounting may still amend after Treasury handoff before instrument issuance; permitted fields, financial totals and posted JEV evidence remain unchanged. All 69 focused voucher-workflow tests passed in 42.735 seconds; all 668 project tests passed in 272.103 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.50 - scheduled-run and qualification-evidence handoffs
 
 Scheduled reconciliation runs and qualification evidence now have shared source actions, personal submitted Waiting and attributed history. Qualification custody resolves through the controlling plan cycle, while the observed cycle remains explicit. Run history distinguishes reconciliation from review with open exceptions, and the source history panel shows before/after reference corrections. All 48 focused field tests passed in 41.326 seconds; all 127 field/My Work/operations dependency tests passed in 94.146 seconds. System, migration-drift, compilation and diff checks passed.

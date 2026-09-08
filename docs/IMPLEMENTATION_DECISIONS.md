@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-041:** Bind non-financial DV amendment to the pinned Finance owner while retaining Accounting authority after a Treasury handoff.
+
 - **D-040:** Keep scheduled-run exceptions and qualifying-cycle evidence distinct, with personal history resolved through the controlling cycle.
 
 - **D-039:** Restore a reasoned reference-correction route for draft/returned qualification evidence without changing qualifying-cycle lineage.
@@ -494,3 +496,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: flattening these records into the cycle hides simultaneous work and risks attributing evidence to the wrong parent. Scheduled-run targets remain the original plan date plus configured grace in actionable rows; returns do not extend them. Waiting age follows retained submission without inventing another approval deadline. The source panel adds before/after reference corrections alongside integrity-backed reviews.
 - Evidence: All 48 focused field tests passed in 41.326 seconds; all 127 field/My Work/operations dependency tests passed in 94.146 seconds. System, migration-drift, compilation and diff checks passed.
 - Revisit when: changing schedule policy, qualifying-cycle replacement or review separation; preserve existing source authority before changing task selection.
+
+
+## D-041 - DV amendment office ownership after Accounting posting
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.51.
+- Decision: require the explicit amendment permission, active non-UAT identity and membership in the office on the stored case's pinned Finance Setup release. Recheck the stored case before returning even an idempotent amendment result. Share the rule with the source control. Preserve the existing allowed stages and pre-instrument cutoff, including legitimate Accounting amendment after Treasury handoff.
+- Goal: keep each fact under its owning Finance office and preserve immutable financial/posting evidence while permitting the existing controlled date/signatory correction workflow.
+- Alternatives/tradeoffs: requiring current custody would block the established Accounting-to-Treasury amendment test; accepting a generic grant from every office lacks an object boundary. This default follows the pinned Finance owner, not the current department of a historical employee. It does not create a cross-office delegation policy or claim LGU policy acceptance.
+- Evidence: two denial assertions failed in 3.461 seconds before repair. All 69 focused voucher-workflow tests passed in 42.735 seconds; all 668 project tests passed in 272.103 seconds. System, migration-drift, compilation and diff checks passed. Existing post-JEV amendment replay is the compatibility contract for owning Accounting authority; wrong-office, UAT, stale caller, idempotent replay and unchanged financial evidence were verified.
+- Revisit when: an implementing LGU explicitly delegates this correction to another office; represent that delegation as governed source scope rather than widening a global permission.

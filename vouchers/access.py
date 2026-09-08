@@ -55,6 +55,17 @@ def has_explicit_permission(user, permission):
     )
 
 
+def can_amend_nonfinancial_case(user, case):
+    """Amendment belongs to the pinned Finance owner, even after custody moves."""
+    department = department_for_user(user)
+    return bool(
+        department is not None
+        and not is_finance_uat_viewer(user)
+        and has_explicit_permission(user, "vouchers.amend_nonfinancial_voucher")
+        and case.configuration_release.department_id == department.pk
+    )
+
+
 def can_view_workbench(user):
     viewer = is_finance_uat_viewer(user) and department_for_user(user) is not None
     return viewer or has_explicit_permission(user, "vouchers.view_voucher_workbench") or any(

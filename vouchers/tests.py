@@ -3951,3 +3951,71 @@ class VoucherWorkflowTests(TestCase):
         preview_export = self.client.get(reverse("vouchers:cash_policy_export", args=(policy.public_id,)))
         self.assertEqual(preview_export.status_code, 200)
         self.assertEqual(preview_export["X-GRAND-Export-Archived"], "true")
+
+
+    def test_dv_amendment_rejects_unrelated_office_with_generic_permission(self):
+        case = self.ready_for_treasury("amend-office-boundary")
+        self.outsider.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="amend_nonfinancial_voucher"))
+        actor = get_user_model().objects.get(pk=self.outsider.pk)
+        with self.assertRaises(PermissionDenied):
+            amend_nonfinancial_voucher(
+                case=case, actor=actor, voucher_date=date(2026, 8, 26),
+                signatories=list(FinanceSignatory.objects.filter(department=self.accounting, release=self.release, status="active")),
+                reason="An unrelated office cannot change this Accounting-owned DV.",
+                expected_version=case.state_version, idempotency_key="unrelated-office-amendment",
+            )
+
+    def test_dv_amendment_control_is_not_shown_to_current_treasury_custodian(self):
+        case = self.ready_for_treasury("amend-custody-boundary")
+        self.treasury_user.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="amend_nonfinancial_voucher"))
+        self.client.force_login(get_user_model().objects.get(pk=self.treasury_user.pk))
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Correct DV date / signatories")
+
+
+    def test_dv_amendment_rechecks_stored_owner_for_forged_caller_and_replay(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        case = self.ready_for_treasury("amend-stored-owner")
+        signatories = list(FinanceSignatory.objects.filter(department=self.accounting, release=self.release, status="active"))
+        version = case.state_version
+        arguments = dict(voucher_date=date(2026, 8, 26), signatories=signatories,
+                         reason="Owning Accounting corrects the document date before check issuance.",
+                         expected_version=version, idempotency_key="stored-owner-amendment")
+        amendment = amend_nonfinancial_voucher(case=case, actor=self.preparer, **arguments)
+        replay = amend_nonfinancial_voucher(case=case, actor=self.preparer, **arguments)
+        self.assertEqual(replay.pk, amendment.pk)
+        self.outsider.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="amend_nonfinancial_voucher"))
+        outsider = get_user_model().objects.get(pk=self.outsider.pk)
+        case.configuration_release.department = self.requesting
+        with self.assertRaises(PermissionDenied):
+            amend_nonfinancial_voucher(case=case, actor=outsider, **arguments)
+        with self.assertRaises(PermissionDenied):
+            amend_nonfinancial_voucher(case=case, actor=outsider, **{**arguments, "idempotency_key": "forged-owner-new-amendment", "expected_version": None})
+        uat, _ = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)
+        self.preparer.groups.add(uat)
+        with self.assertRaises(PermissionDenied):
+            amend_nonfinancial_voucher(case=case, actor=get_user_model().objects.get(pk=self.preparer.pk), **arguments)
+        case.refresh_from_db()
+        self.assertEqual(case.nonfinancial_amendments.count(), 1)
+        self.assertEqual(case.configuration_release.department_id, self.accounting.pk)
+        self.assertEqual(case.disbursement_voucher.voucher_date, date(2026, 8, 26))
+
+    def test_dv_amendment_http_denies_treasury_grant_without_changing_financial_evidence(self):
+        case = self.ready_for_treasury("amend-http-owner")
+        original_date = case.disbursement_voucher.voucher_date
+        original_stage, original_version = case.current_stage, case.state_version
+        self.treasury_user.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="amend_nonfinancial_voucher"))
+        self.client.force_login(get_user_model().objects.get(pk=self.treasury_user.pk))
+        response = self.client.post(reverse("vouchers:case_action", args=(case.public_id, "amend-nonfinancial")), {
+            "voucher_date": "2026-08-26", "signatories": list(FinanceSignatory.objects.filter(department=self.accounting, release=self.release, status="active").values_list("pk", flat=True)),
+            "reason": "An unrelated amendment grant must not override the pinned owner.",
+            "state_version": case.state_version, "idempotency_key": "treasury-http-amendment",
+        })
+        self.assertEqual(response.status_code, 403)
+        case.refresh_from_db()
+        self.assertEqual((case.current_stage, case.state_version), (original_stage, original_version))
+        self.assertEqual(case.disbursement_voucher.voucher_date, original_date)
+        self.assertFalse(case.nonfinancial_amendments.exists())

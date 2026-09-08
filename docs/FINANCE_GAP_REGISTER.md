@@ -273,7 +273,19 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-024 - Non-financial DV amendment lacks a stored office boundary
 
 - Process/module: reasoned DV date/signatory amendment before payment-instrument issuance.
-- Severity/status: **HIGH - OPEN**, source finding awaiting reproduction and authority confirmation against existing behavior.
+- Severity/status: **HIGH - VERIFIED**, reproduced and repaired in v0.7.51.
 - Code evidence: amend_nonfinancial_voucher reloads the case and checks an explicit permission, stage and payment cutoff, but does not bind the actor's office to the stored case. The source button likewise checks permission/stage. Existing tests deliberately allow the owning Accounting preparer to amend after the case reaches Treasury.
 - Expected behavior: preserve legitimate owning-Accounting amendment and unchanged financial/posting evidence, while preventing an unrelated office with the same generic grant from amending another office's DV. Do not substitute a current-custody-only check that breaks the established Accounting workflow.
-- Next step: reproduce the unrelated-office service mutation, reconcile the source ownership rule, then verify service/page boundaries before extending amendment history.
+- Closure: stored pinned-owner service/page boundaries and full regression verified in v0.7.51, preserving owning-Accounting amendment after Treasury handoff.
+
+
+- FIN-GAP-024 reproduction: unrelated-office mutation succeeded and the current Treasury custodian saw the amendment control when given the generic grant (2 failed denial assertions, 3.461 seconds). Shared authority now binds the acting office to the stored pinned Finance release, preserving owning Accounting access across custody stages. All 69 focused voucher-workflow tests passed in 42.735 seconds; all 668 project tests passed in 272.103 seconds. System, migration-drift, compilation and diff checks passed.
+
+
+## FIN-GAP-025 - Controlled reprint may lose pending amendment signature lineage
+
+- Process/module: replacing a printed signing copy while a non-financial amendment awaits signatures.
+- Severity/status: **HIGH - OPEN**, source finding awaiting reproduction.
+- Code evidence: prepare_controlled_dv_print starts a new signature round from the current active release signatories when replacing printed/circulating copies. record_signature_return completes an amendment only when its immutable original round equals the returned task round. A reprint can therefore lose the amendment's selected signatories or leave its original amendment pending after replacement signatures finish.
+- Expected behavior: replacing damaged paper must preserve the governed signatory/custody snapshots and follow retained print-supersession lineage back to the pending amendment, without rewriting the immutable original amendment or treating old signed copies as current.
+- Next step: reproduce both selected-signatory preservation and completion/resume behavior through an actual controlled reprint, then repair and verify before projecting detailed custody history.

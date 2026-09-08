@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 
 from src.export_archive import archive_export
 
-from .access import can_view_workbench, department_for_user, has_explicit_permission, voucher_access_required
+from .access import can_amend_nonfinancial_case, can_view_workbench, department_for_user, has_explicit_permission, voucher_access_required
 from .case_exports import (
     ATTENTION_CHOICES, CUSTODY_CHOICES, apply_case_filters, build_case_control_register, filter_options,
     visible_cases_for_user,
@@ -385,7 +385,7 @@ def case_detail(request, public_id):
         "payable_relationships": relationship_summary,
         "current_print_job": current_print_job,
         "can_amend_nonfinancial": bool(
-            permissions["amend_nonfinancial"]
+            can_amend_nonfinancial_case(request.user, case)
             and hasattr(case, "disbursement_voucher")
             and case.current_stage in amendment_stages
             and not case.payment_instruments.exists()
