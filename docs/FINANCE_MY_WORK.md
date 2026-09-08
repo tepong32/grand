@@ -276,3 +276,8 @@ Personal Waiting now includes the user’s submitted bank reconciliations under 
 ### Cash policy and position personal handoffs (v0.7.34)
 
 Personal Waiting now follows the user's submitted cash policies and positions under current source access. Completed by me credits retained submission, activation/approval and return events with matching actor office and valid policy/position linkage. Explicit cross-office reviewer visibility remains supported; current state stays separate from historical actions. Effective dates and position as-of dates are context, not deadlines. Draft creation and individual instrument-exception actions remain in the source audit. Submitted cash controls open their existing policy detail, which retains the policy and its position versions.
+
+
+## v0.7.40 - personal reporting handoffs
+
+Waiting projects a user's generated reports awaiting review/approval and their reviewed reports handed to approval, under current run-register access. Authorized current actions exclude the source before the common cap. Completion uses retained manual generation and explicit review/approve/supersede events; scheduled generation and automatic supersession side effects do not receive personal action credit. Stable run/event identities link directly to source detail; current status is separate from historical action. Report periods do not become deadlines. Accountability profiles/packages remain a separate adapter. All 29 focused Finance reporting tests passed in 6.530 seconds; all 184 My Work/reporting dependency tests passed on final executable source in 62.449 seconds. System, migration-drift, compilation and diff checks passed. D-030 records attribution and historical-office limitations.

@@ -638,3 +638,48 @@ def completed_cash_tasks(user, department, today):
             url=reverse("vouchers:cash_policy_detail", kwargs={"public_id": policy.public_id}),
         ))
     return tasks
+
+
+def completed_report_tasks(user, department, today):
+    """Credit retained personal report actions under current run-register scope."""
+    from reporting.access import can_view_reporting
+    from reporting.models import ReportRunEvent
+    from reporting.run_register_exports import visible_report_runs
+    from vouchers.roles import is_finance_uat_viewer
+    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
+
+    if is_finance_uat_viewer(user) or not can_view_reporting(user):
+        return []
+    labels = {
+        "generated": "Generated report output", "review": "Reviewed report evidence",
+        "approve": "Approved report output", "supersede": "Superseded report output",
+    }
+    events = ReportRunEvent.objects.filter(
+        run__in=visible_report_runs(user), actor_id=user.pk, action__in=labels,
+    ).exclude(action="generated", run__schedule__isnull=False).select_related("run__definition")
+    tasks = []
+    for event in events:
+        item = event.run
+        event_id = _source_record_identity("report-run-event", event.pk)
+        label = labels[event.action]
+        revision = _projection_checksum({
+            "event_id": str(event_id), "actor_id": event.actor_id, "action": event.action,
+            "at": event.created_at.isoformat(), "from": event.from_status, "to": event.to_status,
+            "note": event.note, "run": str(item.public_id), "state": item.status,
+            "checksum": item.checksum, "reproduction_key": item.reproduction_key,
+        })
+        tasks.append(FinanceWorkTask(
+            task_id=f"finwork:v1:report-run-event:{event_id}:completed",
+            task_type=f"finance.report-run.{event.action}.completed.v1", area="Reporting",
+            case_id=f"report-run:{item.public_id}",
+            reference=f"{item.definition.name} - {item.period_start} to {item.period_end}",
+            subject=label, transaction_type="Recorded report action", action="View recorded outcome",
+            gate=f"The retained event attributes this action to your account: {label}.",
+            owner_queue="Your recorded report action", scope=f"{department.name}; dataset {item.definition.dataset_key}",
+            received_at=event.created_at, due_on=None, due_state="Recorded completion",
+            calendar_basis="Elapsed calendar days since the retained action; report coverage dates are not deadlines.",
+            age_days=_age_days(event.created_at, today), state="Completed", source_state=item.get_status_display(),
+            source_version=f"event-sha256:{revision}", exception="",
+            url=reverse("reporting:run_detail", kwargs={"public_id": item.public_id}),
+        ))
+    return tasks

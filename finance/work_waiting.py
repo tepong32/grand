@@ -368,4 +368,22 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
                 subject="Released remittance awaiting Accounting posting" if item.status == item.ACCOUNTING_POSTING else "Submitted remittance schedule",
                 received=received, queue=queue, scope=f"{item.treasury_department}; fund {item.fund_code}", route="vouchers:remittance_detail",
                 attribution=[item.created_by_id, item.submitted_by_id, item.released_by_id])
+    from reporting.access import can_view_reporting
+    from reporting.models import ReportRun
+    from reporting.run_register_exports import visible_report_runs
+    if can_view_reporting(user):
+        runs = visible_report_runs(user).filter(
+            status__in=(ReportRun.GENERATED, ReportRun.REVIEWED),
+        ).filter(Q(created_by_id=user.pk) | Q(reviewed_by_id=user.pk, status=ReportRun.REVIEWED)).select_related("definition")
+        for item in runs:
+            blocked = item.control_gate_required and item.control_status != item.CONTROL_RECONCILED
+            queue = ("Report generators and source owners" if blocked else
+                     "Independent report reviewers" if item.status == item.GENERATED else "Report approvers")
+            received = item.reviewed_at if item.status == item.REVIEWED else item.generated_at
+            add(item, kind="report-run", area="Reporting",
+                reference=f"{item.definition.name} - {item.period_start} to {item.period_end}",
+                subject="Report you generated or reviewed awaiting its next governed step",
+                received=received, queue=f"{queue} - {department.name}",
+                scope=f"{department.name}; dataset {item.definition.dataset_key}",
+                route="reporting:run_detail", attribution=[item.created_by_id, item.reviewed_by_id])
     return tasks

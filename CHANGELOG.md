@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.40 - personal report handoffs
+
+Personal Waiting now follows generated report review/approval and the user's review handoff under current source scope. Completed by me credits retained manual generation and explicit review/approval/supersession events, excluding automated generation and indirect supersession credit. Current actions exclude Waiting before the display cap; report periods remain coverage dates. Verification: All 29 focused Finance reporting tests passed in 6.530 seconds; all 184 My Work/reporting dependency tests passed on final executable source in 62.449 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.39 - stored report generation evidence
 
 Manual report generation reloads stored template evidence. Generation locks and reloads run state before rendering, preventing forged retries against retained outputs. Scheduled execution reloads stored configuration, rejects inactive schedules and locks advancement while preserving idempotent retries and retained failure audits. Verification: All 69 focused reporting tests passed in 8.257 seconds; all 633 project tests passed in 191.264 seconds. System, migration-drift, compilation and diff checks passed.

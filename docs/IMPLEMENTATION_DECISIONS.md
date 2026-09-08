@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-030:** Project report Waiting from creator/reviewer handoffs and completion from explicit personal events, excluding automated generation credit.
+
 - **D-029:** Generate from persisted report/template/schedule evidence and retain failed-run recovery under the existing trusted scheduler policy.
 
 - **D-028:** Enforce stored source authority for reporting configuration while preserving non-Finance roles and separately authorized read/export.
@@ -362,3 +364,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: adding end-user mutation permissions to trusted scheduler execution would change the existing automation contract. This repair preserves that contract while making persisted evidence authoritative. Generation holds the default-store run lock while rendering; Finance source reads remain in the separate store. Database transactions cannot roll back file storage, and this checkpoint does not claim an off-host concurrency/storage-failure qualification.
 - Evidence: two altered-title assertions failed and a forged retry reached the mocked dataset builder before repair. All 69 focused reporting tests passed in 8.257 seconds; all 633 project tests passed in 191.264 seconds. System, migration-drift, compilation and diff checks passed.
 - Revisit when: introducing queued workers, a new renderer or a stronger cross-store snapshot contract; qualify lock behavior with the deployment database before production acceptance.
+
+
+## D-030 - Personal report handoffs and attributed history
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.40.
+- Decision: Waiting follows the user's generated reports through review/approval, plus their reviewed reports handed to approval, under current run-register scope. Current authorized actions exclude the run before the common display cap. Completed by me uses explicit generated/review/approve/supersede events for that account; scheduled generation and automatic supersession side effects are excluded from personal action credit.
+- Goal: connect the reporting step to the same governed work history without inventing task states or mistaking a background job for an employee's completed action.
+- Alternatives/tradeoffs: all visible office reports would violate the user's chosen personal Waiting scope. Report events retain an account identity but no separate historical department label; current source office/read scope is enforced without inventing a historical office snapshot. Period dates are coverage dates, not deadlines; generation/review timestamps explain elapsed handoff age.
+- Evidence: All 29 focused Finance reporting tests passed in 6.530 seconds; all 184 My Work/reporting dependency tests passed on final executable source in 62.449 seconds. System, migration-drift, compilation and diff checks passed. Existing read/download and service mutation rules are unchanged.
+- Revisit when: adding explicit report assignment, notifications, richer historical actor snapshots or background-worker identity. Accountability packages remain a separate adapter.

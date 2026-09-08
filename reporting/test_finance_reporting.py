@@ -1061,5 +1061,94 @@ class FinanceAccountabilityReportingTests(TestCase):
         self.assertFalse(ReportRun.objects.filter(schedule=schedule).exists())
 
 
+
+    def test_personal_report_handoffs_follow_real_review_approval_and_history(self):
+        from finance.work_tasks import finance_work_tasks
+        template = self.accounting_definition.current_template
+        template.fidelity_status = ReportTemplateVersion.OFFICIAL
+        template.fidelity_notes = "Synthetic accepted form comparison."
+        template.fidelity_validated_by = self.accounting_reviewer
+        template.fidelity_validated_at = timezone.now()
+        template.save(update_fields=("fidelity_status", "fidelity_notes", "fidelity_validated_by", "fidelity_validated_at"))
+        self.accounting_definition.applicability_status = ReportDefinition.APPLICABILITY_CONFIRMED
+        self.accounting_definition.authority_reference = "Synthetic LGU authority"
+        self.accounting_definition.local_acceptance_note = "Synthetic independent local acceptance."
+        self.accounting_definition.save()
+        reviewer = self.employee(self.accounting, "report.handoff.reviewer",
+                                 "view_reporting_workspace", "review_reports", "view_department_reports")
+        run = self.generate_accounting()
+        other = self.generate_accounting(self.accounting_reviewer)
+        identity = f"report-run:{run.public_id}"
+        def rows(actor, view):
+            return [row for row in finance_work_tasks(actor, view=view)["tasks"] if row["case_id"] == identity]
+        waiting = rows(self.accounting_preparer, "waiting")
+        self.assertEqual(len(waiting), 1)
+        self.assertIn("Independent report reviewers", waiting[0]["owner_queue"])
+        self.assertIsNone(waiting[0]["due_on"])
+        self.assertNotIn(f"report-run:{other.public_id}", [row["case_id"] for row in finance_work_tasks(self.accounting_preparer, view="waiting")["tasks"]])
+        self.assertEqual(len(rows(self.accounting_preparer, "completed")), 1)
+        transition_run(run, "review", reviewer, "Traced exact controls.")
+        self.assertIn("Report approvers", rows(self.accounting_preparer, "waiting")[0]["owner_queue"])
+        self.assertEqual(len(rows(reviewer, "waiting")), 1)
+        self.assertEqual(rows(reviewer, "completed")[0]["subject"], "Reviewed report evidence")
+        approval = Permission.objects.get(content_type__app_label="reporting", codename="approve_reports")
+        reviewer.user_permissions.add(approval)
+        reviewer = get_user_model().objects.get(pk=reviewer.pk)
+        self.assertEqual(rows(reviewer, "waiting"), [])
+        self.assertEqual(finance_work_tasks(reviewer, view="waiting", display_limit=0)["task_count"], 0)
+        reviewer.user_permissions.remove(approval)
+        reviewer = get_user_model().objects.get(pk=reviewer.pk)
+        self.assertEqual(len(rows(reviewer, "waiting")), 1)
+        self.client.force_login(self.accounting_preparer)
+        self.assertEqual(self.client.get(waiting[0]["url"]).status_code, 200)
+        transition_run(run, "approve", self.accounting_reviewer, "Synthetic acceptance.")
+        self.assertEqual(rows(self.accounting_preparer, "waiting"), [])
+        self.assertEqual(rows(reviewer, "waiting"), [])
+        history = rows(self.accounting_preparer, "completed")
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["source_state"], run.get_status_display())
+        self.assertEqual(rows(self.accounting_reviewer, "completed")[0]["subject"], "Approved report output")
+        transition_run(run, "supersede", self.accounting_reviewer, "Synthetic successor process.")
+        self.assertEqual(len(rows(self.accounting_reviewer, "completed")), 2)
+        self.assertEqual(rows(self.accounting_preparer, "completed")[0]["task_id"], history[0]["task_id"])
+        self.assertNotEqual(rows(self.accounting_preparer, "completed")[0]["source_version"], history[0]["source_version"])
+
+    def test_report_handoff_views_recheck_current_read_scope_and_preview(self):
+        from django.contrib.auth.models import Group
+        from finance.work_tasks import finance_work_tasks
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        run = self.generate_accounting()
+        identity = f"report-run:{run.public_id}"
+        def count(actor, view):
+            return sum(row["case_id"] == identity for row in finance_work_tasks(actor, view=view)["tasks"])
+        self.assertEqual(count(self.accounting_preparer, "waiting"), 1)
+        self.assertEqual(count(self.budget_preparer, "waiting"), 0)
+        self.assertEqual(count(self.budget_preparer, "completed"), 0)
+        group = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0]
+        self.accounting_preparer.groups.add(group)
+        self.assertEqual(count(self.accounting_preparer, "waiting"), 0)
+        self.assertEqual(count(self.accounting_preparer, "completed"), 0)
+        self.accounting_preparer.groups.remove(group)
+        self.accounting_preparer.user_permissions.remove(Permission.objects.get(
+            content_type__app_label="reporting", codename="view_reporting_workspace"))
+        actor = get_user_model().objects.get(pk=self.accounting_preparer.pk)
+        self.assertEqual(count(actor, "waiting"), 0)
+        self.assertEqual(count(actor, "completed"), 0)
+
+    def test_scheduled_generation_is_not_credited_as_manual_completion(self):
+        from finance.work_tasks import finance_work_tasks
+        from .models import ReportSchedule
+        from .services import execute_schedule
+        schedule = ReportSchedule.objects.create(
+            definition=self.accounting_definition,
+            template_version=self.accounting_definition.current_template,
+            name="Automatic report", frequency=ReportSchedule.MONTHLY, output_format="xlsx",
+            next_run_at=timezone.now(), created_by=self.accounting_preparer,
+        )
+        run, _created = execute_schedule(schedule)
+        self.assertTrue(run.events.filter(action="generated", actor=self.accounting_preparer).exists())
+        self.assertNotIn(f"report-run:{run.public_id}", [row["case_id"] for row in finance_work_tasks(self.accounting_preparer, view="completed")["tasks"]])
+
+
 def tearDownModule():
     shutil.rmtree(FINANCE_REPORT_MEDIA_ROOT, ignore_errors=True)
