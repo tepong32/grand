@@ -318,3 +318,26 @@ class CashWorkRegisterTests(TestCase):
         decided = decide_policy(policy=self.review_policy, actor=self.reviewer, approve=True, reason="Independent review")
         self.assertEqual(decided.status, TreasuryCashPolicy.ACTIVE)
         self.assertEqual(decided.approved_by, self.reviewer)
+
+    def test_policy_submission_uses_stored_treasury_custody(self):
+        self.hidden_policy.treasury_department = self.treasury
+        before = TreasuryCashEvent.objects.count()
+        with self.assertRaises(PermissionDenied):
+            submit_policy(policy=self.hidden_policy, actor=self.user)
+        self.hidden_policy.refresh_from_db()
+        self.assertEqual(self.hidden_policy.treasury_department, self.other)
+        self.assertEqual(self.hidden_policy.status, TreasuryCashPolicy.DRAFT)
+        self.assertEqual(TreasuryCashEvent.objects.count(), before)
+
+    def test_cash_export_uses_stored_policy_owner_before_archiving(self):
+        from unittest.mock import patch
+        from .cash_positions import export_cash_position_csv
+
+        self.user.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="export_cash_position",
+        ))
+        self.hidden_policy.treasury_department = self.treasury
+        with patch("vouchers.cash_positions.archive_export") as archive:
+            with self.assertRaises(PermissionDenied):
+                export_cash_position_csv(actor=self.user, policy=self.hidden_policy)
+            archive.assert_not_called()

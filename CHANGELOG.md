@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.33 - stored cash custody
+
+Cash preparation and manual exception-resolution services now check owning-office custody on locked stored records. Policy-specific export reloads stored ownership before authorization and archive attribution. Independent cross-office review and existing read/export permissions remain unchanged. Verification: all 15 focused cash contracts/lifecycle tests passed in 12.682 seconds; all 599 project tests passed in 370.798 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.32 - cash UAT mutation authority
 
 Cash policy/position and instrument-exception mutation entry points now reject Finance UAT Viewers even with explicit operational grants. Page controls share this predicate. Existing authorized read/export access, independent cross-office cash approval and trusted internal exception closure remain intact. Verification: all 13 focused cash contracts/lifecycle tests passed in 12.463 seconds; all 597 project tests passed on the final patch in 424.974 seconds. System, migration-drift, compilation and diff checks passed.

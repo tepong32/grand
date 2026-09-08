@@ -285,10 +285,10 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 
 ### D-023 — Enforce cash custody from persisted records
 
-- Date/checkpoint: 2026-09-08; next after v0.7.32.
+- Date/checkpoint: 2026-09-08; v0.7.33.
 - Decision: reproduce FIN-GAP-016 before extending cash personal projections. Check preparation/manual-resolution custody after locking and reloading authoritative records if confirmed.
 - Alternatives considered: trust objects supplied by current HTTP views; conflate preparation ownership with authorized cross-office review.
 - Goal fit: office-owned work must retain its boundary across every service caller, including stale or altered in-memory objects.
 - Tradeoff: preserve current independent review scope; no new role or workflow is introduced.
-- Evidence/status: four service entry points inspect caller ownership before reload; reproduction pending.
+- Evidence/status: four mutation entry points inspect caller ownership before reload; policy-specific export also trusts supplied ownership. Foreign policy submission was accepted using altered in-memory ownership (1 failed denial test, 1.818 seconds). Stored-custody repair implemented; all 599 project tests passed in 370.798 seconds.
 - Revisit when: regressions prove foreign ownership cannot be substituted and normal financial lifecycle remains valid.

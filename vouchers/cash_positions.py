@@ -152,8 +152,8 @@ def create_policy(*, actor, configuration_release, bank_account_code, fund_code,
 @transaction.atomic
 def submit_policy(*, policy, actor):
     _require(actor, "vouchers.prepare_cash_position")
-    _require_preparer_scope(actor, policy)
     locked = TreasuryCashPolicy.objects.select_for_update().get(pk=policy.pk)
+    _require_preparer_scope(actor, locked)
     if locked.status != locked.DRAFT:
         raise ValidationError("Only a draft cash policy can be submitted. Prepare a reasoned successor after a return.")
     locked.full_clean()
@@ -231,8 +231,8 @@ def latest_reconciled_bank_position(policy, as_of_date):
 def create_position(*, policy, actor, as_of_date, confirmed_inflows, confirmed_outflows, other_holds,
                     evidence_reference, preparation_note=""):
     _require(actor, "vouchers.prepare_cash_position")
-    _require_preparer_scope(actor, policy)
     policy = TreasuryCashPolicy.objects.select_for_update().get(pk=policy.pk)
+    _require_preparer_scope(actor, policy)
     if policy.status != policy.ACTIVE:
         raise ValidationError("Prepare cash positions only under an independently activated policy.")
     batch, bank_snapshot = latest_reconciled_bank_position(policy, as_of_date)
@@ -270,8 +270,8 @@ def create_position(*, policy, actor, as_of_date, confirmed_inflows, confirmed_o
 @transaction.atomic
 def submit_position(*, position, actor):
     _require(actor, "vouchers.prepare_cash_position")
-    _require_preparer_scope(actor, position.policy)
     locked = TreasuryCashPosition.objects.select_for_update().select_related("policy").get(pk=position.pk)
+    _require_preparer_scope(actor, locked.policy)
     if locked.status != locked.DRAFT:
         raise ValidationError("Only a draft cash position can be submitted. Prepare a reasoned successor after a return.")
     batch, bank_snapshot = latest_reconciled_bank_position(locked.policy, locked.as_of_date)
@@ -501,9 +501,9 @@ def open_instrument_exception(*, instrument, actor, kind, observed_on, reason, e
 def resolve_instrument_exception(*, exception, actor, resolution, permission_required=True):
     if permission_required:
         _require(actor, "vouchers.manage_payment_exceptions")
-        if exception.policy.treasury_department != department_for_user(actor):
-            raise PermissionDenied("Instrument exception resolution is limited to the owning Treasury department.")
     locked = PaymentInstrumentException.objects.select_for_update().select_related("instrument", "policy").get(pk=exception.pk)
+    if permission_required and locked.policy.treasury_department != department_for_user(actor):
+        raise PermissionDenied("Instrument exception resolution is limited to the owning Treasury department.")
     note = str(resolution or "").strip()
     if locked.status != locked.OPEN or not note:
         raise ValidationError("Resolve an open exception with the reviewed action and evidence.")
@@ -529,6 +529,7 @@ def export_cash_position_csv(*, actor, policy=None):
         raise PermissionDenied
     policies = TreasuryCashPolicy.objects.all().select_related("configuration_release", "treasury_department")
     if policy:
+        policy = TreasuryCashPolicy.objects.select_related("treasury_department").get(pk=policy.pk)
         if not has_explicit_permission(actor, "vouchers.approve_cash_position") and policy.treasury_department != department_for_user(actor):
             raise PermissionDenied
         policies = policies.filter(pk=policy.pk)

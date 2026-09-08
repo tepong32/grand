@@ -177,8 +177,18 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 
 ## FIN-GAP-016 - Cash custody checks precede stored-record reload
 
-- Process/module: cash policy submission, position creation/submission and manual instrument-exception resolution.
-- Severity/status: **HIGH - OPEN**, source inspection during v0.7.32 regression.
-- Code evidence: submit_policy, create_position and submit_position call _require_preparer_scope on caller-supplied objects before their select_for_update reload. resolve_instrument_exception likewise checks caller-supplied policy ownership before loading the stored exception.
+- Process/module: cash policy submission, position creation/submission, manual instrument-exception resolution and policy-specific export.
+- Severity/status: **HIGH - VERIFIED**, reproduced and repaired in v0.7.33.
+- Code evidence: submit_policy, create_position and submit_position call _require_preparer_scope on caller-supplied objects before their select_for_update reload. resolve_instrument_exception likewise checks caller-supplied policy ownership before loading the stored exception. Policy-specific export also compares the supplied policy owner before querying stored data.
 - Expected behavior: owning-office authority must be checked on locked persisted records, regardless of altered or stale caller attributes. Preserve explicitly authorized independent cross-office approvals.
 - Next step: reproduce with isolated foreign-office records and altered in-memory ownership, then repair and verify before cash projections. No operational misuse is asserted.
+
+- FIN-GAP-016 reproduction: altered in-memory ownership permitted another office's policy submission (1 failed denial test, 1.818 seconds). Four mutation boundaries and policy export now check stored ownership; all 599 project tests passed in 370.798 seconds.
+
+## FIN-GAP-017 - Review Finance reporting UAT mutation authority
+
+- Process/module: Finance report generation/review/approval and related reporting controls.
+- Severity/status: **HIGH - OPEN**, source inspection while cash custody regression runs.
+- Code evidence: reporting.access._authorized does not distinguish the Finance UAT Viewer role; reporting.services.transition_run uses can_review_reports/can_approve_reports. create_manual_run relies on callers for action authority. Reporting also serves non-Finance domains, so the correct boundary needs domain-aware verification.
+- Expected behavior: Finance preview access cannot become Finance report mutation authority through combined grants. Preserve separately governed non-Finance reporting roles, read/download permissions and trusted scheduled execution.
+- Next step: reproduce against a Finance report fixture before the reporting personal-handoff phase, audit generation and review callers, and document the domain boundary before repair. No production misuse is asserted.

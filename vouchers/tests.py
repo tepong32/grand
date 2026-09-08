@@ -3672,6 +3672,7 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(self.client.get(reverse("vouchers:advice_workspace")).status_code, 403)
 
     def test_f83_cash_enforcement_reservation_ageing_and_portable_export(self):
+        from copy import copy
         from django.contrib.auth.models import Group
         from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
         from vouchers.cash_positions import resolve_instrument_exception
@@ -3689,6 +3690,23 @@ class VoucherWorkflowTests(TestCase):
                 self.assertEqual(TreasuryCashEvent.objects.count(), before)
             finally:
                 actor.groups.remove(preview_group)
+            if operation in (submit_policy, create_position, submit_position):
+                self.validator.user_permissions.add(Permission.objects.get(
+                    content_type__app_label="vouchers", codename="prepare_cash_position",
+                ))
+                forged = dict(kwargs, actor=self.validator)
+                if operation == submit_position:
+                    position = copy(kwargs["position"])
+                    position.policy = copy(position.policy)
+                    position.policy.treasury_department = self.accounting
+                    forged["position"] = position
+                else:
+                    policy = copy(kwargs["policy"])
+                    policy.treasury_department = self.accounting
+                    forged["policy"] = policy
+                with self.assertRaises(PermissionDenied):
+                    operation(**forged)
+                self.assertEqual(TreasuryCashEvent.objects.count(), before)
             return operation(**kwargs)
 
         self.treasury_user.user_permissions.add(*Permission.objects.filter(
@@ -3875,6 +3893,18 @@ class VoucherWorkflowTests(TestCase):
             self.assertEqual(stale.status, PaymentInstrumentException.OPEN)
         finally:
             self.treasury_user.groups.remove(preview_group)
+        self.validator.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="manage_payment_exceptions",
+        ))
+        forged_exception = copy(stale)
+        forged_exception.policy = copy(stale.policy)
+        forged_exception.policy.treasury_department = self.accounting
+        with self.assertRaises(PermissionDenied):
+            resolve_instrument_exception(
+                exception=forged_exception, actor=self.validator, resolution="Foreign-office resolution",
+            )
+        stale.refresh_from_db()
+        self.assertEqual(stale.status, PaymentInstrumentException.OPEN)
         cancel_check(
             case=case, instrument=instrument, actor=self.treasury_user,
             reason="Cancel after locally reviewed stale classification and prepare a controlled replacement if still payable.",
