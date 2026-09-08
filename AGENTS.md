@@ -10,7 +10,7 @@ Keep the default and Finance databases separate; never merge Finance into the de
 
 ### Development state
 
-Finance functional work is ongoing. Production remains NO-GO until the documented completion, operational scrutiny, critical-gap verification and LGU acceptance gates pass. Read the live CONTINUE.md for the current phase; do not copy its changing task history here.
+Finance functional work remains ongoing. Read the current branch’s CONTINUE.md for its checkpoint; a documentation update from master does not merge or publish later personal-handoff work from development branches. Production remains NO-GO until functional completion, broad regression, operational scrutiny, critical-gap verification and LGU acceptance pass. Preserve the separate database and existing acceptance gates.
 
 ### Read next
 
