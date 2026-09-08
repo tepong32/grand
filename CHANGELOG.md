@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.43 - field personal handoffs
+
+Personal Waiting now follows field-cycle reconciliation submissions, exercise results and defect corrections under current source access. Completion resolves retained cycle/child audit identities and separates submission from independent acceptance. Named cross-office scope, rerun history and current-state display are preserved; original preparation targets do not become invented reviewer deadlines. Verification: All 36 focused field-workflow tests passed in 13.056 seconds; all 224 field/My Work/reporting dependency tests passed in 80.786 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.42 - operational field-assignment authority
 
 Named exercise owners/witnesses, defect resolution owners and stakeholder reviewers now require authenticated active non-UAT identity at stored service boundaries. Source controls and task selection share the rule. Named cross-office read access and the authorized owning-office manager alternative for defect correction remain supported. Verification: All 52 focused field/My Work tests passed in 25.593 seconds; all 644 project tests passed in 196.190 seconds. System, migration-drift, compilation and diff checks passed.

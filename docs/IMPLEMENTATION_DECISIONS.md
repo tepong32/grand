@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-033:** Preserve separate cycle/exercise/defect handoffs and resolve retained field events through matching current source custody.
+
 - **D-032:** Keep named cross-office field assignments, but require active non-UAT identity at every assigned-actor mutation boundary.
 
 - **D-031:** Add accountability source-action parity before personal Waiting, preserving independent profile/package decisions and cross-office evidence recipes.
@@ -398,3 +400,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: requiring same-office membership would wrongly remove established cross-office owners and witnesses. A page-only fix would leave direct service calls open. The assignment remains the authority; the operational identity check is an additional mandatory boundary.
 - Evidence: two unauthorized exercise actions reproduced in 1.980 seconds; All 52 focused field/My Work tests passed in 25.593 seconds; all 644 project tests passed in 196.190 seconds. System, migration-drift, compilation and diff checks passed. Tests cover all four service entry points, unchanged audit/state after denial and source control visibility.
 - Revisit when: local qualification policy changes named assignment, active-account requirements or preview access; do not infer broader office authority from a named assignment.
+
+
+## D-033 - Field cycle, exercise and defect handoff attribution
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.43.
+- Decision: Waiting projects own cycle reconciliation submissions, submitted exercise results and submitted defect corrections. Child records retain their existing distinct task identities and current source read scope, including named cross-office access. Completion credits explicit cycle and child submission/decision events only after matching the audit target cycle, department and retained child ID to the current record.
+- Goal: show progress through qualification without mistaking an owner's submission for independent acceptance or attributing another cycle's audit evidence to the user.
+- Alternatives/tradeoffs: a single cycle-level completion would hide who submitted and who independently accepted a result. Reporting every event as completion would over-credit setup/export detail. Original exercise/correction due times are not invented as new reviewer deadlines; Waiting ages from retained submission. Current source status stays separate from historical action.
+- Evidence: All 36 focused field-workflow tests passed in 13.056 seconds; all 224 field/My Work/reporting dependency tests passed in 80.786 seconds. System, migration-drift, compilation and diff checks passed. No source mutations or financial calculations changed.
+- Revisit when: extending reconciliation/readiness/qualification plan and run coverage, stakeholder/cutover decision history or returned-cycle successor work. These remain separate coverage items.

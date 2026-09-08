@@ -398,4 +398,37 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
                 queue=f"Independent accountability {kind} reviewers - {department.name}",
                 scope=department.name, route=f"reporting:accountability_{kind}_detail",
                 attribution=[item.created_by_id, item.submitted_by_id])
+    from .access import can_view_shadow_cycle
+    from .models import FinanceShadowCycle, FinanceShadowDefect, FinanceCutoverReadinessExercise
+    from .shadow_register_exports import visible_shadow_cycles
+    cycles = visible_shadow_cycles(user)
+    for item in cycles.filter(status=FinanceShadowCycle.RECONCILIATION_REVIEW).filter(
+        Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk),
+    ):
+        if not can_view_shadow_cycle(user, item):
+            continue
+        add(item, kind="field-cycle", area="Field operation", reference=item.code, subject=item.title,
+            received=item.submitted_at, queue=f"Independent cycle reconciliation - {item.department.name}",
+            scope=f"{item.department.name}; {item.enabled_scope}", route="finance:shadow_cycle_detail",
+            route_kwargs={"pk": item.pk}, attribution=[item.created_by_id, item.submitted_by_id])
+    child_specs = (
+        (FinanceShadowDefect, "field-defect", "resolution_submitted_by_id", "resolution_submitted_at",
+         FinanceShadowDefect.RESOLUTION_REVIEW, "Independent defect-resolution reviewers"),
+        (FinanceCutoverReadinessExercise, "field-exercise", "submitted_by_id", "submitted_at",
+         FinanceCutoverReadinessExercise.SUBMITTED, "Named independent exercise witness"),
+    )
+    for model, kind, submitter, handoff, state, queue in child_specs:
+        children = model.objects.filter(cycle__in=cycles, status=state).filter(
+            Q(owner_id=user.pk) | Q(**{submitter: user.pk}),
+        ).select_related("cycle__department")
+        for item in children:
+            cycle = item.cycle
+            if not can_view_shadow_cycle(user, cycle):
+                continue
+            add(item, kind=kind, area="Field operation", reference=f"{cycle.code} - {item.code}",
+                subject=item.summary if kind == "field-defect" else item.title,
+                received=getattr(item, handoff), queue=f"{queue} - {cycle.department.name}",
+                scope=f"{cycle.department.name}; {cycle.enabled_scope}", route="finance:shadow_cycle_detail",
+                route_kwargs={"pk": cycle.pk}, source_id=_source_record_identity(kind, item.pk),
+                attribution=[item.owner_id, getattr(item, submitter)])
     return tasks
