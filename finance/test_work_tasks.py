@@ -1675,6 +1675,68 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         self.assertIn("step 2", next_task["reference"])
         self.assertEqual(job.status, VoucherPrintJob.AWAITING_SIGNATURES)
 
+    def test_dv_completion_keeps_each_recorded_action_after_custody_moves(self):
+        from vouchers.models import VoucherEvent
+
+        item = self._case("DV-HISTORY", stage=VoucherCase.TREASURY_RELEASE, current=self.other, with_voucher=True)
+        expected = []
+        for index, (action, before, after) in enumerate((
+            ("dv_prepared", VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.AWAITING_SIGNATURES),
+            ("dv_corrected", VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.ACCOUNTING_VALIDATION),
+            ("dv_corrected", VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.AWAITING_SIGNATURES),
+            ("accounting_validated", VoucherCase.ACCOUNTING_VALIDATION, VoucherCase.ACCOUNTING_POSTING),
+        )):
+            expected.append(VoucherEvent.objects.create(
+                case=item, action=action, from_stage=before, to_stage=after,
+                actor=self.preparer, actor_department=self.accounting, state_version=index+1,
+                idempotency_key=f"history-{index}", reason="Retained review evidence"))
+        VoucherEvent.objects.create(case=item, action="dv_prepared", from_stage=VoucherCase.TREASURY_RELEASE,
+            to_stage=VoucherCase.ACCOUNTING_VALIDATION, actor=self.preparer, actor_department=self.accounting,
+            state_version=5, idempotency_key="inconsistent")
+        VoucherEvent.objects.create(case=item, action="dv_prepared", from_stage=VoucherCase.ACCOUNTING_PREPARATION,
+            to_stage=VoucherCase.ACCOUNTING_VALIDATION, actor=self.validator, actor_department=self.accounting,
+            state_version=6, idempotency_key="other-actor")
+        self._case("DV-NO-HISTORY", stage=VoucherCase.COMPLETED, with_voucher=True)
+        tasks = finance_work_tasks(self.preparer, view="completed")["tasks"]
+        self.assertEqual(len(tasks), len(expected))
+        self.assertEqual(len({task["task_id"] for task in tasks}), len(expected))
+        self.assertEqual({task["received_at"] for task in tasks}, {event.created_at for event in expected})
+        for task in tasks:
+            self.assertEqual(task["case_id"], f"voucher-case:{item.public_id}")
+            self.assertEqual(task["source_state"], item.get_current_stage_display())
+            self.assertIn(self.accounting.name, task["scope"])
+            self.assertIn("does not authorize payment release", task["gate"])
+            self.assertIsNone(task["due_on"])
+        self.assertEqual(self.client.get(tasks[0]["url"]).status_code, 302)
+        self.client.force_login(self.preparer)
+        self.assertEqual(self.client.get(tasks[0]["url"]).status_code, 200)
+        self.preparer.user_permissions.clear()
+        self.assertFalse(finance_work_tasks(self.preparer, view="completed")["tasks"])
+
+    def test_signature_completion_credits_service_recorder_not_signatory(self):
+        from vouchers.services import record_signature_return
+
+        item = self._case("DV-RECORDER", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True, controlled=False)
+        first = WetSignatureTask.objects.create(case=item, round_number=1, sequence=1, role_code="head",
+            signatory_name_snapshot="Actual paper signatory")
+        second = WetSignatureTask.objects.create(case=item, round_number=1, sequence=2, role_code="accountant",
+            signatory_name_snapshot="Another paper signatory")
+        record_signature_return(case=item, task=first, actor=self.signature_operator, note="Received first paper",
+            expected_version=item.state_version, idempotency_key="first-paper")
+        item.refresh_from_db()
+        record_signature_return(case=item, task=second, actor=self.signature_operator, note="Received final paper",
+            expected_version=item.state_version, idempotency_key="final-paper")
+        tasks = finance_work_tasks(self.signature_operator, view="completed")["tasks"]
+        self.assertEqual(len(tasks), 2)
+        self.assertEqual({task["task_type"] for task in tasks}, {
+            "finance.dv.wet_signature_returned.completed.v1", "finance.dv.wet_signatures_completed.completed.v1"})
+        for task in tasks:
+            self.assertIn("custody recording", task["exception"])
+            self.assertIn("not the recorder's own wet signature", task["exception"])
+        self.assertFalse(finance_work_tasks(self.preparer, view="completed")["tasks"])
+        self.signature_operator.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertFalse(finance_work_tasks(self.signature_operator, view="completed")["tasks"])
+
     def test_dv_waiting_uses_retained_stage_handoff_and_current_preparer(self):
         from vouchers.models import VoucherEvent
 

@@ -1752,6 +1752,10 @@ class VoucherWorkflowTests(TestCase):
             idempotency_key="full-cycle-accounting-validate",
         )
         case.refresh_from_db()
+        self.assertTrue(any(task["case_id"] == work_case_id and task["task_type"] == "finance.dv.dv_prepared.completed.v1"
+                            for task in finance_work_tasks(self.preparer, view="completed")["tasks"]))
+        self.assertTrue(any(task["case_id"] == work_case_id and task["task_type"] == "finance.dv.accounting_validated.completed.v1"
+                            for task in finance_work_tasks(self.validator, view="completed")["tasks"]))
         recognition_request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
         recognition_entry, created = materialize_voucher_journal(recognition_request, self.preparer)
         self.assertTrue(created)

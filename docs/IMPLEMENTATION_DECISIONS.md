@@ -23,6 +23,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-011:** Continue with payable handoffs on the existing shared voucher identity.
 - **D-012:** Verify and close the signature task identity/state boundary before expanding signature projections.
 - **D-013:** Match signature packet gates and map child actions back to the shared case before extending DV Waiting.
+- **D-014:** Credit retained DV preparation, custody-recording and validation actions without inferring signing or payment authority.
 
 ### D-001 — Retained events determine personal completion
 
@@ -166,3 +167,14 @@ D-012 scope update (v0.7.22): reproduction confirmed the three task-identity/sta
 - Revisit when: later handoff identities and their current source gates have been audited.
 
 D-013 attribution/timing detail: retain intake preparer/submitter eligibility and add the current DV preparer for these DV stages. Use retained stage-transition time, excluding same-stage partial signatures; do not infer a deadline from the voucher date. Missing transition evidence remains visible. Work pauses after this checkpoint under the latest user instruction.
+
+
+### D-014 — Credit retained DV actions without inferring signing or payment authority
+
+- Date/checkpoint: 2026-09-08; v0.7.24.
+- Decision: Project DV preparation/correction, ordinary partial/final signature-return recording and Accounting validation from retained VoucherEvent actor attribution and valid source transition pairs. Recheck current workbench read access; retain historical acting office after custody moves. Give repeated corrections distinct event identities.
+- Alternatives considered: infer completion from the current DV preparer or terminal case state; credit signature recording as signing; require the historical acting office to equal today's case office.
+- Goal fit: one traceable transaction history should show what each account actually did without erasing prior office work when custody moves. Review completion does not authorize payment release.
+- Tradeoff: nonfinancial amendments, generic returns, print/packet actions and later payment stages remain separate adapters requiring their own event audit. This bounded slice does not claim complete DV history coverage.
+- Evidence/status: inspected source event emission and mutation controls; implementation verified: two focused tests and all 581 project tests passed. Tests include real ordered signature service events and the existing full Budget-to-payment replay.
+- Revisit when: expanding amendment, print/packet or later payment history; require explicit event meaning and current source access for each addition.

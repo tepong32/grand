@@ -2828,8 +2828,9 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
         tasks.extend(_field_operation_tasks(user, department, today))
         tasks.extend(_local_form_tasks(user, department, today))
     if view == "completed":
-        from .work_completed import completed_accounting_tasks, completed_budget_tasks, completed_payment_handoff_tasks, completed_setup_tasks, completed_discovery_tasks, completed_payable_tasks
+        from .work_completed import completed_accounting_tasks, completed_budget_tasks, completed_payment_handoff_tasks, completed_setup_tasks, completed_discovery_tasks, completed_payable_tasks, completed_dv_tasks
         tasks = completed_payable_tasks(user, department, today)
+        tasks.extend(completed_dv_tasks(user, department, today))
         tasks.extend(completed_setup_tasks(user, department, today))
         tasks.extend(completed_discovery_tasks(user, department, today))
         tasks.extend(completed_accounting_tasks(user, department, today))
@@ -2856,7 +2857,7 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
         "tasks": [task.as_dict() for task in tasks[:display_limit]],
         "task_count": task_count,
         "tasks_truncated": task_count > display_limit,
-        "task_coverage": ("Attributed payable review handoffs", "Attributed discovery decision events", "Attributed setup release transitions", "Attributed bank-advice and remittance handoff events", "Attributed Budget call, proposal, appropriation, allotment and obligation events", "Attributed JEV submission/posting/return events", "Opening-balance submission and decision events", "Period-close and reopen decision events") if view == "completed" else ("Payable review, DV preparation, signature custody and validation handoffs", "Submitted discovery decisions", "Submitted Finance setup releases", "Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review, release and Accounting posting") if view == "waiting" else (
+        "task_coverage": ("Attributed DV preparation, signature-return recording and validation events", "Attributed payable review handoffs", "Attributed discovery decision events", "Attributed setup release transitions", "Attributed bank-advice and remittance handoff events", "Attributed Budget call, proposal, appropriation, allotment and obligation events", "Attributed JEV submission/posting/return events", "Opening-balance submission and decision events", "Period-close and reopen decision events") if view == "completed" else ("Payable review, DV preparation, signature custody and validation handoffs", "Submitted discovery decisions", "Submitted Finance setup releases", "Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review, release and Accounting posting") if view == "waiting" else (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls", "Opening-balance controls",
             "Voucher and remittance journal creation and posted-source synchronization",
