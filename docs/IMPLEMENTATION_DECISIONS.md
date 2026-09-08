@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-032:** Keep named cross-office field assignments, but require active non-UAT identity at every assigned-actor mutation boundary.
+
 - **D-031:** Add accountability source-action parity before personal Waiting, preserving independent profile/package decisions and cross-office evidence recipes.
 
 - **D-030:** Project report Waiting from creator/reviewer handoffs and completion from explicit personal events, excluding automated generation credit.
@@ -386,3 +388,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: adding Waiting alone would omit the next person's work queue. A generic department-wide queue would ignore current grants and independent review. Approved cross-office evidence remains readable through the accepted package recipe; package mutation still belongs to its owning office. Draft/evidence selection detail and automatic predecessor supersession stay in source audit rather than being credited as additional completed decisions.
 - Evidence: All 13 focused accountability tests passed in 7.533 seconds; all 188 My Work/reporting dependency tests passed in 66.194 seconds. System, migration-drift, compilation and diff checks passed. No mutation rules, schema or money calculations changed.
 - Revisit when: accepted local policy changes recipe ownership, authorized reviewers or evidence disclosure; richer actor-office history still requires retained source evidence.
+
+
+## D-032 - Operational identity for named field assignments
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.42.
+- Decision: a shared assignment predicate requires authenticated active non-UAT identity and the stored assigned account. Apply it to exercise owners/witnesses, defect resolution owners and stakeholder reviewers, plus source controls and task-role eligibility. Preserve the explicit owning-office manager alternative for defect resolution and separately authorized assigned read/export access.
+- Goal: keep field qualification and stakeholder decisions attributable without allowing a preview or inactive identity to become an operational decision-maker.
+- Alternatives/tradeoffs: requiring same-office membership would wrongly remove established cross-office owners and witnesses. A page-only fix would leave direct service calls open. The assignment remains the authority; the operational identity check is an additional mandatory boundary.
+- Evidence: two unauthorized exercise actions reproduced in 1.980 seconds; All 52 focused field/My Work tests passed in 25.593 seconds; all 644 project tests passed in 196.190 seconds. System, migration-drift, compilation and diff checks passed. Tests cover all four service entry points, unchanged audit/state after denial and source control visibility.
+- Revisit when: local qualification policy changes named assignment, active-account requirements or preview access; do not infer broader office authority from a named assignment.

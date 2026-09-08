@@ -16,6 +16,7 @@ from django.utils import timezone
 from src.export_archive import archive_export
 
 from .access import (
+    can_act_on_finance_assignment,
     can_authorize_finance_cutover,
     can_manage_shadow_operation,
     can_review_shadow_reconciliation,
@@ -1092,7 +1093,7 @@ def submit_cutover_readiness_exercise(
     exercise = FinanceCutoverReadinessExercise.objects.select_for_update().select_related(
         "cycle", "cycle__department",
     ).get(pk=exercise.pk)
-    if actor.pk != exercise.owner_id:
+    if not can_act_on_finance_assignment(actor, exercise.owner_id):
         raise PermissionDenied("Only the assigned exercise owner can submit its result.")
     if exercise.status not in {FinanceCutoverReadinessExercise.PLANNED, FinanceCutoverReadinessExercise.RETURNED}:
         raise ValidationError("Only a planned or returned readiness exercise can be submitted.")
@@ -1135,7 +1136,7 @@ def review_cutover_readiness_exercise(exercise, actor, *, accept, reason):
     exercise = FinanceCutoverReadinessExercise.objects.select_for_update().select_related(
         "cycle", "cycle__department", "recovery_rehearsal",
     ).get(pk=exercise.pk)
-    if actor.pk != exercise.witness_id:
+    if not can_act_on_finance_assignment(actor, exercise.witness_id):
         raise PermissionDenied("Only the assigned witness can review this exercise.")
     if exercise.status != FinanceCutoverReadinessExercise.SUBMITTED:
         raise ValidationError("This readiness exercise is not awaiting witness review.")
@@ -1248,7 +1249,7 @@ def register_shadow_defect(comparison, actor, *, code, severity, summary, impact
 @transaction.atomic
 def submit_shadow_defect_resolution(defect, actor, *, note, evidence_reference):
     defect = FinanceShadowDefect.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=defect.pk)
-    if actor.pk != defect.owner_id and not can_manage_shadow_operation(actor, defect.cycle.department):
+    if not can_act_on_finance_assignment(actor, defect.owner_id) and not can_manage_shadow_operation(actor, defect.cycle.department):
         raise PermissionDenied
     if defect.cycle.status != FinanceShadowCycle.RUNNING or defect.status != FinanceShadowDefect.OPEN:
         raise ValidationError("Only an open defect in a running cycle can be submitted as corrected.")
@@ -1523,7 +1524,7 @@ def decide_stakeholder_acceptance(
     signed_decision_reference, signed_decision_checksum, reason="",
 ):
     acceptance = FinanceStakeholderAcceptance.objects.select_for_update().select_related("cycle", "cycle__department").get(pk=acceptance.pk)
-    if acceptance.assigned_reviewer_id != actor.pk:
+    if not can_act_on_finance_assignment(actor, acceptance.assigned_reviewer_id):
         raise PermissionDenied("Only the named stakeholder reviewer can record this decision.")
     if acceptance.cycle.status != FinanceShadowCycle.RECONCILED:
         raise ValidationError("Stakeholder acceptance opens only after independent shadow-cycle reconciliation.")

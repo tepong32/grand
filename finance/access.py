@@ -46,6 +46,11 @@ def _operational_actor(user):
     )
 
 
+def can_act_on_finance_assignment(user, assigned_user_id):
+    """A named assignment preserves cross-office custody, never preview mutation."""
+    return _operational_actor(user) and user.pk == assigned_user_id
+
+
 def _action_permission(user, permission, department=None):
     return _operational_actor(user) and _in_department(user, department) and _explicit_permission(user, permission)
 

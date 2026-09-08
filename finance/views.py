@@ -8,6 +8,7 @@ from django.utils.text import slugify
 from django.views.decorators.http import require_GET
 
 from .access import (
+    can_act_on_finance_assignment,
     can_authorize_finance_cutover, can_manage_shadow_operation, can_review_shadow_reconciliation,
     can_approve_finance_configuration, can_manage_finance_configuration,
     can_manage_finance_discovery, can_manage_finance_templates,
@@ -589,15 +590,27 @@ def shadow_cycle_detail(request, pk):
     except FinanceCutoverQualificationPlan.DoesNotExist:
         qualification_plan = None
     department = cycle.department
+    exercises = list(cycle.cutover_readiness_exercises.select_related(
+        "stakeholder_acceptance", "stakeholder_acceptance__office", "owner", "witness",
+        "submitted_by", "reviewed_by", "recovery_rehearsal",
+    ))
+    for item in exercises:
+        item.can_submit_result = can_act_on_finance_assignment(request.user, item.owner_id) and item.status in (item.PLANNED, item.RETURNED)
+        item.can_witness_result = can_act_on_finance_assignment(request.user, item.witness_id) and item.status == item.SUBMITTED and item.submitted_by_id != request.user.pk
+    defects = list(cycle.defects.select_related("comparison", "owner", "resolution_submitted_by", "resolved_by"))
+    for item in defects:
+        item.can_submit_resolution = cycle.status == cycle.RUNNING and item.status == item.OPEN and (
+            can_act_on_finance_assignment(request.user, item.owner_id) or can_manage_shadow_operation(request.user, department)
+        )
+    acceptances = list(cycle.stakeholder_acceptances.select_related("office", "assigned_reviewer", "decided_by"))
+    for item in acceptances:
+        item.can_record_decision = can_act_on_finance_assignment(request.user, item.assigned_reviewer_id) and item.decision == item.PENDING and cycle.status == cycle.RECONCILED
     return render(request, "finance/shadow_cycle_detail.html", {
         "cycle": cycle,
         "source_versions": cycle.source_versions.select_related("staged_by", "reviewed_by"),
         "reconciliation_plan": plan,
         "cutover_readiness_plan": readiness_plan,
-        "cutover_readiness_exercises": cycle.cutover_readiness_exercises.select_related(
-            "stakeholder_acceptance", "stakeholder_acceptance__office", "owner", "witness",
-            "submitted_by", "reviewed_by", "recovery_rehearsal",
-        ),
+        "cutover_readiness_exercises": exercises,
         "cutover_qualification_plan": qualification_plan,
         "cutover_qualification_forms": (
             qualification_plan.accepted_forms.select_related(
@@ -610,9 +623,9 @@ def shadow_cycle_detail(request, pk):
             ) if qualification_plan else []
         ),
         "reconciliation_runs": cycle.reconciliation_runs.select_related("prepared_by", "submitted_by", "reviewed_by"),
-        "defects": cycle.defects.select_related("comparison", "owner", "resolution_submitted_by", "resolved_by"),
+        "defects": defects,
         "comparisons": cycle.comparisons.select_related("defect_owner", "created_by"),
-        "acceptances": cycle.stakeholder_acceptances.select_related("office", "assigned_reviewer", "decided_by"),
+        "acceptances": acceptances,
         "decision": decision,
         "readiness": cutover_readiness(cycle),
         "can_manage": can_manage_shadow_operation(request.user, department),
@@ -623,7 +636,7 @@ def shadow_cycle_detail(request, pk):
             status=FinanceCutoverReadinessExercise.PASSED,
             recovery_rehearsal__isnull=False,
         ).exists(),
-        "is_assigned_reviewer": cycle.stakeholder_acceptances.filter(assigned_reviewer=request.user, decision=FinanceStakeholderAcceptance.PENDING).exists(),
+        "is_assigned_reviewer": any(item.can_record_decision for item in acceptances),
     })
 
 
@@ -949,7 +962,7 @@ def cutover_readiness_exercise_result(request, pk):
     )
     if not can_view_shadow_cycle(request.user, exercise.cycle):
         raise PermissionDenied
-    if request.user.pk != exercise.owner_id:
+    if not can_act_on_finance_assignment(request.user, exercise.owner_id):
         raise PermissionDenied
     if exercise.kind == FinanceCutoverReadinessExercise.BACKUP_RESTORE:
         try:
@@ -1441,7 +1454,7 @@ def shadow_defect_resolution(request, pk):
     defect = get_object_or_404(FinanceShadowDefect.objects.select_related("cycle", "cycle__department", "owner"), pk=pk)
     if not can_view_shadow_cycle(request.user, defect.cycle):
         raise PermissionDenied
-    if request.user.pk != defect.owner_id and not can_manage_shadow_operation(request.user, defect.cycle.department):
+    if not can_act_on_finance_assignment(request.user, defect.owner_id) and not can_manage_shadow_operation(request.user, defect.cycle.department):
         raise PermissionDenied
     form = FinanceShadowDefectResolutionForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -1613,6 +1626,8 @@ def stakeholder_acceptance_decide(request, pk):
         FinanceStakeholderAcceptance.objects.select_related("cycle", "cycle__department"),
         pk=pk, assigned_reviewer=request.user,
     )
+    if not can_act_on_finance_assignment(request.user, acceptance.assigned_reviewer_id):
+        raise PermissionDenied
     form = FinanceStakeholderDecisionForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:

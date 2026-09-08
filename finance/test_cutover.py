@@ -1629,3 +1629,113 @@ class FinanceShadowCutoverTests(TestCase):
         )
         self.assertEqual(source.context["cycles"], [cycle])
         self.assertEqual(group["count"], source.context["visible_count"])
+
+
+    def _assigned_boundary_exercise(self):
+        cycle = self._cycle(code="assigned-boundary")
+        self._approve_readiness_plan(cycle)
+        due = timezone.now()
+        return schedule_cutover_readiness_exercise(
+            cycle, self.manager, kind=FinanceCutoverReadinessExercise.ACCESSIBILITY,
+            code="assigned-boundary", title="Assigned boundary exercise",
+            enabled_scope=cycle.enabled_scope, procedure="Complete the synthetic script.",
+            expected_result="Every scripted step is observed.", owner=self.requesting_reviewer,
+            witness=self.other_reviewer, scheduled_for=due, due_at=due + timedelta(hours=2),
+        )
+
+    def test_uat_assigned_exercise_owner_cannot_submit(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        exercise = self._assigned_boundary_exercise()
+        self.requesting_reviewer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        with self.assertRaises(PermissionDenied):
+            submit_cutover_readiness_exercise(exercise, self.requesting_reviewer,
+                                             actual_result="Synthetic result", evidence_reference="Synthetic retained evidence")
+
+    def test_uat_assigned_exercise_witness_cannot_return(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        exercise = self._assigned_boundary_exercise()
+        submit_cutover_readiness_exercise(exercise, self.requesting_reviewer,
+                                         actual_result="Synthetic result", evidence_reference="Synthetic retained evidence")
+        self.other_reviewer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        with self.assertRaises(PermissionDenied):
+            review_cutover_readiness_exercise(exercise, self.other_reviewer,
+                                             accept=False, reason="Synthetic preview return")
+
+
+    def test_assigned_field_services_deny_inactive_and_uat_without_audit_changes(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        exercise = self._assigned_boundary_exercise()
+        cycle = exercise.cycle
+        start_shadow_cycle(cycle, self.manager)
+        comparison = FinanceShadowComparison.objects.create(
+            cycle=cycle, comparison_level=FinanceShadowComparison.CASE, control_code="assignment-defect",
+            label="Assigned control", source_reference="Synthetic source", grand_reference="Synthetic GRAND row",
+            source_amount=Decimal("100.00"), grand_amount=Decimal("90.00"),
+            outcome=FinanceShadowComparison.OPEN_DEFECT, explanation="Synthetic difference",
+            evidence_reference="Synthetic worksheet", defect_owner=self.requesting_reviewer, created_by=self.manager,
+        )
+        defect = register_shadow_defect(comparison, self.manager, code="assignment-defect",
+                                       severity=FinanceShadowDefect.MEDIUM, summary="Synthetic correction",
+                                       impact="Synthetic control gap", owner=self.requesting_reviewer)
+        acceptance = FinanceStakeholderAcceptance.objects.create(
+            cycle=cycle, stakeholder_kind=FinanceStakeholderAcceptance.REQUESTING_OFFICE,
+            office=self.requesting, assigned_reviewer=self.requesting_reviewer,
+            enabled_scope=cycle.enabled_scope, created_by=self.manager,
+        )
+        group = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0]
+        calls = (
+            lambda: submit_cutover_readiness_exercise(exercise, self.requesting_reviewer,
+                                                     actual_result="Synthetic result", evidence_reference="Synthetic evidence"),
+            lambda: submit_shadow_defect_resolution(defect, self.requesting_reviewer,
+                                                    note="Synthetic correction", evidence_reference="Synthetic evidence"),
+            lambda: decide_stakeholder_acceptance(acceptance, self.requesting_reviewer,
+                decision=FinanceStakeholderAcceptance.CONDITIONAL, training_reference="Synthetic training",
+                uat_reference="Synthetic UAT", signed_decision_reference="Synthetic decision",
+                signed_decision_checksum="d" * 64, reason="Synthetic conditions"),
+        )
+        before = FinanceAuditEvent.objects.count()
+        for mode in ("uat", "inactive"):
+            if mode == "uat":
+                self.requesting_reviewer.groups.add(group)
+            else:
+                self.requesting_reviewer.is_active = False
+                self.requesting_reviewer.save(update_fields=("is_active",))
+            for call in calls:
+                with self.subTest(mode=mode, call=call), self.assertRaises(PermissionDenied):
+                    call()
+            self.requesting_reviewer.groups.remove(group)
+        self.assertEqual(FinanceAuditEvent.objects.count(), before)
+        exercise.refresh_from_db(); defect.refresh_from_db(); acceptance.refresh_from_db()
+        self.assertEqual(exercise.status, exercise.PLANNED)
+        self.assertEqual(defect.status, defect.OPEN)
+        self.assertEqual(acceptance.decision, acceptance.PENDING)
+        self.requesting_reviewer.is_active = True
+        self.requesting_reviewer.save(update_fields=("is_active",))
+        submit_cutover_readiness_exercise(exercise, self.requesting_reviewer,
+                                         actual_result="Synthetic result", evidence_reference="Synthetic evidence")
+        self.other_reviewer.is_active = False
+        self.other_reviewer.save(update_fields=("is_active",))
+        before = FinanceAuditEvent.objects.count()
+        with self.assertRaises(PermissionDenied):
+            review_cutover_readiness_exercise(exercise, self.other_reviewer, accept=False, reason="Inactive witness")
+        self.assertEqual(FinanceAuditEvent.objects.count(), before)
+
+    def test_uat_assignment_pages_preserve_read_and_hide_mutation_controls(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        from .shadow_register_exports import shadow_action_choices_for_user
+        exercise = self._assigned_boundary_exercise()
+        group = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0]
+        self.requesting_reviewer.groups.add(group)
+        self.client.force_login(self.requesting_reviewer)
+        detail = self.client.get(reverse("finance:shadow_cycle_detail", args=(exercise.cycle_id,)))
+        self.assertEqual(detail.status_code, 200)
+        self.assertFalse(detail.context["cutover_readiness_exercises"][0].can_submit_result)
+        self.assertEqual(self.client.get(reverse("finance:cutover_readiness_exercise_result", args=(exercise.pk,))).status_code, 403)
+        self.assertEqual(shadow_action_choices_for_user(self.requesting_reviewer), ())
+        self.requesting_reviewer.groups.remove(group)
+        self.requesting_reviewer.is_active = False
+        self.assertEqual(shadow_action_choices_for_user(self.requesting_reviewer), ())

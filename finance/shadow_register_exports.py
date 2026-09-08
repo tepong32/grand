@@ -13,6 +13,7 @@ from .acceptance_services import build_field_acceptance_board
 from vouchers.roles import is_finance_uat_viewer
 
 from .access import (
+    can_act_on_finance_assignment,
     can_authorize_finance_cutover,
     can_manage_shadow_operation,
     can_review_shadow_reconciliation,
@@ -126,7 +127,7 @@ def visible_shadow_cycles(user):
 
 
 def _shadow_action_role_allowed(user, department, role):
-    if is_finance_uat_viewer(user):
+    if not can_act_on_finance_assignment(user, getattr(user, "pk", None)):
         return False
     if role == "manage":
         return can_manage_shadow_operation(user, department)

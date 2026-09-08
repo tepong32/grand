@@ -225,7 +225,10 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-020 - Named field-operation assignments omit operational-actor exclusion
 
 - Process/module: readiness exercise submission/witness review, assigned defect resolution and named stakeholder acceptance.
-- Severity/status: **HIGH - OPEN**, source finding awaiting reproduction before field-operation handoffs.
+- Severity/status: **HIGH - VERIFIED**, reproduced and repaired in v0.7.42.
 - Code evidence: cutover_services.submit_cutover_readiness_exercise, review_cutover_readiness_exercise, submit_shadow_defect_resolution and decide_stakeholder_acceptance reload records but authorize by assigned account id without the active/non-UAT gate used by ordinary Finance action helpers. The field task selectors already exclude UAT, so source and queue authority may differ.
 - Expected behavior: named assignments preserve their legitimate cross-office access, but cannot authorize mutation by an inactive or UAT account. Keep assigned read/export access separate.
 - Next step: reproduce isolated assigned-actor mutations, then repair source/service/queue controls before adding field personal projections. No operational misuse is asserted.
+
+
+- FIN-GAP-020 reproduction: UAT assigned-owner exercise submission and assigned-witness return both succeeded (2 failed denial tests, 1.980 seconds). Four named-assignment service boundaries now require an authenticated active non-UAT assigned actor; the existing authorized manager alternative for defect correction remains intact. Page controls and task role selection share the exclusion. All 52 focused field/My Work tests passed in 25.593 seconds; all 644 project tests passed in 196.190 seconds. System, migration-drift, compilation and diff checks passed.

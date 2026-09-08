@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.42 - operational field-assignment authority
+
+Named exercise owners/witnesses, defect resolution owners and stakeholder reviewers now require authenticated active non-UAT identity at stored service boundaries. Source controls and task selection share the rule. Named cross-office read access and the authorized owning-office manager alternative for defect correction remain supported. Verification: All 52 focused field/My Work tests passed in 25.593 seconds; all 644 project tests passed in 196.190 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.41 - accountability personal handoffs
 
 My Work now includes accountability profile/package preparation, returned correction and independent review under shared current-office source selectors. Own submitted versions appear in Waiting; retained submission, return, profile activation and package approval events provide personal history. Existing cross-office evidence recipes remain supported, and checksum exceptions explain why approval is blocked while a return remains available. Verification: All 13 focused accountability tests passed in 7.533 seconds; all 188 My Work/reporting dependency tests passed in 66.194 seconds. System, migration-drift, compilation and diff checks passed.
