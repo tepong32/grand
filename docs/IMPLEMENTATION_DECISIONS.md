@@ -25,6 +25,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-013:** Match signature packet gates and map child actions back to the shared case before extending DV Waiting.
 - **D-014:** Credit retained DV preparation, custody-recording and validation actions without inferring signing or payment authority.
 
+- **D-015:** Continue personal Waiting through Accounting posting by resolving authorized source and journal actions to the same voucher case.
+
 ### D-001 — Retained events determine personal completion
 
 - Date/checkpoint: 2026-09-07; v0.7.10–v0.7.12 implemented; payment-handoff extension verified in v0.7.14.
@@ -178,3 +180,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Tradeoff: nonfinancial amendments, generic returns, print/packet actions and later payment stages remain separate adapters requiring their own event audit. This bounded slice does not claim complete DV history coverage.
 - Evidence/status: inspected source event emission and mutation controls; implementation verified: two focused tests and all 581 project tests passed. Tests include real ordered signature service events and the existing full Budget-to-payment replay.
 - Revisit when: expanding amendment, print/packet or later payment history; require explicit event meaning and current source access for each addition.
+
+
+### D-015 — Follow the voucher posting handoff across both stores
+
+- Date/checkpoint: 2026-09-08; v0.7.25.
+- Decision: Keep the shared case identity while resolving already-authorized source and journal tasks across the existing default/Finance stores. Retain intake/DV authorship; an open recognition request additionally credits its requester. Stop this adapter at the next Treasury phase.
+- Alternatives considered: check only case-prefixed actions; show all Accounting office cases; infer a deadline from the JEV date; create a separate task status or cross-database foreign key.
+- Goal fit: one traceable transaction should remain visible to the people who handed it off, while people who can act see their real source task. Keep office boundaries, maker-checker policy and the two databases intact.
+- Tradeoff: cancelled/closed request authorship alone does not confer Waiting attribution. Later payment and exception handoffs require their own stage and attribution audit.
+- Evidence/status: shared source-handoff and journal authorization inspected; focused before-limit test and full service-generated Budget-to-report replay expanded. Both pass in 8.410 seconds. The initial replay failed because its one-row cap could select the legitimate journal Waiting row instead of the case; the replay now finds the case within the default view, while the dedicated cap test remains strict. All 582 project tests passed in 187.761 seconds; system, migration-drift, compilation and diff checks passed.
+- Revisit when: expanding Treasury/advice/event-posting Waiting; audit all corresponding child identities first.

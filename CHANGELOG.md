@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.25 - personal voucher posting handoffs
+
+Personal Waiting now continues through Accounting posting for the retained intake/DV preparer or submitter and the requester of an open recognition posting request. Already-authorized source-creation, journal preparation/posting and source-synchronization actions resolve to the shared voucher case before the display cap. Current source read access and retained stage-handoff timing remain required; ledger dates are not deadlines. Treasury preparation and later exception/payment stages remain separate coverage. Verification: both focused handoff/replay tests passed in 8.410 seconds; all 582 project tests passed in 187.761 seconds. System, migration-drift, compilation and diff checks are clean. The full suite was run because action mapping spans vouchers, Accounting and both databases.
+
 ## v0.7.24 - attributed DV completion history
 
 Completed by me now includes retained DV preparation/correction, ordinary partial/final signature-return recording and Accounting-validation events. Each action requires current source read access and matching source transition semantics. Repeated corrections have distinct event identities; historical acting office and current case stage remain separate. Signature-return completion credits custody recording, not the recorder’s signature, and validation does not authorize payment release. Amendment, print/packet and later payment event history remain future work. Verification: both focused tests passed in 2.707 seconds; all 581 project tests passed in 336.250 seconds, including service-generated signature events and the full Budget-to-payment replay. System, migration-drift, compilation and diff checks are clean.

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from django.db.models import F, OuterRef, Q, Subquery
+from django.db.models import Exists, F, OuterRef, Q, Subquery
 from django.urls import reverse
 
 
@@ -107,19 +107,36 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             attribution=[item.created_by_id, item.submitted_by_id], due_on=item.due_date)
 
     from vouchers.case_exports import visible_cases_for_user
-    from vouchers.models import PayableIntake, VoucherCase, VoucherEvent, WetSignatureTask
+    from vouchers.models import PayableIntake, VoucherCase, VoucherEvent, VoucherPostingRequest, WetSignatureTask
 
     if can_view_workbench(user):
-        dv_stages = (VoucherCase.AWAITING_SIGNATURES, VoucherCase.ACCOUNTING_VALIDATION)
+        dv_stages = (VoucherCase.AWAITING_SIGNATURES, VoucherCase.ACCOUNTING_VALIDATION, VoucherCase.ACCOUNTING_POSTING)
+        voucher_source_ids = identities("voucher-source:")
+        if journal_ids:
+            for reference in JournalEntry.objects.filter(public_id__in=journal_ids, source_type="voucher").values_list("source_reference", flat=True):
+                try:
+                    voucher_source_ids.add(UUID(str(reference)))
+                except (ValueError, TypeError, AttributeError):
+                    continue
+        actionable.update(
+            f"voucher-case:{case_id}" for case_id in VoucherPostingRequest.objects.filter(
+                public_id__in=voucher_source_ids,
+            ).values_list("case__public_id", flat=True)
+        )
+        requested = VoucherPostingRequest.objects.filter(
+            case_id=OuterRef("pk"), kind=VoucherPostingRequest.RECOGNITION, requested_by_id=user.pk,
+            status__in=(VoucherPostingRequest.PENDING, VoucherPostingRequest.MATERIALIZED, VoucherPostingRequest.FAILED),
+        )
         intake_owner = Q(payable_intake__prepared_by_id=user.pk) | Q(payable_intake__submitted_by_id=user.pk)
         handoffs = VoucherEvent.objects.filter(
             case_id=OuterRef("pk"), to_stage=OuterRef("current_stage"),
         ).exclude(from_stage=F("to_stage")).order_by("-state_version", "-created_at", "-pk")
-        cases = visible_cases_for_user(user).filter(
+        cases = visible_cases_for_user(user).annotate(_work_posting_requester=Exists(requested)).filter(
             (Q(current_stage=VoucherCase.PAYABLE_REVIEW, payable_intake__status=PayableIntake.FOR_REVIEW)
              | Q(current_stage=VoucherCase.ACCOUNTING_PREPARATION, payable_intake__status=PayableIntake.READY)) & intake_owner
             | Q(current_stage__in=dv_stages, disbursement_voucher__isnull=False)
-            & (intake_owner | Q(disbursement_voucher__prepared_by_id=user.pk)),
+            & (intake_owner | Q(disbursement_voucher__prepared_by_id=user.pk)
+               | Q(current_stage=VoucherCase.ACCOUNTING_POSTING, _work_posting_requester=True)),
         ).select_related(
             "payable_intake", "disbursement_voucher", "requesting_department", "current_department",
         ).annotate(_work_handoff_at=Subquery(handoffs.values("created_at")[:1]))
@@ -136,8 +153,13 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             if item.current_stage in dv_stages:
                 attribution.append(voucher.prepared_by_id)
                 received = item._work_handoff_at
-                queue = (f"DV custody and signature return - {office}" if item.current_stage == VoucherCase.AWAITING_SIGNATURES
-                         else f"Independent Accounting validation - {office}")
+                queue = {
+                    VoucherCase.AWAITING_SIGNATURES: f"DV custody and signature return - {office}",
+                    VoucherCase.ACCOUNTING_VALIDATION: f"Independent Accounting validation - {office}",
+                    VoucherCase.ACCOUNTING_POSTING: f"Accounting journal preparation, posting and source synchronization - {office}",
+                }[item.current_stage]
+                if item.current_stage == VoucherCase.ACCOUNTING_POSTING and item._work_posting_requester:
+                    attribution.append(user.pk)
             else:
                 reviewing = item.current_stage == VoucherCase.PAYABLE_REVIEW
                 received = intake.submitted_at if reviewing else intake.reviewed_at

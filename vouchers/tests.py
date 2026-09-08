@@ -1756,13 +1756,26 @@ class VoucherWorkflowTests(TestCase):
                             for task in finance_work_tasks(self.preparer, view="completed")["tasks"]))
         self.assertTrue(any(task["case_id"] == work_case_id and task["task_type"] == "finance.dv.accounting_validated.completed.v1"
                             for task in finance_work_tasks(self.validator, view="completed")["tasks"]))
+        def waiting_for_case(actor):
+            return [task for task in finance_work_tasks(actor, view="waiting")["tasks"]
+                    if task["case_id"] == work_case_id]
+
+        self.assertEqual(len(waiting_for_case(self.requesting_user)), 1)
+        self.assertEqual(len(waiting_for_case(self.validator)), 1)
+        self.assertFalse(waiting_for_case(self.preparer))  # Authorized source creation.
         recognition_request = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
         recognition_entry, created = materialize_voucher_journal(recognition_request, self.preparer)
         self.assertTrue(created)
+        self.assertFalse(waiting_for_case(self.preparer))  # Authorized draft JEV work.
         submit_entry(recognition_entry, self.preparer)
+        self.assertFalse(waiting_for_case(self.validator))  # Authorized independent posting.
+        self.assertEqual(len(waiting_for_case(self.preparer)), 1)
         post_entry(recognition_entry, self.validator)
         recognition_entry.refresh_from_db()
+        self.assertFalse(waiting_for_case(self.validator))  # Authorized source synchronization.
+        self.assertEqual(len(waiting_for_case(self.requesting_user)), 1)
         reconcile_posted_voucher_entry(recognition_entry, self.validator)
+        self.assertFalse(waiting_for_case(self.requesting_user))  # Next phase has separate coverage.
 
         case.refresh_from_db()
         instrument = issue_check(

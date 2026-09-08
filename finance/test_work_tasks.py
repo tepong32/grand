@@ -1675,6 +1675,34 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         self.assertIn("step 2", next_task["reference"])
         self.assertEqual(job.status, VoucherPrintJob.AWAITING_SIGNATURES)
 
+    def test_posting_waiting_maps_source_actions_before_limit_and_retains_requester(self):
+        from vouchers.models import VoucherPostingRequest
+
+        self.preparer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="accounting", codename="prepare_journal_entries"))
+        for reference, office in (("A-POST-ACTION", self.accounting), ("Z-POST-WAIT", self.other)):
+            item = self._case(reference, stage=VoucherCase.ACCOUNTING_POSTING, with_voucher=True, current=office)
+            VoucherPostingRequest.objects.create(
+                case=item, kind=VoucherPostingRequest.RECOGNITION, jev_date=timezone.localdate(),
+                finance_department_id=office.pk, finance_department_label=office.name,
+                requested_by=self.preparer, payload={}, payload_checksum="a" * 64)
+        result = finance_work_tasks(self.preparer, view="waiting", display_limit=1)
+        self.assertEqual([task["reference"] for task in result["tasks"]], ["Z-POST-WAIT"])
+        self.assertFalse(result["tasks_truncated"])
+        item = self._case("REQUESTER-ONLY", stage=VoucherCase.ACCOUNTING_POSTING,
+                          with_voucher=True, dv_prepared_by=self.signature_operator)
+        request = VoucherPostingRequest.objects.create(
+            case=item, kind=VoucherPostingRequest.RECOGNITION, jev_date=timezone.localdate(),
+            finance_department_id=self.accounting.pk, finance_department_label=self.accounting.name,
+            requested_by=self.validator, payload={}, payload_checksum="a" * 64)
+        tasks = finance_work_tasks(self.validator, view="waiting")["tasks"]
+        self.assertEqual([task["reference"] for task in tasks], ["REQUESTER-ONLY"])
+        self.assertIn("source synchronization", tasks[0]["owner_queue"])
+        self.assertIsNone(tasks[0]["due_on"])
+        request.status = VoucherPostingRequest.CANCELLED
+        request.save(update_fields=("status",))
+        self.assertFalse(finance_work_tasks(self.validator, view="waiting")["tasks"])
+
     def test_dv_completion_keeps_each_recorded_action_after_custody_moves(self):
         from vouchers.models import VoucherEvent
 
@@ -1772,7 +1800,7 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         self.assertEqual(task["received_at"], final.created_at)
         self.assertIn("Independent Accounting validation", task["owner_queue"])
         self.assertFalse(finance_work_tasks(self.uat, view="waiting")["tasks"])
-        item.current_stage = VoucherCase.ACCOUNTING_POSTING
+        item.current_stage = VoucherCase.TREASURY_CHECK_PREPARATION
         item.save(update_fields=("current_stage",))
         self.assertFalse(finance_work_tasks(self.preparer, view="waiting")["tasks"])
 
