@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-035:** Project prepared stakeholder/submitted cutover handoffs and label each retained decision outcome without implying broader acceptance.
+
 - **D-034:** Make returned field-cycle correction a linked-successor action, retaining prior evidence and using fresh source locks.
 
 - **D-033:** Preserve separate cycle/exercise/defect handoffs and resolve retained field events through matching current source custody.
@@ -422,3 +424,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: reopening the returned cycle would blur retained evidence; leaving it only in oversight would hide the preparer's next step. The shortcut preserves the existing form's current-office predecessor choices and does not introduce a new mutation rule or automatically copy authority/source locks.
 - Evidence: All 38 focused field tests passed in 14.222 seconds; all 117 field/My Work/operations dependency tests passed in 60.348 seconds. System, migration-drift, compilation and diff checks passed.
 - Revisit when: local procedure requires explicit branching or a separate approved successor authorization. Existing linked cycles remain visible as historical evidence.
+
+
+## D-035 - Stakeholder and cutover decision attribution
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.45.
+- Decision: Waiting follows stakeholder records the user prepared once the source cycle is reconciled, and cutover authority records they prepared/submitted. Current exact actions remain excluded. Completion resolves the retained acceptance/decision child ID under its matching cycle and labels conditional, rejected, authorized, declined and rolled-back events explicitly.
+- Goal: show who owns the last governance steps while keeping partial acceptance, technical qualification and actual cutover authority distinct.
+- Alternatives/tradeoffs: a generic approved/completed label would misrepresent conditions or rejection. Stakeholder Waiting starts when both the record exists and reconciliation opens its decision gate; the cutover effective date does not become an invented approval deadline. Recorded synthetic test decisions do not establish real LGU acceptance or production readiness.
+- Evidence: All 39 focused field tests passed in 20.003 seconds; all 118 field/My Work/operations dependency tests passed in 63.530 seconds. System, migration-drift, compilation and diff checks passed. No decision services or authority rules changed.
+- Revisit when: changing accepted stakeholder routes, conditional-acceptance policy or cutover governance; retain the independent source gates and exact recorded scope.

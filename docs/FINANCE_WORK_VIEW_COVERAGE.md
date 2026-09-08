@@ -2,7 +2,7 @@
 
 This table describes the implemented My Work views, not production or LGU acceptance. Current source authorization applies to every row. Ready/action coverage is detailed in [FINANCE_MY_WORK.md](FINANCE_MY_WORK.md); turning-point choices are in [IMPLEMENTATION_DECISIONS.md](IMPLEMENTATION_DECISIONS.md).
 
-Last reviewed: 2026-09-09, v0.7.44 returned-cycle correction actions.
+Last reviewed: 2026-09-09, v0.7.45 stakeholder/cutover handoffs.
 
 | Source domain | Personal Waiting | Completed by me |
 | --- | --- | --- |
@@ -23,7 +23,8 @@ Last reviewed: 2026-09-09, v0.7.44 returned-cycle correction actions.
 | Reporting runs | Own generated runs through review/approval, plus own review handoff under current read scope (v0.7.40) | Retained manual generation and explicit review/approval/supersession actions; scheduled generation excluded from personal credit (v0.7.40) |
 | Accountability profiles and packages | Own submitted versions; current source actions excluded (v0.7.41) | Retained submission/return/activation-or-approval events, including historical versions (v0.7.41) |
 | Field cycles, readiness exercises and defect corrections | Own submitted reconciliation/results/corrections under current cycle access (v0.7.43) | Retained start/submission/independent decision events with matching cycle/child identity (v0.7.43) |
-| Other field controls | Reconciliation/readiness/qualification plans and runs, stakeholder/cutover preparation remain; returned cycles now expose linked-successor preparation (v0.7.44) | Other plan/run, stakeholder and cutover history remains |
+| Stakeholder and cutover decisions | Own prepared stakeholder records with open decisions and submitted cutover records (v0.7.45) | Retained stakeholder decision, cutover submission/authorization/decline/rollback events (v0.7.45) |
+| Other field controls | Reconciliation/readiness/qualification plans and runs remain; returned-cycle successor action added in v0.7.44 | Other plan/run history remains |
 | Local forms | Remaining coverage | Remaining coverage |
 
 ## Common rules and remaining work
@@ -35,4 +36,4 @@ Last reviewed: 2026-09-09, v0.7.44 returned-cycle correction actions.
 - The administrator-assigned portable export permission applies to the selected supported view. Coverage and truncation are retained with the export.
 - Assignment/following rules, governed shared views and notifications remain future work. They must build on the same source contract rather than create another authoritative queue.
 
-Next: remaining field nested controls, stakeholder/cutover history, local forms and detailed completion history. FIN-GAP-020 was verified in v0.7.42. Review each remaining domain's real authority, return/recovery path and attribution before adding its personal projections. Preserve the separate post-functional scrutiny and LGU acceptance gates.
+Next: local-form handoffs, remaining field nested controls and detailed completion history. FIN-GAP-020 was verified in v0.7.42. Review each remaining domain's real authority, return/recovery path and attribution before adding its personal projections. Preserve the separate post-functional scrutiny and LGU acceptance gates.

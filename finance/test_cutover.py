@@ -956,11 +956,16 @@ class FinanceShadowCutoverTests(TestCase):
         )
         submit_cutover_decision(decision, self.manager)
         decision.refresh_from_db()
+        self.assertEqual(len(self.field_work_rows(self.manager, "field-cutover", decision, "waiting")), 1)
+        self.assertEqual(self.field_work_rows(self.authority, "field-cutover", decision, "waiting"), [])
+        self.assertEqual(self.field_work_rows(self.manager, "field-cutover", decision, "completed")[0]["subject"], "Submitted cutover authority record")
         with self.assertRaisesMessage(ValidationError, "preparer"):
             decide_cutover(decision, self.manager, authorize=True, reason="Self-authorization attempt")
         decide_cutover(decision, self.authority, authorize=True, reason="Named authority approved the exact scope and effective date.")
         decision.refresh_from_db()
         self.assertTrue(decision.makes_grand_authoritative)
+        self.assertEqual(self.field_work_rows(self.manager, "field-cutover", decision, "waiting"), [])
+        self.assertEqual(self.field_work_rows(self.authority, "field-cutover", decision, "completed")[0]["subject"], "Recorded cutover authorization")
         self.assertEqual(decision.recovery_rehearsal.backup_id, "20270104T083000000000Z-deadbeef")
         with self.assertRaisesMessage(ValidationError, "successor cycle"):
             FinanceDiscoveryDecision.objects.create(
@@ -990,6 +995,10 @@ class FinanceShadowCutoverTests(TestCase):
         decision.refresh_from_db()
         self.assertEqual(decision.status, FinanceCutoverDecision.ROLLED_BACK)
         self.assertFalse(decision.makes_grand_authoritative)
+        history = self.field_work_rows(self.authority, "field-cutover", decision, "completed")
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[0]["subject"], "Recorded rollback direction")
+        self.assertTrue(all(row["source_state"] == decision.get_status_display() for row in history))
         self.assertTrue(FinanceAuditEvent.objects.filter(action="finance_cutover_authorized").exists())
         self.assertTrue(FinanceAuditEvent.objects.filter(action="finance_cutover_rolled_back").exists())
 
@@ -1887,3 +1896,38 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertEqual(self.field_work_rows(self.manager, "field-cycle", cycle, "returned"), [])
         self.manager.groups.clear()
         self.assertEqual(self.client.get(reverse("finance:shadow_cycle_create"), {"predecessor": "invalid"}).status_code, 404)
+
+
+    def test_stakeholder_handoffs_keep_condition_and_rejection_outcomes_explicit(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        cycle = self._reconciled_cycle(code="personal-stakeholder-decisions")
+        for kind, decision in ((FinanceStakeholderAcceptance.REQUESTING_OFFICE, FinanceStakeholderAcceptance.CONDITIONAL),
+                               (FinanceStakeholderAcceptance.AUDIT, FinanceStakeholderAcceptance.REJECTED)):
+            with self.subTest(decision=decision):
+                acceptance = FinanceStakeholderAcceptance.objects.create(
+                    cycle=cycle, stakeholder_kind=kind, office=self.requesting,
+                    assigned_reviewer=self.requesting_reviewer, enabled_scope=cycle.enabled_scope, created_by=self.manager,
+                )
+                waiting = self.field_work_rows(self.manager, "field-stakeholder", acceptance, "waiting")
+                self.assertEqual(len(waiting), 1)
+                self.assertIsNone(waiting[0]["due_on"])
+                self.assertEqual(waiting[0]["received_at"], acceptance.created_at)
+                self.assertEqual(self.field_work_rows(self.requesting_reviewer, "field-stakeholder", acceptance, "waiting"), [])
+                self.assertEqual(self.field_work_rows(self.outsider, "field-stakeholder", acceptance, "waiting"), [])
+                decide_stakeholder_acceptance(
+                    acceptance, self.requesting_reviewer, decision=decision,
+                    training_reference="Synthetic witnessed training", uat_reference="Synthetic UAT record",
+                    signed_decision_reference="Synthetic retained stakeholder sheet", signed_decision_checksum="d" * 64,
+                    reason="Synthetic outstanding condition or rejection basis",
+                )
+                self.assertEqual(self.field_work_rows(self.manager, "field-stakeholder", acceptance, "waiting"), [])
+                history = self.field_work_rows(self.requesting_reviewer, "field-stakeholder", acceptance, "completed")
+                self.assertEqual(len(history), 1)
+                self.assertIn(dict(acceptance.DECISION_CHOICES)[decision], history[0]["subject"])
+                self.assertEqual(self.field_work_rows(self.manager, "field-stakeholder", acceptance, "completed"), [])
+                self.client.force_login(self.requesting_reviewer)
+                self.assertEqual(self.client.get(history[0]["url"]).status_code, 200)
+        group = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0]
+        self.requesting_reviewer.groups.add(group)
+        self.assertEqual(self.field_work_rows(self.requesting_reviewer, "field-stakeholder", acceptance, "completed"), [])

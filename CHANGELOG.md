@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.45 - stakeholder and cutover handoffs
+
+Personal Waiting now follows prepared stakeholder records once their cycle opens decisions, and submitted cutover authority records. Retained child-linked history names stakeholder conditions/rejection and cutover authorization/decline/rollback explicitly, preserving current cycle read scope and separating preparation from the decision-maker. Verification: All 39 focused field tests passed in 20.003 seconds; all 118 field/My Work/operations dependency tests passed in 63.530 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.44 - returned field-cycle correction actions
 
 Returned field cycles without a linked successor now expose preparation-role source actions, My Work Returned rows and a source detail shortcut. The existing new-cycle form preselects the current-office predecessor; new source locks and authority evidence remain blank. Creating a successor clears the old action while preserving returned evidence and its actual return age. Verification: All 38 focused field tests passed in 14.222 seconds; all 117 field/My Work/operations dependency tests passed in 60.348 seconds. System, migration-drift, compilation and diff checks passed.

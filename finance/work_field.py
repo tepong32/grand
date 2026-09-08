@@ -4,7 +4,7 @@ from django.urls import reverse
 def completed_field_tasks(user, department, today):
     """Resolve field audit events through current cycle and child-record custody."""
     from .access import can_view_shadow_cycle
-    from .models import FinanceAuditEvent, FinanceShadowDefect, FinanceCutoverReadinessExercise
+    from .models import FinanceAuditEvent, FinanceShadowDefect, FinanceCutoverReadinessExercise, FinanceStakeholderAcceptance, FinanceCutoverDecision
     from .shadow_register_exports import visible_shadow_cycles
     from vouchers.roles import is_finance_uat_viewer
     from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
@@ -16,7 +16,14 @@ def completed_field_tasks(user, department, today):
         return []
     defects = {str(item.pk): item for item in FinanceShadowDefect.objects.filter(cycle_id__in=cycles)}
     exercises = {str(item.pk): item for item in FinanceCutoverReadinessExercise.objects.filter(cycle_id__in=cycles)}
+    stakeholders = {str(item.pk): item for item in FinanceStakeholderAcceptance.objects.filter(cycle_id__in=cycles)}
+    decisions = {str(item.pk): item for item in FinanceCutoverDecision.objects.filter(cycle_id__in=cycles)}
     specs = {
+        "stakeholder_acceptance_recorded": ("field-stakeholder", "Recorded stakeholder decision"),
+        "cutover_decision_submitted": ("field-cutover", "Submitted cutover authority record"),
+        "finance_cutover_authorized": ("field-cutover", "Recorded cutover authorization"),
+        "finance_cutover_declined": ("field-cutover", "Recorded cutover decline"),
+        "finance_cutover_rolled_back": ("field-cutover", "Recorded rollback direction"),
         "shadow_cycle_started": ("field-cycle", "Started field cycle"),
         "shadow_cycle_submitted": ("field-cycle", "Submitted field cycle for reconciliation"),
         "shadow_cycle_reconciled": ("field-cycle", "Independently reconciled field cycle"),
@@ -42,27 +49,44 @@ def completed_field_tasks(user, department, today):
                 continue
             item, source_id = cycle, cycle.public_id
         else:
-            records, key = (defects, "defect_id") if kind == "field-defect" else (exercises, "exercise_id")
+            records, key = {
+                "field-defect": (defects, "defect_id"), "field-exercise": (exercises, "exercise_id"),
+                "field-stakeholder": (stakeholders, "acceptance_id"), "field-cutover": (decisions, "decision_id"),
+            }[kind]
             item = records.get(str(event.snapshot.get(key)))
             if item is None or item.cycle_id != cycle.pk:
                 continue
             source_id = _source_record_identity(kind, item.pk)
+        current_state = item.decision if kind == "field-stakeholder" else item.status
+        state_label = item.get_decision_display() if kind == "field-stakeholder" else item.get_status_display()
+        if kind == "field-stakeholder":
+            decision = event.snapshot.get("decision")
+            if decision not in (item.ACCEPTED, item.CONDITIONAL, item.REJECTED):
+                continue
+            label = f"Recorded stakeholder decision: {dict(item.DECISION_CHOICES)[decision]}"
+        reference = cycle.code
+        if kind in ("field-defect", "field-exercise"):
+            reference += f" - {item.code}"
+        elif kind == "field-stakeholder":
+            reference += f" - {item.get_stakeholder_kind_display()}"
+        elif kind == "field-cutover":
+            reference += " - cutover decision"
         event_id = _source_record_identity("field-event", event.pk)
         revision = _projection_checksum({
             "event_id": str(event_id), "actor": event.actor_id, "action": event.action,
             "at": event.created_at.isoformat(), "reason": event.reason, "snapshot": event.snapshot,
-            "source_id": str(source_id), "current_state": item.status,
+            "source_id": str(source_id), "current_state": current_state,
         })
         tasks.append(FinanceWorkTask(
             task_id=f"finwork:v1:field-event:{event_id}:completed",
             task_type=f"finance.{kind}.{event.action}.completed.v1", area="Field operation",
-            case_id=f"{kind}:{source_id}", reference=cycle.code if item is cycle else f"{cycle.code} - {item.code}",
+            case_id=f"{kind}:{source_id}", reference=reference,
             subject=label, transaction_type="Recorded field operation action", action="View recorded outcome",
             gate=f"The retained audit event attributes this action to your account: {label}.",
             owner_queue="Your recorded field action", scope=f"{cycle.department.name}; {cycle.enabled_scope}",
             received_at=event.created_at, due_on=None, due_state="Recorded completion",
             calendar_basis="Elapsed calendar days since the retained action; current source status is shown separately.",
-            age_days=_age_days(event.created_at, today), state="Completed", source_state=item.get_status_display(),
+            age_days=_age_days(event.created_at, today), state="Completed", source_state=state_label,
             source_version=f"event-sha256:{revision}", exception="",
             url=reverse("finance:shadow_cycle_detail", kwargs={"pk": cycle.pk}),
         ))

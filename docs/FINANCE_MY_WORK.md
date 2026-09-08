@@ -296,3 +296,8 @@ Waiting follows own cycle reconciliation submissions, submitted exercise results
 ## v0.7.44 - returned-cycle successor actions
 
 Returned cycles without a linked successor now appear under a preparation-role source action shared by the field register, My Work groups, the Returned view and the source detail link. The existing new-cycle form preselects the current-office predecessor; the successor starts without copied source locks or authority evidence. Creating a linked successor removes the old preparation action while retaining the returned record. Age follows the matching retained return event; the old planned end is not a new deadline. All 38 focused field tests passed in 14.222 seconds; all 117 field/My Work/operations dependency tests passed in 60.348 seconds. System, migration-drift, compilation and diff checks passed. D-034 records the choice.
+
+
+## v0.7.45 - stakeholder and cutover decision handoffs
+
+Personal Waiting now follows prepared stakeholder records once their cycle opens decisions, and submitted cutover authority records. Retained child-linked history names stakeholder conditions/rejection and cutover authorization/decline/rollback explicitly, preserving current cycle read scope and separating preparation from the decision-maker. All 39 focused field tests passed in 20.003 seconds; all 118 field/My Work/operations dependency tests passed in 63.530 seconds. System, migration-drift, compilation and diff checks passed. Stakeholder Waiting begins at the later of record creation and reconciliation; cutover effective dates are not approval deadlines. Synthetic decision tests do not establish LGU acceptance. D-035 records the choice.

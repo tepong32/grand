@@ -431,4 +431,31 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
                 scope=f"{cycle.department.name}; {cycle.enabled_scope}", route="finance:shadow_cycle_detail",
                 route_kwargs={"pk": cycle.pk}, source_id=_source_record_identity(kind, item.pk),
                 attribution=[item.owner_id, getattr(item, submitter)])
+    from .models import FinanceStakeholderAcceptance, FinanceCutoverDecision
+    acceptances = FinanceStakeholderAcceptance.objects.filter(
+        cycle__in=cycles, cycle__status=FinanceShadowCycle.RECONCILED,
+        decision=FinanceStakeholderAcceptance.PENDING, created_by_id=user.pk,
+    ).select_related("cycle__department")
+    for item in acceptances:
+        if not can_view_shadow_cycle(user, item.cycle):
+            continue
+        add(item, kind="field-stakeholder", area="Field operation",
+            reference=f"{item.cycle.code} - {item.get_stakeholder_kind_display()}",
+            subject="Stakeholder decision record you prepared", received=max(item.created_at, item.cycle.reconciled_at) if item.cycle.reconciled_at else None,
+            queue="Named stakeholder reviewer", scope=f"{item.cycle.department.name}; {item.enabled_scope}",
+            route="finance:shadow_cycle_detail", route_kwargs={"pk": item.cycle_id},
+            source_id=_source_record_identity("field-stakeholder", item.pk), attribution=[item.created_by_id, item.assigned_reviewer_id],
+            status=item.decision, status_label=item.get_decision_display())
+    decisions = FinanceCutoverDecision.objects.filter(cycle__in=cycles, status=FinanceCutoverDecision.SUBMITTED).filter(
+        Q(prepared_by_id=user.pk) | Q(submitted_by_id=user.pk),
+    ).select_related("cycle__department")
+    for item in decisions:
+        if not can_view_shadow_cycle(user, item.cycle):
+            continue
+        add(item, kind="field-cutover", area="Field operation", reference=f"{item.cycle.code} - cutover decision",
+            subject="Cutover authority record you prepared or submitted", received=item.submitted_at,
+            queue=f"Separate cutover authority - {item.cycle.department.name}",
+            scope=f"{item.cycle.department.name}; {item.enabled_scope}", route="finance:shadow_cycle_detail",
+            route_kwargs={"pk": item.cycle_id}, source_id=_source_record_identity("field-cutover", item.pk),
+            attribution=[item.prepared_by_id, item.submitted_by_id])
     return tasks
