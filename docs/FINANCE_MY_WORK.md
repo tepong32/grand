@@ -257,3 +257,8 @@ Personal Waiting now covers Treasury release and Accounting event posting. Issue
 ## v0.7.28 - returned-payment personal handoffs
 
 Personal Waiting now includes attributed returned-payment reviews through independent review, clarification, reversal posting and controlled replacement. It uses the existing role-shaped register scope, current stage/status consistency and exact review anchors. Superseded reviews leave Waiting; authorized review, case, source and journal actions are excluded before truncation. Open posting-request authorship can qualify during posting, while existing preparer attribution persists through the handoff. See [D-018](IMPLEMENTATION_DECISIONS.md) and [the audit](FINANCE_ROADMAP_COMPLETION_AUDIT.md) for rationale and validation. Historical completion remains separate work.
+
+
+## v0.7.29 - attributed returned-payment history
+
+Completed by me now includes retained returned-payment submission, clarified submission, return-for-clarification and Accounting-decision events. Projection requires matching review/case identity, stored actor attribution, valid transitions and matching clarification/outcome evidence, under current review-register and case read access. Superseded versions retain their own historical entries. These decisions do not claim that required posting, replacement or payment release is complete. See [D-019](IMPLEMENTATION_DECISIONS.md) and [validation](FINANCE_ROADMAP_COMPLETION_AUDIT.md). Posting synchronization and replacement issuance history remain separate adapters.

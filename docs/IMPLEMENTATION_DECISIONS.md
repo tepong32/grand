@@ -33,6 +33,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 - **D-018:** Project returned-payment Waiting from current review versions and the established role-shaped register.
 
+- **D-019:** Attribute returned-payment history to matching retained review-version events, including superseded versions.
+
 ### D-001 — Retained events determine personal completion
 
 - Date/checkpoint: 2026-09-07; v0.7.10–v0.7.12 implemented; payment-handoff extension verified in v0.7.14.
@@ -230,3 +232,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Tradeoff: completion history remains separate. Prepared timestamps or reviewed/posted handoff times measure age; the bank observation date is not a deadline.
 - Evidence/status: source register and returned-item service transitions inspected. All three focused tests and 166 dependent My Work/voucher tests passed; full-project regression is not repeated for this isolated read-only projection under the updated repository guidance.
 - Revisit when: adding completion events or changing register read policy; such changes require separate event/authority verification.
+
+
+### D-019 — Preserve review-version completion evidence
+
+- Date/checkpoint: 2026-09-08; v0.7.29.
+- Decision: Credit retained submission, clarification, return and Accounting-decision events only when their review identity, case, stored preparer/reviewer, stage transition and relevant successor/outcome evidence agree. Require both current register and case read access. Retain superseded versions as historical actions.
+- Alternatives considered: infer actions from closed status; use unvalidated review IDs from event metadata; hide superseded evidence; treat an Accounting decision as completed replacement or release.
+- Goal fit: one traceable history should preserve who did what on each correction version without inventing authority or overwriting earlier work.
+- Tradeoff: malformed or inconsistent historical evidence is excluded; no audit-history repair is inferred. Posting synchronization and instrument issuance history remain separate work. Current read loss can hide prior personal history.
+- Evidence/status: inspected retained event emission and immutable review-source fields. Focused tests check malformed/cross-case metadata, actor/outcome mismatch and real superseded/successor history; all three focused tests and 168 dependent My Work/voucher tests passed.
+- Revisit when: adding later posting/issuance history or exposing evidence inconsistencies through an audit repair workflow.

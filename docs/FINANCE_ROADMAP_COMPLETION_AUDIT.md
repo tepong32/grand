@@ -197,3 +197,8 @@ Verification: all four focused attribution/action/replay tests passed in 11.728 
 ## v0.7.28 - returned-payment personal handoffs
 
 Verification: all three focused tests passed in 6.576 seconds; all 166 My Work/voucher dependency tests passed in 82.166 seconds. System, migration-drift, compilation and diff checks passed. Commands: `manage.py test` with the three focused labels, then `manage.py test finance.test_work_tasks vouchers --noinput`. Full-project suite: NOT RUN - OUT OF SCOPE for this read-only projection; no source mutation policy, model, schema or infrastructure changes. The affected consumers and their cross-store replay are covered by the dependency suite under the updated proportional-testing guidance.
+
+
+## v0.7.29 - attributed returned-payment history
+
+Verification: all three focused identity/outcome/replay tests passed in 5.961 seconds; all 168 My Work/voucher dependency tests passed in 84.528 seconds. System, migration-drift, compilation and diff checks passed. Scope: focused identity/actor/outcome tests and real reversal/replacement history replay, followed by all My Work/voucher tests. Full-project suite: NOT RUN - OUT OF SCOPE for a read-only history adapter with no service, schema or infrastructure change; affected source workflows and projection consumers receive dependency coverage.

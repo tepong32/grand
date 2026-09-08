@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.29 - attributed returned-payment history
+
+Completed by me now includes retained returned-payment submission, clarified submission, return-for-clarification and Accounting-decision events. Projection requires matching review/case identity, stored actor attribution, valid transitions and matching clarification/outcome evidence, under current review-register and case read access. Superseded versions retain their own historical entries. These decisions do not claim that required posting, replacement or payment release is complete. Verification: all three focused identity/outcome/replay tests passed in 5.961 seconds; all 168 My Work/voucher dependency tests passed in 84.528 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.28 - returned-payment personal handoffs
 
 Personal Waiting now includes attributed returned-payment reviews through independent review, clarification, reversal posting and controlled replacement. It uses the existing role-shaped register scope, current stage/status consistency and exact review anchors. Superseded reviews leave Waiting; authorized review, case, source and journal actions are excluded before truncation. Open posting-request authorship can qualify during posting, while existing preparer attribution persists through the handoff. Verification: all three focused tests passed in 6.576 seconds; all 166 My Work/voucher dependency tests passed in 82.166 seconds. System, migration-drift, compilation and diff checks passed.

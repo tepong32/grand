@@ -419,3 +419,77 @@ def completed_dv_tasks(user, department, today):
             url=reverse("vouchers:case_detail", kwargs={"public_id": item.public_id}),
         ))
     return tasks
+
+
+def completed_returned_payment_tasks(user, department, today):
+    """Retained review-version actions do not imply completed replacement/payment."""
+    from uuid import UUID
+    from vouchers.access import can_view_workbench, has_explicit_permission
+    from vouchers.case_exports import visible_cases_for_user
+    from vouchers.models import ReturnedInstrumentReview, VoucherCase, VoucherEvent
+    from vouchers.returned_instrument_register import visible_returned_instrument_reviews
+    from vouchers.roles import is_finance_uat_viewer
+    from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
+
+    if is_finance_uat_viewer(user) or not can_view_workbench(user) or not has_explicit_permission(user, "vouchers.view_bank_advice"):
+        return []
+    reviews = {item.public_id: item for item in visible_returned_instrument_reviews(user).select_related("supersedes")}
+    specs = {
+        "returned_instrument_sent_to_accounting": (VoucherCase.COMPLETED, "Submitted bank-return evidence", "prepared_by_id"),
+        "returned_instrument_clarified": (VoucherCase.ACCOUNTING_RETURNED_ITEM, "Submitted clarified bank-return evidence", "prepared_by_id"),
+        "returned_instrument_review_returned": (VoucherCase.ACCOUNTING_RETURNED_ITEM, "Returned bank-return evidence for clarification", "reviewed_by_id"),
+        "returned_instrument_accounting_decided": (VoucherCase.ACCOUNTING_RETURNED_ITEM, "Recorded the returned-payment Accounting decision", "reviewed_by_id"),
+    }
+    events = VoucherEvent.objects.filter(actor_id=user.pk, action__in=specs, case__in=visible_cases_for_user(user)).select_related("case", "actor_department")
+    tasks = []
+    for event in events:
+        if not isinstance(event.metadata, dict):
+            continue
+        try:
+            review = reviews.get(UUID(str(event.metadata.get("review_public_id"))))
+        except (ValueError, TypeError, AttributeError):
+            continue
+        if review is None or review.case_id != event.case_id:
+            continue
+        before, label, actor_field = specs[event.action]
+        if event.from_stage != before or getattr(review, actor_field) != event.actor_id:
+            continue
+        targets = {VoucherCase.ACCOUNTING_RETURNED_ITEM}
+        if event.action == "returned_instrument_clarified":
+            if not review.supersedes_id or str(review.supersedes.public_id) != event.metadata.get("supersedes"):
+                continue
+        if event.action == "returned_instrument_accounting_decided":
+            outcome = event.metadata.get("outcome")
+            if outcome not in (ReturnedInstrumentReview.REISSUE, ReturnedInstrumentReview.CLOSE_WITHOUT_REISSUE) or outcome != review.outcome:
+                continue
+            targets = {VoucherCase.ACCOUNTING_EVENT_POSTING,
+                       VoucherCase.TREASURY_CHECK_PREPARATION if outcome == ReturnedInstrumentReview.REISSUE else VoucherCase.COMPLETED}
+        if event.to_stage not in targets:
+            continue
+        item = event.case
+        event_id = _source_record_identity("returned-payment-event", event.pk)
+        revision = _projection_checksum({
+            "event_id": str(event_id), "action": event.action, "actor_id": event.actor_id,
+            "actor_department_id": event.actor_department_id, "at": event.created_at.isoformat(),
+            "metadata": event.metadata, "reason": event.reason, "case_id": str(item.public_id),
+            "from_stage": event.from_stage, "to_stage": event.to_stage, "state_version": event.state_version,
+            "review_id": str(review.public_id), "review_status": review.status, "review_version": review.version,
+            "current_stage": item.current_stage, "reference": item.reference_code,
+        })
+        tasks.append(FinanceWorkTask(
+            task_id=f"finwork:v1:returned-payment-event:{event_id}:completed",
+            task_type=f"finance.returned-payment.{event.action}.completed.v1", area="Returned payment",
+            case_id=f"returned-payment:{review.public_id}", reference=f"{item.reference_code} · review v{review.version}",
+            subject=label, transaction_type="Recorded returned-payment action", action="View source case",
+            gate=f"The retained event attributes this action to your account: {label}." + (f" Reason: {event.reason}" if event.reason else ""),
+            owner_queue=f"Recorded actor account: {user.get_username()}; office: {event.actor_department.name}",
+            scope=f"Current review-register and case read access; recorded acting office: {event.actor_department.name}",
+            received_at=event.created_at, due_on=None, due_state="Recorded completion",
+            calendar_basis="Elapsed calendar days since the retained review action; current review and case states remain separate.",
+            age_days=_age_days(event.created_at, today), state="Completed",
+            source_state=f"{review.get_status_display()} · {item.get_current_stage_display()}",
+            source_version=f"event-sha256:{revision}",
+            exception="An Accounting decision does not by itself complete required posting, replacement or payment release.",
+            url=reverse("vouchers:case_detail", kwargs={"public_id": item.public_id}),
+        ))
+    return tasks

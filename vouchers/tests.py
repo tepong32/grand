@@ -3613,6 +3613,15 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(clarified.status, ReturnedInstrumentReview.CLOSED)
         self.assertEqual(exception.status, PaymentInstrumentException.RESOLVED)
         self.assertEqual(instrument.operational_status, PaymentInstrument.NORMAL)
+        treasury_history = [task for task in finance_work_tasks(self.treasury_user, view="completed")["tasks"]
+                            if task["task_type"].startswith("finance.returned-payment.")]
+        self.assertEqual({task["case_id"] for task in treasury_history},
+                         {f"returned-payment:{review.public_id}", f"returned-payment:{clarified.public_id}"})
+        self.assertEqual(len(treasury_history), 2)
+        reviewer_history = [task for task in finance_work_tasks(self.validator, view="completed")["tasks"]
+                            if task["task_type"].startswith("finance.returned-payment.")]
+        self.assertEqual(len(reviewer_history), 2)
+        self.assertTrue(any("Superseded" in task["source_state"] for task in treasury_history))
 
     def test_f84_advice_workspace_starter_detail_and_trace_export_endpoints(self):
         case = self.ready_for_treasury("-advice-ui")

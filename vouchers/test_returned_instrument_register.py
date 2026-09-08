@@ -139,6 +139,54 @@ class ReturnedInstrumentWorkRegisterTests(TestCase):
             treasury_note="Synthetic Treasury note.", prepared_by=user,
         )
 
+    def test_returned_completion_requires_matching_review_case_and_actor(self):
+        from .models import VoucherEvent
+
+        review = self.accounting_review
+        event = VoucherEvent.objects.create(case=review.case, action="returned_instrument_sent_to_accounting",
+            from_stage=VoucherCase.COMPLETED, to_stage=VoucherCase.ACCOUNTING_RETURNED_ITEM,
+            actor=self.treasury_user, actor_department=self.treasury, state_version=1, idempotency_key="ret-history",
+            metadata={"review_public_id": str(review.public_id)})
+        for key, metadata, before in (
+            ("cross-case", {"review_public_id": str(self.treasury_clarification.public_id)}, VoucherCase.COMPLETED),
+            ("bad-shape", [], VoucherCase.COMPLETED),
+            ("wrong-transition", {"review_public_id": str(review.public_id)}, VoucherCase.TREASURY_RELEASE),
+        ):
+            VoucherEvent.objects.create(case=review.case, action=event.action, from_stage=before,
+                to_stage=event.to_stage, actor=self.treasury_user, actor_department=self.treasury,
+                state_version=2, idempotency_key=key, metadata=metadata)
+        review.case.current_department = self.other_accounting
+        review.case.save(update_fields=("current_department",))
+        tasks = finance_work_tasks(self.treasury_user, view="completed")["tasks"]
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0]["case_id"], f"returned-payment:{review.public_id}")
+        self.assertEqual(tasks[0]["received_at"], event.created_at)
+        self.assertIn(self.treasury.name, tasks[0]["scope"])
+        self.assertIsNone(tasks[0]["due_on"])
+        self.assertFalse(finance_work_tasks(self.reviewer, view="completed")["tasks"])
+        self.treasury_user.user_permissions.remove(Permission.objects.get(content_type__app_label="vouchers", codename="view_bank_advice"))
+        self.assertFalse(finance_work_tasks(self.treasury_user, view="completed")["tasks"])
+
+    def test_returned_decision_history_requires_retained_reviewer_and_outcome(self):
+        from .models import VoucherEvent
+
+        review = self.treasury_replacement
+        review.reviewed_by = self.reviewer
+        review.save(update_fields=("reviewed_by",))
+        for key, actor, outcome, after in (
+            ("valid", self.reviewer, ReturnedInstrumentReview.REISSUE, VoucherCase.TREASURY_CHECK_PREPARATION),
+            ("wrong-outcome", self.reviewer, ReturnedInstrumentReview.CLOSE_WITHOUT_REISSUE, VoucherCase.COMPLETED),
+            ("wrong-actor", self.treasury_user, ReturnedInstrumentReview.REISSUE, VoucherCase.TREASURY_CHECK_PREPARATION),
+        ):
+            VoucherEvent.objects.create(case=review.case, action="returned_instrument_accounting_decided",
+                from_stage=VoucherCase.ACCOUNTING_RETURNED_ITEM, to_stage=after, actor=actor,
+                actor_department=self.accounting, state_version=1, idempotency_key=key,
+                metadata={"review_public_id": str(review.public_id), "outcome": outcome})
+        tasks = finance_work_tasks(self.reviewer, view="completed")["tasks"]
+        self.assertEqual(len(tasks), 1)
+        self.assertIn("does not by itself complete", tasks[0]["exception"])
+        self.assertFalse(finance_work_tasks(self.treasury_user, view="completed")["tasks"])
+
     def test_returned_waiting_is_personal_scoped_and_links_the_exact_review(self):
         result = finance_work_tasks(self.treasury_user, view="waiting", display_limit=1)
         self.assertEqual(result["task_count"], 1)

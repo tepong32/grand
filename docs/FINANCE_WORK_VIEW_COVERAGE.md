@@ -2,7 +2,7 @@
 
 This table describes the implemented My Work views, not production or LGU acceptance. Current source authorization applies to every row. Ready/action coverage is detailed in [FINANCE_MY_WORK.md](FINANCE_MY_WORK.md); turning-point choices are in [IMPLEMENTATION_DECISIONS.md](IMPLEMENTATION_DECISIONS.md).
 
-Last reviewed: 2026-09-08, v0.7.28 returned-payment personal handoffs.
+Last reviewed: 2026-09-08, v0.7.29 attributed returned-payment history.
 
 | Source domain | Personal Waiting | Completed by me |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ Last reviewed: 2026-09-08, v0.7.28 returned-payment personal handoffs.
 | DV print, packet and wet-signature custody | Personal case Waiting through signatures/validation, with authorized child-action exclusion (v0.7.23) | DV preparation/correction, ordinary signature-return recording and validation events (v0.7.24); print/packet/amendment history remains |
 | Payment instruments | Shared case through Treasury/advice/release/event posting (v0.7.27); returned reviews use their own adapter (v0.7.28) | Remaining coverage |
 | Bank reconciliation | Remaining coverage | Remaining coverage |
-| Returned-payment reviews | Current attributed review/clarification/posting/replacement handoffs (v0.7.28) | Remaining coverage |
+| Returned-payment reviews | Current attributed review/clarification/posting/replacement handoffs (v0.7.28) | Retained submission/clarification/return/decision events (v0.7.29); later posting/issuance remains |
 | Cash policy and cash position | Remaining coverage | Remaining coverage |
 | Reporting runs and accountability packages | Remaining coverage | Remaining coverage |
 | Field cycles and named nested controls | Remaining coverage | Remaining coverage |

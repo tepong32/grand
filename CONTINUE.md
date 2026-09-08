@@ -14,7 +14,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.28 checkpoint - returned-payment personal handoffs
+## Current v0.7.29 checkpoint - attributed returned-payment history
+
+Branch: `codex/finance-returned-payment-history`, based on pushed `c6705d5`. Completed by me now includes retained returned-payment submission, clarified submission, return-for-clarification and Accounting-decision events. Projection requires matching review/case identity, stored actor attribution, valid transitions and matching clarification/outcome evidence, under current review-register and case read access. Superseded versions retain their own historical entries. These decisions do not claim that required posting, replacement or payment release is complete. Verification: all three focused identity/outcome/replay tests passed in 5.961 seconds; all 168 My Work/voucher dependency tests passed in 84.528 seconds. System, migration-drift, compilation and diff checks passed. D-019 records the decision. Continue remaining Finance phases; preserve the user database.
+
+## Prior v0.7.28 checkpoint - returned-payment personal handoffs
 
 Branch: `codex/finance-returned-payment-waiting`, based on pushed `2c69730`. Personal Waiting now includes attributed returned-payment reviews through independent review, clarification, reversal posting and controlled replacement. It uses the existing role-shaped register scope, current stage/status consistency and exact review anchors. Superseded reviews leave Waiting; authorized review, case, source and journal actions are excluded before truncation. Open posting-request authorship can qualify during posting, while existing preparer attribution persists through the handoff. Verification: all three focused tests passed in 6.576 seconds; all 166 My Work/voucher dependency tests passed in 82.166 seconds. System, migration-drift, compilation and diff checks passed. D-018 records scope and verification policy. Continue remaining Finance phases; preserve the user database.
 
