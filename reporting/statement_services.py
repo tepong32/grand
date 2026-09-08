@@ -4,7 +4,7 @@ import hashlib
 import json
 from decimal import Decimal, InvalidOperation
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.utils import timezone
@@ -16,6 +16,12 @@ from .models import (
     FinanceStatementNote, FinanceStatementNoteEvent, FinanceStatementNoteSet,
     ReportReferenceComparison, ReportReferenceComparisonEvent, ReportRun,
 )
+
+
+def _require(actor, permission, department):
+    from .access import can_mutate_finance_reporting
+    if not can_mutate_finance_reporting(actor, permission, department):
+        raise PermissionDenied("Statement governance requires current owning-office action authority.")
 
 
 STARTER_LINES = {
@@ -150,7 +156,10 @@ def seed_statement_starters(department, actor):
     return created
 
 
+@transaction.atomic
 def submit_statement_mapping(mapping, actor):
+    mapping = FinanceStatementMapping.objects.select_for_update().select_related("department").get(pk=mapping.pk)
+    _require(actor, "reporting.manage_report_definitions", mapping.department)
     if not mapping.is_editable:
         raise ValidationError("Only an editable draft can be submitted.")
     coverage = mapping_coverage(mapping)
@@ -169,6 +178,8 @@ def submit_statement_mapping(mapping, actor):
 
 @transaction.atomic
 def review_statement_mapping(mapping, actor, *, approve, note=""):
+    mapping = FinanceStatementMapping.objects.select_for_update().select_related("department").get(pk=mapping.pk)
+    _require(actor, "reporting.approve_reports", mapping.department)
     if mapping.status != FinanceStatementMapping.SUBMITTED:
         raise ValidationError("Only a submitted mapping can be independently reviewed.")
     if mapping.created_by_id == actor.pk or mapping.submitted_by_id == actor.pk:
@@ -356,6 +367,9 @@ def validate_note_set(note_set, *, require_official=False):
 
 @transaction.atomic
 def create_note_set(*, department, position_run, performance_run, actor, data):
+    _require(actor, "reporting.prepare_statement_notes", department)
+    position_run = ReportRun.objects.select_related("definition", "template_version").get(pk=position_run.pk)
+    performance_run = ReportRun.objects.select_related("definition", "template_version").get(pk=performance_run.pk)
     period_start, period_end = position_run.period_start, position_run.period_end
     latest = FinanceStatementNoteSet.objects.select_for_update().filter(
         department=department, period_start=period_start, period_end=period_end,
@@ -403,6 +417,7 @@ def submit_note_set(note_set, actor):
         "position_run__definition", "position_run__template_version",
         "performance_run__definition", "performance_run__template_version",
     ).get(pk=note_set.pk)
+    _require(actor, "reporting.prepare_statement_notes", locked.department)
     if not locked.is_editable:
         raise ValidationError("Only an editable note package can be submitted.")
     validation = validate_note_set(locked)
@@ -434,6 +449,7 @@ def review_note_set(note_set, actor, *, action, note=""):
         "position_run__definition", "position_run__template_version",
         "performance_run__definition", "performance_run__template_version",
     ).get(pk=note_set.pk)
+    _require(actor, "reporting.review_statement_notes", locked.department)
     if locked.status != FinanceStatementNoteSet.SUBMITTED:
         raise ValidationError("Only submitted statement notes can be independently reviewed.")
     if locked.created_by_id == actor.pk or locked.submitted_by_id == actor.pk:
@@ -538,6 +554,7 @@ def submit_reference_comparison(comparison, actor):
     locked = ReportReferenceComparison.objects.select_for_update().select_related(
         "run__definition", "run__template_version",
     ).get(pk=comparison.pk)
+    _require(actor, "reporting.prepare_reference_comparisons", locked.run.definition.department)
     if not locked.is_editable:
         raise ValidationError("Only an editable reference comparison can be submitted.")
     locked.full_clean()
@@ -595,6 +612,7 @@ def review_reference_comparison(comparison, actor, *, approve, note=""):
     locked = ReportReferenceComparison.objects.select_for_update().select_related(
         "run__definition", "run__template_version",
     ).get(pk=comparison.pk)
+    _require(actor, "reporting.review_reference_comparisons", locked.run.definition.department)
     if locked.status != ReportReferenceComparison.SUBMITTED:
         raise ValidationError("Only a submitted comparison can be independently reviewed.")
     if locked.created_by_id == actor.pk or locked.submitted_by_id == actor.pk:

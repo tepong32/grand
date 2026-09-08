@@ -14,6 +14,7 @@ from src.export_archive import archive_export
 
 from .access import (
     can_activate_template_promotions, can_approve_template_promotions,
+    can_manage_statement_mappings, can_review_statement_mappings,
     can_approve_accountability_profiles, can_export_accountability_packages,
     can_approve_reports, can_download_reports, can_generate_reports, can_manage_definitions,
     can_manage_accountability_profiles, can_prepare_accountability_packages,
@@ -1006,11 +1007,11 @@ def statement_mapping_list(request):
     ).prefetch_related("lines")
     return render(request, "reporting/statement_mapping_list.html", {
         "mappings": mappings, "department": department,
-        "can_manage": can_manage_definitions(request.user),
+        "can_manage": can_manage_statement_mappings(request.user),
     })
 
 
-@reporting_permission_required(can_manage_definitions)
+@reporting_permission_required(can_manage_statement_mappings)
 @require_http_methods(["GET", "POST"])
 def statement_mapping_create(request):
     department = _statement_department(request.user)
@@ -1034,12 +1035,12 @@ def statement_mapping_detail(request, public_id):
     )
     return render(request, "reporting/statement_mapping_detail.html", {
         "mapping": mapping, "coverage": mapping_coverage(mapping),
-        "can_manage": can_manage_definitions(request.user),
-        "can_approve": can_approve_reports(request.user),
+        "can_manage": can_manage_statement_mappings(request.user),
+        "can_approve": can_review_statement_mappings(request.user),
     })
 
 
-@reporting_permission_required(can_manage_definitions)
+@reporting_permission_required(can_manage_statement_mappings)
 @require_http_methods(["GET", "POST"])
 def statement_mapping_update(request, public_id):
     _statement_department(request.user)
@@ -1057,7 +1058,7 @@ def statement_mapping_update(request, public_id):
     return render(request, "reporting/statement_mapping_form.html", {"form": form, "mode": "Update", "mapping": mapping})
 
 
-@reporting_permission_required(can_manage_definitions)
+@reporting_permission_required(can_manage_statement_mappings)
 @require_http_methods(["GET", "POST"])
 def statement_line_create(request, public_id):
     _statement_department(request.user)
@@ -1073,7 +1074,7 @@ def statement_line_create(request, public_id):
     return render(request, "reporting/statement_line_form.html", {"form": form, "mapping": mapping})
 
 
-@reporting_permission_required(can_manage_definitions)
+@reporting_permission_required(can_manage_statement_mappings)
 @require_http_methods(["GET", "POST"])
 def statement_line_update(request, public_id, pk):
     _statement_department(request.user)
@@ -1090,7 +1091,7 @@ def statement_line_update(request, public_id, pk):
     return render(request, "reporting/statement_line_form.html", {"form": form, "mapping": mapping, "line": line})
 
 
-@reporting_permission_required(can_manage_definitions)
+@reporting_permission_required(can_manage_statement_mappings)
 @require_POST
 def statement_line_delete(request, public_id, pk):
     _statement_department(request.user)
@@ -1105,7 +1106,7 @@ def statement_line_delete(request, public_id, pk):
     return redirect(mapping)
 
 
-@reporting_permission_required(can_manage_definitions)
+@reporting_permission_required(can_manage_statement_mappings)
 @require_POST
 def statement_mapping_submit(request, public_id):
     _statement_department(request.user)
@@ -1119,7 +1120,7 @@ def statement_mapping_submit(request, public_id):
     return redirect(mapping)
 
 
-@reporting_permission_required(can_approve_reports)
+@reporting_permission_required(can_review_statement_mappings)
 @require_POST
 def statement_mapping_review(request, public_id, action):
     _statement_department(request.user)

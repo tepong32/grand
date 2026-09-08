@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.36 - statement governance authority
+
+Statement mapping, note-package and reference-comparison services now enforce action authority, current stored office and UAT exclusion. Mapping submission is atomic and mapping decisions reload stored evidence. Note creation reloads both source runs. Statement page controls use the same Finance-specific authority while read/export permissions remain separate. Verification: all 28 focused statement/Finance reporting tests passed in 5.072 seconds; all 612 project tests passed in 184.317 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.35 - Finance report run authority
 
 Finance manual report generation now checks stored definition ownership, action authority and UAT exclusion before persistence. Finance review/approval/supersession rejects UAT even with department-head grants; source controls and run task selectors agree. Existing non-Finance reporting authority, read/download access and trusted scheduled generation remain separate. Verification: all 50 focused Finance/general reporting tests passed in 15.362 seconds; all 606 project tests passed on the final patch in 217.869 seconds. System, migration-drift, compilation and diff checks passed.

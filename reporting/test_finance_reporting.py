@@ -425,6 +425,8 @@ class FinanceAccountabilityReportingTests(TestCase):
         )
         submit_statement_mapping(successor, self.accounting_preparer)
         successor.refresh_from_db()
+        self.accounting_preparer.user_permissions.add(Permission.objects.get(codename="approve_reports"))
+        self.accounting_preparer = get_user_model().objects.get(pk=self.accounting_preparer.pk)
         with self.assertRaisesMessage(ValidationError, "preparer or submitter"):
             review_statement_mapping(successor, self.accounting_preparer, approve=True)
         review_statement_mapping(
@@ -884,6 +886,30 @@ class FinanceAccountabilityReportingTests(TestCase):
         run.refresh_from_db()
         self.assertEqual(run.status, ReportRun.REVIEWED)
         self.assertFalse(report_action_queryset(self.accounting_reviewer, "needs_approval")[0].exists())
+
+
+    def test_statement_mapping_authority_uses_stored_owner_and_denies_uat(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        mapping = FinanceStatementMapping.objects.get(
+            department=self.accounting, statement_type=FinanceStatementMapping.POSITION,
+        )
+        mapping.department = self.budget
+        with self.assertRaises(PermissionDenied):
+            submit_statement_mapping(mapping, self.budget_preparer)
+        with self.assertRaises(PermissionDenied):
+            review_statement_mapping(mapping, self.budget_preparer, approve=False, note="Foreign return")
+        self.accounting_reviewer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        with self.assertRaises(PermissionDenied):
+            submit_statement_mapping(mapping, self.accounting_reviewer)
+        with self.assertRaises(PermissionDenied):
+            review_statement_mapping(mapping, self.accounting_reviewer, approve=False, note="Preview return")
+        self.client.force_login(self.accounting_reviewer)
+        detail = self.client.get(reverse("reporting:statement_mapping_detail", args=(mapping.public_id,)))
+        self.assertEqual(detail.status_code, 200)
+        self.assertFalse(detail.context["can_manage"])
+        self.assertFalse(detail.context["can_approve"])
+        self.assertEqual(self.client.get(reverse("reporting:statement_mapping_create")).status_code, 403)
 
 
 def tearDownModule():

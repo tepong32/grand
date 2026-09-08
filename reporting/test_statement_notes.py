@@ -8,7 +8,7 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -205,6 +205,8 @@ class StatementNotesAndReferenceComparisonTests(TestCase):
         note_set.refresh_from_db()
         self.assertEqual(len(note_set.snapshot_checksum), 64)
         self.assertEqual(note_set.source_snapshot["position_run"]["reproduction_key"], "4" * 64)
+        self.preparer.user_permissions.add(Permission.objects.get(codename="review_statement_notes"))
+        self.preparer = get_user_model().objects.get(pk=self.preparer.pk)
         with self.assertRaisesMessage(ValidationError, "preparer or submitter"):
             review_note_set(note_set, self.preparer, action="accept_working")
         review_note_set(note_set, self.reviewer, action="accept_working", note="Working disclosures checked.")
@@ -238,6 +240,8 @@ class StatementNotesAndReferenceComparisonTests(TestCase):
         self.assertEqual(comparison.differences["assets"], "0.00")
         self.assertEqual(len(comparison.reference_file_checksum), 64)
         self.assertEqual(len(comparison.snapshot_checksum), 64)
+        self.preparer.user_permissions.add(Permission.objects.get(codename="review_reference_comparisons"))
+        self.preparer = get_user_model().objects.get(pk=self.preparer.pk)
         with self.assertRaisesMessage(ValidationError, "preparer or submitter"):
             review_reference_comparison(comparison, self.preparer, approve=True)
         review_reference_comparison(
@@ -318,6 +322,78 @@ class StatementNotesAndReferenceComparisonTests(TestCase):
         self.assertIn("Compare a signed reference safely", {step[0] for step in guide["steps"]})
         self.assertIn("Promote a checked layout", {step[0] for step in guide["steps"]})
         self.assertIn("Assemble the accountability package", {step[0] for step in guide["steps"]})
+
+
+    def _assert_note_review_denied(self, actor):
+        notes = self.make_note_set()
+        submit_note_set(notes, self.preparer)
+        before = notes.events.count()
+        with self.assertRaises(PermissionDenied):
+            review_note_set(notes, actor, action="return", note="Correction required")
+        notes.refresh_from_db()
+        self.assertEqual(notes.status, FinanceStatementNoteSet.SUBMITTED)
+        self.assertEqual(notes.events.count(), before)
+
+    def test_uat_head_cannot_review_statement_notes(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        self.reviewer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self._assert_note_review_denied(self.reviewer)
+
+    def test_foreign_office_reviewer_cannot_review_statement_notes(self):
+        self.outsider.user_permissions.add(Permission.objects.get(codename="review_statement_notes"))
+        self._assert_note_review_denied(self.outsider)
+
+    def test_ungranted_actor_cannot_review_statement_notes(self):
+        observer = self.employee(self.department, "notes.observer", "view_reporting_workspace")
+        self._assert_note_review_denied(observer)
+
+
+    def test_statement_preparation_and_comparison_recheck_source_office(self):
+        notes = self.make_note_set()
+        notes.department = self.outside_department
+        with self.assertRaises(PermissionDenied):
+            submit_note_set(notes, self.outsider)
+        notes.refresh_from_db()
+        self.assertEqual(notes.status, FinanceStatementNoteSet.DRAFT)
+        with self.assertRaises(PermissionDenied):
+            create_note_set(department=self.department, position_run=self.position_run,
+                            performance_run=self.performance_run, actor=self.outsider, data={})
+        comparison = self.comparison()
+        comparison.run.definition.department = self.outside_department
+        with self.assertRaises(PermissionDenied):
+            submit_reference_comparison(comparison, self.outsider)
+        comparison.refresh_from_db()
+        self.assertEqual(comparison.status, ReportReferenceComparison.DRAFT)
+        submit_reference_comparison(comparison, self.preparer)
+        self.outsider.user_permissions.add(Permission.objects.get(codename="review_reference_comparisons"))
+        with self.assertRaises(PermissionDenied):
+            review_reference_comparison(comparison, self.outsider, approve=False, note="Foreign return")
+        comparison.refresh_from_db()
+        self.assertEqual(comparison.status, ReportReferenceComparison.SUBMITTED)
+
+    def test_uat_statement_pages_preserve_read_export_and_deny_preparation(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        notes = self.make_note_set()
+        comparison = self.comparison()
+        self.preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.preparer)
+        for name, item in (("statement_note_set_detail", notes), ("reference_comparison_detail", comparison)):
+            response = self.client.get(reverse("reporting:" + name, args=(item.public_id,)))
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(response.context["can_prepare"])
+            self.assertFalse(response.context["can_review"])
+            self.assertTrue(response.context["can_export"])
+        for name, item in (("statement_note_set_submit", notes), ("reference_comparison_submit", comparison)):
+            self.assertEqual(self.client.post(reverse("reporting:" + name, args=(item.public_id,))).status_code, 403)
+        with self.assertRaises(PermissionDenied):
+            create_note_set(department=self.department, position_run=self.position_run,
+                            performance_run=self.performance_run, actor=self.preparer, data={})
+        with self.assertRaises(PermissionDenied):
+            submit_note_set(notes, self.preparer)
+        with self.assertRaises(PermissionDenied):
+            submit_reference_comparison(comparison, self.preparer)
 
 
 def tearDownModule():

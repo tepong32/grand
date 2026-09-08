@@ -43,6 +43,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 - **D-023:** Verify cash preparation and manual-resolution custody against locked stored records.
 - **D-024:** Preserve Treasury ownership and cross-office review in personal cash handoffs.
 - **D-025:** Apply the Finance report mutation boundary by source domain while retaining non-Finance authority.
+- **D-026:** Enforce statement governance at service boundaries without changing read/export roles.
 
 ### D-001 — Retained events determine personal completion
 
@@ -314,3 +315,15 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Tradeoff: related configuration, template, schedule and Finance control mutations require their own source audit (FIN-GAP-018). This checkpoint closes the named manual/run boundary only.
 - Evidence/status: UAT generation and department-head review both succeeded before the fix (2 failed denial tests, 1.137 seconds). All 50 focused reporting tests and 606 project tests passed.
 - Revisit when: adding a new Finance dataset namespace or governing automated execution identities; preserve source-domain classification and current stored ownership.
+
+### D-026 — Enforce statement service authority before evidence changes
+
+- Date/checkpoint: 2026-09-09; v0.7.36.
+- Decision: use a Finance governance predicate that combines active operational identity, current stored office and the existing action permission/head rule. Apply it to mapping, note and comparison mutation services and their page controls. Reload source records before checking ownership and evidence.
+- Alternatives considered: rely on view decorators; test only UAT; deny read/export access along with mutation; claim all reporting governance fixed after one service family.
+- Goal fit: every financial evidence mutation must preserve accountable office ownership and independent review, regardless of caller.
+- Tradeoff: starter seeding remains a trusted setup path; remaining accountability, local-form and template/schedule service families stay explicitly open under FIN-GAP-018.
+- Evidence/status: three note reviews succeeded with UAT/head, foreign-office and ungranted actors before repair (1.397 seconds). All 28 focused tests and 612 project tests passed. Maker-checker tests now explicitly grant both duties before verifying self-review rejection.
+- Revisit when: changing governance action roles or adding new service entry points; keep source reads and retained exports independently authorized.
+
+- v0.7.36 continuity maintenance: archived superseded checkpoint instructions in FINANCE_CHECKPOINT_HISTORY.md and made CONTINUE.md a current handoff. Replaced its stale universal-full-suite rule with the pulled master AGENTS.md proportional-testing policy; preserved all historical evidence and external gates.

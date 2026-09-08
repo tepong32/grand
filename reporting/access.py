@@ -64,19 +64,19 @@ def can_view_department_reports(user, department=None):
 
 
 def can_prepare_statement_notes(user, department=None):
-    return _authorized(user, "reporting.prepare_statement_notes", department)
+    return can_mutate_finance_reporting(user, "reporting.prepare_statement_notes", department)
 
 
 def can_review_statement_notes(user, department=None):
-    return _authorized(user, "reporting.review_statement_notes", department)
+    return can_mutate_finance_reporting(user, "reporting.review_statement_notes", department)
 
 
 def can_prepare_reference_comparisons(user, department=None):
-    return _authorized(user, "reporting.prepare_reference_comparisons", department)
+    return can_mutate_finance_reporting(user, "reporting.prepare_reference_comparisons", department)
 
 
 def can_review_reference_comparisons(user, department=None):
-    return _authorized(user, "reporting.review_reference_comparisons", department)
+    return can_mutate_finance_reporting(user, "reporting.review_reference_comparisons", department)
 
 
 def can_export_statement_packages(user, department=None):
@@ -167,3 +167,24 @@ def report_source_mutation_allowed(user, definition, *, control_gate_required=Fa
         and department and department.pk == definition.department_id
         and not is_finance_uat_viewer(user)
     )
+
+
+def can_mutate_finance_reporting(user, permission, department=None):
+    """Finance governance requires current-office authority and an operational actor."""
+    from vouchers.roles import is_finance_uat_viewer
+
+    current = department_for_user(user)
+    target = department or current
+    return bool(
+        getattr(user, "is_authenticated", False) and getattr(user, "is_active", False)
+        and current and target and current.pk == target.pk
+        and not is_finance_uat_viewer(user) and _authorized(user, permission, target)
+    )
+
+
+def can_manage_statement_mappings(user, department=None):
+    return can_mutate_finance_reporting(user, "reporting.manage_report_definitions", department)
+
+
+def can_review_statement_mappings(user, department=None):
+    return can_mutate_finance_reporting(user, "reporting.approve_reports", department)
