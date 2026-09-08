@@ -25,6 +25,8 @@ ATTENTION_CHOICES = (
     ("needs_mapping", "Needs a governed GRAND mapping"),
     ("needs_reference", "Needs the current local reference"),
     ("candidate_sections", "Starter sections need local decisions"),
+    ("complete_preparation", "Complete instructions and practical tests"),
+    ("ready_for_submission", "Ready to submit for independent acceptance"),
     ("returned", "Returned for correction"),
     ("witness_tests", "Practical tests awaiting my independent witness"),
     ("for_review", "Waiting for independent acceptance"),
@@ -33,6 +35,16 @@ ATTENTION_CHOICES = (
 )
 
 LOCAL_FORM_ACTION_SPECS = {
+    "complete_preparation": {
+        "role": "manage", "title": "Local forms needing instructions or practical tests",
+        "definition": "Mapped, referenced drafts with locally resolved sections that still need preparation or corrected test evidence.",
+        "next_action": "Complete the missing local instructions, sections or practical test attempts shown by source validation.",
+    },
+    "ready_for_submission": {
+        "role": "manage", "title": "Local forms ready for acceptance submission",
+        "definition": "Draft forms whose current source, reference, sections and independently witnessed tests satisfy submission validation.",
+        "next_action": "Review the complete local-form packet and submit it for independent acceptance.",
+    },
     "needs_mapping": {
         "role": "manage",
         "title": "Local forms needing a governed GRAND mapping",
@@ -124,11 +136,23 @@ def local_form_action_queryset(user, attention, *, queryset=None):
         )
     elif attention == "returned":
         queryset = queryset.filter(status=FinanceLocalFormAcceptance.RETURNED)
+    elif attention in ("complete_preparation", "ready_for_submission"):
+        from .form_acceptance_services import validate_local_form
+        candidates = queryset.filter(status=FinanceLocalFormAcceptance.DRAFT).exclude(
+            source_type=FinanceLocalFormAcceptance.SOURCE_UNMAPPED,
+        ).exclude(reference_file="").exclude(sections__confirmation_status=FinanceLocalFormSection.STARTER_CANDIDATE)
+        selected = []
+        for item in candidates.distinct():
+            validation = validate_local_form(item)
+            eligible = validation["valid"] if attention == "ready_for_submission" else validation["preparation_required"]
+            if eligible:
+                selected.append(item.pk)
+        queryset = queryset.filter(pk__in=selected)
     elif attention == "witness_tests":
         actionable_tests = FinanceLocalFormTestAttempt.objects.filter(
-            status=FinanceLocalFormTestAttempt.SUBMITTED,
+            status=FinanceLocalFormTestAttempt.SUBMITTED, successor_attempt__isnull=True,
         ).exclude(created_by=user)
-        queryset = queryset.filter(pk__in=actionable_tests.values("form_id"))
+        queryset = queryset.filter(status__in=editable, pk__in=actionable_tests.values("form_id"))
     elif attention == "for_review":
         queryset = queryset.filter(status=FinanceLocalFormAcceptance.SUBMITTED).exclude(
             Q(created_by=user) | Q(submitted_by=user),

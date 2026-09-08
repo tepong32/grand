@@ -459,6 +459,8 @@ def _local_form_groups(user, department):
         "needs_mapping": "local-form-mapping",
         "needs_reference": "local-form-reference",
         "candidate_sections": "local-form-section-decisions",
+        "complete_preparation": "local-form-preparation",
+        "ready_for_submission": "local-form-submission",
         "returned": "local-form-returned",
         "witness_tests": "local-form-test-witness",
         "for_review": "local-form-acceptance-review",

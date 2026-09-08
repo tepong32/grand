@@ -218,6 +218,8 @@ def _local_form_tasks(user, department, today):
         "needs_mapping": "Local-form preparers",
         "needs_reference": "Local-form preparers",
         "candidate_sections": "Local-form preparers",
+        "complete_preparation": "Local-form preparers",
+        "ready_for_submission": "Local-form preparers",
         "returned": "Local-form preparers",
         "witness_tests": "Independent local-form witnesses",
         "for_review": "Independent local-form reviewers",
@@ -235,6 +237,16 @@ def _local_form_tasks(user, department, today):
                 exception = "The current blank or safely redacted local reference is not retained."
             elif action_key == "candidate_sections":
                 exception = "One or more starter sections still lack a locally evidenced decision."
+            elif action_key == "complete_preparation":
+                from reporting.form_acceptance_services import validate_local_form
+                exception = " ".join(validate_local_form(item)["errors"])
+            revision = _projection_checksum({
+                "version": item.version, "status": item.status, "updated": item.updated_at.isoformat(),
+                "exception": exception, "submission_checksum": item.submission_checksum,
+                "tests": list(item.test_attempts.order_by("category", "attempt").values_list(
+                    "category", "attempt", "status", "basis_checksum", "evidence_checksum", "reviewed_by_id",
+                )),
+            })
             tasks.append(FinanceWorkTask(
                 task_id=f"finwork:v1:local-form:{item.public_id}:{action_key.replace('_', '-')}",
                 task_type=f"finance.local-form.{action_key}.v1",
@@ -254,7 +266,7 @@ def _local_form_tasks(user, department, today):
                 age_days=_age_days(item.created_at, today),
                 state="Returned" if item.status == FinanceLocalFormAcceptance.RETURNED else "Ready",
                 source_state=item.get_status_display(),
-                source_version=str(item.version),
+                source_version=f"projection-sha256:{revision}",
                 exception=exception,
                 url=item.get_absolute_url(),
             ))
@@ -2857,6 +2869,8 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
         tasks.extend(completed_accountability_tasks(user, department, today))
         from .work_field import completed_field_tasks
         tasks.extend(completed_field_tasks(user, department, today))
+        from .work_local_forms import completed_local_form_tasks
+        tasks.extend(completed_local_form_tasks(user, department, today))
         tasks.extend(completed_setup_tasks(user, department, today))
         tasks.extend(completed_discovery_tasks(user, department, today))
         tasks.extend(completed_accounting_tasks(user, department, today))
@@ -2883,7 +2897,7 @@ def finance_work_tasks(user, *, display_limit=100, view="ready", planned_days=7)
         "tasks": [task.as_dict() for task in tasks[:display_limit]],
         "task_count": task_count,
         "tasks_truncated": task_count > display_limit,
-        "task_coverage": ("Attributed stakeholder and cutover decision events", "Attributed field-cycle, exercise and defect submission/decision events", "Attributed accountability profile/package submission and decision events", "Attributed manual report generation and report decision events", "Attributed cash policy and position submission/decision events", "Attributed bank-reconciliation submission and decision events", "Attributed instrument issue, advice handoff, release and cancellation events", "Attributed returned-payment review-version events", "Attributed DV preparation, signature-return recording and validation events", "Attributed payable review handoffs", "Attributed discovery decision events", "Attributed setup release transitions", "Attributed bank-advice and remittance handoff events", "Attributed Budget call, proposal, appropriation, allotment and obligation events", "Attributed JEV submission/posting/return events", "Opening-balance submission and decision events", "Period-close and reopen decision events") if view == "completed" else ("Own prepared stakeholder and submitted cutover decision records", "Own submitted field cycles, exercises and defect corrections", "Own submitted accountability profiles and packages", "Own generated reports awaiting review or approval", "Submitted cash policies and positions", "Payable, DV, Accounting posting, Treasury, bank-advice and event-posting handoffs", "Submitted bank reconciliations", "Returned-payment review, clarification, posting and replacement handoffs", "Submitted discovery decisions", "Submitted Finance setup releases", "Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review, release and Accounting posting") if view == "waiting" else (
+        "task_coverage": ("Attributed local-form tests and acceptance decisions", "Attributed stakeholder and cutover decision events", "Attributed field-cycle, exercise and defect submission/decision events", "Attributed accountability profile/package submission and decision events", "Attributed manual report generation and report decision events", "Attributed cash policy and position submission/decision events", "Attributed bank-reconciliation submission and decision events", "Attributed instrument issue, advice handoff, release and cancellation events", "Attributed returned-payment review-version events", "Attributed DV preparation, signature-return recording and validation events", "Attributed payable review handoffs", "Attributed discovery decision events", "Attributed setup release transitions", "Attributed bank-advice and remittance handoff events", "Attributed Budget call, proposal, appropriation, allotment and obligation events", "Attributed JEV submission/posting/return events", "Opening-balance submission and decision events", "Period-close and reopen decision events") if view == "completed" else ("Own local-form test and acceptance submissions", "Own prepared stakeholder and submitted cutover decision records", "Own submitted field cycles, exercises and defect corrections", "Own submitted accountability profiles and packages", "Own generated reports awaiting review or approval", "Submitted cash policies and positions", "Payable, DV, Accounting posting, Treasury, bank-advice and event-posting handoffs", "Submitted bank reconciliations", "Returned-payment review, clarification, posting and replacement handoffs", "Submitted discovery decisions", "Submitted Finance setup releases", "Budget proposals, allotment orders and obligation requests", "Personal submitted JEVs", "Opening balances", "Submitted period-close checklists", "Bank advice", "Remittance review, release and Accounting posting") if view == "waiting" else (
             "Finance setup releases", "Discovery decisions", "Budget controls", "Payable intake",
             "DV preparation and controlled custody", "Accounting validation and JEV controls", "Opening-balance controls",
             "Voucher and remittance journal creation and posted-source synchronization",

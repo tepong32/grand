@@ -423,6 +423,7 @@ def form_snapshot(
 
 def validate_local_form(form):
     errors = []
+    pending_witness_errors = []
     try:
         form.full_clean()
     except ValidationError as exc:
@@ -485,7 +486,9 @@ def validate_local_form(form):
             errors.append(f"{label}: record and independently witness a test attempt.")
             continue
         if attempt.status == FinanceLocalFormTestAttempt.SUBMITTED:
-            errors.append(f"{label}: the latest attempt still awaits an independent witness.")
+            message = f"{label}: the latest attempt still awaits an independent witness."
+            errors.append(message)
+            pending_witness_errors.append(message)
         elif attempt.status == FinanceLocalFormTestAttempt.FAILED:
             errors.append(f"{label}: the latest attempt failed; correct the form and record a successor attempt.")
         elif attempt.status == FinanceLocalFormTestAttempt.NOT_APPLICABLE and not (
@@ -510,6 +513,7 @@ def validate_local_form(form):
     return {
         "valid": not errors,
         "errors": errors,
+        "preparation_required": any(error not in pending_witness_errors for error in errors),
         "source_snapshot": current_source,
         "reference_checksum": reference_hash,
         "latest_tests": latest,

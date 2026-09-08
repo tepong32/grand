@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from django.db.models import Exists, F, OuterRef, Q, Subquery
+from django.db.models import Exists, F, Max, OuterRef, Q, Subquery
 from django.urls import reverse
 
 
@@ -458,4 +458,24 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             scope=f"{item.cycle.department.name}; {item.enabled_scope}", route="finance:shadow_cycle_detail",
             route_kwargs={"pk": item.cycle_id}, source_id=_source_record_identity("field-cutover", item.pk),
             attribution=[item.prepared_by_id, item.submitted_by_id])
+    from reporting.models import FinanceLocalFormAcceptance, FinanceLocalFormTestAttempt
+    if can_view_reporting(user):
+        forms = FinanceLocalFormAcceptance.objects.filter(department=department).annotate(
+            own_pending_test_at=Max("test_attempts__created_at", filter=Q(
+                test_attempts__created_by_id=user.pk, test_attempts__status=FinanceLocalFormTestAttempt.SUBMITTED,
+                test_attempts__successor_attempt__isnull=True,
+            )),
+        )
+        forms = forms.filter(
+            Q(status=FinanceLocalFormAcceptance.SUBMITTED) & (Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk))
+            | Q(status__in=(FinanceLocalFormAcceptance.DRAFT, FinanceLocalFormAcceptance.RETURNED), own_pending_test_at__isnull=False)
+        )
+        for item in forms:
+            submitted = item.status == item.SUBMITTED
+            received = item.submitted_at if submitted else item.own_pending_test_at
+            add(item, kind="local-form", area="Local forms", reference=f"{item.code} v{item.version}",
+                subject=item.name, received=received,
+                queue="Independent local-form acceptance reviewers" if submitted else "Independent local-form test witnesses",
+                scope=f"{department.name}; form {item.form_number or item.code}", route="reporting:local_form_detail",
+                attribution=[item.created_by_id, item.submitted_by_id, user.pk if not submitted else None])
     return tasks

@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-036:** Complete local-form action parity and personal handoffs, distinguishing preparation from current witness waits and final acceptance.
+
 - **D-035:** Project prepared stakeholder/submitted cutover handoffs and label each retained decision outcome without implying broader acceptance.
 
 - **D-034:** Make returned field-cycle correction a linked-successor action, retaining prior evidence and using fresh source locks.
@@ -434,3 +436,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: a generic approved/completed label would misrepresent conditions or rejection. Stakeholder Waiting starts when both the record exists and reconciliation opens its decision gate; the cutover effective date does not become an invented approval deadline. Recorded synthetic test decisions do not establish real LGU acceptance or production readiness.
 - Evidence: All 39 focused field tests passed in 20.003 seconds; all 118 field/My Work/operations dependency tests passed in 63.530 seconds. System, migration-drift, compilation and diff checks passed. No decision services or authority rules changed.
 - Revisit when: changing accepted stakeholder routes, conditional-acceptance policy or cutover governance; retain the independent source gates and exact recorded scope.
+
+
+## D-036 - Local-form preparation, witnesses and personal handoffs
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.46.
+- Decision: finish the existing local-form action family before expanding the remaining field-plan families. Reproduce and repair misleading witness queues and missing submission/preparation actions. Keep source validation unchanged for acceptance, adding a read-only distinction between real preparation errors and only pending witnesses. Waiting follows own current test submissions and form acceptance submissions; completion resolves form/category/attempt identity, evidence checksum and attributed actor before crediting a test event.
+- Goal: make locally accepted output forms a continuous governed workflow from preparation through practical tests and independent acceptance, without equating a submitted test with a witnessed pass.
+- Alternatives/tradeoffs: a generic preparation row would hide all witness waits; a generic completion row would blur test failure, pass and form acceptance. Obsolete test attempts remain in retained history but no longer count as required current witness work. Source task revisions now reflect test-state changes within a form version.
+- Evidence: both source/queue mismatches reproduced (2 failures, 1.267 seconds); All 26 focused local-form tests passed in 26.042 seconds; all 200 reporting/My Work/operations dependency tests passed in 183.489 seconds. System, migration-drift, compilation and diff checks passed. A Python 3.11 multiline f-string syntax error in the first static check was corrected before tests were started.
+- Revisit when: local policy changes required test categories, witness roles or accepted form routes. The remaining field plans/runs and detailed transaction history stay explicitly open.

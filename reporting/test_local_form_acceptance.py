@@ -815,3 +815,82 @@ class FinanceLocalFormAcceptanceTests(TestCase):
         response = self.client.get(reverse("reporting:workspace"))
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["local_form_acceptance_enabled"])
+
+
+    def test_fully_tested_local_form_has_submission_action(self):
+        from finance.work_tasks import finance_work_tasks
+        item = self.local_form("ready-submission")
+        self.pass_all_tests(item)
+        tasks = [row for row in finance_work_tasks(self.preparer)["tasks"] if row["case_id"] == f"local-form:{item.public_id}"]
+        self.assertTrue(any(row["task_type"] == "finance.local-form.ready_for_submission.v1" for row in tasks))
+
+    def test_locked_form_with_old_pending_attempt_has_no_witness_action(self):
+        from .local_form_register_exports import local_form_action_queryset
+        item = self.local_form("locked-witness")
+        self.pass_all_tests(item)
+        values = dict(category=FinanceLocalFormTestAttempt.LAYOUT_FIELDS, test_steps="Synthetic comparison",
+                      expected_result="Same labels", observed_result="Same labels", environment="Synthetic PDF trial",
+                      evidence_reference="Retained synthetic comparison", evidence_checksum="a" * 64,
+                      change_reason="Repeat against retained sample")
+        older = record_test_attempt(item, self.preparer, **values)
+        current = record_test_attempt(item, self.preparer, **values)
+        review_test_attempt(current, self.witness, action="pass", note="Current comparison independently checked")
+        self.assertFalse(local_form_action_queryset(self.witness, "witness_tests")[0].filter(pk=item.pk).exists())
+        submit_local_form(item, self.preparer)
+        with self.assertRaises(ValidationError):
+            review_test_attempt(older, self.witness, action="pass", note="Cannot review a locked form")
+        self.assertFalse(local_form_action_queryset(self.witness, "witness_tests")[0].filter(pk=item.pk).exists())
+
+
+    def local_form_work_rows(self, actor, item, view="ready"):
+        from finance.work_tasks import finance_work_tasks
+        return [row for row in finance_work_tasks(actor, view=view)["tasks"] if row["case_id"] == f"local-form:{item.public_id}"]
+
+    def test_local_form_preparation_witness_waiting_retry_and_acceptance_history(self):
+        item = self.local_form("personal-local-form")
+        self.assertTrue(any(row["task_type"] == "finance.local-form.complete_preparation.v1" for row in self.local_form_work_rows(self.preparer, item)))
+        values = dict(test_steps="Synthetic practical test", expected_result="Expected output", observed_result="Observed output",
+                      environment="Synthetic workstation and PDF trial", evidence_reference="Retained synthetic test sheet", evidence_checksum="a" * 64)
+        attempts = [record_test_attempt(item, self.preparer, category=category, **values)
+                    for category, _label in FinanceLocalFormTestAttempt.CATEGORY_CHOICES]
+        waiting = self.local_form_work_rows(self.preparer, item, "waiting")
+        self.assertEqual(len(waiting), 1)
+        self.assertIn("test witnesses", waiting[0]["owner_queue"])
+        self.assertEqual(self.local_form_work_rows(self.preparer, item), [])
+        self.assertEqual(self.local_form_work_rows(self.witness, item, "waiting"), [])
+        review_test_attempt(attempts[0], self.witness, action="fail", note="Synthetic correction needed")
+        self.assertEqual(self.local_form_work_rows(self.preparer, item, "waiting"), [])
+        self.assertTrue(any(row["task_type"] == "finance.local-form.complete_preparation.v1" for row in self.local_form_work_rows(self.preparer, item)))
+        retry = record_test_attempt(item, self.preparer, category=attempts[0].category, change_reason="Corrected synthetic output", **values)
+        self.assertEqual(len(self.local_form_work_rows(self.preparer, item, "waiting")), 1)
+        for attempt in attempts[1:] + [retry]:
+            review_test_attempt(attempt, self.witness, action="pass", note="Synthetic outcome independently checked")
+        ready = self.local_form_work_rows(self.preparer, item)
+        self.assertTrue(any(row["task_type"] == "finance.local-form.ready_for_submission.v1" for row in ready))
+        self.assertEqual(self.local_form_work_rows(self.preparer, item, "waiting"), [])
+        submit_local_form(item, self.preparer)
+        self.assertIn("acceptance reviewers", self.local_form_work_rows(self.preparer, item, "waiting")[0]["owner_queue"])
+        review_local_form(item, self.witness, approve=True, note="Synthetic complete packet independently accepted")
+        self.assertEqual(self.local_form_work_rows(self.preparer, item, "waiting"), [])
+        self.assertEqual(len(self.local_form_work_rows(self.preparer, item, "completed")), 9)
+        history = self.local_form_work_rows(self.witness, item, "completed")
+        self.assertEqual(len(history), 9)
+        self.assertTrue(any("test failure" in row["subject"] for row in history))
+        self.assertTrue(any(row["subject"] == "Accepted local form" for row in history))
+
+    def test_local_form_history_rejects_missing_attempt_and_rechecks_read_scope(self):
+        from .models import FinanceLocalFormEvent
+        item = self.local_form("scoped-local-history")
+        self.pass_all_tests(item)
+        before = self.local_form_work_rows(self.preparer, item, "completed")
+        self.assertEqual(len(before), 7)
+        FinanceLocalFormEvent.objects.create(form=item, actor=self.preparer, action="test_attempt_submitted",
+            snapshot={"category": FinanceLocalFormTestAttempt.DATA_CONTROL, "attempt": 99, "evidence_checksum": "a" * 64})
+        self.assertEqual(len(self.local_form_work_rows(self.preparer, item, "completed")), len(before))
+        self.assertEqual(self.local_form_work_rows(self.outsider, item, "completed"), [])
+        self.preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertEqual(self.local_form_work_rows(self.preparer, item, "completed"), [])
+        self.preparer.groups.clear()
+        self.preparer.user_permissions.remove(Permission.objects.get(content_type__app_label="reporting", codename="view_reporting_workspace"))
+        actor = get_user_model().objects.get(pk=self.preparer.pk)
+        self.assertEqual(self.local_form_work_rows(actor, item, "completed"), [])

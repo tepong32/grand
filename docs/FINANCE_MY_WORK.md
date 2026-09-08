@@ -301,3 +301,8 @@ Returned cycles without a linked successor now appear under a preparation-role s
 ## v0.7.45 - stakeholder and cutover decision handoffs
 
 Personal Waiting now follows prepared stakeholder records once their cycle opens decisions, and submitted cutover authority records. Retained child-linked history names stakeholder conditions/rejection and cutover authorization/decline/rollback explicitly, preserving current cycle read scope and separating preparation from the decision-maker. All 39 focused field tests passed in 20.003 seconds; all 118 field/My Work/operations dependency tests passed in 63.530 seconds. System, migration-drift, compilation and diff checks passed. Stakeholder Waiting begins at the later of record creation and reconciliation; cutover effective dates are not approval deadlines. Synthetic decision tests do not establish LGU acceptance. D-035 records the choice.
+
+
+## v0.7.46 - local-form actions and personal handoffs
+
+Local-form queues now show remaining preparation and valid submission actions, and exclude obsolete or locked witness work. Personal Waiting follows own current test and form submissions; completed history preserves test failures, retries, witnessing and independent form acceptance with exact attempt/evidence attribution. All 26 focused local-form tests passed in 26.042 seconds; all 200 reporting/My Work/operations dependency tests passed in 183.489 seconds. System, migration-drift, compilation and diff checks passed. Pending witnesses alone do not create preparer work. Current actionable forms are excluded from Waiting before the common cap; deadlines are not inferred.
