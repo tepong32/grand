@@ -2381,6 +2381,48 @@ class FinanceBankReconciliationWorkTaskContractTests(TestCase):
             json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
 
+    def test_bank_waiting_is_personal_and_office_scoped_before_limit(self):
+        self._batch("A-OTHER-MAKER", status=BankStatementBatch.FOR_REVIEW, source_version=1,
+                    creator=self.reviewer, submitter=self.reviewer)
+        own = self._batch("Z-OWN-WAIT", status=BankStatementBatch.FOR_REVIEW, source_version=1, submitter=self.preparer)
+        self._batch("FOREIGN-WAIT", department=self.other, fund=self.other_fund,
+                    status=BankStatementBatch.FOR_REVIEW, source_version=1, submitter=self.preparer)
+        result = finance_work_tasks(self.preparer, view="waiting", display_limit=1)
+        self.assertEqual([task["reference"] for task in result["tasks"]], [own.statement_reference])
+        self.assertFalse(result["tasks_truncated"])
+        self.assertEqual(result["tasks"][0]["received_at"], own.submitted_at)
+        self.assertIsNone(result["tasks"][0]["due_on"])
+        self.client.force_login(self.preparer)
+        self.assertEqual(self.client.get(result["tasks"][0]["url"]).status_code, 200)
+        decide_bank_reconciliation(own, self.reviewer, decision=BankStatementBatch.RETURNED,
+                                   evidence_note="Resolve the retained statement evidence before resubmission.")
+        self.assertFalse(finance_work_tasks(self.preparer, view="waiting")["tasks"])
+        self.assertTrue(any(task["case_id"] == f"bank-reconciliation:{own.public_id}" for task in
+                            finance_work_tasks(self.reviewer, view="completed")["tasks"]))
+        self.assertFalse(finance_work_tasks(self.uat, view="waiting")["tasks"])
+
+    def test_bank_history_rechecks_specific_read_permission_and_event_office(self):
+        from accounting.models import BankReconciliationEvent
+
+        own = self._batch("BANK-HISTORY", status=BankStatementBatch.RETURNED)
+        valid = BankReconciliationEvent.objects.create(batch=own, action="submitted_for_review",
+            actor_id=self.preparer.pk, actor_label=self.preparer.username,
+            department_id=self.accounting.pk, department_label=self.accounting.name)
+        BankReconciliationEvent.objects.create(batch=own, action="submitted_for_review",
+            actor_id=self.preparer.pk, actor_label=self.preparer.username,
+            department_id=self.other.pk, department_label=self.other.name)
+        BankReconciliationEvent.objects.create(batch=own, action="row_matched",
+            actor_id=self.preparer.pk, actor_label=self.preparer.username,
+            department_id=self.accounting.pk, department_label=self.accounting.name)
+        tasks = finance_work_tasks(self.preparer, view="completed")["tasks"]
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0]["received_at"], valid.created_at)
+        self.assertEqual(tasks[0]["source_state"], own.get_status_display())
+        self.assertIsNone(tasks[0]["due_on"])
+        self.preparer.user_permissions.remove(Permission.objects.get(
+            content_type__app_label="accounting", codename="view_bank_reconciliation"))
+        self.assertFalse(finance_work_tasks(self.preparer, view="completed")["tasks"])
+
     def test_source_screen_export_count_and_task_share_exact_preparation_scope(self):
         ready = self._batch("TASK-BRS-NEEDS-STATEMENT")
         self._batch(
@@ -2509,6 +2551,10 @@ class FinanceBankReconciliationWorkTaskContractTests(TestCase):
             reason="Exact date, reference, amount, and direction agree.",
         )
         submitted = submit_bank_reconciliation(batch, self.preparer)
+        self.assertTrue(any(item["case_id"] == f"bank-reconciliation:{batch.public_id}"
+                            for item in finance_work_tasks(self.preparer, view="waiting")["tasks"]))
+        self.assertTrue(any(item["task_type"] == "finance.bank-reconciliation.submitted_for_review.completed.v1"
+                            for item in finance_work_tasks(self.preparer, view="completed")["tasks"]))
         task = next(
             task for task in finance_work_tasks(self.reviewer)["tasks"]
             if task["case_id"] == f"bank-reconciliation:{batch.public_id}"
@@ -2523,6 +2569,9 @@ class FinanceBankReconciliationWorkTaskContractTests(TestCase):
             evidence_note="Independently reproduced the exact zero-difference BRS evidence.",
         )
         self.assertEqual(reconciled.status, BankStatementBatch.RECONCILED)
+        self.assertFalse(finance_work_tasks(self.preparer, view="waiting")["tasks"])
+        self.assertTrue(any(item["task_type"] == "finance.bank-reconciliation.reconciled.completed.v1"
+                            for item in finance_work_tasks(self.reviewer, view="completed")["tasks"]))
         self.assertFalse(any(
             task["case_id"] == f"bank-reconciliation:{batch.public_id}"
             for task in finance_work_tasks(self.reviewer)["tasks"]

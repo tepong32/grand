@@ -207,3 +207,8 @@ Verification: all three focused identity/outcome/replay tests passed in 5.961 se
 ## v0.7.30 - attributed instrument-action history
 
 Verification: all three focused attribution/payment/cancellation replays passed in 10.454 seconds; all 169 My Work/voucher dependency tests passed in 91.877 seconds. System, migration-drift, compilation and diff checks passed. Scope: focused attribution/physical-release test, full Budget-to-report replay and cancellation/replacement no-entry replay, then all My Work/voucher dependency tests. Full-project suite: NOT RUN - OUT OF SCOPE for read-only event projection; no service, schema or infrastructure change.
+
+
+## v0.7.31 - bank-reconciliation personal handoffs
+
+Verification: all 7 focused bank contracts passed in 9.872 seconds; all 128 My Work/Accounting/dependent replay tests passed in 124.300 seconds. System, migration-drift, compilation and diff checks passed. Scope: focused bank task contracts, all My Work and Accounting regressions, and the Budget-to-reconciled-report voucher replay. Full-project suite: NOT RUN - OUT OF SCOPE for this read-only adapter; the shared Accounting completion projection and affected source consumers receive dependency coverage. No schema, service authority or calculation changes.

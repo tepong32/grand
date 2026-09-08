@@ -235,6 +235,19 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
                 route="vouchers:advice_workspace", route_kwargs={}, fragment=f"#returned-review-{item.public_id}",
                 attribution=[item.prepared_by_id, request.requested_by_id if request else None])
 
+    from accounting.bank_register_exports import visible_bank_reconciliation_batches
+    from accounting.models import BankStatementBatch
+
+    bank_batches = visible_bank_reconciliation_batches(user).filter(status=BankStatementBatch.FOR_REVIEW).filter(
+        Q(created_by_id=user.pk) | Q(submitted_by_id=user.pk),
+    )
+    for item in bank_batches:
+        add(item, kind="bank-reconciliation", area="Accounting", reference=item.statement_reference,
+            subject="Submitted bank reconciliation", received=item.submitted_at,
+            queue=f"Independent bank-reconciliation reviewers - {department.name}",
+            scope=f"{department.name}; bank {item.bank_account_code}; {item.period_start} to {item.period_end}",
+            route="accounting:bank_reconciliation_detail", attribution=[item.created_by_id, item.submitted_by_id])
+
     from budget.access import can_view as can_view_budget, has_budget_permission
     from budget.control_exports import obligation_scope_for_user
     from budget.models import AllotmentReleaseOrder, BudgetVersion, ObligationRequest

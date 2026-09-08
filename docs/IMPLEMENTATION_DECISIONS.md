@@ -37,6 +37,10 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 - **D-020:** Describe instrument event history as physical actions, preserving required Accounting completion as a separate outcome.
 
+- **D-021:** Project bank-reconciliation handoffs and lifecycle history under the specific bank-register read permission.
+
+- **D-022:** Reproduce and fix the cash UAT mutation boundary before extending cash projections.
+
 ### D-001 — Retained events determine personal completion
 
 - Date/checkpoint: 2026-09-07; v0.7.10–v0.7.12 implemented; payment-handoff extension verified in v0.7.14.
@@ -256,3 +260,24 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Tradeoff: later status changes remain visible separately. Inconsistent historical linkage is excluded; no repair is inferred. Posting synchronization and print/packet/amendment history remain separate adapters.
 - Evidence/status: source issue/replacement reloads stored linkage under lock; source release can route into event posting. All three focused tests/replays and 169 My Work/voucher dependency tests passed.
 - Revisit when: expanding posting completion or correcting legacy evidence; keep action labels and authority precise.
+
+
+### D-021 — Reuse bank-reconciliation scope and immutable lifecycle events
+
+- Date/checkpoint: 2026-09-08; v0.7.31 in progress.
+- Decision: Follow own submitted reconciliation batches in Waiting; credit retained submission/return/reconciliation events in Completed. Require the specific current bank-reconciliation read permission and matching current office for both batch and event. Reuse the Accounting completion projection with bank-specific reference/period scope.
+- Alternatives considered: expose bank history to every Accounting reader; infer completion from batch status; treat statement period dates as action targets; include every individual matching operation in this slice.
+- Goal fit: preserve independent reconciliation review and one source history without expanding sensitive bank-register access or inventing deadlines.
+- Tradeoff: detailed row matching/classification history remains in the source audit. Read loss hides personal history; returned or resubmitted current status remains distinct from earlier actions.
+- Evidence/status: bank source selectors, handoff fields and event emission inspected. Tests cover office/personal visibility, specific read loss, event-office mismatch and real submission/reconciliation.
+- Revisit when: a real workflow requires detailed row-action completion or different authorized historical access.
+
+
+### D-022 — Verify cash mutation authority before dependent projections
+
+- Date/checkpoint: 2026-09-08; planned after v0.7.31 verification.
+- Decision: Reproduce FIN-GAP-015 and fix cash service entry points if the combined UAT/operational role can mutate controls. Audit all callers of the shared guard while preserving existing read/export behavior and legitimate cross-office approval.
+- Alternatives considered: rely on dashboard action hiding; add more cash projections before testing the source boundary; change cross-office approval scope without evidence of a policy defect.
+- Goal fit: a read-only preview role must not gain financial mutation authority through extra permissions. Source integrity takes precedence over dashboard coverage.
+- Evidence/status: shared guard and raw-permission view paths inspected; reproduction pending. Existing export is a read operation with separate retained permissions and must be assessed independently.
+- Revisit when: isolated regressions confirm UAT denial and normal operational paths still pass.

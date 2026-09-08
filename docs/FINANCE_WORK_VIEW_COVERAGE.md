@@ -2,7 +2,7 @@
 
 This table describes the implemented My Work views, not production or LGU acceptance. Current source authorization applies to every row. Ready/action coverage is detailed in [FINANCE_MY_WORK.md](FINANCE_MY_WORK.md); turning-point choices are in [IMPLEMENTATION_DECISIONS.md](IMPLEMENTATION_DECISIONS.md).
 
-Last reviewed: 2026-09-08, v0.7.30 instrument-action history.
+Last reviewed: 2026-09-08, v0.7.31 bank-reconciliation handoffs.
 
 | Source domain | Personal Waiting | Completed by me |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ Last reviewed: 2026-09-08, v0.7.30 instrument-action history.
 | Payable intake and shared voucher processing | Review/DV preparation (v0.7.21), plus signatures and independent validation (v0.7.23) Accounting posting (v0.7.25), Treasury preparation/advice (v0.7.26) and release/event posting (v0.7.27). Returned reviews use their own adapter (v0.7.28) | Retained payable submission/return/acceptance events (v0.7.21) |
 | DV print, packet and wet-signature custody | Personal case Waiting through signatures/validation, with authorized child-action exclusion (v0.7.23) | DV preparation/correction, ordinary signature-return recording and validation events (v0.7.24); print/packet/amendment history remains |
 | Payment instruments | Shared case through Treasury/advice/release/event posting (v0.7.27); returned reviews use their own adapter (v0.7.28) | Retained issuance/replacement/advice-submission/cancellation/release events (v0.7.30) |
-| Bank reconciliation | Remaining coverage | Remaining coverage |
+| Bank reconciliation | Own submitted batches under current bank-register access (v0.7.31) | Retained submission/return/reconciliation events (v0.7.31) |
 | Returned-payment reviews | Current attributed review/clarification/posting/replacement handoffs (v0.7.28) | Retained submission/clarification/return/decision events (v0.7.29); later posting remains; issuance uses instrument history (v0.7.30) |
 | Cash policy and cash position | Remaining coverage | Remaining coverage |
 | Reporting runs and accountability packages | Remaining coverage | Remaining coverage |
@@ -33,4 +33,4 @@ Last reviewed: 2026-09-08, v0.7.30 instrument-action history.
 - The administrator-assigned portable export permission applies to the selected supported view. Coverage and truncation are retained with the export.
 - Assignment/following rules, governed shared views and notifications remain future work. They must build on the same source contract rather than create another authoritative queue.
 
-Next: audit remaining completion history and bank-reconciliation/cash/reporting handoffs. Review each remaining domain's real authority, return/recovery path and attribution before adding its personal projections. Preserve the separate post-functional scrutiny and LGU acceptance gates.
+Next: audit remaining completion history and cash/reporting handoffs. Review each remaining domain's real authority, return/recovery path and attribution before adding its personal projections. Preserve the separate post-functional scrutiny and LGU acceptance gates.

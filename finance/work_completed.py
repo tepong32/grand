@@ -5,8 +5,8 @@ from django.urls import reverse
 
 def completed_accounting_tasks(user, department, today):
     """Successful attributed actions remain history under current source access."""
-    from accounting.access import can_view_accounting
-    from accounting.models import AccountingAuditEvent, OpeningBalanceEvent, PeriodCloseEvent
+    from accounting.access import can_view_accounting, can_view_bank_reconciliation
+    from accounting.models import AccountingAuditEvent, BankReconciliationEvent, OpeningBalanceEvent, PeriodCloseEvent
     from vouchers.roles import is_finance_uat_viewer
     from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
 
@@ -26,19 +26,30 @@ def completed_accounting_tasks(user, department, today):
             "reopen_returned": "Returned period-reopen request", "period_reopened": "Reopened Accounting period",
         }),
     )
+    if can_view_bank_reconciliation(user):
+        specs += ((BankReconciliationEvent, "batch", "bank-reconciliation", "accounting:bank_reconciliation_detail", {
+            "submitted_for_review": "Submitted bank reconciliation for independent review",
+            "returned_for_correction": "Returned bank reconciliation for correction",
+            "reconciled": "Reconciled bank statement and ledger evidence",
+        }),)
     tasks = []
     for model, relation, kind, route, labels in specs:
         events = model.objects.filter(
             department_id=department.pk, actor_id=user.pk, action__in=labels,
             **{f"{relation}__department_id": department.pk},
-        ).select_related(relation, f"{relation}__period")
+        ).select_related(relation)
+        if model is not BankReconciliationEvent:
+            events = events.select_related(f"{relation}__period")
         if model is AccountingAuditEvent:
             events = events.exclude(entry__source_type="opening")
         for event in events:
             item = getattr(event, relation)
             event_id = _source_record_identity(f"{kind}-event", event.pk)
             reference = (item.reference if kind == "journal-entry" else
-                         item.source_reference if kind == "opening-batch" else f"{item.period} v{item.version}")
+                         item.source_reference if kind == "opening-batch" else
+                         item.statement_reference if kind == "bank-reconciliation" else f"{item.period} v{item.version}")
+            scope = (f"{department.name}; bank {item.bank_account_code}; {item.period_start} to {item.period_end}"
+                     if kind == "bank-reconciliation" else f"{department.name}; {item.period}")
             label = labels[event.action]
             revision = _projection_checksum({
                 "event_id": str(event_id), "action": event.action, "actor_id": event.actor_id,
@@ -52,7 +63,7 @@ def completed_accounting_tasks(user, department, today):
                 case_id=f"{kind}:{item.public_id}", reference=reference, subject=label,
                 transaction_type="Recorded Accounting action", action="View recorded outcome",
                 gate=f"The retained event attributes this completed action to you: {label}." + (f" Reason: {event.reason}" if event.reason else ""),
-                owner_queue=f"Recorded actor: {event.actor_label}", scope=f"{department.name}; {item.period}",
+                owner_queue=f"Recorded actor: {event.actor_label}", scope=scope,
                 received_at=event.created_at, due_on=None, due_state="Recorded completion",
                 calendar_basis="Elapsed calendar days since this recorded action. The source's current state is shown separately.",
                 age_days=_age_days(event.created_at, today), state="Completed", source_state=item.get_status_display(),

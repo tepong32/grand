@@ -14,7 +14,11 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.30 checkpoint - attributed instrument-action history
+## Current v0.7.31 checkpoint - bank-reconciliation personal handoffs
+
+Branch: `codex/finance-bank-reconciliation-handoffs`, based on pushed `cd1249b`. Personal Waiting now includes the user’s submitted bank reconciliations under current bank-register access. Completed by me includes retained submission, return and reconciliation events with matching event/batch office and actor attribution. Current batch state remains separate from historical actions. Statement coverage dates are not deadlines; individual matching/classification actions remain outside this completion slice. Verification: all 7 focused bank contracts passed in 9.872 seconds; all 128 My Work/Accounting/dependent replay tests passed in 124.300 seconds. System, migration-drift, compilation and diff checks passed. D-021 records scope. Next priority: reproduce and close FIN-GAP-015 (cash UAT mutation guard) before dependent cash projections. Continue remaining Finance phases; preserve the user database.
+
+## Prior v0.7.30 checkpoint - attributed instrument-action history
 
 Branch: `codex/finance-instrument-completion-history`, based on pushed `4938e5b`. Completed by me now credits retained check issuance, controlled replacement issuance, advice submission, cancellation and physical release events. Instrument actions require matching current case read scope, stored actor, instrument identity, check number and replacement lineage where applicable. Current instrument/case states remain separate from the recorded action. Final physical release is labelled as such even when required Accounting posting remains open. Verification: all three focused attribution/payment/cancellation replays passed in 10.454 seconds; all 169 My Work/voucher dependency tests passed in 91.877 seconds. System, migration-drift, compilation and diff checks passed. D-020 records scope and terminology. Continue remaining Finance phases; preserve the user database.
 

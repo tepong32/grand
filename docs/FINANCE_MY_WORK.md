@@ -267,3 +267,8 @@ Completed by me now includes retained returned-payment submission, clarified sub
 ## v0.7.30 - attributed instrument-action history
 
 Completed by me now credits retained check issuance, controlled replacement issuance, advice submission, cancellation and physical release events. Instrument actions require matching current case read scope, stored actor, instrument identity, check number and replacement lineage where applicable. Current instrument/case states remain separate from the recorded action. Final physical release is labelled as such even when required Accounting posting remains open. See [D-020](IMPLEMENTATION_DECISIONS.md) and [validation](FINANCE_ROADMAP_COMPLETION_AUDIT.md). Posting synchronization and print/packet/amendment history remain separate scope.
+
+
+## v0.7.31 - bank-reconciliation personal handoffs
+
+Personal Waiting now includes the user’s submitted bank reconciliations under current bank-register access. Completed by me includes retained submission, return and reconciliation events with matching event/batch office and actor attribution. Current batch state remains separate from historical actions. Statement coverage dates are not deadlines; individual matching/classification actions remain outside this completion slice. See [D-021](IMPLEMENTATION_DECISIONS.md) and [validation](FINANCE_ROADMAP_COMPLETION_AUDIT.md).

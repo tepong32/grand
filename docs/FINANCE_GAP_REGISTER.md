@@ -163,3 +163,12 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 - Next step: after FIN-GAP-012/013 verification, reproduce the queue/source mismatch, correct the shared selector, and regress packet gating and parent-case action exclusion before expanding signature Waiting. The source already rejects the missing-packet mutation; this finding concerns misleading action readiness.
 
 - FIN-GAP-014 reproduction: the source rejected the missing TracePoint packet while the selector still returned an actionable task (1 test, 1 failure, 2.110 seconds). The controlled selector now requires both the matching print job and the linked TracePoint item. Verification: all nine focused DV tests passed in 3.594 seconds; all 579 project tests passed in 260.708 seconds. System, migration-drift, compilation and diff checks are clean. FIN-GAP-014 is verified.
+
+
+## FIN-GAP-015 - Cash-service mutation guard appears to omit UAT exclusion
+
+- Process/module: Treasury cash policy/position mutations and instrument-exception service entry points.
+- Severity/status: **CRITICAL - OPEN**, identified during the cash-adapter source audit after bank-reconciliation implementation.
+- Code evidence: vouchers.cash_positions._require checks raw explicit permission without the UAT exclusion used by cash task selectors. Policy creation/submission/decision, position creation/submission/decision and exception entry points use it. Cash policy create views also check raw permission before calling the service.
+- Expected behavior: a Finance UAT Viewer with combined operational permissions cannot mutate cash controls or exception evidence. Preserve legitimate cross-office cash approval and separate existing read/export authority.
+- Next step: reproduce accepted UAT mutations against isolated fixtures, then repair the service boundary and regress normal source flows before expanding cash projections. No real operational misuse is asserted.

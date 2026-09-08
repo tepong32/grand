@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.31 - bank-reconciliation personal handoffs
+
+Personal Waiting now includes the user’s submitted bank reconciliations under current bank-register access. Completed by me includes retained submission, return and reconciliation events with matching event/batch office and actor attribution. Current batch state remains separate from historical actions. Statement coverage dates are not deadlines; individual matching/classification actions remain outside this completion slice. Verification: all 7 focused bank contracts passed in 9.872 seconds; all 128 My Work/Accounting/dependent replay tests passed in 124.300 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.30 - attributed instrument-action history
 
 Completed by me now credits retained check issuance, controlled replacement issuance, advice submission, cancellation and physical release events. Instrument actions require matching current case read scope, stored actor, instrument identity, check number and replacement lineage where applicable. Current instrument/case states remain separate from the recorded action. Final physical release is labelled as such even when required Accounting posting remains open. Verification: all three focused attribution/payment/cancellation replays passed in 10.454 seconds; all 169 My Work/voucher dependency tests passed in 91.877 seconds. System, migration-drift, compilation and diff checks passed.
