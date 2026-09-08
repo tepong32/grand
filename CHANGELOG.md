@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.53 - Returned DV signing-authority supersession
+
+Governed DV returns to preparation or renewed signatures supersede obsolete signing jobs and outputs. An interrupted pending amendment receives an explicit superseded status; its original evidence and previously completed amendments remain intact. The reasoned return event retains affected print, output and amendment identities. Corrected work uses its new signature round and fresh review. All 80 focused voucher/signature tests passed in 43.644 seconds. All 674 project tests passed in 304.236 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.52 - Amendment-aware controlled reprint lineage
 
 Controlled reprints preserve the selected signatory and custody snapshots from the superseded printed round. Replacement signatures complete a pending amendment only through retained same-case, descending-version print lineage; broken linkage rolls back the final signature. Original amendment rounds, financial snapshots and superseded copies remain intact. All 76 focused voucher/signature tests passed in 43.931 seconds. All 670 project tests passed in 272.577 seconds. System, migration-drift, compilation and diff checks passed.

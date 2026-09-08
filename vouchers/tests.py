@@ -4115,3 +4115,107 @@ class VoucherWorkflowTests(TestCase):
         first.refresh_from_db(); second.refresh_from_db()
         self.assertEqual(first.status, VoucherPrintJob.SUPERSEDED)
         self.assertEqual(second.status, VoucherPrintJob.SUPERSEDED)
+
+    def test_returned_dv_correction_supersedes_obsolete_print_authority(self):
+        case, amendment, first, replacement = self._pending_amendment_reprint()
+        case.refresh_from_db()
+        return_case(case=case, actor=self.validator, target_stage=VoucherCase.ACCOUNTING_PREPARATION,
+            reason="Supporting description needs a fresh Accounting review.",
+            expected_version=case.state_version, idempotency_key="return-amended-dv")
+        replacement.refresh_from_db()
+        self.assertEqual(replacement.status, VoucherPrintJob.SUPERSEDED)
+        self.assertEqual(replacement.output.status, "superseded")
+
+        event = case.events.get(idempotency_key="return-amended-dv")
+        self.assertEqual(event.metadata["superseded_print_jobs"], [{
+            "id": replacement.pk, "version": replacement.version, "signature_round": replacement.signature_round,
+        }])
+        self.assertEqual(event.metadata["superseded_amendments"], [{"id": amendment.pk, "version": amendment.version}])
+        self.assertIn(replacement.output_id, event.metadata["superseded_output_ids"])
+        self.assertFalse(case.signature_tasks.filter(status=WetSignatureTask.PENDING).exists())
+        return_case(case=case, actor=self.validator, target_stage=VoucherCase.ACCOUNTING_PREPARATION,
+            reason="Supporting description needs a fresh Accounting review.",
+            expected_version=case.state_version, idempotency_key="return-amended-dv")
+        self.assertEqual(case.events.filter(idempotency_key="return-amended-dv").count(), 1)
+
+    def test_returned_dv_correction_supersedes_interrupted_amendment(self):
+        case, amendment, first, replacement = self._pending_amendment_reprint()
+        case.refresh_from_db()
+        return_case(case=case, actor=self.validator, target_stage=VoucherCase.ACCOUNTING_PREPARATION,
+            reason="Supporting description needs a fresh Accounting review.",
+            expected_version=case.state_version, idempotency_key="return-pending-amendment")
+        amendment.refresh_from_db()
+        self.assertEqual(amendment.status, "superseded")
+        self.assertIsNone(amendment.completed_at)
+
+        original_round, original_finances = amendment.signature_round_number, amendment.financial_snapshot.copy()
+        self.accounting_prepare(case, "prepare-returned-amendment-correction")
+        case.refresh_from_db()
+        corrected_round = case.signature_tasks.order_by("-round_number").first().round_number
+        job = prepare_controlled_dv_print(case=case, actor=self.preparer, replacement_reason="",
+            expected_version=case.state_version, idempotency_key="corrected-amendment-print")
+        self.assertEqual(job.signature_round, corrected_round)
+        self.assertEqual(job.supersedes_id, replacement.pk)
+        self._print_and_return_correction_packet(case, job, "corrected-amendment")
+        amendment.refresh_from_db(); case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_VALIDATION)
+        self.assertEqual(amendment.status, VoucherNonFinancialAmendment.SUPERSEDED)
+        self.assertIsNone(amendment.completed_at)
+        self.assertEqual((amendment.signature_round_number, amendment.financial_snapshot), (original_round, original_finances))
+        self.assertFalse(case.events.filter(action="nonfinancial_amendment_signatures_completed").exists())
+        self.client.force_login(self.preparer)
+        self.assertContains(self.client.get(reverse("vouchers:case_detail", args=(case.public_id,))),
+            "Superseded by returned DV correction")
+
+    def _print_and_return_correction_packet(self, case, job, prefix):
+        case.refresh_from_db()
+        record_dv_printed(case=case, actor=self.preparer, copy_count=2, printer_or_form_stock="Synthetic corrected A4 stock",
+            print_note="Fresh corrected copies checked.", expected_version=case.state_version, idempotency_key=f"{prefix}-printed")
+        case.refresh_from_db()
+        assemble_finance_packet(case=case, actor=self.preparer, expected_document_count=2, expected_page_count=4,
+            confidentiality=TrackedPacket.RESTRICTED, assembly_note="Fresh corrected packet counted.",
+            expected_version=case.state_version, idempotency_key=f"{prefix}-packet")
+        for task in case.signature_tasks.filter(round_number=job.signature_round).order_by("sequence"):
+            case.refresh_from_db()
+            record_signature_return(case=case, task=task, actor=self.preparer, note="Fresh signed copy returned.",
+                expected_version=case.state_version, idempotency_key=f"{prefix}-signature-{task.pk}")
+
+    def test_renewed_signature_return_retains_completed_amendment_and_signed_evidence(self):
+        case, amendment, first, replacement = self._pending_amendment_reprint()
+        self._print_and_return_correction_packet(case, replacement, "before-renewal")
+        replacement.refresh_from_db(); amendment.refresh_from_db(); case.refresh_from_db()
+        signed_at, completed_at = replacement.signed_returned_at, amendment.completed_at
+        old_signatures = list(case.signature_tasks.filter(round_number=replacement.signature_round).values_list("pk", "recorded_by_id", "recorded_at", "status"))
+        return_case(case=case, actor=self.validator, target_stage=VoucherCase.AWAITING_SIGNATURES,
+            reason="Renew all signatures after the physical review.", expected_version=case.state_version,
+            idempotency_key="renew-signed-packet")
+        replacement.refresh_from_db(); amendment.refresh_from_db(); case.refresh_from_db()
+        self.assertEqual(replacement.status, VoucherPrintJob.SUPERSEDED)
+        self.assertEqual(replacement.signed_returned_at, signed_at)
+        self.assertEqual((amendment.status, amendment.completed_at), (VoucherNonFinancialAmendment.COMPLETED, completed_at))
+        self.assertEqual(list(case.signature_tasks.filter(round_number=replacement.signature_round).values_list("pk", "recorded_by_id", "recorded_at", "status")), old_signatures)
+        renewed_round = case.signature_tasks.order_by("-round_number").first().round_number
+        renewed = prepare_controlled_dv_print(case=case, actor=self.preparer, replacement_reason="",
+            expected_version=case.state_version, idempotency_key="renewed-signing-copy")
+        self.assertEqual(renewed.signature_round, renewed_round)
+        self.assertEqual(renewed.supersedes_id, replacement.pk)
+        self._print_and_return_correction_packet(case, renewed, "renewed-signatures")
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_VALIDATION)
+
+    def test_returned_dv_supersession_rolls_back_if_audit_recording_fails(self):
+        case, amendment, first, replacement = self._pending_amendment_reprint()
+        case.refresh_from_db()
+        original_version = case.state_version
+        with patch("vouchers.services._event", side_effect=RuntimeError("Synthetic audit failure")):
+            with self.assertRaisesMessage(RuntimeError, "Synthetic audit failure"):
+                return_case(case=case, actor=self.validator, target_stage=VoucherCase.ACCOUNTING_PREPARATION,
+                    reason="Correct the description with retained return evidence.", expected_version=original_version,
+                    idempotency_key="failed-return-supersession")
+        case.refresh_from_db(); replacement.refresh_from_db(); amendment.refresh_from_db()
+        self.assertEqual((case.current_stage, case.state_version), (VoucherCase.AWAITING_SIGNATURES, original_version))
+        self.assertEqual(replacement.status, VoucherPrintJob.READY_TO_PRINT)
+        self.assertNotEqual(replacement.output.status, "superseded")
+        self.assertEqual(amendment.status, VoucherNonFinancialAmendment.AWAITING_SIGNATURES)
+        self.assertTrue(case.signature_tasks.filter(round_number=replacement.signature_round, status=WetSignatureTask.PENDING).exists())
+        self.assertFalse(case.events.filter(idempotency_key="failed-return-supersession").exists())

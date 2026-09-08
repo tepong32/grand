@@ -2159,6 +2159,25 @@ def return_case(*, case, actor, target_stage, reason, expected_version, idempote
         if materialized:
             raise VoucherWorkflowError("Discard the draft GRAND JEV before returning this voucher for correction.")
         case.posting_requests.filter(status=VoucherPostingRequest.PENDING).update(status=VoucherPostingRequest.CANCELLED)
+    supersession = {}
+    if target_stage in {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.AWAITING_SIGNATURES}:
+        jobs = list(case.print_jobs.select_for_update().exclude(status=VoucherPrintJob.SUPERSEDED))
+        output_ids = list(case.outputs.filter(output_type="disbursement-voucher").exclude(
+            status=VoucherOutput.SUPERSEDED).values_list("pk", flat=True))
+        for job in jobs:
+            _supersede_print_job(job, reason)
+        case.outputs.filter(pk__in=output_ids).update(status=VoucherOutput.SUPERSEDED)
+        supersession = {
+            "superseded_print_jobs": [{"id": job.pk, "version": job.version, "signature_round": job.signature_round} for job in jobs],
+            "superseded_output_ids": output_ids,
+        }
+        if target_stage == VoucherCase.ACCOUNTING_PREPARATION:
+            amendments = list(case.nonfinancial_amendments.select_for_update().filter(
+                status=VoucherNonFinancialAmendment.AWAITING_SIGNATURES))
+            for amendment in amendments:
+                amendment.status = VoucherNonFinancialAmendment.SUPERSEDED
+                amendment.save(update_fields=("status",))
+            supersession["superseded_amendments"] = [{"id": item.pk, "version": item.version} for item in amendments]
     if target_stage == VoucherCase.ACCOUNTING_PREPARATION:
         case.signature_tasks.filter(status=WetSignatureTask.PENDING).update(status=WetSignatureTask.DECLINED, note="Superseded by a correction round.")
     elif target_stage == VoucherCase.AWAITING_SIGNATURES:
@@ -2166,6 +2185,7 @@ def return_case(*, case, actor, target_stage, reason, expected_version, idempote
         _create_signature_round(case, case.disbursement_voucher.voucher_date)
     return _advance(
         case, actor, target_stage, "returned_for_correction", idempotency_key, reason,
+        metadata=supersession,
         destination_department=case.requesting_department if target_stage == VoucherCase.PAYABLE_PREPARATION else None,
     )
 

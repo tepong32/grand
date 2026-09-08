@@ -550,9 +550,11 @@ class AccountingValidation(models.Model):
 class VoucherNonFinancialAmendment(models.Model):
     AWAITING_SIGNATURES = "awaiting_signatures"
     COMPLETED = "completed"
+    SUPERSEDED = "superseded"
     STATUS_CHOICES = (
         (AWAITING_SIGNATURES, "Awaiting replacement signatures"),
         (COMPLETED, "Completed"),
+        (SUPERSEDED, "Superseded by returned DV correction"),
     )
 
     case = models.ForeignKey(VoucherCase, on_delete=models.PROTECT, related_name="nonfinancial_amendments")

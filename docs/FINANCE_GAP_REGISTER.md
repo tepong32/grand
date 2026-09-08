@@ -296,7 +296,9 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-026 - DV return correction may retain an obsolete signing copy or pending amendment
 
 - Process/module: returning a DV from wet signatures or validation to preparation, then preparing its correction.
-- Severity/status: **HIGH - OPEN**, source finding awaiting reproduction.
+- Severity/status: **HIGH - VERIFIED**, reproduced and repaired in v0.7.53.
 - Code evidence: return_case declines pending tasks but does not supersede existing controlled print jobs or resolve a pending non-financial amendment. prepare_voucher creates a fresh round, while the old print job can remain active. A later reprint may follow the obsolete round, and a pending amendment may retain a resume stage that is no longer appropriate for a material correction.
 - Expected behavior: a reasoned financial/document correction must invalidate obsolete signing-copy authority while retaining the old files and signature evidence. Its new review round must follow the corrected DV, and must not inherit the prior amendment's shortcut to a later stage.
-- Next step: reproduce through the actual return/correct/print services after FIN-GAP-025 validation. Determine the smallest explicit supersession state needed to preserve the amendment audit; do not mark an interrupted amendment completed or silently rewrite its original evidence.
+- Closure: obsolete signing authority and interrupted amendments are explicitly superseded, with original evidence and affected identities retained. Fresh correction and renewed-signature flows verified.
+
+- Reproduction: both assertions failed in 3.056 seconds. The reasoned return left the old signing job ready to print and the interrupted amendment awaiting signatures. Repair introduces explicit pending-amendment supersession, invalidates obsolete signing jobs/outputs, and records affected identities in the return event. All 80 focused voucher/signature tests passed in 43.644 seconds. All 674 project tests passed in 304.236 seconds. System, migration-drift, compilation and diff checks passed.

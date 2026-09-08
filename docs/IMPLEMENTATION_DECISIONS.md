@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-043:** A reasoned DV return supersedes obsolete signing authority and interrupted amendments; corrected work must receive fresh review.
+
 - **D-042:** Preserve signatory snapshots across paper reprints and resolve pending amendments through retained print lineage.
 
 - **D-041:** Bind non-financial DV amendment to the pinned Finance owner while retaining Accounting authority after a Treasury handoff.
@@ -518,3 +520,12 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: rewriting the amendment's original round would destroy immutable evidence; re-querying active signatories can change a deliberate acting assignment. Existing print-supersession relationships can retain the round lineage without a new mutable amendment pointer or a historical data backfill. Original signed/declined tasks and obsolete output files remain historical evidence.
 - Evidence: two reproduced failures in 3.120 seconds. Repeated reprints, selected output/task snapshots, missing-lineage rollback and unchanged original amendment evidence verified. All 76 focused voucher/signature tests passed in 43.931 seconds. All 670 project tests passed in 272.577 seconds. System, migration-drift, compilation and diff checks passed.
 - Revisit when: introducing a distinct governed signatory change while an amendment is already pending. A paper reprint must not silently perform that policy change.
+
+## D-043 - Returned DV correction supersedes prior signing authority
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.53.
+- Decision: on a governed return to DV preparation or renewed signatures, mark existing signing copies and outputs superseded while retaining their immutable evidence. A pending non-financial amendment interrupted by a return to preparation receives an explicit superseded status, never a completed status. Record affected copy/amendment identities in the existing reasoned return event, which already owns actor, time and reason.
+- Goal: keep material correction and paper replacement distinct, prevent obsolete paper from authorizing a corrected DV, and ensure corrected amounts/details receive the normal fresh review before later processing.
+- Alternatives/tradeoffs: blocking every return until an amendment completes prevents legitimate correction; silently completing the amendment misstates evidence. Rewriting its original round or resume stage loses lineage. One additive status choice plus the retained return event records supersession without duplicating reason/actor/time fields or backfilling historical decisions.
+- Evidence: two source-service assertions failed in 3.056 seconds before repair. Obsolete copies, interrupted amendment status, corrected/renewed rounds and final review stage, signed historical evidence, replay and audit-failure rollback verified. All 80 focused voucher/signature tests passed in 43.644 seconds. All 674 project tests passed in 304.236 seconds. System, migration-drift, compilation and diff checks passed.
+- Revisit when: introducing a dedicated amendment withdrawal/resubmission process; preserve governed return reasons and distinguish actual completion from supersession.
