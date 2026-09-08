@@ -26,7 +26,7 @@ from finance.services import (
 from profiles.models import EmployeeProfile
 from src.export_archive import archive_export
 
-from .access import can_amend_nonfinancial_case, department_for_user, has_explicit_permission
+from .access import can_amend_nonfinancial_case, can_manage_owned_case_artifact, department_for_user, has_explicit_permission
 from .models import (
     AccountingValidation, BankAdviceBatch, BankAdviceItem, BudgetAllocationLine,
     BudgetObligation, ControlOverride, DisbursementVoucher, PaymentInstrument,
@@ -2198,12 +2198,16 @@ def approve_override(*, override, actor):
 def link_tracepoint_item(*, case, item, actor, expected_version, idempotency_key):
     _require(actor, "vouchers.link_tracepoint_custody")
     from tracepoint.access import packet_is_visible
+    from tracepoint.models import PacketItem
 
     case, existing = _locked(case, expected_version, idempotency_key)
+    if not can_manage_owned_case_artifact(actor, case, "vouchers.link_tracepoint_custody"):
+        raise PermissionDenied
     if existing:
         return case
     if case.tracepoint_item_id:
         raise VoucherWorkflowError("This voucher already has a TracePoint item link.")
+    item = PacketItem.objects.select_for_update().select_related("current_packet").get(pk=item.pk)
     if hasattr(item, "voucher_case") or not packet_is_visible(actor, item.current_packet):
         raise VoucherWorkflowError("Choose an unlinked TracePoint item visible to this employee.")
     case.tracepoint_item = item
@@ -2219,6 +2223,8 @@ def generate_shadow_dv(*, case, actor, idempotency_key):
     case = VoucherCase.objects.select_for_update().select_related(
         "voucher_template", "disbursement_voucher__prepared_by", "obligation__certified_by",
     ).get(pk=case.pk)
+    if not can_manage_owned_case_artifact(actor, case, "vouchers.prepare_disbursement_voucher"):
+        raise PermissionDenied
     existing_event = case.events.filter(idempotency_key=idempotency_key).first()
     if existing_event:
         return VoucherOutput.objects.get(pk=existing_event.metadata["output_id"])

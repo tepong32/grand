@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.57 - Stored authority for DV artifacts
+
+DV output generation and legacy TracePoint linking now require the stored pinned Finance owner before new actions and replay. Packet linking reloads the item/current packet before visibility and existing-association checks. Source-page controls share the same owner predicate. Accounting retains its existing artifact workflows after custody moves, while unrelated-office grants and combined-grant UAT accounts cannot mutate evidence. All 90 focused voucher/custody tests passed in 60.994 seconds. All 684 full-project tests passed in 407.127 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.56 - Source-state voucher return routes
 
 Voucher return forms and the locked return service now share the existing source-stage destinations and retained DV/payment/posted-JEV/draft blockers. The source page restricts the control to the current office and excludes combined-grant UAT users. Posted financial evidence still requires its governed adjustment route; a discarded draft restores the existing return route. All 84 focused voucher/custody tests passed in 46.247 seconds. All 678 full-project tests passed in 334.918 seconds. System, migration-drift, compilation and diff checks passed.

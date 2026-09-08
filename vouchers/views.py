@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 
 from src.export_archive import archive_export
 
-from .access import can_amend_nonfinancial_case, can_view_workbench, department_for_user, has_explicit_permission, voucher_access_required
+from .access import can_amend_nonfinancial_case, can_manage_owned_case_artifact, can_view_workbench, department_for_user, has_explicit_permission, voucher_access_required
 from .case_exports import (
     ATTENTION_CHOICES, CUSTODY_CHOICES, apply_case_filters, build_case_control_register, filter_options,
     visible_cases_for_user,
@@ -343,6 +343,8 @@ def case_detail(request, public_id):
     permissions["certify"] = legacy_budget_action_queryset(request.user).filter(pk=case.pk).exists()
     validation_cases, _, _ = accounting_validation_action_queryset(request.user)
     permissions["validate"] = validation_cases.filter(pk=case.pk).exists()
+    permissions["generate_output"] = can_manage_owned_case_artifact(request.user, case, "vouchers.prepare_disbursement_voucher")
+    permissions["tracepoint_link"] = can_manage_owned_case_artifact(request.user, case, "vouchers.link_tracepoint_custody")
     acting_department = department_for_user(request.user)
     permissions["return"] = bool(
         permissions["return"] and not is_finance_uat_viewer(request.user)

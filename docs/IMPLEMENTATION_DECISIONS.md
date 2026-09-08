@@ -10,6 +10,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-047:** Bind DV output generation and legacy packet linking to the stored pinned Finance owner, preserving Accounting artifact work across custody; recheck stored packet visibility.
 - **D-046:** Share existing return destinations and posted/draft-JEV blockers between the source service and form; expose the control only to its current office.
 
 - **D-045:** Use the existing Accounting validation selector on the voucher page, preserving governed exceptions and readable source notices.
@@ -562,3 +563,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: filtering a copied template list would diverge again; removing service restrictions would weaken retained financial controls. Share only existing routes and blockers, with no new route or automatic financial reversal. Preserve each existing rejection reason and transaction boundary.
 - Evidence: Two route/current-office assertions failed in 3.132 seconds before repair. Verified current stage choices, current office/UAT, posted/materialized blockers and draft discard recovery, forged targets/caller stage, successful correction and existing rollback/history behavior. All 84 focused voucher/custody tests passed in 46.247 seconds. All 678 full-project tests passed in 334.918 seconds. System, migration-drift, compilation and diff checks passed. Isolated browser confirms the two permitted validation-stage destinations.
 - Revisit when: adding a new governed correction route or changing posting recovery; update the shared contract and service tests together.
+
+## D-047 - Stored owner authority for DV artifacts and legacy custody links
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.57.
+- Decision: use the existing pinned Finance-owner boundary for output generation and legacy packet association, with explicit active/non-UAT permissions. Reload and lock the source case before owner checks, including idempotent replay. Reload the TracePoint item and its current packet before checking existing association and visibility.
+- Goal: only the owning office can generate or associate financial evidence, while Accounting can still work on its retained DV artifacts after custody moves. Caller-supplied owner or packet fields cannot expand authority.
+- Alternatives/tradeoffs: generic grants do not delegate ownership. Requiring current custody would break the existing Accounting output-after-Treasury and linking-during-Budget workflows. Reuse the pinned-owner boundary already governing nonfinancial amendments; keep TracePoint's existing participant/office visibility policy.
+- Evidence: Three reproductions produced seven failed assertions in 4.682 seconds. Verified unrelated-office generation/new-link/replay, forged stored-owner/current-packet inputs, stale association, HTTP/page denial, UAT and retained financial/file evidence. Existing owner output-after-Treasury and linking-during-Budget workflows remain valid. All 90 focused voucher/custody tests passed in 60.994 seconds. All 684 full-project tests passed in 407.127 seconds. System, migration-drift, compilation and diff checks passed.
+- Revisit when: adding explicit artifact delegation or changing TracePoint visibility; any policy change needs its own accepted scope and source tests.
+- Edge case: cases without a pinned configuration owner fail closed for artifact authority, including amendments. Verification also covers inactive accounts. An initial full run was stopped after source review identified this missing-owner guard; only the final source's completed runs count toward the checkpoint.

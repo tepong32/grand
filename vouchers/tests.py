@@ -4340,3 +4340,157 @@ class VoucherWorkflowTests(TestCase):
             return_case(case=case, actor=self.treasury_user, target_stage=VoucherCase.ACCOUNTING_VALIDATION,
                 reason="A submitted form must not bypass posted evidence.", expected_version=case.state_version,
                 idempotency_key="posted-form-return-denied")
+
+    def test_dv_output_requires_stored_owner_before_new_output_and_replay(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        case = self.ready_for_treasury("artifact-owner")
+        output = generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="owner-output")
+        self.assertEqual(generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="owner-output").pk, output.pk)
+        case.refresh_from_db()
+        version, checksum, filename = case.state_version, output.checksum, output.file.name
+        self.outsider.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="prepare_disbursement_voucher"))
+        case.configuration_release.department = self.requesting
+        for key in ("owner-output", "foreign-output"):
+            with self.subTest(key=key), self.assertRaises(PermissionDenied):
+                generate_shadow_dv(case=case, actor=self.outsider, idempotency_key=key)
+        self.preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        with self.assertRaises(PermissionDenied):
+            generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="owner-output")
+        case.refresh_from_db(); output.refresh_from_db()
+        self.assertEqual(case.state_version, version)
+        self.assertEqual(case.outputs.count(), 1)
+        self.assertEqual((output.checksum, output.file.name), (checksum, filename))
+        self.assertEqual(case.disbursement_voucher.net_amount, Decimal("900.00"))
+        self.assertFalse(case.events.filter(idempotency_key="foreign-output").exists())
+
+    def _artifact_packet_item(self, key, actor, department):
+        packet = TrackedPacket.objects.create(
+            tracking_number=f"TP-{key}", title="Synthetic artifact custody", contents_manifest="One synthetic voucher",
+            status=TrackedPacket.ACTIVE, origin_department=department, prepared_by=actor,
+            final_destination_department=department, current_holder=actor, current_department=department,
+            activated_at=timezone.now(),
+        )
+        return PacketItem.objects.create(reference_number=f"ITEM-{key}", origin_packet=packet,
+            current_packet=packet, title="Synthetic artifact", created_by=actor)
+
+    def test_legacy_packet_link_requires_stored_owner_before_new_link_and_replay(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        case = self.create_case("link-owner")
+        item = self._artifact_packet_item("owner-link", self.preparer, self.accounting)
+        version = case.state_version
+        link_tracepoint_item(case=case, item=item, actor=self.preparer, expected_version=version, idempotency_key="owner-link")
+        self.assertEqual(link_tracepoint_item(case=case, item=item, actor=self.preparer,
+            expected_version=version, idempotency_key="owner-link").pk, case.pk)
+        self.outsider.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="link_tracepoint_custody"))
+        case.configuration_release.department = self.requesting
+        with self.subTest(control="replay"), self.assertRaises(PermissionDenied):
+            link_tracepoint_item(case=case, item=item, actor=self.outsider,
+                expected_version=version, idempotency_key="owner-link")
+        other = self.create_case("foreign-link-case")
+        foreign_item = self._artifact_packet_item("foreign-link", self.outsider, self.requesting)
+        other.configuration_release.department = self.requesting
+        with self.subTest(control="new link"), self.assertRaises(PermissionDenied):
+            link_tracepoint_item(case=other, item=foreign_item, actor=self.outsider,
+                expected_version=other.state_version, idempotency_key="foreign-link")
+        self.preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        with self.assertRaises(PermissionDenied):
+            link_tracepoint_item(case=case, item=item, actor=self.preparer,
+                expected_version=version, idempotency_key="owner-link")
+        other.refresh_from_db(); case.refresh_from_db()
+        self.assertIsNone(other.tracepoint_item_id)
+        self.assertFalse(other.events.filter(idempotency_key="foreign-link").exists())
+        self.assertEqual(case.tracepoint_item_id, item.pk)
+        self.assertEqual(case.state_version, version + 1)
+
+    def test_legacy_packet_link_reloads_item_before_visibility_check(self):
+        case = self.create_case("stored-item")
+        hidden = self._artifact_packet_item("hidden-item", self.outsider, self.requesting)
+        visible = self._artifact_packet_item("visible-item", self.preparer, self.accounting)
+        hidden.current_packet = visible.current_packet
+        version = case.state_version
+        with self.assertRaisesMessage(ValidationError, "visible to this employee"):
+            link_tracepoint_item(case=case, item=hidden, actor=self.preparer,
+                expected_version=version, idempotency_key="forged-packet")
+        case.refresh_from_db(); hidden.refresh_from_db()
+        self.assertEqual(case.state_version, version)
+        self.assertIsNone(case.tracepoint_item_id)
+        self.assertEqual(hidden.current_packet.origin_department_id, self.requesting.pk)
+        self.assertFalse(case.events.filter(idempotency_key="forged-packet").exists())
+
+    def test_dv_artifact_page_and_http_enforce_owner_without_custody_restriction(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        case = self.ready_for_treasury("artifact-http")
+        detail = reverse("vouchers:case_detail", args=(case.public_id,))
+        self.client.force_login(self.preparer)
+        response = self.client.get(detail)
+        self.assertContains(response, "Generate controlled XLSX")
+        self.assertContains(response, "Link TracePoint item")
+        self.treasury_user.user_permissions.add(*Permission.objects.filter(content_type__app_label="vouchers",
+            codename__in=("prepare_disbursement_voucher", "link_tracepoint_custody")))
+        item = self._artifact_packet_item("treasury-artifact", self.treasury_user, self.treasury)
+        self.client.force_login(self.treasury_user)
+        response = self.client.get(detail)
+        self.assertNotContains(response, "Generate controlled XLSX")
+        self.assertNotContains(response, "Link TracePoint item")
+        version = case.state_version
+        for action, extra in (("generate-dv", {}), ("link-tracepoint", {"reference_number": item.reference_number})):
+            with self.subTest(action=action):
+                response = self.client.post(reverse("vouchers:case_action", args=(case.public_id, action)), {
+                    "state_version": version, "idempotency_key": f"foreign-http-{action}", **extra,
+                })
+                self.assertEqual(response.status_code, 403)
+        self.preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.preparer)
+        response = self.client.get(detail)
+        self.assertContains(response, "Read-only UAT review")
+        self.assertNotContains(response, "Generate controlled XLSX")
+        self.assertNotContains(response, "Link TracePoint item")
+        case.refresh_from_db()
+        self.assertEqual(case.state_version, version)
+        self.assertFalse(case.outputs.exists())
+        self.assertIsNone(case.tracepoint_item_id)
+        self.assertFalse(case.events.filter(idempotency_key__startswith="foreign-http-").exists())
+
+    def test_legacy_packet_link_rechecks_stored_association(self):
+        first = self.create_case("first-item-case")
+        second = self.create_case("second-item-case")
+        item = self._artifact_packet_item("shared-item", self.preparer, self.accounting)
+        # Cache the original absence before another source case links this item.
+        self.assertFalse(hasattr(item, "voucher_case"))
+        link_tracepoint_item(case=first, item=item, actor=self.preparer,
+            expected_version=first.state_version, idempotency_key="first-item-link")
+        with self.assertRaisesMessage(ValidationError, "unlinked TracePoint item"):
+            link_tracepoint_item(case=second, item=item, actor=self.preparer,
+                expected_version=second.state_version, idempotency_key="second-item-link")
+        first.refresh_from_db(); second.refresh_from_db()
+        self.assertEqual(first.tracepoint_item_id, item.pk)
+        self.assertIsNone(second.tracepoint_item_id)
+
+    def test_dv_artifact_authority_denies_missing_owner_and_inactive_account(self):
+        from vouchers.access import can_amend_nonfinancial_case, can_manage_owned_case_artifact
+
+        case = self.create_case("artifact-missing-owner")
+        VoucherCase.objects.filter(pk=case.pk).update(configuration_release=None)
+        case.refresh_from_db()
+        self.assertFalse(can_amend_nonfinancial_case(self.preparer, case))
+        self.assertFalse(can_manage_owned_case_artifact(self.preparer, case, "vouchers.prepare_disbursement_voucher"))
+        with self.assertRaises(PermissionDenied):
+            generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="missing-owner-output")
+        item = self._artifact_packet_item("missing-owner", self.preparer, self.accounting)
+        with self.assertRaises(PermissionDenied):
+            link_tracepoint_item(case=case, item=item, actor=self.preparer,
+                expected_version=case.state_version, idempotency_key="missing-owner-link")
+        owned = self.create_case("artifact-inactive")
+        self.preparer.is_active = False
+        self.preparer.save(update_fields=("is_active",))
+        self.assertFalse(can_manage_owned_case_artifact(self.preparer, owned, "vouchers.link_tracepoint_custody"))
+        with self.assertRaises(PermissionDenied):
+            link_tracepoint_item(case=owned, item=item, actor=self.preparer,
+                expected_version=owned.state_version, idempotency_key="inactive-owner-link")
+        self.assertFalse(case.events.filter(idempotency_key__startswith="missing-owner-").exists())

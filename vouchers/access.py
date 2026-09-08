@@ -55,15 +55,20 @@ def has_explicit_permission(user, permission):
     )
 
 
-def can_amend_nonfinancial_case(user, case):
-    """Amendment belongs to the pinned Finance owner, even after custody moves."""
+def can_manage_owned_case_artifact(user, case, permission):
+    """Artifact authority stays with the pinned Finance owner across custody moves."""
     department = department_for_user(user)
     return bool(
         department is not None
         and not is_finance_uat_viewer(user)
-        and has_explicit_permission(user, "vouchers.amend_nonfinancial_voucher")
+        and has_explicit_permission(user, permission)
+        and case.configuration_release_id is not None
         and case.configuration_release.department_id == department.pk
     )
+
+
+def can_amend_nonfinancial_case(user, case):
+    return can_manage_owned_case_artifact(user, case, "vouchers.amend_nonfinancial_voucher")
 
 
 def can_view_workbench(user):
