@@ -192,3 +192,8 @@ Verification: all three focused cap/issuer/replay tests passed in 9.558 seconds;
 ## v0.7.27 - release and event-posting personal handoffs
 
 Verification: all four focused attribution/action/replay tests passed in 11.728 seconds; all 586 project tests passed in 190.924 seconds. System, migration-drift, compilation and diff checks passed. Full regression covers cross-module source/journal/returned-payment mapping; operational LGU acceptance is not claimed. Scope: [My Work](FINANCE_MY_WORK.md), with [D-017](IMPLEMENTATION_DECISIONS.md) preserving physical-release versus Accounting completion. Broader regression is warranted by cross-module source, journal and returned-payment action mapping.
+
+
+## v0.7.28 - returned-payment personal handoffs
+
+Verification: all three focused tests passed in 6.576 seconds; all 166 My Work/voucher dependency tests passed in 82.166 seconds. System, migration-drift, compilation and diff checks passed. Commands: `manage.py test` with the three focused labels, then `manage.py test finance.test_work_tasks vouchers --noinput`. Full-project suite: NOT RUN - OUT OF SCOPE for this read-only projection; no source mutation policy, model, schema or infrastructure changes. The affected consumers and their cross-store replay are covered by the dependency suite under the updated proportional-testing guidance.

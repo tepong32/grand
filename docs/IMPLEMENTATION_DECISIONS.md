@@ -31,6 +31,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 - **D-017:** Follow physical release into required Accounting event posting without claiming premature case completion.
 
+- **D-018:** Project returned-payment Waiting from current review versions and the established role-shaped register.
+
 ### D-001 — Retained events determine personal completion
 
 - Date/checkpoint: 2026-09-07; v0.7.10–v0.7.12 implemented; payment-handoff extension verified in v0.7.14.
@@ -217,3 +219,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Tradeoff: completed cases leave Waiting; event-completion history is a separate adapter. Returned-item-specific Waiting still needs its own ownership/state audit. Existing request kinds and source gates are preserved.
 - Evidence/status: inspected source routing into ACCOUNTING_EVENT_POSTING and retained resume stages. Focused tests cover active requester attribution, cap ordering, issuer release visibility and returned-payment action exclusion, plus the real Budget-to-report replay. Verification: all four focused attribution/action/replay tests passed in 11.728 seconds; all 586 project tests passed in 190.924 seconds. System, migration-drift, compilation and diff checks passed. Full regression covers cross-module source/journal/returned-payment mapping; operational LGU acceptance is not claimed.
 - Revisit when: adding correction/returned-item history and remaining completion adapters; require exact retained attribution and current source access.
+
+
+### D-018 — Use current returned-payment review versions as handoffs
+
+- Date/checkpoint: 2026-09-08; v0.7.28.
+- Decision: Use the existing returned-payment register's current role/office read scope, retained preparer/open posting requester and consistent case/review stages. Link directly to the review anchor. Resolve current case/source/journal actions as well as review actions before truncation.
+- Alternatives considered: follow all office reviews; continue showing superseded versions as Waiting; link to a broad unfiltered case list; credit any historical reviewer indefinitely.
+- Goal fit: keep correction lineage and office ownership legible without inventing task state or expanding read access. A clarified successor replaces its predecessor in current Waiting while retained history remains intact.
+- Tradeoff: completion history remains separate. Prepared timestamps or reviewed/posted handoff times measure age; the bank observation date is not a deadline.
+- Evidence/status: source register and returned-item service transitions inspected. All three focused tests and 166 dependent My Work/voucher tests passed; full-project regression is not repeated for this isolated read-only projection under the updated repository guidance.
+- Revisit when: adding completion events or changing register read policy; such changes require separate event/authority verification.

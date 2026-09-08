@@ -139,6 +139,46 @@ class ReturnedInstrumentWorkRegisterTests(TestCase):
             treasury_note="Synthetic Treasury note.", prepared_by=user,
         )
 
+    def test_returned_waiting_is_personal_scoped_and_links_the_exact_review(self):
+        result = finance_work_tasks(self.treasury_user, view="waiting", display_limit=1)
+        self.assertEqual(result["task_count"], 1)
+        self.assertFalse(result["tasks_truncated"])
+        task = result["tasks"][0]
+        self.assertEqual(task["case_id"], f"returned-payment:{self.accounting_review.public_id}")
+        self.assertEqual(task["received_at"], self.accounting_review.prepared_at)
+        self.assertIsNone(task["due_on"])
+        self.assertEqual(task["url"], reverse("vouchers:advice_workspace") + f"#returned-review-{self.accounting_review.public_id}")
+        self.client.force_login(self.treasury_user)
+        self.assertContains(self.client.get(task["url"].split("#")[0]), f'id="returned-review-{self.accounting_review.public_id}"')
+        profile = self.treasury_user.employeeprofile
+        profile.assigned_department = self.other_treasury
+        profile.save(update_fields=("assigned_department",))
+        actor = get_user_model().objects.get(pk=self.treasury_user.pk)
+        self.assertFalse(any(item["case_id"] == task["case_id"] for item in finance_work_tasks(actor, view="waiting")["tasks"]))
+        actor.user_permissions.remove(Permission.objects.get(content_type__app_label="vouchers", codename="view_bank_advice"))
+        self.assertFalse(finance_work_tasks(actor, view="waiting")["tasks"])
+
+    def test_returned_posting_requester_waiting_excludes_the_authorized_source_action(self):
+        from django.utils import timezone
+        from .models import VoucherPostingRequest
+
+        review = self.accounting_review
+        review.case.current_stage = VoucherCase.ACCOUNTING_EVENT_POSTING
+        review.case.save(update_fields=("current_stage",))
+        request = VoucherPostingRequest.objects.create(
+            case=review.case, kind=VoucherPostingRequest.REVERSAL, jev_date=date(2026, 9, 3),
+            finance_department_id=self.accounting.pk, finance_department_label=self.accounting.name,
+            requested_by=self.reviewer, payload={}, payload_checksum="a" * 64)
+        review.status = ReturnedInstrumentReview.AWAITING_POSTING
+        review.posting_request = request
+        review.reviewed_at = timezone.now()
+        review.save(update_fields=("status", "posting_request", "reviewed_at"))
+        identity = f"returned-payment:{review.public_id}"
+        self.assertTrue(any(task["case_id"] == identity for task in finance_work_tasks(self.reviewer, view="waiting")["tasks"]))
+        self.reviewer.user_permissions.add(Permission.objects.get(content_type__app_label="accounting", codename="prepare_journal_entries"))
+        self.assertFalse(any(task["case_id"] == identity for task in finance_work_tasks(self.reviewer, view="waiting")["tasks"]))
+        self.assertTrue(any(task["case_id"] == identity for task in finance_work_tasks(self.treasury_user, view="waiting")["tasks"]))
+
     def test_related_replacement_action_excludes_personal_case_waiting(self):
         from django.utils import timezone
         from .models import DisbursementVoucher

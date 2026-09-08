@@ -3536,6 +3536,10 @@ class VoucherWorkflowTests(TestCase):
             evidence_reference="Bank debit/return memorandum F84-RM-01.",
         )
         review = exception.accounting_reviews.get()
+        from finance.work_tasks import finance_work_tasks
+        def waiting_review_ids():
+            return {task["case_id"] for task in finance_work_tasks(self.treasury_user, view="waiting")["tasks"]}
+        self.assertIn(f"returned-payment:{review.public_id}", waiting_review_ids())
         case.refresh_from_db()
         self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_RETURNED_ITEM)
         from django.contrib.auth.models import Group
@@ -3566,12 +3570,15 @@ class VoucherWorkflowTests(TestCase):
         with self.assertRaises(PermissionDenied):
             clarify_returned_instrument_review(review=review, actor=treasury_preview,
                 note="Unauthorized clarification", evidence_reference="Synthetic")
+        self.assertNotIn(f"returned-payment:{review.public_id}", waiting_review_ids())
         clarified = clarify_returned_instrument_review(
             review=review, actor=self.treasury_user,
             note="Confirmed unpaid return; corrected memorandum reference and attached bank copy.",
             evidence_reference="Bank return memorandum F84-RM-01-CORRECTED.",
             expected_version=review.state_version,
         )
+        self.assertNotIn(f"returned-payment:{review.public_id}", waiting_review_ids())
+        self.assertIn(f"returned-payment:{clarified.public_id}", waiting_review_ids())
         decide_returned_instrument(
             review=clarified, actor=self.validator, approve=True,
             outcome=ReturnedInstrumentReview.REISSUE,
@@ -3583,6 +3590,7 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(clarified.status, ReturnedInstrumentReview.AWAITING_POSTING)
         self.assertEqual(instrument.status, PaymentInstrument.BANK_RETURNED)
         self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_EVENT_POSTING)
+        self.assertIn(f"returned-payment:{clarified.public_id}", waiting_review_ids())
         reversal_request = clarified.posting_request
         self.assertEqual(reversal_request.kind, VoucherPostingRequest.REVERSAL)
         reversal_entry, _created = materialize_voucher_journal(reversal_request, self.preparer)
@@ -3593,6 +3601,7 @@ class VoucherWorkflowTests(TestCase):
         reversal_entry.refresh_from_db(); reconcile_posted_voucher_entry(reversal_entry, self.validator)
         clarified.refresh_from_db(); case.refresh_from_db()
         self.assertEqual(clarified.status, ReturnedInstrumentReview.READY_FOR_TREASURY)
+        self.assertNotIn(f"returned-payment:{clarified.public_id}", waiting_review_ids())
         self.assertEqual(case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
         replacement = issue_check(
             case=case, actor=self.treasury_user, bank_account_code="gf-lbp", fund_code="general-fund",

@@ -48,7 +48,7 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
         )
     tasks = []
 
-    def add(item, *, kind, area, reference, subject, received, queue, scope, route, attribution, source_id=None, route_kwargs=None, due_on=None, status=None, status_label=None):
+    def add(item, *, kind, area, reference, subject, received, queue, scope, route, attribution, source_id=None, route_kwargs=None, due_on=None, status=None, status_label=None, fragment=""):
         status = status if status is not None else item.status
         status_label = status_label if status_label is not None else item.get_status_display()
         source_id = source_id if source_id is not None else item.public_id
@@ -74,7 +74,7 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
             age_days=_age_days(received, today), state="Waiting", source_state=status_label,
             source_version=f"projection-sha256:{revision}",
             exception="The source has no retained handoff time; age is unavailable." if missing_time else "",
-            url=reverse(route, kwargs=route_kwargs if route_kwargs is not None else {"public_id": item.public_id}),
+            url=reverse(route, kwargs=route_kwargs if route_kwargs is not None else {"public_id": item.public_id}) + fragment,
         ))
 
     from .access import can_view_finance_setup
@@ -200,6 +200,40 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
                 queue=queue, scope=f"Requesting office: {item.requesting_department.name}; current processing office: {office}",
                 route="vouchers:case_detail", attribution=attribution,
                 status=item.current_stage, status_label=item.get_current_stage_display())
+
+    if can_view_workbench(user) and has_explicit_permission(user, "vouchers.view_bank_advice"):
+        from vouchers.returned_instrument_register import visible_returned_instrument_reviews
+
+        reviews = visible_returned_instrument_reviews(user).filter(
+            Q(status__in=(ReturnedInstrumentReview.AWAITING_REVIEW, ReturnedInstrumentReview.RETURNED_FOR_CLARIFICATION),
+              case__current_stage=VoucherCase.ACCOUNTING_RETURNED_ITEM)
+            | Q(status=ReturnedInstrumentReview.AWAITING_POSTING, case__current_stage=VoucherCase.ACCOUNTING_EVENT_POSTING)
+            | Q(status=ReturnedInstrumentReview.READY_FOR_TREASURY, outcome=ReturnedInstrumentReview.REISSUE,
+                case__current_stage=VoucherCase.TREASURY_CHECK_PREPARATION),
+        ).filter(
+            Q(prepared_by_id=user.pk)
+            | Q(status=ReturnedInstrumentReview.AWAITING_POSTING, posting_request__requested_by_id=user.pk,
+                posting_request__status__in=(VoucherPostingRequest.PENDING, VoucherPostingRequest.MATERIALIZED, VoucherPostingRequest.FAILED)),
+        )
+        for item in reviews:
+            if f"voucher-case:{item.case.public_id}" in actionable:
+                continue
+            treasury = item.exception.policy.treasury_department.name
+            accounting = item.case.configuration_release.department.name if item.case.configuration_release_id else "Accounting assignment missing"
+            request = item.posting_request
+            queue, received = {
+                item.AWAITING_REVIEW: (f"Independent returned-payment review - {accounting}", item.prepared_at),
+                item.RETURNED_FOR_CLARIFICATION: (f"Returned-payment clarification - {treasury}", item.reviewed_at),
+                item.AWAITING_POSTING: (f"Returned-payment journal posting and synchronization - {accounting}", item.reviewed_at),
+                item.READY_FOR_TREASURY: (f"Controlled replacement check preparation - {treasury}",
+                                        request.posted_at if request and request.posted_at else item.reviewed_at),
+            }[item.status]
+            add(item, kind="returned-payment", area="Returned payment",
+                reference=f"{item.case.reference_code} · check {item.instrument.check_number} · review v{item.version}",
+                subject="Submitted returned-payment evidence", received=received, queue=queue,
+                scope=f"{accounting}; Treasury: {treasury}; current source register access",
+                route="vouchers:advice_workspace", route_kwargs={}, fragment=f"#returned-review-{item.public_id}",
+                attribution=[item.prepared_by_id, request.requested_by_id if request else None])
 
     from budget.access import can_view as can_view_budget, has_budget_permission
     from budget.control_exports import obligation_scope_for_user

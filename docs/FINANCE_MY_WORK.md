@@ -252,3 +252,8 @@ Waiting includes Treasury preparation and Accounting advice on the shared case. 
 ## v0.7.27 - release and event-posting personal handoffs
 
 Personal Waiting now covers Treasury release and Accounting event posting. Issued/advised instrument issuers retain release-phase attribution; open payment/remittance/cancellation/replacement/reversal requesters retain event-posting attribution. Authorized returned-payment, source and journal actions resolve to the shared case before truncation. Current read scope and retained stage transitions remain authoritative. A physical release does not imply that required journal posting is complete; completed cases leave Waiting. See [D-017](IMPLEMENTATION_DECISIONS.md) for attribution choices and [the completion audit](FINANCE_ROADMAP_COMPLETION_AUDIT.md) for verification. Returned-item-specific Waiting remains outside this adapter.
+
+
+## v0.7.28 - returned-payment personal handoffs
+
+Personal Waiting now includes attributed returned-payment reviews through independent review, clarification, reversal posting and controlled replacement. It uses the existing role-shaped register scope, current stage/status consistency and exact review anchors. Superseded reviews leave Waiting; authorized review, case, source and journal actions are excluded before truncation. Open posting-request authorship can qualify during posting, while existing preparer attribution persists through the handoff. See [D-018](IMPLEMENTATION_DECISIONS.md) and [the audit](FINANCE_ROADMAP_COMPLETION_AUDIT.md) for rationale and validation. Historical completion remains separate work.
