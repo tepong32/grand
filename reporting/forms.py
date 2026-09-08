@@ -1,4 +1,5 @@
 from django import forms
+from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -6,6 +7,7 @@ from accounting.models import LedgerAccount
 from finance.models import FinanceTemplateVersion
 
 from .datasets import DATASETS, available_datasets, dataset_registry
+from .access import can_configure_report, require_report_configuration_permission
 from .models import (
     FinanceAccountabilityPackage, FinanceAccountabilityPackageProfile,
     FinanceAccountabilityPackageRequirement,
@@ -632,7 +634,9 @@ class ReportDefinitionForm(forms.ModelForm):
         self.department = department
         self.user = user
         super().__init__(*args, **kwargs)
-        datasets = available_datasets(department)
+        datasets = [dataset for dataset in available_datasets(department) if can_configure_report(
+            user, "reporting.manage_report_definitions", ReportDefinition(department=department, dataset_key=dataset.key),
+        )]
         self.fields["dataset_key"].choices = [(dataset.key, dataset.label) for dataset in datasets]
         requested_dataset = self.data.get("dataset_key") or getattr(self.instance, "dataset_key", "") or (datasets[0].key if datasets else "")
         adapter = dataset_registry.get(requested_dataset)
@@ -675,9 +679,14 @@ class ReportDefinitionForm(forms.ModelForm):
         self.instance.filters = self._configured_filters()
         return cleaned
 
+    @transaction.atomic
     def save(self, commit=True):
         instance = super().save(commit=False)
+        if instance.pk:
+            stored = ReportDefinition.objects.select_for_update().get(pk=instance.pk)
+            require_report_configuration_permission(self.user, "reporting.manage_report_definitions", stored)
         instance.department = self.department
+        require_report_configuration_permission(self.user, "reporting.manage_report_definitions", instance)
         instance.slug = slugify(instance.name)
         if not instance.pk:
             instance.created_by = self.user
@@ -866,8 +875,10 @@ class ReportScheduleForm(forms.ModelForm):
     def __init__(self, *args, department=None, user=None, **kwargs):
         self.department, self.user = department, user
         super().__init__(*args, **kwargs)
-        self.fields["definition"].queryset = ReportDefinition.objects.filter(department=department, is_active=True)
-        self.fields["template_version"].queryset = ReportTemplateVersion.objects.filter(definition__department=department, is_active=True, approved_at__isnull=False)
+        allowed = [item.pk for item in ReportDefinition.objects.filter(department=department, is_active=True)
+                   if can_configure_report(user, "reporting.schedule_reports", item)]
+        self.fields["definition"].queryset = ReportDefinition.objects.filter(pk__in=allowed)
+        self.fields["template_version"].queryset = ReportTemplateVersion.objects.filter(definition_id__in=allowed, is_active=True, approved_at__isnull=False)
 
     def clean(self):
         cleaned = super().clean()
@@ -876,8 +887,12 @@ class ReportScheduleForm(forms.ModelForm):
             self.add_error("template_version", "This mapped template must pass preflight before it can be scheduled.")
         return cleaned
 
+    @transaction.atomic
     def save(self, commit=True):
         instance = super().save(commit=False)
+        definition = ReportDefinition.objects.select_for_update().get(pk=instance.definition_id)
+        require_report_configuration_permission(self.user, "reporting.schedule_reports", definition)
+        instance.definition = definition
         instance.created_by = self.user
         if commit:
             instance.full_clean()

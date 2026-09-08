@@ -16,6 +16,7 @@ from .access import (
     can_activate_template_promotions, can_approve_template_promotions,
     can_manage_statement_mappings, can_review_statement_mappings,
     has_accountability_workspace_role, has_local_form_workspace_role,
+    can_configure_report, require_report_configuration_permission,
     can_approve_accountability_profiles, can_export_accountability_packages,
     can_approve_reports, can_download_reports, can_generate_reports, can_manage_definitions,
     can_manage_accountability_profiles, can_prepare_accountability_packages,
@@ -1554,12 +1555,12 @@ def definition_detail(request, pk):
             "created_by", "approved_by", "fidelity_validated_by",
         ).all(),
         "can_generate": (can_generate_reports(request.user) and report_source_mutation_allowed(request.user, definition)),
-        "can_manage_templates": can_manage_templates(request.user),
-        "can_manage_definitions": can_manage_definitions(request.user),
-        "can_approve_templates": can_approve_reports(request.user),
-        "can_prepare_promotions": can_prepare_template_promotions(request.user),
-        "can_approve_promotions": can_approve_template_promotions(request.user),
-        "can_activate_promotions": can_activate_template_promotions(request.user),
+        "can_manage_templates": can_configure_report(request.user, "reporting.manage_report_templates", definition),
+        "can_manage_definitions": can_configure_report(request.user, "reporting.manage_report_definitions", definition),
+        "can_approve_templates": can_configure_report(request.user, "reporting.approve_reports", definition),
+        "can_prepare_promotions": (can_configure_report(request.user, "reporting.prepare_template_promotions", definition) and (not definition.dataset_key.startswith("finance_") or can_configure_report(request.user, "reporting.generate_reports", definition))),
+        "can_approve_promotions": can_configure_report(request.user, "reporting.approve_template_promotions", definition),
+        "can_activate_promotions": can_configure_report(request.user, "reporting.activate_template_promotions", definition),
     })
 
 
@@ -1567,6 +1568,9 @@ def definition_detail(request, pk):
 @require_http_methods(["GET", "POST"])
 def definition_create(request):
     department = department_for_user(request.user)
+    if request.method == "POST" and request.POST.get("dataset_key", "").startswith("finance_"):
+        require_report_configuration_permission(request.user, "reporting.manage_report_definitions",
+                                                ReportDefinition(department=department, dataset_key=request.POST["dataset_key"]))
     form = ReportDefinitionForm(request.POST or None, department=department, user=request.user)
     if request.method == "POST" and form.is_valid():
         definition = form.save()
@@ -1580,6 +1584,7 @@ def definition_create(request):
 def definition_update(request, pk):
     department = department_for_user(request.user)
     definition = _department_object(ReportDefinition.objects.all(), request.user, pk=pk)
+    require_report_configuration_permission(request.user, "reporting.manage_report_definitions", definition)
     form = ReportDefinitionForm(request.POST or None, instance=definition, department=department, user=request.user)
     if request.method == "POST" and form.is_valid():
         definition = form.save()
@@ -1592,6 +1597,7 @@ def definition_update(request, pk):
 @require_http_methods(["GET", "POST"])
 def template_create(request, pk):
     definition = _department_object(ReportDefinition.objects.all(), request.user, pk=pk)
+    require_report_configuration_permission(request.user, "reporting.manage_report_templates", definition)
     form = ReportTemplateVersionForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         template = form.save(commit=False)
@@ -1612,6 +1618,7 @@ def template_create(request, pk):
 @require_POST
 def template_approve(request, pk):
     template = get_object_or_404(ReportTemplateVersion, pk=pk, definition__department=department_for_user(request.user))
+    require_report_configuration_permission(request.user, "reporting.approve_reports", template.definition)
     if not template.is_mapping_ready:
         messages.error(request, "Run template preflight successfully before approval.")
         return redirect("reporting:template_mapping", pk=template.pk)
@@ -1638,6 +1645,7 @@ def template_approve(request, pk):
 @require_http_methods(["GET", "POST"])
 def template_mapping(request, pk):
     template = get_object_or_404(ReportTemplateVersion, pk=pk, definition__department=department_for_user(request.user))
+    require_report_configuration_permission(request.user, "reporting.manage_report_templates", template.definition)
     if template.render_mode == ReportTemplateVersion.RENDER_NATIVE:
         messages.info(request, "Native layouts do not require a mapper.")
         return redirect(template.definition)
@@ -1658,6 +1666,7 @@ def template_mapping(request, pk):
 @require_POST
 def template_mapping_delete(request, pk, mapping_pk):
     template = get_object_or_404(ReportTemplateVersion, pk=pk, definition__department=department_for_user(request.user))
+    require_report_configuration_permission(request.user, "reporting.manage_report_templates", template.definition)
     mapping = get_object_or_404(ReportTemplateMappingField, pk=mapping_pk, template_version=template)
     try:
         mapping.delete()
@@ -1672,6 +1681,7 @@ def template_mapping_delete(request, pk, mapping_pk):
 @require_POST
 def template_preflight(request, pk):
     template = get_object_or_404(ReportTemplateVersion, pk=pk, definition__department=department_for_user(request.user))
+    require_report_configuration_permission(request.user, "reporting.manage_report_templates", template.definition)
     if template.approved_at:
         messages.info(request, "This approved mapping is immutable and already validated.")
         return redirect("reporting:template_mapping", pk=template.pk)
@@ -1726,6 +1736,9 @@ def template_promotion_create(request, pk):
         ReportTemplateVersion.objects.select_related("definition__department"),
         pk=pk, definition__department=department_for_user(request.user),
     )
+    require_report_configuration_permission(request.user, "reporting.prepare_template_promotions", template.definition)
+    if template.definition.dataset_key.startswith("finance_"):
+        require_report_configuration_permission(request.user, "reporting.generate_reports", template.definition)
     existing = getattr(template, "promotion_request", None)
     if existing:
         messages.info(request, "This template version already has a retained promotion request.")
@@ -1762,9 +1775,9 @@ def template_promotion_detail(request, public_id):
     promotion = _promotion_for_user(request.user, public_id)
     return render(request, "reporting/template_promotion_detail.html", {
         "promotion": promotion,
-        "can_submit": can_prepare_template_promotions(request.user) and promotion.is_editable,
-        "can_review": can_approve_template_promotions(request.user),
-        "can_activate": can_activate_template_promotions(request.user),
+        "can_submit": can_configure_report(request.user, "reporting.prepare_template_promotions", promotion.candidate_template.definition) and promotion.is_editable,
+        "can_review": can_configure_report(request.user, "reporting.approve_template_promotions", promotion.candidate_template.definition),
+        "can_activate": can_configure_report(request.user, "reporting.activate_template_promotions", promotion.candidate_template.definition),
         "can_export": can_download_reports(request.user),
     })
 
@@ -2090,6 +2103,14 @@ def run_print_preview(request, public_id):
 @require_http_methods(["GET", "POST"])
 def schedule_create(request):
     department = department_for_user(request.user)
+    if request.method == "POST":
+        try:
+            definition_id = int(request.POST.get("definition", ""))
+        except (TypeError, ValueError):
+            definition_id = None
+        definition = ReportDefinition.objects.filter(pk=definition_id, department=department).first()
+        if definition is not None:
+            require_report_configuration_permission(request.user, "reporting.schedule_reports", definition)
     form = ReportScheduleForm(request.POST or None, department=department, user=request.user)
     if request.method == "POST" and form.is_valid():
         form.save()

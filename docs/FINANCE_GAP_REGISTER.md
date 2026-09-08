@@ -198,7 +198,7 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 ## FIN-GAP-018 - Audit related Finance reporting governance authority
 
 - Process/module: Finance report definition/template/schedule mutations, statement/control mappings and notes, reference comparisons, accountability packages and local form acceptance.
-- Severity/status: **HIGH - OPEN**, identified while isolating the Finance run boundary.
+- Severity/status: **HIGH - VERIFIED**, repaired across v0.7.36–38.
 - Code evidence: shared reporting permission helpers do not exclude Finance UAT Viewer membership. Statement, accountability, form-acceptance and template-promotion services also omit their own action/office checks in inspected entry points. Definition/template views use permission helpers directly; schedule creation remains to audit.
 - Expected behavior: financial governance services must enforce action authority and current stored owning-office custody, including UAT exclusion, independently of their HTTP callers. Preserve existing non-Finance reporting roles, explicit read/export authority and authorized automated execution.
 - Next step: inspect each source entry point, reproduce representative financial governance mutations, and apply domain-aware checks before expanding dependent reporting handoffs. Findings here are not yet all reproduced.
@@ -206,3 +206,14 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 - FIN-GAP-018 statement slice: UAT/head, foreign-office and ungranted note review all succeeded (3 failed denial tests, 1.397 seconds). Seven statement service entry points and corresponding source mutation controls repaired in v0.7.36; all 28 focused tests and 612 project tests passed. Accountability, local-form and template/schedule boundaries remain OPEN; this partial repair does not close the parent finding.
 
 - FIN-GAP-018 package/form slice: UAT profile review, foreign-office profile review and UAT local-form return succeeded (3 failed denial tests, 2.699 seconds). Eight accountability and six local-form service entry points plus page controls repaired in v0.7.37; all 31 focused tests and 622 project tests passed. Template/definition/schedule governance remains OPEN.
+
+
+- FIN-GAP-018 template/configuration slice: foreign-office promotion review, UAT template approval, UAT definition editing and UAT schedule creation all succeeded before repair (4 failed denial tests, 2.415 seconds). Stored template/promotion services and definition/schedule forms now enforce current office/action authority; Finance sources exclude UAT while non-Finance roles remain supported. All 65 focused reporting tests passed in 8.300 seconds. All 629 project tests passed in 187.484 seconds. FIN-GAP-018 is verified across its three implementation slices.
+
+## FIN-GAP-019 - Report generation trusts caller-supplied evidence context
+
+- Process/module: manual report template snapshots, generation entry state and scheduled execution context.
+- Severity/status: **HIGH - OPEN**, source finding awaiting reproduction.
+- Code evidence: create_manual_run reloads the definition but uses supplied template fields for readiness and retained snapshots. generate_report checks supplied run status and related objects without a stored reload. execute_schedule likewise consumes supplied schedule relations and parameters.
+- Expected behavior: persisted source identity, template evidence and run lifecycle must govern generation. An altered in-memory object must not change approved template evidence or regenerate an already retained output. Preserve trusted scheduled execution and failed-run recovery.
+- Next step: reproduce on isolated fixtures, then repair the confirmed boundaries before reporting handoff adapters. No operational misuse is asserted.

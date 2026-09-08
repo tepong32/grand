@@ -8,6 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .mappers import preflight_template
+from .access import require_report_configuration_permission as _require
 from .models import (
     ReportDefinition, ReportRun, ReportSchedule, ReportTemplatePromotion,
     ReportTemplatePromotionEvent, ReportTemplateVersion,
@@ -176,6 +177,12 @@ def create_template_promotion(
     template, actor, period_start, period_end, output_format, change_reason,
     comparison_note, baseline_run=None, update_compatible_schedules=False,
 ):
+    template = ReportTemplateVersion.objects.select_for_update().select_related("definition").get(pk=template.pk)
+    _require(actor, "reporting.prepare_template_promotions", template.definition)
+    if template.definition.dataset_key.startswith("finance_"):
+        _require(actor, "reporting.generate_reports", template.definition)
+    if baseline_run is not None:
+        baseline_run = ReportRun.objects.select_related("definition", "template_version").get(pk=baseline_run.pk)
     if hasattr(template, "promotion_request"):
         raise ValueError("This template version already has a promotion request.")
     if not template.approved_at:
@@ -280,6 +287,11 @@ def assert_template_evidence_current(promotion):
 
 @transaction.atomic
 def submit_template_promotion(promotion, actor):
+    original = promotion
+    promotion = ReportTemplatePromotion.objects.select_for_update().select_related(
+        "candidate_template__definition", "baseline_template", "preview_run", "baseline_run",
+    ).get(pk=promotion.pk)
+    _require(actor, "reporting.prepare_template_promotions", promotion.candidate_template.definition)
     if promotion.status not in (promotion.DRAFT, promotion.RETURNED):
         raise ValueError("Only an editable promotion request can be submitted.")
     if promotion.candidate_template.definition.applicability_status == ReportDefinition.APPLICABILITY_CANDIDATE:
@@ -302,11 +314,17 @@ def submit_template_promotion(promotion, actor):
         promotion=promotion, actor=actor, action="submitted",
         snapshot={"submission_checksum": promotion.submission_checksum},
     )
+    original.refresh_from_db()
     return promotion
 
 
 @transaction.atomic
 def review_template_promotion(promotion, actor, action, note):
+    original = promotion
+    promotion = ReportTemplatePromotion.objects.select_for_update().select_related(
+        "candidate_template__definition", "baseline_template", "preview_run", "baseline_run",
+    ).get(pk=promotion.pk)
+    _require(actor, "reporting.approve_template_promotions", promotion.candidate_template.definition)
     if promotion.status != promotion.SUBMITTED:
         raise ValueError("Only a submitted promotion request can be reviewed.")
     if actor.pk in (promotion.created_by_id, promotion.submitted_by_id):
@@ -341,11 +359,17 @@ def review_template_promotion(promotion, actor, action, note):
         promotion=promotion, actor=actor, action=action, reason=promotion.review_note,
         snapshot={"submission_checksum": promotion.submission_checksum},
     )
+    original.refresh_from_db()
     return promotion
 
 
 @transaction.atomic
 def activate_template_promotion(promotion, actor):
+    original = promotion
+    promotion = ReportTemplatePromotion.objects.select_for_update().select_related(
+        "candidate_template__definition", "baseline_template", "preview_run", "baseline_run",
+    ).get(pk=promotion.pk)
+    _require(actor, "reporting.activate_template_promotions", promotion.candidate_template.definition)
     if promotion.status != promotion.APPROVED:
         raise ValueError("Only an independently approved promotion can be activated.")
     assert_template_evidence_current(promotion)
@@ -381,11 +405,17 @@ def activate_template_promotion(promotion, actor):
         reason="Approved layout activated without a software deployment.",
         snapshot={"active_template_id": candidate.pk, "updated_schedule_ids": updated_schedule_ids},
     )
+    original.refresh_from_db()
     return promotion
 
 
 @transaction.atomic
 def rollback_template_promotion(promotion, actor, reason):
+    original = promotion
+    promotion = ReportTemplatePromotion.objects.select_for_update().select_related(
+        "candidate_template__definition", "baseline_template", "preview_run", "baseline_run",
+    ).get(pk=promotion.pk)
+    _require(actor, "reporting.activate_template_promotions", promotion.candidate_template.definition)
     if promotion.status != promotion.ACTIVATED:
         raise ValueError("Only the active promoted template can be rolled back.")
     if not promotion.baseline_template_id:
@@ -421,6 +451,7 @@ def rollback_template_promotion(promotion, actor, reason):
         promotion=promotion, actor=actor, action="rolled_back", reason=promotion.rollback_reason,
         snapshot={"restored_template_id": baseline.pk, "updated_schedule_ids": updated_schedule_ids},
     )
+    original.refresh_from_db()
     return promotion
 
 

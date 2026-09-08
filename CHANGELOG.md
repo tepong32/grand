@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.38 - reporting configuration authority
+
+Finance definition/schedule forms and template preflight/promotion services now enforce stored source office and action authority, with UAT exclusion for Finance sources. Page controls share the boundary; non-Finance roles and separate read/export remain supported. Finance promotion previews additionally require generation authority. Verification: All 65 focused reporting tests passed in 8.300 seconds; all 629 project tests passed in 187.484 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.37 - accountability and local-form authority
 
 Accountability profile/package and local-form starter/test/acceptance/successor services now require current stored office, action authority and non-UAT identity. Source controls share these checks. Read/export grants, preview navigation and authorized cross-office package evidence links remain intact. Verification: all 31 focused accountability/local-form tests passed in 8.234 seconds; all 622 project tests passed in 189.529 seconds. System, migration-drift, compilation and diff checks passed.

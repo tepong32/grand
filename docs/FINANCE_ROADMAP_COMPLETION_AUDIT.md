@@ -242,3 +242,8 @@ Accountability profile/package and local-form starter/test/acceptance/successor 
 - v0.7.37 initial focused attempt: FAIL - CAUSED BY CURRENT WORK. Test startup retained the earlier access module while the navigation helper extraction was still being written, causing an import error. Restarted against final executable source; no passing test result is claimed for that attempt.
 
 - v0.7.37 focused rerun: FAIL - CAUSED BY CURRENT WORK (1 fixture error in 31 tests, 7.296 seconds). The self-witness queue fixture performed a test using a witness without preparation permission; it now explicitly grants both duties before proving own-attempt exclusion. A prematurely launched full run was interrupted and is not validation evidence. Rerunning focused tests before the final full gate.
+
+
+## v0.7.38 - reporting configuration authority
+
+Finance definition/schedule forms and template preflight/promotion services now enforce stored source office and action authority, with UAT exclusion for Finance sources. Page controls share the boundary; non-Finance roles and separate read/export remain supported. Finance promotion previews additionally require generation authority. Four unauthorized paths reproduced (4 failed denial tests, 2.415 seconds). All 65 focused reporting tests passed in 8.300 seconds; all 629 project tests passed in 187.484 seconds. System, migration-drift, compilation and diff checks passed. Scope: focused reporting contracts and full project regression for shared configuration/service authorization. FIN-GAP-018 verified; stored generation evidence remains FIN-GAP-019.

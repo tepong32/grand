@@ -208,3 +208,18 @@ def has_local_form_workspace_role(user):
         "reporting.manage_local_form_acceptance", "reporting.witness_local_form_tests",
         "reporting.review_local_form_acceptance", "reporting.export_local_form_acceptance",
     ))
+
+
+def can_configure_report(user, permission, definition):
+    department = department_for_user(user)
+    return bool(
+        getattr(user, "is_authenticated", False) and getattr(user, "is_active", False)
+        and department and department.pk == definition.department_id
+        and _authorized(user, permission, department)
+        and report_source_mutation_allowed(user, definition)
+    )
+
+
+def require_report_configuration_permission(actor, permission, definition):
+    if not can_configure_report(actor, permission, definition):
+        raise PermissionDenied("Report configuration requires current owning-office action authority.")

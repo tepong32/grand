@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-028:** Enforce stored source authority for reporting configuration while preserving non-Finance roles and separately authorized read/export.
+
 - **D-001:** Continue My Work as a projection of governed source records, including attributed history. No new parallel task status.
 - **D-002:** Preserve established cross-office Treasury bank-submission access when extending history.
 - **D-003:** Keep portable export permission explicitly administrator-assigned, as the user chose; the 100-row cap is a bounded initial implementation.
@@ -338,3 +340,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Tradeoff: starter cross-office denial is now PermissionDenied. Maker-checker fixtures explicitly grant both duties and refresh permission caches. Generic template/definition/schedule governance remains a separate open slice.
 - Evidence/status: three unauthorized profile/form reviews succeeded before repair (2.699 seconds). All 31 focused tests and 622 project tests passed, including preview-navigation checks without export grants.
 - Revisit when: local acceptance introduces authorized cross-office witnesses or a different package ownership policy; do not infer those rights from readable evidence.
+
+
+## D-028 - Stored source authority for report configuration
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.38.
+- Decision: definition and schedule forms check current owning-office action authority, and template preflight/promotion services reload stored evidence before authorization and lifecycle validation. Finance sources exclude UAT even with head or combined grants. Finance promotion previews also require report-generation authority because they consume financial data.
+- Goal: keep report preparation and official layout changes attributable to the office responsible for the shared transaction history.
+- Alternatives/tradeoffs: a global reporting UAT prohibition would also remove established non-Finance roles. Domain-aware checks retain those roles and separately authorized reading/export. Service reloads preserve the existing caller refresh contract; this does not claim comprehensive concurrent template lifecycle repair.
+- Evidence: four unauthorized configuration paths reproduced before repair; 65 focused and 629 project tests passed, including stored-owner checks and the authorized non-Finance preview-role promotion lifecycle.
+- Revisit when: accepted local policy authorizes cross-office configuration ownership or introduces a different Finance namespace. Stored report generation evidence is tracked separately as FIN-GAP-019.

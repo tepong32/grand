@@ -5,6 +5,8 @@ import io
 from collections import defaultdict
 from datetime import datetime
 from django.utils import timezone
+from django.db import transaction
+from django.core.exceptions import PermissionDenied
 from openpyxl import load_workbook
 from pypdf import PdfReader, PdfWriter
 from reportlab.pdfbase.pdfmetrics import stringWidth
@@ -147,7 +149,16 @@ def inspect_pdf_template(template, payload=None):
     }
 
 
+@transaction.atomic
 def preflight_template(template, actor):
+    from .access import can_configure_report
+    original = template
+    stored = ReportTemplateVersion.objects.select_for_update().select_related("definition").get(pk=template.pk)
+    if not any(can_configure_report(actor, permission, stored.definition) for permission in (
+        "reporting.manage_report_templates", "reporting.prepare_template_promotions", "reporting.approve_reports",
+    )):
+        raise PermissionDenied("Template preflight requires current owning-office configuration authority.")
+    template = stored
     if template.render_mode == template.RENDER_NATIVE:
         return {"mode": template.RENDER_NATIVE, "message": "Native GRAND layout uses controlled built-in rendering."}
     payload = _reference_bytes(template)
@@ -164,6 +175,7 @@ def preflight_template(template, actor):
     template.mapping_validated_at = timezone.now()
     template.full_clean()
     template.save(update_fields=("mapping_checksum", "mapping_summary", "mapping_validated_by", "mapping_validated_at"))
+    original.refresh_from_db()
     return summary
 
 

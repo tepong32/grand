@@ -5,6 +5,7 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
+from django.core.exceptions import PermissionDenied
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -147,6 +148,8 @@ class ReportTemplatePromotionTests(TestCase):
         self.assertTrue(promotion.mapping_diff)
         self.assertEqual(promotion.impact_snapshot["compatible_schedule_ids"], [schedule.pk])
         submit_template_promotion(promotion, self.preparer)
+        self.preparer.user_permissions.add(Permission.objects.get(codename="approve_template_promotions"))
+        self.preparer = get_user_model().objects.get(pk=self.preparer.pk)
         with self.assertRaisesMessage(ValueError, "cannot review"):
             review_template_promotion(promotion, self.preparer, "approve", "Self approval.")
         review_template_promotion(
@@ -266,3 +269,47 @@ class ReportTemplatePromotionTests(TestCase):
         self.assertIn("Compare and promote the editable layout", {step[0] for step in budget["steps"]})
         self.assertIn("Accept the actual local form", {step[0] for step in accounting["steps"]})
         self.assertIn("Record local form acceptance", {step[0] for step in budget["steps"]})
+
+    def test_foreign_office_cannot_review_template_promotion(self):
+        promotion = self._promotion()
+        submit_template_promotion(promotion, self.preparer)
+        self.outsider.user_permissions.add(Permission.objects.get(codename="approve_template_promotions"))
+        with self.assertRaises(PermissionDenied):
+            review_template_promotion(promotion, self.outsider, "return", "Foreign review")
+        promotion.refresh_from_db()
+        self.assertEqual(promotion.status, ReportTemplatePromotion.SUBMITTED)
+
+    def test_template_services_recheck_stored_office_before_mutation(self):
+        promotion = self._promotion()
+        self.outsider.user_permissions.add(*Permission.objects.filter(codename__in=(
+            "prepare_template_promotions", "approve_template_promotions", "activate_template_promotions",
+        )))
+        promotion.candidate_template.definition.department = self.outsider_department
+        calls = (
+            lambda: create_template_promotion(self.candidate, self.outsider, self.start, self.end, "pdf",
+                                               "Foreign change", "Foreign comparison", baseline_run=self.baseline_run),
+            lambda: submit_template_promotion(promotion, self.outsider),
+            lambda: review_template_promotion(promotion, self.outsider, "return", "Foreign return"),
+            lambda: activate_template_promotion(promotion, self.outsider),
+            lambda: rollback_template_promotion(promotion, self.outsider, "Foreign rollback"),
+        )
+        before = promotion.events.count()
+        for index, call in enumerate(calls):
+            with self.subTest(entry_point=index), self.assertRaises(PermissionDenied):
+                call()
+        promotion.refresh_from_db()
+        self.assertEqual(promotion.status, ReportTemplatePromotion.DRAFT)
+        self.assertEqual(promotion.events.count(), before)
+
+    def test_nonfinance_preview_membership_preserves_authorized_template_workflow(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        group = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0]
+        for user in (self.preparer, self.reviewer, self.manager):
+            user.groups.add(group)
+        promotion = self._promotion()
+        submit_template_promotion(promotion, self.preparer)
+        review_template_promotion(promotion, self.reviewer, "approve", "Non-Finance layout approved")
+        activate_template_promotion(promotion, self.manager)
+        rollback_template_promotion(promotion, self.manager, "Return to approved baseline")
+        self.assertEqual(promotion.status, ReportTemplatePromotion.ROLLED_BACK)

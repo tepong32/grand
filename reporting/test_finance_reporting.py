@@ -912,5 +912,95 @@ class FinanceAccountabilityReportingTests(TestCase):
         self.assertEqual(self.client.get(reverse("reporting:statement_mapping_create")).status_code, 403)
 
 
+    def test_uat_cannot_approve_finance_template(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        candidate = ReportTemplateVersion.objects.create(
+            definition=self.accounting_definition, version=99, title="Preview candidate",
+            created_by=self.accounting_preparer, is_active=False,
+        )
+        self.accounting_reviewer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.accounting_reviewer)
+        response = self.client.post(reverse("reporting:template_approve", args=(candidate.pk,)))
+        candidate.refresh_from_db()
+        self.assertEqual((response.status_code, candidate.approved_by_id), (403, None))
+
+    def test_uat_cannot_update_finance_definition(self):
+        from django.contrib.auth.models import Group
+        from django.forms.models import model_to_dict
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        from .forms import ReportDefinitionForm
+        before = self.accounting_definition.name
+        payload = model_to_dict(self.accounting_definition, fields=ReportDefinitionForm.Meta.fields)
+        payload["name"] = "Unauthorized preview definition edit"
+        self.accounting_preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.accounting_preparer)
+        response = self.client.post(reverse("reporting:definition_update", args=(self.accounting_definition.pk,)), payload)
+        self.accounting_definition.refresh_from_db()
+        self.assertEqual((response.status_code, self.accounting_definition.name), (403, before))
+
+    def test_uat_head_cannot_schedule_finance_output(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        from .models import ReportSchedule
+        self.accounting_reviewer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.accounting_reviewer)
+        response = self.client.post(reverse("reporting:schedule_create"), {
+            "definition": self.accounting_definition.pk,
+            "template_version": self.accounting_definition.current_template.pk,
+            "name": "Unauthorized Finance schedule", "frequency": ReportSchedule.MONTHLY,
+            "output_format": "xlsx", "next_run_at": "2027-04-01T09:00", "is_active": "on",
+        })
+        self.assertEqual((response.status_code, ReportSchedule.objects.count()), (403, 0))
+
+
+    def test_uat_finance_template_services_and_controls_recheck_stored_source(self):
+        from copy import copy
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        from .models import ReportTemplatePromotion
+        from .mappers import preflight_template
+        from .template_services import (create_template_promotion, submit_template_promotion,
+                                        review_template_promotion, activate_template_promotion, rollback_template_promotion)
+        run = self.generate_accounting()
+        template = self.accounting_definition.current_template
+        promotion = ReportTemplatePromotion.objects.create(
+            candidate_template=template, preview_run=run, created_by=self.accounting_preparer,
+            change_reason="Synthetic boundary fixture", comparison_note="Synthetic boundary fixture",
+            template_checksum="a" * 64,
+        )
+        self.accounting_reviewer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        template.definition = copy(template.definition)
+        template.definition.dataset_key = "mswd_assistance_volume"
+        promotion.candidate_template = template
+        calls = (
+            lambda: create_template_promotion(template, self.accounting_reviewer, run.period_start, run.period_end,
+                                               "xlsx", "Preview change", "Preview comparison"),
+            lambda: preflight_template(template, self.accounting_reviewer),
+            lambda: submit_template_promotion(promotion, self.accounting_reviewer),
+            lambda: review_template_promotion(promotion, self.accounting_reviewer, "return", "Preview return"),
+            lambda: activate_template_promotion(promotion, self.accounting_reviewer),
+            lambda: rollback_template_promotion(promotion, self.accounting_reviewer, "Preview rollback"),
+        )
+        for index, call in enumerate(calls):
+            with self.subTest(entry_point=index), self.assertRaises(PermissionDenied):
+                call()
+        promotion.refresh_from_db()
+        self.assertEqual(promotion.status, ReportTemplatePromotion.DRAFT)
+        self.assertFalse(promotion.events.exists())
+        self.client.force_login(self.accounting_reviewer)
+        detail = self.client.get(reverse("reporting:template_promotion_detail", args=(promotion.public_id,)))
+        self.assertEqual(detail.status_code, 200)
+        self.assertFalse(detail.context["can_submit"])
+        self.assertFalse(detail.context["can_review"])
+        self.assertFalse(detail.context["can_activate"])
+        self.assertTrue(detail.context["can_export"])
+        definition = self.client.get(reverse("reporting:definition_detail", args=(run.definition_id,)))
+        self.assertFalse(definition.context["can_manage_definitions"])
+        self.assertFalse(definition.context["can_manage_templates"])
+        schedule = self.client.get(reverse("reporting:schedule_create"))
+        self.assertFalse(schedule.context["form"].fields["definition"].queryset.filter(pk=run.definition_id).exists())
+
+
 def tearDownModule():
     shutil.rmtree(FINANCE_REPORT_MEDIA_ROOT, ignore_errors=True)
