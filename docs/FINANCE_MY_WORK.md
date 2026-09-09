@@ -321,3 +321,8 @@ Scheduled reconciliation runs and qualification evidence now have shared source 
 ## v0.7.54 - Readable My Work details
 
 My Work now puts coverage, technical record identifiers and view mechanics in native disclosures. Task actions, gates, exceptions, office scope, timing and source state stay visible. Source-specific accessible names and keyboard focus styling preserve support/audit access without crowding the task list. All 79 My Work/operations tests passed in 61.874 seconds. System, migration-drift and diff checks passed. Isolated authenticated browser checks verified desktop/narrow layouts, keyboard disclosures and exact source navigation. Full regression NOT RUN for this template-only change; v0.7.53 passed 674 tests. D-044 explains the presentation choice; [browser QA](FINANCE_MY_WORK_BROWSER_QA.md) records evidence and the separate FIN-GAP-027 source-page finding.
+
+
+## v0.7.61 - Personal DV print and packet history
+
+Completed by me now includes retained signing-copy preparation, physical-print recording and packet assembly. Each event must match its same-case print job/version/actor and action-specific output/count/custody evidence. Superseded copies remain distinct historical actions, with current copy state and stable event IDs. Malformed or inconsistent references fail closed; current source read access and UAT exclusion remain. Preparation entries retain output identity/checksum; printed-copy entries retain count; assembled-packet entries retain packet/item/checkpoint evidence. This credits the recorded operator, not physical signatories, and does not authorize signing or payment. See [the coverage table](FINANCE_WORK_VIEW_COVERAGE.md) for remaining amendment and posting history.

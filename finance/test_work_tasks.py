@@ -1918,6 +1918,50 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         self.preparer.user_permissions.clear()
         self.assertFalse(finance_work_tasks(self.preparer, view="completed")["tasks"])
 
+    def test_print_history_requires_matching_retained_child_and_current_read_access(self):
+        from vouchers.models import VoucherEvent
+
+        item = self._case("PRINT-HISTORY", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True)
+        job = self._print_job(item, VoucherPrintJob.READY_TO_PRINT)
+        foreign = self._case("PRINT-HISTORY-OTHER", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True)
+        foreign_job = self._print_job(foreign, VoucherPrintJob.READY_TO_PRINT)
+        meta = {"print_job_id": job.pk, "print_version": job.version,
+                "output_id": job.output_id, "checksum": job.output_checksum}
+        for index, (metadata, actor, stage) in enumerate([
+            (meta, self.print_operator, VoucherCase.AWAITING_SIGNATURES),
+            ({**meta, "print_job_id": foreign_job.pk}, self.print_operator, VoucherCase.AWAITING_SIGNATURES),
+            ({**meta, "print_version": 999}, self.print_operator, VoucherCase.AWAITING_SIGNATURES),
+            ({**meta, "checksum": "wrong"}, self.print_operator, VoucherCase.AWAITING_SIGNATURES),
+            ({**meta, "print_job_id": True}, self.print_operator, VoucherCase.AWAITING_SIGNATURES),
+            ({**meta, "print_job_id": "9" * 80}, self.print_operator, VoucherCase.AWAITING_SIGNATURES),
+            ({**meta, "print_job_id": str(2**63)}, self.print_operator, VoucherCase.AWAITING_SIGNATURES),
+            ([], self.print_operator, VoucherCase.AWAITING_SIGNATURES),
+            (meta, self.signature_operator, VoucherCase.AWAITING_SIGNATURES),
+            (meta, self.print_operator, VoucherCase.TREASURY_RELEASE),
+        ]):
+            VoucherEvent.objects.create(
+                case=item, action="dv_signing_copy_ready", from_stage=stage,
+                to_stage=VoucherCase.AWAITING_SIGNATURES, actor=actor, actor_department=self.accounting,
+                state_version=index + 1, idempotency_key=f"print-history-{index}", metadata=metadata,
+            )
+        tasks = finance_work_tasks(self.print_operator, view="completed")["tasks"]
+        self.assertEqual(len(tasks), 1)
+        self.assertIn("v1", tasks[0]["subject"])
+        self.assertFalse(finance_work_tasks(self.signature_operator, view="completed")["tasks"])
+        VoucherPrintJob.objects.filter(pk=job.pk).update(status=VoucherPrintJob.SUPERSEDED)
+        item.current_department = self.other
+        item.save(update_fields=("current_department",))
+        retained = finance_work_tasks(self.print_operator, view="completed")["tasks"]
+        self.assertEqual([task["task_id"] for task in retained], [tasks[0]["task_id"]])
+        self.assertIn("superseded", retained[0]["exception"].lower())
+        self.assertNotEqual(retained[0]["source_version"], tasks[0]["source_version"])
+        group, _ = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)
+        self.print_operator.groups.add(group)
+        self.assertFalse(finance_work_tasks(self.print_operator, view="completed")["tasks"])
+        self.print_operator.groups.remove(group)
+        self.print_operator.user_permissions.clear()
+        self.assertFalse(finance_work_tasks(self.print_operator, view="completed")["tasks"])
+
     def test_signature_completion_credits_service_recorder_not_signatory(self):
         from vouchers.services import record_signature_return
 

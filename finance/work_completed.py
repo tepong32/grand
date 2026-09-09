@@ -386,6 +386,7 @@ def completed_dv_tasks(user, department, today):
     from vouchers.models import VoucherCase, VoucherEvent
     from vouchers.roles import is_finance_uat_viewer
     from .work_tasks import FinanceWorkTask, _age_days, _projection_checksum, _source_record_identity
+    from .work_dv_print_history import PRINT_HISTORY_ACTIONS, print_history_evidence
 
     if is_finance_uat_viewer(user) or not can_view_workbench(user):
         return []
@@ -397,15 +398,23 @@ def completed_dv_tasks(user, department, today):
         "wet_signatures_completed": (VoucherCase.AWAITING_SIGNATURES, {VoucherCase.ACCOUNTING_VALIDATION}, "Recorded final wet-signature return for validation"),
         "accounting_validated": (VoucherCase.ACCOUNTING_VALIDATION, {VoucherCase.ACCOUNTING_POSTING}, "Validated DV for Accounting posting"),
     }
-    events = VoucherEvent.objects.filter(
+    specs.update({action: (VoucherCase.AWAITING_SIGNATURES, {VoucherCase.AWAITING_SIGNATURES}, label)
+                  for action, (_actor, label) in PRINT_HISTORY_ACTIONS.items()})
+    events = list(VoucherEvent.objects.filter(
         actor_id=user.pk, case__in=visible_cases_for_user(user), action__in=specs,
-    ).select_related("case", "actor_department")
+    ).select_related("case", "actor_department"))
+    print_evidence = print_history_evidence(events)
     tasks = []
     for event in events:
         item = event.case
         before, targets, label = specs[event.action]
         if event.from_stage != before or event.to_stage not in targets:
             continue
+        detail = print_evidence.get(event.pk)
+        if event.action in PRINT_HISTORY_ACTIONS:
+            if detail is None:
+                continue
+            label = detail["label"]
         event_id = _source_record_identity("dv-event", event.pk)
         revision = _projection_checksum({
             "event_id": str(event_id), "action": event.action, "actor_id": event.actor_id,
@@ -413,6 +422,7 @@ def completed_dv_tasks(user, department, today):
             "metadata": event.metadata, "reason": event.reason, "source_id": str(item.public_id),
             "from_stage": event.from_stage, "to_stage": event.to_stage, "state_version": event.state_version,
             "current_stage": item.current_stage, "reference": item.reference_code,
+            **({"print_evidence": detail["snapshot"]} if detail else {}),
         })
         tasks.append(FinanceWorkTask(
             task_id=f"finwork:v1:dv-event:{event_id}:completed",
@@ -426,7 +436,8 @@ def completed_dv_tasks(user, department, today):
             calendar_basis="Elapsed calendar days since the retained DV action. Current case custody and stage remain separate.",
             age_days=_age_days(event.created_at, today), state="Completed", source_state=item.get_current_stage_display(),
             source_version=f"event-sha256:{revision}",
-            exception="This credits custody recording, not the recorder's own wet signature." if event.action.startswith("wet_signature") else "",
+            exception=(f"Copy state: {detail['state']}. {detail['exception']}".strip() if detail else
+                       "This credits custody recording, not the recorder's own wet signature." if event.action.startswith("wet_signature") else ""),
             url=reverse("vouchers:case_detail", kwargs={"public_id": item.public_id}),
         ))
     return tasks

@@ -3092,6 +3092,24 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(event.snapshot["print_history_row_count"], 3)
         self.assertEqual(event.snapshot["custody_filter"], VoucherPrintJob.READY_TO_PRINT)
 
+        from finance.work_tasks import finance_work_tasks
+        history = [task for task in finance_work_tasks(self.preparer, view="completed")["tasks"]
+                   if task["task_type"] in {
+                       "finance.dv.dv_signing_copy_ready.completed.v1",
+                       "finance.dv.dv_copies_printed.completed.v1",
+                       "finance.dv.finance_packet_assembled.completed.v1",
+                   }]
+        self.assertEqual(len(history), 7)
+        self.assertEqual(len({task["task_id"] for task in history}), 7)
+        self.assertEqual(sum("superseded" in task["exception"].lower() for task in history), 6)
+        self.assertEqual({task["case_id"] for task in history}, {f"voucher-case:{case.public_id}"})
+        self.assertTrue(any(first_job.packet_reference in task["subject"] for task in history))
+        original_history_ids = {task["task_id"] for task in history}
+        case.current_department = self.treasury
+        case.save(update_fields=("current_department",))
+        moved = finance_work_tasks(self.preparer, view="completed")["tasks"]
+        self.assertTrue(original_history_ids.issubset({task["task_id"] for task in moved}))
+
     def test_tracepoint_link_records_only_custody_reference_not_financial_fields(self):
         case = self.create_case("tracepoint-create")
         packet = TrackedPacket.objects.create(

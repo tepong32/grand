@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.61 - Personal DV print and packet history
+
+Completed by me now includes retained signing-copy preparation, physical-print recording and packet assembly. Each event must match its same-case print job/version/actor and action-specific output/count/custody evidence. Superseded copies remain distinct historical actions, with current copy state and stable event IDs. Malformed or inconsistent references fail closed; current source read access and UAT exclusion remain. PASS: 178 voucher/custody/My Work/operations tests in 93.699 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.60 - Payment form readiness and exact signature attention
 
 Payment forms now use current-office source actions, eligible cancellation states and nonterminal custody-link controls. Returned checks no longer reduce the replacement default, and stale/returned instruments are excluded from release choices with recovery guidance. Initial bank-advice preparation is hidden once issued checks belong to a current batch. Generic signature-stage attention now uses the real print/signature selectors. PASS: 177 voucher/custody/My Work/operations tests in 96.163 seconds. PASS: 692 full-project tests in 248.224 seconds. System, migration-drift, compilation and diff checks passed.
