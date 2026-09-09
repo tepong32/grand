@@ -1,5 +1,7 @@
 # GRAND Finance complete-cycle roadmap
 
+Finance v0.7.70 (development branch): bank-match conflict handling and native identity checks are verified; a repeatable native test runner/CI job is implemented. Local SQLite/MySQL gates passed; remote CI is unperformed because CLI authentication is invalid. See [the validation report](FINANCE_BANK_MATCH_VALIDATION_2026-09-09.md). Continuing bounded scrutiny after this checkpoint; remaining scrutiny and all external acceptance gates are preserved.
+
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
 Status: canonical delivery roadmap for the professional GRAND Finance sub-application. The current implementation is a shadow/UAT foundation, not yet the LGU's authoritative finance system.

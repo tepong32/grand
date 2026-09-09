@@ -31,6 +31,12 @@ The public COA Government Accounting Manual Chapter 21 describes bank reconcilia
 
 Until submission, and again after a return, the preparer may correct declared controls, replace the staged CSV, change a match, or replace timing-item evidence. Every replacement requires a reason where applicable; source versions, prior matches/classifications, checksums, actors, and events remain retained. If a later-bank match is removed or its statement is restaged, GRAND reopens the timing items that match had cleared, with the correction reason; a corrected rematch closes the same lineage again. Under review and after reconciliation, controls are read-only. A later discovered book error uses an adjusting/reversing JEV and, where required, a successor BRS rather than rewriting the closed record.
 
+## Concurrent matching
+
+An active bank row and an active journal-line match each have a database-enforced identity on MySQL and SQLite. Superseded matches remain as history. The migration stops for investigation if existing active duplicates are found; it never removes or rewrites reconciliation evidence.
+
+When a known native deadlock or active-match collision aborts manual or automatic matching, GRAND reports that the request was rolled back and asks the preparer to reload and inspect current matches before retrying. Automatic matching translates the conflict only after its complete transaction exits; a nested match does not continue inside an aborted batch. No failed action is implicitly replayed. Unrelated database failures remain visible as failures. See [the native regression gate](FINANCE_NATIVE_TESTING.md) and FIN-GAP-035 for validation status.
+
 ## Starter CSV
 
 The CSV is deliberately plain and macro-free:
@@ -56,3 +62,6 @@ Both exports are controlled working/evidence data, not automatically an official
 ## Acceptance still required
 
 Before official use, named Accounting, Treasury, management, and audit-coordination owners must confirm the actual bank statement formats, bank-account/fund scope, local ageing/escalation treatment for carried items, bank debit/credit memo route, book-adjustment route, local review/signature matrix, deadlines/copies/recipients, official BRS layout, and at least two consecutive redacted months replayed through carry-forward, later clearance, and zero difference.
+
+
+Validation: [v0.7.70 evidence and limitations](FINANCE_BANK_MATCH_VALIDATION_2026-09-09.md). PASS: full SQLite run, 711 tests discovered in 355.841 seconds (710 executed; one MySQL-only case skipped); full MySQL 8.4.12 run through the committed native runner, all 711 tests in 767.251 seconds. System, migration-drift, compilation and diff checks passed.

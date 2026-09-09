@@ -19,6 +19,7 @@ from .access import (
     can_prepare_opening_balances, can_reconcile_controls, can_prepare_bank_reconciliation,
     department_for_user,
 )
+from .bank_conflicts import bank_match_conflict_boundary
 from .models import (
     AccountingAuditEvent, AccountingPeriod, ControlAccountReconciliation, FiscalYear,
     FiscalYearReadinessApproval, Fund, FundingSource, JournalEntry, JournalLine,
@@ -1987,6 +1988,7 @@ def _reopen_cleared_items_for_matches(matches, actor, *, reason):
     return items
 
 
+@bank_match_conflict_boundary
 @transaction.atomic(using=FINANCE_DB)
 def match_bank_statement_row(row, line, actor, *, reason, method=BankStatementMatch.MANUAL):
     if not can_prepare_bank_reconciliation(actor):
@@ -2039,6 +2041,7 @@ def match_bank_statement_row(row, line, actor, *, reason, method=BankStatementMa
     return match
 
 
+@bank_match_conflict_boundary
 @transaction.atomic(using=FINANCE_DB)
 def auto_match_bank_statement(batch, actor):
     if not can_prepare_bank_reconciliation(actor):

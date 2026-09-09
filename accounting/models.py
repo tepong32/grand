@@ -1266,6 +1266,10 @@ class BankStatementMatch(models.Model):
     method = models.CharField(max_length=12, choices=METHOD_CHOICES)
     reason = models.TextField()
     status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=ACTIVE)
+    active_identity_marker = models.GeneratedField(
+        expression=models.Case(models.When(status="active", then=models.Value(1)), default=models.Value(None)),
+        output_field=models.PositiveSmallIntegerField(), db_persist=True, null=True,
+    )
     source_snapshot = models.JSONField(default=dict)
     source_checksum = models.CharField(max_length=64)
     created_by_id = models.PositiveBigIntegerField()
@@ -1277,11 +1281,11 @@ class BankStatementMatch(models.Model):
         ordering = ("statement_row__row_number", "-created_at", "-pk")
         constraints = (
             models.UniqueConstraint(
-                fields=("statement_row",), condition=models.Q(status="active"),
+                fields=("statement_row", "active_identity_marker"),
                 name="unique_active_statement_row_match",
             ),
             models.UniqueConstraint(
-                fields=("journal_line",), condition=models.Q(status="active"),
+                fields=("journal_line", "active_identity_marker"),
                 name="unique_active_bank_journal_match",
             ),
         )

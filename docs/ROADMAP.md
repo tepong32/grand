@@ -1,5 +1,7 @@
 # GRAND product roadmap
 
+Finance v0.7.70 (development branch): bank-match conflict handling and native identity checks are verified; a repeatable native test runner/CI job is implemented. Local SQLite/MySQL gates passed; remote CI is unperformed because CLI authentication is invalid. See [the validation report](FINANCE_BANK_MATCH_VALIDATION_2026-09-09.md). Continuing bounded scrutiny after this checkpoint; remaining scrutiny and all external acceptance gates are preserved.
+
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
 This file records the platform-level delivery history and product direction. Each implementation phase uses a dedicated `codex/` branch, tests, synthetic showcase data, portfolio screenshots, review, CI, and merge into `master`. See the [documentation map](README.md) for operator and project guides.

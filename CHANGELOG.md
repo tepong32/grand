@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.70 - Controlled bank-match conflicts and native regression
+
+Bank matching now reports known conflicts after complete rollback, with an explicit reload/check/retry instruction and no implicit replay. Generated nullable keys enforce active bank-row and journal-line match identities while preserving superseded history. Migration accounting/0011 refuses historical duplicates before DDL. A committed fresh two-store MySQL runner and independent CI service job complement SQLite.
+
+PASS: full SQLite run, 711 tests discovered in 355.841 seconds (710 executed; one MySQL-only case skipped); full MySQL 8.4.12 run through the committed native runner, all 711 tests in 767.251 seconds. System, migration-drift, compilation and diff checks passed. Remote CI not run because GitHub CLI authentication is invalid. Production remains NO-GO.
+
 ## v0.7.69 - Native Finance recovery and persistence controls
 
 Coordinated native capture prevents the reproduced cross-store snapshot race and fails closed on missing privilege, different servers or lost locking connections. Payable projections preserve complete source kinds and consolidated UUID references. Budget generated nullable keys enforce original requests, numbered obligations and active allocations on MySQL and SQLite. Duplicate-data migration preflights require controlled investigation instead of altering history. Migrations: vouchers/0022-0023 and budget/0007-0008; no live/user database migration.

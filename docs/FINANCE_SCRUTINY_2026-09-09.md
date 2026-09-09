@@ -84,7 +84,7 @@ The real LGU interviews, enabled scope, accepted forms, master data, opening bal
 
 ### Next bank-concurrency finding
 
-FIN-GAP-035 remains MEDIUM - OPEN. A native two-statement matching probe retained one active match but aborted the other transaction with a journal-line lock-upgrade deadlock. Repeating the interleaving through the actual authenticated endpoint returned HTTP 500 and HTTP 302 (1 failed regression, 6.792 seconds). The single-match count is an integrity observation for this experiment, not a passing user workflow or proof of all native uniqueness invariants. The gap register records the lock trace, safe interim check and bounded remediation scope. This finding is separate from the v0.7.69 backup/Budget repairs and remains next work.
+FIN-GAP-035 was open at v0.7.69 and is now verified in v0.7.70; see [the bank-conflict validation](FINANCE_BANK_MATCH_VALIDATION_2026-09-09.md). A native two-statement matching probe retained one active match but aborted the other transaction with a journal-line lock-upgrade deadlock. Repeating the interleaving through the actual authenticated endpoint returned HTTP 500 and HTTP 302 (1 failed regression, 6.792 seconds). The single-match count is an integrity observation for this experiment, not a passing user workflow or proof of all native uniqueness invariants. The gap register records the lock trace, safe interim check and bounded remediation scope. The bank-conflict repair is a separate v0.7.70 checkpoint; overall scrutiny remains incomplete.
 
 
 ## Final v0.7.69 checkpoint

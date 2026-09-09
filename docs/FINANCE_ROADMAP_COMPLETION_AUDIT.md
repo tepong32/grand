@@ -418,3 +418,12 @@ Coordinated native capture prevents the reproduced cross-store snapshot race and
 PASS: final full SQLite suite, 708 tests in 314.043 seconds; final full MySQL 8.4.12 suite, 708 tests in 854.600 seconds. Both aliases remained separate. System, migration-drift, compilation and diff checks passed. The final affected native suite also passed 178 tests in 182.916 seconds.
 
 See [the scrutiny report](FINANCE_SCRUTINY_2026-09-09.md), FIN-GAP-032/033/034 and D-059/D-060/D-061 for evidence and limits. Overall scrutiny and LGU acceptance remain incomplete; production stays NO-GO.
+
+
+## v0.7.70 - Controlled bank-match conflicts and native regression
+
+Bank matching now reports known conflicts after complete rollback, with an explicit reload/check/retry instruction and no implicit replay. Generated nullable keys enforce active bank-row and journal-line match identities while preserving superseded history. Migration accounting/0011 refuses historical duplicates before DDL. A committed fresh two-store MySQL runner and independent CI service job complement SQLite.
+
+PASS: full SQLite run, 711 tests discovered in 355.841 seconds (710 executed; one MySQL-only case skipped); full MySQL 8.4.12 run through the committed native runner, all 711 tests in 767.251 seconds. System, migration-drift, compilation and diff checks passed. Remote CI not run because GitHub CLI authentication is invalid. Production remains NO-GO.
+
+See [the validation report](FINANCE_BANK_MATCH_VALIDATION_2026-09-09.md), FIN-GAP-035 and D-062/D-063. The user cancelled the planned pause; continue bounded scrutiny after this checkpoint.

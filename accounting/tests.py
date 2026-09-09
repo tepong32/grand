@@ -8,7 +8,7 @@ import tempfile
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.db import connections
+from django.db import IntegrityError, connections, transaction
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -1828,6 +1828,15 @@ class StandaloneAccountingTests(TestCase):
         first_row = staged.rows.get(source_version=1)
         first_match = BankStatementMatch.objects.get(statement_row=first_row, status=BankStatementMatch.ACTIVE)
         self.assertEqual(first_match.journal_line_id, deposit_line.pk)
+        # The database must reject a second active identity even for direct
+        # inserts; native MySQL does not implement conditional unique indexes.
+        with self.assertRaises(IntegrityError), transaction.atomic(using="finance"):
+            BankStatementMatch.objects.create(
+                batch=staged, statement_row=first_row, journal_line=check_bank_line,
+                method=BankStatementMatch.MANUAL, reason="Synthetic duplicate row identity probe",
+                source_snapshot=first_match.source_snapshot, source_checksum=first_match.source_checksum,
+                created_by_id=self.preparer.pk, created_by_label=self.preparer.username,
+            )
 
         unmatch_bank_statement_row(first_row, self.preparer, reason="Recheck against corrected bank description.")
         staged = stage_bank_statement_csv(
@@ -1838,6 +1847,11 @@ class StandaloneAccountingTests(TestCase):
         self.assertEqual(staged.source_version, 2)
         self.assertTrue(BankStatementMatch.objects.filter(pk=first_match.pk, status=BankStatementMatch.SUPERSEDED).exists())
         self.assertEqual(auto_match_bank_statement(staged, self.preparer), 1)
+        with self.assertRaises(IntegrityError), transaction.atomic(using="finance"):
+            BankStatementMatch.objects.filter(pk=first_match.pk).update(status=BankStatementMatch.ACTIVE)
+        first_match.refresh_from_db()
+        self.assertEqual(first_match.status, BankStatementMatch.SUPERSEDED)
+        self.assertIsNone(first_match.active_identity_marker)
         classify_bank_outstanding(
             staged, check_bank_line, self.preparer,
             explanation="Issued near month-end and absent from the January bank statement.",
