@@ -10,6 +10,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-048:** Reuse source action selectors for voucher preparation, independent review and ordered signature controls; keep separately authorized UAT reads and suppress duplicate pending amendments.
 - **D-047:** Bind DV output generation and legacy packet linking to the stored pinned Finance owner, preserving Accounting artifact work across custody; recheck stored packet visibility.
 - **D-046:** Share existing return destinations and posted/draft-JEV blockers between the source service and form; expose the control only to its current office.
 
@@ -573,3 +574,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Evidence: Three reproductions produced seven failed assertions in 4.682 seconds. Verified unrelated-office generation/new-link/replay, forged stored-owner/current-packet inputs, stale association, HTTP/page denial, UAT and retained financial/file evidence. Existing owner output-after-Treasury and linking-during-Budget workflows remain valid. All 90 focused voucher/custody tests passed in 60.994 seconds. All 684 full-project tests passed in 407.127 seconds. System, migration-drift, compilation and diff checks passed.
 - Revisit when: adding explicit artifact delegation or changing TracePoint visibility; any policy change needs its own accepted scope and source tests.
 - Edge case: cases without a pinned configuration owner fail closed for artifact authority, including amendments. Verification also covers inactive accounts. An initial full run was stopped after source review identified this missing-owner guard; only the final source's completed runs count toward the checkpoint.
+
+## D-048 - Source action parity for voucher review and signature forms
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.58.
+- Decision: deny mutation display for combined-grant UAT accounts while preserving their separate read/audit permissions. Use existing payable and DV preparation selectors for office and maker-checker scope, and the signature selector for the next eligible task in the displayed and submitted form. Use the existing source queue filter for the main-task banner. Suppress a new amendment while replacement signatures are pending.
+- Goal: the personal queue, source form and source mutation boundary should agree about who can act and which retained step comes next. Readable source evidence and incomplete-readiness explanations remain available to authorized readers.
+- Alternatives/tradeoffs: duplicating actor/office/order rules in templates would diverge again; widening the queue would weaken controls. Reuse existing source contracts and preserve administrator exemptions, immutable signature evidence and the separate pinned-owner artifact route. Printing dependencies and payment-form controls remain separately tracked under FIN-GAP-029.
+- Evidence: Five page/HTTP tests produced 13 failed assertions in 16.500 seconds. Combined-grant UAT reads and denied controls, Budget-certifier exclusion and existing exemption, own/wrong-office payable review, signature order and pending amendment controls verified. All 174 focused voucher/My Work/operations tests passed in 301.273 seconds. All 689 full-project tests passed in 237.536 seconds. System, migration-drift, compilation and diff checks passed. Mutation services remain authoritative and unchanged.
+- Revisit when: adding source actions or exemptions; update the selector and its direct service/HTTP/page tests together instead of adding another independent rule.
+- Verification limitation: the first full-regression attempt was interrupted by loss of the tool host and had no completion summary. It is NOT RUN - ENVIRONMENTAL (incomplete), retained in `.tmp/finance-v0758-full-interrupted.log`; only the restarted, completed run can count as checkpoint evidence.

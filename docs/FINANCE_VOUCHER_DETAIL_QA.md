@@ -28,3 +28,7 @@ The isolated default/Finance database pair and browser fixture are described in 
 - [Keyboard evidence scrolling](../output/playwright/finance-voucher-detail/evidence-keyboard-scroll.png)
 
 All 77 focused voucher tests passed in 46.346 seconds. All 84 My Work/operations/signature dependency tests passed in 56.615 seconds. System, migration-drift, compilation and diff checks passed. Full regression is not planned for this isolated source-page selector reuse and scoped template presentation change; existing mutation services, permissions, models and source selectors are unchanged. The preceding complete project gate passed 674 tests in v0.7.53. Wider workflow, browser-engine and actual device/accessibility acceptance remains separate.
+
+## v0.7.58 backend page sampling
+
+During source-control regression, the retained isolated v0.7.53 fixture was read through Django's test client at Accounting validation. Three warmed GETs per role all returned 200: preparer median 0.560 seconds (237 default-store queries, 3 Finance-store queries); reviewer median 0.493 seconds (231 default-store queries, 3 Finance-store queries). Query capture was enabled while the full regression ran. The ignored `.tmp/finance_page_benchmark.py` asserts both isolated database paths before setup; no operator database was used. Scope is this small local fixture and backend request path. Browser rendering, concurrency, larger datasets and production database latency remain unmeasured. Existing desktop/narrow/keyboard browser evidence above remains the presentation baseline.

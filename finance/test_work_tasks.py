@@ -1418,6 +1418,26 @@ class FinancePayableWorkTaskContractTests(TestCase):
         )
 
 
+    def test_payable_detail_review_controls_match_source_actor_and_office(self):
+        ready = self._case("PAY-PAGE-READY", stage=VoucherCase.PAYABLE_REVIEW,
+            current=self.accounting, submitted_by=self.preparer, status=PayableIntake.FOR_REVIEW)
+        own = self._case("PAY-PAGE-OWN", stage=VoucherCase.PAYABLE_REVIEW,
+            current=self.accounting, prepared_by=self.reviewer, submitted_by=self.reviewer,
+            status=PayableIntake.FOR_REVIEW)
+        other = self._case("PAY-PAGE-OTHER", stage=VoucherCase.PAYABLE_REVIEW,
+            current=self.other_requesting, submitted_by=self.preparer, status=PayableIntake.FOR_REVIEW)
+        self.client.force_login(self.reviewer)
+        response = self.client.get(reverse("vouchers:case_detail", args=(ready.public_id,)))
+        self.assertContains(response, "Record review decision")
+        self.assertTrue(response.context["case_ready_for_user"])
+        for case in (own, other):
+            response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+            with self.subTest(case=case.reference_code, control="review form"):
+                self.assertNotContains(response, "Record review decision")
+            with self.subTest(case=case.reference_code, control="main action"):
+                self.assertFalse(response.context["case_ready_for_user"])
+
+
 class FinanceDVCustodyWorkTaskContractTests(TestCase):
     databases = {"default", "finance"}
 

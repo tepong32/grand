@@ -4494,3 +4494,88 @@ class VoucherWorkflowTests(TestCase):
             link_tracepoint_item(case=owned, item=item, actor=self.preparer,
                 expected_version=owned.state_version, idempotency_key="inactive-owner-link")
         self.assertFalse(case.events.filter(idempotency_key__startswith="missing-owner-").exists())
+
+    def test_voucher_detail_uat_preserves_reads_but_hides_all_mutation_grants(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        case = self.create_case("detail-uat-controls")
+        self.budget_certify(case)
+        self.accounting_prepare(case)
+        self.preparer.user_permissions.add(*Permission.objects.filter(content_type__app_label="vouchers"))
+        self.preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertContains(response, "Read-only UAT review")
+        read_keys = {"audit", "advice_view", "cash_view"}
+        self.assertTrue(all(response.context["permissions"][key] for key in read_keys))
+        with self.subTest(control="mutation flags"):
+            self.assertEqual([key for key, value in response.context["permissions"].items() if value and key not in read_keys], [])
+        with self.subTest(control="signature form"):
+            self.assertNotContains(response, "Record returned signature")
+        self.assertFalse(response.context["case_ready_for_user"])
+
+    def test_dv_preparation_page_respects_certifier_separation_and_existing_exemption(self):
+        self.budget_user.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="prepare_disbursement_voucher"))
+        case = self.create_case("detail-preparation-separation")
+        self.budget_certify(case)
+        self.client.force_login(self.budget_user)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        with self.subTest(control="maker preparation"):
+            self.assertNotContains(response, "Create controlled DV")
+        with self.subTest(control="maker banner"):
+            self.assertFalse(response.context["case_ready_for_user"])
+        FinanceWorkflowExemption.objects.create(
+            department=self.budget, control_code=FinanceWorkflowExemption.BUDGET_CERTIFIER_DV_PREPARATION,
+            subject_user=self.budget_user, rationale="Synthetic accepted scarce-staff control.",
+            effective_from=date(2026, 1, 1), created_by=self.validator,
+        )
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertContains(response, "Create controlled DV")
+        self.assertTrue(response.context["case_ready_for_user"])
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertNotContains(response, "Create controlled DV")
+        self.assertFalse(response.context["case_ready_for_user"])
+
+    def test_signature_form_lists_only_the_next_source_authorized_return(self):
+        case = self.create_case("detail-signature-order")
+        self.budget_certify(case)
+        self.accounting_prepare(case)
+        tasks = list(case.signature_tasks.order_by("sequence"))
+        self.assertGreater(len(tasks), 1)
+        self.client.force_login(self.preparer)
+        detail = reverse("vouchers:case_detail", args=(case.public_id,))
+        response = self.client.get(detail)
+        with self.subTest(control="next return only"):
+            self.assertEqual(list(response.context["signature_form"].fields["task"].queryset), [tasks[0]])
+        case.refresh_from_db()
+        original_version = case.state_version
+        response = self.client.post(reverse("vouchers:case_action", args=(case.public_id, "record-signature")), {
+            "task": tasks[1].pk, "note": "An altered form cannot skip the source order.",
+            "state_version": original_version, "idempotency_key": "out-of-order-form",
+        })
+        self.assertEqual(response.status_code, 302)
+        case.refresh_from_db(); tasks[1].refresh_from_db()
+        self.assertEqual(case.state_version, original_version)
+        self.assertEqual(tasks[1].status, WetSignatureTask.PENDING)
+        self.assertFalse(case.events.filter(idempotency_key="out-of-order-form").exists())
+        response = self.client.post(reverse("vouchers:case_action", args=(case.public_id, "record-signature")), {
+            "task": tasks[0].pk, "note": "First physical signature returned.",
+            "state_version": original_version, "idempotency_key": "first-signature-form",
+        })
+        self.assertEqual(response.status_code, 302)
+        response = self.client.get(detail)
+        self.assertEqual(list(response.context["signature_form"].fields["task"].queryset), [tasks[1]])
+        self.treasury_user.user_permissions.add(Permission.objects.get(content_type__app_label="vouchers", codename="track_wet_signatures"))
+        self.client.force_login(self.treasury_user)
+        response = self.client.get(detail)
+        self.assertNotContains(response, "Record returned signature")
+        self.assertFalse(response.context["signature_form"].fields["task"].queryset.exists())
+
+    def test_pending_amendment_hides_new_amendment_control(self):
+        case, amendment, first, replacement = self._pending_amendment_reprint()
+        self.client.force_login(self.preparer)
+        response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
+        self.assertEqual(amendment.status, VoucherNonFinancialAmendment.AWAITING_SIGNATURES)
+        self.assertNotContains(response, "Create non-financial amendment")

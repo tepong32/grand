@@ -29,7 +29,7 @@ from .forms import (
 )
 from .models import (
     PaymentInstrument, VoucherCase, VoucherCaseSavedView, VoucherOutput, VoucherPostingRequest,
-    VoucherPrintJob,
+    VoucherPrintJob, VoucherNonFinancialAmendment,
 )
 from .roles import STAGE_NEXT_ACTION, finance_workspace_profile, is_finance_uat_viewer
 from .saved_views import save_private_case_view
@@ -59,7 +59,7 @@ def _safe_writerow(writer, values):
 
 
 def _permissions(user):
-    return {
+    permissions = {
         "initiate_payable": has_explicit_permission(user, "vouchers.initiate_payable_case"),
         "certify": has_explicit_permission(user, "vouchers.certify_budget_obligation"),
         "review_payable": has_explicit_permission(user, "vouchers.review_payable_intake"),
@@ -81,6 +81,10 @@ def _permissions(user):
         "amend_nonfinancial": has_explicit_permission(user, "vouchers.amend_nonfinancial_voucher"),
         "audit": has_explicit_permission(user, "vouchers.view_voucher_audit"),
     }
+    if is_finance_uat_viewer(user):
+        for key in permissions.keys() - {"advice_view", "cash_view", "audit"}:
+            permissions[key] = False
+    return permissions
 
 
 def _actionable_stages(permissions, can_access_accounting=False):
@@ -339,7 +343,16 @@ def _voucher_deduction_formset(case, data=None):
 def case_detail(request, public_id):
     case = _case(public_id, request.user)
     permissions = _permissions(request.user)
-    from .case_exports import accounting_validation_action_queryset, legacy_budget_action_queryset
+    from .case_exports import (
+        accounting_validation_action_queryset, dv_custody_action_queryset,
+        dv_signature_task_queryset, legacy_budget_action_queryset, payable_action_queryset,
+    )
+    for key, action in (("initiate_payable", "preparation"), ("review_payable", "review")):
+        action_cases, _, _ = payable_action_queryset(request.user, action)
+        permissions[key] = action_cases.filter(pk=case.pk).exists()
+    preparation_cases, _, _ = dv_custody_action_queryset(request.user, "dv_preparation")
+    permissions["prepare"] = preparation_cases.filter(pk=case.pk).exists()
+    permissions["signatures"] = dv_signature_task_queryset(request.user).filter(case_id=case.pk).exists()
     permissions["certify"] = legacy_budget_action_queryset(request.user).filter(pk=case.pk).exists()
     validation_cases, _, _ = accounting_validation_action_queryset(request.user)
     permissions["validate"] = validation_cases.filter(pk=case.pk).exists()
@@ -357,6 +370,10 @@ def case_detail(request, public_id):
         permissions,
         can_handle_posting and not profile["is_uat_viewer"],
     )
+    ready_cases, *_ = apply_case_filters(
+        VoucherCase.objects.filter(pk=case.pk), actionable_stages=actionable_stages,
+        attention="ready_for_me", actor=request.user,
+    )
     amendment_stages = {
         VoucherCase.AWAITING_SIGNATURES,
         VoucherCase.ACCOUNTING_VALIDATION,
@@ -368,11 +385,11 @@ def case_detail(request, public_id):
     return render(request, "vouchers/case_detail.html", {
         "case": case, "permissions": permissions, "workspace_profile": profile,
         "next_action_label": STAGE_NEXT_ACTION.get(case.current_stage, case.get_current_stage_display()),
-        "case_ready_for_user": case.current_stage in actionable_stages,
+        "case_ready_for_user": ready_cases.exists(),
         "budget_form": BudgetCertificationForm(case=case),
         "voucher_form": VoucherPreparationForm(case=case),
         "voucher_deduction_formset": _voucher_deduction_formset(case),
-        "signature_form": SignatureReturnForm(case=case),
+        "signature_form": SignatureReturnForm(case=case, user=request.user),
         "validation_form": AccountingValidationForm(case=case),
         "check_form": CheckIssueForm(case=case),
         "submit_checks_form": SubmitChecksForm(case=case),
@@ -398,6 +415,7 @@ def case_detail(request, public_id):
             and hasattr(case, "disbursement_voucher")
             and case.current_stage in amendment_stages
             and not case.payment_instruments.exists()
+            and not case.nonfinancial_amendments.filter(status=VoucherNonFinancialAmendment.AWAITING_SIGNATURES).exists()
         ),
     })
 
@@ -435,7 +453,10 @@ def case_action(request, public_id, action):
     form_class = forms.get(action)
     if not form_class:
         raise Http404
-    form = form_class(request.POST, case=case)
+    form_kwargs = {"case": case}
+    if form_class is SignatureReturnForm:
+        form_kwargs["user"] = request.user
+    form = form_class(request.POST, **form_kwargs)
     deduction_formset = _voucher_deduction_formset(case, request.POST) if action == "prepare-dv" else None
     form_valid = form.is_valid()
     deductions_valid = deduction_formset.is_valid() if deduction_formset is not None else True

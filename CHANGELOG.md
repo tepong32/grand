@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.58 - Source-aligned voucher review controls
+
+Voucher preparation and payable review forms now follow source office/maker-checker selectors. The signature form displays and accepts only source-eligible ordered returns. Combined-grant UAT mutation controls are hidden while separate read/audit permissions remain; pending amendments suppress a new amendment form. The main-task banner uses the source queue filter. All 174 focused voucher/My Work/operations tests passed in 301.273 seconds. All 689 full-project tests passed in 237.536 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.57 - Stored authority for DV artifacts
 
 DV output generation and legacy TracePoint linking now require the stored pinned Finance owner before new actions and replay. Packet linking reloads the item/current packet before visibility and existing-association checks. Source-page controls share the same owner predicate. Accounting retains its existing artifact workflows after custody moves, while unrelated-office grants and combined-grant UAT accounts cannot mutate evidence. All 90 focused voucher/custody tests passed in 60.994 seconds. All 684 full-project tests passed in 407.127 seconds. System, migration-drift, compilation and diff checks passed.

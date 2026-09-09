@@ -607,10 +607,11 @@ class SignatureReturnForm(WorkflowForm):
     task = forms.ModelChoiceField(queryset=WetSignatureTask.objects.none(), label="Returned wet-signature step")
     note = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
 
-    def __init__(self, *args, case=None, **kwargs):
+    def __init__(self, *args, case=None, user=None, **kwargs):
         super().__init__(*args, case=case, **kwargs)
-        if case:
-            self.fields["task"].queryset = case.signature_tasks.filter(status=WetSignatureTask.PENDING).order_by("sequence")
+        if case and user:
+            from .case_exports import dv_signature_task_queryset
+            self.fields["task"].queryset = dv_signature_task_queryset(user).filter(case_id=case.pk)
 
 
 class ControlledPrintPrepareForm(WorkflowForm):
