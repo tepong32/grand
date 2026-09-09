@@ -466,9 +466,57 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
         (FinanceCutoverReadinessExercise, "field-exercise", "submitted_by_id", "submitted_at",
          FinanceCutoverReadinessExercise.SUBMITTED, "Named independent exercise witness"),
     )
+    # Scheduling/registration hands prepared work to its named owner before a
+    # result exists. A governed return starts a new correction handoff.
+    from .models import FinanceAuditEvent
+    prepared = []
+    for model, kind, states in (
+        (FinanceShadowDefect, "field-defect", (FinanceShadowDefect.OPEN,)),
+        (FinanceCutoverReadinessExercise, "field-exercise", (FinanceCutoverReadinessExercise.PLANNED, FinanceCutoverReadinessExercise.RETURNED)),
+    ):
+        prepared.extend((kind, item) for item in model.objects.filter(
+            cycle__in=cycles, status__in=states, created_by=user,
+        ).exclude(owner=user).select_related("cycle__department", "owner"))
+    prepared_by_id = {(kind, str(item.pk)): item for kind, item in prepared}
+    returned_at = {}
+    seen_returns = set()
+    return_actions = {
+        "shadow_defect_resolution_returned": ("field-defect", "defect_id"),
+        "cutover_readiness_exercise_returned": ("field-exercise", "exercise_id"),
+    }
+    if prepared:
+        for event in FinanceAuditEvent.objects.filter(
+            target_type="financeshadowcycle", target_id__in=[str(item.cycle_id) for _, item in prepared],
+            action__in=return_actions,
+        ).order_by("-created_at", "-pk"):
+            if not isinstance(event.snapshot, dict):
+                continue
+            kind, key = return_actions[event.action]
+            identity = (kind, str(event.snapshot.get(key)))
+            item = prepared_by_id.get(identity)
+            if (item is None or identity in seen_returns or event.target_id != str(item.cycle_id)
+                    or event.department_id != item.cycle.department_id):
+                continue
+            seen_returns.add(identity)
+            submitted_at = item.resolution_submitted_at if kind == "field-defect" else item.submitted_at
+            if (event.snapshot.get("status") == item.status and event.snapshot.get("owner_id") == item.owner_id
+                    and submitted_at is not None and event.created_at >= submitted_at):
+                returned_at[identity] = event.created_at
+    for kind, item in prepared:
+        cycle = item.cycle
+        if not can_view_shadow_cycle(user, cycle):
+            continue
+        was_returned = (item.resolution_submitted_at is not None) if kind == "field-defect" else item.status == item.RETURNED
+        received = returned_at.get((kind, str(item.pk))) if was_returned else item.created_at
+        add(item, kind=kind, area="Field operation", reference=f"{cycle.code} - {item.code}",
+            subject=item.summary if kind == "field-defect" else item.title, received=received,
+            queue=f"Named {'defect correction' if kind == 'field-defect' else 'exercise'} owner - {item.owner.get_username()}",
+            scope=f"{cycle.department.name}; {cycle.enabled_scope}", route="finance:shadow_cycle_detail",
+            route_kwargs={"pk": cycle.pk}, source_id=_source_record_identity(kind, item.pk),
+            attribution=[item.created_by_id, item.owner_id])
     for model, kind, submitter, handoff, state, queue in child_specs:
         children = model.objects.filter(cycle__in=cycles, status=state).filter(
-            Q(owner_id=user.pk) | Q(**{submitter: user.pk}),
+            Q(created_by_id=user.pk) | Q(owner_id=user.pk) | Q(**{submitter: user.pk}),
         ).select_related("cycle__department")
         for item in children:
             cycle = item.cycle
@@ -479,7 +527,7 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
                 received=getattr(item, handoff), queue=f"{queue} - {cycle.department.name}",
                 scope=f"{cycle.department.name}; {cycle.enabled_scope}", route="finance:shadow_cycle_detail",
                 route_kwargs={"pk": cycle.pk}, source_id=_source_record_identity(kind, item.pk),
-                attribution=[item.owner_id, getattr(item, submitter)])
+                attribution=[item.created_by_id, item.owner_id, getattr(item, submitter)])
     from .models import FinanceStakeholderAcceptance, FinanceCutoverDecision
     acceptances = FinanceStakeholderAcceptance.objects.filter(
         cycle__in=cycles, cycle__status=FinanceShadowCycle.RECONCILED,

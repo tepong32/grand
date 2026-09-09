@@ -1907,6 +1907,62 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertTrue(all(row["subject"] == "Submitted exercise result" for row in owner_history))
         self.assertEqual(self.field_work_rows(self.requesting_reviewer, "field-exercise", exercise, "waiting"), [])
 
+    def test_scheduler_waiting_follows_named_owner_return_and_independent_result(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        exercise = self._assigned_boundary_exercise()
+        first = self.field_work_rows(self.manager, "field-exercise", exercise, "waiting")
+        self.assertEqual(len(first), 1)
+        self.assertIn(self.requesting_reviewer.username, first[0]["owner_queue"])
+        self.assertFalse(self.field_work_rows(self.requesting_reviewer, "field-exercise", exercise, "waiting"))
+        self.assertFalse(self.field_work_rows(self.other_reviewer, "field-exercise", exercise, "waiting"))
+        group = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0]
+        self.manager.groups.add(group)
+        self.assertFalse(self.field_work_rows(self.manager, "field-exercise", exercise, "waiting"))
+        self.manager.groups.remove(group)
+        submit_cutover_readiness_exercise(exercise, self.requesting_reviewer,
+                                         actual_result="Synthetic result", evidence_reference="Synthetic script A")
+        submitted = self.field_work_rows(self.manager, "field-exercise", exercise, "waiting")
+        self.assertEqual(len(submitted), 1)
+        self.assertIn("witness", submitted[0]["owner_queue"])
+        review_cutover_readiness_exercise(exercise, self.other_reviewer, accept=False, reason="Repeat the second step")
+        returned = self.field_work_rows(self.manager, "field-exercise", exercise, "waiting")
+        self.assertEqual(len(returned), 1)
+        self.assertGreater(returned[0]["received_at"], first[0]["received_at"])
+        event = FinanceAuditEvent.objects.get(target_type="financeshadowcycle", target_id=str(exercise.cycle_id), action="cutover_readiness_exercise_returned")
+        retained = event.snapshot
+        FinanceAuditEvent.objects.filter(pk=event.pk).update(snapshot={**retained, "owner_id": self.outsider.pk})
+        self.assertIsNone(self.field_work_rows(self.manager, "field-exercise", exercise, "waiting")[0]["received_at"])
+        FinanceAuditEvent.objects.filter(pk=event.pk).update(snapshot=retained)
+        submit_cutover_readiness_exercise(exercise, self.requesting_reviewer,
+                                         actual_result="Synthetic corrected result", evidence_reference="Synthetic script B")
+        review_cutover_readiness_exercise(exercise, self.other_reviewer, accept=False, reason="Repeat final observation")
+        latest = FinanceAuditEvent.objects.filter(target_type="financeshadowcycle", target_id=str(exercise.cycle_id), action="cutover_readiness_exercise_returned").order_by("-created_at", "-pk").first()
+        latest_snapshot = latest.snapshot
+        FinanceAuditEvent.objects.filter(pk=latest.pk).update(snapshot={**latest_snapshot, "owner_id": self.outsider.pk})
+        self.assertIsNone(self.field_work_rows(self.manager, "field-exercise", exercise, "waiting")[0]["received_at"])
+        FinanceAuditEvent.objects.filter(pk=latest.pk).update(snapshot=latest_snapshot)
+        submit_cutover_readiness_exercise(exercise, self.requesting_reviewer,
+                                         actual_result="Synthetic final result", evidence_reference="Synthetic script C")
+        review_cutover_readiness_exercise(exercise, self.other_reviewer, accept=True, reason="Script observed")
+        self.assertFalse(self.field_work_rows(self.manager, "field-exercise", exercise, "waiting"))
+
+    def test_scheduler_waiting_excludes_current_witness_action_and_revoked_read(self):
+        exercise = self._assigned_boundary_exercise()
+        exercise.witness = self.manager
+        exercise.save()
+        self.assertEqual(len(self.field_work_rows(self.manager, "field-exercise", exercise, "waiting")), 1)
+        submit_cutover_readiness_exercise(exercise, self.requesting_reviewer,
+                                         actual_result="Synthetic result", evidence_reference="Synthetic script")
+        self.assertFalse(self.field_work_rows(self.manager, "field-exercise", exercise, "waiting"))
+        self.assertEqual(len(self.field_work_rows(self.manager, "field-exercise", exercise)), 1)
+        review_cutover_readiness_exercise(exercise, self.manager, accept=False, reason="Repeat one step")
+        exercise.refresh_from_db()
+        exercise.witness = self.other_reviewer
+        exercise.save()
+        self.manager.user_permissions.clear()
+        self.assertFalse(self.field_work_rows(self.manager, "field-exercise", exercise, "waiting"))
+
     def test_field_history_rechecks_scope_and_child_audit_linkage(self):
         from django.contrib.auth.models import Group
         from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
@@ -1952,9 +2008,13 @@ class FinanceShadowCutoverTests(TestCase):
         )
         defect = register_shadow_defect(comparison, self.manager, code="personal-defect", severity=FinanceShadowDefect.MEDIUM,
                                        summary="Synthetic correction", impact="Synthetic difference", owner=self.outsider)
+        initial_handoff = self.field_work_rows(self.manager, "field-defect", defect, "waiting")
+        self.assertEqual(len(initial_handoff), 1)
         submit_shadow_defect_resolution(defect, self.outsider, note="Synthetic correction", evidence_reference="Synthetic evidence")
+        self.assertFalse(self.field_work_rows(self.manager, "field-defect", defect, "waiting"))
         self.assertEqual(len(self.field_work_rows(self.outsider, "field-defect", defect, "waiting")), 1)
         review_shadow_defect_resolution(defect, self.reconciler, accept=False, reason="Clarify evidence")
+        self.assertGreater(self.field_work_rows(self.manager, "field-defect", defect, "waiting")[0]["received_at"], initial_handoff[0]["received_at"])
         self.assertEqual(self.field_work_rows(self.outsider, "field-defect", defect, "waiting"), [])
         submit_shadow_defect_resolution(defect, self.outsider, note="Synthetic corrected evidence", evidence_reference="Synthetic evidence B")
         review_shadow_defect_resolution(defect, self.reconciler, accept=True, reason="Independent verification")

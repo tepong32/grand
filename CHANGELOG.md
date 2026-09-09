@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.68 - Personal Waiting for prepared work with another owner
+
+Waiting now follows exercises scheduled and defects registered by the user when prepared work is with another named owner. Creator attribution continues through submitted-result review. Current actions are excluded before the display cap. Returned correction uses only the latest matching return after the current submission; invalid latest evidence leaves age unknown rather than reusing an older date. PASS: final 136 cutover/My Work/operations tests in 116.260 seconds; full 699-test project suite in 292.911 seconds on final executable source; 3 initial focused tests in 7.921 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.67 - Field scheduling and defect helper history
 
 Completed history now includes retained exercise scheduling, defect registration and each recorded escalation. Scheduling and registration credit their source creator; escalation credits its recorded actor and sequence, preserving an earlier contribution after a different person follows up. These actions remain distinct from exercise acceptance, defect resolution and actual message delivery. PASS: final 134 cutover/My Work/operations tests in 106.795 seconds; 3 initial focused lifecycle tests in 6.898 seconds; system, migration-drift, compilation and diff checks passed.
