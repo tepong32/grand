@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.63 - Personal period-reopen Waiting
+
+Waiting now follows pending period-reopen requests submitted by the current user, using the reopen-request time and independent-review queue. Prior close preparation alone does not establish ownership of another person's later reopen request. Approval/return removes the handoff; resubmission follows its current requester. Current source actions, office/read scope and UAT controls remain. PASS: 90 My Work/operations/period-close tests in 133.889 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.62 - Personal amendment and signature-return history
 
 Personal DV history now separates amendment authorship from final replacement-signature recording. Creation matches retained version/author/route/date/financial evidence; completion matches final-recorder tasks and actual/original print-round lineage. Legacy events use their original amendment round, with no newest-job guess. Superseded interrupted amendments retain creation history without fabricated completion. PASS: 86 amendment/My Work/operations tests in 129.341 seconds. PASS: 95 voucher/custody tests in 103.726 seconds. System, migration-drift, compilation and diff checks passed.

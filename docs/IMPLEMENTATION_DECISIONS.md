@@ -10,6 +10,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-053:** Show pending reopen requests in Waiting for the current requester, using the request timestamp and existing independent-decision scope.
 - **D-052:** Separate amendment authorship from final signature-return recording, validate retained round/print lineage, and interpret legacy events only against their original round.
 - **D-051:** Credit DV print and packet actions only when the event matches retained child evidence; keep superseded versions as history under current read access.
 - **D-050:** Keep payment form amounts, choices and office/state controls consistent with retained recovery and source actions; retain visible readiness explanations.
@@ -624,3 +625,12 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: selecting the latest print job would misattribute older amendments. Legacy completion events without round metadata are interpreted only against their original amendment round and retained recorder evidence; ambiguous or inconsistent evidence is omitted rather than guessed. Modern events must prove the explicitly retained actual round and print job. Current read access and UAT exclusion remain.
 - Evidence: PASS: 86 amendment/My Work/operations tests in 129.341 seconds. PASS: 95 voucher/custody tests in 103.726 seconds. System, migration-drift, compilation and diff checks passed. Real workflows verify distinct author/final-recorder attribution, multi-generation print lineage, original-round legacy compatibility and interrupted amendment supersession. Synthetic inconsistent actor, amount snapshot, version, print-job, round and malformed/legacy references are excluded; UAT and revoked read access hide history. Full suite NOT RUN - OUT OF SCOPE for this bounded read-only adapter with all voucher/custody and My Work/operations dependencies exercised; v0.7.60 passed 692 full-project tests. Browser NOT RUN - OUT OF SCOPE because the existing task layout is unchanged. No source mutation-service/schema changes or live migration.
 - Revisit when: migrating historical event schemas or adding new amendment workflows; any backfill requires its own evidence, never a fabricated completion.
+
+## D-053 - Personal Waiting for period-reopen requests
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.63.
+- Decision: add only current `REOPEN_REQUESTED` records whose retained requester is the signed-in user and whose Accounting department is currently readable. Use the reopen-request timestamp and independent reopen-review queue. Keep the existing exclusion of current source actions before the display cap, UAT exclusion and source read checks.
+- Goal: the user can follow a correction request they submitted without confusing it with the earlier period-close checklist or inventing a new approval workflow.
+- Alternatives/tradeoffs: attributing every reopen to the original close preparer would expose someone else's later request as personal work. Returning all office requests would violate the user's Waiting preference. A return/approval ends that pending handoff; a resubmission follows its current requester and timestamp. Existing retained close/reopen history is unchanged.
+- Evidence: PASS: 90 My Work/operations/period-close tests in 133.889 seconds. System, migration-drift, compilation and diff checks passed. Tests cover approval, rejection/resubmission, a requester distinct from the original close preparer, source navigation, current-action exclusion and UAT/read/office loss. Full suite NOT RUN - OUT OF SCOPE for the isolated read-only Waiting query; all My Work/operations and period-close source regressions cover the changed contract. Browser NOT RUN - OUT OF SCOPE because the existing task layout is unchanged. No source mutation-service/schema changes or live migration.
+- Revisit when: adding explicit delegation or changing reopen ownership; preserve the distinction between prior close work and the current reopen request.

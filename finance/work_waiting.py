@@ -335,6 +335,16 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
                 queue=f"Independent period-close reviewers - {department.name}",
                 scope=f"{department.name}; {item.period}", route="accounting:period_close_detail",
                 attribution=[item.prepared_by_id, item.submitted_by_id])
+        reopens = PeriodCloseRun.objects.filter(
+            department_id=department.pk, status=PeriodCloseRun.REOPEN_REQUESTED,
+            reopen_requested_by_id=user.pk,
+        ).select_related("period")
+        for item in reopens:
+            add(item, kind="period-close", area="Accounting", reference=f"{item.period} v{item.version}",
+                subject="Submitted period-reopen request", received=item.reopen_requested_at,
+                queue=f"Independent period-reopen reviewers - {department.name}",
+                scope=f"{department.name}; {item.period}", route="accounting:period_close_detail",
+                attribution=[item.reopen_requested_by_id])
 
     if can_view_workbench(user) and has_explicit_permission(user, "vouchers.view_bank_advice"):
         advice = visible_bank_advice_batches(user).filter(status__in=(

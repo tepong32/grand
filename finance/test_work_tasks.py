@@ -2947,6 +2947,10 @@ class FinancePeriodCloseWorkTaskContractTests(TestCase):
         self.assertFalse(
             period_close_action_queryset(self.preparer, "awaiting_reopen_decision")[0].exists()
         )
+        waiting = finance_work_tasks(self.preparer, view="waiting")["tasks"]
+        self.assertEqual(len(waiting), 1)
+        self.assertEqual(waiting[0]["subject"], "Submitted period-reopen request")
+        self.assertEqual(waiting[0]["received_at"], requested.reopen_requested_at)
         task = next(
             task for task in finance_work_tasks(self.reviewer)["tasks"]
             if task["case_id"] == f"period-close:{run.public_id}"
@@ -2959,12 +2963,50 @@ class FinancePeriodCloseWorkTaskContractTests(TestCase):
             note="Verified correction authority and period chronology.",
         )
         self.assertEqual(reopened.status, PeriodCloseRun.REOPENED)
+        self.assertFalse(finance_work_tasks(self.preparer, view="waiting")["tasks"])
         completed = finance_work_tasks(self.reviewer, view="completed")["tasks"]
         self.assertEqual([task["subject"] for task in completed], ["Reopened Accounting period", "Closed Accounting period"])
         self.assertFalse(any(
             task["case_id"] == f"period-close:{run.public_id}"
             for task in finance_work_tasks(self.reviewer)["tasks"]
         ))
+
+    def test_reopen_waiting_follows_current_requester_and_stops_at_decision(self):
+        run = self._run(self.january)
+        submit_period_close_run(run, self.preparer)
+        closed = decide_period_close_run(run, self.reviewer, approve=True, note="Close evidence reproduced.")
+        requester = self._employee("task.close.new-requester", self.accounting,
+            "view_accounting_workspace", "prepare_period_close", "reopen_period")
+        requested = request_period_reopen(closed, requester,
+            reason="A retained adjustment needs review.", authority_reference="Synthetic correction memo.")
+        waiting = finance_work_tasks(requester, view="waiting")["tasks"]
+        self.assertEqual(len(waiting), 1)
+        self.assertEqual(waiting[0]["case_id"], f"period-close:{run.public_id}")
+        self.assertFalse(finance_work_tasks(self.preparer, view="waiting")["tasks"])
+        self.assertFalse(finance_work_tasks(self.reviewer, view="waiting")["tasks"])
+        self.client.force_login(requester)
+        self.assertEqual(self.client.get(waiting[0]["url"]).status_code, 200)
+        group, _ = Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)
+        requester.groups.add(group)
+        self.assertFalse(finance_work_tasks(requester, view="waiting")["tasks"])
+        requester.groups.remove(group)
+        profile = EmployeeProfile.objects.get(user=requester)
+        profile.assigned_department = self.other
+        profile.save(update_fields=("assigned_department",))
+        self.assertFalse(finance_work_tasks(get_user_model().objects.get(pk=requester.pk), view="waiting")["tasks"])
+        profile.assigned_department = self.accounting
+        profile.save(update_fields=("assigned_department",))
+        rejected = decide_period_reopen(requested, self.reviewer, approve=False, note="Retain closure pending corrected authority.")
+        self.assertFalse(finance_work_tasks(requester, view="waiting")["tasks"])
+        resubmitted = request_period_reopen(rejected, self.preparer,
+            reason="Corrected adjustment scope.", authority_reference="Corrected synthetic memo.")
+        self.assertFalse(finance_work_tasks(requester, view="waiting")["tasks"])
+        current = finance_work_tasks(self.preparer, view="waiting")["tasks"]
+        self.assertEqual(len(current), 1)
+        self.assertEqual(current[0]["received_at"], resubmitted.reopen_requested_at)
+        self.assertNotEqual(current[0]["source_version"], waiting[0]["source_version"])
+        self.preparer.user_permissions.clear()
+        self.assertFalse(finance_work_tasks(self.preparer, view="waiting")["tasks"])
 
     def test_one_cent_drift_and_direct_cross_office_calls_are_blocked(self):
         run = self._run(self.january)
