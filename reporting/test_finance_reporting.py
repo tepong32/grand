@@ -234,14 +234,14 @@ class FinanceAccountabilityReportingTests(TestCase):
         tax_snapshot = {
             **rule_snapshot, "tax_base": "1000.00", "tax_withheld": "10.00",
             "tax_rule_checksum": rule_checksum, "payee_name": "Synthetic Supplier",
-            "payee_tax_identifier": "000-000-001-000", "voucher_date": "2027-02-15",
+            "payee_tax_identifier": "000-000-001-00000", "voucher_date": "2027-02-15",
             "voucher_number": "DV-TAX-001", "case_reference": "CASE-TAX-001",
             "case_public_id": "11111111-1111-1111-1111-111111111111",
         }
         tax_snapshot["tax_evidence_checksum"] = voucher_tax_evidence_checksum(
             voucher=SimpleNamespace(dv_number="DV-TAX-001", voucher_date=date(2027, 2, 15)),
             tax_rule_checksum=rule_checksum, tax_base=Decimal("1000.00"), amount=Decimal("10.00"),
-            payee_name="Synthetic Supplier", payee_tax_identifier="000-000-001-000",
+            payee_name="Synthetic Supplier", payee_tax_identifier="000-000-001-00000",
         )
         withholding = LedgerAccount.objects.create(
             department_id=self.accounting.pk, department_label=self.accounting.name,
@@ -280,7 +280,7 @@ class FinanceAccountabilityReportingTests(TestCase):
             detail_definition, date(2027, 1, 1), date(2027, 3, 31), {},
         )
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["payee_tax_identifier"], "000-000-001-000")
+        self.assertEqual(rows[0]["payee_tax_identifier"], "000-000-001-00000")
         self.assertEqual(rows[0]["tax_withheld"], Decimal("10.00"))
         self.assertEqual(evidence["control_status"], ReportRun.CONTROL_RECONCILED)
         self.assertEqual(evidence["control_totals"]["ledger_difference"], Decimal("0.00"))
@@ -290,9 +290,20 @@ class FinanceAccountabilityReportingTests(TestCase):
             date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer,
         )
         self.assertEqual(run.control_status, ReportRun.CONTROL_RECONCILED)
-        self.assertEqual(run.dataset_snapshot["rows"][0]["payee_tax_identifier"], "000-000-001-000")
+        self.assertEqual(run.dataset_snapshot["rows"][0]["payee_tax_identifier"], "000-000-001-00000")
         self.assertEqual(len(run.dataset_checksum), 64)
         self.assertTrue(run.output_file.name.endswith(".xlsx"))
+        # Synthetic five-digit branch-code compatibility; no official tax rule
+        # or filing authority is inferred from preserving the identifier.
+        from openpyxl import load_workbook
+        workbook = load_workbook(run.output_file.path, read_only=True, data_only=True)
+        try:
+            self.assertTrue(any(
+                cell == "000-000-001-00000"
+                for sheet in workbook for row in sheet.iter_rows(values_only=True) for cell in row
+            ))
+        finally:
+            workbook.close()
 
         reversal = JournalEntry.objects.create(
             department_id=self.accounting.pk, department_label=self.accounting.name,

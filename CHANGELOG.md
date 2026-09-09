@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.69 - Native Finance recovery and persistence controls
+
+Coordinated native capture prevents the reproduced cross-store snapshot race and fails closed on missing privilege, different servers or lost locking connections. Payable projections preserve complete source kinds and consolidated UUID references. Budget generated nullable keys enforce original requests, numbered obligations and active allocations on MySQL and SQLite. Duplicate-data migration preflights require controlled investigation instead of altering history. Migrations: vouchers/0022-0023 and budget/0007-0008; no live/user database migration.
+
+PASS: final full SQLite suite, 708 tests in 314.043 seconds; final full MySQL 8.4.12 suite, 708 tests in 854.600 seconds. Both aliases remained separate. System, migration-drift, compilation and diff checks passed. The final affected native suite also passed 178 tests in 182.916 seconds.
+
 ## v0.7.68 - Personal Waiting for prepared work with another owner
 
 Waiting now follows exercises scheduled and defects registered by the user when prepared work is with another named owner. Creator attribution continues through submitted-result review. Current actions are excluded before the display cap. Returned correction uses only the latest matching return after the current submission; invalid latest evidence leaves age unknown rather than reusing an older date. PASS: final 136 cutover/My Work/operations tests in 116.260 seconds; full 699-test project suite in 292.911 seconds on final executable source; 3 initial focused tests in 7.921 seconds. System, migration-drift, compilation and diff checks passed.

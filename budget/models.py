@@ -504,6 +504,22 @@ class ObligationRequest(BudgetOwnedModel):
     form_type = models.CharField(max_length=12, choices=FORM_CHOICES, default=OBR)
     request_reference = models.CharField(max_length=100)
     obligation_number = models.CharField(max_length=100, blank=True)
+    # Nullable generated keys retain conditional uniqueness on MySQL as well as
+    # SQLite. The database derives these values even for bulk/queryset writes.
+    unique_obligation_number = models.GeneratedField(
+        expression=models.Case(
+            models.When(obligation_number="", then=models.Value(None)),
+            default=models.F("obligation_number"),
+        ),
+        output_field=models.CharField(max_length=100), db_persist=True, null=True,
+    )
+    original_request_reference = models.GeneratedField(
+        expression=models.Case(
+            models.When(kind="original", then=models.F("request_reference")),
+            default=models.Value(None),
+        ),
+        output_field=models.CharField(max_length=100), db_persist=True, null=True,
+    )
     obligation_date = models.DateField()
     claimant_payee = models.CharField(max_length=220)
     particulars = models.TextField()
@@ -530,12 +546,12 @@ class ObligationRequest(BudgetOwnedModel):
         ordering = ("-fiscal_year__year", "-obligation_date", "-created_at")
         constraints = (
             models.UniqueConstraint(
-                fields=("department_id", "fiscal_year", "obligation_number"),
-                condition=~models.Q(obligation_number=""), name="unique_certified_obligation_number",
+                fields=("department_id", "fiscal_year", "unique_obligation_number"),
+                name="unique_certified_obligation_number",
             ),
             models.UniqueConstraint(
-                fields=("requesting_department_id", "fiscal_year", "request_reference"),
-                condition=models.Q(kind="original"), name="unique_original_obligation_request_reference",
+                fields=("requesting_department_id", "fiscal_year", "original_request_reference"),
+                name="unique_original_obligation_request_reference",
             ),
         )
 
@@ -623,6 +639,13 @@ class PayableObligationAllocation(BudgetOwnedModel):
     obligation_checksum_snapshot = models.CharField(max_length=64)
     version = models.PositiveIntegerField(default=1)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=ACTIVE)
+    active_identity_marker = models.GeneratedField(
+        expression=models.Case(
+            models.When(status="active", then=models.Value(1)),
+            default=models.Value(None),
+        ),
+        output_field=models.PositiveSmallIntegerField(), db_persist=True, null=True,
+    )
     supersedes = models.ForeignKey(
         "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successor_allocations",
     )
@@ -639,8 +662,7 @@ class PayableObligationAllocation(BudgetOwnedModel):
                 name="unique_payable_allocation_version",
             ),
             models.UniqueConstraint(
-                fields=("obligation", "voucher_case_public_id"),
-                condition=models.Q(status="active"),
+                fields=("obligation", "voucher_case_public_id", "active_identity_marker"),
                 name="unique_active_payable_allocation",
             ),
             models.CheckConstraint(

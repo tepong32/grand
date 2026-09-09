@@ -9,21 +9,104 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone as datetime_timezone
 from pathlib import Path
 
 from django.conf import settings
+from django.db import connections
 from django.utils import timezone
 
 
 ROOT_MARKER = "GRAND_BACKUP_ROOT.json"
 LOCK_DIRECTORY = ".grand-backup.lock"
 TEMP_DIRECTORY = ".tmp"
+SERVER_UUID_PATTERN = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 
 
 class BackupError(RuntimeError):
     """Raised when a complete, verified backup set cannot be published."""
+
+
+@dataclass
+class _MySQLCapture:
+    connection: object
+    server_uuid: str
+    connection_id: int
+    started_at: str
+
+    def verify(self) -> None:
+        # A reconnect loses the global lock even if the server is unchanged.
+        with self.connection.cursor() as cursor:
+            cursor.execute("SELECT @@server_uuid, CONNECTION_ID()")
+            identity = cursor.fetchone()
+        if identity != (self.server_uuid, self.connection_id):
+            raise BackupError("The coordinated backup lock connection changed; discard this capture.")
+
+    def receipt(self) -> dict:
+        return {
+            "mode": "mysql_global_read_lock",
+            "server_uuid": self.server_uuid,
+            "connection_id": self.connection_id,
+            "started_at": self.started_at,
+            "completed_at": timezone.now().isoformat(),
+        }
+
+
+@contextmanager
+def _capture_mysql_snapshot(aliases):
+    """Hold one server-wide write barrier across separately routed native dumps."""
+    names = []
+    for alias in aliases:
+        database = settings.DATABASES[alias]
+        if database.get("ENGINE") != "django.db.backends.mysql":
+            raise BackupError("Coordinated production backups require native MySQL databases.")
+        name = str(database.get("NAME") or "").strip()
+        if not name or name in names:
+            raise BackupError("Backup aliases must identify distinct, nonempty MySQL databases.")
+        names.append(name)
+    opened = []
+    try:
+        identities = []
+        for alias in aliases:
+            # Never implicitly commit or unlock an application's transaction.
+            connection = connections[alias].copy(alias=f"grand_backup_{alias}")
+            opened.append(connection)
+            connection.ensure_connection()
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT @@server_uuid, CONNECTION_ID()")
+                identity = cursor.fetchone()
+            if (not identity or len(identity) != 2
+                    or not SERVER_UUID_PATTERN.fullmatch(str(identity[0]))
+                    or type(identity[1]) is not int or identity[1] <= 0):
+                raise BackupError("The MySQL capture server identity could not be established.")
+            identities.append(identity)
+        if len({identity[0] for identity in identities}) != 1:
+            raise BackupError(
+                "The databases are on different MySQL servers; a validated coordinated "
+                "multi-server capture is required. No independent-snapshot fallback is allowed."
+            )
+        with opened[0].cursor() as cursor:
+            cursor.execute("SET SESSION lock_wait_timeout = 30")
+            cursor.execute("FLUSH TABLES WITH READ LOCK")
+        capture = _MySQLCapture(opened[0], *identities[0], timezone.now().isoformat())
+        capture.verify()
+        yield capture
+        capture.verify()
+    except BackupError:
+        raise
+    except Exception as exc:
+        raise BackupError(
+            "Coordinated MySQL capture failed. Confirm a supported single-server topology, "
+            "FLUSH_TABLES or RELOAD privilege, and the approved write-pause window. "
+            "No backup set was published."
+        ) from exc
+    finally:
+        # Closing the dedicated session releases its global lock on every path,
+        # including dump errors and a killed connection. Never reuse this session.
+        for connection in reversed(opened):
+            connection.close()
 
 
 @dataclass(frozen=True)
@@ -377,6 +460,20 @@ def verify_backup_set(
         if manifest_sha256 != expected:
             raise BackupError("Backup manifest SHA-256 does not match the separately retained value.")
 
+    capture = manifest.get("capture")
+    if capture is not None:
+        try:
+            if (not isinstance(capture, dict) or capture.get("mode") != "mysql_global_read_lock"
+                    or not SERVER_UUID_PATTERN.fullmatch(str(capture.get("server_uuid", "")))
+                    or type(capture.get("connection_id")) is not int or capture["connection_id"] <= 0):
+                raise ValueError
+            started = datetime.fromisoformat(capture["started_at"])
+            completed = datetime.fromisoformat(capture["completed_at"])
+            if timezone.is_naive(started) or timezone.is_naive(completed) or completed < started:
+                raise ValueError
+        except (KeyError, TypeError, ValueError) as exc:
+            raise BackupError("Backup manifest has invalid coordinated capture evidence.") from exc
+
     return {
         "application": "GRAND",
         "backup_id": backup_id,
@@ -384,6 +481,7 @@ def verify_backup_set(
         "manifest_sha256": manifest_sha256,
         "integrity_verified": True,
         "authenticity_verified": expected_manifest_sha256 is not None,
+        "coordinated_capture_recorded": capture is not None,
         "restore_tested": False,
         "verified_at": timezone.now().isoformat(),
         "artifacts": verified_artifacts,
@@ -470,22 +568,26 @@ def create_backup_set(
         staging.mkdir(parents=True)
         artifacts = []
         writer = dump_writer or _write_mysql_dump
-        for alias in aliases:
-            database = settings.DATABASES[alias]
-            filename = f"grand-{alias}-{now:%Y%m%dT%H%M%SZ}.sql.gz"
-            target = staging / filename
-            writer(alias, database, target)
-            byte_length, sha256 = _verify_artifact(target)
-            artifacts.append(
-                BackupArtifact(
-                    database_alias=alias,
-                    logical_name=str(database.get("NAME") or ""),
-                    engine=str(database.get("ENGINE") or ""),
-                    filename=filename,
-                    byte_length=byte_length,
-                    sha256=sha256,
+        with _capture_mysql_snapshot(aliases) as capture:
+            for alias in aliases:
+                capture.verify()
+                database = settings.DATABASES[alias]
+                filename = f"grand-{alias}-{now:%Y%m%dT%H%M%SZ}.sql.gz"
+                target = staging / filename
+                writer(alias, database, target)
+                capture.verify()
+                byte_length, sha256 = _verify_artifact(target)
+                artifacts.append(
+                    BackupArtifact(
+                        database_alias=alias,
+                        logical_name=str(database.get("NAME") or ""),
+                        engine=str(database.get("ENGINE") or ""),
+                        filename=filename,
+                        byte_length=byte_length,
+                        sha256=sha256,
+                    )
                 )
-            )
+            capture_evidence = capture.receipt()
 
         manifest = {
             "application": "GRAND",
@@ -496,6 +598,7 @@ def create_backup_set(
             "deployment_revision": os.environ.get("RENDER_GIT_COMMIT", ""),
             "format": "GRAND database backup set",
             "format_version": 1,
+            "capture": capture_evidence,
             "restore_tested": False,
             "scope": "complete" if set(aliases) == {"default", "finance"} else "partial",
             "status": "completed",

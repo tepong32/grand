@@ -4,7 +4,7 @@ Recorded 2026-09-07 from the two user-supplied **Grand — Post-Finance End-to-E
 
 ## Timing and current decision
 
-**FINANCE GATE: NO-GO — functional implementation and operational validation remain incomplete.** The full scrutiny begins only after the current Finance functional phase is complete. Registering this gate now does not claim that the scrutiny has run. Continue F1.5 adapters and cross-cycle work first; fix material defects encountered during that work immediately. Existing Docker and backup engineering history remains preserved, but is not production approval.
+**FINANCE GATE: NO-GO — operational validation and LGU acceptance remain incomplete.** The current personal-handoff source-adapter slice reached its documented checkpoint in v0.7.68. Scrutiny of the implemented core began on 2026-09-09; see the [in-progress evidence report](FINANCE_SCRUTINY_2026-09-09.md) and decision D-059. This does not declare every roadmap feature complete: generic following, shared views and notifications remain deferred. Fix material defects encountered during scrutiny immediately. Existing Docker and backup engineering history remains preserved, but is not production approval.
 
 Dependency order: Finance core → operational scrutiny and regulatory/workflow alignment → gap remediation and cross-module revalidation → production hardening → Docker/Render production preparation and release. Isolated container engineering may proceed only without bypassing the production gate.
 

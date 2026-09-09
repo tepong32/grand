@@ -1021,7 +1021,7 @@ class AnnualBudgetPreparationTests(TestCase):
                 idempotency_key="stale-payable-dv",
             )
 
-    def test_payable_relationships_recognition_modification_window_and_portable_export(self):
+    def _make_payable_relationship_fixture(self):
         authorization = self.make_executable_authority()
         first = self.make_obligation_request(
             authorization, reference="GSO-REL-001", total="10000",
@@ -1082,6 +1082,10 @@ class AnnualBudgetPreparationTests(TestCase):
             next_number=1, status="active", created_by=accountant,
         )
 
+        return authorization, first, second, accountant, party, rule
+
+    def test_payable_relationships_recognition_modification_window_and_portable_export(self):
+        authorization, first, second, accountant, party, rule = self._make_payable_relationship_fixture()
         invalid_final = create_payable_case_from_obligation(
             actor=self.requester, authoritative_obligation=second, payee=party,
             transaction_type="ordinary-supplier-claim", claim_reference="CLAIM-F53-INVALID-FINAL",
@@ -1164,6 +1168,12 @@ class AnnualBudgetPreparationTests(TestCase):
             idempotency_key="f53-revise-second-allocation",
         )
         consolidated.refresh_from_db()
+        second_allocation.refresh_from_db()
+        self.assertEqual(second_allocation.status, PayableObligationAllocation.SUPERSEDED)
+        with self.assertRaises(IntegrityError), transaction.atomic(using="finance"):
+            PayableObligationAllocation.objects.filter(pk=second_allocation.pk).update(
+                status=PayableObligationAllocation.ACTIVE,
+            )
         revise_payable_claim_control(
             case=consolidated, claim_amount=Decimal("10000"),
             reason="Claim control reconciled to the reviewed bill after allocation revision.",
@@ -1274,6 +1284,39 @@ class AnnualBudgetPreparationTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "issued disbursement voucher"):
             transition_obligation_request(post_dv_correction, "submit", self.requester)
 
+    def test_four_obligation_projection_retains_every_source_reference(self):
+        authorization, first, second, _accountant, party, _rule = self._make_payable_relationship_fixture()
+        obligations = [first, second]
+        for index in (3, 4):
+            item = self.make_obligation_request(authorization, reference=f"GSO-FOUR-{index}", total="500")
+            self.add_obligation_line(item, "500")
+            transition_obligation_request(item, "submit", self.requester)
+            obligations.append(transition_obligation_request(
+                item, "certify", self.certifier, "Independent synthetic source certification.", f"OBR-FOUR-{index}",
+            ))
+        case = create_payable_case_from_obligation(
+            actor=self.requester, authoritative_obligation=first, payee=party,
+            transaction_type="ordinary-supplier-claim", claim_reference="CLAIM-FOUR", invoice_number="INV-FOUR",
+            invoice_date=date(2027, 1, 17), claim_amount=Decimal("16000"),
+            initial_allocation_amount=Decimal("10000"), initial_relationship_type=PayableIntake.FULL,
+            procurement_reference="PO-FOUR", delivery_reference="DR-FOUR", inspection_acceptance_reference="IAR-FOUR",
+            evidence_reference="Synthetic consolidated packet for four obligations.", duplicate_review_note="",
+            idempotency_key="four-create",
+        )
+        for index, obligation in enumerate(obligations[1:], start=2):
+            case.refresh_from_db()
+            add_payable_obligation_allocation(
+                case=case, obligation=obligation, allocation_amount=Decimal("5000" if index == 2 else "500"),
+                relationship_type=PayableIntake.FULL, reason="Another source supports the same consolidated packet.",
+                actor=self.requester, expected_version=case.state_version, idempotency_key=f"four-add-{index}",
+            )
+        case.refresh_from_db()
+        self.assertEqual(case.obligation.certified_amount, Decimal("16000"))
+        self.assertEqual(payable_relationship_summary(case)["difference"], Decimal("0"))
+        self.assertGreater(len(case.obligation.budget_source_reference), 160)
+        for obligation in obligations:
+            self.assertIn(str(obligation.public_id), case.obligation.budget_source_reference)
+
     def test_obligation_rejects_control_difference_excess_and_duplicate_request(self):
         authorization = self.make_executable_authority(release="12000.00")
         mismatch = self.make_obligation_request(authorization, reference="GSO-MISMATCH", total="9000")
@@ -1288,6 +1331,32 @@ class AnnualBudgetPreparationTests(TestCase):
 
         with self.assertRaises(IntegrityError), transaction.atomic():
             self.make_obligation_request(authorization, reference="GSO-EXCESS", total="1")
+
+    def test_obligation_database_keys_reject_updates_but_allow_blank_numbers_and_corrections(self):
+        authorization = self.make_executable_authority()
+        original = self.make_obligation_request(authorization, reference="GSO-IDENTITY-ORIGINAL")
+        self.add_obligation_line(original)
+        transition_obligation_request(original, "submit", self.requester)
+        original = transition_obligation_request(
+            original, "certify", self.certifier, "Independent identity-control review.", "OBR-IDENTITY-001",
+        )
+        other = self.make_obligation_request(authorization, reference="GSO-IDENTITY-OTHER")
+        another = self.make_obligation_request(authorization, reference="GSO-IDENTITY-ANOTHER")
+        self.assertEqual(other.obligation_number, another.obligation_number, "Draft numbers remain blank.")
+        with self.assertRaises(IntegrityError), transaction.atomic(using="finance"):
+            ObligationRequest.objects.filter(pk=other.pk).update(obligation_number=original.obligation_number)
+        with self.assertRaises(IntegrityError), transaction.atomic(using="finance"):
+            ObligationRequest.objects.filter(pk=other.pk).update(request_reference=original.request_reference)
+        correction = self.make_obligation_request(
+            authorization, reference=original.request_reference, total="-1",
+            kind=ObligationRequest.ADJUSTMENT, corrects=original,
+        )
+        correction.refresh_from_db()
+        self.assertEqual(correction.corrects_id, original.pk)
+        self.assertIsNone(correction.original_request_reference)
+        other.refresh_from_db()
+        self.assertEqual(other.obligation_number, "")
+        self.assertEqual(other.request_reference, "GSO-IDENTITY-OTHER")
 
     def test_linked_return_restores_balance_and_certified_history_is_immutable(self):
         authorization = self.make_executable_authority()

@@ -11,6 +11,8 @@ GRAND runs as one Django web application with two external MySQL databases:
 
 The checked-in `Dockerfile` uses Python 3.11, installs the pinned Python dependencies and a native MySQL client, builds collected static assets, runs as the non-root `grand` user, and starts Gunicorn on Render's `PORT`. Application and access logs go to stdout/stderr. The image does not contain `.env`, SQLite databases, uploaded media, generated exports, backups, local logs, or showcase output.
 
+Native backup acceptance additionally requires the [coordinated capture contract](DATABASE_BACKUP.md#coordinated-capture-requirement): distinct schemas on one verified MySQL server, the required capture privilege and an approved server-wide write-pause window. Different-server capture is blocked pending another validated mechanism. Static preflight does not establish these live privileges, concurrency controls or restore acceptance.
+
 WhiteNoise serves release-built static assets. GRAND uses compression-only storage because the installed AdminLTE distribution contains legacy CSS references to optional sourcemaps it does not ship; enabling manifest URL rewriting currently makes `collectstatic` fail and must not be forced by inventing those package files.
 
 Current platform behavior should be rechecked before deployment against Render's [Docker](https://render.com/docs/docker), [health check](https://render.com/docs/health-checks), [persistent disk](https://render.com/docs/disks), and [cron job](https://render.com/docs/cronjobs) documentation.

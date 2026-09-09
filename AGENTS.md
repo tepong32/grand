@@ -8,9 +8,11 @@ Department-aware Django platform for municipal public services and internal oper
 
 Keep the default and Finance databases separate; never merge Finance into the default store. Preserve department/role boundaries, independent maker-checker approval, immutable financial history and correction lineage. Finance UAT Viewer membership denies financial mutation even when operational permissions are also granted; preserve separately authorized read/export access. Production secrets/settings are environment-driven. GRAND creates valid backup/export artifacts; TraceSync transports them and does not establish backup validity or restore acceptance.
 
+Native backup capture requires distinct schemas on one verified MySQL server and a held global read lock across both dumps. Missing privilege, lost lock identity or unsupported/different-server topology fails closed. Approve the server-wide write-pause window operationally; never substitute two independent snapshots or fabricated historical capture evidence. See DATABASE_BACKUP.md for the current supported recovery boundary.
+
 ### Development state
 
-Finance functional work remains ongoing. Read the current branch’s CONTINUE.md for its checkpoint; a documentation update from master does not merge or publish later personal-handoff work from development branches. Production remains NO-GO until functional completion, broad regression, operational scrutiny, critical-gap verification and LGU acceptance pass. Preserve the separate database and existing acceptance gates.
+The current personal-handoff adapter slice is implemented; core operational scrutiny is in progress. Generic following, shared views and notifications remain deferred. Read the current branch’s CONTINUE.md for its checkpoint; a documentation update from master does not merge or publish development-branch work. Production remains NO-GO until functional completion, broad regression, operational scrutiny, critical-gap verification and LGU acceptance pass. Preserve the separate database and existing acceptance gates.
 
 ### Read next
 
@@ -21,6 +23,7 @@ Finance functional work remains ongoing. Read the current branch’s CONTINUE.md
 - [docs/IMPLEMENTATION_DECISIONS.md](docs/IMPLEMENTATION_DECISIONS.md)
 - [docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md](docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md)
 - [docs/FINANCE_OPERATIONAL_SCRUTINY.md](docs/FINANCE_OPERATIONAL_SCRUTINY.md)
+- [Current scrutiny evidence](docs/FINANCE_SCRUTINY_2026-09-09.md)
 - [docs/DATABASE_BACKUP.md](docs/DATABASE_BACKUP.md)
 - [docs/DEPLOYMENT_RENDER.md](docs/DEPLOYMENT_RENDER.md)
 - [Continuation entry point](CONTINUE.md)
@@ -28,6 +31,8 @@ Finance functional work remains ongoing. Read the current branch’s CONTINUE.md
 ### Project validation
 
 Use the documented Python 3.11 environment. Start with `python manage.py test <affected_app_or_test_label>`; include dependent Finance/Accounting/Budget/voucher/reporting tests when their contracts change. Preserve both test-database aliases. Finance Completion Gate, cross-cycle changes and production readiness require substantially broader regression and operational validation.
+
+Finance persistence changes require native MySQL validation as well as SQLite: SQLite does not expose all field-capacity failures, and MySQL omits conditional unique constraints. Budget uses generated nullable keys for its required conditional identities. Preserve migration duplicate preflights; investigate historical duplicates instead of silently rewriting financial evidence. Use freshly migrated disposable test databases for the full native gate: a prior transaction-test flush removes migration-seeded data while retaining migration records. A passing sequential suite does not establish concurrency safety for other unsupported constraints.
 
 ## Repository continuity and proportional testing
 

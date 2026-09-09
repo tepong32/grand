@@ -4,6 +4,8 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](FINANCE_OPE
 
 This file records the platform-level delivery history and product direction. Each implementation phase uses a dedicated `codex/` branch, tests, synthetic showcase data, portfolio screenshots, review, CI, and merge into `master`. See the [documentation map](README.md) for operator and project guides.
 
+Finance execution update (2026-09-09, development branch): the personal-handoff adapter slice reached v0.7.68; [core operational scrutiny](FINANCE_SCRUTINY_2026-09-09.md) is now in progress. Its first reproduced critical gap concerns cross-store backup consistency (FIN-GAP-032). Coordinated native capture and the Budget persistence repairs passed final 708-test regressions on SQLite and MySQL; FIN-GAP-032/033/034 are verified within their documented scope. Generic following/shared views/notifications and all LGU/production acceptance gates remain explicitly deferred or outstanding. Development checkpoints do not imply these changes are merged into master.
+
 ## Completed - Professional, configurable civic UI
 
 - Use plain-language, task-oriented public and employee navigation.

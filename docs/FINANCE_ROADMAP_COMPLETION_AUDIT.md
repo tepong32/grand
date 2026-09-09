@@ -409,3 +409,12 @@ All commands used the repository Python 3.11 virtual environment. The exact fina
 - Static gates: `.venv/Scripts/python.exe manage.py check`, `.venv/Scripts/python.exe manage.py makemigrations --check --dry-run`, changed-module `python -m py_compile` using that same virtual environment, and `git diff --check`.
 
 The result counts, durations, failures corrected during test development, proportional-scope rationale and browser limitations are recorded in each checkpoint above. Both test database aliases were preserved where the selected tests use them; no live migration or user-database write was performed.
+
+
+## v0.7.69 - Native Finance recovery and persistence controls
+
+Coordinated native capture prevents the reproduced cross-store snapshot race and fails closed on missing privilege, different servers or lost locking connections. Payable projections preserve complete source kinds and consolidated UUID references. Budget generated nullable keys enforce original requests, numbered obligations and active allocations on MySQL and SQLite. Duplicate-data migration preflights require controlled investigation instead of altering history. Migrations: vouchers/0022-0023 and budget/0007-0008; no live/user database migration.
+
+PASS: final full SQLite suite, 708 tests in 314.043 seconds; final full MySQL 8.4.12 suite, 708 tests in 854.600 seconds. Both aliases remained separate. System, migration-drift, compilation and diff checks passed. The final affected native suite also passed 178 tests in 182.916 seconds.
+
+See [the scrutiny report](FINANCE_SCRUTINY_2026-09-09.md), FIN-GAP-032/033/034 and D-059/D-060/D-061 for evidence and limits. Overall scrutiny and LGU acceptance remain incomplete; production stays NO-GO.

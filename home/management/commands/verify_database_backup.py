@@ -49,6 +49,11 @@ class Command(BaseCommand):
             )
         )
         self.stdout.write(f"Manifest SHA-256: {result['manifest_sha256']}")
+        if not result["coordinated_capture_recorded"]:
+            self.stdout.write(self.style.WARNING(
+                "No coordinated capture evidence: integrity alone does not establish "
+                "a consistent cross-store recovery point."
+            ))
         if not result["authenticity_verified"]:
             self.stdout.write(
                 self.style.WARNING(

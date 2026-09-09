@@ -4,6 +4,8 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](FINANCE_OPE
 
 Status: canonical delivery roadmap for the professional GRAND Finance sub-application. The current implementation is a shadow/UAT foundation, not yet the LGU's authoritative finance system.
 
+Current execution: after the v0.7.68 personal-handoff adapter checkpoint, the [core operational scrutiny](FINANCE_SCRUTINY_2026-09-09.md) is in progress. D-059 records this priority. Deferred collaboration scope and all external acceptance gates remain; no production readiness is inferred from the software baseline or a disposable native database rehearsal.
+
 ## Product outcome
 
 GRAND Finance will reproduce the essential control coverage and official outputs of the observed eGAPS Budget Monitoring and Management, eNGAS/accounting, and Cash Disbursement modules without reproducing their workstation-bound client, maintenance-file menus, repetitive encoding, or generic Add/Edit/Delete interaction.

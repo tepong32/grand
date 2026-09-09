@@ -2,6 +2,8 @@
 
 Status: public-source baseline reviewed 2026-08-31. This is a routing register, not a legal opinion or proof of local applicability. Each source remains subject to effectivity, amendment, LGU-level, transaction, funding-source, and local-auditor/process-owner confirmation before GRAND enables official use.
 
+The [2026-09-09 scrutiny refresh](../FINANCE_SCRUTINY_2026-09-09.md) records newly retrieved sources, indexed metadata and HTTP access failures separately. It does not close unresolved applicability or activate tax rules/forms. In particular, the controlling LGU accounting manual and transaction-specific documentary requirements still require confirmation.
+
 The canonical rule is: **official reference**, **observed eGAPS behavior**, **LGU-confirmed practice**, and **GRAND-implemented behavior** are recorded separately. A familiar screen or old blank form never overrides a current issuance.
 
 ## Baseline sources

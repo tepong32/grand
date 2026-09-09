@@ -1,6 +1,6 @@
 # GRAND database backup and recovery
 
-Status: the native two-database backup generator is implemented and synthetically tested. A successful command creates a recovery artifact; it does **not** prove that an LGU restore rehearsal has passed.
+Status: coordinated native capture is implemented; the 2026-09-09 synthetic MySQL concurrency/restore and killed-connection/retry checks passed, with final 708-test SQLite and MySQL regressions passing. A successful command creates a recovery artifact; it does **not** prove that an LGU restore rehearsal has passed. See [FIN-GAP-032 and the scrutiny evidence](FINANCE_SCRUTINY_2026-09-09.md).
 
 ## What is protected
 
@@ -10,6 +10,20 @@ GRAND has two separately routed stores that form one application recovery point:
 - `finance` contains the standalone Accounting and Budget authority data governed by `FinanceDatabaseRouter`.
 
 The normal backup command captures both stores in one completed set. Each database remains a separate compressed native MySQL logical dump so routing and recovery can be checked independently.
+
+### Coordinated capture requirement
+
+Both aliases must identify distinct schemas on the same actual MySQL server. GRAND checks the server UUID through dedicated connections and holds `FLUSH TABLES WITH READ LOCK` across both dumps. The locking connection must remain the same through capture; connection loss, missing privilege, unsupported identity or different servers aborts publication and removes staging. The original application connections are not used for the lock and are not implicitly committed. Lock acquisition uses a 30-second session metadata-lock timeout.
+
+The default-store capture account needs MySQL `FLUSH_TABLES` or `RELOAD` privilege in addition to the required native dump privileges. **The global read lock pauses writes across that server, including other schemas.** Use an approved operational window and confirm the application's request/job timeout behavior for the expected dump duration. This code does not grant privileges, stop a production service or establish the LGU's maintenance policy. The lock is released by closing its dedicated session on success or failure.
+
+Configure a job-specific database identity in the backup process's environment for these privileges, with access to the intended schemas. Keep ordinary web-process database credentials separately scoped. The backup job uses its configured database identities; no new application-role authority is implied by the database capture privilege.
+
+Different-server deployments and engines that cannot establish the supported MySQL UUID/lock contract are refused; there is no fallback to independent snapshots. They require a separately validated coordinated capture method. This preserves separate databases rather than merging them. The [implementation decision D-060](IMPLEMENTATION_DECISIONS.md) records the boundary and downtime tradeoff.
+
+The supported deployment must use stable endpoints for that single server throughout capture. Do not assume a load-balancing proxy, DNS retargeting or managed failover routes new dump connections to the locked instance; that topology needs its own validated capture/failover mechanism. The local rehearsal used fixed container endpoints and does not establish managed-service failover safety.
+
+New manifests retain capture mode, server UUID, connection identity and capture timestamps. `verify_database_backup` validates this receipt's structure and reports `coordinated_capture_recorded`; it still does not establish restore acceptance. Historical manifests without this evidence remain readable for integrity checks, but emit a warning and must not be treated as a proven consistent cross-store recovery point. Never rewrite old manifests to invent a coordinated capture.
 
 Database backups are intentionally separate from `GRAND_EXPORT_ROOT`. The export root contains user-requested reports and transaction packages; `GRAND_BACKUP_ROOT` contains restricted recovery material. Uploaded media, the export root, encryption material, and external records still need their own approved backup arrangements.
 

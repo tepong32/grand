@@ -205,11 +205,11 @@ class BudgetObligation(models.Model):
     case = models.OneToOneField(VoucherCase, on_delete=models.PROTECT, related_name="obligation")
     obr_number = models.CharField(max_length=60, db_index=True)
     obligation_date = models.DateField()
-    budget_source_reference = models.CharField(max_length=160)
+    budget_source_reference = models.TextField()
     certified_amount = models.DecimalField(**MONEY, validators=[MinValueValidator(Decimal("0.01"))])
     certified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="certified_budget_obligations")
     certified_at = models.DateTimeField()
-    source_kind = models.CharField(max_length=24, default="legacy_shadow")
+    source_kind = models.CharField(max_length=64, default="legacy_shadow")
 
     def __str__(self):
         return self.obr_number
