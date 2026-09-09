@@ -549,6 +549,9 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertEqual(len(tasks), 1)
         self.assertEqual(tasks[0]["url"], reverse("finance:shadow_source_drift_review", kwargs={"pk": source.pk}))
         self.assertFalse(self.field_work_rows(self.manager, "field-source", source))
+        self.assertEqual(len(self.field_work_rows(self.manager, "field-source", source, "waiting")), 1)
+        self.assertEqual(len(self.field_work_rows(self.manager, "field-source", source, "completed")), 1)
+        self.assertFalse(self.field_work_rows(self.reconciler, "field-source", source, "waiting"))
         from .shadow_register_exports import shadow_action_queryset, visible_shadow_cycles
         selected, _, _ = shadow_action_queryset(self.reconciler, "review_source_drift", queryset=visible_shadow_cycles(self.reconciler))
         self.assertEqual(list(selected.values_list("pk", flat=True)), [cycle.pk])
@@ -572,6 +575,9 @@ class FinanceShadowCutoverTests(TestCase):
         self.assertEqual(source.review_status, FinanceShadowSourceVersion.ACCEPTED)
         self.assertFalse(self.field_work_rows(self.reconciler, "field-source", source))
         self.assertEqual(self.client.get(review_url).status_code, 403)
+        self.assertFalse(self.field_work_rows(self.manager, "field-source", source, "waiting"))
+        self.assertEqual(len(self.field_work_rows(self.manager, "field-source", source, "completed")), 1)
+        self.assertEqual(len(self.field_work_rows(self.reconciler, "field-source", source, "completed")), 1)
 
     def test_source_drift_actions_exclude_rejected_superseded_and_unauthorized_sources(self):
         from .cutover_services import stage_shadow_external_lock
@@ -598,8 +604,49 @@ class FinanceShadowCutoverTests(TestCase):
         )
         self.assertEqual(len(self.field_work_rows(self.reconciler, "field-source", second)), 1)
         self.assertFalse(self.field_work_rows(self.reconciler, "field-source", first))
+        self.assertFalse(self.field_work_rows(self.manager, "field-source", first, "waiting"))
+        self.assertEqual(len(self.field_work_rows(self.manager, "field-source", second, "waiting")), 1)
+        first_history = self.field_work_rows(self.manager, "field-source", first, "completed")
+        self.assertEqual(len(first_history), 1)
+        self.assertIn("Superseded", first_history[0]["exception"])
+        self.assertEqual(len(self.field_work_rows(self.reconciler, "field-source", first, "completed")), 1)
         self.reconciler.user_permissions.clear()
         self.assertFalse(self.field_work_rows(self.reconciler, "field-source", second))
+        self.assertFalse(self.field_work_rows(self.reconciler, "field-source", first, "completed"))
+
+    def test_source_history_uses_actual_stager_and_matching_version_evidence(self):
+        from .cutover_services import stage_shadow_external_lock
+        from .models import FinanceAuditEvent
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        self._grant(self.authority, "manage_shadow_operation")
+        predecessor = self._cycle(code="personal-source-predecessor")
+        predecessor.status = FinanceShadowCycle.RECONCILED
+        predecessor.save(update_fields=("status", "updated_at"))
+        cycle = self._unlocked_cycle(code="personal-source-proof", predecessor=predecessor)
+        source = stage_shadow_external_lock(
+            cycle, self.authority, source_checksum="c" * 64, schema_signature="d" * 64,
+            redaction_confirmed=True, redaction_note="Synthetic control only.",
+        )
+        history = self.field_work_rows(self.authority, "field-source", source, "completed")
+        self.assertEqual(len(history), 1)
+        self.assertFalse(self.field_work_rows(self.manager, "field-source", source, "completed"))
+        self.assertFalse(self.field_work_rows(self.manager, "field-source", source, "waiting"))
+        self.assertEqual(len(self.field_work_rows(self.authority, "field-source", source, "waiting")), 1)
+        event = FinanceAuditEvent.objects.get(target_type="financeshadowcycle", target_id=str(cycle.pk), action="shadow_external_source_lock_recorded")
+        for patch in ({"version": True}, {"source_checksum": "f" * 64}, {"staged_by_id": self.manager.pk}, {"intake_kind": "uploaded_csv"}, {"is_current": False}):
+            FinanceAuditEvent.objects.create(
+                department=event.department, target_type=event.target_type, target_id=event.target_id,
+                action=event.action, actor=self.authority, snapshot={**event.snapshot, **patch},
+            )
+        FinanceAuditEvent.objects.create(
+            department=event.department, target_type=event.target_type, target_id=event.target_id,
+            action=event.action, actor=self.authority, snapshot=[],
+        )
+        self.assertEqual(self.field_work_rows(self.authority, "field-source", source, "completed"), history)
+        self.authority.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertFalse(self.field_work_rows(self.authority, "field-source", source, "completed"))
+        self.assertFalse(self.field_work_rows(self.authority, "field-source", source, "waiting"))
 
     def test_evidence_export_includes_source_controls_but_not_csv_row_values(self):
         cycle = self._unlocked_cycle()

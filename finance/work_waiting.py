@@ -412,6 +412,20 @@ def personal_waiting_tasks(user, department, today, actionable_tasks):
     from .models import FinanceShadowCycle, FinanceShadowDefect, FinanceCutoverReadinessExercise
     from .shadow_register_exports import visible_shadow_cycles
     cycles = visible_shadow_cycles(user)
+    from .models import FinanceShadowSourceVersion
+    for item in FinanceShadowSourceVersion.objects.filter(
+        cycle__in=cycles, cycle__status=FinanceShadowCycle.DRAFT, is_current=True,
+        schema_comparison=FinanceShadowSourceVersion.DRIFT, review_status=FinanceShadowSourceVersion.PENDING,
+        staged_by=user,
+    ).select_related("cycle", "cycle__department"):
+        if not can_view_shadow_cycle(user, item.cycle):
+            continue
+        add(item, kind="field-source", area="Field operation", reference=f"{item.cycle.code} - source v{item.version}",
+            subject="Your staged source awaits independent layout review", received=item.staged_at,
+            queue="Independent source-layout reviewers", scope=f"{item.cycle.department.name}; {item.cycle.enabled_scope}",
+            route="finance:shadow_cycle_detail", route_kwargs={"pk": item.cycle_id},
+            source_id=_source_record_identity("field-source", item.pk), attribution=[item.staged_by_id],
+            status=item.review_status, status_label=item.get_review_status_display())
     from .field_control_register import FIELD_CONTROL_TYPES, control_cycle
     for _family, (model, kind, label, parent) in FIELD_CONTROL_TYPES.items():
         for item in model.objects.filter(**{f"{parent}__in": cycles}, status=model.SUBMITTED).filter(

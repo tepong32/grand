@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.66 - Personal source-version handoffs and history
+
+Waiting follows the current source stager while a draft cycle awaits independent layout review. Completed history matches retained CSV/external-lock staging and drift decisions to the immutable cycle/version metadata and recorded actor, preserving superseded source history without crediting the cycle creator or inferring approval from staging. PASS: final 134 cutover/My Work/operations tests in 108.173 seconds; 3 initial focused tests in 8.226 seconds; system, migration-drift, compilation and diff checks passed.
+
 ## v0.7.65 - Independent source-layout review tasks
 
 Independent reviewers now receive an exact task for a current pending source-layout drift in a draft field cycle. Register attention, counts, My Work, cycle-page links and review forms share current-office, explicit-permission, UAT and maker-checker eligibility. Rejected, superseded and completed source versions retain their evidence without offering another decision. PASS: 133 cutover/My Work/operations tests in 101.312 seconds; system, migration-drift, compilation and diff checks passed.
