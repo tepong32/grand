@@ -1328,6 +1328,8 @@ class VoucherWorkflowTests(TestCase):
             authority_reference="Synthetic locally reviewed bank-advice procedure.",
             local_applicability_note="Accepted for controlled UAT by the synthetic process owners.",
         )
+        self.client.force_login(self.preparer)
+        self.assertNotContains(self.client.get(reverse('vouchers:case_detail', args=[case.public_id])), 'Prepare and send for review')
         self.acknowledge_advice(batch)
         case.refresh_from_db(); instrument.refresh_from_db()
         release_check(
@@ -3638,6 +3640,8 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(clarified.status, ReturnedInstrumentReview.READY_FOR_TREASURY)
         self.assertNotIn(f"returned-payment:{clarified.public_id}", waiting_review_ids())
         self.assertEqual(case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
+        from vouchers.forms import CheckIssueForm
+        self.assertEqual(CheckIssueForm(case=case).fields["amount"].initial, Decimal("900.00"))
         replacement = issue_check(
             case=case, actor=self.treasury_user, bank_account_code="gf-lbp", fund_code="general-fund",
             check_number="F84-RETURNED-2", amount=Decimal("900.00"), replaces=instrument,
@@ -3910,6 +3914,8 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(unclaimed.status, PaymentInstrumentException.RESOLVED)
         self.assertEqual(stale.status, PaymentInstrumentException.OPEN)
         self.assertEqual(instrument.operational_status, PaymentInstrument.STALE)
+        from vouchers.forms import CheckReleaseForm
+        self.assertFalse(CheckReleaseForm(case=case).fields["instrument"].queryset.filter(pk=instrument.pk).exists())
         case.refresh_from_db()
         with self.assertRaises(ValidationError):
             release_check(
@@ -4579,3 +4585,46 @@ class VoucherWorkflowTests(TestCase):
         response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
         self.assertEqual(amendment.status, VoucherNonFinancialAmendment.AWAITING_SIGNATURES)
         self.assertNotContains(response, "Create non-financial amendment")
+
+    def test_payment_forms_follow_current_office_and_terminal_source_guards(self):
+        case = self.ready_for_treasury()
+        self.preparer.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers",
+            codename__in=("issue_payment_instruments", "release_payment_instruments", "manage_payment_exceptions"),
+        ))
+        url = reverse("vouchers:case_detail", args=[case.public_id])
+        self.client.force_login(self.preparer)
+        with self.subTest(action="foreign office issue"):
+            self.assertNotContains(self.client.get(url), "Register issued check")
+        # Keep the configured issuance destination stable after testing display grants.
+        self.preparer.user_permissions.remove(Permission.objects.get(
+            content_type__app_label="vouchers", codename="issue_payment_instruments",
+        ))
+        self.client.force_login(self.treasury_user)
+        self.assertContains(self.client.get(url), "Register issued check")
+        instrument = issue_check(case=case, actor=self.treasury_user,
+            bank_account_code="gf-lbp", check_number="PAGE-PAYMENT-1", amount=Decimal("900.00"),
+            expected_version=case.state_version, idempotency_key="page-payment-issue")
+        case.refresh_from_db()
+        self.assertEqual(case.current_department_id, self.treasury.pk)
+        self.assertContains(self.client.get(url), "Cancel / spoil a check")
+        self.client.force_login(self.preparer)
+        with self.subTest(action="foreign office cancellation"):
+            self.assertNotContains(self.client.get(url), "Cancel / spoil a check")
+        case.current_stage = VoucherCase.TREASURY_RELEASE
+        case.save(update_fields=("current_stage",))
+        with self.subTest(action="foreign office release"):
+            self.assertNotContains(self.client.get(url), "Release advised check")
+        case.current_stage = VoucherCase.CANCELLED
+        case.save(update_fields=("current_stage",))
+        with self.subTest(action="terminal custody link"):
+            self.assertNotContains(self.client.get(url), "Link physical custody")
+        self.client.force_login(self.treasury_user)
+        with self.subTest(action="terminal cancellation"):
+            self.assertNotContains(self.client.get(url), "Cancel / spoil a check")
+        case.current_stage = VoucherCase.TREASURY_CHECK_PREPARATION
+        case.save(update_fields=("current_stage",))
+        instrument.status = PaymentInstrument.CANCELLED
+        instrument.save(update_fields=("status",))
+        with self.subTest(action="no eligible check to cancel"):
+            self.assertNotContains(self.client.get(url), "Cancel / spoil a check")

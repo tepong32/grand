@@ -754,7 +754,9 @@ class CheckIssueForm(WorkflowForm):
             funds = [(code, code) for code in codes]
         self.fields["fund_code"].choices = funds
         if case and hasattr(case, "disbursement_voucher"):
-            existing = sum((item.amount for item in case.payment_instruments.exclude(status=PaymentInstrument.CANCELLED)), Decimal("0.00"))
+            existing = sum((item.amount for item in case.payment_instruments.exclude(
+                status__in=(PaymentInstrument.CANCELLED, PaymentInstrument.BANK_RETURNED),
+            )), Decimal("0.00"))
             self.fields["amount"].initial = case.disbursement_voucher.net_amount - existing
             self.fields["replaces"].queryset = case.payment_instruments.filter(
                 status__in=(PaymentInstrument.CANCELLED, PaymentInstrument.BANK_RETURNED),
@@ -781,7 +783,10 @@ class BankAdviceForm(WorkflowForm):
 
 
 class CheckReleaseForm(WorkflowForm):
-    instrument = forms.ModelChoiceField(queryset=PaymentInstrument.objects.none())
+    instrument = forms.ModelChoiceField(
+        queryset=PaymentInstrument.objects.none(),
+        help_text="Only bank-acknowledged checks eligible for release are listed. Resolve stale or returned checks through the recorded exception/recovery route first.",
+    )
     claimant = forms.ModelChoiceField(queryset=FinancePartyClaimant.objects.none(), label="Authorized claimant")
     receipt_reference = forms.CharField(max_length=120)
 
@@ -791,7 +796,7 @@ class CheckReleaseForm(WorkflowForm):
             self.fields["instrument"].queryset = case.payment_instruments.filter(
                 status=PaymentInstrument.ADVISED,
                 current_advice_batch__status=BankAdviceBatch.ACKNOWLEDGED,
-            )
+            ).exclude(operational_status__in=(PaymentInstrument.STALE, PaymentInstrument.RETURNED))
             self.fields["claimant"].queryset = FinancePartyClaimant.objects.filter(
                 party=case.payee, status="active", valid_from__lte=timezone.localdate(),
             ).filter(Q(valid_to__isnull=True) | Q(valid_to__gte=timezone.localdate()))

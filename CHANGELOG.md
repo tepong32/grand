@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.60 - Payment form readiness and exact signature attention
+
+Payment forms now use current-office source actions, eligible cancellation states and nonterminal custody-link controls. Returned checks no longer reduce the replacement default, and stale/returned instruments are excluded from release choices with recovery guidance. Initial bank-advice preparation is hidden once issued checks belong to a current batch. Generic signature-stage attention now uses the real print/signature selectors. PASS: 177 voucher/custody/My Work/operations tests in 96.163 seconds. PASS: 692 full-project tests in 248.224 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.59 - Source dependencies for print actions
 
 Controlled signing-copy queues and forms now require their existing DV preparation grant and pinned owner. Print recording and packet assembly use separate source selectors; only new packets need TracePoint preparation authority. Reasoned replacement printing remains available without being counted as the pending signature action. Missing-owner cases remain readable with amendment controls unavailable. PASS: 112 voucher/custody tests in 49.996 seconds. PASS: 82 My Work/operations tests in 49.149 seconds. System, migration-drift, compilation and diff checks passed.

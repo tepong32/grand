@@ -478,10 +478,11 @@ def apply_case_filters(
                         obligation__certified_by=actor,
                     )
             if VoucherCase.AWAITING_SIGNATURES in actionable_stages:
-                queryset = queryset.exclude(
-                    Q(current_stage=VoucherCase.AWAITING_SIGNATURES)
-                    & ~Q(current_department_id=actor_department.pk)
-                )
+                ready = Q(pk__in=dv_signature_task_queryset(actor).values("case_id"))
+                for action in ("signing_copy", "record_print", "assemble_packet"):
+                    action_cases, _, _ = dv_custody_action_queryset(actor, action)
+                    ready |= Q(pk__in=action_cases.values("pk"))
+                queryset = queryset.filter(~Q(current_stage=VoucherCase.AWAITING_SIGNATURES) | ready)
             if VoucherCase.ACCOUNTING_VALIDATION in actionable_stages:
                 queryset = queryset.exclude(
                     Q(current_stage=VoucherCase.ACCOUNTING_VALIDATION)

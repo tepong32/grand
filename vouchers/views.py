@@ -346,7 +346,7 @@ def case_detail(request, public_id):
     from .case_exports import (
         accounting_validation_action_queryset, dv_custody_action_queryset,
         dv_print_preparation_queryset, dv_signature_task_queryset,
-        legacy_budget_action_queryset, payable_action_queryset,
+        legacy_budget_action_queryset, payable_action_queryset, treasury_payment_action_queryset,
     )
     for key, action in (("initiate_payable", "preparation"), ("review_payable", "review")):
         action_cases, _, _ = payable_action_queryset(request.user, action)
@@ -364,9 +364,22 @@ def case_detail(request, public_id):
     permissions["certify"] = legacy_budget_action_queryset(request.user).filter(pk=case.pk).exists()
     validation_cases, _, _ = accounting_validation_action_queryset(request.user)
     permissions["validate"] = validation_cases.filter(pk=case.pk).exists()
+    for key, action in (("issue", "check_preparation"), ("release", "release")):
+        action_cases, _, _ = treasury_payment_action_queryset(request.user, action)
+        permissions[key] = action_cases.filter(pk=case.pk).exists()
+    from .advice_register import initial_advice_instruments
+    issued = case.payment_instruments.filter(status=PaymentInstrument.ISSUED)
+    initial_advice_ids = initial_advice_instruments(request.user).values("pk")
+    permissions["prepare_advice"] = issued.exists() and not issued.exclude(pk__in=initial_advice_ids).exists()
     permissions["generate_output"] = can_manage_owned_case_artifact(request.user, case, "vouchers.prepare_disbursement_voucher")
-    permissions["tracepoint_link"] = can_manage_owned_case_artifact(request.user, case, "vouchers.link_tracepoint_custody")
+    terminal = case.current_stage in (VoucherCase.COMPLETED, VoucherCase.CANCELLED)
+    permissions["tracepoint_link"] = not terminal and can_manage_owned_case_artifact(request.user, case, "vouchers.link_tracepoint_custody")
     acting_department = department_for_user(request.user)
+    permissions["exceptions"] = bool(
+        permissions["exceptions"] and not terminal and acting_department
+        and case.current_department_id == acting_department.pk
+        and case.payment_instruments.filter(status__in=(PaymentInstrument.ISSUED, PaymentInstrument.ADVISED)).exists()
+    )
     permissions["return"] = bool(
         permissions["return"] and not is_finance_uat_viewer(request.user)
         and acting_department and case.current_department_id == acting_department.pk

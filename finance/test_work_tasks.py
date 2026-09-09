@@ -1645,6 +1645,11 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         action = reverse("vouchers:case_action", args=[item.public_id, "prepare-controlled-print"])
         with self.subTest(scope="missing DV preparation grant"):
             self.assertFalse(dv_custody_action_queryset(operator, "signing_copy")[0].exists())
+        with self.subTest(scope="generic action queue"):
+            self.assertFalse(apply_case_filters(
+                visible_cases_for_user(operator), actionable_stages=(VoucherCase.AWAITING_SIGNATURES,),
+                attention="ready_for_me", actor=operator,
+            )[0].exists())
         with self.subTest(scope="source form"):
             self.assertNotContains(self.client.get(url), action)
         operator.user_permissions.add(Permission.objects.get(
