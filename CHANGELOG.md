@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.64 - Verified voucher synchronization history
+
+Completed by me now retains verified voucher posting synchronization, including payment and reversal handoffs. Credit belongs to the recorded synchronizer, separately from the original ledger poster. Current voucher scope and matching retained evidence in both stores are required; malformed references, checksum drift and one-cent ledger drift are excluded. PASS: final 180 voucher workflow/custody/My Work/operations tests in 128.334 seconds. PASS: full 695-test project suite in 250.542 seconds before the final presentation-only refinement. PASS: system, migration-drift, compilation and diff checks.
+
 ## v0.7.63 - Personal period-reopen Waiting
 
 Waiting now follows pending period-reopen requests submitted by the current user, using the reopen-request time and independent-review queue. Prior close preparation alone does not establish ownership of another person's later reopen request. Approval/return removes the handoff; resubmission follows its current requester. Current source actions, office/read scope and UAT controls remain. PASS: 90 My Work/operations/period-close tests in 133.889 seconds. System, migration-drift, compilation and diff checks passed.

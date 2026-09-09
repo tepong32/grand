@@ -128,7 +128,7 @@
             <td class="small" data-label="Action and gate">
               <div><strong>Do:</strong> {{ task.action }}</div>
               <div class="text-muted"><strong>Gate:</strong> {{ task.gate }}</div>
-              {% if task.exception %}<div class="text-danger"><strong>Exception:</strong> {{ task.exception }}</div>{% endif %}
+              {% if task.exception %}{% if task.state == 'Completed' %}<div class="text-muted"><strong>Record note:</strong> {{ task.exception }}</div>{% else %}<div class="text-danger"><strong>Exception:</strong> {{ task.exception }}</div>{% endif %}{% endif %}
             </td>
             <td class="small" data-label="Queue and timing">
               <div>{{ task.owner_queue }}</div>

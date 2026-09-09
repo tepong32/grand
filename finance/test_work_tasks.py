@@ -2344,6 +2344,7 @@ class FinanceAccountingWorkTaskContractTests(TestCase):
         self.assertContains(response, "Completed by me")
         self.assertContains(response, "Submitted JEV for posting")
         self.assertContains(response, "Recorded:</strong>")
+        self.assertNotContains(response, '<strong>Exception:</strong>')
         self.preparer.user_permissions.clear()
         self.assertEqual(finance_work_tasks(self.preparer, view="completed")["task_count"], 0)
 

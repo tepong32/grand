@@ -1377,6 +1377,13 @@ class VoucherWorkflowTests(TestCase):
         self.assertIn(request.jev_number, exported)
         self.assertIn("RECEIPT-PAYMENT-EVENT", exported)
 
+        history = self._posting_history(case, self.validator)
+        self.assertEqual({row["task_type"] for row in history}, {
+            "finance.voucher-posting.grand_jev_posted.completed.v1",
+            "finance.voucher-posting.payment_jev_posted.completed.v1",
+        })
+        self.assertEqual(len(history), 2)
+
     def test_authoritative_budget_to_reconciled_treasury_report_replay(self):
         """Replay one governed case across the implemented F2-F9 control boundaries."""
         self.budget_user.user_permissions.add(*Permission.objects.filter(
@@ -3666,6 +3673,10 @@ class VoucherWorkflowTests(TestCase):
         reversal_entry.refresh_from_db(); reconcile_posted_voucher_entry(reversal_entry, self.validator)
         clarified.refresh_from_db(); case.refresh_from_db()
         self.assertEqual(clarified.status, ReturnedInstrumentReview.READY_FOR_TREASURY)
+        reversal_history = [row for row in self._posting_history(case, self.validator)
+                            if row["task_type"] == "finance.voucher-posting.reversal_jev_posted.completed.v1"]
+        self.assertEqual(len(reversal_history), 1)
+        self.assertIn(reversal_entry.reference, reversal_history[0]["subject"])
         self.assertNotIn(f"returned-payment:{clarified.public_id}", waiting_review_ids())
         self.assertEqual(case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
         from vouchers.forms import CheckIssueForm
@@ -4703,3 +4714,73 @@ class VoucherWorkflowTests(TestCase):
         instrument.save(update_fields=("status",))
         with self.subTest(action="no eligible check to cancel"):
             self.assertNotContains(self.client.get(url), "Cancel / spoil a check")
+
+    def _posting_history(self, case, actor):
+        from finance.work_tasks import finance_work_tasks
+        return [row for row in finance_work_tasks(actor, view="completed")["tasks"]
+                if row["case_id"] == f"voucher-case:{case.public_id}"
+                and row["task_type"].startswith("finance.voucher-posting.")]
+
+    def test_posting_history_credits_synchronizer_and_requires_stored_two_store_proof(self):
+        from uuid import uuid4
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        case, source, entry = self._draft_voucher_handoff()
+        synchronizer = self.employee("history.synchronizer", self.accounting, "view_voucher_workbench")
+        synchronizer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="accounting", codename="post_journal_entries"))
+        submit_entry(entry, self.preparer)
+        entry.refresh_from_db()
+        post_entry(entry, self.validator)
+        entry.refresh_from_db()
+        self.assertFalse(self._posting_history(case, synchronizer))
+        reconcile_posted_voucher_entry(entry, synchronizer)
+        expected = self._posting_history(case, synchronizer)
+        self.client.force_login(synchronizer)
+        response = self.client.get(reverse("finance_operations:my_work"), {"view": "completed"})
+        self.assertContains(response, '<div class="text-muted"><strong>Record note:</strong>')
+        self.assertNotContains(response, '<strong>Exception:</strong>')
+        self.assertEqual(len(expected), 1)
+        self.assertIn(entry.reference, expected[0]["subject"])
+        self.assertIn("not the original JEV posting", expected[0]["gate"])
+        self.assertEqual(entry.posted_by_id, self.validator.pk)
+        self.assertFalse(self._posting_history(case, self.validator))
+        reconcile_posted_voucher_entry(entry, synchronizer)
+        self.assertEqual(self._posting_history(case, synchronizer), expected)
+        event = case.events.get(action="grand_jev_posted")
+        foreign = self.create_case("posting-history-foreign")
+        for index, (item, office, stage, metadata) in enumerate([
+            (foreign, self.accounting, event.from_stage, event.metadata),
+            (case, self.requesting, event.from_stage, event.metadata),
+            (case, self.accounting, VoucherCase.TREASURY_RELEASE, event.metadata),
+            (case, self.accounting, event.from_stage, {**event.metadata, "posting_request": "invalid"}),
+            (case, self.accounting, event.from_stage, {**event.metadata, "accounting_entry": str(uuid4())}),
+            (case, self.accounting, event.from_stage, {**event.metadata, "jev_number": "WRONG-JEV"}),
+            (case, self.accounting, event.from_stage, {**event.metadata, "posting_event": "payment"}),
+            (case, self.accounting, event.from_stage, {**event.metadata, "resume_stage": VoucherCase.COMPLETED}),
+            (case, self.accounting, event.from_stage, []),
+        ]):
+            VoucherEvent.objects.create(case=item, action=event.action, actor=synchronizer,
+                actor_department=office, from_stage=stage, to_stage=event.to_stage,
+                state_version=index + 100, metadata=metadata, idempotency_key=f"sync-history-invalid-{index}")
+        self.assertEqual(self._posting_history(case, synchronizer), expected)
+        self.assertFalse(self._posting_history(foreign, synchronizer))
+        original_snapshot = entry.source_snapshot.copy()
+        JournalEntry.objects.filter(pk=entry.pk).update(source_snapshot={**original_snapshot, "payload_checksum": "wrong"})
+        self.assertFalse(self._posting_history(case, synchronizer))
+        JournalEntry.objects.filter(pk=entry.pk).update(source_snapshot=original_snapshot)
+        posting_event = entry.audit_events.get(action="posted")
+        AccountingAuditEvent.objects.filter(pk=posting_event.pk).update(snapshot={**posting_event.snapshot, "debit": "1000.01"})
+        self.assertFalse(self._posting_history(case, synchronizer))
+        AccountingAuditEvent.objects.filter(pk=posting_event.pk).update(snapshot=posting_event.snapshot)
+        line = entry.lines.filter(debit__gt=0).first()
+        entry.lines.filter(pk=line.pk).update(debit=line.debit + Decimal("0.01"))
+        self.assertFalse(self._posting_history(case, synchronizer))
+        entry.lines.filter(pk=line.pk).update(debit=line.debit)
+        self.assertEqual(self._posting_history(case, synchronizer), expected)
+        synchronizer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertFalse(self._posting_history(case, synchronizer))
+        synchronizer.groups.clear()
+        synchronizer.user_permissions.clear()
+        self.assertFalse(self._posting_history(case, synchronizer))

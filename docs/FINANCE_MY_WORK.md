@@ -336,3 +336,8 @@ Personal DV history now separates amendment authorship from final replacement-si
 ## v0.7.63 - Personal period-reopen Waiting
 
 Waiting now follows pending period-reopen requests submitted by the current user, using the reopen-request time and independent-review queue. Prior close preparation alone does not establish ownership of another person's later reopen request. Approval/return removes the handoff; resubmission follows its current requester. Current source actions, office/read scope and UAT controls remain. The Accounting period's date is not used as the request age or an invented deadline. See [the coverage table](FINANCE_WORK_VIEW_COVERAGE.md) for remaining synchronization history.
+
+
+## v0.7.64 - Verified voucher synchronization history
+
+Completed by me now retains verified voucher posting synchronization, including payment and reversal handoffs. Credit belongs to the recorded synchronizer, separately from the original ledger poster. Current voucher scope and matching retained evidence in both stores are required; malformed references, checksum drift and one-cent ledger drift are excluded. Completed history uses neutral Record notes for retained context while active work keeps Exception labels. See [browser verification](FINANCE_PERSONAL_HISTORY_BROWSER_QA.md).
