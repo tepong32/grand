@@ -28,6 +28,7 @@ from .models import (
 
 
 ATTENTION_CHOICES = (
+    ("review_source_drift", "Changed source headings for independent review"),
     ("needs_source", "Draft needs its redacted source lock"),
     ("ready_to_prepare", "Draft has a source lock; complete local plans"),
     ("running", "Field cycle in progress"),
@@ -45,6 +46,12 @@ ATTENTION_CHOICES = (
 )
 
 SHADOW_ACTION_SPECS = {
+    "review_source_drift": {
+        "role": "review",
+        "title": "Changed source headings for independent review",
+        "definition": "Current source versions in draft cycles in the acting Finance office with pending layout drift, staged by another person.",
+        "next_action": "Compare the changed headings with the retained mapping and independently accept or reject the source layout.",
+    },
     "prepare_successor": {
         "role": "manage",
         "title": "Returned cycles needing a linked successor",
@@ -198,7 +205,11 @@ def shadow_action_queryset(user, attention, *, queryset):
     if attention in FIELD_PLAN_ACTION_SPECS:
         records = field_plan_action_records(user, attention, cycles=queryset)
         return queryset.filter(pk__in=records.values("cycle_id")).distinct(), attention, spec
-    if attention == "needs_source":
+    if attention == "review_source_drift":
+        from .field_source_register import source_drift_review_records
+        records = source_drift_review_records(user, cycles=queryset)
+        queryset = queryset.filter(pk__in=records.values("cycle_id"))
+    elif attention == "needs_source":
         queryset = queryset.filter(department=department, status=FinanceShadowCycle.DRAFT).filter(
             Q(source_checksum="") | Q(source_schema_signature=""),
         )
@@ -264,6 +275,9 @@ def shadow_action_record_queryset(user, attention, *, queryset):
         return field_control_action_records(user, attention, cycles=cycles), selected, spec
     if attention in FIELD_PLAN_ACTION_SPECS:
         return field_plan_action_records(user, attention, cycles=cycles), selected, spec
+    if attention == "review_source_drift":
+        from .field_source_register import source_drift_review_records
+        return source_drift_review_records(user, cycles=cycles), selected, spec
     if attention == "my_defects":
         records = FinanceShadowDefect.objects.filter(
             cycle_id__in=cycle_ids, owner=user, status=FinanceShadowDefect.OPEN,

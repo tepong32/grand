@@ -341,3 +341,8 @@ Waiting now follows pending period-reopen requests submitted by the current user
 ## v0.7.64 - Verified voucher synchronization history
 
 Completed by me now retains verified voucher posting synchronization, including payment and reversal handoffs. Credit belongs to the recorded synchronizer, separately from the original ledger poster. Current voucher scope and matching retained evidence in both stores are required; malformed references, checksum drift and one-cent ledger drift are excluded. Completed history uses neutral Record notes for retained context while active work keeps Exception labels. See [browser verification](FINANCE_PERSONAL_HISTORY_BROWSER_QA.md).
+
+
+## v0.7.65 - Independent source-layout review tasks
+
+Independent reviewers now receive an exact task for a current pending source-layout drift in a draft field cycle. Register attention, counts, My Work, cycle-page links and review forms share current-office, explicit-permission, UAT and maker-checker eligibility. Rejected, superseded and completed source versions retain their evidence without offering another decision. Source staging time determines age; no review deadline is inferred. Personal Waiting/history remain the next adapter.

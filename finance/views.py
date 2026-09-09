@@ -626,10 +626,17 @@ def shadow_cycle_detail(request, pk):
     ).select_related("actor").order_by("-created_at", "-pk")[:20])
     for event in review_history:
         event.display_action = event.action.replace("_", " ").capitalize()
+    from .field_source_register import source_drift_review_records
+    reviewable_sources = set(source_drift_review_records(
+        request.user, cycles=FinanceShadowCycle.objects.filter(pk=cycle.pk),
+    ).values_list("pk", flat=True))
+    source_versions = list(cycle.source_versions.select_related("staged_by", "reviewed_by"))
+    for source in source_versions:
+        source.can_review_drift = source.pk in reviewable_sources
     return render(request, "finance/shadow_cycle_detail.html", {
         "cycle": cycle,
         "review_history": review_history,
-        "source_versions": cycle.source_versions.select_related("staged_by", "reviewed_by"),
+        "source_versions": source_versions,
         "reconciliation_plan": plan,
         "cutover_readiness_plan": readiness_plan,
         "cutover_readiness_exercises": exercises,
@@ -1607,7 +1614,8 @@ def shadow_source_drift_review(request, pk):
     )
     if not can_view_shadow_cycle(request.user, source.cycle):
         raise PermissionDenied
-    if not can_review_shadow_reconciliation(request.user, source.cycle.department):
+    from .field_source_register import source_drift_review_records
+    if not source_drift_review_records(request.user, cycles=FinanceShadowCycle.objects.filter(pk=source.cycle_id)).filter(pk=source.pk).exists():
         raise PermissionDenied
     form = FinanceShadowDriftReviewForm(request.POST or None)
     if request.method == "POST" and form.is_valid():

@@ -80,6 +80,9 @@ def _projection_checksum(values):
 
 
 def _nested_field_task(item, action_key, spec, department, today):
+    if action_key == "review_source_drift":
+        from .field_source_register import source_drift_task
+        return source_drift_task(item, spec, today)
     from .field_control_register import FIELD_CONTROL_ACTION_SPECS
     if action_key in FIELD_CONTROL_ACTION_SPECS:
         from .work_field_controls import field_control_task

@@ -80,6 +80,7 @@ def _field_operation_groups(user, department):
 
     keys = {
         "needs_source": "field-source-lock",
+        "review_source_drift": "field-source-drift-review",
         "ready_to_prepare": "field-cycle-preparation",
         "running": "field-cycle-execution",
         "prepare_successor": "field-cycle-successor",

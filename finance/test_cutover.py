@@ -545,6 +545,20 @@ class FinanceShadowCutoverTests(TestCase):
         )
         self.assertEqual(source.schema_comparison, FinanceShadowSourceVersion.DRIFT)
         self.assertEqual(source.review_status, FinanceShadowSourceVersion.PENDING)
+        tasks = self.field_work_rows(self.reconciler, "field-source", source)
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0]["url"], reverse("finance:shadow_source_drift_review", kwargs={"pk": source.pk}))
+        self.assertFalse(self.field_work_rows(self.manager, "field-source", source))
+        from .shadow_register_exports import shadow_action_queryset, visible_shadow_cycles
+        selected, _, _ = shadow_action_queryset(self.reconciler, "review_source_drift", queryset=visible_shadow_cycles(self.reconciler))
+        self.assertEqual(list(selected.values_list("pk", flat=True)), [cycle.pk])
+        review_url = tasks[0]["url"]
+        self.client.force_login(self.manager)
+        self.assertNotContains(self.client.get(reverse("finance:shadow_cycle_detail", kwargs={"pk": cycle.pk})), review_url)
+        self.assertEqual(self.client.get(review_url).status_code, 403)
+        self.client.force_login(self.reconciler)
+        self.assertContains(self.client.get(reverse("finance:shadow_cycle_detail", kwargs={"pk": cycle.pk})), review_url)
+        self.assertEqual(self.client.get(review_url).status_code, 200)
         with self.assertRaisesMessage(ValidationError, "independent review"):
             start_shadow_cycle(cycle, self.manager)
         with self.assertRaisesMessage(ValidationError, "staged the source"):
@@ -556,6 +570,36 @@ class FinanceShadowCutoverTests(TestCase):
         start_shadow_cycle(cycle, self.manager)
         source.refresh_from_db()
         self.assertEqual(source.review_status, FinanceShadowSourceVersion.ACCEPTED)
+        self.assertFalse(self.field_work_rows(self.reconciler, "field-source", source))
+        self.assertEqual(self.client.get(review_url).status_code, 403)
+
+    def test_source_drift_actions_exclude_rejected_superseded_and_unauthorized_sources(self):
+        from .cutover_services import stage_shadow_external_lock
+        predecessor = self._cycle()
+        predecessor.status = FinanceShadowCycle.RECONCILED
+        predecessor.save(update_fields=("status", "updated_at"))
+        cycle = self._unlocked_cycle(code="source-review-recovery", predecessor=predecessor)
+        first = stage_shadow_external_lock(
+            cycle, self.manager, source_checksum="c" * 64, schema_signature="d" * 64,
+            redaction_confirmed=True, redaction_note="Synthetic control only.",
+        )
+        self.assertEqual(len(self.field_work_rows(self.reconciler, "field-source", first)), 1)
+        self.assertFalse(self.field_work_rows(self.outsider, "field-source", first))
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        self.reconciler.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertFalse(self.field_work_rows(self.reconciler, "field-source", first))
+        self.reconciler.groups.clear()
+        review_shadow_source_drift(first, self.reconciler, accept=False, reason="Mapping not yet supported.")
+        self.assertFalse(self.field_work_rows(self.reconciler, "field-source", first))
+        second = stage_shadow_external_lock(
+            cycle, self.manager, source_checksum="e" * 64, schema_signature="f" * 64,
+            redaction_confirmed=True, redaction_note="Synthetic corrected control only.", change_reason="Revised mapping.",
+        )
+        self.assertEqual(len(self.field_work_rows(self.reconciler, "field-source", second)), 1)
+        self.assertFalse(self.field_work_rows(self.reconciler, "field-source", first))
+        self.reconciler.user_permissions.clear()
+        self.assertFalse(self.field_work_rows(self.reconciler, "field-source", second))
 
     def test_evidence_export_includes_source_controls_but_not_csv_row_values(self):
         cycle = self._unlocked_cycle()

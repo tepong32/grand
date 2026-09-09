@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.65 - Independent source-layout review tasks
+
+Independent reviewers now receive an exact task for a current pending source-layout drift in a draft field cycle. Register attention, counts, My Work, cycle-page links and review forms share current-office, explicit-permission, UAT and maker-checker eligibility. Rejected, superseded and completed source versions retain their evidence without offering another decision. PASS: 133 cutover/My Work/operations tests in 101.312 seconds; system, migration-drift, compilation and diff checks passed.
+
 ## v0.7.64 - Verified voucher synchronization history
 
 Completed by me now retains verified voucher posting synchronization, including payment and reversal handoffs. Credit belongs to the recorded synchronizer, separately from the original ledger poster. Current voucher scope and matching retained evidence in both stores are required; malformed references, checksum drift and one-cent ledger drift are excluded. PASS: final 180 voucher workflow/custody/My Work/operations tests in 128.334 seconds. PASS: full 695-test project suite in 250.542 seconds before the final presentation-only refinement. PASS: system, migration-drift, compilation and diff checks.
