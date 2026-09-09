@@ -326,3 +326,8 @@ My Work now puts coverage, technical record identifiers and view mechanics in na
 ## v0.7.61 - Personal DV print and packet history
 
 Completed by me now includes retained signing-copy preparation, physical-print recording and packet assembly. Each event must match its same-case print job/version/actor and action-specific output/count/custody evidence. Superseded copies remain distinct historical actions, with current copy state and stable event IDs. Malformed or inconsistent references fail closed; current source read access and UAT exclusion remain. Preparation entries retain output identity/checksum; printed-copy entries retain count; assembled-packet entries retain packet/item/checkpoint evidence. This credits the recorded operator, not physical signatories, and does not authorize signing or payment. See [the coverage table](FINANCE_WORK_VIEW_COVERAGE.md) for remaining amendment and posting history.
+
+
+## v0.7.62 - Personal amendment and signature-return history
+
+Personal DV history now separates amendment authorship from final replacement-signature recording. Creation matches retained version/author/route/date/financial evidence; completion matches final-recorder tasks and actual/original print-round lineage. Legacy events use their original amendment round, with no newest-job guess. Superseded interrupted amendments retain creation history without fabricated completion. This credits the recorded final custody operator rather than physical signatories. Current source read access and UAT exclusion remain; the source case is authoritative. See [the coverage table](FINANCE_WORK_VIEW_COVERAGE.md) for remaining reopen and synchronization work.

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.62 - Personal amendment and signature-return history
+
+Personal DV history now separates amendment authorship from final replacement-signature recording. Creation matches retained version/author/route/date/financial evidence; completion matches final-recorder tasks and actual/original print-round lineage. Legacy events use their original amendment round, with no newest-job guess. Superseded interrupted amendments retain creation history without fabricated completion. PASS: 86 amendment/My Work/operations tests in 129.341 seconds. PASS: 95 voucher/custody tests in 103.726 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.61 - Personal DV print and packet history
 
 Completed by me now includes retained signing-copy preparation, physical-print recording and packet assembly. Each event must match its same-case print job/version/actor and action-specific output/count/custody evidence. Superseded copies remain distinct historical actions, with current copy state and stable event IDs. Malformed or inconsistent references fail closed; current source read access and UAT exclusion remain. PASS: 178 voucher/custody/My Work/operations tests in 93.699 seconds. System, migration-drift, compilation and diff checks passed.

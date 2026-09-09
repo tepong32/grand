@@ -2467,6 +2467,16 @@ class VoucherWorkflowTests(TestCase):
                 idempotency_key="amendment-after-check-denied",
             )
 
+        history = self._amendment_history(case, self.preparer)
+        self.assertEqual(len(history), 2)
+        completion = case.events.get(action="nonfinancial_amendment_signatures_completed")
+        # Compatibility fixture for the original retained event schema.
+        VoucherEvent.objects.filter(pk=completion.pk).update(metadata={
+            "amendment_id": amendment.pk, "amendment_version": amendment.version,
+        })
+        self.assertEqual({row["task_id"] for row in self._amendment_history(case, self.preparer)},
+                         {row["task_id"] for row in history})
+
     def test_accounting_correction_keeps_dv_number_and_creates_new_signature_round(self):
         case = self.create_case("correction-create")
         self.budget_certify(case, "correction-budget")
@@ -4131,6 +4141,9 @@ class VoucherWorkflowTests(TestCase):
             confidentiality=TrackedPacket.RESTRICTED, assembly_note="Counted amended replacement signing packet.",
             expected_version=case.state_version, idempotency_key="amend-reprint-packet")
         tasks = list(case.signature_tasks.filter(round_number=replacement.signature_round).order_by("sequence"))
+        self.validator.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="track_wet_signatures",
+        ))
         for task in tasks:
             case.refresh_from_db()
             if task.pk == tasks[-1].pk:
@@ -4145,7 +4158,9 @@ class VoucherWorkflowTests(TestCase):
                 self.assertEqual(amendment.status, VoucherNonFinancialAmendment.AWAITING_SIGNATURES)
                 self.assertFalse(case.events.filter(idempotency_key="amend-reprint-broken-lineage").exists())
                 VoucherPrintJob.objects.filter(pk=replacement.pk).update(supersedes=second)
-            record_signature_return(case=case, task=task, actor=self.preparer, note="Replacement amended copy signed and returned.",
+            record_signature_return(case=case, task=task,
+                actor=self.validator if task.pk == tasks[-1].pk else self.preparer,
+                note="Replacement amended copy signed and returned.",
                 expected_version=case.state_version, idempotency_key=f"amend-reprint-return-{task.pk}")
         amendment.refresh_from_db(); case.refresh_from_db()
         self.assertEqual(amendment.status, VoucherNonFinancialAmendment.COMPLETED)
@@ -4159,6 +4174,45 @@ class VoucherWorkflowTests(TestCase):
         first.refresh_from_db(); second.refresh_from_db()
         self.assertEqual(first.status, VoucherPrintJob.SUPERSEDED)
         self.assertEqual(second.status, VoucherPrintJob.SUPERSEDED)
+
+        prepared = self._amendment_history(case, self.preparer)
+        recorded = self._amendment_history(case, self.validator)
+        self.assertEqual(len(prepared), 1)
+        self.assertEqual(len(recorded), 1)
+        self.assertIn("Corrected DV", prepared[0]["subject"])
+        self.assertIn("final replacement-signature", recorded[0]["subject"])
+        self.assertIn("not the physical signatories", recorded[0]["exception"])
+        creation = case.events.get(action="voucher_nonfinancial_amended")
+        for index, (source, actor, metadata) in enumerate([
+            (creation, self.validator, creation.metadata),
+            (creation, self.preparer, {**creation.metadata, "financial_snapshot": {}}),
+            (event, self.preparer, event.metadata),
+            (event, self.validator, {**event.metadata, "amendment_version": 999}),
+            (event, self.validator, {**event.metadata, "print_job_id": first.pk}),
+            (event, self.validator, {**event.metadata, "signature_round": original_round}),
+            (event, self.validator, {"amendment_id": amendment.pk, "amendment_version": amendment.version}),
+            (event, self.validator, []),
+        ]):
+            VoucherEvent.objects.create(case=case, action=source.action, actor=actor,
+                actor_department=self.accounting, from_stage=source.from_stage, to_stage=source.to_stage,
+                state_version=case.state_version + index + 1, metadata=metadata,
+                idempotency_key=f"amendment-history-invalid-{index}")
+        self.assertEqual(self._amendment_history(case, self.preparer), prepared)
+        self.assertEqual(self._amendment_history(case, self.validator), recorded)
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        self.validator.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertFalse(self._amendment_history(case, self.validator))
+        self.preparer.user_permissions.clear()
+        self.assertFalse(self._amendment_history(case, self.preparer))
+
+    def _amendment_history(self, case, actor):
+        from finance.work_tasks import finance_work_tasks
+        return [row for row in finance_work_tasks(actor, view="completed")["tasks"]
+                if row["case_id"] == f"voucher-case:{case.public_id}" and row["task_type"] in {
+                    "finance.dv.voucher_nonfinancial_amended.completed.v1",
+                    "finance.dv.nonfinancial_amendment_signatures_completed.completed.v1",
+                }]
 
     def test_returned_dv_correction_supersedes_obsolete_print_authority(self):
         case, amendment, first, replacement = self._pending_amendment_reprint()
@@ -4207,6 +4261,9 @@ class VoucherWorkflowTests(TestCase):
         self.assertIsNone(amendment.completed_at)
         self.assertEqual((amendment.signature_round_number, amendment.financial_snapshot), (original_round, original_finances))
         self.assertFalse(case.events.filter(action="nonfinancial_amendment_signatures_completed").exists())
+        retained = self._amendment_history(case, self.preparer)
+        self.assertEqual(len(retained), 1)
+        self.assertIn("Superseded", retained[0]["exception"])
         self.client.force_login(self.preparer)
         self.assertContains(self.client.get(reverse("vouchers:case_detail", args=(case.public_id,))),
             "Superseded by returned DV correction")
