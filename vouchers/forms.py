@@ -688,7 +688,7 @@ class NonFinancialAmendmentForm(WorkflowForm):
 
     def __init__(self, *args, case=None, **kwargs):
         super().__init__(*args, case=case, **kwargs)
-        if not case or not hasattr(case, "disbursement_voucher"):
+        if not case or not case.configuration_release_id or not hasattr(case, "disbursement_voucher"):
             return
         department_id = case.configuration_release.department_id
         queryset = FinanceSignatory.objects.filter(

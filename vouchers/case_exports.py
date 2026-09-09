@@ -86,7 +86,7 @@ DV_CUSTODY_ACTION_SPECS = {
         "next_action": "Recheck the accepted payable and exact gross-deduction-net equation, then prepare the governed DV.",
     },
     "signing_copy": {
-        "permissions": ("vouchers.control_dv_printing",),
+        "permissions": ("vouchers.control_dv_printing", "vouchers.prepare_disbursement_voucher"),
         "stage": VoucherCase.AWAITING_SIGNATURES,
         "title": "DVs needing a controlled signing copy",
         "definition": "Controlled-form cases with no active signing copy in the acting Accounting office.",
@@ -262,6 +262,25 @@ def dv_custody_action_choices_for_user(user):
     )
 
 
+def dv_print_preparation_queryset(user, queryset=None):
+    """Source scope for both initial copies and reasoned replacement copies."""
+    base = visible_cases_for_user(user, queryset)
+    department = department_for_user(user)
+    if (
+        department is None or is_finance_uat_viewer(user)
+        or not all(has_explicit_permission(user, permission)
+                   for permission in DV_CUSTODY_ACTION_SPECS["signing_copy"]["permissions"])
+    ):
+        return base.none()
+    return base.filter(
+        current_stage=VoucherCase.AWAITING_SIGNATURES,
+        current_department_id=department.pk,
+        configuration_release__department_id=department.pk,
+        disbursement_voucher__isnull=False,
+        voucher_template__controlled_print_required=True,
+    ).exclude(payment_instruments__isnull=False).distinct()
+
+
 def dv_custody_action_queryset(user, action, queryset=None):
     spec = DV_CUSTODY_ACTION_SPECS.get(action)
     base = visible_cases_for_user(user, queryset)
@@ -286,13 +305,17 @@ def dv_custody_action_queryset(user, action, queryset=None):
         if exemption is None:
             base = base.exclude(obligation__certified_by=user)
     elif action == "signing_copy":
-        base = base.filter(voucher_template__controlled_print_required=True).exclude(
+        base = dv_print_preparation_queryset(user, base).exclude(
             print_jobs__status__in=DV_ACTIVE_PRINT_STATES,
         )
     elif action == "record_print":
         base = base.filter(print_jobs__status=VoucherPrintJob.READY_TO_PRINT)
     elif action == "assemble_packet":
+        from tracepoint.access import can_prepare_packets
+
         base = base.filter(print_jobs__status=VoucherPrintJob.PRINTED)
+        if not can_prepare_packets(user, department):
+            base = base.filter(tracepoint_item__isnull=False)
     return base.distinct(), action, spec
 
 

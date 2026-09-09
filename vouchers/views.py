@@ -345,7 +345,8 @@ def case_detail(request, public_id):
     permissions = _permissions(request.user)
     from .case_exports import (
         accounting_validation_action_queryset, dv_custody_action_queryset,
-        dv_signature_task_queryset, legacy_budget_action_queryset, payable_action_queryset,
+        dv_print_preparation_queryset, dv_signature_task_queryset,
+        legacy_budget_action_queryset, payable_action_queryset,
     )
     for key, action in (("initiate_payable", "preparation"), ("review_payable", "review")):
         action_cases, _, _ = payable_action_queryset(request.user, action)
@@ -353,6 +354,13 @@ def case_detail(request, public_id):
     preparation_cases, _, _ = dv_custody_action_queryset(request.user, "dv_preparation")
     permissions["prepare"] = preparation_cases.filter(pk=case.pk).exists()
     permissions["signatures"] = dv_signature_task_queryset(request.user).filter(case_id=case.pk).exists()
+    permissions["prepare_print"] = dv_print_preparation_queryset(request.user).filter(pk=case.pk).exists()
+    for action in ("signing_copy", "record_print", "assemble_packet"):
+        action_cases, _, _ = dv_custody_action_queryset(request.user, action)
+        permissions[action] = action_cases.filter(pk=case.pk).exists()
+    permissions["control_print"] = any(
+        permissions[action] for action in ("signing_copy", "record_print", "assemble_packet")
+    )
     permissions["certify"] = legacy_budget_action_queryset(request.user).filter(pk=case.pk).exists()
     validation_cases, _, _ = accounting_validation_action_queryset(request.user)
     permissions["validate"] = validation_cases.filter(pk=case.pk).exists()

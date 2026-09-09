@@ -1463,7 +1463,11 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
         cls.print_operator = cls._employee(
             "task.dv.print", cls.accounting,
             "view_voucher_workbench", "control_dv_printing", "link_tracepoint_custody",
+            "prepare_disbursement_voucher",
         )
+        cls.print_operator.user_permissions.add(Permission.objects.get(
+            content_type__app_label="tracepoint", codename="prepare_tracked_packets",
+        ))
         cls.signature_operator = cls._employee(
             "task.dv.signature", cls.accounting,
             "view_voucher_workbench", "track_wet_signatures",
@@ -1630,6 +1634,56 @@ class FinanceDVCustodyWorkTaskContractTests(TestCase):
             {task["case_id"] for task in tasks},
             {f"voucher-case:{item.public_id}" for item in expected.values()},
         )
+
+    def test_signing_copy_requires_output_authority_and_keeps_replacement_available(self):
+        item = self._case("DV-PRINT-AUTH", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True)
+        operator = self._employee(
+            "dv.print.limited", self.accounting, "view_voucher_workbench", "control_dv_printing",
+        )
+        self.client.force_login(operator)
+        url = reverse("vouchers:case_detail", args=[item.public_id])
+        action = reverse("vouchers:case_action", args=[item.public_id, "prepare-controlled-print"])
+        with self.subTest(scope="missing DV preparation grant"):
+            self.assertFalse(dv_custody_action_queryset(operator, "signing_copy")[0].exists())
+        with self.subTest(scope="source form"):
+            self.assertNotContains(self.client.get(url), action)
+        operator.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="prepare_disbursement_voucher",
+        ))
+        self.assertEqual(set(dv_custody_action_queryset(operator, "signing_copy")[0]), {item})
+        self.assertContains(self.client.get(url), action)
+        self._print_job(item, VoucherPrintJob.AWAITING_SIGNATURES)
+        self.assertFalse(dv_custody_action_queryset(operator, "signing_copy")[0].exists())
+        response = self.client.get(url)
+        self.assertContains(response, action)
+        with self.subTest(scope="replacement is not the pending main step"):
+            self.assertFalse(response.context["case_ready_for_user"])
+        item.configuration_release = None
+        item.save(update_fields=("configuration_release",))
+        with self.subTest(scope="missing pinned owner"):
+            self.assertNotContains(self.client.get(url), action)
+
+    def test_packet_assembly_requires_creation_authority_only_for_new_packets(self):
+        item = self._case("DV-PACKET-AUTH", stage=VoucherCase.AWAITING_SIGNATURES, with_voucher=True)
+        self._print_job(item, VoucherPrintJob.PRINTED)
+        operator = self._employee(
+            "dv.packet.limited", self.accounting,
+            "view_voucher_workbench", "control_dv_printing", "link_tracepoint_custody",
+        )
+        self.client.force_login(operator)
+        url = reverse("vouchers:case_detail", args=[item.public_id])
+        action = reverse("vouchers:case_action", args=[item.public_id, "assemble-finance-packet"])
+        with self.subTest(scope="new packet queue"):
+            self.assertFalse(dv_custody_action_queryset(operator, "assemble_packet")[0].exists())
+        with self.subTest(scope="new packet source form"):
+            self.assertNotContains(self.client.get(url), action)
+        self._attach_packet(item)
+        self.assertEqual(set(dv_custody_action_queryset(operator, "assemble_packet")[0]), {item})
+        self.assertContains(self.client.get(url), action)
+        item.current_department = self.other
+        item.save(update_fields=("current_department",))
+        with self.subTest(scope="wrong custody office"):
+            self.assertNotContains(self.client.get(url), action)
 
     def _attach_packet(self, item):
         from tracepoint.models import PacketItem, TrackedPacket

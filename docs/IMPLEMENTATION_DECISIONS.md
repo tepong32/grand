@@ -10,6 +10,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-049:** Match each printing action to its existing source dependencies; preserve reasoned replacement printing and existing-packet reuse without new grants.
 - **D-048:** Reuse source action selectors for voucher preparation, independent review and ordered signature controls; keep separately authorized UAT reads and suppress duplicate pending amendments.
 - **D-047:** Bind DV output generation and legacy packet linking to the stored pinned Finance owner, preserving Accounting artifact work across custody; recheck stored packet visibility.
 - **D-046:** Share existing return destinations and posted/draft-JEV blockers between the source service and form; expose the control only to its current office.
@@ -584,3 +585,12 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Evidence: Five page/HTTP tests produced 13 failed assertions in 16.500 seconds. Combined-grant UAT reads and denied controls, Budget-certifier exclusion and existing exemption, own/wrong-office payable review, signature order and pending amendment controls verified. All 174 focused voucher/My Work/operations tests passed in 301.273 seconds. All 689 full-project tests passed in 237.536 seconds. System, migration-drift, compilation and diff checks passed. Mutation services remain authoritative and unchanged.
 - Revisit when: adding source actions or exemptions; update the selector and its direct service/HTTP/page tests together instead of adding another independent rule.
 - Verification limitation: the first full-regression attempt was interrupted by loss of the tool host and had no completion summary. It is NOT RUN - ENVIRONMENTAL (incomplete), retained in `.tmp/finance-v0758-full-interrupted.log`; only the restarted, completed run can count as checkpoint evidence.
+
+## D-049 - Printing actions retain their source dependencies
+
+- Date: 2026-09-09. Status: implemented and verified in v0.7.59.
+- Decision: signing-copy preparation must carry its existing DV output grant and pinned-owner scope. Physical-print recording remains a separate action. New packet assembly needs the existing TracePoint preparation authority; reusing a linked packet does not create one and keeps its existing route. Reasoned replacement remains available without counting it as the pending main action while signatures are elsewhere.
+- Goal: employees receive actionable work that agrees with the authoritative Finance and physical-custody services, while retained copies and correction lineage remain intact.
+- Alternatives/tradeoffs: granting everyone packet creation or combining all printing permissions would widen authority. Hiding all replacement work once a packet circulates would remove an existing recovery route. Reuse source predicates and distinguish the three steps in queues and forms.
+- Evidence: PASS: 112 voucher/custody tests in 49.996 seconds. PASS: 82 My Work/operations tests in 49.149 seconds. System, migration-drift, compilation and diff checks passed. Reproduction: two tests produced six failed assertions and one missing-owner form-construction error in 3.321 seconds. Tests preserve existing-packet reuse, replacement printing, denied grants, office scope and source-read access. No source mutation-service or schema changes. Full suite NOT RUN - OUT OF SCOPE for bounded read selectors and form visibility; affected voucher/custody plus all My Work/operations dependencies cover the changed contracts. The v0.7.58 full baseline passed 689 tests. Browser NOT RUN - OUT OF SCOPE for conditional forms without layout changes; rendered-page assertions verify controls. Production/LGU gates remain open. FIN-GAP-029 retains payment-control and generic workbench-attention findings.
+- Revisit when: explicit printing delegation or physical-packet policy changes; update the source services and their queue/form contracts together.

@@ -336,6 +336,8 @@ Verification: all 32 focused Budget/My Work tests passed in 11.033 seconds; all 
 
 - Validation: All 174 focused voucher/My Work/operations tests passed in 301.273 seconds. All 689 full-project tests passed in 237.536 seconds. System, migration-drift, compilation and diff checks passed.
 
+- v0.7.59 verified print repair: Controlled signing-copy queues and forms now require their existing DV preparation grant and pinned owner. Print recording and packet assembly use separate source selectors; only new packets need TracePoint preparation authority. Reasoned replacement printing remains available without being counted as the pending signature action. Missing-owner cases remain readable with amendment controls unavailable. PASS: 112 voucher/custody tests in 49.996 seconds. PASS: 82 My Work/operations tests in 49.149 seconds. System, migration-drift, compilation and diff checks passed. Remaining: payment controls below and generic awaiting-signature workbench attention still use broader stage grants than the exact custody queues. The whole finding remains open.
+
 ## FIN-GAP-030 - DV output generation and legacy packet linking lack stored case-owner checks
 
 - Process/module: generated DV artifact and legacy TracePoint item association services.

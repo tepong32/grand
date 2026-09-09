@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.59 - Source dependencies for print actions
+
+Controlled signing-copy queues and forms now require their existing DV preparation grant and pinned owner. Print recording and packet assembly use separate source selectors; only new packets need TracePoint preparation authority. Reasoned replacement printing remains available without being counted as the pending signature action. Missing-owner cases remain readable with amendment controls unavailable. PASS: 112 voucher/custody tests in 49.996 seconds. PASS: 82 My Work/operations tests in 49.149 seconds. System, migration-drift, compilation and diff checks passed.
+
 ## v0.7.58 - Source-aligned voucher review controls
 
 Voucher preparation and payable review forms now follow source office/maker-checker selectors. The signature form displays and accepts only source-eligible ordered returns. Combined-grant UAT mutation controls are hidden while separate read/audit permissions remain; pending amendments suppress a new amendment form. The main-task banner uses the source queue filter. All 174 focused voucher/My Work/operations tests passed in 301.273 seconds. All 689 full-project tests passed in 237.536 seconds. System, migration-drift, compilation and diff checks passed.
