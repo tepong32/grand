@@ -691,6 +691,21 @@ class FinanceShadowCutoverTests(TestCase):
             defect, self.manager,
             note="Accounting reviewer notified through retained UAT issue log ESC-001; correction requested before next run.",
         )
+        first_history = self.field_work_rows(self.manager, "field-defect", defect, "completed")
+        self.assertEqual({row["subject"] for row in first_history}, {"Registered field defect", "Recorded defect escalation #1"})
+        escalation = FinanceAuditEvent.objects.get(target_type="financeshadowcycle", target_id=str(cycle.pk), action="shadow_defect_escalated")
+        for patch in ({"escalation_count": True}, {"escalation_count": 999}, {"last_escalation_at": "bad-time"},
+                      {"last_escalated_by_id": self.reconciler.pk}, {"status": FinanceShadowDefect.RESOLVED},
+                      {"last_escalation_note": "Different notification claim"}):
+            FinanceAuditEvent.objects.create(
+                department=escalation.department, target_type=escalation.target_type, target_id=escalation.target_id,
+                actor=self.manager, action=escalation.action, reason=escalation.reason,
+                snapshot={**escalation.snapshot, **patch},
+            )
+        self._grant(self.authority, "manage_shadow_operation")
+        record_shadow_defect_escalation(defect, self.authority, note="Second recorded follow-up in synthetic issue log ESC-002.")
+        self.assertEqual(self.field_work_rows(self.manager, "field-defect", defect, "completed"), first_history)
+        self.assertEqual(self.field_work_rows(self.authority, "field-defect", defect, "completed")[0]["subject"], "Recorded defect escalation #2")
         submit_reconciliation_run(run, self.manager)
         review_reconciliation_run(
             run, self.reconciler, accept=True,
@@ -721,6 +736,7 @@ class FinanceShadowCutoverTests(TestCase):
         defect.refresh_from_db(); comparison.refresh_from_db()
         self.assertEqual(defect.status, FinanceShadowDefect.RESOLVED)
         self.assertEqual(comparison.outcome, FinanceShadowComparison.EXPLAINED)
+        self.assertIn("Recorded defect escalation #1", [row["subject"] for row in self.field_work_rows(self.manager, "field-defect", defect, "completed")])
         defect.resolution_note = "Attempted rewrite"
         with self.assertRaisesMessage(ValidationError, "immutable"):
             defect.save()
@@ -1867,6 +1883,10 @@ class FinanceShadowCutoverTests(TestCase):
 
     def test_exercise_handoffs_keep_cross_office_attribution_and_rerun_history(self):
         exercise = self._assigned_boundary_exercise()
+        scheduling = self.field_work_rows(self.manager, "field-exercise", exercise, "completed")
+        self.assertEqual(len(scheduling), 1)
+        self.assertEqual(scheduling[0]["subject"], "Scheduled readiness exercise")
+        self.assertFalse(self.field_work_rows(self.requesting_reviewer, "field-exercise", exercise, "completed"))
         submit_cutover_readiness_exercise(exercise, self.requesting_reviewer,
                                          actual_result="Synthetic first result", evidence_reference="Synthetic sheet A")
         waiting = self.field_work_rows(self.requesting_reviewer, "field-exercise", exercise, "waiting")
@@ -1883,6 +1903,7 @@ class FinanceShadowCutoverTests(TestCase):
         witness_history = self.field_work_rows(self.other_reviewer, "field-exercise", exercise, "completed")
         self.assertEqual(len(owner_history), 2)
         self.assertEqual(len(witness_history), 2)
+        self.assertEqual(self.field_work_rows(self.manager, "field-exercise", exercise, "completed")[0]["task_id"], scheduling[0]["task_id"])
         self.assertTrue(all(row["subject"] == "Submitted exercise result" for row in owner_history))
         self.assertEqual(self.field_work_rows(self.requesting_reviewer, "field-exercise", exercise, "waiting"), [])
 
@@ -1899,16 +1920,25 @@ class FinanceShadowCutoverTests(TestCase):
             self.assertEqual(self.field_work_rows(self.outsider, "field-exercise", exercise, view), [])
         self.requesting_reviewer.groups.remove(group)
         other_cycle = self._cycle(code="different-field-history")
+        scheduling = FinanceAuditEvent.objects.get(target_type="financeshadowcycle", target_id=str(exercise.cycle_id), action="cutover_readiness_exercise_scheduled")
+        for patch in ({"created_by_id": self.outsider.pk}, {"status": FinanceCutoverReadinessExercise.PASSED}):
+            FinanceAuditEvent.objects.create(
+                department=scheduling.department, target_type=scheduling.target_type, target_id=scheduling.target_id,
+                actor=self.manager, action=scheduling.action, snapshot={**scheduling.snapshot, **patch},
+            )
         FinanceAuditEvent.objects.create(
             department=self.accounting, target_type="financeshadowcycle", target_id=str(other_cycle.pk),
             actor=self.manager, action="cutover_readiness_exercise_submitted", snapshot={"exercise_id": exercise.pk},
         )
-        self.assertEqual(self.field_work_rows(self.manager, "field-exercise", exercise, "completed"), [])
+        self.assertEqual([row["subject"] for row in self.field_work_rows(self.manager, "field-exercise", exercise, "completed")], ["Scheduled readiness exercise"])
         exercise.owner = self.outsider
         # Simulate administrative assignment revocation without changing retained event attribution.
         FinanceCutoverReadinessExercise.objects.filter(pk=exercise.pk).update(owner=self.outsider)
         for view in ("waiting", "completed"):
             self.assertEqual(self.field_work_rows(self.requesting_reviewer, "field-exercise", exercise, view), [])
+
+        self.manager.groups.add(group)
+        self.assertFalse(self.field_work_rows(self.manager, "field-exercise", exercise, "completed"))
 
     def test_defect_handoffs_preserve_correction_and_independent_resolution(self):
         cycle = self._cycle(code="personal-defect-handoff")

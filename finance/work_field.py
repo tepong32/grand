@@ -35,6 +35,9 @@ def completed_field_tasks(user, department, today):
         "shadow_cycle_submitted": ("field-cycle", "Submitted field cycle for reconciliation"),
         "shadow_cycle_reconciled": ("field-cycle", "Independently reconciled field cycle"),
         "shadow_cycle_returned": ("field-cycle", "Returned field cycle for a successor"),
+        "cutover_readiness_exercise_scheduled": ("field-exercise", "Scheduled readiness exercise"),
+        "shadow_defect_registered": ("field-defect", "Registered field defect"),
+        "shadow_defect_escalated": ("field-defect", "Recorded defect escalation"),
         "shadow_defect_resolution_submitted": ("field-defect", "Submitted defect correction"),
         "shadow_defect_resolution_accepted": ("field-defect", "Independently accepted defect resolution"),
         "shadow_defect_resolution_returned": ("field-defect", "Returned defect correction"),
@@ -91,6 +94,29 @@ def completed_field_tasks(user, department, today):
             source_id = _source_record_identity(kind, item.pk)
         current_state = item.decision if kind == "field-stakeholder" else item.status
         state_label = item.get_decision_display() if kind == "field-stakeholder" else item.get_status_display()
+        if event.action == "cutover_readiness_exercise_scheduled":
+            if (event.actor_id != item.created_by_id or event.snapshot.get("created_by_id") != event.actor_id
+                    or event.snapshot.get("status") != item.PLANNED):
+                continue
+        elif event.action == "shadow_defect_registered":
+            if (event.actor_id != item.created_by_id or event.snapshot.get("status") != item.OPEN
+                    or event.snapshot.get("comparison_id") != item.comparison_id):
+                continue
+        elif event.action == "shadow_defect_escalated":
+            from django.utils.dateparse import parse_datetime
+            from django.utils.timezone import is_aware
+            count = event.snapshot.get("escalation_count")
+            try:
+                recorded_at = parse_datetime(event.snapshot.get("last_escalation_at", ""))
+            except (TypeError, ValueError):
+                recorded_at = None
+            if (type(count) is not int or not 0 < count <= item.escalation_count
+                    or event.snapshot.get("last_escalated_by_id") != event.actor_id
+                    or event.snapshot.get("status") not in (item.OPEN, item.RESOLUTION_REVIEW)
+                    or event.snapshot.get("last_escalation_note") != event.reason.strip()
+                    or not recorded_at or not is_aware(recorded_at) or recorded_at > event.created_at):
+                continue
+            label = f"Recorded defect escalation #{count}"
         if kind == "field-stakeholder":
             decision = event.snapshot.get("decision")
             if decision not in (item.ACCEPTED, item.CONDITIONAL, item.REJECTED):

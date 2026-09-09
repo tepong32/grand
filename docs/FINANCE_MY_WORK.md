@@ -351,3 +351,8 @@ Independent reviewers now receive an exact task for a current pending source-lay
 ## v0.7.66 - Personal source-version handoffs and history
 
 Waiting follows the current source stager while a draft cycle awaits independent layout review. Completed history matches retained CSV/external-lock staging and drift decisions to the immutable cycle/version metadata and recorded actor, preserving superseded source history without crediting the cycle creator or inferring approval from staging. No raw source CSV rows are read by these projections, and retained staging credit does not certify current file integrity or LGU acceptance.
+
+
+## v0.7.67 - Field scheduling and defect helper history
+
+Completed history now includes retained exercise scheduling, defect registration and each recorded escalation. Scheduling and registration credit their source creator; escalation credits its recorded actor and sequence, preserving an earlier contribution after a different person follows up. These actions remain distinct from exercise acceptance, defect resolution and actual message delivery. Escalation details are retained in the source audit; the history row links to that record.
