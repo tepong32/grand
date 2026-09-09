@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.71 - Native conditional-identity audit checkpoint
+
+Inventoried 21 first-party conditional identities against native warnings, including 15 Finance-related identities. Traced service locks and correction paths, preserved six supporting-module identities and two third-party warnings, and recorded bounded reproduction priorities. No application/schema changes or new concurrency claims. The v0.7.70 711-test MySQL and SQLite baseline remains the latest runtime evidence; remote CI is unperformed. Production remains NO-GO.
+
 ## v0.7.70 - Controlled bank-match conflicts and native regression
 
 Bank matching now reports known conflicts after complete rollback, with an explicit reload/check/retry instruction and no implicit replay. Generated nullable keys enforce active bank-row and journal-line match identities while preserving superseded history. Migration accounting/0011 refuses historical duplicates before DDL. A committed fresh two-store MySQL runner and independent CI service job complement SQLite.

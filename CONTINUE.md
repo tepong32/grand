@@ -14,9 +14,17 @@ The next task can begin with: **“continue”**
 
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
-## Current v0.7.70 checkpoint - Bank-match verification complete
+## Current v0.7.71 checkpoint - Bounded native identity audit
 
-**The user cancelled the pause and requested a little more work. Continue bounded operational scrutiny from this verified checkpoint.**
+Branch: `codex/finance-native-invariant-audit`, based on pushed and remotely verified `8c7643588a43e8c767ce7c75f91acc580eeecc70` (v0.7.70). The user cancelled the planned pause and requested a little more work; this additional audit slice is complete.
+
+[The audit](docs/FINANCE_NATIVE_INVARIANT_AUDIT_2026-09-09.md) and its linked JSON inventory reconcile all 21 first-party conditional uniqueness declarations with the native warnings: 15 Finance-related and six supporting. Two third-party email-address warnings remain separately recorded. Service-lock and correction-path review provides concrete native reproduction cases; it does not establish concurrency safety or a new duplicate-record defect. D-064 records the decision and priorities.
+
+PASS: AST inventory/warning reconciliation, 21 source locations, JSON parsing, 41 local document links and `git diff --check`. Runtime suites NOT RUN - OUT OF SCOPE for this documentation-only slice; application/schema are unchanged. The v0.7.70 baseline below remains authoritative. Remote CI NOT RUN - ENVIRONMENTAL because GitHub CLI authentication is invalid. No live/user database changes, new containers or software installations.
+
+Next bounded implementation work: fresh disposable MySQL reproduction of competing first activations for close policies/accountability profiles, then cross-period bank outstanding-item correction. Preserve the full process/persona matrix and real LGU acceptance gates. Docker is stopped and the prior private credentials were removed; provision a fresh disposable setup before native work. No tests or app servers are left running.
+
+## Verified v0.7.70 application baseline
 
 Branch: `codex/finance-bank-match-conflicts`, based on pushed and remotely verified `93d587f` (v0.7.69). Bank matching now reports known conflicts after complete rollback, with an explicit reload/check/retry instruction and no implicit replay. Generated nullable keys enforce active bank-row and journal-line match identities while preserving superseded history. Migration accounting/0011 refuses historical duplicates before DDL. A committed fresh two-store MySQL runner and independent CI service job complement SQLite.
 
@@ -26,7 +34,7 @@ FIN-GAP-035 is verified. [The validation report](docs/FINANCE_BANK_MATCH_VALIDAT
 
 All phase test processes have ended. Owned MySQL containers/network and synthetic credential files were removed. Docker Desktop was stopped, restoring its prior state. Ignored logs, receipts and image cache remain. Old rehearsal scripts requiring the deleted private.json cannot be resumed without a fresh disposable setup. The user database hash remains C8255385F64732838F7D07A84C5587B5CE5BA2F708A566F96AFFF80D94E7374C.
 
-Next: remote CI needs valid GitHub CLI authentication; continue the remaining native conditional-constraint/service-invariant audit and operational process/persona matrix. Actual LGU discovery, forms/openings/redacted replay, named-user/printer checks, approved off-host recovery and seven-party acceptance remain external gates. Generic following/shared views/notifications remain deferred. Do not infer a bug-free app or production acceptance from the passing suites.
+The next-step detail is now in the v0.7.71 checkpoint above; remote CI still needs valid GitHub CLI authentication and the operational process/persona matrix remains incomplete. Actual LGU discovery, forms/openings/redacted replay, named-user/printer checks, approved off-host recovery and seven-party acceptance remain external gates. Generic following/shared views/notifications remain deferred. Do not infer a bug-free app or production acceptance from the passing suites.
 
 ## Active instructions and repository continuity
 

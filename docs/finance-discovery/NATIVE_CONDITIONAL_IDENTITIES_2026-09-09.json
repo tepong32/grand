@@ -1,0 +1,285 @@
+{
+  "application_commit": "8c7643588a43e8c767ce7c75f91acc580eeecc70",
+  "date": "2026-09-09",
+  "scope": "First-party */models.py conditional UniqueConstraint declarations; static inventory, not concurrency verification",
+  "first_party_count": 21,
+  "finance_related_count": 15,
+  "supporting_count": 6,
+  "third_party_warning_count": 2,
+  "constraints": [
+    {
+      "app": "accounting",
+      "model": "PeriodClosePolicy",
+      "name": "one_active_period_close_policy",
+      "fields": [
+        "department_id"
+      ],
+      "condition": "models.Q(status='active')",
+      "source": "accounting/models.py",
+      "line": 929,
+      "database": "finance"
+    },
+    {
+      "app": "accounting",
+      "model": "BankOutstandingItem",
+      "name": "unique_active_bank_outstanding_item",
+      "fields": [
+        "batch",
+        "journal_line"
+      ],
+      "condition": "models.Q(status='active')",
+      "source": "accounting/models.py",
+      "line": 1349,
+      "database": "finance"
+    },
+    {
+      "app": "departments",
+      "model": "InternalHowTo",
+      "name": "unique_published_internal_howto",
+      "fields": [
+        "department",
+        "slug"
+      ],
+      "condition": "models.Q(status='published')",
+      "source": "departments/models.py",
+      "line": 115,
+      "database": "default"
+    },
+    {
+      "app": "finance",
+      "model": "FinanceShadowSourceVersion",
+      "name": "unique_current_shadow_source_version",
+      "fields": [
+        "cycle"
+      ],
+      "condition": "models.Q(is_current=True)",
+      "source": "finance/models.py",
+      "line": 1318,
+      "database": "default"
+    },
+    {
+      "app": "leave_mgt",
+      "model": "LeavePolicy",
+      "name": "one_active_leave_policy",
+      "fields": [
+        "is_active"
+      ],
+      "condition": "Q(is_active=True)",
+      "source": "leave_mgt/models.py",
+      "line": 96,
+      "database": "default"
+    },
+    {
+      "app": "leave_mgt",
+      "model": "LeaveCreditTransaction",
+      "name": "unique_monthly_leave_accrual",
+      "fields": [
+        "leave_credit",
+        "leave_type",
+        "transaction_type",
+        "period"
+      ],
+      "condition": "Q(transaction_type='ACCRUAL', period__isnull=False)",
+      "source": "leave_mgt/models.py",
+      "line": 364,
+      "database": "default"
+    },
+    {
+      "app": "leave_mgt",
+      "model": "LeaveCreditTransaction",
+      "name": "unique_yearly_leave_carryover",
+      "fields": [
+        "leave_credit",
+        "leave_type",
+        "transaction_type",
+        "period"
+      ],
+      "condition": "Q(transaction_type='CARRYOVER', period__isnull=False)",
+      "source": "leave_mgt/models.py",
+      "line": 369,
+      "database": "default"
+    },
+    {
+      "app": "reporting",
+      "model": "FinanceStatementMapping",
+      "name": "one_active_finance_statement_mapping",
+      "fields": [
+        "department",
+        "statement_type"
+      ],
+      "condition": "models.Q(status='active')",
+      "source": "reporting/models.py",
+      "line": 443,
+      "database": "default"
+    },
+    {
+      "app": "reporting",
+      "model": "FinanceStatementNoteSet",
+      "name": "one_approved_statement_note_set",
+      "fields": [
+        "department",
+        "period_start",
+        "period_end"
+      ],
+      "condition": "models.Q(status='approved')",
+      "source": "reporting/models.py",
+      "line": 671,
+      "database": "default"
+    },
+    {
+      "app": "reporting",
+      "model": "FinanceAccountabilityPackageProfile",
+      "name": "one_active_accountability_profile",
+      "fields": [
+        "department",
+        "code"
+      ],
+      "condition": "models.Q(status='active')",
+      "source": "reporting/models.py",
+      "line": 1256,
+      "database": "default"
+    },
+    {
+      "app": "reporting",
+      "model": "FinanceAccountabilityPackage",
+      "name": "one_approved_accountability_package",
+      "fields": [
+        "department",
+        "profile",
+        "period_start",
+        "period_end"
+      ],
+      "condition": "models.Q(status='approved')",
+      "source": "reporting/models.py",
+      "line": 1447,
+      "database": "default"
+    },
+    {
+      "app": "reporting",
+      "model": "FinanceAccountabilityPackageSelection",
+      "name": "one_current_accountability_selection",
+      "fields": [
+        "slot"
+      ],
+      "condition": "models.Q(status='current')",
+      "source": "reporting/models.py",
+      "line": 1579,
+      "database": "default"
+    },
+    {
+      "app": "reporting",
+      "model": "FinanceLocalFormAcceptance",
+      "name": "one_accepted_local_form_version",
+      "fields": [
+        "department",
+        "code"
+      ],
+      "condition": "models.Q(status='accepted')",
+      "source": "reporting/models.py",
+      "line": 2011,
+      "database": "default"
+    },
+    {
+      "app": "tracepoint",
+      "model": "DailyEmployeeCredential",
+      "name": "one_active_daily_tracepoint_credential",
+      "fields": [
+        "employee",
+        "valid_on"
+      ],
+      "condition": "Q(revoked_at__isnull=True)",
+      "source": "tracepoint/models.py",
+      "line": 456,
+      "database": "default"
+    },
+    {
+      "app": "tracepoint",
+      "model": "PacketScanSession",
+      "name": "one_open_tracepoint_scan_per_packet",
+      "fields": [
+        "packet"
+      ],
+      "condition": "Q(status__in=('pending', 'ready'))",
+      "source": "tracepoint/models.py",
+      "line": 556,
+      "database": "default"
+    },
+    {
+      "app": "vouchers",
+      "model": "VoucherDeduction",
+      "name": "unique_voucher_tax_rule",
+      "fields": [
+        "voucher",
+        "tax_rule_item"
+      ],
+      "condition": "models.Q(tax_rule_item__isnull=False)",
+      "source": "vouchers/models.py",
+      "line": 426,
+      "database": "default"
+    },
+    {
+      "app": "vouchers",
+      "model": "VoucherPostingRequest",
+      "name": "unique_voucher_posting_trigger",
+      "fields": [
+        "case",
+        "kind",
+        "trigger_key"
+      ],
+      "condition": "~models.Q(trigger_key='')",
+      "source": "vouchers/models.py",
+      "line": 654,
+      "database": "default"
+    },
+    {
+      "app": "vouchers",
+      "model": "PaymentInstrumentException",
+      "name": "unique_open_instrument_exception_kind",
+      "fields": [
+        "instrument",
+        "kind"
+      ],
+      "condition": "models.Q(status='open')",
+      "source": "vouchers/models.py",
+      "line": 1217,
+      "database": "default"
+    },
+    {
+      "app": "vouchers",
+      "model": "TreasuryRemittanceLine",
+      "name": "unique_active_remittance_line",
+      "fields": [
+        "batch",
+        "lineage_key"
+      ],
+      "condition": "models.Q(status='active')",
+      "source": "vouchers/models.py",
+      "line": 1632,
+      "database": "default"
+    },
+    {
+      "app": "vouchers",
+      "model": "TaxFilingEvidence",
+      "name": "unique_current_tax_filing_evidence",
+      "fields": [
+        "batch"
+      ],
+      "condition": "models.Q(status__in=('draft', 'returned', 'for_review', 'verified'))",
+      "source": "vouchers/models.py",
+      "line": 1809,
+      "database": "default"
+    },
+    {
+      "app": "vouchers",
+      "model": "VoucherPrintJob",
+      "name": "unique_active_voucher_print_job",
+      "fields": [
+        "case"
+      ],
+      "condition": "models.Q(status__in=('ready_to_print', 'printed', 'awaiting_signatures'))",
+      "source": "vouchers/models.py",
+      "line": 1921,
+      "database": "default"
+    }
+  ]
+}

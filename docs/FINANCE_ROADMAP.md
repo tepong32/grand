@@ -1,5 +1,7 @@
 # GRAND Finance complete-cycle roadmap
 
+Development v0.7.71 records the [native identity audit](FINANCE_NATIVE_INVARIANT_AUDIT_2026-09-09.md): 21 first-party declarations, 15 Finance-related, with service-boundary evidence and next native reproduction cases. This is an audit checkpoint, not a schema repair or completed concurrency gate.
+
 Finance v0.7.70 (development branch): bank-match conflict handling and native identity checks are verified; a repeatable native test runner/CI job is implemented. Local SQLite/MySQL gates passed; remote CI is unperformed because CLI authentication is invalid. See [the validation report](FINANCE_BANK_MATCH_VALIDATION_2026-09-09.md). Continuing bounded scrutiny after this checkpoint; remaining scrutiny and all external acceptance gates are preserved.
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.

@@ -427,3 +427,8 @@ Bank matching now reports known conflicts after complete rollback, with an expli
 PASS: full SQLite run, 711 tests discovered in 355.841 seconds (710 executed; one MySQL-only case skipped); full MySQL 8.4.12 run through the committed native runner, all 711 tests in 767.251 seconds. System, migration-drift, compilation and diff checks passed. Remote CI not run because GitHub CLI authentication is invalid. Production remains NO-GO.
 
 See [the validation report](FINANCE_BANK_MATCH_VALIDATION_2026-09-09.md), FIN-GAP-035 and D-062/D-063. The user cancelled the planned pause; continue bounded scrutiny after this checkpoint.
+
+
+## v0.7.71 - Bounded native identity audit
+
+[The audit](FINANCE_NATIVE_INVARIANT_AUDIT_2026-09-09.md) reconciles 21 first-party declarations to native warnings and traces 15 Finance-related service boundaries. D-064 records the next reproduction order. PASS: inventory/warning reconciliation and document links. Runtime regression NOT RUN - OUT OF SCOPE for documentation-only changes; v0.7.70 remains the application baseline. No new concurrency pass, critical closure, local authority or production acceptance is claimed.

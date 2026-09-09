@@ -24,6 +24,7 @@ The current personal-handoff adapter slice is implemented; core operational scru
 - [docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md](docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md)
 - [docs/FINANCE_OPERATIONAL_SCRUTINY.md](docs/FINANCE_OPERATIONAL_SCRUTINY.md)
 - [Current scrutiny evidence](docs/FINANCE_SCRUTINY_2026-09-09.md)
+- [Native identity audit and reproduction scope](docs/FINANCE_NATIVE_INVARIANT_AUDIT_2026-09-09.md)
 - [docs/DATABASE_BACKUP.md](docs/DATABASE_BACKUP.md)
 - [docs/DEPLOYMENT_RENDER.md](docs/DEPLOYMENT_RENDER.md)
 - [Continuation entry point](CONTINUE.md)

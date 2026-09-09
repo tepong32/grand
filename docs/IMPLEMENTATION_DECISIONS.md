@@ -731,3 +731,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Alternatives/tradeoffs: retained test schemas are faster but can lose migration-seeded data after transaction-test flushes. Fresh schemas cost setup time and provide a reliable full-suite baseline. The CI-only root account belongs to its ephemeral service; local users can grant only the two fixed test schemas. Neither route grants production authority or validates off-host recovery.
 - Evidence and usage: [FINANCE_NATIVE_TESTING.md](FINANCE_NATIVE_TESTING.md) records the portable command, fixed scope, artifact location, workflow triggers and source references. The v0.7.69 fixture failure is retained in the scrutiny report. Development-branch push alone does not trigger this workflow; report remote CI separately from local execution.
 - Revisit when: the accepted production engine/version changes or a migration requires additional native facilities. Preserve the two-store router, explicit test scope and real LGU acceptance gates.
+
+
+## D-064 - Audit native identity boundaries before selecting the next repair
+
+- Date: 2026-09-09. Status: bounded source audit recorded in v0.7.71; native reproductions remain next work.
+- Goal: preserve one current financial authority/evidence identity and trustworthy reconciliation without mistaking a sequential regression for concurrency proof.
+- Decision: inventory all remaining first-party conditional identities and trace their service transactions. Prioritize competing first activations of close policies/accountability profiles, then cross-period outstanding-item correction. Respect the default/Finance router; observe joined native locks rather than assuming their coverage.
+- Evidence: [the audit](FINANCE_NATIVE_INVARIANT_AUDIT_2026-09-09.md) reconciles 21 declarations with native warnings (15 Finance-related, six supporting). Two additional warnings belong to third-party email-address models. Known service locks and model validation can prevent some duplicates; no new duplicate-financial-record finding was reproduced in this slice.
+- Alternatives/tradeoffs: replacing every conditional key at once would broaden migrations before understanding lifecycle and duplicate-data conditions. Ignoring warnings would leave native enforcement unexamined. A bounded audit provides a concrete reproduction order and preserves separate validation for each repair; it is not completion of scrutiny.
+- Revisit when: native HTTP/transaction evidence exposes a material defect. Apply the critical-gap gate, preserve immutable history and refuse duplicate migration data before DDL. Never silently clean financial records, automatically replay actions, suppress warnings or patch installed third-party code to obtain a passing gate.
