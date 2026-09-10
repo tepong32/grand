@@ -36,8 +36,15 @@ def normalize_allocations(source, applications, rows):
     Every supplied application is allocated in full; zero shares are omitted.
     Nothing here writes a journal, subsidiary, approval or reservation.
     """
-    if not isinstance(rows, list) or len(rows) < 2:
-        raise ValidationError("Allocate the consolidated credit to at least two invoices.")
+    return _normalize_allocations(source, applications, rows, minimum_invoices=2)
+
+
+def _normalize_allocations(source, applications, rows, *, minimum_invoices):
+    """Shared arithmetic; the public single-credit contract still needs two rows."""
+    if not isinstance(rows, list) or len(rows) < minimum_invoices:
+        message = ("Allocate the consolidated credit to at least two invoices." if minimum_invoices == 2
+            else "Identify at least one invoice for each original credit.")
+        raise ValidationError(message)
     applications = list(applications)
     lines = {str(line.pk): line for line in applications}
     if len(lines) != len(applications) or str(source.pk) in lines:
@@ -141,7 +148,7 @@ def bind_allocation(source, shares, *, expected_attribution=None):
     return {"attribution": attribution_evidence(record), "shares": _shares(record, shares)}
 
 
-def retained_allocation(line, source, record):
+def retained_allocation(line, source, record, *, check_posting=True):
     """Verify a native line against its pinned and currently compatible approval."""
     from .claim_attributions import Attribution, allocation_rows, attribution_evidence, verify
     evidence = line.payable_allocation
@@ -159,7 +166,7 @@ def retained_allocation(line, source, record):
     shares = _shares(record, evidence["shares"])
     if shares != evidence["shares"] or sum((Decimal(value) for value in shares.values()), ZERO) != (line.debit or line.credit):
         raise ValidationError("Invoice shares must equal the financial line amount exactly.")
-    if line.entry.status == "posted":
+    if check_posting and line.entry.status == "posted":
         events = list(line.entry.audit_events.filter(action="posted"))
         if (len(events) != 1 or events[0].actor_id != line.entry.posted_by_id
                 or events[0].snapshot.get("invoice_allocations", {}).get(str(line.pk)) != posting_evidence(line)):
@@ -174,6 +181,12 @@ def posting_evidence(line):
 
 def effective_shares(line, source, record):
     from .claim_attributions import allocation_rows
+    from .shared_claim_applications import is_shared, validate
+    if is_shared(line):
+        members = validate(line)
+        if source.pk not in members or members[source.pk][1].pk != record.pk:
+            raise ValidationError("The shared application differs from the selected source approval.")
+        return members[source.pk][2]
     if line.pk == source.pk:
         return {row["key"]: row["recognized"] for row in allocation_rows(record)}
     if line.payable_origin_id:
@@ -214,11 +227,10 @@ def validate_capacity(source, record, candidates=()):
     from .claim_attributions import allocation_rows, application_lines
     from .models import JournalEntry
     candidates = list(candidates)
-    posted = source.payable_applications.filter(entry__status=JournalEntry.POSTED)
-    if candidates:
-        posted = posted.exclude(entry_id__in={line.entry_id for line in candidates})
+    from .shared_claim_applications import native_lines
+    posted = native_lines(source, exclude_entries={line.entry_id for line in candidates})
     daily = defaultdict(lambda: defaultdict(lambda: ZERO))
-    for line in [*application_lines(source, record=record), *posted.select_related("entry"), *candidates]:
+    for line in [*application_lines(source, record=record), *posted, *candidates]:
         for key, value in effective_shares(line, source, record).items():
             daily[key][line.entry.entry_date] += Decimal(value) * (1 if line.debit else -1)
     for row in allocation_rows(record):

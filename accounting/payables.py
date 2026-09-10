@@ -56,10 +56,9 @@ def _capacity(source, candidate_lines=(), *, as_of=None, invoice_key=None):
     used = Decimal("0.00")
     by_reservation = defaultdict(lambda: Decimal("0.00"))
     candidates = list(candidate_lines)
-    applications = JournalLine.objects.filter(payable_origin=source, entry__status=JournalEntry.POSTED)
-    if candidates:
-        applications = applications.exclude(entry_id=candidates[0].entry_id)
-    movements = [*history.application_lines(source), *applications.select_related("entry"), *candidates]
+    from .shared_claim_applications import native_lines, project
+    applications = native_lines(source, exclude_entries={line.entry_id for line in candidates})
+    movements = [*history.application_lines(source), *applications, *[project(line, source) for line in candidates]]
     credit = source.credit
     reservations = source.claim_reservations.all()
     if invoice_key:
@@ -198,6 +197,10 @@ def _release_unused_claim(reservation, *, actor_id, reason):
 
 
 def validate_claim_line(line):
+    from .shared_claim_applications import is_shared, validate
+    if is_shared(line):
+        validate(line)
+        return
     if line.payable_reservation_id:
         reservation = verify_reservation(line.payable_reservation)
         if line.payable_origin_id != reservation.source_id:
@@ -269,7 +272,10 @@ def validate_claim_applications(entry, *, lock=False):
     if lock and new_claims:
         # Serialize invoice identity checks without a competing claim registry.
         Fund.objects.select_for_update().get(pk=entry.fund_id)
-    origin_ids = sorted({line.payable_origin_id for line in lines if line.payable_origin_id})
+    from .shared_claim_applications import is_shared, validate, project, native_lines
+    shared = {line.pk: validate(line) for line in lines if is_shared(line)}
+    origin_ids = sorted({line.payable_origin_id for line in lines if line.payable_origin_id}
+        | {source_id for members in shared.values() for source_id in members})
     if lock:
         # Every writer locks original credit rows in the same order, then reads
         # posted applications and remaining voucher reservations.
@@ -286,15 +292,15 @@ def validate_claim_applications(entry, *, lock=False):
         identities.add(identity)
     for origin_id in origin_ids:
         origin = JournalLine.objects.get(pk=origin_id)
+        candidates = [project(line, origin) for line in lines
+            if line.payable_origin_id == origin_id or origin_id in shared.get(line.pk, {})]
         daily = defaultdict(lambda: Decimal("0.00"))
         for applied in history.application_lines(origin):
             daily[applied.entry.entry_date] += applied.debit - applied.credit
-        for applied in JournalLine.objects.filter(payable_origin_id=origin_id,
-                entry__status=JournalEntry.POSTED).exclude(entry_id=entry.pk).select_related("entry"):
+        for applied in native_lines(origin, exclude_entries=[entry.pk]):
             daily[applied.entry.entry_date] += applied.debit - applied.credit
-        for line in lines:
-            if line.payable_origin_id == origin_id:
-                daily[entry.entry_date] += line.debit - line.credit
+        for line in candidates:
+            daily[entry.entry_date] += line.debit - line.credit
         used = Decimal("0.00")
         for day, amount in sorted(daily.items()):
             used += amount
@@ -302,13 +308,13 @@ def validate_claim_applications(entry, *, lock=False):
                 raise ValidationError(
                     f"Claim {history.identity(origin)[1]}: applications through {day} would use "
                     f"{used:,.2f} of its {origin.credit:,.2f} recognized amount. Correct the amount or linked claim.")
-        _capacity(origin, [line for line in lines if line.payable_origin_id == origin_id])
+        _capacity(origin, candidates)
         record = history.current(origin)
         if record and record.is_split:
             if entry.reversal_of_id and not history._exact_reversal(entry, entry.reversal_of):
                 raise ValidationError("An invoice reversal must mirror every original financial line exactly.")
             from .claim_splits import validate_capacity
-            validate_capacity(origin, record, [line for line in lines if line.payable_origin_id == origin_id])
+            validate_capacity(origin, record, candidates)
 
 
 def record_claim_subsidiaries(entry):
@@ -345,7 +351,7 @@ def record_claim_subsidiaries(entry):
 def claim_rows(department_id, as_of_date):
     # Capture all selected approval pointers together. A later approval must not
     # replace only the identity/evidence after an earlier amount was calculated.
-    records = {head.source_id: history.verify(head.attribution) for head in history.Head.objects.filter(
+    records = {head.source_id: history.verify_current(head.attribution) for head in history.Head.objects.filter(
         source__entry__department_id=department_id, source__entry__entry_date__lte=as_of_date
         ).select_related("attribution__source")}
     claims = list(JournalLine.objects.filter(entry__department_id=department_id,
@@ -362,9 +368,9 @@ def claim_rows(department_id, as_of_date):
         attribution = records.get(line.pk)
         if attribution and attribution.is_split:
             from .claim_splits import effective_shares
+            from .shared_claim_applications import native_lines
             applications = [*history.application_lines(line, record=attribution),
-                *line.payable_applications.filter(entry__status=JournalEntry.POSTED,
-                    entry__entry_date__lte=as_of_date).select_related("entry")]
+                *[item for item in native_lines(line) if item.entry.entry_date <= as_of_date]]
             shares_by_line = {item.pk: effective_shares(item, line, attribution) for item in applications}
             for row in history.allocation_rows(attribution):
                 applied = sum((Decimal(shares_by_line[item.pk].get(row["key"], "0")) * (1 if item.debit else -1)

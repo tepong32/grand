@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.88] - 2026-09-10
+### Added
+- feat(finance): settle shared historical claims
+
 ## [0.7.87] - 2026-09-10
 ### Added
 - feat(finance): settle reviewed historical invoices

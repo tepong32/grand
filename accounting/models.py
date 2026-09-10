@@ -987,11 +987,50 @@ class CashFlowClassificationHead(models.Model):
         return super().save(*args, **kwargs)
 
 
+class SharedPayableClaimProposal(DepartmentOwnedModel):
+    """Immutable coordinated evidence; does not itself approve claim ownership."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT, related_name="shared_claim_proposals")
+    source_ids = models.JSONField()
+    application_ids = models.JSONField(default=list, blank=True)
+    source_set_checksum = models.CharField(max_length=64)
+    version = models.PositiveIntegerField()
+    base_approvals = models.JSONField()
+    allocations = models.JSONField()
+    source_snapshot = models.JSONField()
+    source_checksum = models.CharField(max_length=64)
+    evidence_reference = models.CharField(max_length=255)
+    reason = models.TextField()
+    proposed_by_id = models.PositiveBigIntegerField()
+    proposed_by_label = models.CharField(max_length=160)
+    proposed_at = models.DateTimeField(auto_now_add=True)
+    proposal_checksum = models.CharField(max_length=64)
+
+    class Meta:
+        ordering = ("-version",)
+        constraints = (models.UniqueConstraint(fields=("fund", "source_set_checksum", "version"),
+            name="unique_shared_claim_proposal_version"),)
+
+    def save(self, *args, **kwargs):
+        if self.pk or not getattr(self, "_proposal_write", False):
+            raise ValidationError("Retain shared claim proposals; submit a new version.")
+        if self.fund.department_id != self.department_id:
+            raise ValidationError("Keep the shared proposal within its Accounting fund and office.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain shared claim proposals and their source evidence.")
+
+
 class PayableClaimAttribution(DepartmentOwnedModel):
     """Reviewed historical identity/applications over unchanged journal lines."""
     SUBMITTED, APPROVED, RETURNED = "submitted", "approved", "returned"
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     source = models.ForeignKey(JournalLine, on_delete=models.PROTECT, related_name="claim_attributions")
+    shared_proposal = models.ForeignKey(SharedPayableClaimProposal, null=True, blank=True,
+        on_delete=models.PROTECT, related_name="attributions")
+    application_amounts = models.JSONField(default=dict, blank=True)
     version = models.PositiveIntegerField()
     base_version = models.PositiveIntegerField(default=0)
     party_key = models.CharField(max_length=100, blank=True)
@@ -1015,11 +1054,17 @@ class PayableClaimAttribution(DepartmentOwnedModel):
 
     class Meta:
         ordering = ("-version",)
-        constraints = (models.UniqueConstraint(fields=("source", "version"), name="unique_payable_attribution_version"),)
+        constraints = (
+            models.UniqueConstraint(fields=("source", "version"), name="unique_payable_attribution_version"),
+            models.UniqueConstraint(fields=("shared_proposal", "source"), name="unique_shared_attribution_source"),
+        )
 
     def clean(self):
         if self.source_id and self.source.entry.department_id != self.department_id:
             raise ValidationError("Attribute a claim in the same Accounting ledger.")
+        if (self.shared_proposal_id and (not self.allocation_checksum
+                or self.source_id not in self.shared_proposal.source_ids)) or (not self.shared_proposal_id and self.application_amounts):
+            raise ValidationError("Shared application amounts require their coordinated proposal.")
         if bool(self.allocation_checksum):
             if self.party_key or self.claim_reference:
                 raise ValidationError("A split attribution retains each invoice's identity separately.")
@@ -1034,7 +1079,8 @@ class PayableClaimAttribution(DepartmentOwnedModel):
         if self.pk:
             prior = type(self).objects.get(pk=self.pk)
             fixed = ("public_id", "source_id", "department_id", "department_label", "version", "base_version",
-                "party_key", "claim_reference", "allocation_checksum", "applications", "source_snapshot", "source_checksum",
+                "party_key", "claim_reference", "allocation_checksum", "shared_proposal_id", "application_amounts",
+                "applications", "source_snapshot", "source_checksum",
                 "evidence_reference", "reason", "proposed_by_id", "proposed_by_label", "proposed_at")
             if (not getattr(self, "_review_transition", False) or prior.status != self.SUBMITTED
                     or any(getattr(prior, key) != getattr(self, key) for key in fixed)):

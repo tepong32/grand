@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-080:** Retain all claim shares on one exact historical-payment reversal line, using the existing journal allocation evidence and independent posting audit; never select one credit or fabricate split financial reversals.
+
 - **D-079:** Split a consolidated historical liability into reviewed invoice identities over the original credit; preserve exact application shares, dated parent/invoice capacity and pinned approval evidence through settlement and corrections.
 
 - **D-078:** Allocate consolidated DVs and partial checks explicitly across original claims; reserve the whole group atomically and retire only the shares of an independently posted closing return.
@@ -778,6 +780,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-080 - Preserve one financial line across shared-claim reversals
+
+- Date: 2026-09-10. Status: implemented in the v0.7.88 development checkpoint with full SQLite regression and focused native/concurrency validation. [Scope and evidence](FINANCE_SHARED_APPLICATIONS_IN_PROGRESS.md).
+- Goal: complete the historical source-to-ledger-to-output path when one payment settled several original credits.
+- Decision: extend the existing journal allocation JSON with a source-keyed map of pinned approval/invoice shares. Keep the original reversal's financial line count, amounts, accounts and responsibility centers. Require exact reversal ancestry and seal the complete map in the independent posting event. Use a common source lookup and per-credit amount projection for dated capacity and outputs; lock all original credits in sorted order for posting.
+- Alternatives/tradeoffs: selecting one `payable_origin` loses other credits; splitting the financial reversal fabricates a different source structure. A second application ledger would duplicate authority. The retained JSON map preserves the original journal but requires a portable JSON source lookup and explicit integrity checks instead of one direct source FK; the approved attribution members retain protected source references. Native query and competing-capacity validation are required. Revisit indexing only with measured ledger-scale evidence.
+- Progress/limits: independent atomic group review, ordinary shared entry/review and actual HTTP-to-DV settlement scenarios are implemented. Compatible successors preserve pinned reservation evidence; partial returns, recovery, deduction corrections and retained CSV are validated. Generated-history adoption, later instrument/remitted-withholding corrections and LGU acceptance remain open; see the linked current validation record.
 
 ## D-079 - Retain reviewed invoice identities over consolidated historical credits
 

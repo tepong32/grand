@@ -1,11 +1,13 @@
 from django.urls import path
 
-from . import views, cash_views, claim_views
+from . import views, cash_views, claim_views, shared_claim_views
 
 
 app_name = "accounting"
 
 urlpatterns = [
+    path('claims/<int:line_id>/shared/', shared_claim_views.schedule_page, name='shared_claim_schedule'),
+    path('claims/<int:line_id>/shared/<uuid:public_id>/<slug:decision>/', shared_claim_views.schedule_review, name='shared_claim_review'),
     path("claims/<int:line_id>/attribution/", claim_views.attribution_page, name="claim_attribution"),
     path("claims/<int:line_id>/attribution/<uuid:public_id>/<slug:decision>/", claim_views.attribution_review, name="claim_attribution_review"),
     path("subsidiary-controls/claims/export/", views.payable_claim_export, name="payable_claim_export"),

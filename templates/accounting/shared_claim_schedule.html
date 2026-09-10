@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title_ext %} - Shared historical invoice schedule{% endblock %}
+{% block content %}
+<div class="container pb-4">
+  <a href="{% url 'accounting:entry_detail' source.entry.public_id %}">Back to {{ source.entry.reference }}</a>
+  <h1 class="h3 mt-3">Shared historical invoice schedule</h1>
+  <p>{{ source.entry.fund }} · {{ source.account }}. Reconcile a payment that covered invoices from several original credits. A different Accounting reviewer decides the complete schedule.</p>
+  {% if can_prepare %}<div class="card"><div class="card-header"><h2 class="h5">Prepare the complete schedule</h2></div><div class="card-body">
+    <p>Select the original credits and earlier payments or reversals, then load the table. Enter each invoice under its original credit. Invoice amounts must total each credit; all invoice shares together must total each earlier application.</p>
+    <form method="post">{% csrf_token %}{{ form.as_p }}
+      <button class="btn btn-outline-secondary" name="action" value="refresh" formnovalidate>Load selected credits and applications</button>
+      {{ invoices.management_form }}{{ invoices.non_form_errors }}
+      <p class="small text-muted mt-2">Scroll the invoice table sideways to view all columns.</p>
+      <div class="table-responsive mt-3" style="position: relative;"><table class="table table-bordered"><thead><tr><th scope="col">Invoice</th>{% for field in invoices.empty_form.visible_fields %}<th scope="col">{{ field.label }}</th>{% endfor %}</tr></thead><tbody>
+      {% for invoice in invoices %}<tr><th scope="row">{{ forloop.counter }}{% for hidden in invoice.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}{{ invoice.non_field_errors }}</th>{% for field in invoice.visible_fields %}<td><label class="sr-only" for="{{ field.id_for_label }}">Invoice {{ forloop.parentloop.counter }}: {{ field.label }}</label>{{ field.errors }}{{ field }}</td>{% endfor %}</tr>{% endfor %}
+      </tbody></table></div>
+      <button class="btn btn-outline-secondary" name="action" value="add_invoice" formnovalidate>Add invoice</button>
+      <button class="btn btn-primary" name="action" value="submit">Submit complete schedule for review</button>
+    </form>
+  </div></div>{% endif %}
+  <h2 class="h4 mt-4">Proposals and decisions</h2>
+  {% for item in records %}{% with record=item.record %}<div class="card mb-3"><div class="card-header">Schedule version {{ record.version }} · {% if item.is_current %}Current approved schedule{% elif item.decision %}{{ item.decision.get_status_display }} · retained history{% else %}Awaiting independent review{% endif %}</div><div class="card-body">
+    <p>Prepared by {{ record.proposed_by_label }} · {{ record.proposed_at }}</p>
+    <p><strong>Supporting documents:</strong> {{ record.evidence_reference }}<br><strong>Basis:</strong> {{ record.reason }}</p>
+    <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Original credit</th><th>Invoice / payee</th><th>Original amount</th><th>Earlier application shares</th></tr></thead><tbody>
+      {% for row in item.rows %}<tr><td><a href="{% url 'accounting:entry_detail' row.source.entry.public_id %}">{{ row.source.entry.reference }}</a> / line {{ row.source.sequence }}</td><td>{{ row.claim_reference }}<br>{{ row.payee_label }}</td><td>{{ row.recognized|floatformat:2 }}</td><td>{% for share in row.shares %}<div>{{ share.line.entry.reference }} / line {{ share.line.sequence }} · {% if share.line.credit %}restoring credit{% else %}debit{% endif %}: {{ share.amount|floatformat:2 }}</div>{% empty %}No earlier applications{% endfor %}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% if item.decision %}<p>Decision: {{ item.decision.reviewed_by_label }} · {{ item.decision.reviewed_at }} · {{ item.decision.review_note }}</p>{% endif %}
+    {% if item.can_review %}<form method="post" action="{% url 'accounting:shared_claim_review' source.pk record.public_id 'return' %}">{% csrf_token %}<label for="review-{{ record.pk }}">Review basis</label><input class="form-control" id="review-{{ record.pk }}" name="note" required>{% if item.is_latest %}<button class="btn btn-success mt-2" formaction="{% url 'accounting:shared_claim_review' source.pk record.public_id 'approve' %}">Approve complete schedule</button>{% endif %}<button class="btn btn-outline-warning mt-2">Return complete schedule for correction</button></form>{% endif %}
+  </div></div>{% endwith %}{% empty %}<p>No shared schedule has been submitted for these credits.</p>{% endfor %}
+</div>
+{% endblock %}

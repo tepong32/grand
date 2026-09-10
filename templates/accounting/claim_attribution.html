@@ -4,6 +4,7 @@
 <div class="container pb-4">
   <a href="{% url 'accounting:entry_detail' source.entry.public_id %}">Back to {{ source.entry.reference }}</a>
   <h1 class="h3 mt-3">Historical claim attribution</h1>
+  <p>When an earlier payment covered several original credits, <a href="{% url 'accounting:shared_claim_schedule' source.pk %}">prepare a shared invoice schedule</a>.</p>
   <p>{{ source.entry.reference }} · line {{ source.sequence }} · {{ source.entry.entry_date }} · {{ source.entry.fund }} · {{ source.account }} · original credit {{ source.credit|floatformat:2 }}.</p>
   <p>Identify the original claim and reconcile its earlier applications. A separate Accounting reviewer approves the links used in outstanding claims, new DV settlements and subsidiary reports. The original journal and older issued reports remain unchanged.</p>
   {% if current %}<p class="alert alert-success">Approved version {{ current.version }} · {% if current.is_split %}Individual invoice allocations{% else %}{{ current.claim_reference }} · {{ current.party_key }}{% endif %} · {{ current.reviewed_by_label }} · {{ current.reviewed_at }}</p>{% endif %}

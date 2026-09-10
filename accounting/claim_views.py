@@ -87,6 +87,8 @@ def attribution_page(request, line_id):
     if request.method == "POST" and not can_prepare:
         raise PermissionDenied
     selected = current(source)
+    if selected and selected.shared_proposal_id:
+        return redirect('accounting:shared_claim_schedule', line_id=source.pk)
     split_mode = request.GET.get("mode") == "split" or bool(selected and selected.is_split)
     seed = selected
     # A returned proposal is copied into a new version, never edited in place.

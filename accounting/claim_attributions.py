@@ -57,12 +57,16 @@ def approval_payload(record, *, allocations=None):
     if record.is_split:
         payload.update(allocation_checksum=record.allocation_checksum,
             allocations=allocation_rows(record) if allocations is None else allocations)
+    if record.shared_proposal_id:
+        payload.update(shared_proposal=str(record.shared_proposal.public_id),
+            shared_proposal_checksum=record.shared_proposal.proposal_checksum,
+            application_amounts=record.application_amounts)
     return payload
 
 
 def verify(record):
     rows = allocation_rows(record, fresh=True)
-    if (record.is_split and (record.party_key or record.claim_reference or len(rows) < 2
+    if (record.is_split and (record.party_key or record.claim_reference or len(rows) < (1 if record.shared_proposal_id else 2)
             or checksum(rows) != record.allocation_checksum)) or (not record.is_split and rows):
         raise ValidationError("Historical invoice allocations differ from their retained proposal.")
     if (record.status != Attribution.APPROVED or not record.reviewed_by_id or not record.reviewed_at
@@ -72,12 +76,26 @@ def verify(record):
             or serial_snapshot(record.source, record.applications) != record.source_snapshot):
         raise ValidationError("Historical claim evidence no longer reproduces its approved source and decision.")
     record._verified_allocations = rows
+    if record.shared_proposal_id:
+        from .shared_claim_proposals import verify_member
+        verify_member(record, rows)
     return record
 
 
 def current(source):
     head = Head.objects.select_related("attribution__source").filter(source_id=source.pk).first()
-    return verify(head.attribution) if head else None
+    return verify_current(head.attribution) if head else None
+
+
+def verify_current(record):
+    verify(record)
+    if record.shared_proposal_id:
+        heads = dict(Head.objects.filter(source_id__in=record.shared_proposal.source_ids).values_list(
+            'source_id', 'attribution__shared_proposal_id'))
+        if (set(heads) != set(record.shared_proposal.source_ids)
+                or any(value != record.shared_proposal_id for value in heads.values())):
+            raise ValidationError("The current shared attribution is incomplete or has changed. Reload the complete schedule.")
+    return record
 
 
 def attribution_evidence(record):
@@ -131,16 +149,29 @@ def eligible_claims(department_id, party_key=None):
 def application_lines(source, *, record=_CURRENT):
     if record is _CURRENT:
         record = current(source)
-    return list(JournalLine.objects.filter(pk__in=record.applications).select_related("entry")) if record else []
+    lines = list(JournalLine.objects.filter(pk__in=record.applications).select_related("entry")) if record else []
+    if record and record.shared_proposal_id:
+        from copy import copy
+        projected = []
+        for original in lines:
+            amount = Decimal(record.application_amounts[str(original.pk)])
+            line = copy(original)
+            line.debit, line.credit = (amount, Decimal("0")) if original.debit else (Decimal("0"), amount)
+            projected.append(line)
+        return projected
+    return lines
 
 
 def application_origin(line):
     if line.payable_origin_id:
         return line.payable_origin
+    origins = []
     for head in Head.objects.filter(source__entry__department_id=line.entry.department_id).select_related("attribution__source"):
         if line.pk in head.attribution.applications:
-            return verify(head.attribution).source
-    return None
+            origins.append(verify_current(head.attribution).source)
+    if len(origins) > 1:
+        raise ValidationError("This application requires its complete shared-source allocation.")
+    return origins[0] if origins else None
 
 
 def reversal_origin(line):
@@ -197,7 +228,7 @@ def claim_identity_exists(department_id, fund_id, party, claim, *, exclude_sourc
     return native.exists() or historical.exists() or split.exists()
 
 
-def _normalize(source, application_ids, party, claim, *, split=False):
+def _normalize(source, application_ids, party, claim, *, split=False, coordinated_sources=()):
     if (source.entry.status != JournalEntry.POSTED or not source.entry.posted_by_id
             or source.payable_origin_id or source.payable_allocation or source.credit <= 0 or source.debit
             or source.account.account_type != "liability" or source.entry.reversal_of_id
@@ -218,7 +249,8 @@ def _normalize(source, application_ids, party, claim, *, split=False):
     if len(lines) != len(application_ids):
         raise ValidationError("A selected historical application cannot be found.")
     claimed_ids = {source.pk, *application_ids}
-    for head in Head.objects.filter(source__entry__department_id=source.entry.department_id).exclude(source=source).select_related("attribution"):
+    for head in Head.objects.filter(source__entry__department_id=source.entry.department_id).exclude(
+            source_id__in={source.pk, *coordinated_sources}).select_related("attribution"):
         if claimed_ids.intersection({head.source_id, *head.attribution.applications}):
             raise ValidationError("A selected journal line already belongs to another approved claim attribution.")
     for line in lines:
@@ -245,6 +277,10 @@ def _normalize(source, application_ids, party, claim, *, split=False):
             reversed_line = reversal.lines.filter(sequence=line.sequence).first()
             if reversed_line and reversed_line.payable_origin_id == source.pk:
                 continue
+            if reversed_line and coordinated_sources:
+                from .shared_claim_applications import is_shared, validate
+                if is_shared(reversed_line) and source.pk in validate(reversed_line):
+                    continue
             if (not reversed_line or reversal.status != JournalEntry.POSTED or reversed_line.pk not in application_ids
                     or reversed_line.account_id != line.account_id or reversed_line.debit != line.credit
                     or reversed_line.credit != line.debit or reversal.fund_id != line.entry.fund_id
@@ -259,6 +295,8 @@ def propose(source, actor, *, party_key="", claim_reference="", applications, ev
     stored = JournalLine.objects.select_for_update().get(pk=source.pk)
     _authorize(stored, actor)
     selected = current(stored)
+    if selected and selected.shared_proposal_id:
+        raise ValidationError("Revise all members of the shared proposal together.")
     if expected_version != (selected.version if selected else 0):
         raise ValidationError("The approved attribution changed. Reload and prepare its successor.")
     if not evidence_reference.strip() or not reason.strip():
@@ -293,6 +331,8 @@ def propose(source, actor, *, party_key="", claim_reference="", applications, ev
 def review(record, actor, *, approve, note):
     initial = Attribution.objects.select_related("source__entry").get(pk=record.pk)
     _authorize(initial.source, actor, review=True)
+    if initial.shared_proposal_id:
+        raise ValidationError("Review the complete shared proposal together.")
     # Fund first, then original/application rows: also serializes cross-claim
     # attribution and new native claim identities without conditional constraints.
     Fund.objects.select_for_update().get(pk=initial.source.entry.fund_id)
@@ -370,15 +410,18 @@ def projected_details(department_id, as_of_date):
         entry__department_id=department_id, entry__status=JournalEntry.POSTED,
         entry__entry_date__lte=as_of_date, category=JournalSubsidiaryLine.PAYABLE).select_related(
             "entry__fund", "journal_line__account")}
+    originals = {pk: rows[0] for pk, rows in details.items()}
+    owners = {}
     for head in Head.objects.filter(source__entry__department_id=department_id,
             source__entry__entry_date__lte=as_of_date).select_related("attribution__source"):
-        record = verify(head.attribution)
+        record = verify_current(head.attribution)
         selected_lines = Q(pk__in=[record.source_id, *record.applications])
         if record.is_split:
-            selected_lines |= Q(payable_origin_id=record.source_id)
+            from .shared_claim_applications import application_filter
+            selected_lines |= application_filter(record.source_id)
         for line in JournalLine.objects.filter(selected_lines, entry__status=JournalEntry.POSTED,
                 entry__entry_date__lte=as_of_date).select_related("entry__fund", "account"):
-            original = details.get(line.pk, [None])[0]
+            original = originals.get(line.pk)
             rows = allocation_rows(record) if record.is_split else [{"party_key": record.party_key,
                 "claim_reference": record.claim_reference}]
             if record.is_split:
@@ -409,7 +452,13 @@ def projected_details(department_id, as_of_date):
                         detail.source_snapshot["application_allocation"] = line.payable_allocation
                 detail.attribution = record
                 projected.append(detail)
-            details[line.pk] = projected
+            if line.pk in owners:
+                if not record.shared_proposal_id or owners[line.pk] != record.shared_proposal_id:
+                    raise ValidationError("A subsidiary line has conflicting approved claim ownership.")
+                details[line.pk].extend(projected)
+            else:
+                details[line.pk] = projected
+                owners[line.pk] = record.shared_proposal_id
     return sorted((detail for group in details.values() for detail in group),
         key=lambda detail: (detail.entry.entry_date, detail.entry.reference, detail.journal_line.sequence,
             detail.source_snapshot.get("claim_slice", "")))

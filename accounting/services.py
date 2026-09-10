@@ -1299,7 +1299,9 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
     for line in locked.lines.select_related("account", "responsibility_center").order_by("sequence", "pk"):
         from .claim_attributions import reversal_origin, identity as claim_identity, current as current_attribution
         from .claim_splits import reversal_allocation
-        claim_origin = reversal_origin(line)
+        from .shared_claim_applications import capture as shared_reversal_allocation
+        shared_allocation = shared_reversal_allocation(line)
+        claim_origin = None if shared_allocation else reversal_origin(line)
         reversed_line = JournalLine(
             entry=reversal,
             sequence=line.sequence,
@@ -1310,7 +1312,7 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
             cash_flow_category=line.cash_flow_category,
             payable_origin_id=claim_origin.pk if claim_origin else None,
             payable_reservation_id=line.payable_reservation_id,
-            payable_allocation=reversal_allocation(line),
+            payable_allocation=shared_allocation or reversal_allocation(line),
             memo=f"Reversal: {line.memo}"[:255],
         )
         reversed_line.full_clean()
