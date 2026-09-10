@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title_ext %} - Cash purposes · {{ entry.reference }}{% endblock %}
+{% block content %}
+<div class="container pb-4">
+  <a href="{% url 'accounting:entry_detail' entry.public_id %}">Back to {{ entry.reference }}</a>
+  <h1 class="h3 mt-3">Cash-flow purposes</h1>
+  <p>{{ entry.reference }} · {{ entry.entry_date }} · {{ entry.fund }}. Allocate each posted cash amount to its purpose. A separate reviewer approves the classification used in new reports.</p>
+  {% if current %}<p class="alert alert-success">Current approved version: {{ current.version }} · {{ current.reviewed_by_label }} · {{ current.reviewed_at }}</p>{% else %}<p class="text-muted">New reports currently use the journal's original cash purposes, where recorded.</p>{% endif %}
+  {% if scope_error %}<p class="alert alert-warning">{{ scope_error }}</p>{% endif %}
+  {% if can_prepare %}
+  <div class="card"><div class="card-header"><h2 class="h5 mb-0">Propose allocations</h2></div><div class="card-body">
+    <form method="post">{% csrf_token %}{{ form.as_p }}{{ formset.management_form }}{{ formset.non_form_errors }}
+      <div id="cash-allocation-rows">{% for row in formset %}<div class="border rounded p-3 mb-3">{{ row.as_p }}</div>{% endfor %}</div>
+      <template id="cash-allocation-empty"><div class="border rounded p-3 mb-3">{{ formset.empty_form.as_p }}</div></template>
+      <button type="button" class="btn btn-outline-secondary mb-3" id="cash-add-row">Add purpose / split</button>
+      <p class="small text-muted">Use positive amounts. The allocations for each cash line must total its full posted amount. Mark Delete to omit a row.</p>
+      <button class="btn btn-primary" type="submit">Submit for independent review</button>
+    </form>
+  </div></div>
+  {% endif %}
+  <h2 class="h4 mt-4">Proposals and decisions</h2>
+  {% for item in history %}{% with record=item.record %}
+  <div class="card" id="classification-{{ record.public_id }}"><div class="card-header"><strong>Version {{ record.version }} · {{ record.get_status_display }}</strong> <span class="text-muted">Based on approved version {{ record.base_version }}</span></div><div class="card-body">
+    <p>{{ record.reason|linebreaksbr }}</p><p>Evidence: {{ record.evidence_reference }}</p>
+    <p class="small text-muted">Proposed by {{ record.proposed_by_label }} · {{ record.proposed_at }}</p>
+    <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Cash line</th><th>Purpose</th><th class="text-right">Amount</th></tr></thead><tbody>
+    {% for row in item.rows %}<tr><td>{{ row.line.sequence }} · {{ row.line.account }}</td><td>{{ row.purpose }}</td><td class="text-right">{{ row.amount|floatformat:2 }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% if record.reviewed_at %}<p>{{ record.reviewed_by_label }} · {{ record.reviewed_at }}: {{ record.review_note }}</p>{% endif %}
+    {% if item.can_review %}<form method="post">{% csrf_token %}<label for="review-{{ record.pk }}">Review basis / required correction</label><textarea id="review-{{ record.pk }}" name="note" class="form-control mb-2" rows="2" required></textarea><button class="btn btn-success" formaction="{% url 'accounting:cash_classification_review' entry.public_id record.public_id 'approve' %}">Approve</button> <button class="btn btn-outline-warning" formaction="{% url 'accounting:cash_classification_review' entry.public_id record.public_id 'return' %}">Return for correction</button></form>{% endif %}
+  </div></div>
+  {% endwith %}{% empty %}<p class="text-muted">No reviewed cash-purpose proposals yet.</p>{% endfor %}
+</div>
+<script>
+document.getElementById('cash-add-row')?.addEventListener('click', function () {
+  const total = document.getElementById('id_form-TOTAL_FORMS');
+  const html = document.getElementById('cash-allocation-empty').innerHTML.replaceAll('__prefix__', total.value);
+  document.getElementById('cash-allocation-rows').insertAdjacentHTML('beforeend', html);
+  total.value = Number(total.value) + 1;
+});
+</script>
+{% endblock %}

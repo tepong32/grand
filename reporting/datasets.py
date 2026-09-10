@@ -1582,10 +1582,13 @@ class StatementOfCashFlowsDataset(GovernedStatementDataset):
         from accounting.models import LedgerAccount, PostingMapping
         from finance.cash_flows import CASH_FLOW_ROWS
         from .cash_flow_calculation import cash_flow_period
+        from accounting.cash_classifications import apply_to_report_sources
 
         # Reuse the posted ledger and independently checked opening evidence.
         # Equity classifications are not a gate for cash-flow reporting.
         ledger = StatementOfChangesInNetAssetsDataset().payload(department, period_start, period_end, parameters)
+        classified_at = apply_to_report_sources(ledger.sources)
+        ledger.freshness_at = _latest_datetime([ledger.freshness_at] + classified_at)
         mapping = self._mapping_snapshot(department, parameters)
         codes = [code for line in mapping.get("lines", []) for code in line.get("account_codes", [])]
         errors = []
@@ -1595,14 +1598,15 @@ class StatementOfCashFlowsDataset(GovernedStatementDataset):
                 for line in mapping.get("lines", [])):
             errors.append("Use each explicitly selected cash account once; do not select all assets.")
         asset_codes = set(LedgerAccount.objects.filter(department_id=department.pk, account_type="asset",
-            allow_posting=True, code__in=codes).values_list("code", flat=True))
+            code__in=codes).values_list("code", flat=True))
         if set(codes) != asset_codes:
-            errors.append("Selected cash accounts must be posting assets in this ledger.")
+            errors.append("Selected cash accounts must be asset accounts in this ledger.")
         known = set(PostingMapping.objects.filter(department_id=department.pk, category=PostingMapping.BANK,
             is_active=True).values_list("account__code", flat=True))
         for source in ledger.sources:
             if source["source_model"] == "JournalEntry":
-                known.update(line["account"] for line in source["snapshot"]["lines"] if line.get("cash_flow_category"))
+                known.update(line["account"] for line in source["snapshot"]["lines"]
+                    if line.get("cash_flow_category") or line.get("cash_flow_allocations"))
         omitted = sorted(known - set(codes))
         if omitted:
             errors.append("The cash scope omits bank-mapped or cash-classified accounts: " + ", ".join(omitted))

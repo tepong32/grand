@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-069:** Classify historical and mixed posted cash through independently reviewed allocations; preserve financial history, serialize decisions on the source journal and retain report-specific classification versions.
+
 - **D-066:** Separate explicit nominal closing transfers and their reversals from performance-statement activity while retaining complete ledger/report evidence; this is a prerequisite for M01 financial-statement completion.
 
 - **D-065:** Prioritize complete eGAPS-informed office workflows and outputs, familiar account-based web navigation, maintainable rule/form changes and authorized WFH; preserve existing financial and acceptance controls.
@@ -756,6 +758,16 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-069 - Review cash-purpose allocations without rewriting posted finance
+
+- Date: 2026-09-10. Status: implemented on `codex/finance-cash-allocations`; [validation and limits](FINANCE_CASH_ALLOCATIONS_2026-09-10.md).
+- Goal: complete historical cash classification and mixed generated-payment reporting under M01 before expanding surrounding UX/framework work.
+- Decision: attach immutable proposals and independent decisions to the posted JEV in the Finance store. Require exact positive allocations covering each scoped cash line, a supporting reference, current office/role authority and a pinned source/scope. New reports retain the chosen approved version; original journal and earlier output evidence stay unchanged.
+- Concurrency: lock the same posted journal before proposal/version and review changes. An ordinary unique current pointer and ordinary `(entry, version)` uniqueness preserve native identities. Competing approvals based on the same version cannot both win; stale proposals are returned and replaced. This is a bounded source-specific workflow, not another policy/configuration engine.
+- Alternatives/tradeoffs: rewriting posted fields loses original evidence; fake financial reversals change the ledger for a reporting-only purpose; a single scalar category cannot split one payment. Separate metadata adds one preparation/review step while preserving the independent decision and historical output. Current reporting-governance permissions plus Accounting source access are reused; additional general work-adapter expansion is deferred.
+- Reversal boundary: inherit approved allocations only along an actual same-fund, exactly mirrored financial chain. Retain the original category and apply the current debit/credit sign. An explicitly reviewed classification on the reversing entry takes precedence.
+- Limits/revisit: reviewer evidence determines real cash purpose; amount checks do not establish that every purpose is factually correct. Complete four-statement notes/packages, signed references, local cash scope/form acceptance and M02 prior-payable linkage remain open. Broader concurrency and LGU acceptance are not established by this path's native test.
 
 ## D-068 - Report cash from explicit source purposes and reviewed cash scope
 

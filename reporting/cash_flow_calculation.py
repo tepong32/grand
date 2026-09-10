@@ -25,6 +25,19 @@ def cash_flow_period(sources, cash_codes, start, end):
             if is_opening:
                 opening += amount
                 continue
+            parts = line.get("cash_flow_allocations")
+            if parts:
+                allocated = sum((Decimal(part["amount"]) for part in parts), zero)
+                if allocated != abs(amount):
+                    raise ValueError("Reviewed cash allocations do not equal the posted cash line.")
+                for part in parts:
+                    category = part["category"]
+                    _activity, direction, _label = CASH_FLOW_BY_CODE[category]
+                    signed = Decimal(part["amount"]) * (1 if amount > 0 else -1)
+                    values[category] += signed if direction == "in" else -signed
+                    if category == "internal":
+                        internal += signed
+                continue
             category = line.get("cash_flow_category", "")
             if category not in CASH_FLOW_BY_CODE:
                 key = (snapshot["statement_origin_public_id"], line["account"])

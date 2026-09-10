@@ -86,7 +86,7 @@ def mapping_coverage(mapping):
         lines = list(mapping.lines.order_by("position", "pk"))
         codes = [code for line in lines for code in (line.account_codes or [])]
         accounts = LedgerAccount.objects.filter(department_id=mapping.department_id,
-            allow_posting=True, account_type="asset", code__in=codes)
+            account_type="asset", code__in=codes)
         found = set(accounts.values_list("code", flat=True))
         known = set(PostingMapping.objects.filter(department_id=mapping.department_id,
             category=PostingMapping.BANK, is_active=True).values_list("account__code", flat=True))
@@ -99,7 +99,7 @@ def mapping_coverage(mapping):
         if len(codes) != len(set(codes)):
             errors.append("A cash account is selected more than once.")
         if set(codes) - found:
-            errors.append("Selected cash accounts must be posting assets in this ledger.")
+            errors.append("Selected cash accounts must be asset accounts in this ledger.")
         if any(line.selector_type != FinanceStatementLine.ACCOUNT_CODES for line in lines):
             errors.append("Select cash account codes explicitly; an asset-type selector includes non-cash assets.")
         if missing:

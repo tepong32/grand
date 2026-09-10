@@ -2,7 +2,9 @@
 
 ## Accepted modernization direction — 2026-09-10
 
-Current statement work after v0.7.74: [comparative net-assets movements](FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md) and [initial Cash Flow calculation/source classification](FINANCE_CASH_FLOW_2026-09-10.md) advance M01. Cash Flow still needs historical posted-line classification and mixed generated-payment allocations; complete statement-note/package integration remains open. These are concrete financial deliverables ahead of further general UX work.
+Current allocation branch: [reviewed cash-purpose allocations](FINANCE_CASH_ALLOCATIONS_2026-09-10.md) covers historical and mixed posted cash sources without rewriting financial history. Its report records validation state. Complete four-statement notes/packages and signed-reference controls remain the next M01 deliverables, followed by M02 prior-payable linkage.
+
+The prior v0.7.74/v0.7.75 checkpoints added [comparative net-assets movements](FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md) and [initial Cash Flow calculation/source classification](FINANCE_CASH_FLOW_2026-09-10.md). Their historical/mixed classification gaps have advanced in the allocation work above. Complete statement-note/package integration remains open ahead of further general UX work.
 
 The user accepted the live eGAPS/source comparison and authorized implementation of its [priorities M01–M08](FINANCE_MODERNIZATION_PRIORITIES.md), then clarified the delivery order: finish concrete financial gaps and source-to-ledger-to-output proof first; complete the actual inventory, ordinary Budget/Accounting/Treasury scenarios, exact documents, clerk usability and operational acceptance next. eGAPS is the parity floor, not the design ceiling. Preserve account-based web access, authorized WFH, maintainable national/COA/DBM changes, effective-dated evidence and physical signature/custody duties. No further UX or surrounding framework expansion ahead of unresolved financial functionality unless required to complete or validate it. Financial changes retain their native and acceptance gates.
 

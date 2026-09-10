@@ -422,9 +422,12 @@ class FinanceStatementLineForm(forms.ModelForm):
     def __init__(self, *args, mapping=None, **kwargs):
         self.mapping = mapping
         super().__init__(*args, **kwargs)
-        accounts = LedgerAccount.objects.filter(
-            department_id=mapping.department_id, is_active=True, allow_posting=True,
-        ).order_by("code")
+        accounts = LedgerAccount.objects.filter(department_id=mapping.department_id)
+        if mapping.statement_type == FinanceStatementMapping.CASH_FLOW:
+            accounts = accounts.filter(account_type="asset")
+        else:
+            accounts = accounts.filter(is_active=True, allow_posting=True)
+        accounts = accounts.order_by("code")
         self.fields["account_codes"].choices = [
             (account.code, f"{account.code} — {account.title}") for account in accounts
         ]

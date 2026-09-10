@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.76 - Reviewed historical and mixed cash-purpose allocations
+
+Accounting can submit and independently review purpose allocations for already posted cash lines, including historical closed-period entries and mixed generated payments. Exact allocations supplement immutable source evidence; new reports retain the approved version while older output files remain reproducible. Actual reversals inherit only through exactly mirrored financial lines. Current-office/UAT controls, native unique identities and source-journal locking protect the decision path. Complete four-statement notes/packages, signed-reference controls and local output acceptance remain open. See [behavior and validation](docs/FINANCE_CASH_ALLOCATIONS_2026-09-10.md).
+
 ## v0.7.75 - Initial comparative Cash Flow and source purposes
 
 Accounting can generate a comparative direct-method Cash Flow statement from reviewed cash-account scope and classified posted cash lines. Manual JEVs and reviewed payment/remittance instructions retain purpose through source materialization and actual reversals; blank legacy rule snapshots retain their checksum calculation. Gross flows, non-cash activity, internal transfers, exchange effects and opening-to-closing reconciliation remain distinct. Historical posted-line classification, mixed generated-payment allocations and full statement-package integration are still required M01 work. See [coverage, validation and next functions](docs/FINANCE_CASH_FLOW_2026-09-10.md).

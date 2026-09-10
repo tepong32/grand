@@ -1389,6 +1389,44 @@ class VoucherWorkflowTests(TestCase):
         })
         self.assertEqual(len(history), 2)
 
+        # A real generated payment can carry reviewed mixed cash purposes without
+        # re-encoding its voucher, subsidiary postings, or posted journal.
+        from accounting.cash_classifications import (
+            apply_to_report_sources, journal_snapshot, propose_classification, review_classification,
+        )
+        from reporting.cash_flow_calculation import cash_flow_period
+        from reporting.datasets import StatementOfCashFlowsDataset
+        from reporting.models import FinanceStatementLine, FinanceStatementMapping
+        from reporting.statement_services import submit_statement_mapping, review_statement_mapping
+        for actor, codename in ((self.preparer, "manage_report_definitions"), (self.validator, "approve_reports")):
+            actor.user_permissions.add(Permission.objects.get(content_type__app_label="reporting", codename=codename))
+            for cache in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
+                actor.__dict__.pop(cache, None)
+        scope = FinanceStatementMapping.objects.create(department=self.preparer.employeeprofile.assigned_department,
+            statement_type=FinanceStatementMapping.CASH_FLOW, version=1, title="Synthetic payment cash scope",
+            authority_reference="Synthetic bank ledger", local_acceptance_note="Synthetic payment test only", created_by=self.preparer)
+        FinanceStatementLine.objects.create(mapping=scope, position=1, section_code="cash", section_title="Cash",
+            line_code="cash", line_title="Bank", selector_type=FinanceStatementLine.ACCOUNT_CODES,
+            account_codes=[bank_line.account.code])
+        submit_statement_mapping(scope, self.preparer)
+        review_statement_mapping(scope, self.validator, approve=True, note="Bank checked")
+        original = journal_snapshot(entry)
+        proposal = propose_classification(entry, self.preparer, [
+            {"line_id": bank_line.pk, "category": "inv_assets", "amount": "400.00"},
+            {"line_id": bank_line.pk, "category": "op_suppliers", "amount": "500.00"},
+        ], reason="Mixed capital and operating supplier settlement", evidence_reference="Synthetic payment schedule", expected_version=0)
+        review_classification(proposal, self.validator, approve=True, note="Payment schedule checked")
+        sources, _freshness = StatementOfCashFlowsDataset()._source_payload(
+            entry.lines.select_related("entry__fund", "account").order_by("sequence"))
+        apply_to_report_sources(sources)
+        values, controls = cash_flow_period(sources, {bank_line.account.code}, entry.entry_date, entry.entry_date)
+        self.assertEqual(values["inv_assets"], Decimal("400.00"))
+        self.assertEqual(values["op_suppliers"], Decimal("500.00"))
+        self.assertEqual(controls["net_cash_flows"], Decimal("-900.00"))
+        self.assertEqual(journal_snapshot(entry), original)
+        request.refresh_from_db()
+        self.assertEqual(request.status, VoucherPostingRequest.POSTED)
+
     def test_authoritative_budget_to_reconciled_treasury_report_replay(self):
         """Replay one governed case across the implemented F2-F9 control boundaries."""
         self.budget_user.user_permissions.add(*Permission.objects.filter(

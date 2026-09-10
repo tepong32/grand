@@ -52,6 +52,8 @@ The broad regression is appropriate because journal source classification, posti
 
 ## Remaining functional work — do not skip these
 
+The historical/mixed allocation work below has advanced on `codex/finance-cash-allocations`; see the [current implementation and validation state](FINANCE_CASH_ALLOCATIONS_2026-09-10.md). The v0.7.75 evidence above remains unchanged. Complete statement-package integration and local scope/output acceptance remain open.
+
 1. Add a controlled classification path for older posted cash lines without changing their original ledger entries or inventing financial reversals solely to attach reporting metadata. The current blank-field behavior intentionally reports exceptions. Same-period reversal/replacement support is not a substitute for historical classification, especially across closed periods.
 2. Support reviewed purpose splits for mixed generated payment events. A fixed-purpose bank instruction works for a homogeneous payment; the present scalar event-amount rule cannot allocate one generated payment between principal/interest or operating/capital purposes. The mixed-payment example above proves manual JEV support only.
 3. Confirm cash/equivalent and any applicable overdraft scope, exact local line granularity, classifications and output layout against actual LGU evidence. Do not infer complete coverage from the known-bank mapping check.

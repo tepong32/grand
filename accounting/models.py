@@ -823,6 +823,68 @@ class JournalLine(models.Model):
         return super().delete(*args, **kwargs)
 
 
+class CashFlowClassification(DepartmentOwnedModel):
+    """Immutable proposal and independent decision over posted cash evidence."""
+    SUBMITTED, APPROVED, RETURNED = "submitted", "approved", "returned"
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    entry = models.ForeignKey(JournalEntry, on_delete=models.PROTECT, related_name="cash_classifications")
+    version = models.PositiveIntegerField()
+    base_version = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=12, default=SUBMITTED,
+        choices=((SUBMITTED, "For independent review"), (APPROVED, "Approved"), (RETURNED, "Returned")))
+    source_snapshot = models.JSONField()
+    source_checksum = models.CharField(max_length=64)
+    cash_scope_snapshot = models.JSONField()
+    allocations = models.JSONField()
+    evidence_reference = models.CharField(max_length=255)
+    reason = models.TextField()
+    proposed_by_id = models.PositiveBigIntegerField()
+    proposed_by_label = models.CharField(max_length=160)
+    proposed_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reviewed_by_label = models.CharField(max_length=160, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    approval_checksum = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ("-version",)
+        constraints = (models.UniqueConstraint(fields=("entry", "version"), name="unique_cash_classification_version"),)
+
+    def clean(self):
+        if self.entry_id and (self.entry.department_id != self.department_id or self.entry.status != JournalEntry.POSTED):
+            raise ValidationError("Classify a posted journal in the same owning ledger.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            protected = ("entry_id", "department_id", "department_label", "public_id", "version", "base_version",
+                "source_snapshot", "source_checksum", "cash_scope_snapshot", "allocations", "evidence_reference",
+                "reason", "proposed_by_id", "proposed_by_label", "proposed_at")
+            if (not getattr(self, "_review_transition", False) or prior.status != self.SUBMITTED
+                    or any(getattr(prior, key) != getattr(self, key) for key in protected)):
+                raise ValidationError("Cash-classification evidence is immutable; submit a new version.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain cash-classification proposals and decisions as evidence.")
+
+
+class CashFlowClassificationHead(models.Model):
+    entry = models.OneToOneField(JournalEntry, on_delete=models.PROTECT, related_name="cash_classification_head")
+    classification = models.OneToOneField(CashFlowClassification, on_delete=models.PROTECT, related_name="current_head")
+
+    def clean(self):
+        if self.classification_id and (self.classification.entry_id != self.entry_id
+                or self.classification.status != CashFlowClassification.APPROVED):
+            raise ValidationError("The current classification must be an approved version for this journal.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
 class JournalSubsidiaryLine(models.Model):
     PAYABLE = "payable"
     WITHHOLDING = "withholding"
