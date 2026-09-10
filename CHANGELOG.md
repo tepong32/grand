@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.83 - Respect dated claim capacity before DV advancement
+
+Prior-payable reservations now reject earlier or intervening shortfalls even when a later reversal restores the ending balance. Active holds and their applications count once. Validation blocks invalid downstream handoffs while preserving successful later-date payment and original claim output. [Reproduction, validation and limits](docs/FINANCE_DATED_CLAIM_RESERVATIONS_2026-09-10.md).
+
 ## v0.7.82 - Correct posted deductions before payment
 
 Accounting can request an exact reversal of a posted prior-payable deduction adjustment, protect its withholding amount from remittance reservation and reopen the DV only after independent posting. Original journal/tax evidence remains intact; corrected deductions and payment use a fresh claim reservation. Unposted corrections can be withdrawn after discarding any draft, and interrupted handoffs are recoverable. [Validation and remaining boundaries](docs/FINANCE_DEDUCTION_CORRECTIONS_2026-09-10.md).

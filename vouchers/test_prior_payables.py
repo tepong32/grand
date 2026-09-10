@@ -216,6 +216,43 @@ class PriorPayableDVTests(TestCase):
         self.validate(case, key="validate-again")
         self.assertEqual(PayableClaimReservation.objects.count(), 2)
 
+    def test_validation_cannot_spend_capacity_restored_after_its_date(self):
+        adjustment = JournalEntry.objects.create(department_id=self.accounting.pk, department_label=self.accounting.name,
+            reference="PRIOR-REDUCTION", entry_date=date(2026, 8, 22), period=self.accounting_period,
+            fund=self.accounting_fund, description="Earlier reduction of the original claim",
+            created_by_id=self.preparer.pk, created_by_label=self.preparer.username)
+        JournalLine.objects.create(entry=adjustment, sequence=1, account=self.payable_account,
+            debit=1000, payable_origin=self.source)
+        JournalLine.objects.create(entry=adjustment, sequence=2, account=self.expense_account, credit=1000)
+        submit_entry(adjustment, self.preparer)
+        post_entry(adjustment, self.validator)
+        undo = create_reversal(adjustment, self.preparer, reference="PRIOR-RESTORED",
+            entry_date=date(2026, 8, 28), period=self.accounting_period, reason="Reverse the earlier reduction")
+        submit_entry(undo, self.preparer)
+        post_entry(undo, self.validator)
+        self.assertEqual(_capacity(self.source), Decimal("1500"))
+        for deductions in (True, False):
+            case = self.case_for_validation(f"-dated-{deductions}", deductions=deductions)
+            stage, version = case.current_stage, case.state_version
+            with self.assertRaisesMessage(ValidationError, "on or after the requested date"):
+                self.validate(case, key=f"too-early-{deductions}")
+            case.refresh_from_db()
+            self.assertEqual((case.current_stage, case.state_version), (stage, version))
+            self.assertFalse(case.accounting_validations.exists())
+            self.assertFalse(case.posting_requests.exists())
+            self.assertFalse(PayableClaimReservation.objects.filter(case_public_id=case.public_id).exists())
+        validate_accounting(case=case, actor=self.validator, jev_number="", jev_date=date(2026, 8, 29),
+            note="Actual validation after the posted restoration", expected_version=case.state_version,
+            idempotency_key="dated-valid", prior_payable_line_id=self.source.pk)
+        _, payment = self.pay(case, suffix="-dated")
+        self.assertEqual(payment.lines.get(account=self.payable_account).debit, Decimal("1000"))
+        # Applications to a live reservation consume its hold, not capacity twice.
+        self.assertEqual(_capacity(self.source, as_of=date(2026, 8, 29)), Decimal("500"))
+        self.client.force_login(self.validator)
+        export = self.client.get(reverse("accounting:payable_claim_export"), {"as_of": timezone.localdate().isoformat()})
+        self.assertEqual(export.status_code, 200)
+        self.assertIn(b"1500.00,1000.00,500.00", export.content)
+
     def test_overreservation_manual_application_and_invalid_payee_are_blocked(self):
         first = self.case_for_validation("-one")
         self.validate(first)

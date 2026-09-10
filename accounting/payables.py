@@ -38,7 +38,7 @@ def verify_reservation(reservation, evidence=None):
     return reservation
 
 
-def _capacity(source, candidate_lines=()):
+def _capacity(source, candidate_lines=(), *, as_of=None):
     """Called with the original credit locked by every capacity writer."""
     used = Decimal("0.00")
     by_reservation = defaultdict(lambda: Decimal("0.00"))
@@ -46,23 +46,44 @@ def _capacity(source, candidate_lines=()):
     applications = JournalLine.objects.filter(payable_origin=source, entry__status=JournalEntry.POSTED)
     if candidates:
         applications = applications.exclude(entry_id=candidates[0].entry_id)
-    for line in [*applications, *candidates]:
+    movements = [*applications.select_related("entry"), *candidates]
+    for line in movements:
         delta = line.debit - line.credit
         used += delta
         if line.payable_reservation_id:
             by_reservation[line.payable_reservation_id] += delta
     held = Decimal("0.00")
+    active_reservations = set()
+    committed_holds = Decimal("0.00")
     for reservation in source.claim_reservations.all():
         consumed = by_reservation.pop(reservation.pk, Decimal("0.00"))
         if consumed < 0 or consumed > reservation.amount:
             raise ValidationError("The application exceeds its voucher's prior-payable reservation.")
         if not reservation.released_at:
             held += reservation.amount - consumed
+            active_reservations.add(reservation.pk)
+            committed_holds += reservation.amount
     if any(by_reservation.values()):
         raise ValidationError("A missing payable reservation has financial applications.")
     if used + held > source.credit:
         raise ValidationError("The claim amount is already applied or reserved for another voucher.")
-    return source.credit - used - held
+    available = source.credit - used - held
+    if as_of is not None:
+        # A new reservation must fit on its effective date and throughout later
+        # posted history, not just after a subsequent reversal restores capacity.
+        # Active reservations already commit their whole amount: their linked
+        # applications convert held capacity to used capacity, not a second use.
+        daily = defaultdict(lambda: Decimal("0.00"))
+        daily[as_of] = Decimal("0.00")
+        for line in movements:
+            if line.payable_reservation_id not in active_reservations:
+                daily[line.entry.entry_date] += line.debit - line.credit
+        committed = committed_holds
+        for day, delta in sorted(daily.items()):
+            committed += delta
+            if day >= as_of:
+                available = min(available, source.credit - committed)
+    return available
 
 
 @transaction.atomic(using="finance")
@@ -88,8 +109,8 @@ def _reserve_claim(*, source_id, case_public_id, key, amount, actor_id, departme
         return verify_reservation(existing)
     if PayableClaimReservation.objects.filter(case_public_id=case_public_id, released_at__isnull=True).exists():
         raise ValidationError("This case already retains a claim reservation. Recover or release it before validating again.")
-    if _capacity(source) < amount:
-        raise ValidationError("The claim amount is already applied or reserved for another voucher.")
+    if _capacity(source, as_of=as_of) < amount:
+        raise ValidationError("The claim amount is already applied or reserved for another voucher on or after the requested date. Review the dated claim applications or use the actual later settlement date.")
     snapshot = claim_snapshot(source)
     reservation = PayableClaimReservation(reservation_key=key, case_public_id=case_public_id, source=source,
         amount=amount, source_snapshot=snapshot, source_checksum=_digest(snapshot), created_by_id=actor_id)

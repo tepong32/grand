@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-076:** Validate new prior-payable reservations against their effective date and intervening posted movements; retain the existing original-credit lock and count active holds only once.
+
 - **D-075:** Correct posted prior-payable deductions by exact source reversal, protect unremitted balances and reopen the DV only after independent posting; allow reasoned withdrawal only before posting.
 
 - **D-074:** Generate reviewed earlier accruals through the existing posting request and original claim; require explicit recognition evidence, independent posting and a distinct pre-DV correction route.
@@ -770,6 +772,13 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-076 - Reserve payable capacity across dated posted history
+
+- Date: 2026-09-10. Goal: close a concrete M02 eligibility gap found while reviewing historical attribution. [Reproduction, validation and remaining work](FINANCE_DATED_CLAIM_RESERVATIONS_2026-09-10.md).
+- Decision: a new reservation must fit at its requested effective date and every subsequent posted movement. Keep the existing original-credit lock and same-key recovery. Count an active reservation's whole amount once; its applications convert held to used capacity. Released holds retain only their posted consumption.
+- Alternative/tradeoff: ending-balance-only validation accepts a backdated DV using capacity restored by a later reversal; checking only the requested day misses an intervening shortfall. Deferring the failure until posting leaves an invalid downstream handoff. The additional daily calculation reuses existing journal evidence and creates no new ledger or configuration framework.
+- Boundary: this is current reservation eligibility, not a reconstructed historical reservation-status ledger. Existing active holds are conservatively committed. Posting still rechecks dated applications. Historical attribution, consolidated claims and broader financial/office/acceptance work remain open; no source metadata is inferred or rewritten.
 
 ## D-075 - Correct posted deductions without rewriting financial history
 
