@@ -8,6 +8,14 @@
     <form method="get" class="form-inline mt-3 mt-lg-0"><label for="as-of" class="mr-2">As of</label><input id="as-of" class="form-control mr-2" type="date" name="as_of" value="{{ as_of_date|date:'Y-m-d' }}"><button class="btn btn-outline-primary">Refresh</button></form>
   </div>
 
+  <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Individual payable claims</h2><a class="btn btn-sm btn-outline-secondary float-right" href="{% url 'accounting:payable_claim_export' %}?as_of={{ as_of_date|date:'Y-m-d' }}">Download claims CSV</a></div>
+    <div class="card-body"><p class="mb-0">Recognized claims and their linked applications through the selected date. Add a payee key and claim reference to the liability credit when preparing a new JEV; link liability debits to that original claim. Older unlinked balances remain in the payee schedule below.</p></div>
+    <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Source JEV / claim</th><th>Payee</th><th>Fund / account</th><th class="text-right">Recognized</th><th class="text-right">Applied</th><th class="text-right">Outstanding</th></tr></thead><tbody>
+    {% for row in claims %}<tr><td><a href="{% url 'accounting:entry_detail' row.line.entry.public_id %}">{{ row.line.entry.reference }}</a><div>{{ row.line.payable_claim_reference }}</div></td><td>{{ row.line.payable_party_key }}</td><td>{{ row.line.entry.fund.code }} / {{ row.line.account.code }}</td><td class="text-right">{{ row.line.credit|floatformat:2 }}</td><td class="text-right">{{ row.applied|floatformat:2 }}</td><td class="text-right">{{ row.outstanding|floatformat:2 }}</td></tr>
+    {% empty %}<tr><td colspan="6" class="text-muted">No individually identified claims have been posted through this date.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </div>
+
   {% if not current_reconciliation.configured %}<div class="alert alert-warning"><i class="fas fa-exclamation-triangle mr-2"></i>No payable or deduction posting mappings are configured. A zero activity total is not treated as reconciled setup.</div>{% endif %}
   <div class="card card-outline {% if current_reconciliation.balanced %}card-success{% else %}card-warning{% endif %}">
     <div class="card-header"><h2 class="card-title font-weight-bold">Current control comparison through {{ as_of_date|date:"M j, Y" }}</h2>{% if can_reconcile %}<form method="post" action="{% url 'accounting:subsidiary_reconcile' %}" class="float-right">{% csrf_token %}<input type="hidden" name="as_of" value="{{ as_of_date|date:'Y-m-d' }}"><button class="btn btn-sm {% if current_reconciliation.balanced %}btn-success{% else %}btn-warning{% endif %}">Record immutable reconciliation</button></form>{% endif %}</div>

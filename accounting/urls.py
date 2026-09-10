@@ -6,6 +6,7 @@ from . import views, cash_views
 app_name = "accounting"
 
 urlpatterns = [
+    path("subsidiary-controls/claims/export/", views.payable_claim_export, name="payable_claim_export"),
     path("journals/<uuid:public_id>/cash-purposes/", cash_views.classification_page, name="cash_classification"),
     path("journals/<uuid:public_id>/cash-purposes/<uuid:classification_id>/<slug:decision>/", cash_views.classification_review, name="cash_classification_review"),
     path("", views.workspace, name="workspace"),

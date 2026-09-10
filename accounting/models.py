@@ -771,6 +771,10 @@ class JournalEntry(DepartmentOwnedModel):
 
 
 class JournalLine(models.Model):
+    payable_party_key = models.CharField(max_length=100, blank=True, help_text="Stable supplier/payee key for a newly recognized payable claim.")
+    payable_claim_reference = models.CharField(max_length=120, blank=True, help_text="Invoice or claim reference for this liability credit.")
+    payable_origin = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="payable_applications", help_text="For a liability debit, select the posted claim being settled. Split the debit when settling several claims.")
     entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name="lines")
     sequence = models.PositiveSmallIntegerField()
     account = models.ForeignKey(LedgerAccount, on_delete=models.PROTECT, related_name="journal_lines")
@@ -805,6 +809,9 @@ class JournalLine(models.Model):
                 raise ValidationError({"account": "Choose an active posting account."})
         if self.responsibility_center_id and self.responsibility_center.department_id != self.entry.department_id:
             raise ValidationError({"responsibility_center": "The responsibility center must belong to this department ledger."})
+
+        from .payables import validate_claim_line
+        validate_claim_line(self)
 
     def save(self, *args, **kwargs):
         current_status = JournalEntry.objects.filter(pk=self.entry_id).values_list("status", flat=True).first() if self.entry_id else None

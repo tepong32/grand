@@ -1642,7 +1642,7 @@ def entry_detail(request, public_id):
     active_reversal_entry = reversal_entries.exclude(status=JournalEntry.VOIDED).first()
     return render(request, "accounting/entry_detail.html", {
         "entry": entry,
-        "lines": entry.lines.select_related("account", "responsibility_center").prefetch_related("subsidiary_posting"),
+        "lines": entry.lines.select_related("account", "responsibility_center", "payable_origin__entry").prefetch_related("subsidiary_posting"),
         "debit_total": debit, "credit_total": credit, "balanced": debit > 0 and debit == credit,
         "can_prepare": can_prepare_journals(request.user), "can_post": can_post_journals(request.user),
         "reversal_entry": reversal_entry, "active_reversal_entry": active_reversal_entry,
@@ -2131,6 +2131,8 @@ def _report_as_of(raw_value):
 def subsidiary_controls(request):
     department = department_for_user(request.user)
     as_of_date = _report_as_of(request.GET.get("as_of"))
+    from .payables import claim_rows
+    claims = claim_rows(department.pk, as_of_date)
     payables = subsidiary_schedule_rows(department.pk, JournalSubsidiaryLine.PAYABLE, as_of_date)
     withholdings = subsidiary_schedule_rows(department.pk, JournalSubsidiaryLine.WITHHOLDING, as_of_date)
     snapshot, _checksum = control_reconciliation_snapshot(department.pk, as_of_date)
@@ -2145,6 +2147,7 @@ def subsidiary_controls(request):
     return render(request, "accounting/subsidiary_controls.html", {
         "as_of_date": as_of_date,
         "payables": payables,
+        "claims": claims,
         "withholdings": withholdings,
         "payable_totals": totals(payables),
         "withholding_totals": totals(withholdings),
@@ -2257,3 +2260,27 @@ def subsidiary_reconciliation_export(request, public_id):
             "official_status": "controlled reconciliation evidence; local review and acceptance still apply",
         },
     )
+
+
+@require_GET
+@accounting_permission_required(can_view_ledger)
+def payable_claim_export(request):
+    from .payables import claim_rows
+    department = department_for_user(request.user)
+    as_of_date = _report_as_of(request.GET.get("as_of"))
+    rows = claim_rows(department.pk, as_of_date)
+    filename = f"individual-payable-claims-{as_of_date.isoformat()}.csv"
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    writer = csv.writer(response)
+    writer.writerow(("department", "as_of_date", "fund", "account", "payee_key", "claim", "source_jev", "source_line", "recognized", "applied", "outstanding"))
+    for row in rows:
+        line = row["line"]
+        writer.writerow((_csv_text(department.name), as_of_date, _csv_text(line.entry.fund.code),
+            _csv_text(line.account.code), _csv_text(line.payable_party_key), _csv_text(line.payable_claim_reference),
+            _csv_text(line.entry.reference), line.sequence, line.credit, row["applied"], row["outstanding"]))
+    return _archived_csv_response(response=response, request=request, department=department,
+        category="finance-payable-claims", filename=filename,
+        metadata={"kind": "individual_payable_claims", "as_of_date": as_of_date.isoformat(), "row_count": len(rows),
+            "official_status": "controlled data interchange; not automatically an official COA/local schedule"})

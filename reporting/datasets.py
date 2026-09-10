@@ -1197,6 +1197,9 @@ class GovernedStatementDataset(ApprovedDataset):
                 "sequence": line.sequence, "account": line.account.code,
                 "account_type": line.account.account_type,
                 **({"cash_flow_category": line.cash_flow_category} if line.cash_flow_category else {}),
+                **({"payable_claim_reference": line.payable_claim_reference,
+                    "payable_party_key": line.payable_party_key} if line.payable_claim_reference else {}),
+                **({"payable_origin_line": line.payable_origin_id} if line.payable_origin_id else {}),
                 "debit": str(line.debit), "credit": str(line.credit), "memo": line.memo,
             })
         sources = []

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.79 - Individual payable claims and dated applications
+
+Accounting can identify a payable on its original liability credit, apply later liability debits to that claim, and view/export dated outstanding amounts. Posting checks prevent linked overapplication, backdated overpayment and duplicate claim recognition; actual reversing entries restore capacity. The existing journal, subsidiary details, source snapshots and separate stores remain authoritative. This supplies the M02 source-ledger path; prior-payable DV integration, earlier-accrual requests and historical attribution remain open. [Validation and remaining work](docs/FINANCE_PAYABLE_CLAIMS_2026-09-10.md).
+
 ## v0.7.78 - Common statement fund selection and complete financial rows
 
 Position, Performance, Net Assets and Cash Flow select ledger funds before calculation and retain complete required rows/columns. Definition validation and generation reject settings that hide or regroup financial rows. Existing fund filters support one or multiple funds, and generated title metadata records scope. Historical report files and snapshots remain unchanged. [Evidence and remaining work](docs/FINANCE_STATEMENT_FUNDS_2026-09-10.md).

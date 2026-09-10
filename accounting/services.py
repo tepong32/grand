@@ -1205,6 +1205,9 @@ def post_entry(entry, actor):
             )
         workflow_exemption = workflow_exemption_snapshot(exemption)
     debit, credit = validate_entry_for_submission(locked)
+    from .payables import validate_claim_applications, record_claim_subsidiaries
+    validate_claim_applications(locked, lock=True)
+    record_claim_subsidiaries(locked)
     locked.status = JournalEntry.POSTED
     locked.posted_by_id = actor.pk
     locked.posted_by_label = actor_label(actor)
@@ -1296,6 +1299,7 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
             debit=line.credit,
             credit=line.debit,
             cash_flow_category=line.cash_flow_category,
+            payable_origin_id=line.payable_origin_id or (line.pk if line.payable_claim_reference else None),
             memo=f"Reversal: {line.memo}"[:255],
         )
         reversed_line.full_clean()

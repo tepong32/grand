@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-072:** Identify individual claims and their applications on immutable journal lines; derive dated outstanding amounts, serialize source-capacity/recognition checks and retain actual reversal lineage before enabling prior-payable DVs.
+
 - **D-071:** Select statement funds at the ledger source, retain every financial row/column, pin selection into issued evidence and reject arbitrary post-calculation filtering.
 
 - **D-070:** Require consistent four-statement evidence for new notes; issue immutable bundles containing actual reports and printable notes, retain historical two-member records, and serialize note approvals before candidate locks.
@@ -762,6 +764,15 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-072 - Link individual payable claims on the existing journal
+
+- Date: 2026-09-10. Status: source-ledger work in v0.7.79; [behavior, validation and unresolved DV integration](FINANCE_PAYABLE_CLAIMS_2026-09-10.md).
+- Goal: complete M02 earlier recognition/settlement without duplicating expenses or confusing invoices belonging to one payee.
+- Decision: identify the original liability credit and reference it from applied liability debits. Compute dated balances from posted lines and create matching immutable subsidiary detail at posting. Reuse ordinary JEV preparation, independent posting, reversal, register and archived-export paths.
+- Safeguards: source-credit locks serialize competing applications; an existing fund-row lock serializes new claim identity checks. Check every dated cumulative application against the original credit. Only actual mirrored reversals restore capacity; later reversals cannot justify earlier overpayments.
+- Alternatives/tradeoffs: aggregate payee balances cannot distinguish invoices. A separate mutable balance would duplicate ledger authority. Explicit links add clerical source selection while keeping the accounting history authoritative. Legacy unlinked sources remain unresolved evidence, not guessed invoice assignments.
+- Boundaries/revisit: this does not implement the blocked DV routes or global cash/payment reservations. Next connect source selection, earlier-accrual requests, partial DV settlement, deductions and correction handoffs across the existing stores. A posted claim identity remains reserved after reversal; corrections use distinct references and explicit evidence. Revisit detailed invoice splitting when an actual supported scenario needs it.
 
 ## D-071 - Select source funds before calculating complete statements
 
