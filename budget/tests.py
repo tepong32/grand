@@ -1236,17 +1236,33 @@ class AnnualBudgetPreparationTests(TestCase):
             idempotency_key="f53-submit",
         )
         consolidated.refresh_from_db()
+        # Earlier accrual now produces a real governed JEV before DV preparation.
+        # This relationship/export fixture has no such posting setup or date;
+        # prove rejection, then use its ordinary DV-recognition route. The full
+        # earlier-accrual chain is exercised in vouchers.test_earlier_accruals.
+        with self.assertRaisesMessage(ValidationError, "actual recognition date"):
+            review_payable_intake(
+                case=consolidated, actor=accountant, decision=PayableIntake.READY,
+                reason="An accrual decision alone cannot manufacture a posted claim.",
+                recognition_decision=PayableIntake.ACCRUE_BEFORE_SETTLEMENT,
+                recognition_basis="Missing actual recognition evidence.",
+                obligation_adjustment_decision=PayableIntake.BALANCE_RETAINED,
+                obligation_adjustment_basis="Retain the unallocated obligation balance.",
+                expected_version=consolidated.state_version, idempotency_key="f53-missing-accrual",
+            )
+        consolidated.refresh_from_db()
+        self.assertFalse(consolidated.posting_requests.exists())
         review_payable_intake(
             case=consolidated, actor=accountant, decision=PayableIntake.READY,
             reason="Independent review found a zero-difference relationship and complete evidence.",
-            recognition_decision=PayableIntake.ACCRUE_BEFORE_SETTLEMENT,
-            recognition_basis="Synthetic accepted accrual timing for this UAT variant.",
+            recognition_decision=PayableIntake.RECOGNIZE_WITH_DV,
+            recognition_basis="Recognize this ordinary claim during governed DV validation.",
             obligation_adjustment_decision=PayableIntake.BALANCE_RETAINED,
             obligation_adjustment_basis="The second obligation retains one thousand for a later supported claim.",
             expected_version=consolidated.state_version, idempotency_key="f53-ready",
         )
         consolidated.refresh_from_db()
-        self.assertEqual(consolidated.payable_intake.recognition_decision, PayableIntake.ACCRUE_BEFORE_SETTLEMENT)
+        self.assertEqual(consolidated.payable_intake.recognition_decision, PayableIntake.RECOGNIZE_WITH_DV)
         self.assertEqual(consolidated.payable_intake.obligation_adjustment_decision, PayableIntake.BALANCE_RETAINED)
 
         self.client.force_login(self.requester)
@@ -1255,7 +1271,7 @@ class AnnualBudgetPreparationTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response["X-GRAND-Export-Archived"], "true")
             self.assertIn(b"obligation_allocation", response.content)
-            self.assertIn(b"accrue_before_settlement", response.content)
+            self.assertIn(b"recognize_with_dv", response.content)
             manifests = list(Path(directory).rglob("*.manifest.json"))
             self.assertEqual(len(manifests), 1)
             manifest = json.loads(manifests[0].read_text(encoding="utf-8"))

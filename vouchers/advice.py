@@ -322,7 +322,7 @@ def _case_ready_after_ack(case):
         status__in=(PaymentInstrument.CANCELLED, PaymentInstrument.BANK_RETURNED),
     ).select_related("current_advice_batch")
     return active.exists() and all(
-        item.status == PaymentInstrument.ADVISED
+        item.status in (PaymentInstrument.ADVISED, PaymentInstrument.RELEASED)
         and item.current_advice_batch_id
         and item.current_advice_batch.status == BankAdviceBatch.ACKNOWLEDGED
         for item in active

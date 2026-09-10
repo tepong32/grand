@@ -18,24 +18,38 @@ def requires_prior_claim(case):
         PayableIntake.ACCRUE_BEFORE_SETTLEMENT, PayableIntake.SETTLE_EXISTING_PAYABLE)
 
 
-def current_reservation(case):
+def current_evidence(case):
     validation = case.accounting_validations.filter(decision=AccountingValidation.ACCEPTED).order_by("-pk").first()
     evidence = validation.prior_payable_snapshot if validation else {}
     if not evidence:
         if requires_prior_claim(case):
             raise ValidationError("This prior-payable voucher has no retained claim reservation. Complete Accounting validation first.")
-        return None
-    reservation = PayableClaimReservation.objects.select_related("source__entry__fund", "source__account").filter(
-        public_id=evidence.get("reservation"), case_public_id=case.public_id).first()
-    if not reservation:
-        raise ValidationError("The prior-payable handoff cannot be found in Finance. Investigate before payment.")
-    verify_reservation(reservation, evidence)
-    if (reservation.amount != case.disbursement_voucher.gross_amount
-            or not case.payee_id or claim_identity(reservation.source)[0] != f"finance-party:{case.payee.code}"
-            or reservation.source.entry.department_id != case.configuration_release.department_id
-            or set(case.obligation.allocation_lines.values_list("fund_code", flat=True)) != {reservation.source.entry.fund.code}):
-        raise ValidationError("The voucher differs from its retained prior-payable source, payee, fund or amount.")
-    return reservation
+        return {}
+    from accounting.claim_groups import resolve
+    reservations = resolve(evidence, case_public_id=case.public_id)
+    if evidence.get("schema") == 2:
+        from .claim_allocations import verify_case
+        verify_case(case, evidence)
+    if sum(r.amount for r in reservations) != case.disbursement_voucher.gross_amount:
+        raise ValidationError("The voucher differs from its retained prior-payable amount.")
+    for reservation in reservations:
+        if (not case.payee_id or claim_identity(reservation.source)[0] != f"finance-party:{case.payee.code}"
+                or reservation.source.entry.department_id != case.configuration_release.department_id
+                or set(case.obligation.allocation_lines.values_list("fund_code", flat=True)) != {reservation.source.entry.fund.code}):
+            raise ValidationError("The voucher differs from its retained prior-payable source, payee, fund or amount.")
+    return evidence
+
+
+def current_reservations(case):
+    from accounting.claim_groups import resolve
+    return resolve(current_evidence(case), case_public_id=case.public_id)
+
+
+def current_reservation(case):
+    reservations = current_reservations(case)
+    if len(reservations) > 1:
+        raise ValidationError("This consolidated DV has several claim reservations; use the complete allocation.")
+    return reservations[0] if reservations else None
 
 
 def check_rule(snapshot, *, deduction=False, restoring=False, source=None, transaction_type=""):
@@ -109,16 +123,22 @@ def reserve_for_validation(case, actor, source_id, as_of):
         fund_code=funds.pop(), party_key=f"finance-party:{case.payee.code}", as_of=as_of)
 
 
+@transaction.atomic(using="finance")
 def release_for_return(case, actor, reason):
     if case.payment_instruments.exclude(status=PaymentInstrument.CANCELLED).exists():
         raise ValidationError("Resolve payment instruments before releasing a prior-payable reservation.")
-    for reservation in PayableClaimReservation.objects.filter(case_public_id=case.public_id, released_at__isnull=True):
+    reservations = list(PayableClaimReservation.objects.filter(case_public_id=case.public_id, released_at__isnull=True).order_by("source_id"))
+    list(JournalLine.objects.select_for_update().filter(pk__in=[r.source_id for r in reservations]).order_by("pk"))
+    for reservation in reservations:
         _release_unused_claim(reservation, actor_id=actor.pk, reason=reason)
 
 
-def payload_evidence(case):
-    reservation = current_reservation(case)
-    return {"prior_payable": reservation_evidence(reservation)} if reservation else {}
+def payload_evidence(case, *, trigger=None, amount=None):
+    evidence = current_evidence(case)
+    if not evidence:
+        return {}
+    from .claim_allocations import event_evidence
+    return {"prior_payable": evidence, **(event_evidence(case, evidence, trigger, amount) if trigger else {})}
 
 
 def original_payment(case, trigger):
@@ -153,22 +173,24 @@ def retire_returned_claim(posting_request, review, actor):
     verify_source_link(posting_request, entry, source_type="voucher")
     if entry.reversal_of_id is None or entry.source_snapshot.get("prior_payable") != evidence:
         raise ValidationError("The closing return must retain its exact original payment and claim evidence.")
-    reservation = PayableClaimReservation.objects.get(public_id=evidence["reservation"], case_public_id=review.case.public_id)
-    JournalLine.objects.select_for_update().get(pk=reservation.source_id)
-    reservation.refresh_from_db()
-    if reservation_evidence(reservation) != evidence:
-        raise ValidationError("The closing return differs from its retained claim reservation.")
-    reason = f"Returned-item review {review.public_id}: closed without replacement after JEV {entry.reference}."
-    if reservation.released_at:
-        if reservation.release_reason != reason:
-            raise ValidationError("This claim reservation was released by a different decision. Investigate before recovery.")
+    from accounting.claim_groups import resolve
+    reservations = resolve(evidence, case_public_id=review.case.public_id, lock=True, allow_released=True)
+    if evidence.get("schema") == 2:
+        from accounting.claim_groups import retire_return
+        retire_return(reservations, entry, posting_request, review, actor)
         return
-    verify_reservation(reservation, evidence)
-    if reservation.applications.exclude(entry__status__in=(JournalEntry.POSTED, JournalEntry.VOIDED)).exists():
-        raise ValidationError("Resolve pending claim applications before releasing remaining capacity.")
-    _capacity(reservation.source)
-    reservation.released_at = timezone.now()
-    reservation.released_by_id = actor.pk
-    reservation.release_reason = reason
-    reservation._release_transition = True
-    reservation.save(update_fields=("released_at", "released_by_id", "release_reason"))
+    for reservation in reservations:
+        reason = f"Returned-item review {review.public_id}: closed without replacement after JEV {entry.reference}."
+        if reservation.released_at:
+            if reservation.release_reason != reason:
+                raise ValidationError("This claim reservation was released by a different decision. Investigate before recovery.")
+            continue
+        verify_reservation(reservation)
+        if reservation.applications.exclude(entry__status__in=(JournalEntry.POSTED, JournalEntry.VOIDED)).exists():
+            raise ValidationError("Resolve pending claim applications before releasing remaining capacity.")
+        _capacity(reservation.source)
+        reservation.released_at = timezone.now()
+        reservation.released_by_id = actor.pk
+        reservation.release_reason = reason
+        reservation._release_transition = True
+        reservation.save(update_fields=("released_at", "released_by_id", "release_reason"))

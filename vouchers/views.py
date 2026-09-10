@@ -341,7 +341,7 @@ def _voucher_deduction_formset(case, data=None):
 
 
 @voucher_access_required
-def case_detail(request, public_id):
+def case_detail(request, public_id, *, form_overrides=None):
     case = _case(public_id, request.user)
     permissions = _permissions(request.user)
     from .case_exports import (
@@ -412,8 +412,8 @@ def case_detail(request, public_id):
         "voucher_form": VoucherPreparationForm(case=case),
         "voucher_deduction_formset": _voucher_deduction_formset(case),
         "signature_form": SignatureReturnForm(case=case, user=request.user),
-        "validation_form": AccountingValidationForm(case=case),
-        "check_form": CheckIssueForm(case=case),
+        "validation_form": (form_overrides or {}).get("validation_form") or AccountingValidationForm(case=case),
+        "check_form": (form_overrides or {}).get("check_form") or CheckIssueForm(case=case),
         "submit_checks_form": SubmitChecksForm(case=case),
         "advice_form": BankAdviceForm(case=case),
         "release_form": CheckReleaseForm(case=case),
@@ -494,6 +494,9 @@ def case_action(request, public_id, action):
     form_valid = form.is_valid()
     deductions_valid = deduction_formset.is_valid() if deduction_formset is not None else True
     if not form_valid or not deductions_valid:
+        if (action == "validate-accounting" and request.POST.get("consolidated")) or (action == "issue-check" and any(key.startswith("claim_payment_") for key in form.fields)):
+            return case_detail(request, public_id, form_overrides={
+                "validation_form" if action == "validate-accounting" else "check_form": form})
         errors = [f"{field}: {', '.join(values)}" for field, values in form.errors.items()]
         if deduction_formset is not None:
             for index, row in enumerate(deduction_formset.errors, start=1):
@@ -574,11 +577,13 @@ def case_action(request, public_id, action):
             record_signature_return(**common, task=data["task"], note=data["note"])
         elif action == "validate-accounting":
             validate_accounting(**common, jev_number=data["jev_number"], jev_date=data["jev_date"], note=data["note"],
-                prior_payable_line_id=data["prior_payable_line"].pk if data.get("prior_payable_line") else None)
+                prior_payable_line_id=data["prior_payable_line"].pk if data.get("prior_payable_line") else None,
+                prior_payable_allocations=data.get("prior_payable_allocations"))
         elif action == "issue-check":
             issue_check(
                 **common, bank_account_code=data["bank_account_code"], fund_code=data["fund_code"],
                 check_number=data["check_number"], amount=data["amount"], replaces=data["replaces"],
+                claim_payment_amounts=data.get("claim_payment_amounts"),
             )
         elif action == "submit-checks":
             submit_checks_for_advice(**common)
@@ -628,6 +633,10 @@ def case_action(request, public_id, action):
                 reason=data["reason"],
             )
     except ValidationError as exc:
+        if (action == "validate-accounting" and request.POST.get("consolidated")) or (action == "issue-check" and any(key.startswith("claim_payment_") for key in form.fields)):
+            form.add_error(None, exc)
+            return case_detail(request, public_id, form_overrides={
+                "validation_form" if action == "validate-accounting" else "check_form": form})
         messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
     else:
         messages.success(request, "Voucher action recorded in the append-only workflow history.")

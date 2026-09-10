@@ -838,11 +838,33 @@ class JournalLine(models.Model):
         return identity(self)
 
 
+class PayableClaimReservationGroup(models.Model):
+    """One immutable, recoverable allocation of a DV across original claims."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    group_key = models.CharField(max_length=100, unique=True)
+    case_public_id = models.UUIDField(db_index=True)
+    allocation_snapshot = models.JSONField()
+    allocation_checksum = models.CharField(max_length=64)
+    created_by_id = models.PositiveBigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Claim allocation evidence is immutable; return the DV for correction.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain the original DV claim allocation evidence.")
+
+
 class PayableClaimReservation(models.Model):
     """Finance-side capacity retained across the recoverable voucher handoff."""
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     reservation_key = models.CharField(max_length=100, unique=True)
     case_public_id = models.UUIDField(db_index=True)
+    group = models.ForeignKey(PayableClaimReservationGroup, null=True, blank=True,
+        on_delete=models.PROTECT, related_name="reservations")
     source = models.ForeignKey(JournalLine, on_delete=models.PROTECT, related_name="claim_reservations")
     amount = models.DecimalField(max_digits=18, decimal_places=2)
     source_snapshot = models.JSONField()
@@ -863,7 +885,7 @@ class PayableClaimReservation(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             prior = type(self).objects.get(pk=self.pk)
-            fixed = ("public_id", "reservation_key", "case_public_id", "source_id", "amount",
+            fixed = ("public_id", "reservation_key", "case_public_id", "group_id", "source_id", "amount",
                 "source_snapshot", "source_checksum", "created_by_id", "created_at")
             if (not getattr(self, "_release_transition", False) or prior.released_at
                     or any(getattr(self, key) != getattr(prior, key) for key in fixed)):
@@ -873,6 +895,32 @@ class PayableClaimReservation(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Retain payable reservations as handoff evidence.")
+
+
+class PayableClaimRetirement(models.Model):
+    """Unused reservation share retired by an independently posted bank return."""
+    reservation = models.ForeignKey(PayableClaimReservation, on_delete=models.PROTECT, related_name="retirements")
+    entry = models.ForeignKey(JournalEntry, on_delete=models.PROTECT, related_name="claim_retirements")
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    evidence = models.JSONField()
+    checksum = models.CharField(max_length=64)
+    created_by_id = models.PositiveBigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = (
+            models.UniqueConstraint(fields=("reservation", "entry"), name="unique_claim_return_retirement"),
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="positive_claim_retirement"),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Retain the original posted-return retirement evidence.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain the original posted-return retirement evidence.")
 
 
 class CashFlowClassification(DepartmentOwnedModel):

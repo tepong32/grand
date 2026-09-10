@@ -26,6 +26,8 @@ Historical claim identity/applications use independently reviewed attribution ve
 
 Posted prior-payable deductions are corrected by exact source reversal before any instrument exists, followed by independent posting and a fresh DV reservation. Pending corrections and remittance allocations share the Accounting-owner reservation lock across releases; display labels are not deduction identities. No posted JEV or tax evidence is rewritten. See [deduction correction boundary](docs/FINANCE_DEDUCTION_CORRECTIONS_2026-09-10.md).
 
+Consolidated DVs retain explicit per-claim gross/deduction/net allocations for one payee and fund. Create the entire Finance reservation group atomically under sorted original-credit locks; recover only the same immutable allocation. Partial checks require explicit shares, and replacements retain the original shares. Closing a returned check retires only its independently posted shares on the actual return date, preserving other instruments and earlier-date capacity controls. See [consolidated settlement](docs/FINANCE_CONSOLIDATED_DV_2026-09-10.md).
+
 ### Development state
 
 Personal-handoff adapters are implemented. Current work prioritizes missing Finance functionality and statement calculations; operational scrutiny follows functional completion. Generic following, shared views and notifications remain deferred. Read the current branch’s CONTINUE.md for its checkpoint; a documentation update from master does not merge or publish development-branch work. Production remains NO-GO until functional completion, broad regression, operational scrutiny, critical-gap verification and LGU acceptance pass. Preserve the separate database and existing acceptance gates.

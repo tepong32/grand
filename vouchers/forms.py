@@ -736,6 +736,22 @@ class NonFinancialAmendmentForm(WorkflowForm):
         return cleaned
 
 
+class ClaimAllocationLineForm(forms.Form):
+    source = forms.ModelChoiceField(queryset=None, label="Original claim")
+    gross = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.01"), label="Gross for this DV")
+
+    def __init__(self, *args, sources, deductions, **kwargs):
+        super().__init__(*args, **kwargs)
+        from accounting.claim_attributions import identity
+        self.fields["source"].queryset = sources
+        self.fields["source"].label_from_instance = lambda line: f"{identity(line)[1]} · {line.entry.reference} · {line.credit:,.2f} recognized"
+        for deduction in deductions:
+            self.fields[f"deduction_{deduction.pk}"] = forms.DecimalField(required=False, max_digits=18,
+                decimal_places=2, min_value=Decimal("0"), label=f"{deduction.description} ({deduction.code})")
+        for field in self.fields.values():
+            field.widget.attrs["class"] = "form-control form-control-sm"
+
+
 class AccountingValidationForm(WorkflowForm):
     jev_number = forms.CharField(max_length=60, required=False)
     jev_date = forms.DateField(widget=DateInput)
@@ -758,13 +774,39 @@ class AccountingValidationForm(WorkflowForm):
             generated = [r for r in case.posting_requests.all() if r.payload.get("earlier_accrual") and r.status == "posted"]
             if generated:
                 sources = sources.filter(entry__public_id__in=[r.accounting_entry_public_id for r in generated])
-            field = forms.ModelChoiceField(queryset=sources, label="Original posted payable claim",
+            field = forms.ModelChoiceField(queryset=sources, required=False, label="Original posted payable claim",
                 help_text="Select the original invoice liability. Its amount is reserved for this DV; the expense is not recognized again.")
             field.label_from_instance = lambda line: f"{identity(line)[1]} · {line.entry.reference} · {line.entry.fund.code} · {line.credit:,.2f} recognized"
             self.fields["prior_payable_line"] = field
             if generated and sources.count() == 1:
                 field.initial = sources.first().pk
+            if not generated:
+                self.fields["consolidated"] = forms.BooleanField(required=False, label="Allocate this DV across several claims",
+                    help_text="Leave the single-claim choice blank and complete the allocation table. Allocate each deduction explicitly.")
+                self.claim_allocations = formset_factory(ClaimAllocationLineForm, extra=2, max_num=100,
+                    validate_max=True, absolute_max=100)(
+                    self.data if self.is_bound and self.data.get("consolidated") else None,
+                    prefix="claims", form_kwargs={"sources": sources, "deductions": list(case.disbursement_voucher.deductions.order_by("pk"))})
             self.fields["jev_number"].help_text = "Leave blank when there are no deductions. With deductions, enter the adjustment JEV number."
+
+    def clean(self):
+        cleaned = super().clean()
+        if "prior_payable_line" not in self.fields:
+            return cleaned
+        if cleaned.get("consolidated"):
+            if cleaned.get("prior_payable_line"):
+                self.add_error("prior_payable_line", "Use either the single claim or the allocation table.")
+            if not self.claim_allocations.is_valid():
+                raise forms.ValidationError("Correct the claim allocation table below.")
+            cleaned["prior_payable_allocations"] = [{"source_id": row["source"].pk, "gross": row["gross"],
+                "deductions": {key.removeprefix("deduction_"): value or Decimal("0")
+                    for key, value in row.items() if key.startswith("deduction_")}}
+                for row in self.claim_allocations.cleaned_data if row]
+            if not cleaned["prior_payable_allocations"]:
+                raise forms.ValidationError("Enter at least one claim allocation.")
+        elif not cleaned.get("prior_payable_line"):
+            self.add_error("prior_payable_line", "Select the original claim or use the consolidated allocation table.")
+        return cleaned
 
 
 class DeductionCorrectionForm(WorkflowForm):
@@ -802,6 +844,21 @@ class CheckIssueForm(WorkflowForm):
                 status__in=(PaymentInstrument.CANCELLED, PaymentInstrument.BANK_RETURNED),
                 replacement__isnull=True,
             )
+            validation = case.accounting_validations.filter(decision="accepted").order_by("-pk").first()
+            evidence = validation.prior_payable_snapshot if validation else {}
+            if evidence.get("schema") == 2:
+                self.fields["amount"].help_text = "For a partial check, enter each claim's payment below. Leave all shares blank only when paying the exact remainder or replacing a check with its original allocation."
+                for member, row in zip(evidence["claims"], evidence["allocation"]["claims"]):
+                    self.fields[f"claim_payment_{member['reservation']}"] = forms.DecimalField(required=False,
+                        max_digits=18, decimal_places=2, min_value=Decimal("0"),
+                        label=f"Pay {member['source']['claim']} · DV net share {row['net']}")
+
+    def clean(self):
+        cleaned = super().clean()
+        amounts = {key.removeprefix("claim_payment_"): value for key, value in cleaned.items() if key.startswith("claim_payment_")}
+        cleaned["claim_payment_amounts"] = ({key: value or Decimal("0") for key, value in amounts.items()}
+            if any(value is not None for value in amounts.values()) else None)
+        return cleaned
 
 
 class BankAdviceForm(WorkflowForm):

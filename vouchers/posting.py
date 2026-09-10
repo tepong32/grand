@@ -123,6 +123,8 @@ def _materialize_voucher_journal(posting_request, actor):
                 f"Map or create active fund '{fund_code}' in Accounting Setup.",
             )
             reservation = None
+            reservations = []
+            claim_amounts = None
             reversal_of = None
             prior_evidence = payload.get("prior_payable")
             earlier_accrual = payload.get("earlier_accrual")
@@ -133,9 +135,6 @@ def _materialize_voucher_journal(posting_request, actor):
                 from accounting.models import PayableClaimReservation
                 from accounting.payables import verify_reservation
                 from .prior_payables import check_rule, original_payment
-                reservation = _one(PayableClaimReservation.objects.filter(
-                    public_id=prior_evidence.get("reservation"), case_public_id=request.case.public_id),
-                    "The retained prior-payable reservation is missing.")
                 if request.kind in (FinancePostingRule.CANCELLATION, FinancePostingRule.REVERSAL):
                     original = original_payment(request.case, payload.get("trigger", {}))
                     reversal_of = _one(JournalEntry.objects.select_for_update().filter(
@@ -145,15 +144,18 @@ def _materialize_voucher_journal(posting_request, actor):
                     verify_source_link(original, reversal_of, source_type="voucher")
                     if reversal_of.reversal_entries.exclude(status=JournalEntry.VOIDED).exists():
                         raise PostingRequestError("The original payment already has an active reversal.")
-                JournalLine.objects.select_for_update().get(pk=reservation.source_id)
-                reservation.refresh_from_db()
-                verify_reservation(reservation, prior_evidence)
-                if reservation.source.entry.department_id != department.pk or reservation.source.entry.fund_id != fund.pk:
-                    raise PostingRequestError("The reserved payable must belong to this Accounting office and fund.")
-                check_rule(request.posting_rule_snapshot,
-                    deduction=request.kind == FinancePostingRule.ADJUSTMENT,
-                    restoring=reversal_of is not None, source=reservation.source,
-                    transaction_type=payload["transaction_type"])
+                from accounting.claim_groups import resolve
+                from .claim_allocations import posting_amounts
+                reservations = resolve(prior_evidence, case_public_id=request.case.public_id, lock=True)
+                reservation = reservations[0]
+                for member in reservations:
+                    if member.source.entry.department_id != department.pk or member.source.entry.fund_id != fund.pk:
+                        raise PostingRequestError("The reserved payable must belong to this Accounting office and fund.")
+                    check_rule(request.posting_rule_snapshot,
+                        deduction=request.kind == FinancePostingRule.ADJUSTMENT,
+                        restoring=reversal_of is not None, source=member.source,
+                        transaction_type=payload["transaction_type"])
+                claim_amounts = posting_amounts(request, reservations)
             debit_total = sum((Decimal(str(item.get("amount") or "0")) for item in allocations), Decimal("0.00"))
             gross = Decimal(payload["gross_amount"])
             net = Decimal(payload["net_amount"])
@@ -286,6 +288,13 @@ def _materialize_voucher_journal(posting_request, actor):
                             "reference_label": str(payload["payee_name"]),
                             "source_code": mapping_code or payload["transaction_type"],
                         }
+                    if is_claim and claim_amounts is not None:
+                        for member in reservations:
+                            rows.append({"account": member.source.account, "center": None,
+                                "amount": claim_amounts[member.pk], "side": side, "memo": memo,
+                                "subsidiary": subsidiary, "cash_flow_category": instruction.get("cash_flow_category", ""),
+                                "payable_origin_id": member.source_id, "payable_reservation_id": member.pk})
+                        continue
                     rows.append({
                         "account": account, "center": None, "amount": amount,
                         "side": side, "memo": memo, "subsidiary": subsidiary,

@@ -1,0 +1,32 @@
+<details {% if form.is_bound %}open{% endif %} class="mt-3">
+  <summary>Claim allocation table</summary>
+  <p class="small mt-2">Use this table with “Allocate this DV across several claims”. Gross amounts must total the DV gross. Each deduction column must total that deduction on the DV. Leave unused rows blank.</p>
+  {{ allocations.management_form }}{{ allocations.non_form_errors }}
+  <div class="table-responsive" tabindex="0" role="region" aria-label="Claim allocations">
+    <table class="table table-sm"><thead><tr>{% for field in allocations.empty_form %}<th>{{ field.label }}</th>{% endfor %}</tr></thead>
+      <tbody id="claim-allocation-rows">{% for row in allocations %}<tr>{% for field in row %}<td>{{ field.errors }}{{ field }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <button type="button" class="btn btn-sm btn-outline-secondary" id="add-claim-allocation">Add claim</button>
+  <template id="empty-claim-allocation"><tr>{% for field in allocations.empty_form %}<td>{{ field }}</td>{% endfor %}</tr></template>
+</details>
+<script>
+(() => {
+  const button = document.getElementById('add-claim-allocation');
+  button.addEventListener('click', () => {
+    const count = document.getElementById('id_claims-TOTAL_FORMS');
+    const maximum = Number(document.getElementById('id_claims-MAX_NUM_FORMS').value);
+    const index = Number(count.value);
+    if (index >= maximum) return;
+    const fragment = document.getElementById('empty-claim-allocation').content.cloneNode(true);
+    fragment.querySelectorAll('[name], [id]').forEach(node => {
+      ['name', 'id'].forEach(attr => {
+        if (node.hasAttribute(attr)) node.setAttribute(attr, node.getAttribute(attr).replaceAll('__prefix__', String(index)));
+      });
+    });
+    document.getElementById('claim-allocation-rows').append(fragment);
+    count.value = index + 1;
+    button.disabled = index + 1 >= maximum;
+  });
+})();
+</script>

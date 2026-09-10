@@ -23,6 +23,8 @@ Make future national-government, COA and DBM changes manageable through reviewed
 
 ## Accepted priorities and evidence
 
+The evidence column records the original assessment baseline. See Current execution below for subsequent implementation and validation.
+
 | ID | Outcome | Current evidence / gap | Acceptance |
 |---|---|---|---|
 | M01 | Complete essential statements | eGAPS exposes Cash Flow and Changes in Net Assets/Equity; GRAND's registered statement datasets currently cover Position and Performance only. | Implement supported movements/classifications and independently reconciled statements; retain current accepted references and exact local forms. Cash position is not a cash-flow statement. |
@@ -44,6 +46,10 @@ Make future national-government, COA and DBM changes manageable through reviewed
 - The 2026-09-10 comparison is source/menu evidence, not official legal interpretation or numerical parity. Refresh applicable primary sources before implementing financial calculations.
 
 ## Current execution
+
+Current v0.7.85 M02 work: [consolidated DVs](FINANCE_CONSOLIDATED_DV_2026-09-10.md) retain explicit claim gross/deduction/net and partial-check allocations, atomic Finance holds and exact payment/return/replacement lineage. A closing return retires only that check's shares on its actual date; other checks and replacement advice remain usable. Group deduction correction and interrupted handoff recovery are covered. PASS: seven focused SQLite scenarios, 31 native tests with four selected races, final full project 805 discovered / 788 passed / 17 native-only skips, 313.148 seconds. An older Budget fixture failure was reproduced on v0.7.84 and corrected without relaxing production guards. Consolidated historical source-line splitting, unreconciled generated-history adoption, later corrections and preserved M01/M03, office/output/usability/acceptance gates remain open. Production remains NO-GO.
+
+Earlier checkpoint entries retain historical evidence; their remaining-work statements are superseded where a later checkpoint explicitly advances that work.
 
 Current v0.7.84 M02 work: [historical claim attribution](FINANCE_HISTORICAL_CLAIMS_2026-09-10.md) independently reviews original credits and prior applications without changing journals. Claims, DV selection/reservations, exact reversals, payable schedules and report controls share the approved links. Each DV retains its selected approval version. Main implementation PASS: 5 focused SQLite tests; 41 native tests including six selected races; broader Finance regression 596 discovered / 581 passed / 15 native-only skips. After the final report-version consistency repair: 171 affected reporting/claim tests passed with 1 native-only skips, and 17 native tests passed. Consolidated historical line allocation, multi-claim DVs, generated-cycle adoption and remaining corrections are still open, alongside the preserved M01/M03 and office/acceptance gates. Production remains NO-GO.
 

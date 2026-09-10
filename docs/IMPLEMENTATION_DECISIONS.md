@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-078:** Allocate consolidated DVs and partial checks explicitly across original claims; reserve the whole group atomically and retire only the shares of an independently posted closing return.
+
 - **D-077:** Attribute historical claims and prior applications through independently reviewed metadata over unchanged journal lines; reconcile report projections and pin the approval version used by each new DV reservation.
 
 - **D-076:** Validate new prior-payable reservations against their effective date and intervening posted movements; retain the existing original-credit lock and count active holds only once.
@@ -774,6 +776,16 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-078 - Retain explicit DV and check allocations across original claims
+
+- Date: 2026-09-10. Status: implemented on `codex/finance-consolidated-dv`; seven direct/HTTP scenarios pass on SQLite and 31 native tests pass, including four selected reservation races. Final full project regression PASS: 805 discovered / 788 passed / 17 native-only skips, 313.148 seconds. [Implementation and validation](FINANCE_CONSOLIDATED_DV_2026-09-10.md).
+- Goal: complete the next M02 daily-office path without duplicate expense recognition, ambiguous partial payments or lost correction lineage.
+- Decision: reuse the existing DV, governed posting instructions, original liability credits and payment instruments. One immutable Finance group retains each claim's gross, each deduction-line share and net. Sorted source locks and one Finance transaction create all holds; the default case lock serializes workflow decisions. Deterministic group identity recovers only the same allocation after a cross-store interruption.
+- Payment decision: require explicit shares for partial checks. Paying the exact remaining amount can use the unique remaining allocation. Replacement amount/shares equal the original instrument. Cancellation and bank return mirror its original posted application lines. Do not distribute deductions or partial payments by an invented proportional/FIFO convention.
+- Partial closure: retain a retirement record linked to the independently posted closing reversal for each affected reservation share. Keep other instruments usable; subtract retired shares on the return date when testing new dated capacity. The retirement is a capacity decision over actual posted evidence, not another ledger posting or a mutable financial balance.
+- Alternatives/tradeoffs: a multi-select alone cannot identify amounts or deduction shares; independent per-claim commits can leave a partly reserved DV; releasing the entire group for one returned check invalidates other checks. The group, per-instrument snapshot and exact retirement records preserve those distinct decisions without a new rule engine. Existing single-claim snapshots remain unchanged.
+- Limits/revisit: one payee/fund per supported DV/JEV; historical source-line splitting and adoption of unreconciled generated history remain separate work. Generated earlier accrual on the same case retains its existing single original source. Post-instrument/remitted-withholding corrections and the remaining financial/office/output/acceptance gates remain open. The form table supports up to 100 rows; large-register performance and named-user/browser acceptance remain to be assessed.
 
 ## D-077 - Review historical attribution without rewriting the journal
 

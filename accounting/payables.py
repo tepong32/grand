@@ -62,14 +62,20 @@ def _capacity(source, candidate_lines=(), *, as_of=None):
     held = Decimal("0.00")
     active_reservations = set()
     committed_holds = Decimal("0.00")
+    retirement_daily = defaultdict(lambda: Decimal("0.00"))
     for reservation in source.claim_reservations.all():
+        from .claim_groups import retirement_movements
+        retirements = retirement_movements(reservation) if reservation.group_id else []
+        retired = sum((amount for _, amount in retirements), Decimal("0.00"))
         consumed = by_reservation.pop(reservation.pk, Decimal("0.00"))
-        if consumed < 0 or consumed > reservation.amount:
+        if consumed < 0 or consumed > reservation.amount - retired:
             raise ValidationError("The application exceeds its voucher's prior-payable reservation.")
         if not reservation.released_at:
-            held += reservation.amount - consumed
+            held += reservation.amount - retired - consumed
             active_reservations.add(reservation.pk)
             committed_holds += reservation.amount
+            for day, amount in retirements:
+                retirement_daily[day] -= amount
     if any(by_reservation.values()):
         raise ValidationError("A missing payable reservation has financial applications.")
     if used + held > source.credit:
@@ -81,7 +87,8 @@ def _capacity(source, candidate_lines=(), *, as_of=None):
         # Active reservations already commit their whole amount: their linked
         # applications convert held capacity to used capacity, not a second use.
         daily = defaultdict(lambda: Decimal("0.00"))
-        daily[as_of] = Decimal("0.00")
+        daily.update(retirement_daily)
+        daily.setdefault(as_of, Decimal("0.00"))
         for line in movements:
             if line.payable_reservation_id not in active_reservations:
                 daily[line.entry.entry_date] += line.debit - line.credit
@@ -94,7 +101,7 @@ def _capacity(source, candidate_lines=(), *, as_of=None):
 
 
 @transaction.atomic(using="finance")
-def _reserve_claim(*, source_id, case_public_id, key, amount, actor_id, department_id, fund_code, party_key, as_of):
+def _reserve_claim(*, source_id, case_public_id, key, amount, actor_id, department_id, fund_code, party_key, as_of, group=None):
     """Internal handoff; the voucher service owns actor/case authorization."""
     # Lock only the source row. Joining Fund here would also lock it on MySQL,
     # reversing the fund-before-claim order used by mixed recognition entries.
@@ -112,10 +119,16 @@ def _reserve_claim(*, source_id, case_public_id, key, amount, actor_id, departme
         raise ValidationError("Reserve a positive claim amount in exact centavos.")
     existing = PayableClaimReservation.objects.filter(reservation_key=key).first()
     if existing:
-        if existing.source_id != source_id or existing.case_public_id != case_public_id or existing.amount != amount:
+        if (existing.source_id != source_id or existing.case_public_id != case_public_id or existing.amount != amount
+                or existing.group_id != (group.pk if group else None)):
             raise ValidationError("An interrupted handoff retained different claim evidence. Release the unused reservation before changing it.")
         return verify_reservation(existing)
-    if PayableClaimReservation.objects.filter(case_public_id=case_public_id, released_at__isnull=True).exists():
+    other_holds = PayableClaimReservation.objects.filter(case_public_id=case_public_id, released_at__isnull=True)
+    if group:
+        from .claim_groups import validate_member
+        validate_member(group, source_id, amount, case_public_id)
+        other_holds = other_holds.exclude(group=group)
+    if other_holds.exists():
         raise ValidationError("This case already retains a claim reservation. Recover or release it before validating again.")
     if _capacity(source, as_of=as_of) < amount:
         raise ValidationError("The claim amount is already applied or reserved for another voucher on or after the requested date. Review the dated claim applications or use the actual later settlement date.")
@@ -124,7 +137,7 @@ def _reserve_claim(*, source_id, case_public_id, key, amount, actor_id, departme
     if attribution:
         snapshot["claim_attribution"] = history.attribution_evidence(attribution)
     reservation = PayableClaimReservation(reservation_key=key, case_public_id=case_public_id, source=source,
-        amount=amount, source_snapshot=snapshot, source_checksum=_digest(snapshot), created_by_id=actor_id)
+        amount=amount, source_snapshot=snapshot, source_checksum=_digest(snapshot), created_by_id=actor_id, group=group)
     reservation.full_clean()
     reservation.save()
     return reservation
@@ -157,7 +170,8 @@ def validate_claim_line(line):
         if line.entry.reversal_of_id:
             linked_entry = line.entry.reversal_of
             evidence = linked_entry.source_snapshot.get("prior_payable")
-        if (evidence != reservation_evidence(reservation) or linked_entry.source_type != "voucher"
+        from .claim_groups import contains_reservation
+        if (not contains_reservation(evidence, reservation) or linked_entry.source_type != "voucher"
                 or linked_entry.source_snapshot.get("voucher_case") != str(reservation.case_public_id)):
             raise ValidationError("A reserved application requires its retained voucher handoff evidence.")
     named = bool(line.payable_party_key or line.payable_claim_reference)

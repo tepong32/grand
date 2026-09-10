@@ -174,9 +174,8 @@ def materialize(request, actor):
         else:
             if request.accounting_entry_public_id or source.reversal_entries.exclude(status=JournalEntry.VOIDED).exists():
                 raise ValidationError("Resolve the retained correction JEV or existing reversal before creating another.")
-            reservation = PayableClaimReservation.objects.get(public_id=request.payload["prior_payable"]["reservation"])
-            JournalLine.objects.select_for_update().get(pk=reservation.source_id)
-            verify_reservation(reservation, request.payload["prior_payable"])
+            from accounting.claim_groups import resolve
+            resolve(request.payload["prior_payable"], case_public_id=request.case.public_id, lock=True)
             period = AccountingPeriod.objects.filter(department_id=request.finance_department_id,
                 status=AccountingPeriod.OPEN, starts_on__lte=request.jev_date, ends_on__gte=request.jev_date).first()
             if period is None:
@@ -224,21 +223,22 @@ def complete(request, actor):
     if not entry.reversal_of_id or str(entry.reversal_of.public_id) != correction["original_entry"]:
         raise ValidationError("The posted correction must reverse the exact retained deduction journal.")
     with transaction.atomic(using="finance"):
-        reservation = PayableClaimReservation.objects.get(public_id=request.payload["prior_payable"]["reservation"])
-        JournalLine.objects.select_for_update().get(pk=reservation.source_id)
-        reason = f"Deduction correction {request.public_id}: original adjustment reversed by {entry.reference}."
-        if reservation.released_at:
-            if reservation.release_reason != reason:
-                raise ValidationError("This claim hold was retired by a different decision.")
-        else:
-            verify_reservation(reservation, request.payload["prior_payable"])
-            applications = list(reservation.applications.exclude(entry__status=JournalEntry.VOIDED).select_related("entry"))
-            if any(r.entry.status != JournalEntry.POSTED for r in applications) or sum((r.debit-r.credit for r in applications), Decimal("0")) != 0:
-                raise ValidationError("Resolve other claim applications before reopening this DV.")
-            _capacity(reservation.source)
-            reservation.released_at, reservation.released_by_id, reservation.release_reason = timezone.now(), actor.pk, reason
-            reservation._release_transition = True
-            reservation.save(update_fields=("released_at", "released_by_id", "release_reason"))
+        from accounting.claim_groups import resolve
+        reservations = resolve(request.payload["prior_payable"], case_public_id=request.case.public_id, lock=True, allow_released=True)
+        for reservation in reservations:
+            reason = f"Deduction correction {request.public_id}: original adjustment reversed by {entry.reference}."
+            if reservation.released_at:
+                if reservation.release_reason != reason:
+                    raise ValidationError("This claim hold was retired by a different decision.")
+            else:
+                verify_reservation(reservation)
+                applications = list(reservation.applications.exclude(entry__status=JournalEntry.VOIDED).select_related("entry"))
+                if any(r.entry.status != JournalEntry.POSTED for r in applications) or sum((r.debit-r.credit for r in applications), Decimal("0")) != 0:
+                    raise ValidationError("Resolve other claim applications before reopening this DV.")
+                _capacity(reservation.source)
+                reservation.released_at, reservation.released_by_id, reservation.release_reason = timezone.now(), actor.pk, reason
+                reservation._release_transition = True
+                reservation.save(update_fields=("released_at", "released_by_id", "release_reason"))
     case = VoucherCase.objects.select_for_update().get(pk=request.case_id)
     return _apply_case_return(case, actor, VoucherCase.ACCOUNTING_PREPARATION, correction["reason"],
         f"deduction-correction-posted:{request.public_id}")

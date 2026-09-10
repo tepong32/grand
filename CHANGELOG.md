@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.85 - Settle several original claims through one DV
+
+Accounting allocates a DV's gross, each deduction and net across original claims for one payee/fund. Treasury retains explicit partial-check shares and exact return/replacement lineage. Closing one returned check frees only its posted shares, preserving other checks and earlier-date capacity. Atomic group creation/correction and interrupted-handoff recovery preserve both stores and original journals. Validation and check forms retain invalid entered allocations for correction. [Validation, the repaired older Budget test fixture and remaining boundaries](docs/FINANCE_CONSOLIDATED_DV_2026-09-10.md).
+
 ## v0.7.84 - Attribute historical claims without rewriting posted journals
 
 Accounting can independently review an original historical liability and its earlier applications, select the claim in a DV, and retain the approval version through deductions and payment. Original journals and subsidiary detail stay unchanged; new claim/schedule outputs use the reviewed projection and retain old source evidence. Reviewed successors, dated capacity and competing approvals/reservations are covered. [Validation and remaining allocation boundaries](docs/FINANCE_HISTORICAL_CLAIMS_2026-09-10.md).

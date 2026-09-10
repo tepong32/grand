@@ -547,6 +547,16 @@ class AccountingValidation(models.Model):
     validated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="accounting_validations")
     validated_at = models.DateTimeField()
 
+    @property
+    def claim_allocation_rows(self):
+        evidence = self.prior_payable_snapshot
+        if evidence.get("schema") != 2:
+            return []
+        labels = {d["id"]: d["code"] for d in evidence["allocation"]["deductions"]}
+        return [{**member, "net": row["net"],
+            "deductions": [{"code": labels[key], "amount": amount} for key, amount in row["deductions"].items()]}
+            for member, row in zip(evidence["claims"], evidence["allocation"]["claims"])]
+
     def save(self, *args, **kwargs):
         if self.pk:
             prior = type(self).objects.get(pk=self.pk)
@@ -744,6 +754,7 @@ class PaymentInstrument(models.Model):
     amount = models.DecimalField(**MONEY, validators=[MinValueValidator(Decimal("0.01"))])
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
     operational_status = models.CharField(max_length=16, choices=OPERATIONAL_STATUS_CHOICES, default=NORMAL)
+    prior_payable_allocation = models.JSONField(default=dict, blank=True)
     replaces = models.OneToOneField("self", on_delete=models.PROTECT, null=True, blank=True, related_name="replacement")
     issued_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="issued_payment_instruments")
     issued_at = models.DateTimeField(null=True, blank=True)
@@ -767,6 +778,25 @@ class PaymentInstrument(models.Model):
 
     def __str__(self):
         return f"{self.check_number} — {self.amount}"
+
+    @property
+    def claim_payment_rows(self):
+        if not self.prior_payable_allocation:
+            return []
+        for validation in self.case.accounting_validations.order_by("-pk"):
+            evidence = validation.prior_payable_snapshot
+            if evidence.get("group") == self.prior_payable_allocation.get("group"):
+                return [{"claim": row["source"]["claim"], "amount": self.prior_payable_allocation["amounts"][row["reservation"]]}
+                    for row in evidence["claims"]]
+        return []
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            if (prior.prior_payable_allocation != self.prior_payable_allocation
+                    or (prior.prior_payable_allocation and (prior.amount != self.amount or prior.case_id != self.case_id))):
+                raise ValidationError("An issued check's claim allocation is immutable; cancel or return it explicitly.")
+        return super().save(*args, **kwargs)
 
 
 class BankAdviceBatch(models.Model):
