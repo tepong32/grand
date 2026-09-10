@@ -344,6 +344,7 @@ def completed_payable_tasks(user, department, today):
         "payable_submitted": (VoucherCase.PAYABLE_PREPARATION, VoucherCase.PAYABLE_REVIEW, "Submitted payable for Accounting review"),
         "payable_returned": (VoucherCase.PAYABLE_REVIEW, VoucherCase.PAYABLE_PREPARATION, "Returned payable for correction"),
         "payable_accepted": (VoucherCase.PAYABLE_REVIEW, VoucherCase.ACCOUNTING_PREPARATION, "Accepted payable for DV preparation"),
+        "payable_accrual_requested": (VoucherCase.PAYABLE_REVIEW, VoucherCase.ACCOUNTING_POSTING, "Reviewed payable for earlier accrual"),
     }
     events = VoucherEvent.objects.filter(actor_id=user.pk, case__in=visible_cases_for_user(user), action__in=specs).select_related("case", "actor_department")
     tasks = []

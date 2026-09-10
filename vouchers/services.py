@@ -1220,6 +1220,7 @@ def review_payable_intake(
     recognition_basis="Legacy compatible recognition through the current governed DV/JEV route.",
     obligation_adjustment_decision=PayableIntake.NO_ADJUSTMENT,
     obligation_adjustment_basis="No separate obligation adjustment identified in this review.",
+    recognition_date=None, recognition_reference="",
 ):
     _require(actor, "vouchers.review_payable_intake")
     case, existing = _locked(case, expected_version, idempotency_key)
@@ -1267,9 +1268,15 @@ def review_payable_intake(
         "obligation_adjustment_decision", "obligation_adjustment_basis",
     ))
     summary = payable_relationship_summary(case)
+    accrual = None
+    if recognition_decision == PayableIntake.ACCRUE_BEFORE_SETTLEMENT:
+        from .earlier_accruals import queue_accrual
+        accrual = queue_accrual(case, actor, recognition_date, recognition_reference, summary, evidence)
     return _advance(
-        case, actor, VoucherCase.ACCOUNTING_PREPARATION, "payable_accepted", idempotency_key,
+        case, actor, VoucherCase.ACCOUNTING_POSTING if accrual else VoucherCase.ACCOUNTING_PREPARATION,
+        "payable_accrual_requested" if accrual else "payable_accepted", idempotency_key,
         reason=reason, metadata={
+            **({"posting_request": str(accrual.public_id), "jev_number": accrual.jev_number} if accrual else {}),
             "claim_amount": str(intake.claim_amount), "allocated_total": str(summary["allocated_total"]),
             "allocation_count": len(summary["allocations"]), "document_rule_count": len(evidence),
             "recognition_decision": intake.recognition_decision,
@@ -2201,8 +2208,15 @@ def return_case(*, case, actor, target_stage, reason, expected_version, idempote
             "recognition_decision", "recognition_basis",
             "obligation_adjustment_decision", "obligation_adjustment_basis",
         ))
-    if target_stage in {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.ACCOUNTING_VALIDATION}:
+    if target_stage in {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.ACCOUNTING_VALIDATION, VoucherCase.PAYABLE_PREPARATION}:
         case.posting_requests.filter(status=VoucherPostingRequest.PENDING).update(status=VoucherPostingRequest.CANCELLED)
+        if target_stage == VoucherCase.PAYABLE_PREPARATION:
+            case.posting_requests.filter(status=VoucherPostingRequest.FAILED).update(status=VoucherPostingRequest.CANCELLED)
+            # Native discard may have committed before its default status update failed.
+            # The return blocker has verified no non-voided accrual JEV remains.
+            early_ids = [r.pk for r in case.posting_requests.all() if r.payload.get("earlier_accrual")]
+            case.posting_requests.filter(pk__in=early_ids, status=VoucherPostingRequest.MATERIALIZED).update(
+                status=VoucherPostingRequest.CANCELLED)
     supersession = {}
     if target_stage in {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.AWAITING_SIGNATURES}:
         jobs = list(case.print_jobs.select_for_update().exclude(status=VoucherPrintJob.SUPERSEDED))

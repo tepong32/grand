@@ -37,6 +37,21 @@ def _mark_failed(request, exc):
 
 
 def materialize_voucher_journal(posting_request, actor):
+    if posting_request.payload.get("earlier_accrual"):
+        # Serialize source creation against a pre-DV return/cancellation on the default store.
+        with transaction.atomic():
+            VoucherCase.objects.select_for_update().get(pk=posting_request.case_id)
+            try:
+                return _materialize_voucher_journal(posting_request, actor)
+            except ValidationError as exc:
+                # Commit the inner failure record after its Finance transaction rolled back.
+                # Raising inside this default transaction would erase the recovery reason.
+                failure = exc
+        raise failure
+    return _materialize_voucher_journal(posting_request, actor)
+
+
+def _materialize_voucher_journal(posting_request, actor):
     """Idempotently create a draft GRAND JEV from an immutable voucher snapshot."""
     if not can_prepare_journals(actor):
         raise PermissionDenied
@@ -103,6 +118,10 @@ def materialize_voucher_journal(posting_request, actor):
             reservation = None
             reversal_of = None
             prior_evidence = payload.get("prior_payable")
+            earlier_accrual = payload.get("earlier_accrual")
+            if earlier_accrual:
+                from .earlier_accruals import check_rule
+                check_rule(request.posting_rule_snapshot)
             if prior_evidence:
                 from accounting.models import PayableClaimReservation
                 from accounting.payables import verify_reservation
@@ -266,6 +285,8 @@ def materialize_voucher_journal(posting_request, actor):
                         "cash_flow_category": instruction.get("cash_flow_category", ""),
                         "payable_origin_id": reservation.source_id if is_claim else None,
                         "payable_reservation_id": reservation.pk if is_claim else None,
+                        "payable_party_key": payload["payee_key"] if earlier_accrual and account_source == FinancePostingRuleLine.PAYABLE_MAPPING else "",
+                        "payable_claim_reference": earlier_accrual["claim_reference"] if earlier_accrual and account_source == FinancePostingRuleLine.PAYABLE_MAPPING else "",
                     })
 
             rows = [row for row in rows if row["amount"] != Decimal("0.00")]
@@ -309,6 +330,7 @@ def materialize_voucher_journal(posting_request, actor):
                 source_reference=source_reference,
                 source_snapshot={
                     **({"prior_payable": prior_evidence} if prior_evidence else {}),
+                    **({"earlier_accrual": earlier_accrual} if earlier_accrual else {}),
                     "posting_request": source_reference,
                     "voucher_case": payload["voucher_case_public_id"],
                     "voucher_reference": payload["voucher_reference"],
@@ -343,6 +365,8 @@ def materialize_voucher_journal(posting_request, actor):
                     cash_flow_category=row.get("cash_flow_category", ""),
                     payable_origin_id=row.get("payable_origin_id"),
                     payable_reservation_id=row.get("payable_reservation_id"),
+                    payable_party_key=row.get("payable_party_key", ""),
+                    payable_claim_reference=row.get("payable_claim_reference", ""),
                 )
                 line.full_clean(); line.save()
                 if row["subsidiary"]:
@@ -400,6 +424,10 @@ def reconcile_posted_voucher_entry(entry, actor):
     """Complete the recoverable finance-to-core handoff from stored posting proof."""
     from accounting.posted_evidence import require_persisted_posting, verify_source_link
     entry = require_persisted_posting(entry, actor, source_type="voucher")
+    if entry.source_snapshot.get("earlier_accrual"):
+        source = VoucherPostingRequest.objects.filter(public_id=entry.source_reference).first()
+        if source:
+            VoucherCase.objects.select_for_update().get(pk=source.case_id)
     request = VoucherPostingRequest.objects.select_for_update().select_related("case").filter(
         public_id=entry.source_reference,
     ).first()

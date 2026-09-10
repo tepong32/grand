@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.81 - Generate earlier payable accruals before DV preparation
+
+Accounting payable review can now queue a configured delivery/acceptance or billing-validation accrual with an explicit actual date and supporting reference. Independent JEV posting creates the original named claim and unlocks DV preparation; settlement uses that exact claim. Pre-DV draft correction and interrupted handoffs preserve source history. Existing-payable and recognize-with-DV routes remain available. [Validation and limits](docs/FINANCE_EARLIER_ACCRUAL_2026-09-10.md).
+
 ## v0.7.80 - Settle prior-payable DVs through the payment cycle
 
 Accounting can link a DV to an original posted claim, reserve its gross amount and avoid recognizing the expense again. Deductions use a governed liability adjustment; actual payments, cancellations, bank returns and replacements carry the same claim/reservation. Closing a return without replacement releases only unused capacity. Interrupted cross-store validation, draft and closing handoffs retain recoverable evidence. Existing office scope, independent decisions, source locks and archived claim balances remain in force. Earlier-accrual generation, historical attribution and remaining posted-adjustment correction routes stay open. [Validation and limits](docs/FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md).

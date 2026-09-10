@@ -1,5 +1,7 @@
 # GRAND Finance roadmap completion audit
 
+Current v0.7.81 M02 work: [earlier-accrual generation](FINANCE_EARLIER_ACCRUAL_2026-09-10.md) queues a reviewed pre-DV recognition request, creates the original named payable after independent posting and connects it to later DV deductions/payment without another expense. Pre-DV correction, immutable source evidence and recoverable handoffs use the existing stores and workflow. Read its actual validation record. Historical attribution, posted-adjustment corrections and consolidated multi-claim settlement remain unfinished; Finance production remains NO-GO.
+
 Current M02 integration: [prior-payable DV settlement](FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md) connects named claims through independent validation, deduction adjustment, actual payment, cancellation, return and replacement. Native recovery/capacity tests pass; consult its final validation record. Earlier-accrual generation, historical attribution and posted-adjustment correction remain open. This does not close M02 or the Finance parity gate.
 
 Current M01 calculation work: [fund-scoped statement generation](FINANCE_STATEMENT_FUNDS_2026-09-10.md) selects the same ledger funds before all four statements calculate, retains required financial rows/columns and verifies source-to-XLSX amounts. See its validation state. M02 prior-payable linkage is next; exact forms, eGAPS inventory, ordinary office scenarios and LGU acceptance remain open. Older fund/package gaps below describe previous checkpoints.

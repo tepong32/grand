@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-074:** Generate reviewed earlier accruals through the existing posting request and original claim; require explicit recognition evidence, independent posting and a distinct pre-DV correction route.
+
 - **D-073:** Reserve original claim capacity across the existing separate-store DV handoff; post only actual deduction/payment effects, retain exact payment reversals and recover interrupted operations from pinned evidence.
 
 - **D-072:** Identify individual claims and their applications on immutable journal lines; derive dated outstanding amounts, serialize source-capacity/recognition checks and retain actual reversal lineage before enabling prior-payable DVs.
@@ -766,6 +768,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-074 - Generate the original payable before DV preparation
+
+- Date: 2026-09-10. Status: implemented in v0.7.81 on `codex/finance-earlier-accrual`; [validation and limits](FINANCE_EARLIER_ACCRUAL_2026-09-10.md).
+- Goal: complete the M02 actual recognition-to-settlement chain, without adding a competing ledger or configuration framework.
+- Decision: use the reviewed intake and reconciled full-claim allocations to queue an existing `VoucherPostingRequest`; require a configured delivery/acceptance or billing-validation recognition rule and explicit actual date/reference. Independent posting resumes DV preparation and supplies the named original liability credit used by settlement.
+- Alternatives/tradeoffs: inferring recognition date from invoice date can misstate timing; fabricating a DV to generate recognition duplicates facts. Reusing the existing source handoff avoids a new journal/workflow model, but requires correct pre-DV return destinations and ordered case locks across recovery/correction paths.
+- Limits/revisit: one claim/one fund; reviewed debit-allocation/credit-gross-payable recipes. No automatic invoice-date recognition, historical relabeling, posted-claim rewrite or arbitrary posting recipes. Broader corrections, attribution, consolidated claims, actual local policy/form and office acceptance remain required.
 
 ## D-073 - Settle prior-payable DVs without duplicate recognition
 

@@ -515,6 +515,8 @@ def case_action(request, public_id, action):
                 **common, decision=data["decision"], reason=data["reason"],
                 recognition_decision=data["recognition_decision"],
                 recognition_basis=data["recognition_basis"],
+                recognition_date=data["recognition_date"],
+                recognition_reference=data["recognition_reference"],
                 obligation_adjustment_decision=data["obligation_adjustment_decision"],
                 obligation_adjustment_basis=data["obligation_adjustment_basis"],
             )

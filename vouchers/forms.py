@@ -469,12 +469,20 @@ class PayableReviewForm(WorkflowForm):
     reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
     recognition_decision = forms.ChoiceField(choices=PayableIntake.RECOGNITION_CHOICES, required=False)
     recognition_basis = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
+    recognition_date = forms.DateField(widget=DateInput, required=False,
+        help_text="For earlier accrual: actual delivery/acceptance or billing-validation date under the reviewed rule.")
+    recognition_reference = forms.CharField(max_length=240, required=False,
+        help_text="For earlier accrual: reference supporting that recognition date. Independent JEV posting precedes DV preparation.")
     obligation_adjustment_decision = forms.ChoiceField(choices=PayableIntake.ADJUSTMENT_CHOICES, required=False)
     obligation_adjustment_basis = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
 
     def clean(self):
         cleaned = super().clean()
         if cleaned.get("decision") == PayableIntake.READY:
+            if cleaned.get("recognition_decision") == PayableIntake.ACCRUE_BEFORE_SETTLEMENT:
+                for field in ("recognition_date", "recognition_reference"):
+                    if not cleaned.get(field):
+                        self.add_error(field, "Required for earlier accrual.")
             for field in (
                 "recognition_decision", "recognition_basis",
                 "obligation_adjustment_decision", "obligation_adjustment_basis",
@@ -747,10 +755,15 @@ class AccountingValidationForm(WorkflowForm):
                 payable_party_key=f"finance-party:{case.payee.code}" if case.payee_id else "",
                 entry__fund__code__in=list(case.obligation.allocation_lines.values_list("fund_code", flat=True)))
             sources = sources.exclude(payable_claim_reference="").select_related("entry__fund", "account")
+            generated = [r for r in case.posting_requests.all() if r.payload.get("earlier_accrual") and r.status == "posted"]
+            if generated:
+                sources = sources.filter(entry__public_id__in=[r.accounting_entry_public_id for r in generated])
             field = forms.ModelChoiceField(queryset=sources, label="Original posted payable claim",
                 help_text="Select the original invoice liability. Its amount is reserved for this DV; the expense is not recognized again.")
             field.label_from_instance = lambda line: f"{line.payable_claim_reference} · {line.entry.reference} · {line.entry.fund.code} · {line.credit:,.2f} recognized"
             self.fields["prior_payable_line"] = field
+            if generated and sources.count() == 1:
+                field.initial = sources.first().pk
             self.fields["jev_number"].help_text = "Leave blank when there are no deductions. With deductions, enter the adjustment JEV number."
 
 

@@ -1427,8 +1427,8 @@ class VoucherWorkflowTests(TestCase):
         request.refresh_from_db()
         self.assertEqual(request.status, VoucherPostingRequest.POSTED)
 
-    def test_authoritative_budget_to_reconciled_treasury_report_replay(self):
-        """Replay one governed case across the implemented F2-F9 control boundaries."""
+    def authoritative_payable_for_review(self):
+        """Build and submit one payable through real Budget and intake services."""
         self.budget_user.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="budget",
             codename__in=(
@@ -1759,6 +1759,10 @@ class VoucherWorkflowTests(TestCase):
             idempotency_key="full-cycle-payable-submit",
         )
         case.refresh_from_db()
+        return case, payment_rule, obligation, accounting_owner
+
+    def test_authoritative_budget_to_reconciled_treasury_report_replay(self):
+        case, payment_rule, obligation, accounting_owner = self.authoritative_payable_for_review()
         from finance.work_tasks import finance_work_tasks
 
         work_case_id = f"voucher-case:{case.public_id}"
