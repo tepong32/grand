@@ -8,6 +8,8 @@ Development v0.7.71 records the [native identity audit](FINANCE_NATIVE_INVARIANT
 
 Development v0.7.72 adds familiar office-register navigation under M06, preserving destination permissions and expandable control explanations. [Validation evidence](FINANCE_NAVIGATION_VALIDATION_2026-09-10.md) is separate from the remaining financial coverage and human acceptance requirements.
 
+Development v0.7.73 fixes the reproduced closing-transfer/performance error as an M01 prerequisite. [Explicit nominal closes and reversals](FINANCE_STATEMENT_CLOSING_2026-09-10.md) preserve operating results while retaining full position/ledger evidence; SQLite and affected MySQL validation passed. Net-assets/cash-flow statements and prior-payable linkage remain next functional work.
+
 Finance v0.7.70 (development branch): bank-match conflict handling and native identity checks are verified; a repeatable native test runner/CI job is implemented. Local SQLite/MySQL gates passed; remote CI is unperformed because CLI authentication is invalid. See [the validation report](FINANCE_BANK_MATCH_VALIDATION_2026-09-09.md). Continuing bounded scrutiny after this checkpoint; remaining scrutiny and all external acceptance gates are preserved.
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.

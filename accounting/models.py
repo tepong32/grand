@@ -636,6 +636,7 @@ class PostingMapping(DepartmentOwnedModel):
 
 
 class JournalEntry(DepartmentOwnedModel):
+    CLOSING = "closing"
     DRAFT = "draft"
     SUBMITTED = "submitted"
     POSTED = "posted"
@@ -646,6 +647,7 @@ class JournalEntry(DepartmentOwnedModel):
         ("remittance", "Deduction / withholding remittance"),
         ("adjustment", "Adjusting entry"), ("reversal", "Reversing entry"),
         ("opening", "Opening balance"),
+        (CLOSING, "Nominal-account closing transfer"),
     )
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -726,6 +728,20 @@ class JournalEntry(DepartmentOwnedModel):
                 if any(getattr(prior, field) != getattr(self, field) for field in governed):
                     raise ValidationError("Posted and discarded journals are immutable. Create an adjusting entry instead.")
         return super().save(*args, **kwargs)
+
+    @property
+    def is_nominal_closing(self):
+        """Follow retained reversal lineage, never infer purpose from free text."""
+        original = self
+        seen = set()
+        while original.reversal_of_id:
+            if original.pk in seen:
+                raise ValidationError("Journal reversal lineage contains a cycle.")
+            seen.add(original.pk)
+            original = original.reversal_of
+            if original.department_id != self.department_id:
+                raise ValidationError("Journal reversal lineage crosses an owning office.")
+        return original.source_type == self.CLOSING
 
     @property
     def totals(self):

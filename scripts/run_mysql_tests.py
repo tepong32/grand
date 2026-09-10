@@ -1,10 +1,12 @@
 """Run fresh, isolated two-store MySQL regressions without loading operator .env settings."""
 import argparse
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 import shutil
 import sys
 import tempfile
+from zoneinfo import ZoneInfo
 
 
 def main():
@@ -28,17 +30,26 @@ def main():
     import dotenv
     dotenv.load_dotenv = lambda *args, **kwargs: False
     import pymysql
+    from django.conf import settings
     with pymysql.connect(host="127.0.0.1", port=port, user=user, password=password, connect_timeout=10) as connection:
         with connection.cursor() as cursor:
             cursor.execute("SELECT VERSION(), @@sql_mode")
             version, sql_mode = cursor.fetchone()
+            probe = datetime(2027, 3, 5, 2, 30)
+            cursor.execute("SELECT CONVERT_TZ(%s, %s, %s)", (probe, "UTC", settings.TIME_ZONE))
+            converted = cursor.fetchone()[0]
     if "MariaDB" in version or not {"STRICT_TRANS_TABLES", "STRICT_ALL_TABLES"}.intersection(sql_mode.split(",")):
         parser.error("The regression gate requires native MySQL with strict SQL mode enabled.")
+    expected = probe.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(settings.TIME_ZONE)).replace(tzinfo=None)
+    if converted != expected:
+        parser.error(
+            f"Load the disposable MySQL server's named time-zone tables: UTC to {settings.TIME_ZONE} "
+            "must match Django before date-filtered Finance tests can run."
+        )
     temporary_root = root / ".tmp"
     temporary_root.mkdir(exist_ok=True)
     runtime = Path(tempfile.mkdtemp(prefix="mysql-regression-", dir=temporary_root))
     shutil.copytree(root / "media" / "defaults", runtime / "media" / "defaults")
-    from django.conf import settings
     settings.DATABASES = {
         alias: {
             "ENGINE": "django.db.backends.mysql", "NAME": f"grand_ci_{alias}",

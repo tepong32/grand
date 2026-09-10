@@ -418,6 +418,73 @@ class FinanceAccountabilityReportingTests(TestCase):
             self.client.get(reverse("reporting:statement_mapping_list")).status_code, 403,
         )
 
+    def test_performance_survives_nominal_closing_and_its_reversal(self):
+        from accounting.services import create_reversal, submit_entry, post_entry
+
+        self.accounting_preparer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="accounting", codename="prepare_journal_entries"))
+        self.accounting_reviewer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="accounting", codename="post_journal_entries"))
+        owner = {"department_id": self.accounting.pk, "department_label": self.accounting.name}
+        equity = LedgerAccount.objects.create(
+            **owner, code="30101010", title="Accumulated surplus", account_type="equity", normal_balance="credit",
+        )
+        closing = JournalEntry.objects.create(
+            **owner, reference="JEV-CLOSE-001", entry_date=date(2027, 3, 31),
+            period=self.period, fund=self.fund, source_type=JournalEntry.CLOSING,
+            description="Close nominal revenue into accumulated surplus",
+            created_by_id=self.accounting_preparer.pk, created_by_label=self.accounting_preparer.username,
+        )
+        JournalLine.objects.create(entry=closing, sequence=1, account=self.revenue, debit=Decimal("1250.00"))
+        JournalLine.objects.create(entry=closing, sequence=2, account=equity, credit=Decimal("1250.00"))
+        submit_entry(closing, self.accounting_preparer)
+        post_entry(closing, self.accounting_reviewer)
+        definition = ReportDefinition.objects.get(
+            department=self.accounting, dataset_key="finance_statement_performance",
+        )
+        report = create_manual_run(
+            definition, definition.current_template, "xlsx", date(2027, 1, 1), date(2027, 3, 31),
+            {}, self.accounting_preparer,
+        )
+        self.assertEqual(report.control_totals["operating_result"], "1250.00")
+        self.assertEqual(report.control_totals["excluded_nominal_closing_entry_count"], 1)
+        self.assertEqual(report.source_record_count, 2)
+        self.assertTrue(report.source_records.get(source_reference=closing.reference).snapshot["nominal_closing_transfer"])
+        from openpyxl import load_workbook
+        with report.output_file.open("rb") as stream:
+            workbook = load_workbook(stream, data_only=True)
+            output_rows = list(workbook.active.values)
+        self.assertTrue(any("Surplus / (deficit) for the period" in row and 1250 in row for row in output_rows))
+        retained_checksum = report.checksum
+
+        position_definition = ReportDefinition.objects.get(
+            department=self.accounting, dataset_key="finance_statement_position",
+        )
+        position = create_manual_run(position_definition, position_definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer)
+        self.assertEqual(position.control_totals["equity"], "1250.00")
+        self.assertEqual(position.control_totals["unclosed_operating_result"], "0.00")
+        self.assertEqual(position.control_totals["equation_difference"], "0.00")
+
+        reversal = create_reversal(closing, self.accounting_preparer, reference="JEV-CLOSE-REV",
+            entry_date=date(2027, 3, 31), period=self.period, reason="Correct the nominal close")
+        submit_entry(reversal, self.accounting_preparer)
+        post_entry(reversal, self.accounting_reviewer)
+        reopened_report = create_manual_run(definition, definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer)
+        self.assertEqual(reopened_report.control_totals["operating_result"], "1250.00")
+        self.assertEqual(reopened_report.control_totals["excluded_nominal_closing_entry_count"], 2)
+        self.assertEqual(reopened_report.source_record_count, 3)
+        report.refresh_from_db()
+        self.assertEqual(report.checksum, retained_checksum)
+
+    def test_closing_classification_cannot_hide_a_cash_receipt(self):
+        from accounting.services import validate_entry_for_submission
+        self.entry.source_type = JournalEntry.CLOSING
+        # Classification is checked before submission and again before posting.
+        with self.assertRaisesMessage(ValidationError, "cannot contain cash"):
+            validate_entry_for_submission(self.entry)
+
     def test_statement_mapping_requires_independent_activation_and_is_immutable(self):
         starter = FinanceStatementMapping.objects.get(
             department=self.accounting, statement_type=FinanceStatementMapping.POSITION,

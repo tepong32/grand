@@ -1175,6 +1175,7 @@ class GovernedStatementDataset(ApprovedDataset):
                 "source_reference": entry.source_reference or "", "description": entry.description,
                 "debit": str(item["debit"]), "credit": str(item["credit"]),
                 "posted_by": entry.posted_by_label, "posted_at": entry.posted_at,
+                "nominal_closing_transfer": entry.is_nominal_closing,
                 "lines": item["lines"],
             }
             sources.append({
@@ -1211,7 +1212,13 @@ class GovernedStatementDataset(ApprovedDataset):
         ))
         balances = {}
         accounts = {}
+        entries = {line.entry_id: line.entry for line in lines}
+        closing_entry_ids = {
+            pk for pk, entry in entries.items() if not as_of and entry.is_nominal_closing
+        }
         for line in lines:
+            if line.entry_id in closing_entry_ids:
+                continue
             accounts[line.account.code] = line.account
             natural = (
                 line.debit - line.credit
@@ -1255,7 +1262,11 @@ class GovernedStatementDataset(ApprovedDataset):
         }
         unmapped = sorted(nonzero_codes - set(assignments))
         sources, freshness = self._source_payload(lines)
-        return self._finalize(rows, balances, accounts, mapping, unmapped, sorted(duplicates), sources, freshness)
+        payload = self._finalize(rows, balances, accounts, mapping, unmapped, sorted(duplicates), sources, freshness)
+        if not as_of:
+            payload.control_totals["excluded_nominal_closing_entry_count"] = len(closing_entry_ids)
+            payload.control_totals["calculation_basis"] = "posted-period-activity-excluding-nominal-closing-v1"
+        return payload
 
 
 class StatementOfFinancialPositionDataset(GovernedStatementDataset):
@@ -1326,7 +1337,7 @@ class StatementOfFinancialPerformanceDataset(GovernedStatementDataset):
             "section_title": "Result", "line_code": "operating-result",
             "line_title": "Surplus / (deficit) for the period", "amount": result,
             "source_account_count": len(accounts),
-            "mapping_basis": "System-derived revenue less expense",
+            "mapping_basis": "Posted revenue less expense, excluding explicit nominal closing transfers and their reversals",
         })
         controls = {
             "revenue": revenue, "expense": expense, "operating_result": result,
@@ -1340,7 +1351,8 @@ class StatementOfFinancialPerformanceDataset(GovernedStatementDataset):
             rows=rows, sources=sources, control_totals=controls,
             control_status="reconciled" if reconciled else "exception",
             control_message=(
-                "Revenue less expense is derived from posted entries and every non-zero performance account is mapped once."
+                "Revenue less expense excludes explicit nominal closing transfers and their reversals; "
+                "all source JEVs remain in the evidence and every non-zero performance account is mapped once."
                 if reconciled else
                 "One or more non-zero performance accounts are unmapped or duplicated in the governed mapping."
             ),

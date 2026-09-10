@@ -12,6 +12,10 @@ The two database names that may be recreated are **`test_grand_ci_default` and `
 
 The runner requires native MySQL and strict SQL mode, binds the host to `127.0.0.1`, preserves the default/Finance router, and uses local-memory email. Each run receives a new ignored `.tmp/mysql-regression-*` directory for media, exports and backups. Repository-tracked default media is copied there. The path is printed for failure investigation; these are synthetic test artifacts, not accepted recovery sets. Passwords are never printed or placed in command arguments.
 
+Named time-zone tables are also required. Before creating test schemas the runner verifies that MySQL's UTC-to-application-zone conversion matches Python/Django. Empty zone tables can silently omit timestamped payment records from date-filtered reports. On Windows use the [official MySQL POSIX time-zone SQL package](https://dev.mysql.com/downloads/timezones.html) in the explicitly disposable server; on systems with zoneinfo follow MySQL's native `mysql_tzinfo_to_sql` instructions. Restart the owned server after loading. Do not change the application's time zone to make a failed test pass.
+
+The 2026-09-10 portable Windows fixture initially exposed this prerequisite: `CONVERT_TZ` returned NULL and `mysql.time_zone_name` had zero rows. Its 87-test affected run had one Treasury reporting failure. Official 2026c POSIX data (archive MD5 `24726e6f19173c3b38ac2df9e21eef3d`) supplied 598 names; the owned server was restarted and the new conversion preflight passed. See [statement validation](FINANCE_STATEMENT_CLOSING_2026-09-10.md) for final application results. Windows MySQL 8.4.11 is distinct from the historical Linux/container 8.4.12 baseline.
+
 Fresh databases matter: Django transaction tests flush data while retaining migration records. Reusing that database can omit migration-seeded site configuration, shortcuts and leave policy. v0.7.69's retained-fixture failure and successful fresh rerun document this distinction. A focused pass on reused schemas is not a substitute for the fresh full gate.
 
 ## CI

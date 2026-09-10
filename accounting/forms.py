@@ -368,6 +368,10 @@ class JournalEntryForm(StyledModelForm):
         super().__init__(*args, department=department, **kwargs)
         self.fields["period"].queryset = AccountingPeriod.objects.filter(department_id=department.pk, status=AccountingPeriod.OPEN)
         self.fields["fund"].queryset = Fund.objects.filter(department_id=department.pk, is_active=True)
+        self.fields["source_type"].help_text = (
+            "Use nominal-account closing transfer only to close revenue/expense balances to equity. "
+            "It stays in the ledger but is excluded from the performance statement's operating result."
+        )
 
 
 class JournalLineForm(StyledModelForm):

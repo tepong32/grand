@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.73 - Preserve operating performance through nominal closing
+
+An explicit nominal-closing JEV source separates revenue/expense-to-equity transfers and their retained reversal lineage from performance-statement activity. The complete ledger, position balances and report source evidence remain intact; historical journals and generated reports are not rewritten. Submission/posting reject assets or liabilities in a closing transfer. This fixes the reproduced 1,250.00-to-zero performance error and is a prerequisite for missing-statement completion, not eGAPS parity. The native runner now checks named time-zone conversion before schema creation. See [validation and remaining scope](docs/FINANCE_STATEMENT_CLOSING_2026-09-10.md).
+
 ## v0.7.72 - Familiar account-based Finance registers
 
 The Finance landing page provides direct Budget, Accounting and Treasury register shortcuts using each destination's existing permissions. Ordinary work is easier to find; technical boundaries remain in accessible disclosures and administration appears only for authorized accounts. No financial calculations, persistence or authority rules change. Accepted eGAPS-informed modernization priorities and the printable comparison are retained separately from implementation progress. See [navigation validation](docs/FINANCE_NAVIGATION_VALIDATION_2026-09-10.md); full workflow parity, missing statements/payable linkage, native scrutiny and real LGU/WFH acceptance remain open. Production remains NO-GO.

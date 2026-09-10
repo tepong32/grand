@@ -1,5 +1,11 @@
 # Finance gap register
 
+## FIN-GAP-036 - Closing transfers erase reported period performance
+
+- Severity/status: **HIGH - VERIFIED** in v0.7.73 for explicitly classified closing transfers and their reversals. The original ordinary-adjustment path reduced the generated performance statement's 1,250.00 surplus to 0.00. Historical ambiguous closes still need authorized correction; they are not silently relabelled.
+- Evidence/remediation: [source-to-posting-to-output reproduction and validation](FINANCE_STATEMENT_CLOSING_2026-09-10.md). New explicit closing classification, submission/posting restrictions and retained reversal lineage separate transfers from activity; position and ledger evidence remain complete. No historical journal is relabelled and no existing report is overwritten.
+- Validation: 394 SQLite tests discovered (391 executed, three native-only skips) and all 87 affected MySQL tests passed; exported amount, full position balance and retained reversal evidence checked. Complete the wider missing-statement coverage and local outputs next. This repair does not close M01 or establish production readiness.
+
 Started 2026-09-07 during continued functional implementation. This is not the completed post-Finance scrutiny. See the [mandatory gate](FINANCE_OPERATIONAL_SCRUTINY.md) for severity, stop rules and verification requirements.
 
 ## FIN-GAP-032 - Separate native snapshots can lose cross-store source evidence

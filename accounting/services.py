@@ -1141,6 +1141,14 @@ def validate_entry_for_submission(entry):
     credit = sum((line.credit for line in lines), Decimal("0.00"))
     if debit <= 0 or debit != credit:
         raise ValidationError(f"The entry must balance before submission. Debits: {debit:,.2f}; credits: {credit:,.2f}.")
+    if entry.is_nominal_closing:
+        account_types = {line.account.account_type for line in lines}
+        if (account_types - {"revenue", "expense", "equity"}
+                or "equity" not in account_types or not account_types.intersection({"revenue", "expense"})):
+            raise ValidationError(
+                "A nominal-account closing transfer must move revenue or expense balances to equity; "
+                "it cannot contain cash, other assets or liabilities. Use an ordinary adjusting JEV for those movements."
+            )
     if entry.period.status != AccountingPeriod.OPEN:
         raise ValidationError("The selected accounting period is closed.")
     return debit, credit

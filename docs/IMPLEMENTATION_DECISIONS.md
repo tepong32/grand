@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-066:** Separate explicit nominal closing transfers and their reversals from performance-statement activity while retaining complete ledger/report evidence; this is a prerequisite for M01 financial-statement completion.
+
 - **D-065:** Prioritize complete eGAPS-informed office workflows and outputs, familiar account-based web navigation, maintainable rule/form changes and authorized WFH; preserve existing financial and acceptance controls.
 
 - **D-058:** Follow scheduled/registered work handed to another owner through return and review, exclude the user's current actions, and use only current handoff evidence for age.
@@ -754,3 +756,12 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-066 - Keep closing transfers out of period operating performance
+
+- Date: 2026-09-10. Status: native numerical defect reproduced; repair verified in v0.7.73 through broad SQLite and affected MySQL regression plus XLSX amount assertions.
+- Goal: correct source-to-ledger-to-output results before completing the missing M01 statements.
+- Evidence: an independently posted 1,250.00 revenue-to-equity closing transfer made the performance statement report 0.00 surplus. [Reproduction and validation](FINANCE_STATEMENT_CLOSING_2026-09-10.md) retain actual commands, output assertions and the separate native-fixture correction.
+- Decision: introduce an explicit nominal-closing JEV source using existing preparation, balancing and independent posting. Limit its account types to nominal/equity transfers. Follow actual reversal ancestry for statement classification; exclude closing transfers from operating activity but retain them in ledger, position balances and statement source evidence. Do not infer purpose from descriptions or silently relabel historical journals.
+- Alternatives/tradeoffs: excluding all adjusting entries would hide real period adjustments. Reading free text cannot establish accounting meaning. A second reporting ledger would duplicate authority. The existing journal source and correction lineage provide the needed distinction, at the cost of an explicit classification and governed correction of old ambiguous closes.
+- Boundaries: this does not complete Cash Flow/Net Assets statements, historical corrections, comparative/form fidelity or LGU acceptance. Other statement presentation questions, including contra balances, require specific reproduction before reliance. The time-zone prerequisite was fixed only to make native validation faithful, not to expand unrelated infrastructure.
