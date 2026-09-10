@@ -117,11 +117,9 @@ class FourStatementPackageTests(TestCase):
         definition = self.runs["position_run"].definition
         definition.filters = {"line_code": "assets"}
         definition.save(update_fields=("filters",))
-        self.runs["position_run"] = create_manual_run(definition, definition.current_template, "xlsx",
-            date(2027, 1, 1), date(2027, 3, 31), {}, self.maker)
-        self.assertEqual(self.runs["position_run"].control_status, "reconciled")
-        with self.assertRaisesMessage(ValidationError, "keep every mapped financial row"):
-            self.notes()
+        with self.assertRaisesMessage(ValueError, "required financial rows cannot be hidden"):
+            create_manual_run(definition, definition.current_template, "xlsx",
+                date(2027, 1, 1), date(2027, 3, 31), {}, self.maker)
 
     def test_legacy_two_member_snapshot_stays_exact_but_cannot_be_resubmitted_incomplete(self):
         # Historical persisted shape: no new members, source keys, or bundle fields.

@@ -1145,6 +1145,37 @@ class GovernedStatementDataset(ApprovedDataset):
         identity = _department_identity(department)
         return any(term in identity for term in ("accounting", "acctg", "finance"))
 
+    def validate_configuration(self, snapshot):
+        filters = snapshot.get("filters", {})
+        if not isinstance(filters, dict) or set(filters) - {"fund_code", "fund_code__exact", "fund_code__in"}:
+            raise ValueError("Financial statements support exact fund filters only; required financial rows cannot be hidden.")
+        if len(filters) > 1:
+            raise ValueError("Choose one fund filter for the statement.")
+        for key, value in filters.items():
+            codes = value if key.endswith("__in") else [value]
+            if not isinstance(codes, list) or not codes or any(not isinstance(code, str) or not code.strip() for code in codes):
+                raise ValueError("Choose a non-empty list of fund codes.")
+        if any(snapshot.get(key) for key in ("group_by", "totals", "sort_by")):
+            raise ValueError("Keep the statement's financial row order and subtotals; do not regroup or total its rows.")
+        selected = snapshot.get("selected_fields", list(self.column_keys))
+        if (not isinstance(selected, list) or any(not isinstance(key, str) for key in selected)
+                or set(selected) != set(self.column_keys) or len(selected) != len(self.column_keys)):
+            raise ValueError("Keep every required statement column, including amounts and source details.")
+        return filters
+
+    def _source_fund_filters(self, department, parameters):
+        from accounting.models import Fund
+
+        filters = self.validate_configuration((parameters or {}).get("_definition_snapshot", {}))
+        if not filters:
+            return {}
+        key, value = next(iter(filters.items()))
+        codes = value if key.endswith("__in") else [value]
+        available = set(Fund.objects.filter(department_id=department.pk, code__in=codes).values_list("code", flat=True))
+        if set(codes) - available:
+            raise ValueError("Selected fund codes must exist in this Accounting office.")
+        return {"code__in": codes}
+
     def _mapping_snapshot(self, department, parameters):
         snapshot = (parameters or {}).get("_statement_mapping_snapshot")
         if snapshot:
@@ -1199,6 +1230,7 @@ class GovernedStatementDataset(ApprovedDataset):
     def _statement_payload(self, department, period_start, period_end, parameters, *, as_of):
         from accounting.models import JournalEntry, JournalLine
 
+        fund_filters = self._source_fund_filters(department, parameters)
         mapping = self._mapping_snapshot(department, parameters)
         if not mapping:
             return DatasetPayload(
@@ -1211,6 +1243,7 @@ class GovernedStatementDataset(ApprovedDataset):
         }
         lines = list(JournalLine.objects.filter(
             entry__department_id=department.pk, entry__status=JournalEntry.POSTED, **date_filter,
+            **{f"entry__fund__{key}": value for key, value in fund_filters.items()},
         ).select_related("entry", "entry__fund", "account").order_by(
             "entry__entry_date", "entry__reference", "sequence",
         ))
@@ -1485,24 +1518,10 @@ class StatementOfChangesInNetAssetsDataset(GovernedStatementDataset):
         from accounting.models import Fund, JournalEntry, JournalLine, OpeningBalanceBatch
         from accounting.opening_controls import opening_evidence, opening_posting_errors
 
-        snapshot = (parameters or {}).get("_definition_snapshot", {})
-        filters = snapshot.get("filters", {})
-        if set(filters) - {"fund_code", "fund_code__in"}:
-            raise ValueError("Net-assets statements support exact fund filters only; required movement rows cannot be hidden.")
-        if any(snapshot.get(key) for key in ("group_by", "totals", "sort_by")):
-            raise ValueError("Keep the net-assets statement's financial row order and subtotals; do not regroup or total its rows.")
-        required = {column.key for column in self.columns}
-        if "selected_fields" in snapshot and not required.issubset(snapshot["selected_fields"]):
-            raise ValueError("Keep every required net-assets statement column, including fund and comparative amounts.")
+        fund_filters = self._source_fund_filters(department, parameters)
         query = JournalLine.objects.filter(entry__department_id=department.pk,
-            entry__status=JournalEntry.POSTED, entry__entry_date__lte=period_end)
-        if "fund_code" in filters:
-            query = query.filter(entry__fund__code=filters["fund_code"])
-        if "fund_code__in" in filters:
-            codes = filters["fund_code__in"]
-            if not isinstance(codes, list) or not codes or any(not isinstance(code, str) for code in codes):
-                raise ValueError("Choose a non-empty list of fund codes.")
-            query = query.filter(entry__fund__code__in=codes)
+            entry__status=JournalEntry.POSTED, entry__entry_date__lte=period_end,
+            **{f"entry__fund__{key}": value for key, value in fund_filters.items()})
         lines = list(query.select_related("entry", "entry__fund", "account").order_by(
             "entry__fund__code", "entry__entry_date", "entry__reference", "sequence"))
         funds = {}
@@ -1530,11 +1549,7 @@ class StatementOfChangesInNetAssetsDataset(GovernedStatementDataset):
                 "control_group": "zero-opening evidence", "amount": Decimal("0.00"),
                 "source_url": reverse("accounting:opening_detail", kwargs={"public_id": batch.public_id}),
                 "source_checksum": checksum, "snapshot": {**values, "errors": errors}})
-        fund_query = Fund.objects.filter(department_id=department.pk, is_active=True)
-        if "fund_code" in filters:
-            fund_query = fund_query.filter(code=filters["fund_code"])
-        if "fund_code__in" in filters:
-            fund_query = fund_query.filter(code__in=filters["fund_code__in"])
+        fund_query = Fund.objects.filter(department_id=department.pk, is_active=True, **fund_filters)
         for fund in fund_query.order_by("code"):
             funds.setdefault(fund.pk, {"fund": fund, "entries": {}})
         comparison_start = period_start - relativedelta(years=1)
@@ -1673,7 +1688,7 @@ def _build_dataset(definition, period_start, period_end, parameters):
     adapter = dataset_registry[snapshot.get("dataset_key", definition.dataset_key)]
     if not adapter.supports_department(definition.department):
         raise ValueError("This approved dataset is not available to the report's department.")
-    if isinstance(adapter, (StatementOfChangesInNetAssetsDataset, StatementOfCashFlowsDataset)):
+    if isinstance(adapter, GovernedStatementDataset):
         snapshot = {key: snapshot.get(key, getattr(definition, key)) for key in
             ("dataset_key", "filters", "group_by", "totals", "sort_by", "selected_fields")}
         parameters = {**(parameters or {}), "_definition_snapshot": snapshot}
@@ -1686,6 +1701,9 @@ def _build_dataset(definition, period_start, period_end, parameters):
     configured_totals = snapshot.get("totals", definition.totals or [])
     configured_sort = snapshot.get("sort_by", definition.sort_by or [])
     selected = snapshot.get("selected_fields", definition.selected_fields)
+    # Statement filters have already selected ledger sources before calculation.
+    if isinstance(adapter, GovernedStatementDataset):
+        configured_filters = {}
     for filter_key, expected in configured_filters.items():
         field, _, operator = filter_key.partition("__")
         operator = operator or "exact"

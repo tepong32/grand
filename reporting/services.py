@@ -183,8 +183,16 @@ def _selected_fields(run):
 def _document_metadata(run):
     template = run.template_version
     prefix = template.document_control_prefix or run.definition.department.slug.upper()
+    title = template.title or run.definition.name
+    snapshot = run.parameters.get("_definition_snapshot", {})
+    if snapshot.get("dataset_key", run.definition.dataset_key).startswith("finance_statement_"):
+        filters = snapshot.get("filters", {})
+        codes = next(iter(filters.values()), [])
+        if isinstance(codes, str):
+            codes = [codes]
+        title += " (Funds: " + (", ".join(codes) if codes else "all funds") + ")"
     return {
-        "title": template.title or run.definition.name,
+        "title": title,
         "header": template.header_text or run.definition.department.name,
         "period": f"{run.period_start:%B %d, %Y} to {run.period_end:%B %d, %Y}",
         "control_id": f"{prefix}-{str(run.public_id)[:8].upper()}",

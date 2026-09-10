@@ -45,6 +45,8 @@ Make future national-government, COA and DBM changes manageable through reviewed
 
 ## Current execution
 
+Current v0.7.78: [source fund selection and complete rows](FINANCE_STATEMENT_FUNDS_2026-09-10.md) align Position/Performance with Net Assets/Cash Flow. Read the validation record for actual evidence. M02 prior-payable linkage follows; exact statement forms/reference comparisons and real office acceptance remain incomplete. The following entries retain their historical checkpoint scope.
+
 The [four-statement package work](FINANCE_STATEMENT_PACKAGE_2026-09-10.md) adds all four note members, source/total consistency, movement-statement reference comparisons and immutable downloads containing actual report files and printable notes. M01 still requires common fund-scoped generation and protection against hidden rows in standalone Position/Performance reports; the package guard does not substitute for repairing those report paths. Then continue M02 prior-payable linkage.
 
 Historical posted cash classification and mixed generated-payment allocations have advanced through a separate reviewed metadata path; [current implementation and validation](FINANCE_CASH_ALLOCATIONS_2026-09-10.md). Continue M01 with complete four-statement notes/packages and signed-reference controls after its regression gate, then M02 prior-payable linkage. Do not treat source calculation tests as exact local form acceptance.

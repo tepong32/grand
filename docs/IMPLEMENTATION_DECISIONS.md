@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-071:** Select statement funds at the ledger source, retain every financial row/column, pin selection into issued evidence and reject arbitrary post-calculation filtering.
+
 - **D-070:** Require consistent four-statement evidence for new notes; issue immutable bundles containing actual reports and printable notes, retain historical two-member records, and serialize note approvals before candidate locks.
 
 - **D-069:** Classify historical and mixed posted cash through independently reviewed allocations; preserve financial history, serialize decisions on the source journal and retain report-specific classification versions.
@@ -760,6 +762,15 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-071 - Select source funds before calculating complete statements
+
+- Date: 2026-09-10. Status: implemented in v0.7.78; see [validation and remaining work](FINANCE_STATEMENT_FUNDS_2026-09-10.md).
+- Goal: finish concrete M01 source-to-ledger-to-output behavior before surrounding UX/framework work.
+- Decision: use one common exact/list fund restriction on original posted journals in all four statement adapters. Reuse the existing definition form and retained run snapshot. Reject financial row filters, grouping, generic totals, custom row sorting and incomplete columns at definition validation and generation. Include scope in generated title metadata.
+- Evidence: earlier Position/Performance could calculate the whole ledger and then hide rows while retaining a reconciled control status. The package guard rejected incomplete members but did not fix standalone generation. Multi-fund tests now check separate and combined amounts, original journal scope, actual exports and complete notes.
+- Tradeoffs: existing invalid definitions fail a new generation and need correction; no silent reinterpretation or backfill of prior outputs. Position/Performance aggregate selected funds, while movement reports retain their per-fund detail. Selection stays in current report configuration rather than adding another selection workflow.
+- Boundaries: preserve office/role restrictions, historical evidence and separate stores. Office-wide zero-opening declarations keep their existing meaning. Exact statutory presentation, local scope decisions and broader acceptance remain unproven; M02 payable linkage follows this repair.
 
 ## D-070 - Complete statement membership and retain issued package files
 

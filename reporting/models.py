@@ -127,6 +127,12 @@ class ReportDefinition(models.Model):
             raise ValidationError({"dataset_key": "Select an approved application dataset."})
         if not adapter.supports_department(self.department):
             raise ValidationError({"dataset_key": "This approved dataset is not available to the selected department."})
+        if hasattr(adapter, "validate_configuration"):
+            try:
+                adapter.validate_configuration({key: getattr(self, key) for key in
+                    ("filters", "selected_fields", "group_by", "totals", "sort_by")})
+            except ValueError as exc:
+                raise ValidationError(str(exc)) from exc
         allowed = set(adapter.column_keys)
         selected = self.selected_fields or []
         json_lists = {"selected_fields": selected, "group_by": self.group_by or [], "totals": self.totals or [], "sort_by": self.sort_by or []}
@@ -144,9 +150,10 @@ class ReportDefinition(models.Model):
                 raise ValidationError({field_name: "Only approved dataset fields may be used."})
         if not isinstance(self.filters, dict):
             raise ValidationError({"filters": "Filters must be a controlled key/value mapping."})
+        filter_fields = allowed | ({"fund_code"} if hasattr(adapter, "validate_configuration") else set())
         for filter_key, value in self.filters.items():
             parts = filter_key.split("__", 1)
-            if parts[0] not in allowed or (len(parts) == 2 and parts[1] not in ("exact", "contains", "in")):
+            if parts[0] not in filter_fields or (len(parts) == 2 and parts[1] not in ("exact", "contains", "in")):
                 raise ValidationError({"filters": f"Unsupported filter: {filter_key}."})
             if isinstance(value, (dict, list)) and not (filter_key.endswith("__in") and isinstance(value, list)):
                 raise ValidationError({"filters": "Filter values must be text, numbers, or a list used with the 'in' operator."})

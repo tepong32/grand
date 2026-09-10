@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.78 - Common statement fund selection and complete financial rows
+
+Position, Performance, Net Assets and Cash Flow select ledger funds before calculation and retain complete required rows/columns. Definition validation and generation reject settings that hide or regroup financial rows. Existing fund filters support one or multiple funds, and generated title metadata records scope. Historical report files and snapshots remain unchanged. [Evidence and remaining work](docs/FINANCE_STATEMENT_FUNDS_2026-09-10.md).
+
 ## v0.7.77 - Four-statement notes, comparisons and issued packages
 
 New notes select Position, Performance, Net Assets and Cash Flow, verify matching source journals and financial totals, and support independent review. Cash Flow/Net Assets reference checks compare every fund's current and comparative rows. Authorized users can download the four original reports with printable A4 notes and a file manifest; the first ZIP remains an immutable issued copy. Historical two-member notes remain readable, and native competing approvals cannot leave an older version authoritative. Standalone Position/Performance fund scoping and complete-row generation still need alignment before M01 is complete. [Validation and remaining financial work](docs/FINANCE_STATEMENT_PACKAGE_2026-09-10.md).

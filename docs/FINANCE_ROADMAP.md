@@ -1,5 +1,7 @@
 # GRAND Finance complete-cycle roadmap
 
+Current M01 calculation work: [fund-scoped statement generation](FINANCE_STATEMENT_FUNDS_2026-09-10.md) selects the same ledger funds before all four statements calculate, retains required financial rows/columns and verifies source-to-XLSX amounts. See its validation state. M02 prior-payable linkage is next; exact forms, eGAPS inventory, ordinary office scenarios and LGU acceptance remain open. Older fund/package gaps below describe previous checkpoints.
+
 ## Accepted modernization direction — 2026-09-10
 
 Latest M01 work: [four-statement notes, reference comparisons and issued ZIPs](FINANCE_STATEMENT_PACKAGE_2026-09-10.md) now use real retained report files and cross-statement evidence. Complete common fund selection/financial-row generation across all four report paths next; standalone Position/Performance still have older generic filtering behavior. M02 follows that functional alignment. Exact statutory layouts and LGU acceptance remain unproven.

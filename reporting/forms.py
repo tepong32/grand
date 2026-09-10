@@ -659,6 +659,11 @@ class ReportDefinitionForm(forms.ModelForm):
         ]
         self.fields["sort_by"].choices = [(column.key, f"{column.label} - ascending") for column in columns] + [(f"-{column.key}", f"{column.label} - descending") for column in columns]
         self.fields["filter_field"].choices = [("", "No additional filter")] + field_choices
+        if adapter and hasattr(adapter, "validate_configuration"):
+            self.fields["filter_field"].choices = [("", "All funds"), ("fund_code", "Fund code")]
+            self.fields["filter_operator"].choices = [("exact", "Equals"), ("in", "Is one of (comma-separated)")]
+            self.fields["filter_value"].help_text = "Select ledger funds before statement calculation. Required financial rows are always retained."
+
         if self.instance.pk and self.instance.filters:
             key, value = next(iter(self.instance.filters.items()))
             field, _, operator = key.partition("__")
