@@ -590,6 +590,8 @@ def complete_returned_review_after_posting(*, posting_request, actor):
         return None
     review.status = review.READY_FOR_TREASURY if review.outcome == review.REISSUE else review.CLOSED
     if review.status == review.CLOSED:
+        from .prior_payables import retire_returned_claim
+        retire_returned_claim(posting_request, review, actor)
         review.closed_by = actor
         review.closed_at = timezone.now()
         from .cash_positions import resolve_instrument_exception

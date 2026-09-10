@@ -1256,6 +1256,8 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
     locked = JournalEntry.objects.select_for_update().select_related("fund").get(pk=entry.pk)
     if locked.status != JournalEntry.POSTED:
         raise ValidationError("Only a posted journal can be reversed.")
+    if locked.source_type == "voucher" and locked.source_snapshot.get("prior_payable"):
+        raise ValidationError("Use the voucher's governed cancellation or bank-return workflow for a reserved prior-payable application; a detached reversal would leave its payment handoff unchanged.")
     active_reversals = JournalEntry.objects.filter(reversal_of=locked).exclude(status=JournalEntry.VOIDED)
     if active_reversals.exists():
         raise ValidationError("A reversing journal has already been prepared for this entry.")
@@ -1300,6 +1302,7 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
             credit=line.debit,
             cash_flow_category=line.cash_flow_category,
             payable_origin_id=line.payable_origin_id or (line.pk if line.payable_claim_reference else None),
+            payable_reservation_id=line.payable_reservation_id,
             memo=f"Reversal: {line.memo}"[:255],
         )
         reversed_line.full_clean()

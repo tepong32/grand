@@ -1,6 +1,6 @@
 # GRAND Finance roadmap completion audit
 
-Current M02 source work: [individual payable claims and applications](FINANCE_PAYABLE_CLAIMS_2026-09-10.md) supplies claim-specific dated balances, reversals, native posting controls and an archived schedule. Read its validation state. Prior-payable DV integration and earlier-accrual request generation remain required; no full M02 or parity completion is claimed.
+Current M02 integration: [prior-payable DV settlement](FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md) connects named claims through independent validation, deduction adjustment, actual payment, cancellation, return and replacement. Native recovery/capacity tests pass; consult its final validation record. Earlier-accrual generation, historical attribution and posted-adjustment correction remain open. This does not close M02 or the Finance parity gate.
 
 Current M01 calculation work: [fund-scoped statement generation](FINANCE_STATEMENT_FUNDS_2026-09-10.md) selects the same ledger funds before all four statements calculate, retains required financial rows/columns and verifies source-to-XLSX amounts. See its validation state. M02 prior-payable linkage is next; exact forms, eGAPS inventory, ordinary office scenarios and LGU acceptance remain open. Older fund/package gaps below describe previous checkpoints.
 

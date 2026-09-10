@@ -208,8 +208,10 @@ def _deduction_payload(item):
 
 
 def _event_posting_payload(case, posting_rule, rule_checksum, *, event_amount, bank_account_code, trigger):
+    from .prior_payables import payload_evidence
     voucher = case.disbursement_voucher
     return {
+        **payload_evidence(case),
         "schema_version": 4,
         "voucher_case_public_id": str(case.public_id),
         "voucher_reference": case.reference_code,
@@ -1633,7 +1635,7 @@ def _approved_override(case, action_code, actor):
 
 
 @transaction.atomic
-def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_version, idempotency_key):
+def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_version, idempotency_key, prior_payable_line_id=None):
     _require(actor, "vouchers.validate_accounting_voucher")
     case, existing = _locked(case, expected_version, idempotency_key)
     if existing:
@@ -1707,11 +1709,14 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         intake.recognition_basis if intake is not None
         else "Legacy voucher route created without a payable-intake record; apply the pinned DV-validation rule."
     )
-    if recognition_decision == PayableIntake.ACCRUE_BEFORE_SETTLEMENT:
+    prior_claim = recognition_decision in (PayableIntake.ACCRUE_BEFORE_SETTLEMENT, PayableIntake.SETTLE_EXISTING_PAYABLE)
+    if prior_payable_line_id and not prior_claim:
+        raise VoucherWorkflowError("A prior claim can only be selected for an earlier-accrual or existing-payable decision.")
+    if recognition_decision == PayableIntake.ACCRUE_BEFORE_SETTLEMENT and not prior_payable_line_id:
         raise VoucherWorkflowError(
             "This case requires an earlier accrual JEV. Link that posted payable before settlement; do not record it again as DV recognition."
         )
-    if recognition_decision == PayableIntake.SETTLE_EXISTING_PAYABLE:
+    if recognition_decision == PayableIntake.SETTLE_EXISTING_PAYABLE and not prior_payable_line_id:
         raise VoucherWorkflowError(
             "This case settles an existing payable. Link the prior posted payable before creating the settlement JEV."
         )
@@ -1720,6 +1725,8 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         if recognition_decision == "legacy_pre_f5_recognize_with_dv"
         else decision_event.get(recognition_decision)
     )
+    if prior_claim:
+        event_kind = FinancePostingRule.ADJUSTMENT
     if not event_kind:
         raise VoucherWorkflowError("The payable intake does not contain a supported governed recognition decision.")
     if not case.configuration_release_id:
@@ -1731,6 +1738,42 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         raise VoucherWorkflowError(
             f"The pinned Finance Setup release has no governed transaction variant for '{case.transaction_type}'."
         )
+    prior_evidence = {}
+    if prior_claim:
+        if department_for_user(actor).pk != case.configuration_release.department_id:
+            raise PermissionDenied("Prior-payable validation belongs to the owning Accounting ledger.")
+        if jev_date < voucher.voucher_date:
+            raise VoucherWorkflowError("Prior-payable validation cannot precede the voucher date.")
+        from accounting.models import JournalLine
+        from accounting.payables import reservation_evidence
+        from .prior_payables import check_payment_policy, check_rule, reserve_for_validation
+        source = JournalLine.objects.select_related("entry__fund", "account").filter(pk=prior_payable_line_id).first()
+        if source is None:
+            raise VoucherWorkflowError("Select a posted original payable claim.")
+        check_payment_policy(case, source)
+        if voucher.total_deductions:
+            adjustment = variant.posting_rules.filter(event_kind=FinancePostingRule.ADJUSTMENT).first()
+            if not adjustment or adjustment.recognition_point != FinancePostingRule.DV_VALIDATION:
+                raise VoucherWorkflowError("Configure the prior-payable deduction adjustment at DV validation.")
+            check_rule(posting_rule_snapshot(adjustment)[0], deduction=True, source=source, transaction_type=case.transaction_type)
+            if not jev_number.strip():
+                raise VoucherWorkflowError("A JEV number is required for the prior-payable deduction adjustment.")
+        elif jev_number.strip():
+            raise VoucherWorkflowError("Leave JEV number blank: a prior payable without deductions requires no new recognition JEV.")
+        reservation = reserve_for_validation(case, actor, source.pk, jev_date)
+        prior_evidence = reservation_evidence(reservation)
+        if not voucher.total_deductions:
+            AccountingValidation.objects.create(case=case, decision=AccountingValidation.ACCEPTED,
+                jev_number="", jev_date=jev_date, note=note.strip(), validated_by=actor,
+                validated_at=timezone.now(), prior_payable_snapshot=prior_evidence)
+            metadata = {"prior_payable": prior_evidence, "recognition_decision": recognition_decision,
+                "recognition_basis": recognition_basis}
+            if case_override:
+                metadata["case_override"] = case_override
+            if workflow_exemption:
+                metadata["workflow_exemption"] = workflow_exemption
+            return _advance(case, actor, VoucherCase.TREASURY_CHECK_PREPARATION,
+                "accounting_validated", idempotency_key, note, metadata)
     posting_rule = variant.posting_rules.filter(event_kind=event_kind).first()
     if posting_rule is None:
         raise VoucherWorkflowError(
@@ -1743,9 +1786,10 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
     rule_snapshot, rule_checksum = posting_rule_snapshot(posting_rule)
     validation = AccountingValidation.objects.create(
         case=case, decision=AccountingValidation.ACCEPTED, jev_number=jev_number.strip(), jev_date=jev_date,
-        note=note.strip(), validated_by=actor, validated_at=timezone.now(),
+        note=note.strip(), validated_by=actor, validated_at=timezone.now(), prior_payable_snapshot=prior_evidence,
     )
     payload = {
+        **({"prior_payable": prior_evidence} if prior_evidence else {}),
         "schema_version": 3,
         "voucher_case_public_id": str(case.public_id),
         "voucher_reference": case.reference_code,
@@ -1829,6 +1873,10 @@ def issue_check(*, case, actor, bank_account_code, check_number, amount, expecte
     if existing:
         return case.payment_instruments.get(public_id=existing.metadata["instrument_id"])
     _require_current_office(case, actor)
+    from .prior_payables import current_reservation, check_payment_policy
+    prior_reservation = current_reservation(case)
+    if prior_reservation:
+        check_payment_policy(case, prior_reservation.source)
     _require_active_case_foundation(case)
     if case.current_stage != VoucherCase.TREASURY_CHECK_PREPARATION:
         raise VoucherWorkflowError("This voucher is not ready for Treasury check preparation.")
@@ -1982,6 +2030,10 @@ def release_check(*, case, instrument, actor, claimant, receipt_reference, expec
     if existing:
         return case
     _require_current_office(case, actor)
+    from .prior_payables import current_reservation, check_payment_policy
+    prior_reservation = current_reservation(case)
+    if prior_reservation:
+        check_payment_policy(case, prior_reservation.source)
     instrument = PaymentInstrument.objects.select_for_update().select_related(
         "current_advice_batch",
     ).get(pk=instrument.pk)
@@ -2128,6 +2180,12 @@ def return_case(*, case, actor, target_stage, reason, expected_version, idempote
     blocker = return_route_blocker(case, target_stage)
     if blocker:
         raise VoucherWorkflowError(blocker)
+    if target_stage in {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.ACCOUNTING_VALIDATION,
+            VoucherCase.PAYABLE_PREPARATION, VoucherCase.AWAITING_SIGNATURES}:
+        from accounting.models import PayableClaimReservation
+        if PayableClaimReservation.objects.filter(case_public_id=case.public_id, released_at__isnull=True).exists():
+            from .prior_payables import release_for_return
+            release_for_return(case, actor, reason)
     if target_stage == VoucherCase.PAYABLE_PREPARATION:
         intake = case.payable_intake
         intake.status = PayableIntake.RETURNED

@@ -771,6 +771,8 @@ class JournalEntry(DepartmentOwnedModel):
 
 
 class JournalLine(models.Model):
+    payable_reservation = models.ForeignKey("PayableClaimReservation", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="applications", editable=False)
     payable_party_key = models.CharField(max_length=100, blank=True, help_text="Stable supplier/payee key for a newly recognized payable claim.")
     payable_claim_reference = models.CharField(max_length=120, blank=True, help_text="Invoice or claim reference for this liability credit.")
     payable_origin = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True,
@@ -828,6 +830,43 @@ class JournalLine(models.Model):
         if JournalEntry.objects.filter(pk=self.entry_id, source_reference__isnull=False).exists():
             raise ValidationError("Generated journal lines cannot be removed. Discard and recreate the source draft instead.")
         return super().delete(*args, **kwargs)
+
+
+class PayableClaimReservation(models.Model):
+    """Finance-side capacity retained across the recoverable voucher handoff."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    reservation_key = models.CharField(max_length=100, unique=True)
+    case_public_id = models.UUIDField(db_index=True)
+    source = models.ForeignKey(JournalLine, on_delete=models.PROTECT, related_name="claim_reservations")
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    source_snapshot = models.JSONField()
+    source_checksum = models.CharField(max_length=64)
+    created_by_id = models.PositiveBigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    released_at = models.DateTimeField(null=True, blank=True)
+    released_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    release_reason = models.TextField(blank=True)
+
+    class Meta:
+        constraints = (models.CheckConstraint(condition=models.Q(amount__gt=0), name="positive_payable_reservation"),)
+
+    def clean(self):
+        if bool(self.released_at) != bool(self.released_by_id) or bool(self.released_at) != bool(self.release_reason.strip()):
+            raise ValidationError("A released reservation requires its actor, date and reason together.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            fixed = ("public_id", "reservation_key", "case_public_id", "source_id", "amount",
+                "source_snapshot", "source_checksum", "created_by_id", "created_at")
+            if (not getattr(self, "_release_transition", False) or prior.released_at
+                    or any(getattr(self, key) != getattr(prior, key) for key in fixed)):
+                raise ValidationError("Payable reservation evidence is immutable; release an unused reservation explicitly.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain payable reservations as handoff evidence.")
 
 
 class CashFlowClassification(DepartmentOwnedModel):

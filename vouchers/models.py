@@ -534,6 +534,7 @@ class WetSignatureTask(models.Model):
 
 
 class AccountingValidation(models.Model):
+    prior_payable_snapshot = models.JSONField(default=dict, blank=True)
     ACCEPTED = "accepted"
     RETURNED = "returned"
     DECISION_CHOICES = ((ACCEPTED, "Accepted"), (RETURNED, "Returned for correction"))
@@ -545,6 +546,13 @@ class AccountingValidation(models.Model):
     note = models.TextField(blank=True)
     validated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="accounting_validations")
     validated_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            if prior.prior_payable_snapshot or self.prior_payable_snapshot != prior.prior_payable_snapshot:
+                raise ValidationError("Retain the prior-payable validation evidence; use a returned correction and a new decision.")
+        return super().save(*args, **kwargs)
 
 
 class VoucherNonFinancialAmendment(models.Model):

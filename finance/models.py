@@ -498,7 +498,9 @@ class FinancePostingRuleLine(models.Model):
     PAYABLE_MAPPING = "payable_mapping"
     BANK_MAPPING = "bank_mapping"
     FIXED_ACCOUNT = "fixed_account"
+    PRIOR_PAYABLE = "prior_payable"
     ACCOUNT_SOURCE_CHOICES = (
+        (PRIOR_PAYABLE, "Selected prior payable claim account"),
         (ALLOCATION_ACCOUNTS, "Each voucher allocation account"),
         (DEDUCTION_MAPPINGS, "Each deduction's configured payable account"),
         (PAYABLE_MAPPING, "Transaction's configured payable account"),
@@ -570,7 +572,7 @@ class FinancePostingRuleLine(models.Model):
                 raise ValidationError({"ledger_account_code": "Enter the locally confirmed posting account code."})
         elif self.ledger_account_code.strip():
             raise ValidationError({"ledger_account_code": "Use this only with one fixed ledger account."})
-        if self.account_source in {self.ALLOCATION_ACCOUNTS, self.DEDUCTION_MAPPINGS} and self.mapping_code.strip():
+        if self.account_source in {self.ALLOCATION_ACCOUNTS, self.DEDUCTION_MAPPINGS, self.PRIOR_PAYABLE} and self.mapping_code.strip():
             raise ValidationError({"mapping_code": "This repeated source determines its own mapping code."})
         if self.pk:
             prior = type(self).objects.select_related("rule__variant__release").get(pk=self.pk)

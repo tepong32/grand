@@ -13,7 +13,7 @@ from accounting.models import (
     AccountingAuditEvent, AccountingPeriod, Fund, JournalEntry, JournalLine, JournalSubsidiaryLine,
     LedgerAccount, PostingMapping, ResponsibilityCenter,
 )
-from finance.models import FinancePostingRuleLine
+from finance.models import FinancePostingRule, FinancePostingRuleLine
 
 from .models import VoucherCase, VoucherPostingRequest
 
@@ -100,6 +100,34 @@ def materialize_voucher_journal(posting_request, actor):
                 Fund.objects.filter(department_id=department.pk, code__iexact=fund_code, is_active=True),
                 f"Map or create active fund '{fund_code}' in Accounting Setup.",
             )
+            reservation = None
+            reversal_of = None
+            prior_evidence = payload.get("prior_payable")
+            if prior_evidence:
+                from accounting.models import PayableClaimReservation
+                from accounting.payables import verify_reservation
+                from .prior_payables import check_rule, original_payment
+                reservation = _one(PayableClaimReservation.objects.filter(
+                    public_id=prior_evidence.get("reservation"), case_public_id=request.case.public_id),
+                    "The retained prior-payable reservation is missing.")
+                if request.kind in (FinancePostingRule.CANCELLATION, FinancePostingRule.REVERSAL):
+                    original = original_payment(request.case, payload.get("trigger", {}))
+                    reversal_of = _one(JournalEntry.objects.select_for_update().filter(
+                        public_id=original.accounting_entry_public_id, status=JournalEntry.POSTED),
+                        "The original payment JEV is not posted.")
+                    from accounting.posted_evidence import verify_source_link
+                    verify_source_link(original, reversal_of, source_type="voucher")
+                    if reversal_of.reversal_entries.exclude(status=JournalEntry.VOIDED).exists():
+                        raise PostingRequestError("The original payment already has an active reversal.")
+                JournalLine.objects.select_for_update().get(pk=reservation.source_id)
+                reservation.refresh_from_db()
+                verify_reservation(reservation, prior_evidence)
+                if reservation.source.entry.department_id != department.pk or reservation.source.entry.fund_id != fund.pk:
+                    raise PostingRequestError("The reserved payable must belong to this Accounting office and fund.")
+                check_rule(request.posting_rule_snapshot,
+                    deduction=request.kind == FinancePostingRule.ADJUSTMENT,
+                    restoring=reversal_of is not None, source=reservation.source,
+                    transaction_type=payload["transaction_type"])
             debit_total = sum((Decimal(str(item.get("amount") or "0")) for item in allocations), Decimal("0.00"))
             gross = Decimal(payload["gross_amount"])
             net = Decimal(payload["net_amount"])
@@ -205,7 +233,11 @@ def materialize_voucher_journal(posting_request, actor):
                         raise PostingRequestError("The pinned posting rule contains an unsupported amount source.")
                     amount = scalar_amounts[amount_source]
                     mapping_code = str(instruction.get("mapping_code") or "").strip()
-                    if account_source == FinancePostingRuleLine.PAYABLE_MAPPING:
+                    if account_source == FinancePostingRuleLine.PRIOR_PAYABLE:
+                        if reservation is None:
+                            raise PostingRequestError("The prior-payable instruction requires a pinned original claim.")
+                        account = reservation.source.account
+                    elif account_source == FinancePostingRuleLine.PAYABLE_MAPPING:
                         account = mapped_account(PostingMapping.PAYABLE, mapping_code or payload["transaction_type"])
                     elif account_source == FinancePostingRuleLine.BANK_MAPPING:
                         bank_code = mapping_code or str(payload.get("bank_account_code") or "").strip()
@@ -217,7 +249,9 @@ def materialize_voucher_journal(posting_request, actor):
                     else:
                         raise PostingRequestError("The pinned posting rule contains an unsupported account source.")
                     subsidiary = None
-                    if account_source == FinancePostingRuleLine.PAYABLE_MAPPING:
+                    is_claim = reservation is not None and account_source in (
+                        FinancePostingRuleLine.PRIOR_PAYABLE, FinancePostingRuleLine.PAYABLE_MAPPING)
+                    if account_source in (FinancePostingRuleLine.PAYABLE_MAPPING, FinancePostingRuleLine.PRIOR_PAYABLE):
                         subsidiary = {
                             "category": JournalSubsidiaryLine.PAYABLE,
                             "reference_key": str(
@@ -230,6 +264,8 @@ def materialize_voucher_journal(posting_request, actor):
                         "account": account, "center": None, "amount": amount,
                         "side": side, "memo": memo, "subsidiary": subsidiary,
                         "cash_flow_category": instruction.get("cash_flow_category", ""),
+                        "payable_origin_id": reservation.source_id if is_claim else None,
+                        "payable_reservation_id": reservation.pk if is_claim else None,
                     })
 
             rows = [row for row in rows if row["amount"] != Decimal("0.00")]
@@ -243,6 +279,25 @@ def materialize_voucher_journal(posting_request, actor):
                 raise PostingRequestError(
                     f"The pinned posting rule produces an unbalanced entry: debit {debit_sum:.2f}, credit {credit_sum:.2f}."
                 )
+            if reversal_of:
+                remaining = list(rows)
+                rows = []
+                for original_line in reversal_of.lines.order_by("sequence"):
+                    matches = [row for row in remaining if row["account"].pk == original_line.account_id
+                        and row["center"] is None and original_line.responsibility_center_id is None
+                        and row["amount"] == (original_line.debit or original_line.credit)
+                        and row["side"] == ("credit" if original_line.debit else "debit")
+                        and row.get("payable_origin_id") == original_line.payable_origin_id
+                        and row.get("payable_reservation_id") == original_line.payable_reservation_id]
+                    if len(matches) != 1:
+                        raise PostingRequestError("The generated return must exactly reverse the posted payment lines.")
+                    row = matches[0]
+                    row["sequence"] = original_line.sequence
+                    row["cash_flow_category"] = original_line.cash_flow_category
+                    rows.append(row)
+                    remaining.remove(row)
+                if remaining or reversal_of.fund_id != fund.pk:
+                    raise PostingRequestError("The generated return must exactly reverse the posted payment fund and amounts.")
             entry = JournalEntry(
                 department_id=department.pk,
                 department_label=department.name,
@@ -253,6 +308,7 @@ def materialize_voucher_journal(posting_request, actor):
                 source_type="voucher",
                 source_reference=source_reference,
                 source_snapshot={
+                    **({"prior_payable": prior_evidence} if prior_evidence else {}),
                     "posting_request": source_reference,
                     "voucher_case": payload["voucher_case_public_id"],
                     "voucher_reference": payload["voucher_reference"],
@@ -270,6 +326,8 @@ def materialize_voucher_journal(posting_request, actor):
                     "payee_name": payload.get("payee_name", ""),
                 },
                 description=f"{payload['voucher_reference']} · {payload['particulars']}",
+                reversal_of=reversal_of,
+                reversal_reason=("Governed payment cancellation / bank return" if reversal_of else ""),
                 created_by_id=actor.pk,
                 created_by_label=actor.get_full_name() or actor.username,
             )
@@ -277,12 +335,14 @@ def materialize_voucher_journal(posting_request, actor):
             entry.save()
             for sequence, row in enumerate(rows, start=1):
                 line = JournalLine(
-                    entry=entry, sequence=sequence, account=row["account"],
+                    entry=entry, sequence=row.get("sequence", sequence), account=row["account"],
                     responsibility_center=row["center"],
                     debit=row["amount"] if row["side"] == FinancePostingRuleLine.DEBIT else Decimal("0.00"),
                     credit=row["amount"] if row["side"] == FinancePostingRuleLine.CREDIT else Decimal("0.00"),
                     memo=row["memo"],
                     cash_flow_category=row.get("cash_flow_category", ""),
+                    payable_origin_id=row.get("payable_origin_id"),
+                    payable_reservation_id=row.get("payable_reservation_id"),
                 )
                 line.full_clean(); line.save()
                 if row["subsidiary"]:

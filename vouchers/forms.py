@@ -729,13 +729,29 @@ class NonFinancialAmendmentForm(WorkflowForm):
 
 
 class AccountingValidationForm(WorkflowForm):
-    jev_number = forms.CharField(max_length=60)
+    jev_number = forms.CharField(max_length=60, required=False)
     jev_date = forms.DateField(widget=DateInput)
     note = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
 
     def __init__(self, *args, case=None, **kwargs):
         super().__init__(*args, case=case, **kwargs)
         self.fields["jev_date"].initial = timezone.localdate()
+        from accounting.models import JournalLine, JournalEntry
+        from .prior_payables import requires_prior_claim
+        is_prior = (case is not None and hasattr(case, "disbursement_voucher")
+            and hasattr(case, "obligation") and requires_prior_claim(case))
+        self.fields["jev_number"].required = not is_prior or bool(case.disbursement_voucher.total_deductions)
+        if is_prior:
+            sources = JournalLine.objects.filter(entry__department_id=case.configuration_release.department_id,
+                entry__status=JournalEntry.POSTED, payable_origin__isnull=True, credit__gt=0,
+                payable_party_key=f"finance-party:{case.payee.code}" if case.payee_id else "",
+                entry__fund__code__in=list(case.obligation.allocation_lines.values_list("fund_code", flat=True)))
+            sources = sources.exclude(payable_claim_reference="").select_related("entry__fund", "account")
+            field = forms.ModelChoiceField(queryset=sources, label="Original posted payable claim",
+                help_text="Select the original invoice liability. Its amount is reserved for this DV; the expense is not recognized again.")
+            field.label_from_instance = lambda line: f"{line.payable_claim_reference} · {line.entry.reference} · {line.entry.fund.code} · {line.credit:,.2f} recognized"
+            self.fields["prior_payable_line"] = field
+            self.fields["jev_number"].help_text = "Leave blank when there are no deductions. With deductions, enter the adjustment JEV number."
 
 
 class CheckIssueForm(WorkflowForm):

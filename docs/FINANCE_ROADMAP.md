@@ -1,5 +1,7 @@
 # GRAND Finance complete-cycle roadmap
 
+Current M02 integration: [prior-payable DV settlement](FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md) connects named source claims to validation, withholding, actual payment, cancellation, returned instruments and replacement, with recoverable reservations across the separate stores. Read the validation record before relying on this checkpoint. Configured earlier-accrual generation, historical attribution and remaining financial corrections are still open. Earlier “DV linkage blocked” statements describe prior checkpoints.
+
 Current M02 source work: [individual payable claims and applications](FINANCE_PAYABLE_CLAIMS_2026-09-10.md) supplies claim-specific dated balances, reversals, native posting controls and an archived schedule. Read its validation state. Prior-payable DV integration and earlier-accrual request generation remain required; no full M02 or parity completion is claimed.
 
 Current M01 calculation work: [fund-scoped statement generation](FINANCE_STATEMENT_FUNDS_2026-09-10.md) selects the same ledger funds before all four statements calculate, retains required financial rows/columns and verifies source-to-XLSX amounts. See its validation state. M02 prior-payable linkage is next; exact forms, eGAPS inventory, ordinary office scenarios and LGU acceptance remain open. Older fund/package gaps below describe previous checkpoints.

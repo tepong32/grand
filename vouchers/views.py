@@ -553,7 +553,8 @@ def case_action(request, public_id, action):
         elif action == "record-signature":
             record_signature_return(**common, task=data["task"], note=data["note"])
         elif action == "validate-accounting":
-            validate_accounting(**common, jev_number=data["jev_number"], jev_date=data["jev_date"], note=data["note"])
+            validate_accounting(**common, jev_number=data["jev_number"], jev_date=data["jev_date"], note=data["note"],
+                prior_payable_line_id=data["prior_payable_line"].pk if data.get("prior_payable_line") else None)
         elif action == "issue-check":
             issue_check(
                 **common, bank_account_code=data["bank_account_code"], fund_code=data["fund_code"],

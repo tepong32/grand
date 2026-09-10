@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-073:** Reserve original claim capacity across the existing separate-store DV handoff; post only actual deduction/payment effects, retain exact payment reversals and recover interrupted operations from pinned evidence.
+
 - **D-072:** Identify individual claims and their applications on immutable journal lines; derive dated outstanding amounts, serialize source-capacity/recognition checks and retain actual reversal lineage before enabling prior-payable DVs.
 
 - **D-071:** Select statement funds at the ledger source, retain every financial row/column, pin selection into issued evidence and reject arbitrary post-calculation filtering.
@@ -764,6 +766,15 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-073 - Settle prior-payable DVs without duplicate recognition
+
+- Date: 2026-09-10. Status: implemented in v0.7.80 on `codex/finance-prior-payable-dv`; validation is recorded in [the integration report](FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md).
+- Goal: finish real earlier-payable settlement using the familiar DV/Accounting/Treasury workflow, preserving separate databases, independent decisions and maintainability.
+- Decision: retain a Finance-side reservation against an original posted liability credit and pin its source/amount in the existing default-store validation and posting requests. Lock the original claim for reservations and journal applications; the case lock serializes per-case decisions. Recover an interrupted handoff with a deterministic case/version key. Release only unused evidence through a supported correction route.
+- Accounting behavior: no-deduction validation proceeds without a second recognition JEV. Deductions reclassify the original payable; actual payment reduces it. Generated cancellation/bank-return entries must exactly mirror the original posted payment and restore the same reservation. A reviewed return closed without replacement retires only unused capacity after its reversal posts, preserving prior deduction applications and recoverable closing evidence. Existing rules and posting/reconciliation services remain authoritative. A detached manual reversal cannot leave the operational payment state unreconciled.
+- Alternatives/tradeoffs: an aggregate payee balance cannot reserve an invoice, a default-store-only check cannot serialize against Finance journal posting, and a second expense JEV would duplicate recognition. The small source reservation is necessary cross-store commitment evidence, not a second ledger or generic workflow framework. Pinned releases and existing account mappings remain reusable; unsupported rule shapes fail before payment rather than producing a second expense.
+- Boundaries/revisit: one original claim/fund per DV, partial settlement supported. Earlier-accrual generation, historical attribution, consolidated claims and corrections to posted deduction adjustments remain explicit work. Exact forms and actual LGU acceptance are separate. Expand only for demonstrated financial scenarios while retaining independent approval and source recovery.
 
 ## D-072 - Link individual payable claims on the existing journal
 

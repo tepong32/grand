@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.80 - Settle prior-payable DVs through the payment cycle
+
+Accounting can link a DV to an original posted claim, reserve its gross amount and avoid recognizing the expense again. Deductions use a governed liability adjustment; actual payments, cancellations, bank returns and replacements carry the same claim/reservation. Closing a return without replacement releases only unused capacity. Interrupted cross-store validation, draft and closing handoffs retain recoverable evidence. Existing office scope, independent decisions, source locks and archived claim balances remain in force. Earlier-accrual generation, historical attribution and remaining posted-adjustment correction routes stay open. [Validation and limits](docs/FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md).
+
 ## v0.7.79 - Individual payable claims and dated applications
 
 Accounting can identify a payable on its original liability credit, apply later liability debits to that claim, and view/export dated outstanding amounts. Posting checks prevent linked overapplication, backdated overpayment and duplicate claim recognition; actual reversing entries restore capacity. The existing journal, subsidiary details, source snapshots and separate stores remain authoritative. This supplies the M02 source-ledger path; prior-payable DV integration, earlier-accrual requests and historical attribution remain open. [Validation and remaining work](docs/FINANCE_PAYABLE_CLAIMS_2026-09-10.md).
