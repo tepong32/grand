@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.72 - Familiar account-based Finance registers
+
+The Finance landing page provides direct Budget, Accounting and Treasury register shortcuts using each destination's existing permissions. Ordinary work is easier to find; technical boundaries remain in accessible disclosures and administration appears only for authorized accounts. No financial calculations, persistence or authority rules change. Accepted eGAPS-informed modernization priorities and the printable comparison are retained separately from implementation progress. See [navigation validation](docs/FINANCE_NAVIGATION_VALIDATION_2026-09-10.md); full workflow parity, missing statements/payable linkage, native scrutiny and real LGU/WFH acceptance remain open. Production remains NO-GO.
+
 ## v0.7.71 - Native conditional-identity audit checkpoint
 
 Inventoried 21 first-party conditional identities against native warnings, including 15 Finance-related identities. Traced service locks and correction paths, preserved six supporting-module identities and two third-party warnings, and recorded bounded reproduction priorities. No application/schema changes or new concurrency claims. The v0.7.70 711-test MySQL and SQLite baseline remains the latest runtime evidence; remote CI is unperformed. Production remains NO-GO.

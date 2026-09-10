@@ -1,5 +1,7 @@
 # GRAND Finance process-fidelity baseline
 
+Historical baseline: the table and divergence diagrams below predate later controlled printing, custody, payable and source-adapter work. They must not be read as the current implementation snapshot. The 2026-09-10 live/source comparison and accepted [modernization priorities](FINANCE_MODERNIZATION_PRIORITIES.md) identify current missing statement, settlement and source-workflow evidence; [CONTINUE.md](../CONTINUE.md) records the actual branch checkpoint. Preserve this earlier comparison as historical context, not proof that later changes or complete eGAPS parity have been accepted.
+
 This is the comparison starting point before full LGU field evidence is collected. `Implemented` describes GRAND code, not actual LGU acceptance. Findings use the evidence labels defined in the [complete-cycle roadmap](FINANCE_ROADMAP.md); the read-only eGAPS inspection did not prove hidden rules or exact operator sequences.
 
 ## Complete-cycle baseline

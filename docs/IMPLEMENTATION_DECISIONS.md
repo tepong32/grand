@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-065:** Prioritize complete eGAPS-informed office workflows and outputs, familiar account-based web navigation, maintainable rule/form changes and authorized WFH; preserve existing financial and acceptance controls.
+
 - **D-058:** Follow scheduled/registered work handed to another owner through return and review, exclude the user's current actions, and use only current handoff evidence for age.
 - **D-057:** Retain scheduling, defect registration and each recorded escalation as distinct personal actions, without implying completion, resolution or that GRAND sent a notification.
 - **D-056:** Follow the source stager's pending review handoff and credit retained staging/decision events only against their exact immutable source version.
@@ -741,3 +743,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Evidence: [the audit](FINANCE_NATIVE_INVARIANT_AUDIT_2026-09-09.md) reconciles 21 declarations with native warnings (15 Finance-related, six supporting). Two additional warnings belong to third-party email-address models. Known service locks and model validation can prevent some duplicates; no new duplicate-financial-record finding was reproduced in this slice.
 - Alternatives/tradeoffs: replacing every conditional key at once would broaden migrations before understanding lifecycle and duplicate-data conditions. Ignoring warnings would leave native enforcement unexamined. A bounded audit provides a concrete reproduction order and preserves separate validation for each repair; it is not completion of scrutiny.
 - Revisit when: native HTTP/transaction evidence exposes a material defect. Apply the critical-gap gate, preserve immutable history and refuse duplicate migration data before DDL. Never silently clean financial records, automatically replay actions, suppress warnings or patch installed third-party code to obtain a passing gate.
+
+## D-065 - Familiar web workspaces and practical Finance completion
+
+- Date: 2026-09-10. Status: direction authorized; initial navigation slice validated in v0.7.72. User clarification puts financial functionality and source-to-ledger-to-output proof before further UX or surrounding infrastructure work. eGAPS is the parity floor, not the design ceiling; see the authoritative order in [modernization priorities](FINANCE_MODERNIZATION_PRIORITIES.md).
+- Goal: improve the eGAPS office experience through GRAND's individual accounts and web delivery, make national/COA/DBM-driven changes manageable and support authorized WFH.
+- Decision: adopt [priorities M01–M08](FINANCE_MODERNIZATION_PRIORITIES.md). Prioritize missing statements, payable/source workflows and exact outputs; retain existing framework/collaboration deferrals. Familiar registers and next actions should lead, with technical evidence available through disclosures.
+- Implementation boundary: reuse existing Budget, Accounting, Voucher and Treasury registers. Shortcuts must honor each destination's complete access contract, including separately granted allotment, ledger, bank-reconciliation, advice, cash and remittance reads. UAT membership does not stand in for those read grants. Remittance navigation and views share the existing conjunction of workbench access and remittance permissions; no new role or authority is created.
+- Alternatives/tradeoffs: copying every eGAPS menu would expose unavailable functions and reproduce workstation navigation. A new universal workflow/configuration layer would defer practical coverage again. Existing reviewed configuration, templates and source registers provide the bounded change path; new accounting semantics still require implementation and validation.
+- WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
+- Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
+- Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.

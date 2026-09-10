@@ -1,19 +1,23 @@
 {% extends 'base.html' %}
 {% block title_ext %} · Finance operations{% endblock %}
 {% block content %}
+<style>
+  .finance-register-links a { white-space: normal; text-align: left; overflow-wrap: anywhere; }
+  .finance-entry-details summary { cursor: pointer; }
+  .finance-register-links a:focus-visible, .finance-entry-details summary:focus-visible { outline: 3px solid #005a9c; outline-offset: 3px; }
+</style>
 <div class="container-fluid pb-4">
   <div class="mb-3">
     <p class="text-uppercase text-primary small font-weight-bold mb-1">GRAND Finance</p>
     <h1 class="h3 mb-1">Finance operations</h1>
-    <p class="text-muted mb-0">Start from the work your account may perform. The same case and evidence remain connected across offices.</p>
+    <p class="text-muted mb-0">Open a familiar register or continue your pending work. Your account determines which offices and records you can access.</p>
   </div>
-  <div class="alert alert-info"><strong>One entry point, existing controls.</strong> This page only opens workspaces already allowed for your current department and role. It does not copy cases, grant permissions, approve work, or combine separate authorities.</div>
 
   <section class="card card-outline card-primary">
     <div class="card-body d-lg-flex align-items-center justify-content-between">
       <div class="mr-lg-4">
         <h2 class="h5 mb-1">Work needing attention</h2>
-        <p class="text-muted mb-2 mb-lg-0">Review permission-filtered counts across connected Finance registers, then open the exact source queue.</p>
+        <p class="text-muted mb-2 mb-lg-0">Find items to prepare, review or correct, and follow work you have sent to another office.</p>
       </div>
       <a class="btn btn-primary" href="{% url 'finance_operations:my_work' %}"><i class="fas fa-tasks mr-1"></i>Review my work</a>
     </div>
@@ -30,37 +34,41 @@
         </div>
         <div class="col-lg-3"><button class="btn btn-secondary btn-block" type="submit"><i class="fas fa-search mr-1"></i>Find visible cases</button></div>
       </form>
-      <p class="small text-muted mb-0 mt-2">Search runs inside your existing Voucher Workbench scope. Hidden cases do not affect results, suggestions, or counts; no broad wildcard export is created here.</p>
+      <p class="small text-muted mb-0 mt-2">Results include only the cases your account can access.</p>
     </div>
   </section>
   {% endif %}
 
   <section class="card card-outline card-primary">
-    <div class="card-header"><h2 class="card-title font-weight-bold">Your transaction work</h2></div>
+    <div class="card-header"><h2 class="card-title font-weight-bold">Office registers</h2></div>
     <div class="card-body"><div class="row">
-      {% for area in work_areas %}<div class="col-xl-3 col-lg-4 col-md-6 mb-3"><div class="card h-100 mb-0"><div class="card-body d-flex flex-column">
+      {% for area in work_areas %}<div class="col-xl-4 col-md-6 mb-3"><div class="card h-100 mb-0"><div class="card-body d-flex flex-column">
         <h3 class="h5"><i class="fas {{ area.icon }} text-primary mr-1"></i> {{ area.title }}</h3>
         <p class="small">{{ area.description }}</p>
-        <p class="small mb-2"><strong>Next:</strong> {{ area.next_action }}</p>
-        <p class="small text-muted">{{ area.boundary }}</p>
-        <a class="btn btn-outline-primary mt-auto" href="{% url area.url_name %}">{{ area.action_label }}</a>
+        <nav class="finance-register-links" aria-label="{{ area.title }} registers">
+          <a class="btn btn-outline-primary btn-block" href="{% url area.url_name %}">{{ area.action_label }}</a>
+          {% for link in area.links %}<a class="btn btn-outline-primary btn-block" href="{% url link.url_name %}">{{ link.label }}</a>{% endfor %}
+        </nav>
+        <details class="finance-entry-details small text-muted mt-3"><summary>About these records</summary><p class="mt-2 mb-0">{{ area.boundary }}</p></details>
       </div></div></div>{% empty %}<div class="col-12"><p class="text-muted mb-0">No transaction workspace is assigned to this account. Use the controls below for the work you were assigned.</p></div>{% endfor %}
     </div></div>
   </section>
 
+  {% if control_areas %}
   <section class="card">
-    <div class="card-header"><h2 class="card-title font-weight-bold">Setup, decisions, and field acceptance</h2></div>
+    <div class="card-header"><h2 class="card-title font-weight-bold">Administration and readiness</h2></div>
     <div class="card-body"><div class="row">
       {% for area in control_areas %}<div class="col-lg-4 col-md-6 mb-3"><div class="card h-100 mb-0"><div class="card-body d-flex flex-column">
         <h3 class="h5"><i class="fas {{ area.icon }} text-secondary mr-1"></i> {{ area.title }}</h3>
         <p class="small">{{ area.description }}</p>
-        <p class="small mb-2"><strong>Next:</strong> {{ area.next_action }}</p>
-        <p class="small text-muted">{{ area.boundary }}</p>
         <a class="btn btn-outline-secondary mt-auto" href="{% url area.url_name %}">{{ area.action_label }}</a>
+        <details class="finance-entry-details small text-muted mt-3"><summary>About this workspace</summary><p class="mt-2 mb-1">{{ area.next_action }}</p><p class="mb-0">{{ area.boundary }}</p></details>
       </div></div></div>{% endfor %}
     </div></div>
   </section>
+  {% endif %}
 
-  <p class="small text-muted"><i class="fas fa-question-circle mr-1"></i> Use the floating ? guide while keeping this page open. Personal tutorial checkmarks only help you resume; they are not attendance, competence, approval, or UAT evidence.</p>
+  <p class="small text-muted"><i class="fas fa-question-circle mr-1"></i> Need help? Open the floating ? guide without leaving your work.</p>
+  <details class="finance-entry-details small text-muted"><summary>Access and record controls</summary><p class="mt-2">Each register checks your current department and permissions. Opening a register does not approve a transaction. Physical signatures, printing and custody follow the approved office procedure, including when other work is done remotely.</p><p>Personal tutorial checkmarks only help you resume; they are not attendance, competence, approval, or UAT evidence.</p></details>
 </div>
 {% endblock %}

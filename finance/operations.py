@@ -44,16 +44,25 @@ def finance_operations_areas(user):
     if not access["allowed"]:
         return access, [], []
 
+    from accounting.access import can_view_bank_reconciliation, can_view_ledger
+    from budget.access import has_budget_permission
+    from vouchers.access import can_view_remittances, has_explicit_permission
+    from vouchers.cash_register import can_view_cash
+
     work = []
     controls = []
     if access["budget"]:
         work.append({
-            "title": "Budget and obligation control",
-            "description": "Prepare or review annual budget authority, allotments, and the shared obligation registry.",
+            "title": "Budget",
+            "description": "Budget preparation, appropriations, allotments and obligation requests.",
             "next_action": "Open the role-shaped Budget register and use its next-action filters.",
             "boundary": "Budget approval, appropriation authority, allotment, and obligation certification remain separate decisions.",
-            "url_name": "budget:obligation_workspace", "action_label": "Open Budget", "icon": "fa-chart-pie",
+            "url_name": "budget:workspace", "action_label": "Budget preparation and appropriations", "icon": "fa-chart-pie",
+            "links": [
+                {"label": "Allotment release orders", "url_name": "budget:allotment_workspace"}
+            ] if has_budget_permission(user, "view_allotment_control") else [],
         })
+        work[-1]["links"].append({"label": "Obligation requests (OBR)", "url_name": "budget:obligation_workspace"})
     if access["vouchers"]:
         from vouchers.roles import finance_workspace_profile
 
@@ -66,16 +75,47 @@ def finance_operations_areas(user):
         })
     if access["accounting"]:
         work.append({
-            "title": "Accounting and general ledger",
-            "description": "Prepare and independently post balanced JEVs, reconcile controls, and close periods through governed routes.",
+            "title": "Accounting",
+            "description": "Journal entry vouchers, books of accounts and period-end work.",
             "next_action": "Use the Accounting next-action filters; correct posted evidence only by reversal or another governed successor.",
             "boundary": "A balanced or posted JEV does not certify a statement, form, payment, or cutover.",
-            "url_name": "accounting:workspace", "action_label": "Open Accounting", "icon": "fa-book",
+            "url_name": "accounting:workspace", "action_label": "Journal entry vouchers (JEV)", "icon": "fa-book",
+            "links": [],
+        })
+        if can_view_ledger(user):
+            work[-1]["links"].extend([
+                {"label": "General ledger", "url_name": "accounting:ledger"},
+                {"label": "Trial balance", "url_name": "accounting:trial_balance"},
+                {"label": "Payable and withholding schedules", "url_name": "accounting:subsidiary_controls"},
+            ])
+        if can_view_bank_reconciliation(user):
+            work[-1]["links"].append({"label": "Bank reconciliation", "url_name": "accounting:bank_reconciliation_workspace"})
+        work[-1]["links"].extend([
+            {"label": "Beginning balances", "url_name": "accounting:opening_workspace"},
+            {"label": "Period close and reopening", "url_name": "accounting:period_close_workspace"},
+        ])
+
+    treasury_links = []
+    if access["vouchers"]:
+        if has_explicit_permission(user, "vouchers.view_bank_advice"):
+            treasury_links.append({"label": "Bank advice and returned payments", "url_name": "vouchers:advice_workspace"})
+        if can_view_cash(user):
+            treasury_links.append({"label": "Cash position and payment instruments", "url_name": "vouchers:cash_workspace"})
+        if can_view_remittances(user):
+            treasury_links.append({"label": "Remittances", "url_name": "vouchers:remittance_workspace"})
+    if treasury_links:
+        first_link, *other_links = treasury_links
+        work.append({
+            "title": "Treasury and bank advice",
+            "description": "Cash availability, advice, returned payments and remittances.",
+            "boundary": "Physical checks, signatures and custody still follow the approved office procedure.",
+            "url_name": first_link["url_name"], "action_label": first_link["label"],
+            "links": other_links, "icon": "fa-money-check-alt",
         })
     if access["reporting"]:
         work.append({
             "title": "Reports and official outputs",
-            "description": "Generate reproducible schedules, statements, and packages from approved sources and controlled templates.",
+            "description": "Prepare schedules and statements, then follow their review and approval.",
             "next_action": "Use the report-run next-action filters, then open the retained run and its detailed controls.",
             "boundary": "A generated output or register is not official until its separate review and local acceptance gates pass.",
             "url_name": "reporting:workspace", "action_label": "Open Reports", "icon": "fa-file-alt",

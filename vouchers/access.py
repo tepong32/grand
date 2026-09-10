@@ -78,6 +78,15 @@ def can_view_workbench(user):
     )
 
 
+def can_view_remittances(user):
+    """Use both access gates of the remittance register for navigation and reads."""
+    return can_view_workbench(user) and any(has_explicit_permission(user, permission) for permission in (
+        "vouchers.view_remittance_workbench", "vouchers.prepare_remittances",
+        "vouchers.approve_remittances", "vouchers.release_remittances",
+        "vouchers.view_remittance_audit",
+    ))
+
+
 def voucher_access_required(view):
     @wraps(view)
     def wrapper(request, *args, **kwargs):

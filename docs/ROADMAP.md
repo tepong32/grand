@@ -1,5 +1,7 @@
 # GRAND product roadmap
 
+User direction accepted and clarified 2026-09-10: finish concrete Finance functionality and source-to-ledger-to-output proof first, then the actual eGAPS inventory, ordinary office scenarios, exact outputs, clerk usability and operational acceptance. eGAPS is the parity floor, not the design ceiling. Preserve account-based web workflows, maintainable national/COA/DBM changes and authorized WFH. [Finance modernization priorities](FINANCE_MODERNIZATION_PRIORITIES.md) are authoritative over older sequencing. No further UX or surrounding infrastructure expansion before unresolved functionality unless required to complete or validate it. Existing financial, native-validation and production gates remain.
+
 Development v0.7.71 records the [native identity audit](FINANCE_NATIVE_INVARIANT_AUDIT_2026-09-09.md): 21 first-party declarations, 15 Finance-related, with service-boundary evidence and next native reproduction cases. This is an audit checkpoint, not a schema repair or completed concurrency gate.
 
 Finance v0.7.70 (development branch): bank-match conflict handling and native identity checks are verified; a repeatable native test runner/CI job is implemented. Local SQLite/MySQL gates passed; remote CI is unperformed because CLI authentication is invalid. See [the validation report](FINANCE_BANK_MATCH_VALIDATION_2026-09-09.md). Continuing bounded scrutiny after this checkpoint; remaining scrutiny and all external acceptance gates are preserved.

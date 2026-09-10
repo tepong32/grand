@@ -1,5 +1,7 @@
 # GRAND Finance roadmap completion audit
 
+2026-09-10 scope clarification: historical “software-control slices implemented” statements below do not establish full eGAPS parity. The live/source comparison confirms no dedicated Cash Flow/Changes in Net Assets statement datasets and incomplete earlier-payable settlement linkage; collection/deposit, liquidation, broader subsidiaries and exact outputs require additional evidence/work. Follow the user-authorized [modernization priorities](FINANCE_MODERNIZATION_PRIORITIES.md), preserving the existing scrutiny and LGU gates.
+
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
 Historical merged-baseline audit date: 2026-09-06

@@ -73,7 +73,8 @@ class FinanceOperationsEntryTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Finance operations")
-        self.assertContains(response, "One entry point, existing controls")
+        self.assertContains(response, "Office registers")
+        self.assertContains(response, reverse("budget:workspace"))
         self.assertContains(response, reverse("budget:obligation_workspace"))
         self.assertContains(response, reverse("vouchers:workspace"))
         self.assertContains(response, reverse("accounting:workspace"))
@@ -82,7 +83,7 @@ class FinanceOperationsEntryTests(TestCase):
         self.assertContains(response, "Find a shared Finance case")
         self.assertContains(response, reverse("finance_operations:my_work"))
         self.assertContains(response, 'action="/finance/vouchers/"')
-        self.assertContains(response, "Hidden cases do not affect results")
+        self.assertContains(response, "Results include only the cases your account can access")
         self.assertContains(response, "Open Decisions")
         self.assertContains(response, "Open Field operations")
         self.assertContains(response, "Personal tutorial checkmarks")
@@ -91,6 +92,69 @@ class FinanceOperationsEntryTests(TestCase):
         self.assertEqual(reverse("finance:workspace"), "/finance/setup/")
         self.assertEqual(reverse("vouchers:workspace"), "/finance/vouchers/")
         self.assertEqual(reverse("accounting:workspace"), "/finance/accounting/")
+
+    def test_register_shortcuts_require_the_destination_read_permissions(self):
+        self.client.force_login(self.finance_user)
+        protected_routes = (
+            "budget:allotment_workspace", "accounting:ledger", "accounting:trial_balance",
+            "accounting:subsidiary_controls", "accounting:bank_reconciliation_workspace",
+            "vouchers:advice_workspace", "vouchers:cash_workspace", "vouchers:remittance_workspace",
+        )
+        response = self.client.get(reverse("finance_operations:overview"))
+        for route in protected_routes:
+            with self.subTest(route=route, granted=False):
+                self.assertNotContains(response, f'href="{reverse(route)}"')
+                self.assertEqual(self.client.get(reverse(route)).status_code, 403)
+
+        self._grant(
+            self.finance_user, "budget.view_allotment_control", "accounting.view_general_ledger",
+            "accounting.view_bank_reconciliation", "vouchers.view_bank_advice",
+            "vouchers.view_cash_position", "vouchers.view_remittance_workbench",
+        )
+        response = self.client.get(reverse("finance_operations:overview"))
+        for route in protected_routes:
+            with self.subTest(route=route, granted=True):
+                self.assertContains(response, f'href="{reverse(route)}"')
+                self.assertEqual(self.client.get(reverse(route)).status_code, 200)
+        for route in ("budget:workspace", "budget:obligation_workspace", "accounting:workspace",
+                      "accounting:opening_workspace", "accounting:period_close_workspace"):
+            with self.subTest(route=route):
+                self.assertContains(response, f'href="{reverse(route)}"')
+                self.assertEqual(self.client.get(reverse(route)).status_code, 200)
+
+        self.finance_user.user_permissions.remove(Permission.objects.get(
+            content_type__app_label="accounting", codename="view_general_ledger",
+        ))
+        response = self.client.get(reverse("finance_operations:overview"))
+        self.assertNotContains(response, f'href="{reverse("accounting:ledger")}"')
+        self.assertEqual(self.client.get(reverse("accounting:ledger")).status_code, 403)
+
+    def test_uat_register_shortcuts_do_not_imply_separate_read_grants(self):
+        self.client.force_login(self.uat_user)
+        response = self.client.get(reverse("finance_operations:overview"))
+        for route in ("budget:allotment_workspace", "accounting:ledger", "vouchers:advice_workspace",
+                      "vouchers:cash_workspace", "vouchers:remittance_workspace"):
+            self.assertNotContains(response, f'href="{reverse(route)}"')
+        self._grant(self.uat_user, "vouchers.view_remittance_audit")
+        response = self.client.get(reverse("finance_operations:overview"))
+        self.assertContains(response, f'href="{reverse("vouchers:remittance_workspace")}"')
+        register = self.client.get(reverse("vouchers:remittance_workspace"))
+        self.assertEqual(register.status_code, 200)
+        self.assertFalse(register.context["can_prepare"])
+        self.assertFalse(register.context["can_approve"])
+        self.assertFalse(register.context["can_release"])
+
+    def test_remittance_shortcut_preserves_both_register_access_gates(self):
+        user = self.no_access_user
+        self._grant(user, "vouchers.view_remittance_workbench")
+        self.client.force_login(user)
+        self.assertEqual(self.client.get(reverse("finance_operations:overview")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("vouchers:remittance_workspace")).status_code, 403)
+        self._grant(user, "vouchers.view_voucher_workbench")
+        response = self.client.get(reverse("finance_operations:overview"))
+        self.assertContains(response, f'href="{reverse("vouchers:remittance_workspace")}"')
+        self.assertEqual(self.client.get(reverse("vouchers:remittance_workspace")).status_code, 200)
+        self.assertNotContains(response, "Administration and readiness")
 
     def test_entry_omits_workspaces_not_allowed_to_the_account(self):
         self.client.force_login(self.voucher_only_user)

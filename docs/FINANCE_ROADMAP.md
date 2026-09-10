@@ -1,6 +1,12 @@
 # GRAND Finance complete-cycle roadmap
 
+## Accepted modernization direction — 2026-09-10
+
+The user accepted the live eGAPS/source comparison and authorized implementation of its [priorities M01–M08](FINANCE_MODERNIZATION_PRIORITIES.md), then clarified the delivery order: finish concrete financial gaps and source-to-ledger-to-output proof first; complete the actual inventory, ordinary Budget/Accounting/Treasury scenarios, exact documents, clerk usability and operational acceptance next. eGAPS is the parity floor, not the design ceiling. Preserve account-based web access, authorized WFH, maintainable national/COA/DBM changes, effective-dated evidence and physical signature/custody duties. No further UX or surrounding framework expansion ahead of unresolved financial functionality unless required to complete or validate it. Financial changes retain their native and acceptance gates.
+
 Development v0.7.71 records the [native identity audit](FINANCE_NATIVE_INVARIANT_AUDIT_2026-09-09.md): 21 first-party declarations, 15 Finance-related, with service-boundary evidence and next native reproduction cases. This is an audit checkpoint, not a schema repair or completed concurrency gate.
+
+Development v0.7.72 adds familiar office-register navigation under M06, preserving destination permissions and expandable control explanations. [Validation evidence](FINANCE_NAVIGATION_VALIDATION_2026-09-10.md) is separate from the remaining financial coverage and human acceptance requirements.
 
 Finance v0.7.70 (development branch): bank-match conflict handling and native identity checks are verified; a repeatable native test runner/CI job is implemented. Local SQLite/MySQL gates passed; remote CI is unperformed because CLI authentication is invalid. See [the validation report](FINANCE_BANK_MATCH_VALIDATION_2026-09-09.md). Continuing bounded scrutiny after this checkpoint; remaining scrutiny and all external acceptance gates are preserved.
 
@@ -8,7 +14,7 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](FINANCE_OPE
 
 Status: canonical delivery roadmap for the professional GRAND Finance sub-application. The current implementation is a shadow/UAT foundation, not yet the LGU's authoritative finance system.
 
-Current execution: after the v0.7.68 personal-handoff adapter checkpoint, the [core operational scrutiny](FINANCE_SCRUTINY_2026-09-09.md) is in progress. D-059 records this priority. Deferred collaboration scope and all external acceptance gates remain; no production readiness is inferred from the software baseline or a disposable native database rehearsal.
+Current execution: the clarified functional-first direction supersedes the earlier scrutiny-first sequence in D-059. Address M01 missing statements and M02 prior-payable linkage with source evidence and native validation. Retain [core operational scrutiny](FINANCE_SCRUTINY_2026-09-09.md), deferred collaboration and external acceptance gates; no production readiness follows from the software baseline or a disposable database rehearsal.
 
 ## Product outcome
 

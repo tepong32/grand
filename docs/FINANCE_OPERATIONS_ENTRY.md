@@ -4,6 +4,8 @@ Status: F1.2–F1.5 foundation and source adapters implemented: navigation, shar
 
 ## What staff receive
 
+M06 update (2026-09-10): the landing page groups familiar office registers and keeps current account access authoritative. Budget preparation/appropriations and OBR are directly reachable; Allotment Release Orders require their separate read permission. Accounting exposes JEVs, beginning balances and period close, with ledger/trial-balance/subsidiary and bank-reconciliation links only where their own grants allow. Treasury links expose bank advice, cash/instruments and remittances only under their source access contracts. Technical boundary explanations remain available in keyboard-accessible disclosures. No empty administration group is shown to accounts without control workspaces. [Navigation validation](FINANCE_NAVIGATION_VALIDATION_2026-09-10.md) passed the affected regression and browser checks. These links do not establish complete eGAPS parity or WFH acceptance; the clarified [modernization priorities](FINANCE_MODERNIZATION_PRIORITIES.md) put financial completeness before further UX work.
+
 `/finance/` is the stable Finance starting page. Its cards are assembled from the same existing access checks used by Budget, Voucher Workbench, Accounting, Reporting, Finance Setup, Decisions and evidence, and Shadow/cutover workspaces.
 
 - A normal Finance user sees only workspaces already available to the account's department and permissions.

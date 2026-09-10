@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.text import slugify
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from .access import department_for_user, has_explicit_permission, voucher_access_required
+from .access import can_view_remittances as _can_view, department_for_user, has_explicit_permission, voucher_access_required
 from .forms import (
     RemittanceBatchForm, RemittanceLineForm, RemittanceLineRevisionForm,
     RemittanceReleaseForm, RemittanceReviewForm, TaxFilingAmendmentForm,
@@ -23,14 +23,6 @@ from .remittances import (
 from .tax_filings import (
     create_amendment, export_evidence_csv, review_evidence, save_draft, submit_evidence, tax_scope,
 )
-
-
-def _can_view(user):
-    return any(has_explicit_permission(user, permission) for permission in (
-        "vouchers.view_remittance_workbench", "vouchers.prepare_remittances",
-        "vouchers.approve_remittances", "vouchers.release_remittances",
-        "vouchers.view_remittance_audit",
-    ))
 
 
 def _batch(public_id, user):
