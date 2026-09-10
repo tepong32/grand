@@ -252,6 +252,7 @@ def posting_rule_snapshot(rule):
                 "mapping_code": line.mapping_code,
                 "ledger_account_code": line.ledger_account_code,
                 "memo": line.memo,
+                **({"cash_flow_category": line.cash_flow_category} if line.cash_flow_category else {}),
             }
             for line in lines
         ],

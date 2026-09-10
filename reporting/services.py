@@ -67,6 +67,7 @@ def run_parameters(definition, runtime_parameters=None, template_version=None):
     statement_types = {
         "finance_statement_position": "position",
         "finance_statement_performance": "performance",
+        "finance_statement_cash_flow": "cash_flow",
     }
     statement_type = statement_types.get(definition.dataset_key)
     if statement_type:

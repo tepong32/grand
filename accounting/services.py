@@ -1295,6 +1295,7 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
             responsibility_center=line.responsibility_center,
             debit=line.credit,
             credit=line.debit,
+            cash_flow_category=line.cash_flow_category,
             memo=f"Reversal: {line.memo}"[:255],
         )
         reversed_line.full_clean()

@@ -2,6 +2,8 @@
 
 ## Accepted modernization direction — 2026-09-10
 
+Current statement work after v0.7.74: [comparative net-assets movements](FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md) and [initial Cash Flow calculation/source classification](FINANCE_CASH_FLOW_2026-09-10.md) advance M01. Cash Flow still needs historical posted-line classification and mixed generated-payment allocations; complete statement-note/package integration remains open. These are concrete financial deliverables ahead of further general UX work.
+
 The user accepted the live eGAPS/source comparison and authorized implementation of its [priorities M01–M08](FINANCE_MODERNIZATION_PRIORITIES.md), then clarified the delivery order: finish concrete financial gaps and source-to-ledger-to-output proof first; complete the actual inventory, ordinary Budget/Accounting/Treasury scenarios, exact documents, clerk usability and operational acceptance next. eGAPS is the parity floor, not the design ceiling. Preserve account-based web access, authorized WFH, maintainable national/COA/DBM changes, effective-dated evidence and physical signature/custody duties. No further UX or surrounding framework expansion ahead of unresolved financial functionality unless required to complete or validate it. Financial changes retain their native and acceptance gates.
 
 Development v0.7.71 records the [native identity audit](FINANCE_NATIVE_INVARIANT_AUDIT_2026-09-09.md): 21 first-party declarations, 15 Finance-related, with service-boundary evidence and next native reproduction cases. This is an audit checkpoint, not a schema repair or completed concurrency gate.

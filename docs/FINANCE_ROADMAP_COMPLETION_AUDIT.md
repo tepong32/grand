@@ -1,5 +1,7 @@
 # GRAND Finance roadmap completion audit
 
+The initial [Cash Flow implementation](FINANCE_CASH_FLOW_2026-09-10.md) now supplies a comparative direct-method output for supported classified sources. Historical cash metadata, mixed generated-purpose allocation and complete statement-package integration remain explicit M01 gaps. Read the latest validation report rather than interpreting the older baseline below as current complete coverage.
+
 2026-09-10 scope clarification: historical “software-control slices implemented” statements below do not establish full eGAPS parity. The v0.7.71 live/source comparison confirmed missing dedicated Cash Flow/Changes in Net Assets statement datasets and incomplete earlier-payable settlement linkage. The current [statement-movements work](FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md) implements a standalone comparative net-assets output; Cash Flow, complete statement-package integration, collection/deposit, liquidation, broader subsidiaries and exact outputs still require evidence/work. Follow the user-authorized [modernization priorities](FINANCE_MODERNIZATION_PRIORITIES.md), preserving the existing scrutiny and LGU gates.
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.

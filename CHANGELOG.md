@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.75 - Initial comparative Cash Flow and source purposes
+
+Accounting can generate a comparative direct-method Cash Flow statement from reviewed cash-account scope and classified posted cash lines. Manual JEVs and reviewed payment/remittance instructions retain purpose through source materialization and actual reversals; blank legacy rule snapshots retain their checksum calculation. Gross flows, non-cash activity, internal transfers, exchange effects and opening-to-closing reconciliation remain distinct. Historical posted-line classification, mixed generated-payment allocations and full statement-package integration are still required M01 work. See [coverage, validation and next functions](docs/FINANCE_CASH_FLOW_2026-09-10.md).
+
 ## v0.7.74 - Comparative net-assets movements and correct contra signs
 
 Accounting can generate a comparative Statement of Changes in Net Assets / Equity by fund, reconciling opening balances, explicit equity adjustments, current surplus and closing assets less liabilities. The existing JEV workflow distinguishes policy changes, prior-period corrections, opening restatements, direct-equity revenue and other movements while preserving independent posting, reversals and immutable source evidence. Missing opening/comparative evidence and unclassified movements remain exceptions. Contra balances now reduce the appropriate statement totals. This advances M01; Cash Flow, complete statement-package integration and local output acceptance remain open. See [calculation and validation](docs/FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md).

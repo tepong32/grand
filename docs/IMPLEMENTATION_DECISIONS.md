@@ -757,6 +757,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
 
+## D-068 - Report cash from explicit source purposes and reviewed cash scope
+
+- Date: 2026-09-10. Status: initial Cash Flow implementation validated in v0.7.75; native/source and broad SQLite regression passed. [Calculation, evidence and remaining functions](FINANCE_CASH_FLOW_2026-09-10.md).
+- Goal: complete M01 cash reporting from actual source-to-ledger-to-output evidence, preserving separate stores and immutable financial history.
+- Decision: reuse independently reviewed statement mappings for the cash/equivalent inventory and existing journal/posting-rule lines for cash purposes. Keep gross receipts/payments, mixed manual principal/interest, internal transfers, exchange effects, non-cash exclusions and actual reversal lineage distinct. Preserve blank legacy rule snapshot checksums; never infer cash purpose from an expense account or JEV description.
+- Alternatives/tradeoffs: all assets are not cash; voucher recognition is not actual payment; netting every cash journal would lose gross flows. Explicit cash inventory and line purpose support correct calculations but leave old blank history as visible exceptions. A scalar generated bank instruction cannot allocate mixed purposes merely by adding a label.
+- Next required functions: controlled historical classification without fake financial reversals, reviewed splits for mixed generated payments, and complete statement-package integration. These remain M01, not deferred UX/acceptance substitutes. Confirm actual local cash/equivalent and any overdraft scope and accepted form detail separately.
+
 ## D-067 - Classify actual net-assets movements in the existing ledger
 
 - Date: 2026-09-10. Status: implemented and validated in v0.7.74 on the statement-movements branch. [Evidence and limits](FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md).

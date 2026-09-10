@@ -12,6 +12,8 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
+from .cash_flows import CASH_FLOW_CHOICES
+
 from departments.models import Department
 
 
@@ -536,6 +538,8 @@ class FinancePostingRuleLine(models.Model):
         help_text="Required only for one locally confirmed fixed ledger account.",
     )
     memo = models.CharField(max_length=180, blank=True)
+    cash_flow_category = models.CharField(max_length=24, choices=CASH_FLOW_CHOICES, blank=True,
+        help_text="Cash-flow purpose of the generated cash line; leave non-cash instructions unclassified.")
 
     class Meta:
         ordering = ("sequence", "pk")
@@ -549,6 +553,8 @@ class FinancePostingRuleLine(models.Model):
     def clean(self):
         if self.rule_id and self.rule.variant.release.status != "draft":
             raise ValidationError("Posting-rule lines can be changed only inside a draft configuration release.")
+        if self.cash_flow_category and self.account_source not in {self.BANK_MAPPING, self.FIXED_ACCOUNT}:
+            raise ValidationError({"cash_flow_category": "Classify a bank/cash or fixed cash-account instruction only."})
         if self.account_source == self.ALLOCATION_ACCOUNTS and self.amount_source != self.EACH_ALLOCATION:
             raise ValidationError({"amount_source": "Allocation accounts must use each allocation amount."})
         if self.account_source == self.DEDUCTION_MAPPINGS and self.amount_source != self.EACH_DEDUCTION:

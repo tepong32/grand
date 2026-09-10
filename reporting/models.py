@@ -381,9 +381,11 @@ class ReportTemplateMappingField(models.Model):
 class FinanceStatementMapping(models.Model):
     POSITION = "position"
     PERFORMANCE = "performance"
+    CASH_FLOW = "cash_flow"
     STATEMENT_CHOICES = (
         (POSITION, "Management statement of financial position"),
         (PERFORMANCE, "Management statement of financial performance"),
+        (CASH_FLOW, "Cash flow - reviewed cash and cash-equivalent accounts"),
     )
     DRAFT = "draft"
     SUBMITTED = "submitted"
@@ -547,6 +549,10 @@ class FinanceStatementLine(models.Model):
             if any(not isinstance(code, str) or not code.strip() for code in self.account_codes):
                 raise ValidationError({"account_codes": "Account codes must be a non-empty controlled list."})
         if self.mapping_id:
+            if self.mapping.statement_type == FinanceStatementMapping.CASH_FLOW:
+                if self.selector_type != self.ACCOUNT_CODES:
+                    raise ValidationError("Cash-flow scope requires explicitly selected cash/cash-equivalent accounts, not all assets.")
+                return
             allowed = (
                 {"asset", "liability", "equity"}
                 if self.mapping.statement_type == FinanceStatementMapping.POSITION

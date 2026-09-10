@@ -541,7 +541,7 @@ def materialize_remittance_journal(posting_request, actor):
                             raise RemittanceWorkflowError(f"Add a deduction posting mapping for '{item['deduction_code']}'.")
                         if account.code.lower() != item["account_code"].lower():
                             raise RemittanceWorkflowError(f"The current mapping for '{item['deduction_code']}' no longer matches the posted liability account {item['account_code']}.")
-                        rows.append((account, Decimal(item["amount"]), "debit", item))
+                        rows.append((account, Decimal(item["amount"]), "debit", item, ""))
                 elif instruction["account_source"] == FinancePostingRuleLine.BANK_MAPPING:
                     if instruction["side"] != FinancePostingRuleLine.CREDIT or instruction["amount_source"] not in {FinancePostingRuleLine.EVENT_AMOUNT, FinancePostingRuleLine.TOTAL_DEDUCTIONS}:
                         raise RemittanceWorkflowError("The remittance payment instruction must credit the batch total to the bank mapping.")
@@ -549,11 +549,12 @@ def materialize_remittance_journal(posting_request, actor):
                     account = mapped(PostingMapping.BANK, code)
                     if account is None:
                         raise RemittanceWorkflowError(f"Add a bank posting mapping for '{code}'.")
-                    rows.append((account, Decimal(payload["event_amount"]), "credit", None))
+                    rows.append((account, Decimal(payload["event_amount"]), "credit", None,
+                        instruction.get("cash_flow_category", "")))
                 else:
                     raise RemittanceWorkflowError("This remittance phase supports each-deduction liability debits and one mapped bank credit.")
-            debit = sum((amount for _account, amount, side, _item in rows if side == "debit"), Decimal("0.00"))
-            credit = sum((amount for _account, amount, side, _item in rows if side == "credit"), Decimal("0.00"))
+            debit = sum((amount for _account, amount, side, _item, _flow in rows if side == "debit"), Decimal("0.00"))
+            credit = sum((amount for _account, amount, side, _item, _flow in rows if side == "credit"), Decimal("0.00"))
             if debit <= 0 or debit != credit or debit != Decimal(payload["event_amount"]):
                 raise RemittanceWorkflowError("The pinned remittance rule does not produce the exact balanced control total.")
             entry = JournalEntry(
@@ -565,12 +566,13 @@ def materialize_remittance_journal(posting_request, actor):
                 created_by_id=actor.pk, created_by_label=actor.get_full_name() or actor.username,
             )
             entry.full_clean(); entry.save()
-            for sequence, (account, amount, side, item) in enumerate(rows, start=1):
+            for sequence, (account, amount, side, item, cash_flow_category) in enumerate(rows, start=1):
                 line = JournalLine(
                     entry=entry, sequence=sequence, account=account,
                     debit=amount if side == "debit" else Decimal("0.00"),
                     credit=amount if side == "credit" else Decimal("0.00"),
                     memo=item["reference_label"] if item else f"Remittance via {payload['bank_account_code']}",
+                    cash_flow_category=cash_flow_category,
                 )
                 line.full_clean(); line.save()
                 if item:

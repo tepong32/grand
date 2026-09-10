@@ -385,7 +385,7 @@ class VoucherWorkflowTests(TestCase):
         batch.refresh_from_db()
         return batch
 
-    def enable_payment_event_rules(self):
+    def enable_payment_event_rules(self, cash_flow_category=""):
         owner = {"department_id": self.accounting.pk, "department_label": self.accounting.name}
         bank_account = LedgerAccount.objects.create(
             **owner,
@@ -435,6 +435,7 @@ class VoucherWorkflowTests(TestCase):
                 rule=payment,
                 sequence=20,
                 label="Credit releasing bank",
+                cash_flow_category=cash_flow_category,
                 side=FinancePostingRuleLine.CREDIT,
                 account_source=FinancePostingRuleLine.BANK_MAPPING,
                 amount_source=FinancePostingRuleLine.EVENT_AMOUNT,
@@ -481,7 +482,7 @@ class VoucherWorkflowTests(TestCase):
         ))
         return payment
 
-    def enable_remittance_route(self):
+    def enable_remittance_route(self, cash_flow_category=""):
         self.treasury_user.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="vouchers",
             codename__in=("view_remittance_workbench", "prepare_remittances", "approve_remittances", "release_remittances", "view_remittance_audit"),
@@ -528,6 +529,7 @@ class VoucherWorkflowTests(TestCase):
             ),
             FinancePostingRuleLine(
                 rule=rule, sequence=20, label="Credit releasing bank",
+                cash_flow_category=cash_flow_category,
                 side=FinancePostingRuleLine.CREDIT,
                 account_source=FinancePostingRuleLine.BANK_MAPPING,
                 amount_source=FinancePostingRuleLine.EVENT_AMOUNT,
@@ -612,7 +614,7 @@ class VoucherWorkflowTests(TestCase):
             )
 
     def test_remittance_batch_versions_allocations_and_completes_only_after_posting(self):
-        agency = self.enable_remittance_route()
+        agency = self.enable_remittance_route("op_other_out")
         case = self.ready_for_treasury()
         availability = withholding_availability(
             finance_department_id=self.accounting.pk,
@@ -672,6 +674,7 @@ class VoucherWorkflowTests(TestCase):
         entry, created = materialize_remittance_journal(posting_request, self.preparer)
         self.assertTrue(created)
         self.assertEqual(entry.source_type, "remittance")
+        self.assertEqual(entry.lines.get(account__code="1-01-02").cash_flow_category, "op_other_out")
         self.assertEqual(entry.totals, (Decimal("100.00"), Decimal("100.00")))
         detail = entry.subsidiary_lines.get()
         self.assertEqual((detail.debit, detail.credit), (Decimal("100.00"), Decimal("0.00")))
@@ -1298,7 +1301,7 @@ class VoucherWorkflowTests(TestCase):
         self.assertTrue(all(event.actor_department_id for event in case.events.all()))
 
     def test_payment_release_creates_event_jev_resumes_and_exports_register(self):
-        payment_rule = self.enable_payment_event_rules()
+        payment_rule = self.enable_payment_event_rules("op_suppliers")
         case = self.ready_for_treasury()
         instrument = issue_check(
             case=case,
@@ -1355,6 +1358,8 @@ class VoucherWorkflowTests(TestCase):
         bank_line = entry.lines.get(account__code="1-01-02")
         self.assertEqual(payable_line.debit, Decimal("900.00"))
         self.assertEqual(bank_line.credit, Decimal("900.00"))
+        self.assertEqual(bank_line.cash_flow_category, "op_suppliers")
+        self.assertEqual(request.posting_rule_snapshot["lines"][1]["cash_flow_category"], "op_suppliers")
         payable_detail = entry.subsidiary_lines.get(category=JournalSubsidiaryLine.PAYABLE)
         self.assertEqual(payable_detail.debit, Decimal("900.00"))
         submit_entry(entry, self.preparer)

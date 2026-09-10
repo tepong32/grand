@@ -229,6 +229,7 @@ def materialize_voucher_journal(posting_request, actor):
                     rows.append({
                         "account": account, "center": None, "amount": amount,
                         "side": side, "memo": memo, "subsidiary": subsidiary,
+                        "cash_flow_category": instruction.get("cash_flow_category", ""),
                     })
 
             rows = [row for row in rows if row["amount"] != Decimal("0.00")]
@@ -281,6 +282,7 @@ def materialize_voucher_journal(posting_request, actor):
                     debit=row["amount"] if row["side"] == FinancePostingRuleLine.DEBIT else Decimal("0.00"),
                     credit=row["amount"] if row["side"] == FinancePostingRuleLine.CREDIT else Decimal("0.00"),
                     memo=row["memo"],
+                    cash_flow_category=row.get("cash_flow_category", ""),
                 )
                 line.full_clean(); line.save()
                 if row["subsidiary"]:

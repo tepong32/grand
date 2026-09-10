@@ -379,7 +379,7 @@ class JournalEntryForm(StyledModelForm):
 class JournalLineForm(StyledModelForm):
     class Meta:
         model = JournalLine
-        fields = ("sequence", "account", "responsibility_center", "debit", "credit", "memo")
+        fields = ("sequence", "account", "responsibility_center", "debit", "credit", "cash_flow_category", "memo")
         widgets = {
             "debit": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
             "credit": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),

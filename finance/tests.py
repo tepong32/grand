@@ -595,6 +595,18 @@ class FinanceSetupCenterTests(TestCase):
         self.assertEqual(cancellation_snapshot["accounting_effect"], FinancePostingRule.NO_ENTRY)
         self.assertEqual(cancellation_snapshot["lines"], [])
         payment = variant.posting_rules.get(event_kind=FinancePostingRule.PAYMENT)
+        legacy_snapshot, legacy_checksum = posting_rule_snapshot(payment)
+        self.assertTrue(all("cash_flow_category" not in line for line in legacy_snapshot["lines"]))
+        bank_instruction = payment.lines.get(account_source=FinancePostingRuleLine.BANK_MAPPING)
+        bank_instruction.cash_flow_category = "op_suppliers"
+        bank_instruction.full_clean()
+        bank_instruction.save()
+        classified_snapshot, classified_checksum = posting_rule_snapshot(payment)
+        self.assertNotEqual(classified_checksum, legacy_checksum)
+        self.assertEqual(classified_snapshot["lines"][1]["cash_flow_category"], "op_suppliers")
+        bank_instruction.cash_flow_category = ""
+        bank_instruction.save()
+        self.assertEqual(posting_rule_snapshot(payment), (legacy_snapshot, legacy_checksum))
         self.assertEqual(
             set(payment.lines.values_list("amount_source", flat=True)),
             {FinancePostingRuleLine.EVENT_AMOUNT},

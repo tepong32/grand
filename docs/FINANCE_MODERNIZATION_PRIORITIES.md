@@ -45,6 +45,8 @@ Make future national-government, COA and DBM changes manageable through reviewed
 
 ## Current execution
 
+M01 Cash Flow work after v0.7.74: [classified cash movements and source propagation](FINANCE_CASH_FLOW_2026-09-10.md) now generate a comparative direct-method statement for supported lines. Remaining functional work includes historical posted-line classification without ledger rewrites, mixed generated-payment purpose allocations, and full statement-note/package integration. Do not treat the new dataset/preset as complete Cash Flow coverage or proceed to general UX while these gaps remain.
+
 M01 v0.7.74 checkpoint: the validated statement-movements branch adds a comparative net-assets output and corrects native-reproduced contra-account signs. [Calculation and validation record](FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md). Cash Flow and complete statement-package/notes integration remain outstanding; exact local form acceptance is still separate. Existing statements below describing absent net-assets functionality refer to the original assessment baseline, not a completed parity gate.
 
 The initial M06 navigation slice is implemented and validated; it does not close the broader UX acceptance requirement. Work now returns to source-grounded M01 missing statements and M02 payable linkage under the clarified functional-first order. See [CONTINUE.md](../CONTINUE.md) and [navigation validation](FINANCE_NAVIGATION_VALIDATION_2026-09-10.md) for actual evidence and immediate prerequisites.

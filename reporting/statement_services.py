@@ -81,6 +81,31 @@ def current_statement_mapping(department, statement_type):
 
 
 def mapping_coverage(mapping):
+    if mapping.statement_type == FinanceStatementMapping.CASH_FLOW:
+        from accounting.models import PostingMapping
+        lines = list(mapping.lines.order_by("position", "pk"))
+        codes = [code for line in lines for code in (line.account_codes or [])]
+        accounts = LedgerAccount.objects.filter(department_id=mapping.department_id,
+            allow_posting=True, account_type="asset", code__in=codes)
+        found = set(accounts.values_list("code", flat=True))
+        known = set(PostingMapping.objects.filter(department_id=mapping.department_id,
+            category=PostingMapping.BANK, is_active=True).values_list("account__code", flat=True))
+        known.update(LedgerAccount.objects.filter(department_id=mapping.department_id,
+            journal_lines__cash_flow_category__gt="").values_list("code", flat=True))
+        missing = sorted(known - set(codes))
+        errors = []
+        if not codes:
+            errors.append("Select the reviewed cash and cash-equivalent account inventory.")
+        if len(codes) != len(set(codes)):
+            errors.append("A cash account is selected more than once.")
+        if set(codes) - found:
+            errors.append("Selected cash accounts must be posting assets in this ledger.")
+        if any(line.selector_type != FinanceStatementLine.ACCOUNT_CODES for line in lines):
+            errors.append("Select cash account codes explicitly; an asset-type selector includes non-cash assets.")
+        if missing:
+            errors.append("Bank-mapped or cash-classified accounts omitted: " + ", ".join(missing))
+        return {"valid": not errors, "errors": errors, "active_account_count": len(found | known),
+            "mapped_account_count": len(set(codes)), "unmapped_account_codes": missing}
     allowed_types = (
         {"asset", "liability", "equity"}
         if mapping.statement_type == FinanceStatementMapping.POSITION

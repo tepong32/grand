@@ -1165,6 +1165,7 @@ class GovernedStatementDataset(ApprovedDataset):
             item["lines"].append({
                 "sequence": line.sequence, "account": line.account.code,
                 "account_type": line.account.account_type,
+                **({"cash_flow_category": line.cash_flow_category} if line.cash_flow_category else {}),
                 "debit": str(line.debit), "credit": str(line.credit), "memo": line.memo,
             })
         sources = []
@@ -1178,6 +1179,7 @@ class GovernedStatementDataset(ApprovedDataset):
                 "posted_by": entry.posted_by_label, "posted_at": entry.posted_at,
                 "nominal_closing_transfer": entry.is_nominal_closing,
                 "statement_source_type": entry.statement_source_type,
+                "statement_origin_public_id": str(entry.statement_origin.public_id),
                 "lines": item["lines"],
             }
             sources.append({
@@ -1569,6 +1571,83 @@ class StatementOfChangesInNetAssetsDataset(GovernedStatementDataset):
             ))
 
 
+class StatementOfCashFlowsDataset(GovernedStatementDataset):
+    key = "finance_statement_cash_flow"
+    label = "Comparative direct-method cash flows from classified posted cash lines"
+    statement_type = "cash_flow"
+    columns = StatementOfChangesInNetAssetsDataset.columns
+
+    def payload(self, department, period_start, period_end, parameters):
+        from dateutil.relativedelta import relativedelta
+        from accounting.models import LedgerAccount, PostingMapping
+        from finance.cash_flows import CASH_FLOW_ROWS
+        from .cash_flow_calculation import cash_flow_period
+
+        # Reuse the posted ledger and independently checked opening evidence.
+        # Equity classifications are not a gate for cash-flow reporting.
+        ledger = StatementOfChangesInNetAssetsDataset().payload(department, period_start, period_end, parameters)
+        mapping = self._mapping_snapshot(department, parameters)
+        codes = [code for line in mapping.get("lines", []) for code in line.get("account_codes", [])]
+        errors = []
+        if not codes or mapping.get("status") != "active":
+            errors.append("Independently review and activate the cash/cash-equivalent account scope.")
+        if len(codes) != len(set(codes)) or any(line.get("selector_type") != "account_codes"
+                for line in mapping.get("lines", [])):
+            errors.append("Use each explicitly selected cash account once; do not select all assets.")
+        asset_codes = set(LedgerAccount.objects.filter(department_id=department.pk, account_type="asset",
+            allow_posting=True, code__in=codes).values_list("code", flat=True))
+        if set(codes) != asset_codes:
+            errors.append("Selected cash accounts must be posting assets in this ledger.")
+        known = set(PostingMapping.objects.filter(department_id=department.pk, category=PostingMapping.BANK,
+            is_active=True).values_list("account__code", flat=True))
+        for source in ledger.sources:
+            if source["source_model"] == "JournalEntry":
+                known.update(line["account"] for line in source["snapshot"]["lines"] if line.get("cash_flow_category"))
+        omitted = sorted(known - set(codes))
+        if omitted:
+            errors.append("The cash scope omits bank-mapped or cash-classified accounts: " + ", ".join(omitted))
+        previous_start, previous_end = period_start - relativedelta(years=1), period_end - relativedelta(years=1)
+        titles = [("opening", "Opening cash and cash equivalents")]
+        for activity in ("operating", "investing", "financing"):
+            for direction, label in (("in", "receipts"), ("out", "payments")):
+                titles.extend((code, title) for code, group, side, title in CASH_FLOW_ROWS
+                    if group == activity and side == direction)
+                titles.append((f"{activity}_{direction}", f"Total {activity} {label}"))
+            titles.append((f"{activity}_net", f"Net cash from / (used in) {activity} activities"))
+        titles.extend((("net_change", "Net increase / (decrease) from cash flows"),
+            ("exchange", "Effect of exchange-rate changes on cash"),
+            ("closing", "Closing cash and cash equivalents"), ("difference", "Reconciliation difference")))
+        rows, fund_controls = [], {}
+        valid = bool(ledger.control_totals["funds"]) and not errors and not ledger.control_totals["invalid_zero_openings"]
+        for fund_code, baseline in ledger.control_totals["funds"].items():
+            sources = [item for item in ledger.sources if item["source_model"] == "JournalEntry"
+                and item["snapshot"]["fund"] == fund_code]
+            current, controls = cash_flow_period(sources, set(codes), period_start, period_end)
+            previous, comparison = cash_flow_period(sources, set(codes), previous_start, previous_end)
+            for result, opening in ((controls, baseline["current"]), (comparison, baseline["comparison"])):
+                result["opening_baseline_count"] = opening["opening_baseline_count"]
+                result["opening_evidence_errors"] = (opening["late_opening_entries"] + opening["unbalanced_entries"]
+                    + opening["conflicting_zero_openings"])
+                valid = valid and bool(result["opening_baseline_count"]) and not any((
+                    result["reconciliation_difference"], result["unclassified_entries"],
+                    result["invalid_internal_transfers"], result["opening_evidence_errors"]))
+            fund_name = next(row["fund_name"] for row in ledger.rows if row["fund_code"] == fund_code)
+            rows.extend({"fund_code": fund_code, "fund_name": fund_name, "line_code": code,
+                "line_title": title, "amount": current[code],
+                "comparison_amount": previous[code] if comparison["opening_baseline_count"] else None}
+                for code, title in titles)
+            fund_controls[fund_code] = {"current": controls, "comparison": comparison}
+        return DatasetPayload(rows=rows, sources=ledger.sources, freshness_at=ledger.freshness_at,
+            control_totals={"funds": fund_controls, "cash_account_codes": sorted(set(codes)),
+                "cash_scope_errors": errors, "invalid_zero_openings": ledger.control_totals["invalid_zero_openings"],
+                "mapping_version": mapping.get("version"), "mapping_status": mapping.get("status"),
+                "comparison_period_start": previous_start, "comparison_period_end": previous_end,
+                "calculation_basis": "classified-direct-cash-flows-v1"},
+            control_gate_required=True, control_status="reconciled" if valid else "exception",
+            control_message="Classified gross receipts/payments and exchange effects reconcile opening to closing cash by fund in both periods."
+                if valid else "Resolve cash scope, opening/comparative evidence, missing cash purposes, unbalanced transfers or reconciliation differences.")
+
+
 DATASETS = (
     AssistanceVolumeDataset(), ProgramAccomplishmentDataset(), AttendanceReachDataset(),
     ActivityScheduleDataset(), DepartmentWorkloadDataset(), BudgetAccountabilityDataset(),
@@ -1576,7 +1655,7 @@ DATASETS = (
     PostedWithholdingScheduleDataset(), GovernedTaxWithholdingDetailDataset(),
     GovernedTaxReturnSummaryDataset(), BudgetVersusPostedActualDataset(),
     PaymentInstrumentRegisterDataset(), StatementOfFinancialPositionDataset(),
-    StatementOfFinancialPerformanceDataset(), StatementOfChangesInNetAssetsDataset(),
+    StatementOfFinancialPerformanceDataset(), StatementOfChangesInNetAssetsDataset(), StatementOfCashFlowsDataset(),
 )
 dataset_registry = {dataset.key: dataset for dataset in DATASETS}
 
@@ -1590,7 +1669,7 @@ def _build_dataset(definition, period_start, period_end, parameters):
     adapter = dataset_registry[snapshot.get("dataset_key", definition.dataset_key)]
     if not adapter.supports_department(definition.department):
         raise ValueError("This approved dataset is not available to the report's department.")
-    if isinstance(adapter, StatementOfChangesInNetAssetsDataset):
+    if isinstance(adapter, (StatementOfChangesInNetAssetsDataset, StatementOfCashFlowsDataset)):
         snapshot = {key: snapshot.get(key, getattr(definition, key)) for key in
             ("dataset_key", "filters", "group_by", "totals", "sort_by", "selected_fields")}
         parameters = {**(parameters or {}), "_definition_snapshot": snapshot}

@@ -12,6 +12,8 @@ Keep the default and Finance databases separate; never merge Finance into the de
 
 Performance statements separate explicit nominal closing transfers and their actual reversal lineage from period activity while retaining complete source evidence and position/ledger balances. Net-assets statements classify direct-equity movements explicitly, retain contra signs by account class and require opening/comparative evidence. Never infer journal purpose from free text or relabel posted history. See [closing boundary](docs/FINANCE_STATEMENT_CLOSING_2026-09-10.md) and [statement movements](docs/FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md).
 
+Cash Flow uses a reviewed cash/equivalent account scope and explicit cash-line purposes, with gross flows, non-cash exclusions, internal-transfer checks and retained reversal meaning. Blank legacy posting-rule snapshots retain their checksums. Historical classification and mixed generated-payment allocations remain functional gaps; do not invent ledger reversals merely to attach reporting metadata. See [cash-flow coverage and remaining work](docs/FINANCE_CASH_FLOW_2026-09-10.md).
+
 Native backup capture requires distinct schemas on one verified MySQL server and a held global read lock across both dumps. Missing privilege, lost lock identity or unsupported/different-server topology fails closed. Approve the server-wide write-pause window operationally; never substitute two independent snapshots or fabricated historical capture evidence. See DATABASE_BACKUP.md for the current supported recovery boundary.
 
 ### Development state

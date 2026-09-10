@@ -349,7 +349,7 @@ class FinancePostingRuleLineForm(forms.ModelForm):
         model = FinancePostingRuleLine
         fields = (
             "rule", "sequence", "label", "side", "account_source", "amount_source",
-            "mapping_code", "ledger_account_code", "memo",
+            "mapping_code", "ledger_account_code", "cash_flow_category", "memo",
         )
 
     def __init__(self, *args, department=None, **kwargs):

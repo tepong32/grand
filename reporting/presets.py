@@ -289,6 +289,21 @@ FINANCE_PRESETS = {
                 {"role": "Reviewed by", "name": "Municipal Accountant / authorized reviewer"},
             ],
         },
+        {
+            "name": "Comparative Statement of Cash Flows",
+            "slug": "statement-cash-flows",
+            "dataset_key": "finance_statement_cash_flow",
+            "description": "Direct-method receipts and payments by operating, investing and financing purpose, with exchange effects and opening-to-closing reconciliation by fund.",
+            "fields": ["fund_code", "fund_name", "line_code", "line_title", "amount", "comparison_amount"],
+            "totals": [],
+            "authority_reference": "Published municipal cash-flow presentation; independently confirm cash-equivalent scope, purpose classifications and exact local output before official use.",
+            "header": "Municipal Accounting Office",
+            "prefix": "ACCTG-CASHFLOW",
+            "signatories": [
+                {"role": "Prepared by", "name": "Accounting statement preparer"},
+                {"role": "Reviewed by", "name": "Municipal Accountant / authorized reviewer"},
+            ],
+        },
     ),
     "treasury": (
         {

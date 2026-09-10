@@ -7,6 +7,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Sum
 
+from finance.cash_flows import CASH_FLOW_CHOICES
+
 
 class DepartmentOwnedModel(models.Model):
     """Finance-domain ownership without a cross-database foreign key."""
@@ -741,7 +743,7 @@ class JournalEntry(DepartmentOwnedModel):
         return super().save(*args, **kwargs)
 
     @property
-    def statement_source_type(self):
+    def statement_origin(self):
         """Follow retained reversal lineage, never infer purpose from free text."""
         original = self
         seen = set()
@@ -752,7 +754,11 @@ class JournalEntry(DepartmentOwnedModel):
             original = original.reversal_of
             if original.department_id != self.department_id:
                 raise ValidationError("Journal reversal lineage crosses an owning office.")
-        return original.source_type
+        return original
+
+    @property
+    def statement_source_type(self):
+        return self.statement_origin.source_type
 
     @property
     def is_nominal_closing(self):
@@ -772,6 +778,8 @@ class JournalLine(models.Model):
     debit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
     credit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
     memo = models.CharField(max_length=255, blank=True)
+    cash_flow_category = models.CharField(max_length=24, choices=CASH_FLOW_CHOICES, blank=True,
+        help_text="For cash/cash-equivalent lines, identify the actual receipt, payment or transfer. Split a mixed-purpose cash line before posting.")
 
     class Meta:
         ordering = ("sequence", "pk")
@@ -789,6 +797,8 @@ class JournalLine(models.Model):
         if (debit > 0) == (credit > 0):
             raise ValidationError("Enter a positive amount in either debit or credit, not both.")
         if self.account_id:
+            if self.cash_flow_category and self.account.account_type != "asset":
+                raise ValidationError({"cash_flow_category": "Classify the cash asset line, not its revenue, expense or liability counterpart."})
             if self.account.department_id != self.entry.department_id:
                 raise ValidationError({"account": "The account must belong to this department ledger."})
             if not self.account.is_active or not self.account.allow_posting:
