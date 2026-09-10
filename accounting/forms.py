@@ -370,7 +370,9 @@ class JournalEntryForm(StyledModelForm):
         self.fields["fund"].queryset = Fund.objects.filter(department_id=department.pk, is_active=True)
         self.fields["source_type"].help_text = (
             "Use nominal-account closing transfer only to close revenue/expense balances to equity. "
-            "It stays in the ledger but is excluded from the performance statement's operating result."
+            "It stays in the ledger but is excluded from the performance statement's operating result. "
+            "For direct equity adjustments, distinguish policy changes, prior-period corrections, "
+            "other opening restatements, directly recognized net revenue and other equity movements."
         )
 
 

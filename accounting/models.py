@@ -637,6 +637,12 @@ class PostingMapping(DepartmentOwnedModel):
 
 class JournalEntry(DepartmentOwnedModel):
     CLOSING = "closing"
+    POLICY_CHANGE = "policy_change"
+    PRIOR_ERROR = "prior_error"
+    OPENING_RESTATE = "opening_restate"
+    EQUITY_REVENUE = "equity_revenue"
+    EQUITY_OTHER = "equity_other"
+    DIRECT_EQUITY_SOURCES = {POLICY_CHANGE, PRIOR_ERROR, OPENING_RESTATE, EQUITY_REVENUE, EQUITY_OTHER}
     DRAFT = "draft"
     SUBMITTED = "submitted"
     POSTED = "posted"
@@ -648,6 +654,11 @@ class JournalEntry(DepartmentOwnedModel):
         ("adjustment", "Adjusting entry"), ("reversal", "Reversing entry"),
         ("opening", "Opening balance"),
         (CLOSING, "Nominal-account closing transfer"),
+        (POLICY_CHANGE, "Accounting-policy adjustment to equity"),
+        (PRIOR_ERROR, "Prior-period correction to equity"),
+        (OPENING_RESTATE, "Other opening-balance restatement"),
+        (EQUITY_REVENUE, "Net revenue recognized directly in equity"),
+        (EQUITY_OTHER, "Other direct equity movement"),
     )
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -730,7 +741,7 @@ class JournalEntry(DepartmentOwnedModel):
         return super().save(*args, **kwargs)
 
     @property
-    def is_nominal_closing(self):
+    def statement_source_type(self):
         """Follow retained reversal lineage, never infer purpose from free text."""
         original = self
         seen = set()
@@ -741,7 +752,11 @@ class JournalEntry(DepartmentOwnedModel):
             original = original.reversal_of
             if original.department_id != self.department_id:
                 raise ValidationError("Journal reversal lineage crosses an owning office.")
-        return original.source_type == self.CLOSING
+        return original.source_type
+
+    @property
+    def is_nominal_closing(self):
+        return self.statement_source_type == self.CLOSING
 
     @property
     def totals(self):

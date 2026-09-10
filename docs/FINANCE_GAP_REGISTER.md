@@ -1,5 +1,11 @@
 # Finance gap register
 
+## FIN-GAP-037 - Contra balances increase statement totals
+
+- Severity/status: **HIGH - VERIFIED** in v0.7.74 on `codex/finance-statement-movements`; affected native and broad SQLite verification passed.
+- Native reproduction: a 100.00 contra asset increased 1,250.00 assets to 1,350.00 instead of reducing them to 1,150.00; a 50.00 revenue refund increased revenue to 1,300.00 instead of reducing it to 1,200.00. Both native assertions failed (2 tests, 1.285 seconds).
+- Repair: statement contribution signs follow the account class rather than its natural balance. Ledger display conventions are unchanged. [Calculation, export proof and validation](FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md). The new comparative net-assets output is a separate M01 deliverable; neither this correction nor its tests close Cash Flow, local output fidelity or LGU acceptance.
+
 ## FIN-GAP-036 - Closing transfers erase reported period performance
 
 - Severity/status: **HIGH - VERIFIED** in v0.7.73 for explicitly classified closing transfers and their reversals. The original ordinary-adjustment path reduced the generated performance statement's 1,250.00 surplus to 0.00. Historical ambiguous closes still need authorized correction; they are not silently relabelled.

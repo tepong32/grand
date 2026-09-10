@@ -485,6 +485,199 @@ class FinanceAccountabilityReportingTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "cannot contain cash"):
             validate_entry_for_submission(self.entry)
 
+    def _post_statement_adjustment(self, reference, debit_account, credit_account, amount,
+                                   *, source_type="adjustment", period=None, entry_date=None, fund=None):
+        from accounting.services import submit_entry, post_entry
+        self.accounting_preparer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="accounting", codename="prepare_journal_entries"))
+        self.accounting_reviewer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="accounting", codename="post_journal_entries"))
+        entry = JournalEntry.objects.create(
+            department_id=self.accounting.pk, department_label=self.accounting.name,
+            reference=reference, entry_date=entry_date or date(2027, 3, 1), period=period or self.period,
+            fund=fund or self.fund, source_type=source_type, description="Synthetic statement adjustment",
+            created_by_id=self.accounting_preparer.pk, created_by_label=self.accounting_preparer.username,
+        )
+        JournalLine.objects.create(entry=entry, sequence=1, account=debit_account, debit=amount)
+        JournalLine.objects.create(entry=entry, sequence=2, account=credit_account, credit=amount)
+        submit_entry(entry, self.accounting_preparer)
+        return post_entry(entry, self.accounting_reviewer)
+
+    def _statement_run(self, dataset_key):
+        definition = ReportDefinition.objects.get(department=self.accounting, dataset_key=dataset_key)
+        return create_manual_run(definition, definition.current_template, "xlsx",
+            date(2027, 1, 1), date(2027, 3, 31), {}, self.accounting_preparer)
+
+    def test_contra_assets_reduce_position_instead_of_increasing_it(self):
+        owner = {"department_id": self.accounting.pk, "department_label": self.accounting.name}
+        allowance = LedgerAccount.objects.create(**owner, code="10301011", title="Allowance for impairment",
+            account_type="asset", normal_balance="credit")
+        expense = LedgerAccount.objects.create(**owner, code="50501010", title="Impairment loss",
+            account_type="expense", normal_balance="debit")
+        self._post_statement_adjustment("JEV-ALLOWANCE", expense, allowance, Decimal("100.00"))
+        report = self._statement_run("finance_statement_position")
+        self.assertEqual(report.control_totals["assets"], "1150.00")
+        self.assertEqual(report.control_totals["equation_difference"], "0.00")
+        self.assertEqual(report.control_status, ReportRun.CONTROL_RECONCILED)
+
+    def test_contra_revenue_reduces_reported_performance(self):
+        refund = LedgerAccount.objects.create(
+            department_id=self.accounting.pk, department_label=self.accounting.name,
+            code="40101990", title="Revenue refunds", account_type="revenue", normal_balance="debit")
+        self._post_statement_adjustment("JEV-REVENUE-REFUND", refund, self.cash, Decimal("50.00"))
+        report = self._statement_run("finance_statement_performance")
+        self.assertEqual(report.control_totals["revenue"], "1200.00")
+        self.assertEqual(report.control_totals["operating_result"], "1200.00")
+        self.assertEqual(report.control_status, ReportRun.CONTROL_RECONCILED)
+
+    def _net_assets_opening(self):
+        owner = {"department_id": self.accounting.pk, "department_label": self.accounting.name}
+        equity = LedgerAccount.objects.create(**owner, code="30101010", title="Accumulated surplus",
+            account_type="equity", normal_balance="credit")
+        year = FiscalYear.objects.create(**owner, year=2026, label="FY 2026",
+            starts_on=date(2026, 1, 1), ends_on=date(2026, 12, 31),
+            business_date=date(2026, 3, 31), status=FiscalYear.ACTIVE)
+        period = AccountingPeriod.objects.create(**owner, fiscal_year=2026, fiscal_year_record=year,
+            period_number=1, label="Prior first quarter", starts_on=date(2026, 1, 1), ends_on=date(2026, 3, 31))
+        self._post_statement_adjustment("OPEN-2026", self.cash, equity, Decimal("400.00"),
+            source_type="opening", period=period, entry_date=date(2026, 1, 1))
+        return equity
+
+    def test_net_assets_export_reconciles_comparison_adjustments_closing_and_reversal(self):
+        from accounting.services import create_reversal, submit_entry, post_entry
+        from openpyxl import load_workbook
+        equity = self._net_assets_opening()
+        correction = self._post_statement_adjustment("PRIOR-ERROR", self.cash, equity, Decimal("50.00"),
+            source_type=JournalEntry.PRIOR_ERROR)
+        self._post_statement_adjustment("DIRECT-REVENUE", self.cash, equity, Decimal("20.00"),
+            source_type=JournalEntry.EQUITY_REVENUE)
+        self._post_statement_adjustment("CLOSE-CURRENT", self.revenue, equity, Decimal("1250.00"),
+            source_type=JournalEntry.CLOSING)
+        run = self._statement_run("finance_statement_net_assets")
+        self.assertEqual(run.control_status, ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(run.control_totals["opening"], "400.00")
+        self.assertEqual(run.control_totals["closing"], "1720.00")
+        self.assertEqual(run.control_totals["operating_result"], "1250.00")
+        workbook = load_workbook(run.output_file.path, data_only=True)
+        sheet_rows = list(workbook.active.values)
+        self.assertTrue(any("prior_error" in row and 50 in row for row in sheet_rows))
+        self.assertTrue(any("closing" in row and 1720 in row and 400 in row for row in sheet_rows))
+        workbook.close()
+        checksum = run.checksum
+        reversal = create_reversal(correction, self.accounting_preparer, reference="UNDO-PRIOR",
+            entry_date=date(2027, 3, 20), period=self.period, reason="Synthetic corrected prior adjustment")
+        submit_entry(reversal, self.accounting_preparer)
+        post_entry(reversal, self.accounting_reviewer)
+        revised = self._statement_run("finance_statement_net_assets")
+        self.assertEqual(revised.control_totals["closing"], "1670.00")
+        self.assertEqual(revised.control_status, ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(revised.source_records.get(source_reference=reversal.reference).snapshot[
+            "statement_source_type"], JournalEntry.PRIOR_ERROR)
+        run.refresh_from_db()
+        self.assertEqual(run.checksum, checksum)
+
+    def test_net_assets_missing_baseline_and_unclassified_equity_block_review(self):
+        from accounting.services import create_reversal, submit_entry, post_entry
+        missing = self._statement_run("finance_statement_net_assets")
+        self.assertEqual(missing.control_status, ReportRun.CONTROL_EXCEPTION)
+        equity = self._net_assets_opening()
+        entry = self._post_statement_adjustment("UNCLASSIFIED", self.cash, equity, Decimal("10.00"))
+        run = self._statement_run("finance_statement_net_assets")
+        self.assertEqual(run.control_status, ReportRun.CONTROL_EXCEPTION)
+        self.assertEqual(run.control_totals["funds"]["GF"]["current"]["unclassified_entries"], ["UNCLASSIFIED"])
+        reversal = create_reversal(entry, self.accounting_preparer, reference="CORRECT-UNCLASSIFIED",
+            entry_date=date(2027, 3, 20), period=self.period, reason="Replace with an explicitly classified adjustment")
+        submit_entry(reversal, self.accounting_preparer)
+        post_entry(reversal, self.accounting_reviewer)
+        self._post_statement_adjustment("CLASSIFIED", self.cash, equity, Decimal("10.00"),
+            source_type=JournalEntry.PRIOR_ERROR)
+        corrected = self._statement_run("finance_statement_net_assets")
+        self.assertEqual(corrected.control_status, ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(corrected.control_totals["closing"], "1660.00")
+        self.assertTrue(corrected.source_records.filter(source_reference="UNCLASSIFIED").exists())
+
+    def test_net_assets_definition_cannot_hide_required_rows_or_columns(self):
+        definition = ReportDefinition.objects.get(department=self.accounting, dataset_key="finance_statement_net_assets")
+        for field, value in (("filters", {"line_code": "closing"}), ("group_by", ["fund_code"]),
+                             ("selected_fields", ["amount"])):
+            with self.subTest(field=field):
+                original = getattr(definition, field)
+                setattr(definition, field, value)
+                with self.assertRaises(ValueError):
+                    build_dataset_with_evidence(definition, date(2027, 1, 1), date(2027, 3, 31), {})
+                setattr(definition, field, original)
+
+    def test_direct_equity_classification_cannot_hide_operating_revenue(self):
+        from accounting.services import validate_entry_for_submission
+        self.entry.source_type = JournalEntry.PRIOR_ERROR
+        with self.assertRaisesMessage(ValidationError, "cannot recognize current revenue"):
+            validate_entry_for_submission(self.entry)
+
+    def test_net_assets_retains_approved_zero_opening_and_rejects_evidence_drift(self):
+        from accounting.models import OpeningBalanceBatch
+        from accounting.services import (validate_opening_batch, submit_opening_batch, decide_opening_batch,
+            post_opening_batch, reconcile_opening_batch)
+        preparer = self.employee(self.accounting, "netassets.opening.preparer", "prepare_opening_balances")
+        reviewer = self.employee(self.accounting, "netassets.opening.reviewer",
+            "approve_opening_balances", "post_opening_balances")
+        preparer.user_permissions.add(Permission.objects.get(content_type__app_label="accounting",
+            codename="prepare_opening_balances"))
+        reviewer.user_permissions.add(*Permission.objects.filter(content_type__app_label="accounting",
+            codename__in=("approve_opening_balances", "post_opening_balances")))
+        # Current-only baseline must not invent a prior-year zero comparison.
+        batch = OpeningBalanceBatch.objects.create(department_id=self.accounting.pk,
+            department_label=self.accounting.name, fiscal_year=self.fiscal_year, period=self.period,
+            title="Reviewed zero baseline", source_reference="ZERO-2027", is_zero_balance_declaration=True,
+            created_by_id=preparer.pk, created_by_label=preparer.username)
+        batch = validate_opening_batch(batch, preparer)
+        batch = submit_opening_batch(batch, preparer)
+        batch = decide_opening_batch(batch, reviewer, decision=OpeningBalanceBatch.APPROVED,
+            evidence_note="Synthetic initial zero balances independently checked")
+        batch = post_opening_batch(batch, reviewer)
+        batch, _summary = reconcile_opening_batch(batch, reviewer)
+        self.assertFalse(batch.postings.exists())
+        run = self._statement_run("finance_statement_net_assets")
+        current = run.control_totals["funds"]["GF"]["current"]
+        self.assertEqual(current["zero_opening_references"], ["ZERO-2027"])
+        self.assertEqual(current["movement_difference"], "0.00")
+        self.assertEqual(run.control_totals["funds"]["GF"]["comparison"]["opening_baseline_count"], 0)
+        self.assertEqual(run.control_status, ReportRun.CONTROL_EXCEPTION)
+        self.assertTrue(run.source_records.filter(source_model="OpeningBalanceBatch").exists())
+        # Simulate bypassed persistence; no live evidence is changed by this synthetic test.
+        OpeningBalanceBatch.objects.filter(pk=batch.pk).update(source_reference="ALTERED-ZERO")
+        changed = self._statement_run("finance_statement_net_assets")
+        self.assertEqual(changed.control_totals["invalid_zero_openings"], ["ALTERED-ZERO"])
+
+    def test_net_assets_fund_filter_scopes_ledger_controls_and_export_rows_together(self):
+        self._net_assets_opening()
+        other = Fund.objects.create(department_id=self.accounting.pk, department_label=self.accounting.name,
+            code="SEF", name="Special Education Fund")
+        self._post_statement_adjustment("SEF-RECEIPT", self.cash, self.revenue, Decimal("90.00"), fund=other)
+        definition = ReportDefinition.objects.get(department=self.accounting, dataset_key="finance_statement_net_assets")
+        definition.filters = {"fund_code": "GF"}
+        _adapter, rows, _totals, evidence = build_dataset_with_evidence(
+            definition, date(2027, 1, 1), date(2027, 3, 31), {})
+        self.assertEqual({row["fund_code"] for row in rows}, {"GF"})
+        self.assertEqual(set(evidence["control_totals"]["funds"]), {"GF"})
+        self.assertNotIn("SEF-RECEIPT", [source["source_reference"] for source in evidence["sources"]])
+        self.assertEqual(evidence["control_status"], "reconciled")
+
+    def test_net_assets_policy_restatement_and_other_movements_keep_distinct_rows(self):
+        equity = self._net_assets_opening()
+        for source_type, amount in ((JournalEntry.POLICY_CHANGE, "30.00"),
+                                   (JournalEntry.OPENING_RESTATE, "40.00"),
+                                   (JournalEntry.EQUITY_OTHER, "60.00")):
+            self._post_statement_adjustment(source_type, self.cash, equity, Decimal(amount), source_type=source_type)
+        definition = ReportDefinition.objects.get(department=self.accounting, dataset_key="finance_statement_net_assets")
+        _adapter, rows, _totals, evidence = build_dataset_with_evidence(
+            definition, date(2027, 1, 1), date(2027, 3, 31), {})
+        amounts = {row["line_code"]: row["amount"] for row in rows}
+        self.assertEqual(amounts["restated_opening"], Decimal("470.00"))
+        self.assertEqual(amounts["recognized_result"], Decimal("1250.00"))
+        self.assertEqual(amounts["equity_other"], Decimal("60.00"))
+        self.assertEqual(amounts["closing"], Decimal("1780.00"))
+        self.assertEqual(evidence["control_status"], "reconciled")
+
     def test_statement_mapping_requires_independent_activation_and_is_immutable(self):
         starter = FinanceStatementMapping.objects.get(
             department=self.accounting, statement_type=FinanceStatementMapping.POSITION,

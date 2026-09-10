@@ -45,6 +45,8 @@ Make future national-government, COA and DBM changes manageable through reviewed
 
 ## Current execution
 
+M01 v0.7.74 checkpoint: the validated statement-movements branch adds a comparative net-assets output and corrects native-reproduced contra-account signs. [Calculation and validation record](FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md). Cash Flow and complete statement-package/notes integration remain outstanding; exact local form acceptance is still separate. Existing statements below describing absent net-assets functionality refer to the original assessment baseline, not a completed parity gate.
+
 The initial M06 navigation slice is implemented and validated; it does not close the broader UX acceptance requirement. Work now returns to source-grounded M01 missing statements and M02 payable linkage under the clarified functional-first order. See [CONTINUE.md](../CONTINUE.md) and [navigation validation](FINANCE_NAVIGATION_VALIDATION_2026-09-10.md) for actual evidence and immediate prerequisites.
 
 M01 prerequisite: [FIN-GAP-036](FINANCE_STATEMENT_CLOSING_2026-09-10.md) fixes closing transfers erasing reported operating performance through an explicit closing/reversal distinction, verified on SQLite and MySQL in v0.7.73. Continue with the missing net-assets/cash-flow statements and their source classifications. This does not replace the missing-statement deliverables with a smaller completion claim.

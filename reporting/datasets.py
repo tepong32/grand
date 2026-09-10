@@ -1164,6 +1164,7 @@ class GovernedStatementDataset(ApprovedDataset):
             item["credit"] += line.credit
             item["lines"].append({
                 "sequence": line.sequence, "account": line.account.code,
+                "account_type": line.account.account_type,
                 "debit": str(line.debit), "credit": str(line.credit), "memo": line.memo,
             })
         sources = []
@@ -1176,6 +1177,7 @@ class GovernedStatementDataset(ApprovedDataset):
                 "debit": str(item["debit"]), "credit": str(item["credit"]),
                 "posted_by": entry.posted_by_label, "posted_at": entry.posted_at,
                 "nominal_closing_transfer": entry.is_nominal_closing,
+                "statement_source_type": entry.statement_source_type,
                 "lines": item["lines"],
             }
             sources.append({
@@ -1220,12 +1222,14 @@ class GovernedStatementDataset(ApprovedDataset):
             if line.entry_id in closing_entry_ids:
                 continue
             accounts[line.account.code] = line.account
-            natural = (
+            signed_amount = (
                 line.debit - line.credit
-                if line.account.normal_balance == "debit"
+                if line.account.account_type in {"asset", "expense"}
                 else line.credit - line.debit
             )
-            balances[line.account.code] = balances.get(line.account.code, Decimal("0.00")) + natural
+            # Statement classes retain contra signs; an account's natural balance
+            # describes its ledger display, not whether it adds to the class total.
+            balances[line.account.code] = balances.get(line.account.code, Decimal("0.00")) + signed_amount
 
         assignments = {}
         rows = []
@@ -1360,6 +1364,211 @@ class StatementOfFinancialPerformanceDataset(GovernedStatementDataset):
         )
 
 
+class StatementOfChangesInNetAssetsDataset(GovernedStatementDataset):
+    """Reconcile classified posted movements, with source evidence for both periods."""
+    key = "finance_statement_net_assets"
+    label = "Comparative changes in net assets/equity from posted fund ledgers"
+    columns = (
+        Column("fund_code", "Fund"), Column("fund_name", "Fund name"),
+        Column("line_code", "Line code"), Column("line_title", "Particulars"),
+        Column("amount", "Current period", "decimal"),
+        Column("comparison_amount", "Same period, prior year", "decimal"),
+    )
+    LINE_TITLES = (
+        ("opening", "Opening net assets/equity"),
+        ("policy_change", "Changes in accounting policy"),
+        ("prior_error", "Prior-period corrections"),
+        ("opening_restate", "Other opening-balance restatements"),
+        ("restated_opening", "Restated opening balance"),
+        ("equity_revenue", "Net revenue recognized directly in net assets/equity"),
+        ("operating_result", "Surplus / (deficit) for the period"),
+        ("recognized_result", "Total recognized revenue and expense"),
+        ("equity_other", "Other direct equity movements"),
+        ("unclassified", "Unclassified equity movements - correction required"),
+        ("closing", "Closing net assets/equity"),
+        ("difference", "Reconciliation difference"),
+    )
+
+    def _period(self, entries, start, end, zero_openings=()):
+        from accounting.models import JournalEntry
+        zero = Decimal("0.00")
+        values = {key: zero for key, _title in self.LINE_TITLES}
+        opening_position = closing_position = closing_equity = zero
+        opening_count = 0
+        baseline_count = sum(1 for entry, _lines in entries
+            if entry.source_type == "opening" and entry.entry_date <= start)
+        zero_evidence = [item for item in zero_openings if item.period.starts_on <= start]
+        baseline_count += len(zero_evidence)
+        unclassified_groups = {}
+        late_openings = []
+        unbalanced = []
+        closing_count = 0
+        first_date = min((entry.entry_date for entry, _lines in entries), default=None)
+        conflicting_zero = []
+        for batch in zero_evidence:
+            balances = {}
+            for entry, lines in entries:
+                if entry.entry_date < batch.period.starts_on:
+                    for line in lines:
+                        balances[line.account_id] = balances.get(line.account_id, zero) + line.debit - line.credit
+            if any(balances.values()):
+                conflicting_zero.append(batch.source_reference)
+        for entry, lines in entries:
+            if entry.entry_date > end:
+                continue
+            kind = entry.statement_source_type
+            net_assets = sum((line.credit - line.debit for line in lines
+                if line.account.account_type in {"equity", "revenue", "expense"}), zero)
+            position = sum((line.debit - line.credit for line in lines
+                if line.account.account_type in {"asset", "liability"}), zero)
+            closing_position += position
+            closing_equity += net_assets
+            if sum((line.debit - line.credit for line in lines), zero) != 0:
+                unbalanced.append(entry.reference)
+            if entry.source_type == "opening" and first_date and entry.entry_date > first_date:
+                late_openings.append(entry.reference)
+            if entry.entry_date < start or (entry.entry_date == start and kind == "opening"):
+                values["opening"] += net_assets
+                opening_position += position
+                opening_count += 1
+                continue
+            if kind == "opening":
+                late_openings.append(entry.reference)
+            if kind == JournalEntry.CLOSING:
+                closing_count += 1
+                continue
+            operating = sum((line.credit - line.debit for line in lines
+                if line.account.account_type in {"revenue", "expense"}), zero)
+            equity = sum((line.credit - line.debit for line in lines
+                if line.account.account_type == "equity"), zero)
+            values["operating_result"] += operating
+            if kind in JournalEntry.DIRECT_EQUITY_SOURCES:
+                values[kind] += equity
+            elif equity != 0:
+                values["unclassified"] += equity
+                original = entry
+                while original.reversal_of_id:
+                    original = original.reversal_of
+                group = unclassified_groups.setdefault(original.pk, {"amount": zero, "references": []})
+                group["amount"] += equity
+                group["references"].append(entry.reference)
+        unclassified = [reference for group in unclassified_groups.values() if group["amount"]
+            for reference in group["references"]]
+        values["restated_opening"] = sum((values[key] for key in
+            ("opening", "policy_change", "prior_error", "opening_restate")), zero)
+        values["recognized_result"] = values["equity_revenue"] + values["operating_result"]
+        calculated_closing = sum((values[key] for key in
+            ("restated_opening", "recognized_result", "equity_other", "unclassified")), zero)
+        values["closing"] = closing_position
+        values["difference"] = calculated_closing - closing_position
+        controls = {
+            "opening_source_count": opening_count,
+            "opening_baseline_count": baseline_count,
+            "zero_opening_references": [item.source_reference for item in zero_evidence],
+            "conflicting_zero_openings": conflicting_zero,
+            "opening_equation_difference": values["opening"] - opening_position,
+            "closing_equation_difference": closing_equity - closing_position,
+            "movement_difference": values["difference"],
+            "unclassified_entries": unclassified, "late_opening_entries": late_openings,
+            "unbalanced_entries": unbalanced, "excluded_closing_entry_count": closing_count,
+        }
+        valid = bool(baseline_count) and not any((
+            controls["opening_equation_difference"], controls["closing_equation_difference"],
+            values["difference"], unclassified, late_openings, unbalanced, conflicting_zero,
+        ))
+        return values, controls, valid
+
+    def payload(self, department, period_start, period_end, parameters):
+        from dateutil.relativedelta import relativedelta
+        from accounting.models import Fund, JournalEntry, JournalLine, OpeningBalanceBatch
+        from accounting.opening_controls import opening_evidence, opening_posting_errors
+
+        snapshot = (parameters or {}).get("_definition_snapshot", {})
+        filters = snapshot.get("filters", {})
+        if set(filters) - {"fund_code", "fund_code__in"}:
+            raise ValueError("Net-assets statements support exact fund filters only; required movement rows cannot be hidden.")
+        if any(snapshot.get(key) for key in ("group_by", "totals", "sort_by")):
+            raise ValueError("Keep the net-assets statement's financial row order and subtotals; do not regroup or total its rows.")
+        required = {column.key for column in self.columns}
+        if "selected_fields" in snapshot and not required.issubset(snapshot["selected_fields"]):
+            raise ValueError("Keep every required net-assets statement column, including fund and comparative amounts.")
+        query = JournalLine.objects.filter(entry__department_id=department.pk,
+            entry__status=JournalEntry.POSTED, entry__entry_date__lte=period_end)
+        if "fund_code" in filters:
+            query = query.filter(entry__fund__code=filters["fund_code"])
+        if "fund_code__in" in filters:
+            codes = filters["fund_code__in"]
+            if not isinstance(codes, list) or not codes or any(not isinstance(code, str) for code in codes):
+                raise ValueError("Choose a non-empty list of fund codes.")
+            query = query.filter(entry__fund__code__in=codes)
+        lines = list(query.select_related("entry", "entry__fund", "account").order_by(
+            "entry__fund__code", "entry__entry_date", "entry__reference", "sequence"))
+        funds = {}
+        for line in lines:
+            fund = funds.setdefault(line.entry.fund_id, {"fund": line.entry.fund, "entries": {}})
+            _entry, entry_lines = fund["entries"].setdefault(line.entry_id, (line.entry, []))
+            entry_lines.append(line)
+        zero_openings, zero_sources, zero_errors = [], [], []
+        for batch in OpeningBalanceBatch.objects.filter(department_id=department.pk,
+                status=OpeningBalanceBatch.RECONCILED, is_zero_balance_declaration=True,
+                period__starts_on__lte=period_end).select_related("period"):
+            values, checksum, errors = opening_evidence(batch)
+            errors.extend(opening_posting_errors(batch))
+            if checksum != batch.validation_summary.get("evidence_checksum"):
+                errors.append("Zero-opening evidence checksum differs from its approval.")
+            if batch.approved_by_id in {None, batch.created_by_id, batch.submitted_by_id}:
+                errors.append("Zero opening lacks independent approval.")
+            if errors:
+                zero_errors.append(batch.source_reference)
+            else:
+                zero_openings.append(batch)
+            zero_sources.append({"source_app": "accounting", "source_model": "OpeningBalanceBatch",
+                "source_pk": str(batch.pk), "source_public_id": str(batch.public_id),
+                "source_reference": batch.source_reference, "source_date": batch.period.starts_on,
+                "control_group": "zero-opening evidence", "amount": Decimal("0.00"),
+                "source_url": reverse("accounting:opening_detail", kwargs={"public_id": batch.public_id}),
+                "source_checksum": checksum, "snapshot": {**values, "errors": errors}})
+        fund_query = Fund.objects.filter(department_id=department.pk, is_active=True)
+        if "fund_code" in filters:
+            fund_query = fund_query.filter(code=filters["fund_code"])
+        if "fund_code__in" in filters:
+            fund_query = fund_query.filter(code__in=filters["fund_code__in"])
+        for fund in fund_query.order_by("code"):
+            funds.setdefault(fund.pk, {"fund": fund, "entries": {}})
+        comparison_start = period_start - relativedelta(years=1)
+        comparison_end = period_end - relativedelta(years=1)
+        rows, fund_controls = [], {}
+        valid = bool(funds) and not zero_errors
+        zero = Decimal("0.00")
+        current_totals = {"opening": zero, "closing": zero, "operating_result": zero}
+        for data in funds.values():
+            entries = list(data["entries"].values())
+            current, current_controls, current_valid = self._period(entries, period_start, period_end, zero_openings)
+            previous, previous_controls, previous_valid = self._period(entries, comparison_start, comparison_end, zero_openings)
+            fund = data["fund"]
+            for code, title in self.LINE_TITLES:
+                rows.append({"fund_code": fund.code, "fund_name": fund.name, "line_code": code,
+                    "line_title": title, "amount": current[code],
+                    "comparison_amount": previous[code] if previous_controls["opening_baseline_count"] else None})
+            for key in current_totals:
+                current_totals[key] += current[key]
+            fund_controls[fund.code] = {"current": current_controls, "comparison": previous_controls}
+            valid = valid and current_valid and previous_valid
+        sources, freshness = self._source_payload(lines)
+        sources.extend(zero_sources)
+        freshness = _latest_datetime([freshness] + [batch.reconciled_at for batch in zero_openings])
+        return DatasetPayload(rows=rows, sources=sources, freshness_at=freshness,
+            control_totals={**current_totals, "funds": fund_controls, "invalid_zero_openings": zero_errors,
+                "comparison_period_start": comparison_start.isoformat(),
+                "comparison_period_end": comparison_end.isoformat(),
+                "calculation_basis": "classified-posted-net-assets-movements-v1"},
+            control_status="reconciled" if valid else "exception", control_gate_required=True,
+            control_message=(
+                "Opening balances, classified movements and closing net assets reconcile for each fund in both periods."
+                if valid else "Resolve missing opening/comparative evidence, unclassified equity, late openings or ledger differences."
+            ))
+
+
 DATASETS = (
     AssistanceVolumeDataset(), ProgramAccomplishmentDataset(), AttendanceReachDataset(),
     ActivityScheduleDataset(), DepartmentWorkloadDataset(), BudgetAccountabilityDataset(),
@@ -1367,7 +1576,7 @@ DATASETS = (
     PostedWithholdingScheduleDataset(), GovernedTaxWithholdingDetailDataset(),
     GovernedTaxReturnSummaryDataset(), BudgetVersusPostedActualDataset(),
     PaymentInstrumentRegisterDataset(), StatementOfFinancialPositionDataset(),
-    StatementOfFinancialPerformanceDataset(),
+    StatementOfFinancialPerformanceDataset(), StatementOfChangesInNetAssetsDataset(),
 )
 dataset_registry = {dataset.key: dataset for dataset in DATASETS}
 
@@ -1381,6 +1590,10 @@ def _build_dataset(definition, period_start, period_end, parameters):
     adapter = dataset_registry[snapshot.get("dataset_key", definition.dataset_key)]
     if not adapter.supports_department(definition.department):
         raise ValueError("This approved dataset is not available to the report's department.")
+    if isinstance(adapter, StatementOfChangesInNetAssetsDataset):
+        snapshot = {key: snapshot.get(key, getattr(definition, key)) for key in
+            ("dataset_key", "filters", "group_by", "totals", "sort_by", "selected_fields")}
+        parameters = {**(parameters or {}), "_definition_snapshot": snapshot}
     payload = adapter.payload(definition.department, period_start, period_end, parameters)
     rows = payload.rows
     if hasattr(adapter, "normalize"):

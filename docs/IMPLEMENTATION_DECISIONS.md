@@ -757,6 +757,15 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
 
+## D-067 - Classify actual net-assets movements in the existing ledger
+
+- Date: 2026-09-10. Status: implemented and validated in v0.7.74 on the statement-movements branch. [Evidence and limits](FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md).
+- Goal: complete M01 financial calculations before additional UX or surrounding infrastructure.
+- Decision: use explicit existing-JEV source choices for policy changes, prior-period errors, opening restatements, direct-equity revenue and other equity movements. Preserve independent posting, complete source evidence and reversal ancestry. Do not infer purpose from descriptions or create another ledger/configuration engine.
+- Calculation: retain contra-account signs by statement class, reconcile movements against assets less liabilities per fund, and compute the prior-year comparison independently. Missing opening evidence, unexplained direct-equity movements and equation differences remain visible exceptions. Verified zero-opening declarations are evidence; absent journals alone are not. Only an actual reversal lineage can neutralize an unclassified adjustment for a same-period correction.
+- Tradeoffs: explicit source classification adds a preparation choice and requires correction of ambiguous historical movements. It avoids falsely presenting every equity adjustment as operating performance or a prior error. A fixed accounting calculation with retained source classifications is easier to audit than arbitrary report-row arithmetic; future national/local presentation changes still require reviewed implementation/template changes.
+- Limits/revisit: Cash Flow, complete statement-note/package integration, exact accepted layouts and local workflow replay remain open. Published municipal examples support the rows, not local legal acceptance. Revisit classification when concrete source transactions require a distinction not covered here.
+
 ## D-066 - Keep closing transfers out of period operating performance
 
 - Date: 2026-09-10. Status: native numerical defect reproduced; repair verified in v0.7.73 through broad SQLite and affected MySQL regression plus XLSX amount assertions.

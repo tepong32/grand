@@ -274,6 +274,21 @@ FINANCE_PRESETS = {
                 {"role": "Reviewed by", "name": "Municipal Accountant / authorized reviewer"},
             ],
         },
+        {
+            "name": "Comparative Statement of Changes in Net Assets / Equity",
+            "slug": "statement-changes-net-assets",
+            "dataset_key": "finance_statement_net_assets",
+            "description": "Opening balances, classified equity adjustments, current surplus and closing net assets by fund, with prior-year comparison and retained journal evidence.",
+            "fields": ["fund_code", "fund_name", "line_code", "line_title", "amount", "comparison_amount"],
+            "totals": [],
+            "authority_reference": "Published municipal comparative net-assets statements inform the movement rows. Exact local layout, signatories and applicability remain pending LGU acceptance.",
+            "header": "Municipal Accounting Office",
+            "prefix": "ACCTG-NETASSETS",
+            "signatories": [
+                {"role": "Prepared by", "name": "Accounting statement preparer"},
+                {"role": "Reviewed by", "name": "Municipal Accountant / authorized reviewer"},
+            ],
+        },
     ),
     "treasury": (
         {

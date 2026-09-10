@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.74 - Comparative net-assets movements and correct contra signs
+
+Accounting can generate a comparative Statement of Changes in Net Assets / Equity by fund, reconciling opening balances, explicit equity adjustments, current surplus and closing assets less liabilities. The existing JEV workflow distinguishes policy changes, prior-period corrections, opening restatements, direct-equity revenue and other movements while preserving independent posting, reversals and immutable source evidence. Missing opening/comparative evidence and unclassified movements remain exceptions. Contra balances now reduce the appropriate statement totals. This advances M01; Cash Flow, complete statement-package integration and local output acceptance remain open. See [calculation and validation](docs/FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md).
+
 ## v0.7.73 - Preserve operating performance through nominal closing
 
 An explicit nominal-closing JEV source separates revenue/expense-to-equity transfers and their retained reversal lineage from performance-statement activity. The complete ledger, position balances and report source evidence remain intact; historical journals and generated reports are not rewritten. Submission/posting reject assets or liabilities in a closing transfer. This fixes the reproduced 1,250.00-to-zero performance error and is a prerequisite for missing-statement completion, not eGAPS parity. The native runner now checks named time-zone conversion before schema creation. See [validation and remaining scope](docs/FINANCE_STATEMENT_CLOSING_2026-09-10.md).
