@@ -798,6 +798,8 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 
 ## D-076 - Reserve payable capacity across dated posted history
 
+- v0.7.86 follow-up: existing-key recovery must also recompute requested-date capacity while counting the retained hold once. A failing earlier-retry reproduction led to the bounded repair; 39 SQLite and 39 native tests pass, including actual interrupted DV recovery/payment/export and five selected races. [Validation](FINANCE_CLAIM_RECOVERY_DATE_2026-09-10.md). This extends the existing dated-capacity decision without adding a schema or inventing historical dates.
+
 - Date: 2026-09-10. Goal: close a concrete M02 eligibility gap found while reviewing historical attribution. [Reproduction, validation and remaining work](FINANCE_DATED_CLAIM_RESERVATIONS_2026-09-10.md).
 - Decision: a new reservation must fit at its requested effective date and every subsequent posted movement. Keep the existing original-credit lock and same-key recovery. Count an active reservation's whole amount once; its applications convert held to used capacity. Released holds retain only their posted consumption.
 - Alternative/tradeoff: ending-balance-only validation accepts a backdated DV using capacity restored by a later reversal; checking only the requested day misses an intervening shortfall. Deferring the failure until posting leaves an invalid downstream handoff. The additional daily calculation reuses existing journal evidence and creates no new ledger or configuration framework.

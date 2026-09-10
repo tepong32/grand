@@ -318,6 +318,51 @@ class PriorPayableDVTests(TestCase):
         self.assertEqual(export.status_code, 200)
         self.assertIn(b"1500.00,1000.00,500.00", export.content)
 
+    def test_interrupted_validation_rechecks_retry_date_before_advancement(self):
+        adjustment = JournalEntry.objects.create(department_id=self.accounting.pk, department_label=self.accounting.name,
+            reference="RECOVERY-REDUCTION", entry_date=date(2026, 8, 22), period=self.accounting_period,
+            fund=self.accounting_fund, description="Earlier reduction of the original claim",
+            created_by_id=self.preparer.pk, created_by_label=self.preparer.username)
+        JournalLine.objects.create(entry=adjustment, sequence=1, account=self.payable_account,
+            debit=1000, payable_origin=self.source)
+        JournalLine.objects.create(entry=adjustment, sequence=2, account=self.expense_account, credit=1000)
+        submit_entry(adjustment, self.preparer)
+        post_entry(adjustment, self.validator)
+        undo = create_reversal(adjustment, self.preparer, reference="RECOVERY-RESTORED",
+            entry_date=date(2026, 8, 28), period=self.accounting_period, reason="Reverse the earlier reduction")
+        submit_entry(undo, self.preparer)
+        post_entry(undo, self.validator)
+        case = self.case_for_validation("-recovery-date")
+        stage, version = case.current_stage, case.state_version
+        with patch("vouchers.services._advance", side_effect=RuntimeError("Interrupted default-store advancement")):
+            with self.assertRaises(RuntimeError):
+                validate_accounting(case=case, actor=self.validator, jev_number="", jev_date=date(2026, 8, 29),
+                    note="Actual later settlement", expected_version=version, idempotency_key="interrupted-claim-date",
+                    prior_payable_line_id=self.source.pk)
+        held = PayableClaimReservation.objects.get(case_public_id=case.public_id)
+        retained = (held.pk, held.source_snapshot, held.source_checksum)
+        self.client.force_login(self.validator)
+        data = {"state_version": version, "idempotency_key": "retry-earlier", "jev_number": "",
+            "jev_date": "2026-08-25", "prior_payable_line": self.source.pk}
+        url = reverse("vouchers:case_action", args=[case.public_id, "validate-accounting"])
+        response = self.client.post(url, data, follow=True)
+        self.assertContains(response, "on or after the requested date")
+        case.refresh_from_db()
+        self.assertEqual((case.current_stage, case.state_version), (stage, version))
+        self.assertFalse(case.accounting_validations.exists())
+        self.assertFalse(case.posting_requests.exists())
+        held.refresh_from_db()
+        self.assertEqual((held.pk, held.source_snapshot, held.source_checksum), retained)
+        self.assertIsNone(held.released_at)
+        data.update(jev_date="2026-08-29", idempotency_key="retry-later")
+        self.assertEqual(self.client.post(url, data).status_code, 302)
+        self.assertEqual(case.accounting_validations.count(), 1)
+        self.assertEqual(PayableClaimReservation.objects.filter(case_public_id=case.public_id).count(), 1)
+        self.pay(case, suffix="-recovered-date")
+        exported = self.client.get(reverse("accounting:payable_claim_export"), {"as_of": timezone.localdate().isoformat()})
+        self.assertIn(b"1500.00,1000.00,500.00", exported.content)
+        self.assertEqual(exported["X-GRAND-Export-Archived"], "true")
+
     def test_overreservation_manual_application_and_invalid_payee_are_blocked(self):
         first = self.case_for_validation("-one")
         self.validate(first)

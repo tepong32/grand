@@ -61,3 +61,26 @@ class DatedClaimReservationTests(TestCase):
         self.assertEqual(recovered.pk, held.pk)
         self.assertEqual(recovered.source_checksum, held.source_checksum)
         self.assertEqual(self.reserve(source, "50", 5).amount, Decimal("50"))
+
+    def test_recovery_cannot_move_a_later_hold_into_an_earlier_shortfall(self):
+        source = self.history()
+        held = self.reserve(source, "700", 9)
+        with self.assertRaisesMessage(ValidationError, "requested date"):
+            _reserve_claim(source_id=source.pk, case_public_id=held.case_public_id,
+                key=held.reservation_key, amount=held.amount, actor_id=self.poster.pk,
+                department_id=self.department.pk, fund_code=self.fund.code,
+                party_key="supplier-001", as_of=date(2026, 9, 5))
+        self.assertEqual(PayableClaimReservation.objects.count(), 1)
+        held.refresh_from_db()
+        self.assertIsNone(held.released_at)
+
+    def test_recovery_at_exact_capacity_keeps_the_original_hold(self):
+        source = self.history()
+        held = self.reserve(source, "1000", 9)
+        recovered = _reserve_claim(source_id=source.pk, case_public_id=held.case_public_id,
+            key=held.reservation_key, amount=held.amount, actor_id=self.poster.pk,
+            department_id=self.department.pk, fund_code=self.fund.code,
+            party_key="supplier-001", as_of=date(2026, 9, 9))
+        self.assertEqual(recovered.pk, held.pk)
+        self.assertEqual(recovered.source_checksum, held.source_checksum)
+        self.assertEqual(PayableClaimReservation.objects.count(), 1)

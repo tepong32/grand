@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.86 - Recheck dated capacity when recovering a claim hold
+
+An interrupted single-claim DV validation can no longer reuse a later valid reservation at an earlier date with insufficient capacity. Recovery counts the retained hold once and preserves its evidence; valid later retries and payment still work. [Reproduction, HTTP payment/export proof and scoped SQLite/MySQL validation](docs/FINANCE_CLAIM_RECOVERY_DATE_2026-09-10.md).
+
 ## v0.7.85 - Settle several original claims through one DV
 
 Accounting allocates a DV's gross, each deduction and net across original claims for one payee/fund. Treasury retains explicit partial-check shares and exact return/replacement lineage. Closing one returned check frees only its posted shares, preserving other checks and earlier-date capacity. Atomic group creation/correction and interrupted-handoff recovery preserve both stores and original journals. Validation and check forms retain invalid entered allocations for correction. [Validation, the repaired older Budget test fixture and remaining boundaries](docs/FINANCE_CONSOLIDATED_DV_2026-09-10.md).

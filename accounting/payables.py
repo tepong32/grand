@@ -122,7 +122,12 @@ def _reserve_claim(*, source_id, case_public_id, key, amount, actor_id, departme
         if (existing.source_id != source_id or existing.case_public_id != case_public_id or existing.amount != amount
                 or existing.group_id != (group.pk if group else None)):
             raise ValidationError("An interrupted handoff retained different claim evidence. Release the unused reservation before changing it.")
-        return verify_reservation(existing)
+        verify_reservation(existing)
+        # Recovery retains this hold; it is already included in dated capacity.
+        # A changed retry date must fit without adding the amount a second time.
+        if _capacity(source, as_of=as_of) < 0:
+            raise ValidationError("The retained claim reservation cannot fit on or after the requested date. Recover using a valid later settlement date or return the unused reservation for correction.")
+        return existing
     other_holds = PayableClaimReservation.objects.filter(case_public_id=case_public_id, released_at__isnull=True)
     if group:
         from .claim_groups import validate_member
