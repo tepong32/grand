@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-077:** Attribute historical claims and prior applications through independently reviewed metadata over unchanged journal lines; reconcile report projections and pin the approval version used by each new DV reservation.
+
 - **D-076:** Validate new prior-payable reservations against their effective date and intervening posted movements; retain the existing original-credit lock and count active holds only once.
 
 - **D-075:** Correct posted prior-payable deductions by exact source reversal, protect unremitted balances and reopen the DV only after independent posting; allow reasoned withdrawal only before posting.
@@ -772,6 +774,15 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-077 - Review historical attribution without rewriting the journal
+
+- Date: 2026-09-10. Goal: make earlier posted liabilities usable in the M02 claim-to-DV workflow without duplicate recognition or overstated unpaid capacity. [Implementation, validation and limits](FINANCE_HISTORICAL_CLAIMS_2026-09-10.md).
+- Decision: use versioned attribution evidence for an original liability credit and its full historical application lines. A different Accounting reviewer approves a current pointer; original journals/subsidiary records and older decisions remain immutable. Reuse existing dated claim capacity, DV reservations, posting and exact reversals. Pin the approval version in the reservation while allowing compatible later metadata corrections.
+- Reporting: project approved identity/application metadata consistently into the claim register, payable schedule, GL control reconciliation and report source snapshots. Retain original subsidiary identities within evidence; never change stored detail or create a no-purpose journal to attach an invoice label.
+- Concurrency: lock the existing Fund before source/application lines for attribution decisions and invoice identity checks. Reservation writers share the original credit lock. Stale approval bases, duplicate applications/identities and overcommitted amendments fail without advancing the approved pointer.
+- Alternatives/tradeoffs: editing posted fields destroys historical evidence; a label-only overlay ignores old payments; a new recognition JEV duplicates the liability. Reviewed metadata requires actual reconciled documents and explicit completeness confirmation. The current one-claim-per-credit ledger cannot implicitly split consolidated historical amounts; dedicated allocation and multi-claim settlement remain financial work, not presumed support.
+- Boundaries: exclude generated voucher/remittance cycles until their operational handoff can be reconciled safely. Protect identities already used by later financial links and application evidence already referenced by reversals. Preserve the broader M01/M03, exact-output, office, usability/WFH and operational/LGU gates.
 
 ## D-076 - Reserve payable capacity across dated posted history
 

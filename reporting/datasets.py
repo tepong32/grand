@@ -517,8 +517,12 @@ class PostedSubsidiaryScheduleDataset(ApprovedDataset):
         from accounting.models import JournalEntry, JournalSubsidiaryLine
         from accounting.services import control_reconciliation_snapshot, subsidiary_schedule_rows
 
-        rows = subsidiary_schedule_rows(department.pk, self.category, period_end)
-        reconciliation, _checksum = control_reconciliation_snapshot(department.pk, period_end)
+        payable_details = None
+        if self.category == JournalSubsidiaryLine.PAYABLE:
+            from accounting.claim_attributions import projected_details
+            payable_details = projected_details(department.pk, period_end)
+        rows = subsidiary_schedule_rows(department.pk, self.category, period_end, payable_details=payable_details)
+        reconciliation, _checksum = control_reconciliation_snapshot(department.pk, period_end, payable_details=payable_details)
         control_rows = [row for row in reconciliation["rows"] if row["category"] == self.category]
         configured = self.category in reconciliation["configured_categories"]
         absolute_difference = sum(
@@ -532,8 +536,11 @@ class PostedSubsidiaryScheduleDataset(ApprovedDataset):
                 "entry", "entry__fund", "journal_line", "journal_line__account",
             ).order_by("entry__entry_date", "entry__reference", "journal_line__sequence")
         )
+        if self.category == JournalSubsidiaryLine.PAYABLE:
+            details = payable_details
         sources = []
         for detail in details:
+            attribution = getattr(detail, "attribution", None)
             snapshot = {
                 "category": detail.category, "fund": detail.entry.fund.code,
                 "account": detail.journal_line.account.code,
@@ -543,8 +550,8 @@ class PostedSubsidiaryScheduleDataset(ApprovedDataset):
                 "source_snapshot": detail.source_snapshot,
             }
             sources.append({
-                "source_app": "accounting", "source_model": "JournalSubsidiaryLine",
-                "source_pk": str(detail.pk), "source_public_id": str(detail.entry.public_id),
+                "source_app": "accounting", "source_model": "JournalLine" if attribution else "JournalSubsidiaryLine",
+                "source_pk": str(detail.journal_line_id if attribution else detail.pk), "source_public_id": str(detail.entry.public_id),
                 "source_reference": detail.entry.reference, "source_date": detail.entry.entry_date,
                 "control_group": self.control_group,
                 "amount": detail.credit - detail.debit,
@@ -570,7 +577,8 @@ class PostedSubsidiaryScheduleDataset(ApprovedDataset):
         else:
             message = "Posted subsidiary detail agrees exactly with its mapped general-ledger control account."
         freshness = _latest_datetime([
-            detail.entry.posted_at or detail.entry.updated_at for detail in details
+            max(detail.entry.posted_at or detail.entry.updated_at, detail.attribution.reviewed_at)
+                if getattr(detail, "attribution", None) else detail.entry.posted_at or detail.entry.updated_at for detail in details
         ])
         return DatasetPayload(
             rows=rows, sources=sources, control_totals=controls, control_status=status,

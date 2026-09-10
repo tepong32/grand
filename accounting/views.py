@@ -2278,9 +2278,10 @@ def payable_claim_export(request):
     for row in rows:
         line = row["line"]
         writer.writerow((_csv_text(department.name), as_of_date, _csv_text(line.entry.fund.code),
-            _csv_text(line.account.code), _csv_text(line.payable_party_key), _csv_text(line.payable_claim_reference),
+            _csv_text(line.account.code), _csv_text(row["party_key"]), _csv_text(row["claim_reference"]),
             _csv_text(line.entry.reference), line.sequence, line.credit, row["applied"], row["outstanding"]))
     return _archived_csv_response(response=response, request=request, department=department,
         category="finance-payable-claims", filename=filename,
         metadata={"kind": "individual_payable_claims", "as_of_date": as_of_date.isoformat(), "row_count": len(rows),
+            "claim_attributions": [row["attribution"] for row in rows if row["attribution"]],
             "official_status": "controlled data interchange; not automatically an official COA/local schedule"})

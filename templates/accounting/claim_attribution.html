@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title_ext %} - Historical claim · {{ source.entry.reference }}{% endblock %}
+{% block content %}
+<div class="container pb-4">
+  <a href="{% url 'accounting:entry_detail' source.entry.public_id %}">Back to {{ source.entry.reference }}</a>
+  <h1 class="h3 mt-3">Historical claim attribution</h1>
+  <p>{{ source.entry.reference }} · line {{ source.sequence }} · {{ source.entry.entry_date }} · {{ source.entry.fund }} · {{ source.account }} · original credit {{ source.credit|floatformat:2 }}.</p>
+  <p>Identify the original claim and reconcile its earlier applications. A separate Accounting reviewer approves the links used in outstanding claims, new DV settlements and subsidiary reports. The original journal and older issued reports remain unchanged.</p>
+  {% if current %}<p class="alert alert-success">Approved version {{ current.version }} · {{ current.claim_reference }} · {{ current.party_key }} · {{ current.reviewed_by_label }} · {{ current.reviewed_at }}</p>{% endif %}
+  {% if can_prepare %}<div class="card"><div class="card-header"><h2 class="h5">Propose attribution</h2></div><div class="card-body">
+    <p class="small text-muted">Use a complete original liability credit for one claim. Split credits or payment lines covering several claims require a reconciled allocation workflow; do not assign the full amount to one invoice. Register the payee in Finance Setup first if missing.</p>
+    <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Submit for independent review</button></form>
+  </div></div>{% endif %}
+  <h2 class="h4 mt-4">Proposals and decisions</h2>
+  {% for item in records %}{% with record=item.record %}<div class="card"><div class="card-header">Version {{ record.version }} · {{ record.get_status_display }} · based on version {{ record.base_version }}</div><div class="card-body">
+    <p><strong>{{ record.claim_reference }}</strong> · {{ record.party_key }}</p>
+    <p>{{ record.reason|linebreaksbr }}Evidence: {{ record.evidence_reference }}</p>
+    <p class="small text-muted">Proposed by {{ record.proposed_by_label }} · {{ record.proposed_at }}</p>
+    <table class="table table-sm"><thead><tr><th>Earlier application / reversal</th><th>Date</th><th>Debit</th><th>Credit</th></tr></thead><tbody>
+    {% for line in item.lines %}<tr><td><a href="{% url 'accounting:entry_detail' line.entry.public_id %}">{{ line.entry.reference }}</a> / line {{ line.sequence }}</td><td>{{ line.entry.entry_date }}</td><td>{{ line.debit|floatformat:2 }}</td><td>{{ line.credit|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="4">The preparer declared no earlier applications.</td></tr>{% endfor %}</tbody></table>
+    {% if record.reviewed_at %}<p>Decision: {{ record.reviewed_by_label }} · {{ record.reviewed_at }} · {{ record.review_note }}</p>{% endif %}
+    {% if item.can_review %}<form method="post" action="{% url 'accounting:claim_attribution_review' source.pk record.public_id 'approve' %}">{% csrf_token %}<label>Review basis <input class="form-control" name="note" required></label><button class="btn btn-success">Approve attribution</button><button class="btn btn-outline-warning" formaction="{% url 'accounting:claim_attribution_review' source.pk record.public_id 'return' %}">Return for correction</button></form>{% endif %}
+  </div></div>{% endwith %}{% empty %}<p>No attribution has been submitted.</p>{% endfor %}
+</div>
+{% endblock %}

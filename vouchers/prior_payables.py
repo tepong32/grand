@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from accounting.models import JournalEntry, JournalLine, PayableClaimReservation, PostingMapping
 from accounting.payables import _reserve_claim, _release_unused_claim, reservation_evidence, verify_reservation
+from accounting.claim_attributions import identity as claim_identity
 from finance.models import FinancePostingRule as Rule, FinancePostingRuleLine as Line
 from finance.services import posting_rule_snapshot
 
@@ -30,7 +31,7 @@ def current_reservation(case):
         raise ValidationError("The prior-payable handoff cannot be found in Finance. Investigate before payment.")
     verify_reservation(reservation, evidence)
     if (reservation.amount != case.disbursement_voucher.gross_amount
-            or not case.payee_id or reservation.source.payable_party_key != f"finance-party:{case.payee.code}"
+            or not case.payee_id or claim_identity(reservation.source)[0] != f"finance-party:{case.payee.code}"
             or reservation.source.entry.department_id != case.configuration_release.department_id
             or set(case.obligation.allocation_lines.values_list("fund_code", flat=True)) != {reservation.source.entry.fund.code}):
         raise ValidationError("The voucher differs from its retained prior-payable source, payee, fund or amount.")

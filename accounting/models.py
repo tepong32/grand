@@ -832,6 +832,12 @@ class JournalLine(models.Model):
         return super().delete(*args, **kwargs)
 
 
+    @property
+    def claim_identity(self):
+        from .claim_attributions import identity
+        return identity(self)
+
+
 class PayableClaimReservation(models.Model):
     """Finance-side capacity retained across the recoverable voucher handoff."""
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -927,6 +933,66 @@ class CashFlowClassificationHead(models.Model):
             raise ValidationError("The current classification must be an approved version for this journal.")
 
     def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class PayableClaimAttribution(DepartmentOwnedModel):
+    """Reviewed historical identity/applications over unchanged journal lines."""
+    SUBMITTED, APPROVED, RETURNED = "submitted", "approved", "returned"
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    source = models.ForeignKey(JournalLine, on_delete=models.PROTECT, related_name="claim_attributions")
+    version = models.PositiveIntegerField()
+    base_version = models.PositiveIntegerField(default=0)
+    party_key = models.CharField(max_length=100)
+    claim_reference = models.CharField(max_length=120)
+    applications = models.JSONField(default=list, blank=True)
+    source_snapshot = models.JSONField()
+    source_checksum = models.CharField(max_length=64)
+    evidence_reference = models.CharField(max_length=255)
+    reason = models.TextField()
+    status = models.CharField(max_length=12, default=SUBMITTED,
+        choices=((SUBMITTED, "For independent review"), (APPROVED, "Approved"), (RETURNED, "Returned")))
+    proposed_by_id = models.PositiveBigIntegerField()
+    proposed_by_label = models.CharField(max_length=160)
+    proposed_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reviewed_by_label = models.CharField(max_length=160, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    approval_checksum = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ("-version",)
+        constraints = (models.UniqueConstraint(fields=("source", "version"), name="unique_payable_attribution_version"),)
+
+    def clean(self):
+        if self.source_id and self.source.entry.department_id != self.department_id:
+            raise ValidationError("Attribute a claim in the same Accounting ledger.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            fixed = ("public_id", "source_id", "department_id", "department_label", "version", "base_version",
+                "party_key", "claim_reference", "applications", "source_snapshot", "source_checksum",
+                "evidence_reference", "reason", "proposed_by_id", "proposed_by_label", "proposed_at")
+            if (not getattr(self, "_review_transition", False) or prior.status != self.SUBMITTED
+                    or any(getattr(prior, key) != getattr(self, key) for key in fixed)):
+                raise ValidationError("Retain the attribution evidence; submit a new reviewed version.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain claim-attribution proposals and decisions.")
+
+
+class PayableClaimAttributionHead(models.Model):
+    source = models.OneToOneField(JournalLine, on_delete=models.PROTECT, related_name="claim_attribution_head")
+    attribution = models.OneToOneField(PayableClaimAttribution, on_delete=models.PROTECT, related_name="current_head")
+
+    def save(self, *args, **kwargs):
+        if self.attribution.source_id != self.source_id or self.attribution.status != PayableClaimAttribution.APPROVED:
+            raise ValidationError("Select an approved attribution for this original credit.")
         self.full_clean()
         return super().save(*args, **kwargs)
 

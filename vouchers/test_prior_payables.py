@@ -70,7 +70,7 @@ class PriorPayableDVTests(TestCase):
         post_entry(self.original, self.validator)
         self.source = self.original.lines.get(sequence=2)
 
-    def case_for_validation(self, suffix="", deductions=False):
+    def case_for_validation(self, suffix="", deductions=False, claim_reference="PRIOR-INVOICE-1"):
         case = self.create_case("create" + suffix)
         self.budget_certify(case, "certify" + suffix)
         case.refresh_from_db()
@@ -80,7 +80,7 @@ class PriorPayableDVTests(TestCase):
             expected_version=case.state_version, idempotency_key="prepare" + suffix)
         self.return_signatures(case)
         PayableIntake.objects.create(case=case,
-            claim_reference="PRIOR-INVOICE-1", claim_amount=1500, initial_allocation_amount=1000,
+            claim_reference=claim_reference, claim_amount=1500, initial_allocation_amount=1000,
             initial_relationship_type=PayableIntake.PARTIAL, status=PayableIntake.READY,
             recognition_decision=PayableIntake.SETTLE_EXISTING_PAYABLE,
             recognition_basis="Previously accrued original invoice; settle part only.", prepared_by=self.requesting_user)
@@ -215,6 +215,71 @@ class PriorPayableDVTests(TestCase):
         case.refresh_from_db()
         self.validate(case, key="validate-again")
         self.assertEqual(PayableClaimReservation.objects.count(), 2)
+
+    def test_historical_attribution_http_to_dv_payment_and_claim_export(self):
+        from accounting.models import PostingMapping, PayableClaimAttribution
+        from accounting.claim_attributions import serial_snapshot, propose, review
+        legacy = JournalEntry.objects.create(department_id=self.accounting.pk, department_label=self.accounting.name,
+            reference="HISTORICAL-INVOICE", entry_date=date(2026, 8, 20), period=self.accounting_period,
+            fund=self.accounting_fund, description="Older invoice with no individual claim link",
+            created_by_id=self.preparer.pk, created_by_label=self.preparer.username)
+        JournalLine.objects.create(entry=legacy, sequence=1, account=self.expense_account, debit=1500)
+        historical = JournalLine.objects.create(entry=legacy, sequence=2, account=self.payable_account, credit=1500)
+        submit_entry(legacy, self.preparer)
+        post_entry(legacy, self.validator)
+        old_payment = JournalEntry.objects.create(department_id=self.accounting.pk, department_label=self.accounting.name,
+            reference="HISTORICAL-PAYMENT", entry_date=date(2026, 8, 22), period=self.accounting_period,
+            fund=self.accounting_fund, description="Earlier partial payment",
+            created_by_id=self.preparer.pk, created_by_label=self.preparer.username)
+        application = JournalLine.objects.create(entry=old_payment, sequence=1, account=self.payable_account, debit=300)
+        bank = PostingMapping.objects.filter(department_id=self.accounting.pk, category=PostingMapping.BANK).first().account
+        JournalLine.objects.create(entry=old_payment, sequence=2, account=bank, credit=300, cash_flow_category="op_suppliers")
+        submit_entry(old_payment, self.preparer)
+        post_entry(old_payment, self.validator)
+        unchanged = serial_snapshot(historical, [application.pk])
+        url = reverse("accounting:claim_attribution", args=[historical.pk])
+        self.client.force_login(self.preparer)
+        self.assertContains(self.client.get(url), "Historical claim attribution")
+        response = self.client.post(url, {"expected_version": 0, "party_key": f"finance-party:{self.party.code}",
+            "claim_reference": "HIST-001", "applications": [application.pk], "complete_history": "on",
+            "evidence_reference": "Original invoice and partial-payment schedule", "reason": "Reconciled legacy claim"})
+        self.assertEqual(response.status_code, 302, response.content)
+        proposal = PayableClaimAttribution.objects.get(source=historical)
+        review_url = reverse("accounting:claim_attribution_review", args=[historical.pk, proposal.public_id, "approve"])
+        self.client.post(review_url, {"note": "Cannot approve my own proposal"})
+        proposal.refresh_from_db()
+        self.assertEqual(proposal.status, proposal.SUBMITTED)
+        self.client.force_login(self.validator)
+        self.assertEqual(self.client.post(review_url, {"note": "Verified invoice and earlier payment"}).status_code, 302)
+        proposal.refresh_from_db()
+        self.assertEqual(proposal.status, proposal.APPROVED)
+        case = self.case_for_validation("-historical", deductions=True, claim_reference="HIST-001")
+        choices = AccountingValidationForm(case=case).fields["prior_payable_line"].queryset
+        self.assertIn(historical, choices)
+        self.validate(case, source=historical)
+        self.post_request(case.posting_requests.get(kind=Rule.ADJUSTMENT))
+        retained = current_reservation(case).source_snapshot["claim_attribution"]
+        self.assertEqual(retained["public_id"], str(proposal.public_id))
+        updated = propose(historical, self.preparer, party_key=f"finance-party:{self.party.code}",
+            claim_reference="HIST-001", applications=[application.pk], evidence_reference="Additional reconciliation evidence",
+            reason="Supplement the evidence without changing the invoice or applications", expected_version=1)
+        review(updated, self.validator, approve=True, note="Verified supplementary evidence")
+        self.assertEqual(current_reservation(case).source_snapshot["claim_attribution"], retained)
+        _, payment = self.pay(case, suffix="-historical")
+        line = payment.lines.get(account=self.payable_account)
+        self.assertEqual((line.payable_origin_id, line.debit), (historical.pk, Decimal("900")))
+        self.assertEqual(payment.source_snapshot["prior_payable"]["source"]["claim_attribution"], retained)
+        self.assertEqual(serial_snapshot(historical, [application.pk]), unchanged)
+        exported = self.client.get(reverse("accounting:payable_claim_export"), {"as_of": timezone.localdate().isoformat()})
+        self.assertEqual(exported.status_code, 200)
+        self.assertIn(b"1500.00,1300.00,200.00", exported.content)
+        self.preparer.groups.add(Group.objects.get_or_create(name="Finance UAT Viewer")[0])
+        self.client.force_login(self.preparer)
+        self.assertEqual(self.client.post(url, {}).status_code, 403)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.outsider.user_permissions.add(Permission.objects.get(content_type__app_label="accounting", codename="view_accounting_workspace"))
+        self.assertEqual(self.client.get(url).status_code, 404)
 
     def test_validation_cannot_spend_capacity_restored_after_its_date(self):
         adjustment = JournalEntry.objects.create(department_id=self.accounting.pk, department_label=self.accounting.name,

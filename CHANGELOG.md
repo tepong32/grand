@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.84 - Attribute historical claims without rewriting posted journals
+
+Accounting can independently review an original historical liability and its earlier applications, select the claim in a DV, and retain the approval version through deductions and payment. Original journals and subsidiary detail stay unchanged; new claim/schedule outputs use the reviewed projection and retain old source evidence. Reviewed successors, dated capacity and competing approvals/reservations are covered. [Validation and remaining allocation boundaries](docs/FINANCE_HISTORICAL_CLAIMS_2026-09-10.md).
+
 ## v0.7.83 - Respect dated claim capacity before DV advancement
 
 Prior-payable reservations now reject earlier or intervening shortfalls even when a later reversal restores the ending balance. Active holds and their applications count once. Validation blocks invalid downstream handoffs while preserving successful later-date payment and original claim output. [Reproduction, validation and limits](docs/FINANCE_DATED_CLAIM_RESERVATIONS_2026-09-10.md).

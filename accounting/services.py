@@ -1293,6 +1293,8 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
     reversal.full_clean()
     reversal.save()
     for line in locked.lines.select_related("account", "responsibility_center").order_by("sequence", "pk"):
+        from .claim_attributions import reversal_origin, identity as claim_identity, current as current_attribution
+        claim_origin = reversal_origin(line)
         reversed_line = JournalLine(
             entry=reversal,
             sequence=line.sequence,
@@ -1301,7 +1303,7 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
             debit=line.credit,
             credit=line.debit,
             cash_flow_category=line.cash_flow_category,
-            payable_origin_id=line.payable_origin_id or (line.pk if line.payable_claim_reference else None),
+            payable_origin_id=claim_origin.pk if claim_origin else None,
             payable_reservation_id=line.payable_reservation_id,
             memo=f"Reversal: {line.memo}"[:255],
         )
@@ -1309,13 +1311,14 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
         reversed_line.save()
         original_subsidiary = JournalSubsidiaryLine.objects.filter(journal_line=line).first()
         if original_subsidiary:
+            claim_party = claim_identity(claim_origin)[0] if claim_origin and current_attribution(claim_origin) else ""
             reversed_subsidiary = JournalSubsidiaryLine(
                 entry=reversal,
                 journal_line=reversed_line,
                 category=original_subsidiary.category,
-                reference_key=original_subsidiary.reference_key,
-                reference_label=original_subsidiary.reference_label,
-                source_code=original_subsidiary.source_code,
+                reference_key=claim_party or original_subsidiary.reference_key,
+                reference_label=claim_party or original_subsidiary.reference_label,
+                source_code="individual-claim" if claim_party else original_subsidiary.source_code,
                 source_reference=str(reversal.public_id),
                 debit=original_subsidiary.credit,
                 credit=original_subsidiary.debit,
@@ -1339,10 +1342,26 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
     return reversal
 
 
-def subsidiary_schedule_rows(department_id, category, as_of_date):
+def subsidiary_schedule_rows(department_id, category, as_of_date, *, payable_details=None):
     """Aggregate posted immutable subsidiary details by fund, control account, and reference."""
     if category not in dict(JournalSubsidiaryLine.CATEGORY_CHOICES):
         raise ValidationError("Choose a supported subsidiary schedule.")
+    if category == JournalSubsidiaryLine.PAYABLE:
+        from .claim_attributions import projected_details
+        grouped = {}
+        if payable_details is None:
+            payable_details = projected_details(department_id, as_of_date)
+        for detail in payable_details:
+            key = (detail.entry.fund.code, detail.journal_line.account.code,
+                detail.reference_key, detail.reference_label, detail.source_code)
+            row = grouped.setdefault(key, {"fund_code": key[0], "account_code": key[1],
+                "account_title": detail.journal_line.account.title, "reference_key": key[2],
+                "reference_label": key[3], "source_code": key[4], "debit": Decimal("0.00"),
+                "credit": Decimal("0.00"), "balance": Decimal("0.00")})
+            row["debit"] += detail.debit
+            row["credit"] += detail.credit
+            row["balance"] += detail.credit - detail.debit
+        return sorted(grouped.values(), key=lambda row: (row["fund_code"], row["account_code"], row["reference_label"], row["reference_key"]))
     rows = JournalSubsidiaryLine.objects.filter(
         entry__department_id=department_id,
         entry__status=JournalEntry.POSTED,
@@ -1374,7 +1393,7 @@ def subsidiary_schedule_rows(department_id, category, as_of_date):
     return result
 
 
-def control_reconciliation_snapshot(department_id, as_of_date):
+def control_reconciliation_snapshot(department_id, as_of_date, *, payable_details=None):
     """Compare posted GL control accounts with posted subsidiary detail by fund and category."""
     category_map = {
         PostingMapping.PAYABLE: JournalSubsidiaryLine.PAYABLE,
@@ -1384,6 +1403,9 @@ def control_reconciliation_snapshot(department_id, as_of_date):
         department_id=department_id,
         category__in=category_map,
     ).select_related("account"))
+    from .claim_attributions import projected_details
+    if payable_details is None:
+        payable_details = projected_details(department_id, as_of_date)
     pairs = {}
     for mapping in mappings:
         fund_ids = JournalLine.objects.filter(
@@ -1404,6 +1426,9 @@ def control_reconciliation_snapshot(department_id, as_of_date):
     for category, account_id, fund_id, source_code in subsidiary_pairs:
         pair = pairs.setdefault((category, account_id, fund_id), {"mapping_codes": set()})
         pair["mapping_codes"].add(source_code)
+    for detail in payable_details:
+        pair = pairs.setdefault((JournalSubsidiaryLine.PAYABLE, detail.journal_line.account_id, detail.entry.fund_id), {"mapping_codes": set()})
+        pair["mapping_codes"].add(detail.source_code)
 
     account_ids = {key[1] for key in pairs}
     fund_ids = {key[2] for key in pairs}
@@ -1431,6 +1456,9 @@ def control_reconciliation_snapshot(department_id, as_of_date):
         ).aggregate(debit=Sum("debit"), credit=Sum("credit"))
         gl_balance = (gl["credit"] or Decimal("0.00")) - (gl["debit"] or Decimal("0.00"))
         subsidiary_balance = (subsidiary["credit"] or Decimal("0.00")) - (subsidiary["debit"] or Decimal("0.00"))
+        if category == JournalSubsidiaryLine.PAYABLE:
+            subsidiary_balance = sum((detail.credit - detail.debit for detail in payable_details
+                if detail.journal_line.account_id == account_id and detail.entry.fund_id == fund_id), Decimal("0.00"))
         difference = gl_balance - subsidiary_balance
         absolute_difference += abs(difference)
         result_rows.append({

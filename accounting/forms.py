@@ -395,15 +395,13 @@ class JournalLineForm(StyledModelForm):
         self.fields["responsibility_center"].queryset = ResponsibilityCenter.objects.filter(
             department_id=department.pk, is_active=True,
         )
-        self.fields["payable_origin"].queryset = JournalLine.objects.filter(
-            entry__department_id=department.pk, entry__status=JournalEntry.POSTED,
-            credit__gt=0, payable_origin__isnull=True,
-        ).exclude(payable_claim_reference="").exclude(payable_party_key="").select_related("entry")
+        from .claim_attributions import eligible_claims, identity
+        self.fields["payable_origin"].queryset = eligible_claims(department.pk).select_related("entry")
         if entry is not None:
             self.fields["payable_origin"].queryset = self.fields["payable_origin"].queryset.filter(
                 entry__fund_id=entry.fund_id, entry__entry_date__lte=entry.entry_date)
         self.fields["payable_origin"].label_from_instance = lambda line: (
-            f"{line.entry.reference} / {line.payable_claim_reference} / {line.payable_party_key} / {line.credit:,.2f} original")
+            f"{line.entry.reference} / {identity(line)[1]} / {identity(line)[0]} / {line.credit:,.2f} original")
 
 
 class ReversalForm(forms.Form):

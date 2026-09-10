@@ -6,9 +6,11 @@ import json
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from .models import Fund, JournalEntry, JournalLine, JournalSubsidiaryLine, PayableClaimReservation
+from . import claim_attributions as history
 
 
 def _digest(value):
@@ -16,11 +18,12 @@ def _digest(value):
 
 
 def claim_snapshot(source):
+    party, claim = history.identity(source)
     return {"line": source.pk, "entry": str(source.entry.public_id), "reference": source.entry.reference,
         "date": source.entry.entry_date.isoformat(), "sequence": source.sequence,
         "department": source.entry.department_id, "fund": source.entry.fund.code,
-        "account": source.account.code, "party": source.payable_party_key,
-        "claim": source.payable_claim_reference, "credit": str(source.credit)}
+        "account": source.account.code, "party": party,
+        "claim": claim, "credit": str(source.credit)}
 
 
 def reservation_evidence(reservation):
@@ -30,11 +33,15 @@ def reservation_evidence(reservation):
 
 
 def verify_reservation(reservation, evidence=None):
+    retained_source = dict(reservation.source_snapshot)
+    attribution = retained_source.pop("claim_attribution", None)
     if (reservation.released_at or _digest(reservation.source_snapshot) != reservation.source_checksum
-            or claim_snapshot(reservation.source) != reservation.source_snapshot
+            or claim_snapshot(reservation.source) != retained_source
             or reservation.source.entry.status != JournalEntry.POSTED
             or (evidence is not None and reservation_evidence(reservation) != evidence)):
         raise ValidationError("The retained prior-payable reservation differs from its posted source or has been released. Investigate the handoff.")
+    if attribution is not None:
+        history.verify_retained_evidence(reservation.source, attribution)
     return reservation
 
 
@@ -46,7 +53,7 @@ def _capacity(source, candidate_lines=(), *, as_of=None):
     applications = JournalLine.objects.filter(payable_origin=source, entry__status=JournalEntry.POSTED)
     if candidates:
         applications = applications.exclude(entry_id=candidates[0].entry_id)
-    movements = [*applications.select_related("entry"), *candidates]
+    movements = [*history.application_lines(source), *applications.select_related("entry"), *candidates]
     for line in movements:
         delta = line.debit - line.credit
         used += delta
@@ -92,10 +99,11 @@ def _reserve_claim(*, source_id, case_public_id, key, amount, actor_id, departme
     # Lock only the source row. Joining Fund here would also lock it on MySQL,
     # reversing the fund-before-claim order used by mixed recognition entries.
     source = JournalLine.objects.select_for_update().get(pk=source_id)
+    source_party, source_claim = history.identity(source)
     if (source.entry.department_id != department_id or source.entry.fund.code != fund_code
-            or source.payable_party_key != party_key or source.entry.entry_date > as_of
+            or source_party != party_key or source.entry.entry_date > as_of
             or source.entry.status != JournalEntry.POSTED or not source.entry.posted_by_id
-            or source.payable_origin_id or not source.payable_claim_reference or source.credit <= 0
+            or source.payable_origin_id or not source_claim or source.credit <= 0
             or source.debit or source.account.account_type != "liability"
             or not source.account.is_active or not source.account.allow_posting):
         raise ValidationError("Select a posted original claim for this payee, fund, Accounting office and date.")
@@ -112,6 +120,9 @@ def _reserve_claim(*, source_id, case_public_id, key, amount, actor_id, departme
     if _capacity(source, as_of=as_of) < amount:
         raise ValidationError("The claim amount is already applied or reserved for another voucher on or after the requested date. Review the dated claim applications or use the actual later settlement date.")
     snapshot = claim_snapshot(source)
+    attribution = history.current(source)
+    if attribution:
+        snapshot["claim_attribution"] = history.attribution_evidence(attribution)
     reservation = PayableClaimReservation(reservation_key=key, case_public_id=case_public_id, source=source,
         amount=amount, source_snapshot=snapshot, source_checksum=_digest(snapshot), created_by_id=actor_id)
     reservation.full_clean()
@@ -164,8 +175,9 @@ def validate_claim_line(line):
             raise ValidationError("Remove leading or trailing spaces from the payee key and claim reference.")
         return
     origin = line.payable_origin
-    if (origin.pk == line.pk or origin.payable_origin_id or not origin.payable_claim_reference
-            or not origin.payable_party_key or origin.credit <= 0 or origin.debit
+    origin_party, origin_claim = history.identity(origin)
+    if (origin.pk == line.pk or origin.payable_origin_id or not origin_claim
+            or not origin_party or origin.credit <= 0 or origin.debit
             or origin.entry.status != JournalEntry.POSTED or not origin.entry.posted_by_id):
         raise ValidationError("Select an independently posted original payable claim.")
     if (line.entry.department_id != origin.entry.department_id or line.entry.fund_id != origin.entry.fund_id
@@ -177,7 +189,8 @@ def validate_claim_line(line):
         # A credit restores capacity only through an actual, exactly mirrored reversal.
         prior = (line.entry.reversal_of.lines.filter(sequence=line.sequence).first()
                  if line.entry.reversal_of_id else None)
-        if (not prior or prior.payable_origin_id != origin.pk or prior.debit != line.credit
+        prior_origin = history.application_origin(prior) if prior else None
+        if (not prior or not prior_origin or prior_origin.pk != origin.pk or prior.debit != line.credit
                 or prior.payable_reservation_id != line.payable_reservation_id
                 or prior.credit != line.debit or prior.account_id != line.account_id
                 or prior.entry.fund_id != line.entry.fund_id or prior.entry.status != JournalEntry.POSTED
@@ -205,12 +218,17 @@ def validate_claim_applications(entry, *, lock=False):
             entry__fund_id=entry.fund_id, entry__status=JournalEntry.POSTED,
             payable_party_key__iexact=line.payable_party_key,
             payable_claim_reference__iexact=line.payable_claim_reference).exclude(entry_id=entry.pk).exists()
+        duplicate = duplicate or history.Head.objects.filter(source__entry__department_id=entry.department_id,
+            source__entry__fund_id=entry.fund_id, attribution__party_key__iexact=line.payable_party_key,
+            attribution__claim_reference__iexact=line.payable_claim_reference).exclude(source__entry_id=entry.pk).exists()
         if identity in identities or duplicate:
             raise ValidationError("This payee's claim reference is already recognized in this fund. Link the original claim instead of recognizing it again.")
         identities.add(identity)
     for origin_id in origin_ids:
         origin = JournalLine.objects.get(pk=origin_id)
         daily = defaultdict(lambda: Decimal("0.00"))
+        for applied in history.application_lines(origin):
+            daily[applied.entry.entry_date] += applied.debit - applied.credit
         for applied in JournalLine.objects.filter(payable_origin_id=origin_id,
                 entry__status=JournalEntry.POSTED).exclude(entry_id=entry.pk).select_related("entry"):
             daily[applied.entry.entry_date] += applied.debit - applied.credit
@@ -222,7 +240,7 @@ def validate_claim_applications(entry, *, lock=False):
             used += amount
             if used < 0 or used > origin.credit:
                 raise ValidationError(
-                    f"Claim {origin.payable_claim_reference}: applications through {day} would use "
+                    f"Claim {history.identity(origin)[1]}: applications through {day} would use "
                     f"{used:,.2f} of its {origin.credit:,.2f} recognized amount. Correct the amount or linked claim.")
         _capacity(origin, [line for line in lines if line.payable_origin_id == origin_id])
 
@@ -230,31 +248,50 @@ def validate_claim_applications(entry, *, lock=False):
 def record_claim_subsidiaries(entry):
     for line in entry.lines.select_related("payable_origin"):
         origin = line.payable_origin if line.payable_origin_id else line
-        if not origin.payable_claim_reference:
+        party, claim = history.identity(origin)
+        if not claim:
             continue
         if JournalSubsidiaryLine.objects.filter(journal_line=line).exists():
             # create_reversal already copied the immutable original detail.
             detail = line.subsidiary_posting
-            if (detail.reference_key != origin.payable_party_key or detail.debit != line.debit
+            if (detail.reference_key != party or detail.debit != line.debit
                     or detail.credit != line.credit or detail.category != JournalSubsidiaryLine.PAYABLE):
                 raise ValidationError("Retained payable subsidiary detail differs from the linked claim.")
             continue
         detail = JournalSubsidiaryLine(entry=entry, journal_line=line, category=JournalSubsidiaryLine.PAYABLE,
-            reference_key=origin.payable_party_key, reference_label=origin.payable_party_key,
+            reference_key=party, reference_label=party,
             source_code="individual-claim", source_reference=entry.reference,
             debit=line.debit, credit=line.credit,
-            source_snapshot={"claim_line": origin.pk, "claim_reference": origin.payable_claim_reference})
+            source_snapshot={"claim_line": origin.pk, "claim_reference": claim})
         detail.full_clean()
         detail.save()
 
 
 def claim_rows(department_id, as_of_date):
-    claims = JournalLine.objects.filter(entry__department_id=department_id,
+    # Capture all selected approval pointers together. A later approval must not
+    # replace only the identity/evidence after an earlier amount was calculated.
+    records = {head.source_id: history.verify(head.attribution) for head in history.Head.objects.filter(
+        source__entry__department_id=department_id, source__entry__entry_date__lte=as_of_date
+        ).select_related("attribution__source")}
+    claims = list(JournalLine.objects.filter(entry__department_id=department_id,
         entry__status=JournalEntry.POSTED, entry__entry_date__lte=as_of_date,
-        payable_origin__isnull=True, credit__gt=0).exclude(payable_claim_reference="").select_related("entry__fund", "account")
+        payable_origin__isnull=True, credit__gt=0).filter(
+            Q(payable_claim_reference__gt="", payable_party_key__gt="") | Q(pk__in=records)
+        ).select_related("entry__fund", "account").order_by("entry__entry_date", "entry__reference", "sequence"))
     amounts = defaultdict(lambda: Decimal("0.00"))
     for row in JournalLine.objects.filter(payable_origin__in=claims,
             entry__status=JournalEntry.POSTED, entry__entry_date__lte=as_of_date):
         amounts[row.payable_origin_id] += row.debit - row.credit
-    return [{"line": line, "applied": amounts[line.pk], "outstanding": line.credit - amounts[line.pk]}
-            for line in claims.order_by("entry__entry_date", "entry__reference", "sequence")]
+    result = []
+    for line in claims:
+        attribution = records.get(line.pk)
+        for applied in history.application_lines(line, record=attribution):
+            if applied.entry.entry_date <= as_of_date:
+                amounts[line.pk] += applied.debit - applied.credit
+        party, claim = history.identity(line, record=attribution)
+        result.append({"line": line, "party_key": party, "claim_reference": claim,
+            "attribution": ({"source_line": line.pk, "public_id": str(attribution.public_id),
+                "version": attribution.version, "approval_checksum": attribution.approval_checksum}
+                if attribution else None),
+            "applied": amounts[line.pk], "outstanding": line.credit - amounts[line.pk]})
+    return result
