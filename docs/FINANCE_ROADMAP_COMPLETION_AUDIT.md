@@ -1,5 +1,7 @@
 # GRAND Finance roadmap completion audit
 
+The [current four-statement package implementation](FINANCE_STATEMENT_PACKAGE_2026-09-10.md) advances the earlier missing note/package/reference paths. It retains four actual report files and printable notes, and rejects inconsistent or incomplete package members. It does not close M01: common source fund selection and complete-row generation for standalone Position/Performance remain next financial work, before M02 prior-payable linkage. Preserve the separate exact-output and acceptance gates.
+
 Latest allocation work: [reviewed historical/mixed cash purposes](FINANCE_CASH_ALLOCATIONS_2026-09-10.md) supplements immutable posted sources and retains classification versions in reports. Read its validation state. Four-statement notes/packages, signed-reference comparison, exact outputs and broader transaction/acceptance work remain incomplete.
 
 The initial [Cash Flow implementation](FINANCE_CASH_FLOW_2026-09-10.md) supplies a comparative direct-method output for supported classified sources. The allocation work above advances its historical/mixed cash gaps; complete statement-package integration remains an explicit M01 gap. Read the latest validation report rather than interpreting the older baseline below as current complete coverage.

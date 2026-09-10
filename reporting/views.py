@@ -1193,6 +1193,7 @@ def statement_note_set_detail(request, public_id):
     return render(request, "reporting/statement_note_set_detail.html", {
         "note_set": note_set,
         "validation": validation,
+        "can_download_bundle": can_export_statement_packages(request.user) and can_download_reports(request.user),
         "can_prepare": can_prepare_statement_notes(request.user),
         "can_review": can_review_statement_notes(request.user),
         "can_export": can_export_statement_packages(request.user),
@@ -1309,6 +1310,37 @@ def statement_note_set_review(request, public_id, action):
         }[action]
         messages.success(request, label)
     return redirect(note_set)
+
+
+@reporting_permission_required(can_export_statement_packages)
+def statement_bundle_export(request, public_id):
+    from django.core.exceptions import PermissionDenied
+    from .statement_bundle import statement_bundle
+    if not can_download_reports(request.user):
+        raise PermissionDenied
+    _statement_department(request.user)
+    note_set = _note_set_for_user(request.user, public_id)
+    visible = set(_runs_visible_to(request.user).filter(
+        pk__in=[run.pk for _field, run in note_set.statement_runs]).values_list("pk", flat=True))
+    if any(run.pk not in visible for _field, run in note_set.statement_runs):
+        raise PermissionDenied
+    try:
+        content = statement_bundle(note_set)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+        return redirect(note_set)
+    filename = f"financial-statements_{note_set.period_end}_v{note_set.version}_{str(note_set.public_id)[:8]}.zip"
+    archived = archive_export(content=content, department=note_set.department, user=request.user,
+        category="finance-statement-packages", filename=filename,
+        metadata={"kind": "four_statement_package", "note_set_public_id": str(note_set.public_id),
+            "note_set_checksum": note_set.snapshot_checksum})
+    FinanceStatementNoteEvent.objects.create(note_set=note_set, actor=request.user, action="bundle_exported",
+        snapshot={"relative_path": archived["relative_path"], "sha256": archived["sha256"]})
+    response = HttpResponse(content, content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-Archived"] = "true"
+    response["X-GRAND-Export-SHA256"] = archived["sha256"]
+    return response
 
 
 @reporting_permission_required(can_export_statement_packages)

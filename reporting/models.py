@@ -641,6 +641,15 @@ class FinanceStatementNoteSet(models.Model):
     performance_run = models.ForeignKey(
         "ReportRun", on_delete=models.PROTECT, related_name="performance_note_sets",
     )
+    net_assets_run = models.ForeignKey(
+        "ReportRun", on_delete=models.PROTECT, null=True, blank=True, related_name="net_assets_note_sets",
+    )
+    cash_flow_run = models.ForeignKey(
+        "ReportRun", on_delete=models.PROTECT, null=True, blank=True, related_name="cash_flow_note_sets",
+    )
+    bundle_file = models.FileField(upload_to="reports/statement-packages/%Y/%m/", blank=True)
+    bundle_checksum = models.CharField(max_length=64, blank=True)
+    bundled_at = models.DateTimeField(null=True, blank=True)
     supersedes = models.ForeignKey(
         "self", on_delete=models.PROTECT, null=True, blank=True, related_name="successors",
     )
@@ -696,13 +705,21 @@ class FinanceStatementNoteSet(models.Model):
     def is_editable(self):
         return self.status in (self.DRAFT, self.RETURNED)
 
+    @property
+    def statement_runs(self):
+        return [(field, getattr(self, field)) for field in
+            ("position_run", "performance_run", "net_assets_run", "cash_flow_run")
+            if getattr(self, field + "_id")]
+
+    @property
+    def is_complete_statement_package(self):
+        return bool(self.net_assets_run_id and self.cash_flow_run_id)
+
     def clean(self):
         if self.period_end < self.period_start:
             raise ValidationError({"period_end": "The note period cannot end before it starts."})
-        expected = (
-            (self.position_run, "finance_statement_position", "position_run"),
-            (self.performance_run, "finance_statement_performance", "performance_run"),
-        )
+        expected = [(run, "finance_statement_" + field.removesuffix("_run"), field)
+            for field, run in self.statement_runs]
         for run, dataset_key, field in expected:
             if run.definition.department_id != self.department_id:
                 raise ValidationError({field: "Choose a statement run from this Accounting department."})
@@ -712,7 +729,7 @@ class FinanceStatementNoteSet(models.Model):
             if actual_key != dataset_key:
                 raise ValidationError({field: "Choose the matching governed statement run."})
             if run.period_start != self.period_start or run.period_end != self.period_end:
-                raise ValidationError({field: "Both statement runs must cover the note package period exactly."})
+                raise ValidationError({field: "Every statement run must cover the note package period exactly."})
             if run.control_status != run.CONTROL_RECONCILED:
                 raise ValidationError({field: "Only a control-reconciled statement run can support notes."})
         if self.position_run_id == self.performance_run_id:
@@ -736,8 +753,8 @@ class FinanceStatementNoteSet(models.Model):
                 raise ValidationError("Approved notes require immutable independent-review evidence.")
             if self.created_by_id == self.reviewed_by_id or self.submitted_by_id == self.reviewed_by_id:
                 raise ValidationError("The note preparer or submitter cannot approve the same package.")
-            if not self.position_run.is_official_output or not self.performance_run.is_official_output:
-                raise ValidationError("Official notes require approved official position and performance runs.")
+            if any(not run.is_official_output for _field, run in self.statement_runs):
+                raise ValidationError("Official notes require approved official statement runs.")
 
     def save(self, *args, **kwargs):
         if self.pk:
@@ -745,6 +762,7 @@ class FinanceStatementNoteSet(models.Model):
             governed = (
                 "department_id", "title", "period_start", "period_end", "version",
                 "applicability_status", "position_run_id", "performance_run_id", "supersedes_id",
+                "net_assets_run_id", "cash_flow_run_id",
                 "preparation_note", "authority_reference", "local_acceptance_note", "created_by_id",
                 "source_snapshot", "snapshot_checksum",
             )
@@ -752,6 +770,9 @@ class FinanceStatementNoteSet(models.Model):
                 getattr(prior, field) != getattr(self, field) for field in governed
             ):
                 raise ValidationError("Submitted statement notes are immutable. Return them or create a successor.")
+            if prior.bundle_checksum and any(getattr(prior, field) != getattr(self, field)
+                    for field in ("bundle_file", "bundle_checksum", "bundled_at")):
+                raise ValidationError("An issued statement bundle is immutable. Create a successor package.")
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -765,11 +786,15 @@ class FinanceStatementNote(models.Model):
     POSITION = "position"
     PERFORMANCE = "performance"
     BOTH = "both"
+    NET_ASSETS = "net_assets"
+    CASH_FLOW = "cash_flow"
     RELATED_CHOICES = (
         (GENERAL, "General disclosure"),
         (POSITION, "Statement of financial position"),
         (PERFORMANCE, "Statement of financial performance"),
         (BOTH, "Both statements"),
+        (NET_ASSETS, "Statement of changes in net assets / equity"),
+        (CASH_FLOW, "Statement of cash flows"),
     )
 
     note_set = models.ForeignKey(
@@ -1126,7 +1151,7 @@ class ReportReferenceComparison(models.Model):
         actual_key = self.run.parameters.get("_definition_snapshot", {}).get(
             "dataset_key", self.run.definition.dataset_key,
         )
-        if actual_key not in ("finance_statement_position", "finance_statement_performance"):
+        if actual_key not in ("finance_statement_position", "finance_statement_performance", "finance_statement_net_assets", "finance_statement_cash_flow"):
             raise ValidationError({"run": "Reference comparison is limited to governed financial statement runs."})
         if self.reference_file and getattr(self.reference_file, "size", 0) > 15 * 1024 * 1024:
             raise ValidationError({"reference_file": "Reference copies must be 15 MB or smaller."})

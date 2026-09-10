@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import io
 import shutil
 import tempfile
 from datetime import date
@@ -10,6 +12,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.base import ContentFile
+from openpyxl import Workbook
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -84,6 +88,12 @@ class StatementNotesAndReferenceComparisonTests(TestCase):
             {"revenue": "1250.00", "expense": "0.00", "operating_result": "1250.00"},
             (("revenue", "Revenue"), ("expense", "Expense")),
         )
+        cls.net_assets_run = cls.statement_run(cls.definition("Net assets", "f94-net-assets",
+            "finance_statement_net_assets", cls.preparer), cls.preparer, cls.reviewer,
+            {"opening": "0.00", "closing": "1250.00", "operating_result": "1250.00", "funds": {"GF": {}}}, ())
+        cls.cash_flow_run = cls.statement_run(cls.definition("Cash Flow", "f94-cash-flow",
+            "finance_statement_cash_flow", cls.preparer), cls.preparer, cls.reviewer,
+            {"funds": {"GF": {"current": {"closing_cash": "0.00"}}}, "cash_account_codes": ["cash"]}, ())
 
     @classmethod
     def employee(cls, department, username, *permissions):
@@ -123,7 +133,7 @@ class StatementNotesAndReferenceComparisonTests(TestCase):
     @classmethod
     def statement_run(cls, definition, preparer, reviewer, totals, lines):
         now = timezone.now()
-        return ReportRun.objects.create(
+        run = ReportRun(
             definition=definition, template_version=definition.current_template,
             idempotency_key=f"f94:{definition.slug}", status=ReportRun.APPROVED,
             output_format=ReportDefinition.FORMAT_XLSX,
@@ -147,11 +157,38 @@ class StatementNotesAndReferenceComparisonTests(TestCase):
             reviewed_by=reviewer, reviewed_at=now, approved_by=reviewer,
             approved_at=now, generated_at=now,
         )
+        # Real retained files and internally consistent hashes for note-workflow fixtures.
+        # Numerical source-to-ledger proof lives in test_statement_bundle.
+        from .services import _checksum_json
+        workbook = Workbook()
+        workbook.active.append(["Line", "Amount"])
+        for code, title in lines:
+            workbook.active.append([title, 0])
+        output = io.BytesIO()
+        workbook.save(output)
+        workbook.close()
+        content = output.getvalue()
+        run.output_file.save(f"{definition.slug}.xlsx", ContentFile(content), save=False)
+        run.checksum = hashlib.sha256(content).hexdigest()
+        rows = [{"line_code": code, "line_title": title, "amount": "0.00"} for code, title in lines]
+        if definition.dataset_key in ("finance_statement_position", "finance_statement_performance"):
+            code = "unclosed-operating-result" if definition.dataset_key.endswith("position") else "operating-result"
+            rows.append({"line_code": code, "line_title": "Operating result", "amount": "1250.00"})
+        run.row_count = len(rows)
+        run.dataset_snapshot = {"rows": rows, "totals": {}}
+        run.dataset_checksum = _checksum_json(run.dataset_snapshot)
+        run.control_checksum = _checksum_json({"control_totals": totals, "sources": [], "status": run.control_status})
+        run.reproduction_key = _checksum_json({"run_public_id": str(run.public_id), "period_start": run.period_start,
+            "period_end": run.period_end, "parameters": run.parameters, "dataset_checksum": run.dataset_checksum,
+            "control_checksum": run.control_checksum, "output_checksum": run.checksum})
+        run.save()
+        return run
 
     def make_note_set(self, *, confirmed=False):
         note_set = create_note_set(
             department=self.department, position_run=self.position_run,
             performance_run=self.performance_run, actor=self.preparer,
+            net_assets_run=self.net_assets_run, cash_flow_run=self.cash_flow_run,
             data={
                 "title": "Synthetic FY 2027 notes",
                 "applicability_status": (
@@ -193,9 +230,10 @@ class StatementNotesAndReferenceComparisonTests(TestCase):
         note_set = create_note_set(
             department=self.department, position_run=self.position_run,
             performance_run=self.performance_run, actor=self.preparer,
+            net_assets_run=self.net_assets_run, cash_flow_run=self.cash_flow_run,
             data={"title": "Candidate FY 2027 notes", "applicability_status": FinanceStatementNoteSet.CANDIDATE},
         )
-        self.assertEqual(note_set.notes.count(), 11)
+        self.assertEqual(note_set.notes.count(), 13)
         with self.assertRaisesMessage(ValidationError, "disclosure"):
             submit_note_set(note_set, self.preparer)
         for item in note_set.notes.all():
@@ -204,7 +242,7 @@ class StatementNotesAndReferenceComparisonTests(TestCase):
         submit_note_set(note_set, self.preparer)
         note_set.refresh_from_db()
         self.assertEqual(len(note_set.snapshot_checksum), 64)
-        self.assertEqual(note_set.source_snapshot["position_run"]["reproduction_key"], "4" * 64)
+        self.assertEqual(note_set.source_snapshot["position_run"]["reproduction_key"], self.position_run.reproduction_key)
         self.preparer.user_permissions.add(Permission.objects.get(codename="review_statement_notes"))
         self.preparer = get_user_model().objects.get(pk=self.preparer.pk)
         with self.assertRaisesMessage(ValidationError, "preparer or submitter"):
@@ -317,7 +355,7 @@ class StatementNotesAndReferenceComparisonTests(TestCase):
         self.assertIn("reporting.review_reference_comparisons", reviewer)
         self.assertNotIn("reporting.prepare_statement_notes", reviewer)
         guide = next(item for item in ACCOUNTING_GUIDES if item["slug"] == "finance-accountability-reporting-accounting")
-        self.assertEqual(guide["version"], 13)
+        self.assertEqual(guide["version"], 14)
         self.assertIn("Prepare the statement notes", {step[0] for step in guide["steps"]})
         self.assertIn("Compare a signed reference safely", {step[0] for step in guide["steps"]})
         self.assertIn("Promote a checked layout", {step[0] for step in guide["steps"]})

@@ -445,7 +445,7 @@ class FinanceStatementNoteSetForm(forms.ModelForm):
     class Meta:
         model = FinanceStatementNoteSet
         fields = (
-            "title", "position_run", "performance_run", "applicability_status",
+            "title", "position_run", "performance_run", "net_assets_run", "cash_flow_run", "applicability_status",
             "preparation_note", "authority_reference", "local_acceptance_note",
         )
         widgets = {
@@ -473,6 +473,10 @@ class FinanceStatementNoteSetForm(forms.ModelForm):
             f"{run.get_status_display()} · {str(run.public_id)[:8]}"
         )
         self.fields["performance_run"].label_from_instance = self.fields["position_run"].label_from_instance
+        for field in ("net_assets_run", "cash_flow_run"):
+            self.fields[field].queryset = base.filter(definition__dataset_key="finance_statement_" + field.removesuffix("_run"))
+            self.fields[field].label_from_instance = self.fields["position_run"].label_from_instance
+            self.fields[field].required = True
         self.fields["applicability_status"].help_text = (
             "Keep Candidate until the current authority, exact local note package, and retained acceptance evidence are confirmed."
         )
@@ -482,12 +486,9 @@ class FinanceStatementNoteSetForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        position = cleaned.get("position_run")
-        performance = cleaned.get("performance_run")
-        if position and performance and (
-            position.period_start != performance.period_start or position.period_end != performance.period_end
-        ):
-            raise forms.ValidationError("Choose position and performance runs for the exact same period.")
+        runs = [cleaned.get(field) for field in ("position_run", "performance_run", "net_assets_run", "cash_flow_run")]
+        if len({(run.period_start, run.period_end) for run in runs if run}) > 1:
+            raise forms.ValidationError("Choose all four statement runs for the exact same period.")
         if cleaned.get("applicability_status") == FinanceStatementNoteSet.CONFIRMED:
             if not (cleaned.get("authority_reference") or "").strip():
                 self.add_error("authority_reference", "Record the reviewed current authority before local confirmation.")
@@ -508,6 +509,8 @@ class FinanceStatementNoteSetForm(forms.ModelForm):
             department=self.department,
             position_run=self.cleaned_data["position_run"],
             performance_run=self.cleaned_data["performance_run"],
+            net_assets_run=self.cleaned_data["net_assets_run"],
+            cash_flow_run=self.cleaned_data["cash_flow_run"],
             actor=self.user,
             data=self.cleaned_data,
         )
@@ -538,9 +541,11 @@ class FinanceStatementNoteForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         choices = []
         seen = set()
-        for label, run in (("Position", note_set.position_run), ("Performance", note_set.performance_run)):
+        for field, run in note_set.statement_runs:
+            label = field.removesuffix("_run").replace("_", " ").title()
             snapshot = run.parameters.get("_statement_mapping_snapshot", {})
-            for item in snapshot.get("lines", []):
+            lines = run.dataset_snapshot.get("rows", []) if field in ("net_assets_run", "cash_flow_run") else snapshot.get("lines", [])
+            for item in lines:
                 code = item.get("line_code")
                 if code and code not in seen:
                     seen.add(code)

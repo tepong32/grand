@@ -2,6 +2,8 @@
 
 ## Accepted modernization direction — 2026-09-10
 
+Latest M01 work: [four-statement notes, reference comparisons and issued ZIPs](FINANCE_STATEMENT_PACKAGE_2026-09-10.md) now use real retained report files and cross-statement evidence. Complete common fund selection/financial-row generation across all four report paths next; standalone Position/Performance still have older generic filtering behavior. M02 follows that functional alignment. Exact statutory layouts and LGU acceptance remain unproven.
+
 Current allocation branch: [reviewed cash-purpose allocations](FINANCE_CASH_ALLOCATIONS_2026-09-10.md) covers historical and mixed posted cash sources without rewriting financial history. Its report records validation state. Complete four-statement notes/packages and signed-reference controls remain the next M01 deliverables, followed by M02 prior-payable linkage.
 
 The prior v0.7.74/v0.7.75 checkpoints added [comparative net-assets movements](FINANCE_STATEMENT_MOVEMENTS_2026-09-10.md) and [initial Cash Flow calculation/source classification](FINANCE_CASH_FLOW_2026-09-10.md). Their historical/mixed classification gaps have advanced in the allocation work above. Complete statement-note/package integration remains open ahead of further general UX work.

@@ -268,6 +268,8 @@ NOTE_STARTER_TOPICS = (
     (90, "expenses", "Expenses", FinanceStatementNote.PERFORMANCE),
     (100, "commitments-and-contingencies", "Commitments, contingencies, and other required disclosures", FinanceStatementNote.BOTH),
     (110, "events-after-reporting-date", "Events after the reporting date", FinanceStatementNote.GENERAL),
+    (120, "net-assets-movements", "Changes in net assets / equity", FinanceStatementNote.NET_ASSETS),
+    (130, "cash-flow-purposes", "Cash-flow classifications and non-cash transactions", FinanceStatementNote.CASH_FLOW),
 )
 
 STATEMENT_COMPARISON_CONTROLS = {
@@ -311,10 +313,8 @@ def _run_evidence(run):
 
 
 def note_set_source_snapshot(note_set):
-    return {
-        "position_run": _run_evidence(note_set.position_run),
-        "performance_run": _run_evidence(note_set.performance_run),
-    }
+    # Omit absent historical members so old approved snapshot hashes remain exact.
+    return {field: _run_evidence(run) for field, run in note_set.statement_runs}
 
 
 def note_set_snapshot(note_set, *, source_snapshot=None):
@@ -350,6 +350,8 @@ def note_set_snapshot(note_set, *, source_snapshot=None):
 
 
 def _statement_line_codes(run):
+    if _run_dataset_key(run) in {"finance_statement_net_assets", "finance_statement_cash_flow"}:
+        return {row["line_code"] for row in run.dataset_snapshot.get("rows", []) if row.get("line_code")}
     snapshot = run.parameters.get("_statement_mapping_snapshot", {})
     return {item.get("line_code") for item in snapshot.get("lines", []) if item.get("line_code")}
 
@@ -360,13 +362,19 @@ def validate_note_set(note_set, *, require_official=False):
         note_set.full_clean()
     except ValidationError as exc:
         errors.extend(exc.messages)
+    if note_set.is_complete_statement_package:
+        from .services import report_run_integrity_errors
+        from .statement_package_checks import package_financial_errors
+        for field, run in note_set.statement_runs:
+            errors.extend(f"{field}: {error}" for error in report_run_integrity_errors(run))
+        errors.extend(package_financial_errors(note_set))
     if require_official:
         if note_set.applicability_status != FinanceStatementNoteSet.CONFIRMED:
             errors.append("Mark the package locally confirmed only after authority and acceptance evidence are retained.")
         if not note_set.authority_reference.strip() or not note_set.local_acceptance_note.strip():
             errors.append("Official notes require both reviewed authority and local acceptance evidence.")
-        if not note_set.position_run.is_official_output or not note_set.performance_run.is_official_output:
-            errors.append("Official notes require approved official position and performance statement runs.")
+        if any(not run.is_official_output for _field, run in note_set.statement_runs):
+            errors.append("Official notes require approved official statement runs.")
     notes = list(note_set.notes.order_by("position", "pk"))
     if not notes:
         errors.append("Add at least one note topic before review.")
@@ -375,7 +383,9 @@ def validate_note_set(note_set, *, require_official=False):
         FinanceStatementNote.PERFORMANCE: _statement_line_codes(note_set.performance_run),
     }
     line_codes[FinanceStatementNote.BOTH] = line_codes[FinanceStatementNote.POSITION] | line_codes[FinanceStatementNote.PERFORMANCE]
-    line_codes[FinanceStatementNote.GENERAL] = line_codes[FinanceStatementNote.BOTH]
+    line_codes[FinanceStatementNote.NET_ASSETS] = _statement_line_codes(note_set.net_assets_run) if note_set.net_assets_run_id else set()
+    line_codes[FinanceStatementNote.CASH_FLOW] = _statement_line_codes(note_set.cash_flow_run) if note_set.cash_flow_run_id else set()
+    line_codes[FinanceStatementNote.GENERAL] = set().union(*line_codes.values())
     for item in notes:
         try:
             item.full_clean()
@@ -391,8 +401,11 @@ def validate_note_set(note_set, *, require_official=False):
 
 
 @transaction.atomic
-def create_note_set(*, department, position_run, performance_run, actor, data):
+def create_note_set(*, department, position_run, performance_run, actor, data, net_assets_run=None, cash_flow_run=None):
     _require(actor, "reporting.prepare_statement_notes", department)
+    _lock_note_department(department.pk)
+    if net_assets_run is None or cash_flow_run is None:
+        raise ValidationError("New packages require Position, Performance, Net Assets and Cash Flow statements.")
     position_run = ReportRun.objects.select_related("definition", "template_version").get(pk=position_run.pk)
     performance_run = ReportRun.objects.select_related("definition", "template_version").get(pk=performance_run.pk)
     period_start, period_end = position_run.period_start, position_run.period_end
@@ -408,6 +421,8 @@ def create_note_set(*, department, position_run, performance_run, actor, data):
         applicability_status=data.get("applicability_status") or FinanceStatementNoteSet.CANDIDATE,
         position_run=position_run,
         performance_run=performance_run,
+        net_assets_run=ReportRun.objects.get(pk=net_assets_run.pk),
+        cash_flow_run=ReportRun.objects.get(pk=cash_flow_run.pk),
         supersedes=latest if latest and latest.status in (
             FinanceStatementNoteSet.REVIEWED, FinanceStatementNoteSet.APPROVED,
         ) else None,
@@ -445,6 +460,8 @@ def submit_note_set(note_set, actor):
     _require(actor, "reporting.prepare_statement_notes", locked.department)
     if not locked.is_editable:
         raise ValidationError("Only an editable note package can be submitted.")
+    if not locked.is_complete_statement_package:
+        raise ValidationError("Complete all four statements before submitting this package; retain earlier approved evidence unchanged.")
     validation = validate_note_set(locked)
     if not validation["valid"]:
         raise ValidationError(validation["errors"])
@@ -470,6 +487,9 @@ def submit_note_set(note_set, actor):
 
 @transaction.atomic
 def review_note_set(note_set, actor, *, action, note=""):
+    identity = FinanceStatementNoteSet.objects.select_related("department").get(pk=note_set.pk)
+    _require(actor, "reporting.review_statement_notes", identity.department)
+    _lock_note_department(identity.department_id)
     locked = FinanceStatementNoteSet.objects.select_for_update().select_related(
         "position_run__definition", "position_run__template_version",
         "performance_run__definition", "performance_run__template_version",
@@ -515,6 +535,8 @@ def review_note_set(note_set, actor, *, action, note=""):
             period_end=locked.period_end, status=FinanceStatementNoteSet.APPROVED,
         ).exclude(pk=locked.pk).first()
         if prior:
+            if prior.version >= locked.version:
+                raise ValidationError("A newer note package is already approved. Return this stale version and prepare a successor.")
             prior.status = FinanceStatementNoteSet.SUPERSEDED
             prior.save(update_fields=("status", "updated_at"))
             FinanceStatementNoteEvent.objects.create(
@@ -531,8 +553,40 @@ def review_note_set(note_set, actor, *, action, note=""):
     return locked
 
 
+def _lock_note_department(department_id):
+    # The existing department row is present even before the first package.
+    # Lock it before version/candidate rows so concurrent approvals cannot split authority.
+    from departments.models import Department
+    return Department.objects.select_for_update().get(pk=department_id)
+
+
 def comparison_controls(run):
+    if _run_dataset_key(run) in {"finance_statement_net_assets", "finance_statement_cash_flow"}:
+        return tuple((key, label) for key, label, _value in movement_comparison_rows(run))
     return STATEMENT_COMPARISON_CONTROLS.get(_run_dataset_key(run), ())
+
+
+def movement_comparison_rows(run):
+    """Compare actual retained rows per fund and period, including zero amounts."""
+    from urllib.parse import quote
+    result, seen = [], set()
+    for row in run.dataset_snapshot.get("rows", []):
+        fund, code = row.get("fund_code"), row.get("line_code")
+        if not fund or not code:
+            raise ValidationError("The retained movement statement lacks fund/line identity.")
+        for field, period in (("amount", "Current"), ("comparison_amount", "Comparative")):
+            key = "/".join(quote(str(part), safe="") for part in (fund, code, field))
+            if key in seen or row.get(field) is None:
+                raise ValidationError("The retained movement statement has duplicate or missing comparative values.")
+            seen.add(key)
+            result.append((key, f"{fund} · {period} · {row.get('line_title') or code}", row[field]))
+    return result
+
+
+def comparison_generated_values(run):
+    if _run_dataset_key(run) in {"finance_statement_net_assets", "finance_statement_cash_flow"}:
+        return {key: _decimal_text(value) for key, _label, value in movement_comparison_rows(run)}
+    return {key: _decimal_text(run.control_totals.get(key)) for key, _label in comparison_controls(run)}
 
 
 def _decimal_text(value):
@@ -596,10 +650,15 @@ def submit_reference_comparison(comparison, actor):
     controls = comparison_controls(locked.run)
     if not controls:
         raise ValidationError("This report does not have a governed statement comparison profile.")
+    if _run_dataset_key(locked.run) in {"finance_statement_net_assets", "finance_statement_cash_flow"}:
+        from .services import report_run_integrity_errors
+        errors = report_run_integrity_errors(locked.run)
+        if errors:
+            raise ValidationError(errors)
     missing = [label for key, label in controls if key not in locked.reference_values]
     if missing:
         raise ValidationError("Enter every required reference control: " + ", ".join(missing) + ".")
-    generated = {key: _decimal_text(locked.run.control_totals.get(key)) for key, _label in controls}
+    generated = comparison_generated_values(locked.run)
     reference = {key: _decimal_text(locked.reference_values[key]) for key, _label in controls}
     differences = {
         key: _decimal_text(Decimal(reference[key]) - Decimal(generated[key])) for key, _label in controls
@@ -658,6 +717,13 @@ def review_reference_comparison(comparison, actor, *, approve, note=""):
         return locked
     if locked.comparison_result != ReportReferenceComparison.RESULT_RECONCILED:
         raise ValidationError("An exact zero-difference comparison is required before reconciliation.")
+    if _run_dataset_key(locked.run) in {"finance_statement_net_assets", "finance_statement_cash_flow"}:
+        from .services import report_run_integrity_errors
+        errors = report_run_integrity_errors(locked.run)
+        if errors:
+            raise ValidationError(errors)
+        if comparison_generated_values(locked.run) != locked.generated_values_snapshot:
+            raise ValidationError("The retained movement rows differ from the submitted comparison.")
     if _run_evidence(locked.run) != locked.run_evidence_snapshot:
         raise ValidationError("The report evidence differs from the submitted comparison. Create a successor comparison.")
     if _reference_file_checksum(locked) != locked.reference_file_checksum:

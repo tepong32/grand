@@ -63,6 +63,7 @@ urlpatterns = [
     path("statement-notes/<uuid:public_id>/topics/<int:pk>/delete/", views.statement_note_delete, name="statement_note_delete"),
     path("statement-notes/<uuid:public_id>/submit/", views.statement_note_set_submit, name="statement_note_set_submit"),
     path("statement-notes/<uuid:public_id>/export/", views.statement_note_set_export, name="statement_note_set_export"),
+    path("statement-notes/<uuid:public_id>/download/", views.statement_bundle_export, name="statement_bundle_export"),
     path("statement-notes/<uuid:public_id>/<str:action>/", views.statement_note_set_review, name="statement_note_set_review"),
     path("runs/<uuid:run_public_id>/reference-comparisons/new/", views.reference_comparison_create, name="reference_comparison_create"),
     path("reference-comparisons/<uuid:public_id>/", views.reference_comparison_detail, name="reference_comparison_detail"),

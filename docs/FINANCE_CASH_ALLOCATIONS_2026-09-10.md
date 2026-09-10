@@ -59,6 +59,8 @@ Native commands use the owned disposable loopback fixture and the committed [fre
 
 ## Next functional work
 
+The package target below has advanced in the [four-statement package work](FINANCE_STATEMENT_PACKAGE_2026-09-10.md). Its source inspection identifies common fund scoping/complete-row generation as the next M01 gap before M02. This allocation checkpoint's evidence remains unchanged.
+
 Complete the statement-note/package and signed-reference paths for **all four statements**. Current `FinanceStatementNoteSet` fields, validation, source snapshots, forms and exports still assume Position/Performance. `STATEMENT_COMPARISON_CONTROLS` likewise omits Cash Flow and Net Assets. Include period/fund and comparative controls, retained source versions, approved outputs and actual package contents; preserving old two-statement evidence must not become a substitute for complete new packages.
 
 Then continue M02 prior-payable linkage and the remaining ordinary office transactions. Actual local cash/equivalent/overdraft scope, required row detail, signatories, print layouts and office/LGU acceptance remain open. eGAPS has not been accessed or changed. The [printed comparison](../output/pdf/GRAND-eGAPS-Assessment-2026-09-10.pdf) remains the frozen v0.7.71 assessment.

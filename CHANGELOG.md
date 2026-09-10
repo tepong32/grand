@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.77 - Four-statement notes, comparisons and issued packages
+
+New notes select Position, Performance, Net Assets and Cash Flow, verify matching source journals and financial totals, and support independent review. Cash Flow/Net Assets reference checks compare every fund's current and comparative rows. Authorized users can download the four original reports with printable A4 notes and a file manifest; the first ZIP remains an immutable issued copy. Historical two-member notes remain readable, and native competing approvals cannot leave an older version authoritative. Standalone Position/Performance fund scoping and complete-row generation still need alignment before M01 is complete. [Validation and remaining financial work](docs/FINANCE_STATEMENT_PACKAGE_2026-09-10.md).
+
 ## v0.7.76 - Reviewed historical and mixed cash-purpose allocations
 
 Accounting can submit and independently review purpose allocations for already posted cash lines, including historical closed-period entries and mixed generated payments. Exact allocations supplement immutable source evidence; new reports retain the approved version while older output files remain reproducible. Actual reversals inherit only through exactly mirrored financial lines. Current-office/UAT controls, native unique identities and source-journal locking protect the decision path. Complete four-statement notes/packages, signed-reference controls and local output acceptance remain open. See [behavior and validation](docs/FINANCE_CASH_ALLOCATIONS_2026-09-10.md).

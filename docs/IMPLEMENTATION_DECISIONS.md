@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-070:** Require consistent four-statement evidence for new notes; issue immutable bundles containing actual reports and printable notes, retain historical two-member records, and serialize note approvals before candidate locks.
+
 - **D-069:** Classify historical and mixed posted cash through independently reviewed allocations; preserve financial history, serialize decisions on the source journal and retain report-specific classification versions.
 
 - **D-066:** Separate explicit nominal closing transfers and their reversals from performance-statement activity while retaining complete ledger/report evidence; this is a prerequisite for M01 financial-statement completion.
@@ -758,6 +760,16 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-070 - Complete statement membership and retain issued package files
+
+- Date: 2026-09-10. Status: implemented on `codex/finance-statement-package`; [validation and remaining scope](FINANCE_STATEMENT_PACKAGE_2026-09-10.md).
+- Goal: advance M01 from individual calculations and identifier-only exports to usable four-statement notes and a reproducible download. Preserve original report bytes, independent decisions and actual financial consistency.
+- Decision: add nullable Net Assets/Cash Flow references for historical compatibility, require all four for new creation/submission, and compare periods, posted journal evidence, closing net assets, operating result, cash balances and visible mandatory rows. Extend reference comparison to every retained fund/current/comparative movement row. Original two-member snapshots remain unchanged.
+- Output: retain the first ZIP as an immutable file with checksum/date. It contains the four original reports, printable A4 notes and member hashes. Later downloads verify the issued artifact and member identity instead of regenerating it from changed user labels or source files. Existing note CSV exports remain historical aids; a manifest alone is not the complete downloadable package.
+- Authority/concurrency: use existing note-export and report-download permissions together with current source visibility. Lock the department before version/candidate rows; reject an older candidate after a newer approval. This is source-specific consistency, not new general workflow machinery.
+- Tradeoffs: packages retain each report's original format; they do not automatically turn an XLSX into an accepted statutory PDF. Historical packages remain reproducible, but new incomplete packages cannot pass by invoking old compatibility. Synthetic prompts, working reports, hashes and concurrency tests are not legal or local form acceptance.
+- Next: fix common fund-scoped generation and the remaining standalone Position/Performance row-filter behavior. Rejecting an incomplete package member does not repair that underlying reporting function. Continue M02 afterward; do not divert into general UX/framework work.
 
 ## D-069 - Review cash-purpose allocations without rewriting posted finance
 

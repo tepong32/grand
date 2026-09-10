@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>{{ note_set.title }}</title>
+<style>
+@page { size: A4; margin: 18mm; @bottom-center { content: "Page " counter(page) " of " counter(pages); font: 9pt Arial, sans-serif; } }
+body { max-width: 180mm; margin: 24px auto; font: 11pt/1.5 Arial, sans-serif; color: #111; }
+h1 { font-size: 20pt; } h2 { font-size: 13pt; break-after: avoid; }
+section { break-inside: avoid; } .disclosure { orphans: 3; widows: 3; }
+.meta { font-size: 10pt; } .disclosure { white-space: pre-wrap; overflow-wrap: anywhere; }
+table { border-collapse: collapse; width: 100%; font-size: 9pt; }
+th, td { border: 1px solid #bbb; padding: 6px; text-align: left; overflow-wrap: anywhere; }
+thead { display: table-header-group; } footer { border-top: 1px solid #999; margin-top: 24px; font-size: 9pt; }
+</style></head><body>
+<h1>{{ note_set.title }}</h1>
+<p>{{ note_set.department.name }}<br>{{ note_set.period_start }} to {{ note_set.period_end }}</p>
+<p class="meta">Version {{ note_set.version }} · {{ note_set.get_status_display }} · {{ note_set.get_applicability_status_display }}</p>
+<table><thead><tr><th>Statement</th><th>Retained report</th><th>Status</th></tr></thead><tbody>
+{% for field, run in note_set.statement_runs %}<tr><td>{{ run.definition.name }}</td><td>{{ run.public_id }}</td><td>{{ run.get_status_display }}</td></tr>{% endfor %}
+</tbody></table>
+{% for item in note_set.notes.all %}<section><h2>{{ forloop.counter }}. {{ item.title }}</h2>
+<p class="meta">{{ item.get_related_statement_display }}{% if item.related_line_codes %} · {{ item.related_line_codes|join:", " }}{% endif %}</p>
+{% if item.is_not_applicable %}<p>Not applicable: {{ item.not_applicable_reason }}</p>{% else %}<div class="disclosure">{{ item.disclosure_text }}</div>{% endif %}
+{% if item.source_reference %}<p class="meta">Source: {{ item.source_reference }}</p>{% endif %}
+{% if item.authority_basis %}<p class="meta">Authority basis: {{ item.authority_basis }}</p>{% endif %}</section>{% endfor %}
+<footer>Prepared by {{ note_set.created_by.get_full_name|default:note_set.created_by.username }}.<br>
+Reviewed by {{ note_set.reviewed_by.get_full_name|default:note_set.reviewed_by.username }} · {{ note_set.reviewed_at }}.<br>
+Review basis: {{ note_set.review_note }}<br>Authority: {{ note_set.authority_reference|default:"Working package; not yet confirmed" }}<br>
+Local acceptance: {{ note_set.local_acceptance_note|default:"Not yet recorded" }}</footer>
+</body></html>
