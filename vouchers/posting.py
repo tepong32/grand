@@ -306,6 +306,12 @@ def _materialize_voucher_journal(posting_request, actor):
                     })
 
             rows = [row for row in rows if row["amount"] != Decimal("0.00")]
+            members = {member.pk: member for member in reservations} if prior_evidence else {}
+            for row in rows:
+                member = members.get(row.get("payable_reservation_id"))
+                if member and member.invoice_key:
+                    row["payable_allocation"] = {"attribution": member.source_snapshot["claim_attribution"],
+                        "shares": {str(member.invoice_key): str(row["amount"].quantize(Decimal("0.01")))}}
             debit_sum = sum((
                 row["amount"] for row in rows if row["side"] == FinancePostingRuleLine.DEBIT
             ), Decimal("0.00"))
@@ -325,7 +331,8 @@ def _materialize_voucher_journal(posting_request, actor):
                         and row["amount"] == (original_line.debit or original_line.credit)
                         and row["side"] == ("credit" if original_line.debit else "debit")
                         and row.get("payable_origin_id") == original_line.payable_origin_id
-                        and row.get("payable_reservation_id") == original_line.payable_reservation_id]
+                        and row.get("payable_reservation_id") == original_line.payable_reservation_id
+                        and row.get("payable_allocation", {}) == original_line.payable_allocation]
                     if len(matches) != 1:
                         raise PostingRequestError("The generated return must exactly reverse the posted payment lines.")
                     row = matches[0]
@@ -381,6 +388,7 @@ def _materialize_voucher_journal(posting_request, actor):
                     cash_flow_category=row.get("cash_flow_category", ""),
                     payable_origin_id=row.get("payable_origin_id"),
                     payable_reservation_id=row.get("payable_reservation_id"),
+                    payable_allocation=row.get("payable_allocation", {}),
                     payable_party_key=row.get("payable_party_key", ""),
                     payable_claim_reference=row.get("payable_claim_reference", ""),
                 )

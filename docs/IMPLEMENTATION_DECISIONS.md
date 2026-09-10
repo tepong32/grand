@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-079:** Split a consolidated historical liability into reviewed invoice identities over the original credit; preserve exact application shares, dated parent/invoice capacity and pinned approval evidence through settlement and corrections.
+
 - **D-078:** Allocate consolidated DVs and partial checks explicitly across original claims; reserve the whole group atomically and retire only the shares of an independently posted closing return.
 
 - **D-077:** Attribute historical claims and prior applications through independently reviewed metadata over unchanged journal lines; reconcile report projections and pin the approval version used by each new DV reservation.
@@ -776,6 +778,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-079 - Retain reviewed invoice identities over consolidated historical credits
+
+- Date: 2026-09-10. Status: implemented on `codex/finance-historical-claim-splits`; [scope and validation](FINANCE_HISTORICAL_SPLITS_IN_PROGRESS.md) are authoritative for checkpoint status.
+- Problem: a historical consolidated credit may represent several invoices, while new DVs and subsidiary schedules need each invoice's outstanding balance and payment lineage.
+- Decision: retain immutable invoice rows inside independently reviewed attribution versions, with stable invoice identities and exact shares of every historical application. Leave the posted financial lines unchanged. Native applications and DV reservations pin approved invoice evidence; check both original-credit capacity and individual-invoice capacity under the existing source locks. Returns preserve the original shares; returned proposals create successors instead of editing decisions.
+- Alternatives/tradeoffs: rewriting the original journal would destroy retained evidence; duplicating the consolidated credit would overstate liabilities; inferred shares would invent invoice attribution. Explicit invoice/application entry adds reconciliation work once, then supports familiar DV selection and reproducible schedules without duplicate recognition. Exact reversal and maker-checker controls remain mandatory.
+- Boundary: this covers multiple invoices within one original credit. Historical applications shared across distinct original credits require coordinated allocation and remain unfinished. Generated-cycle adoption, later instrument/remittance corrections, exact local outputs and human/operational acceptance remain separate requirements. Do not equate this checkpoint with complete eGAPS parity.
 
 ## D-078 - Retain explicit DV and check allocations across original claims
 

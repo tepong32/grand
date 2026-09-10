@@ -1,5 +1,6 @@
 """Explicit invoice and instrument allocations for consolidated prior-payable DVs."""
 from decimal import Decimal
+from uuid import UUID
 
 from django.core.exceptions import ValidationError
 
@@ -30,14 +31,15 @@ def snapshot_for(case, rows, as_of):
             if not isinstance(row["source_id"], (int, str)) or isinstance(row["source_id"], bool):
                 raise ValueError
             source_id = int(row["source_id"])
+            invoice_key = str(UUID(str(row["invoice_key"]))) if row.get("invoice_key") else ""
             parts = row.get("deductions", {})
             if not isinstance(parts, dict) or set(parts) - set(totals):
                 raise ValueError
         except (KeyError, TypeError, ValueError):
             raise ValidationError("Choose original claims and the current DV deduction lines.")
-        if source_id in seen:
+        if (source_id, invoice_key) in seen:
             raise ValidationError("Enter each original claim only once.")
-        seen.add(source_id)
+        seen.add((source_id, invoice_key))
         gross = money(row.get("gross"))
         allocated = {key: money(parts.get(key, "0")) for key in totals}
         net = gross - sum(allocated.values(), Decimal("0.00"))
@@ -46,7 +48,8 @@ def snapshot_for(case, rows, as_of):
         for key, amount in allocated.items():
             totals[key] += amount
         claims.append({"source_id": source_id, "gross": str(gross), "net": str(net),
-            "deductions": {key: str(amount) for key, amount in allocated.items()}})
+            "deductions": {key: str(amount) for key, amount in allocated.items()},
+            **({"invoice_key": invoice_key} if invoice_key else {})})
     if sum((money(r["gross"]) for r in claims), Decimal("0.00")) != voucher.gross_amount:
         raise ValidationError("Claim allocations must equal the DV gross amount exactly.")
     if any(totals[d["id"]] != money(d["amount"]) for d in deductions):
@@ -56,7 +59,7 @@ def snapshot_for(case, rows, as_of):
     return {"voucher": voucher.pk, "date": as_of.isoformat(), "department": case.configuration_release.department_id,
         "party": f"finance-party:{case.payee.code}", "fund": funds.pop(),
         "gross": str(voucher.gross_amount), "net": str(voucher.net_amount), "deductions": deductions,
-        "claims": sorted(claims, key=lambda r: r["source_id"])}
+        "claims": sorted(claims, key=lambda r: (r["source_id"], r.get("invoice_key", "")))}
 
 
 def reserve_for_validation(case, actor, rows, as_of):

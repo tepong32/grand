@@ -6,15 +6,32 @@
   <h1 class="h3 mt-3">Historical claim attribution</h1>
   <p>{{ source.entry.reference }} · line {{ source.sequence }} · {{ source.entry.entry_date }} · {{ source.entry.fund }} · {{ source.account }} · original credit {{ source.credit|floatformat:2 }}.</p>
   <p>Identify the original claim and reconcile its earlier applications. A separate Accounting reviewer approves the links used in outstanding claims, new DV settlements and subsidiary reports. The original journal and older issued reports remain unchanged.</p>
-  {% if current %}<p class="alert alert-success">Approved version {{ current.version }} · {{ current.claim_reference }} · {{ current.party_key }} · {{ current.reviewed_by_label }} · {{ current.reviewed_at }}</p>{% endif %}
+  {% if current %}<p class="alert alert-success">Approved version {{ current.version }} · {% if current.is_split %}Individual invoice allocations{% else %}{{ current.claim_reference }} · {{ current.party_key }}{% endif %} · {{ current.reviewed_by_label }} · {{ current.reviewed_at }}</p>{% endif %}
   {% if can_prepare %}<div class="card"><div class="card-header"><h2 class="h5">Propose attribution</h2></div><div class="card-body">
-    <p class="small text-muted">Use a complete original liability credit for one claim. Split credits or payment lines covering several claims require a reconciled allocation workflow; do not assign the full amount to one invoice. Register the payee in Finance Setup first if missing.</p>
-    <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Submit for independent review</button></form>
+    {% if not split_mode %}<p>For a consolidated credit, <a href="?mode=split">allocate to individual invoices</a>. Register missing payees in Finance Setup first.</p>{% else %}<p>Enter each invoice's original amount and its share of every selected payment or reversal. Invoice amounts must total the original credit; shares must total each selected application. Leave a share blank when that invoice was not involved.</p>{% endif %}
+    <form method="post">{% csrf_token %}{{ form.as_p }}
+      {% if invoices %}
+      <button class="btn btn-outline-secondary" name="action" value="refresh" formnovalidate>Refresh selected applications</button>
+      {{ invoices.management_form }}{{ invoices.non_form_errors }}
+      <div class="table-responsive mt-3"><table class="table table-bordered"><thead><tr><th scope="col">Invoice</th>{% for field in invoices.empty_form.visible_fields %}<th scope="col">{{ field.label }}</th>{% endfor %}</tr></thead><tbody>
+      {% for invoice in invoices %}<tr><th scope="row">{{ forloop.counter }}{% for hidden in invoice.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}{{ invoice.non_field_errors }}</th>{% for field in invoice.visible_fields %}<td><label class="sr-only" for="{{ field.id_for_label }}">Invoice {{ forloop.parentloop.counter }}: {{ field.label }}</label>{{ field.errors }}{{ field }}</td>{% endfor %}</tr>{% endfor %}
+      </tbody></table></div>
+      <button class="btn btn-outline-secondary" name="action" value="add_invoice" formnovalidate>Add invoice</button>
+      {% endif %}
+      <button class="btn btn-primary" name="action" value="submit">Submit for independent review</button>
+    </form>
   </div></div>{% endif %}
   <h2 class="h4 mt-4">Proposals and decisions</h2>
   {% for item in records %}{% with record=item.record %}<div class="card"><div class="card-header">Version {{ record.version }} · {{ record.get_status_display }} · based on version {{ record.base_version }}</div><div class="card-body">
-    <p><strong>{{ record.claim_reference }}</strong> · {{ record.party_key }}</p>
-    <p>{{ record.reason|linebreaksbr }}Evidence: {{ record.evidence_reference }}</p>
+    {% if record.is_split %}
+    <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Invoice</th><th>Payee</th><th class="text-right">Recognized</th><th>Earlier payment / reversal shares</th></tr></thead><tbody>
+      {% for row in item.allocations %}<tr><td>{{ row.claim_reference }}</td><td>{{ row.party_key }}</td><td class="text-right">{{ row.recognized|floatformat:2 }}</td><td>
+        {% for share in row.application_rows %}<div>{% if share.line %}<a href="{% url 'accounting:entry_detail' share.line.entry.public_id %}">{{ share.line.entry.reference }}</a> / line {{ share.line.sequence }} · {% if share.line.credit %}restoring credit{% else %}debit{% endif %}{% else %}Missing original line{% endif %}: {{ share.amount|floatformat:2 }}</div>{% empty %}No earlier applications{% endfor %}
+      </td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<p><strong>{{ record.claim_reference }}</strong> · {{ record.party_key }}</p>{% endif %}
+    <p>{{ record.reason|linebreaksbr }}</p>
+    <p>Evidence: {{ record.evidence_reference }}</p>
     <p class="small text-muted">Proposed by {{ record.proposed_by_label }} · {{ record.proposed_at }}</p>
     <table class="table table-sm"><thead><tr><th>Earlier application / reversal</th><th>Date</th><th>Debit</th><th>Credit</th></tr></thead><tbody>
     {% for line in item.lines %}<tr><td><a href="{% url 'accounting:entry_detail' line.entry.public_id %}">{{ line.entry.reference }}</a> / line {{ line.sequence }}</td><td>{{ line.entry.entry_date }}</td><td>{{ line.debit|floatformat:2 }}</td><td>{{ line.credit|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="4">The preparer declared no earlier applications.</td></tr>{% endfor %}</tbody></table>

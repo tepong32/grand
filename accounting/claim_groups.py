@@ -18,8 +18,9 @@ def money(value):
         raise ValidationError("Enter nonnegative amounts in exact centavos.")
 
 
-def validate_member(group, source_id, amount, case_public_id):
-    rows = [row for row in group.allocation_snapshot.get("claims", []) if row["source_id"] == source_id]
+def validate_member(group, source_id, amount, case_public_id, *, invoice_key=None):
+    rows = [row for row in group.allocation_snapshot.get("claims", []) if row["source_id"] == source_id
+        and row.get("invoice_key", "") == (str(invoice_key) if invoice_key else "")]
     if (group.case_public_id != case_public_id or _digest(group.allocation_snapshot) != group.allocation_checksum
             or len(rows) != 1 or money(rows[0]["gross"]) != amount):
         raise ValidationError("The claim differs from its retained DV allocation.")
@@ -64,12 +65,14 @@ def retire_return(reservations, entry, request, review, actor):
             PayableClaimRetirement.objects.create(reservation=reservation, entry=entry,
                 amount=amount, evidence=evidence, checksum=_digest(evidence), created_by_id=actor.pk)
         _capacity(reservation.source)
+        if reservation.invoice_key:
+            _capacity(reservation.source, invoice_key=reservation.invoice_key)
 
 
 def group_evidence(group):
     return {"schema": 2, "group": str(group.public_id), "allocation": group.allocation_snapshot,
         "checksum": group.allocation_checksum,
-        "claims": [reservation_evidence(r) for r in group.reservations.order_by("source_id")]}
+        "claims": [reservation_evidence(r) for r in group.reservations.order_by("source_id", "invoice_key")]}
 
 
 def resolve(evidence, *, case_public_id, lock=False, allow_released=False):
@@ -81,11 +84,11 @@ def resolve(evidence, *, case_public_id, lock=False, allow_released=False):
         if (group is None or _digest(group.allocation_snapshot) != group.allocation_checksum
                 or group_evidence(group) != evidence):
             raise ValidationError("The retained DV claim allocation differs from its Finance evidence.")
-        reservations = list(group.reservations.order_by("source_id"))
+        reservations = list(group.reservations.order_by("source_id", "invoice_key"))
         if len(reservations) != len(group.allocation_snapshot["claims"]) or not reservations:
             raise ValidationError("The DV claim allocation is incomplete.")
         for reservation in reservations:
-            validate_member(group, reservation.source_id, reservation.amount, case_public_id)
+            validate_member(group, reservation.source_id, reservation.amount, case_public_id, invoice_key=reservation.invoice_key)
     else:
         reservation = PayableClaimReservation.objects.filter(public_id=evidence.get("reservation"), case_public_id=case_public_id).first()
         if reservation is None or reservation.group_id or reservation_evidence(reservation) != evidence:
@@ -121,8 +124,11 @@ def reserve(*, key, case_public_id, snapshot, actor_id, as_of):
         return evidence
     group = PayableClaimReservationGroup.objects.create(group_key=key, case_public_id=case_public_id,
         allocation_snapshot=snapshot, allocation_checksum=_digest(snapshot), created_by_id=actor_id)
-    for row in sorted(snapshot["claims"], key=lambda r: r["source_id"]):
-        _reserve_claim(source_id=row["source_id"], case_public_id=case_public_id, key=f"{key}:{row['source_id']}",
+    for row in sorted(snapshot["claims"], key=lambda r: (r["source_id"], r.get("invoice_key", ""))):
+        member_key = ("invoice:" + _digest([key, row["source_id"], row["invoice_key"]])
+            if row.get("invoice_key") else f"{key}:{row['source_id']}")
+        _reserve_claim(source_id=row["source_id"], case_public_id=case_public_id, key=member_key,
             amount=row["gross"], actor_id=actor_id, department_id=snapshot["department"],
-            fund_code=snapshot["fund"], party_key=snapshot["party"], as_of=as_of, group=group)
+            fund_code=snapshot["fund"], party_key=snapshot["party"], as_of=as_of, group=group,
+            invoice_key=row.get("invoice_key"))
     return group_evidence(group)

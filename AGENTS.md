@@ -30,6 +30,8 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+Historical invoice splitting is implemented in the v0.7.87 development checkpoint: reviewed immutable invoice rows retain the original credit/application lines, stable invoice identities and sealed approval evidence. Ordinary proposal entry, independent review, native applications/exact reversals, invoice DV holds, deductions, payments, returns, deduction corrections and report projections preserve both parent-credit and invoice dated capacity. Duplicate checks share the existing fund lock and native collation. Historical applications shared across distinct original credits and generated-history adoption remain unfinished. See [scope, validation and limitations](docs/FINANCE_HISTORICAL_SPLITS_IN_PROGRESS.md); this development checkpoint does not establish master integration, full Finance parity or production acceptance.
+
 Personal-handoff adapters are implemented. Current work prioritizes missing Finance functionality and statement calculations; operational scrutiny follows functional completion. Generic following, shared views and notifications remain deferred. Read the current branch’s CONTINUE.md for its checkpoint; a documentation update from master does not merge or publish development-branch work. Production remains NO-GO until functional completion, broad regression, operational scrutiny, critical-gap verification and LGU acceptance pass. Preserve the separate database and existing acceptance gates.
 
 ### Read next

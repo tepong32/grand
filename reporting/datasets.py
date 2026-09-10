@@ -567,8 +567,10 @@ class PostedSubsidiaryScheduleDataset(ApprovedDataset):
             "debit": total_debit, "credit": total_credit, "subsidiary_balance": total_balance,
             "gl_control_balance": gl_balance, "difference": gl_balance - total_balance,
             "absolute_difference": absolute_difference, "configured_mapping_count": len(control_rows),
-            "source_line_count": len(details),
+            "source_line_count": len({detail.journal_line_id for detail in details}),
         }
+        if any(detail.source_snapshot.get("claim_slice") for detail in details):
+            controls["allocation_row_count"] = len(details)
         status = "reconciled" if configured and absolute_difference == 0 else "exception"
         if not configured:
             message = "The required payable/withholding control-account mapping is not configured."

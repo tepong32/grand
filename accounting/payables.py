@@ -17,13 +17,17 @@ def _digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
-def claim_snapshot(source):
-    party, claim = history.identity(source)
-    return {"line": source.pk, "entry": str(source.entry.public_id), "reference": source.entry.reference,
+def claim_snapshot(source, *, invoice_key=None):
+    party, claim = history.identity(source, invoice_key=invoice_key)
+    snapshot = {"line": source.pk, "entry": str(source.entry.public_id), "reference": source.entry.reference,
         "date": source.entry.entry_date.isoformat(), "sequence": source.sequence,
         "department": source.entry.department_id, "fund": source.entry.fund.code,
         "account": source.account.code, "party": party,
         "claim": claim, "credit": str(source.credit)}
+    if invoice_key:
+        row = history.invoice_row(history.current(source), invoice_key)
+        snapshot.update(invoice_key=str(invoice_key), original_credit=str(source.credit), credit=row["recognized"])
+    return snapshot
 
 
 def reservation_evidence(reservation):
@@ -36,16 +40,18 @@ def verify_reservation(reservation, evidence=None):
     retained_source = dict(reservation.source_snapshot)
     attribution = retained_source.pop("claim_attribution", None)
     if (reservation.released_at or _digest(reservation.source_snapshot) != reservation.source_checksum
-            or claim_snapshot(reservation.source) != retained_source
+            or claim_snapshot(reservation.source, invoice_key=reservation.invoice_key) != retained_source
             or reservation.source.entry.status != JournalEntry.POSTED
             or (evidence is not None and reservation_evidence(reservation) != evidence)):
         raise ValidationError("The retained prior-payable reservation differs from its posted source or has been released. Investigate the handoff.")
     if attribution is not None:
-        history.verify_retained_evidence(reservation.source, attribution)
+        history.verify_retained_evidence(reservation.source, attribution, invoice_key=reservation.invoice_key)
+    elif reservation.invoice_key:
+        raise ValidationError("The invoice reservation must retain its approved attribution.")
     return reservation
 
 
-def _capacity(source, candidate_lines=(), *, as_of=None):
+def _capacity(source, candidate_lines=(), *, as_of=None, invoice_key=None):
     """Called with the original credit locked by every capacity writer."""
     used = Decimal("0.00")
     by_reservation = defaultdict(lambda: Decimal("0.00"))
@@ -54,6 +60,22 @@ def _capacity(source, candidate_lines=(), *, as_of=None):
     if candidates:
         applications = applications.exclude(entry_id=candidates[0].entry_id)
     movements = [*history.application_lines(source), *applications.select_related("entry"), *candidates]
+    credit = source.credit
+    reservations = source.claim_reservations.all()
+    if invoice_key:
+        from copy import copy
+        from .claim_splits import effective_shares
+        record = history.current(source)
+        credit = Decimal(history.invoice_row(record, invoice_key)["recognized"])
+        reservations = reservations.filter(invoice_key=invoice_key)
+        projected = []
+        for line in movements:
+            amount = Decimal(effective_shares(line, source, record).get(str(invoice_key), "0"))
+            if amount:
+                item = copy(line)
+                item.debit, item.credit = (amount, Decimal("0.00")) if line.debit else (Decimal("0.00"), amount)
+                projected.append(item)
+        movements = projected
     for line in movements:
         delta = line.debit - line.credit
         used += delta
@@ -63,7 +85,7 @@ def _capacity(source, candidate_lines=(), *, as_of=None):
     active_reservations = set()
     committed_holds = Decimal("0.00")
     retirement_daily = defaultdict(lambda: Decimal("0.00"))
-    for reservation in source.claim_reservations.all():
+    for reservation in reservations:
         from .claim_groups import retirement_movements
         retirements = retirement_movements(reservation) if reservation.group_id else []
         retired = sum((amount for _, amount in retirements), Decimal("0.00"))
@@ -78,9 +100,9 @@ def _capacity(source, candidate_lines=(), *, as_of=None):
                 retirement_daily[day] -= amount
     if any(by_reservation.values()):
         raise ValidationError("A missing payable reservation has financial applications.")
-    if used + held > source.credit:
+    if used + held > credit:
         raise ValidationError("The claim amount is already applied or reserved for another voucher.")
-    available = source.credit - used - held
+    available = credit - used - held
     if as_of is not None:
         # A new reservation must fit on its effective date and throughout later
         # posted history, not just after a subsequent reversal restores capacity.
@@ -96,17 +118,26 @@ def _capacity(source, candidate_lines=(), *, as_of=None):
         for day, delta in sorted(daily.items()):
             committed += delta
             if day >= as_of:
-                available = min(available, source.credit - committed)
+                available = min(available, credit - committed)
     return available
 
 
 @transaction.atomic(using="finance")
-def _reserve_claim(*, source_id, case_public_id, key, amount, actor_id, department_id, fund_code, party_key, as_of, group=None):
+def _reserve_claim(*, source_id, case_public_id, key, amount, actor_id, department_id, fund_code, party_key, as_of, group=None,
+        invoice_key=None):
     """Internal handoff; the voucher service owns actor/case authorization."""
     # Lock only the source row. Joining Fund here would also lock it on MySQL,
     # reversing the fund-before-claim order used by mixed recognition entries.
     source = JournalLine.objects.select_for_update().get(pk=source_id)
-    source_party, source_claim = history.identity(source)
+    if invoice_key:
+        from uuid import UUID
+        try:
+            invoice_key = UUID(str(invoice_key))
+        except (TypeError, ValueError):
+            raise ValidationError("Select a valid invoice allocation identity.")
+    else:
+        invoice_key = None
+    source_party, source_claim = history.identity(source, invoice_key=invoice_key)
     if (source.entry.department_id != department_id or source.entry.fund.code != fund_code
             or source_party != party_key or source.entry.entry_date > as_of
             or source.entry.status != JournalEntry.POSTED or not source.entry.posted_by_id
@@ -120,29 +151,30 @@ def _reserve_claim(*, source_id, case_public_id, key, amount, actor_id, departme
     existing = PayableClaimReservation.objects.filter(reservation_key=key).first()
     if existing:
         if (existing.source_id != source_id or existing.case_public_id != case_public_id or existing.amount != amount
-                or existing.group_id != (group.pk if group else None)):
+                or existing.group_id != (group.pk if group else None) or existing.invoice_key != invoice_key):
             raise ValidationError("An interrupted handoff retained different claim evidence. Release the unused reservation before changing it.")
         verify_reservation(existing)
         # Recovery retains this hold; it is already included in dated capacity.
         # A changed retry date must fit without adding the amount a second time.
-        if _capacity(source, as_of=as_of) < 0:
+        if _capacity(source, as_of=as_of) < 0 or (invoice_key and _capacity(source, as_of=as_of, invoice_key=invoice_key) < 0):
             raise ValidationError("The retained claim reservation cannot fit on or after the requested date. Recover using a valid later settlement date or return the unused reservation for correction.")
         return existing
     other_holds = PayableClaimReservation.objects.filter(case_public_id=case_public_id, released_at__isnull=True)
     if group:
         from .claim_groups import validate_member
-        validate_member(group, source_id, amount, case_public_id)
+        validate_member(group, source_id, amount, case_public_id, invoice_key=invoice_key)
         other_holds = other_holds.exclude(group=group)
     if other_holds.exists():
         raise ValidationError("This case already retains a claim reservation. Recover or release it before validating again.")
-    if _capacity(source, as_of=as_of) < amount:
+    if _capacity(source, as_of=as_of) < amount or (invoice_key and _capacity(source, as_of=as_of, invoice_key=invoice_key) < amount):
         raise ValidationError("The claim amount is already applied or reserved for another voucher on or after the requested date. Review the dated claim applications or use the actual later settlement date.")
-    snapshot = claim_snapshot(source)
+    snapshot = claim_snapshot(source, invoice_key=invoice_key)
     attribution = history.current(source)
     if attribution:
         snapshot["claim_attribution"] = history.attribution_evidence(attribution)
     reservation = PayableClaimReservation(reservation_key=key, case_public_id=case_public_id, source=source,
-        amount=amount, source_snapshot=snapshot, source_checksum=_digest(snapshot), created_by_id=actor_id, group=group)
+        amount=amount, source_snapshot=snapshot, source_checksum=_digest(snapshot), created_by_id=actor_id, group=group,
+        invoice_key=invoice_key)
     reservation.full_clean()
     reservation.save()
     return reservation
@@ -180,6 +212,8 @@ def validate_claim_line(line):
                 or linked_entry.source_snapshot.get("voucher_case") != str(reservation.case_public_id)):
             raise ValidationError("A reserved application requires its retained voucher handoff evidence.")
     named = bool(line.payable_party_key or line.payable_claim_reference)
+    if line.payable_allocation and (named or not line.payable_origin_id):
+        raise ValidationError("Invoice allocations require their original consolidated credit.")
     if not named and not line.payable_origin_id:
         return
     if not line.account_id:
@@ -194,9 +228,11 @@ def validate_claim_line(line):
             raise ValidationError("Remove leading or trailing spaces from the payee key and claim reference.")
         return
     origin = line.payable_origin
-    origin_party, origin_claim = history.identity(origin)
-    if (origin.pk == line.pk or origin.payable_origin_id or not origin_claim
-            or not origin_party or origin.credit <= 0 or origin.debit
+    record = history.current(origin)
+    split = record is not None and record.is_split
+    origin_party, origin_claim = history.identity(origin, record=record)
+    if (origin.pk == line.pk or origin.payable_origin_id or (not split and (not origin_claim or not origin_party))
+            or origin.credit <= 0 or origin.debit
             or origin.entry.status != JournalEntry.POSTED or not origin.entry.posted_by_id):
         raise ValidationError("Select an independently posted original payable claim.")
     if (line.entry.department_id != origin.entry.department_id or line.entry.fund_id != origin.entry.fund_id
@@ -204,6 +240,16 @@ def validate_claim_line(line):
         raise ValidationError("The application must use the original claim's office, fund and liability account.")
     if line.entry.entry_date < origin.entry.entry_date:
         raise ValidationError("A claim cannot be settled before its recognition date.")
+    if split:
+        from .claim_splits import validate_application
+        validate_application(line, origin, record)
+        if line.payable_reservation_id:
+            expected = {str(reservation.invoice_key): str((line.debit or line.credit).quantize(Decimal("0.01")))}
+            if not reservation.invoice_key or line.payable_allocation.get("shares") != expected:
+                raise ValidationError("Apply only the invoice retained by this DV reservation.")
+        return
+    if line.payable_allocation:
+        raise ValidationError("Use invoice shares only for an approved split credit.")
     if line.credit:
         # A credit restores capacity only through an actual, exactly mirrored reversal.
         prior = (line.entry.reversal_of.lines.filter(sequence=line.sequence).first()
@@ -233,13 +279,8 @@ def validate_claim_applications(entry, *, lock=False):
     identities = set()
     for line in new_claims:
         identity = (line.payable_party_key.casefold(), line.payable_claim_reference.casefold())
-        duplicate = JournalLine.objects.filter(entry__department_id=entry.department_id,
-            entry__fund_id=entry.fund_id, entry__status=JournalEntry.POSTED,
-            payable_party_key__iexact=line.payable_party_key,
-            payable_claim_reference__iexact=line.payable_claim_reference).exclude(entry_id=entry.pk).exists()
-        duplicate = duplicate or history.Head.objects.filter(source__entry__department_id=entry.department_id,
-            source__entry__fund_id=entry.fund_id, attribution__party_key__iexact=line.payable_party_key,
-            attribution__claim_reference__iexact=line.payable_claim_reference).exclude(source__entry_id=entry.pk).exists()
+        duplicate = history.claim_identity_exists(entry.department_id, entry.fund_id,
+            line.payable_party_key, line.payable_claim_reference, exclude_entry=entry.pk)
         if identity in identities or duplicate:
             raise ValidationError("This payee's claim reference is already recognized in this fund. Link the original claim instead of recognizing it again.")
         identities.add(identity)
@@ -262,12 +303,27 @@ def validate_claim_applications(entry, *, lock=False):
                     f"Claim {history.identity(origin)[1]}: applications through {day} would use "
                     f"{used:,.2f} of its {origin.credit:,.2f} recognized amount. Correct the amount or linked claim.")
         _capacity(origin, [line for line in lines if line.payable_origin_id == origin_id])
+        record = history.current(origin)
+        if record and record.is_split:
+            if entry.reversal_of_id and not history._exact_reversal(entry, entry.reversal_of):
+                raise ValidationError("An invoice reversal must mirror every original financial line exactly.")
+            from .claim_splits import validate_capacity
+            validate_capacity(origin, record, [line for line in lines if line.payable_origin_id == origin_id])
 
 
 def record_claim_subsidiaries(entry):
     for line in entry.lines.select_related("payable_origin"):
         origin = line.payable_origin if line.payable_origin_id else line
-        party, claim = history.identity(origin)
+        record = history.current(origin)
+        if record and record.is_split:
+            # One original financial line can span payees. The reviewed report
+            # projection carries the separate invoice rows without rewriting it.
+            if JournalSubsidiaryLine.objects.filter(journal_line=line).exists():
+                detail = line.subsidiary_posting
+                if detail.category != JournalSubsidiaryLine.PAYABLE or detail.debit != line.debit or detail.credit != line.credit:
+                    raise ValidationError("Retained payable subsidiary detail differs from the invoice application.")
+            continue
+        party, claim = history.identity(origin, record=record)
         if not claim:
             continue
         if JournalSubsidiaryLine.objects.filter(journal_line=line).exists():
@@ -304,11 +360,29 @@ def claim_rows(department_id, as_of_date):
     result = []
     for line in claims:
         attribution = records.get(line.pk)
+        if attribution and attribution.is_split:
+            from .claim_splits import effective_shares
+            applications = [*history.application_lines(line, record=attribution),
+                *line.payable_applications.filter(entry__status=JournalEntry.POSTED,
+                    entry__entry_date__lte=as_of_date).select_related("entry")]
+            shares_by_line = {item.pk: effective_shares(item, line, attribution) for item in applications}
+            for row in history.allocation_rows(attribution):
+                applied = sum((Decimal(shares_by_line[item.pk].get(row["key"], "0")) * (1 if item.debit else -1)
+                    for item in applications if item.entry.entry_date <= as_of_date), Decimal("0.00"))
+                recognized = Decimal(row["recognized"])
+                result.append({"line": line, "party_key": row["party_key"], "claim_reference": row["claim_reference"],
+                    "slice_key": row["key"], "recognized": recognized,
+                    "attribution": {"source_line": line.pk, "public_id": str(attribution.public_id),
+                        "version": attribution.version, "approval_checksum": attribution.approval_checksum,
+                        "slice_key": row["key"], "allocation_checksum": attribution.allocation_checksum},
+                    "applied": applied, "outstanding": recognized - applied})
+            continue
         for applied in history.application_lines(line, record=attribution):
             if applied.entry.entry_date <= as_of_date:
                 amounts[line.pk] += applied.debit - applied.credit
         party, claim = history.identity(line, record=attribution)
         result.append({"line": line, "party_key": party, "claim_reference": claim,
+            "recognized": line.credit, "slice_key": "",
             "attribution": ({"source_line": line.pk, "public_id": str(attribution.public_id),
                 "version": attribution.version, "approval_checksum": attribution.approval_checksum}
                 if attribution else None),

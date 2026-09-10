@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.87] - 2026-09-10
+### Added
+- feat(finance): settle reviewed historical invoices
+
 ## v0.7.86 - Recheck dated capacity when recovering a claim hold
 
 An interrupted single-claim DV validation can no longer reuse a later valid reservation at an earlier date with insufficient capacity. Recovery counts the retained hold once and preserves its evidence; valid later retries and payment still work. [Reproduction, HTTP payment/export proof and scoped SQLite/MySQL validation](docs/FINANCE_CLAIM_RECOVERY_DATE_2026-09-10.md).

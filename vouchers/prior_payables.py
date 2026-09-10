@@ -33,7 +33,7 @@ def current_evidence(case):
     if sum(r.amount for r in reservations) != case.disbursement_voucher.gross_amount:
         raise ValidationError("The voucher differs from its retained prior-payable amount.")
     for reservation in reservations:
-        if (not case.payee_id or claim_identity(reservation.source)[0] != f"finance-party:{case.payee.code}"
+        if (not case.payee_id or claim_identity(reservation.source, invoice_key=reservation.invoice_key)[0] != f"finance-party:{case.payee.code}"
                 or reservation.source.entry.department_id != case.configuration_release.department_id
                 or set(case.obligation.allocation_lines.values_list("fund_code", flat=True)) != {reservation.source.entry.fund.code}):
             raise ValidationError("The voucher differs from its retained prior-payable source, payee, fund or amount.")

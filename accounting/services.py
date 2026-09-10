@@ -1214,6 +1214,10 @@ def post_entry(entry, actor):
     locked.posted_at = timezone.now()
     locked.save(update_fields=("status", "posted_by_id", "posted_by_label", "posted_at", "updated_at"))
     snapshot = {"debit": str(debit), "credit": str(credit)}
+    from .claim_splits import posting_evidence
+    allocations = {str(line.pk): posting_evidence(line) for line in locked.lines.all() if line.payable_allocation}
+    if allocations:
+        snapshot["invoice_allocations"] = allocations
     if workflow_exemption:
         snapshot["workflow_exemption"] = workflow_exemption
     record_event(locked, "posted", actor, snapshot=snapshot)
@@ -1294,6 +1298,7 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
     reversal.save()
     for line in locked.lines.select_related("account", "responsibility_center").order_by("sequence", "pk"):
         from .claim_attributions import reversal_origin, identity as claim_identity, current as current_attribution
+        from .claim_splits import reversal_allocation
         claim_origin = reversal_origin(line)
         reversed_line = JournalLine(
             entry=reversal,
@@ -1305,6 +1310,7 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
             cash_flow_category=line.cash_flow_category,
             payable_origin_id=claim_origin.pk if claim_origin else None,
             payable_reservation_id=line.payable_reservation_id,
+            payable_allocation=reversal_allocation(line),
             memo=f"Reversal: {line.memo}"[:255],
         )
         reversed_line.full_clean()

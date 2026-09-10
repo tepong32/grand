@@ -737,19 +737,32 @@ class NonFinancialAmendmentForm(WorkflowForm):
 
 
 class ClaimAllocationLineForm(forms.Form):
-    source = forms.ModelChoiceField(queryset=None, label="Original claim")
+    source = forms.ChoiceField(label="Original claim / invoice")
     gross = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.01"), label="Gross for this DV")
 
-    def __init__(self, *args, sources, deductions, **kwargs):
+    def __init__(self, *args, sources, deductions, invoices=None, **kwargs):
         super().__init__(*args, **kwargs)
         from accounting.claim_attributions import identity
-        self.fields["source"].queryset = sources
-        self.fields["source"].label_from_instance = lambda line: f"{identity(line)[1]} · {line.entry.reference} · {line.credit:,.2f} recognized"
+        self.source_choices = {str(line.pk): (line, "") for line in sources}
+        choices = [(str(line.pk), f"{identity(line)[1]} · {line.entry.reference} · {line.credit:,.2f} recognized") for line, _ in self.source_choices.values()]
+        for invoice in invoices if invoices is not None else []:
+            source = invoice.attribution.source
+            value = f"{source.pk}:{invoice.key}"
+            self.source_choices[value] = (source, str(invoice.key))
+            choices.append((value, f"{invoice.claim_reference} · {source.entry.reference} · {invoice.recognized:,.2f} recognized"))
+        self.fields["source"].choices = [("", "Select a claim or invoice"), *choices]
         for deduction in deductions:
             self.fields[f"deduction_{deduction.pk}"] = forms.DecimalField(required=False, max_digits=18,
                 decimal_places=2, min_value=Decimal("0"), label=f"{deduction.description} ({deduction.code})")
         for field in self.fields.values():
             field.widget.attrs["class"] = "form-control form-control-sm"
+
+    def clean(self):
+        cleaned = super().clean()
+        value = cleaned.get("source")
+        if value in self.source_choices:
+            cleaned["source"], cleaned["invoice_key"] = self.source_choices[value]
+        return cleaned
 
 
 class AccountingValidationForm(WorkflowForm):
@@ -781,12 +794,18 @@ class AccountingValidationForm(WorkflowForm):
             if generated and sources.count() == 1:
                 field.initial = sources.first().pk
             if not generated:
-                self.fields["consolidated"] = forms.BooleanField(required=False, label="Allocate this DV across several claims",
+                from accounting.models import PayableClaimSlice
+                invoices = PayableClaimSlice.objects.filter(attribution__current_head__isnull=False,
+                    attribution__source__entry__department_id=case.configuration_release.department_id,
+                    attribution__source__entry__fund__code__in=list(case.obligation.allocation_lines.values_list("fund_code", flat=True)),
+                    party_key=f"finance-party:{case.payee.code}" if case.payee_id else "").select_related("attribution__source__entry")
+                self.fields["consolidated"] = forms.BooleanField(required=False, label="Allocate this DV to claims or invoices",
                     help_text="Leave the single-claim choice blank and complete the allocation table. Allocate each deduction explicitly.")
                 self.claim_allocations = formset_factory(ClaimAllocationLineForm, extra=2, max_num=100,
                     validate_max=True, absolute_max=100)(
                     self.data if self.is_bound and self.data.get("consolidated") else None,
-                    prefix="claims", form_kwargs={"sources": sources, "deductions": list(case.disbursement_voucher.deductions.order_by("pk"))})
+                    prefix="claims", form_kwargs={"sources": sources, "invoices": invoices,
+                        "deductions": list(case.disbursement_voucher.deductions.order_by("pk"))})
             self.fields["jev_number"].help_text = "Leave blank when there are no deductions. With deductions, enter the adjustment JEV number."
 
     def clean(self):
@@ -799,6 +818,7 @@ class AccountingValidationForm(WorkflowForm):
             if not self.claim_allocations.is_valid():
                 raise forms.ValidationError("Correct the claim allocation table below.")
             cleaned["prior_payable_allocations"] = [{"source_id": row["source"].pk, "gross": row["gross"],
+                **({"invoice_key": row["invoice_key"]} if row.get("invoice_key") else {}),
                 "deductions": {key.removeprefix("deduction_"): value or Decimal("0")
                     for key, value in row.items() if key.startswith("deduction_")}}
                 for row in self.claim_allocations.cleaned_data if row]

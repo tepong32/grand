@@ -377,6 +377,8 @@ class JournalEntryForm(StyledModelForm):
 
 
 class JournalLineForm(StyledModelForm):
+    payable_invoice = forms.ModelChoiceField(queryset=JournalLine.objects.none(), required=False,
+        label="Invoice from a consolidated credit", help_text="Select the invoice this liability line applies to. Use separate lines for different invoices.")
     class Meta:
         model = JournalLine
         fields = ("sequence", "account", "responsibility_center", "debit", "credit", "cash_flow_category", "payable_party_key", "payable_claim_reference", "payable_origin", "memo")
@@ -396,12 +398,44 @@ class JournalLineForm(StyledModelForm):
             department_id=department.pk, is_active=True,
         )
         from .claim_attributions import eligible_claims, identity
+        from .models import PayableClaimSlice
+        invoices = PayableClaimSlice.objects.filter(attribution__current_head__isnull=False,
+            attribution__source__entry__department_id=department.pk).select_related("attribution__source__entry")
+        if entry is not None:
+            invoices = invoices.filter(attribution__source__entry__fund_id=entry.fund_id,
+                attribution__source__entry__entry_date__lte=entry.entry_date)
+        self.fields["payable_invoice"].queryset = invoices
+        self.fields["payable_invoice"].label_from_instance = lambda item: (
+            f"{item.claim_reference} · {item.party_key} · {item.attribution.source.entry.reference} · {item.recognized:,.2f}")
+        if self.instance.pk and self.instance.payable_allocation:
+            keys = list(self.instance.payable_allocation.get("shares", {}))
+            if len(keys) == 1:
+                selected = invoices.filter(attribution__source_id=self.instance.payable_origin_id, key=keys[0]).first()
+                if selected:
+                    self.initial["payable_invoice"] = selected.pk
+                    self.initial["payable_origin"] = None
         self.fields["payable_origin"].queryset = eligible_claims(department.pk).select_related("entry")
         if entry is not None:
             self.fields["payable_origin"].queryset = self.fields["payable_origin"].queryset.filter(
                 entry__fund_id=entry.fund_id, entry__entry_date__lte=entry.entry_date)
         self.fields["payable_origin"].label_from_instance = lambda line: (
             f"{line.entry.reference} / {identity(line)[1]} / {identity(line)[0]} / {line.credit:,.2f} original")
+
+    def clean(self):
+        cleaned = super().clean()
+        invoice = cleaned.get("payable_invoice")
+        if invoice:
+            if cleaned.get("payable_origin") or cleaned.get("payable_party_key") or cleaned.get("payable_claim_reference"):
+                raise forms.ValidationError("Select either an invoice from a consolidated credit or a whole claim.")
+            from .claim_splits import bind_allocation
+            source = invoice.attribution.source
+            self.instance.payable_allocation = bind_allocation(source,
+                {str(invoice.key): cleaned.get("debit") or cleaned.get("credit") or 0},
+                expected_attribution=invoice.attribution_id)
+            cleaned["payable_origin"] = source
+        elif not self.errors:
+            self.instance.payable_allocation = {}
+        return cleaned
 
 
 class ReversalForm(forms.Form):

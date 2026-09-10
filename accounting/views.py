@@ -1680,10 +1680,14 @@ def line_create(request, public_id):
     if request.method == "POST" and form.is_valid():
         line = form.save(commit=False)
         line.entry = entry
-        line.full_clean()
-        line.save()
-        messages.success(request, "Journal line added.")
-        return redirect("accounting:entry_detail", public_id=entry.public_id)
+        try:
+            line.full_clean()
+            line.save()
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, "Journal line added.")
+            return redirect("accounting:entry_detail", public_id=entry.public_id)
     return render(request, "accounting/form.html", {"form": form, "title": f"Add line to {entry.reference}", "cancel_object": entry})
 
 
@@ -2279,7 +2283,7 @@ def payable_claim_export(request):
         line = row["line"]
         writer.writerow((_csv_text(department.name), as_of_date, _csv_text(line.entry.fund.code),
             _csv_text(line.account.code), _csv_text(row["party_key"]), _csv_text(row["claim_reference"]),
-            _csv_text(line.entry.reference), line.sequence, line.credit, row["applied"], row["outstanding"]))
+            _csv_text(line.entry.reference), line.sequence, row["recognized"], row["applied"], row["outstanding"]))
     return _archived_csv_response(response=response, request=request, department=department,
         category="finance-payable-claims", filename=filename,
         metadata={"kind": "individual_payable_claims", "as_of_date": as_of_date.isoformat(), "row_count": len(rows),

@@ -193,7 +193,8 @@ def materialize(request, actor):
                 mirrored = JournalLine(entry=entry, sequence=line.sequence, account=line.account,
                     responsibility_center=line.responsibility_center, debit=line.credit, credit=line.debit,
                     memo=line.memo, cash_flow_category=line.cash_flow_category,
-                    payable_origin_id=line.payable_origin_id, payable_reservation_id=line.payable_reservation_id)
+                    payable_origin_id=line.payable_origin_id, payable_reservation_id=line.payable_reservation_id,
+                    payable_allocation=line.payable_allocation)
                 mirrored.full_clean(); mirrored.save()
                 detail = getattr(line, "subsidiary_posting", None)
                 if detail:

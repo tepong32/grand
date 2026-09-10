@@ -771,6 +771,7 @@ class JournalEntry(DepartmentOwnedModel):
 
 
 class JournalLine(models.Model):
+    payable_allocation = models.JSONField(default=dict, blank=True, editable=False)
     payable_reservation = models.ForeignKey("PayableClaimReservation", on_delete=models.PROTECT, null=True, blank=True,
         related_name="applications", editable=False)
     payable_party_key = models.CharField(max_length=100, blank=True, help_text="Stable supplier/payee key for a newly recognized payable claim.")
@@ -866,6 +867,7 @@ class PayableClaimReservation(models.Model):
     group = models.ForeignKey(PayableClaimReservationGroup, null=True, blank=True,
         on_delete=models.PROTECT, related_name="reservations")
     source = models.ForeignKey(JournalLine, on_delete=models.PROTECT, related_name="claim_reservations")
+    invoice_key = models.UUIDField(null=True, blank=True)
     amount = models.DecimalField(max_digits=18, decimal_places=2)
     source_snapshot = models.JSONField()
     source_checksum = models.CharField(max_length=64)
@@ -885,7 +887,7 @@ class PayableClaimReservation(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             prior = type(self).objects.get(pk=self.pk)
-            fixed = ("public_id", "reservation_key", "case_public_id", "group_id", "source_id", "amount",
+            fixed = ("public_id", "reservation_key", "case_public_id", "group_id", "source_id", "invoice_key", "amount",
                 "source_snapshot", "source_checksum", "created_by_id", "created_at")
             if (not getattr(self, "_release_transition", False) or prior.released_at
                     or any(getattr(self, key) != getattr(prior, key) for key in fixed)):
@@ -992,8 +994,9 @@ class PayableClaimAttribution(DepartmentOwnedModel):
     source = models.ForeignKey(JournalLine, on_delete=models.PROTECT, related_name="claim_attributions")
     version = models.PositiveIntegerField()
     base_version = models.PositiveIntegerField(default=0)
-    party_key = models.CharField(max_length=100)
-    claim_reference = models.CharField(max_length=120)
+    party_key = models.CharField(max_length=100, blank=True)
+    claim_reference = models.CharField(max_length=120, blank=True)
+    allocation_checksum = models.CharField(max_length=64, blank=True)
     applications = models.JSONField(default=list, blank=True)
     source_snapshot = models.JSONField()
     source_checksum = models.CharField(max_length=64)
@@ -1017,12 +1020,21 @@ class PayableClaimAttribution(DepartmentOwnedModel):
     def clean(self):
         if self.source_id and self.source.entry.department_id != self.department_id:
             raise ValidationError("Attribute a claim in the same Accounting ledger.")
+        if bool(self.allocation_checksum):
+            if self.party_key or self.claim_reference:
+                raise ValidationError("A split attribution retains each invoice's identity separately.")
+        elif not self.party_key or not self.claim_reference:
+            raise ValidationError("Record the whole claim's payee and invoice reference.")
+
+    @property
+    def is_split(self):
+        return bool(self.allocation_checksum)
 
     def save(self, *args, **kwargs):
         if self.pk:
             prior = type(self).objects.get(pk=self.pk)
             fixed = ("public_id", "source_id", "department_id", "department_label", "version", "base_version",
-                "party_key", "claim_reference", "applications", "source_snapshot", "source_checksum",
+                "party_key", "claim_reference", "allocation_checksum", "applications", "source_snapshot", "source_checksum",
                 "evidence_reference", "reason", "proposed_by_id", "proposed_by_label", "proposed_at")
             if (not getattr(self, "_review_transition", False) or prior.status != self.SUBMITTED
                     or any(getattr(prior, key) != getattr(self, key) for key in fixed)):
@@ -1043,6 +1055,34 @@ class PayableClaimAttributionHead(models.Model):
             raise ValidationError("Select an approved attribution for this original credit.")
         self.full_clean()
         return super().save(*args, **kwargs)
+
+
+class PayableClaimSlice(models.Model):
+    """One invoice in an immutable historical attribution version."""
+    attribution = models.ForeignKey(PayableClaimAttribution, on_delete=models.PROTECT, related_name="invoice_slices")
+    key = models.UUIDField()
+    party_key = models.CharField(max_length=100)
+    claim_reference = models.CharField(max_length=120)
+    recognized = models.DecimalField(max_digits=18, decimal_places=2)
+    applications = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ("key",)
+        constraints = (
+            models.UniqueConstraint(fields=("attribution", "key"), name="unique_claim_slice_key"),
+            models.UniqueConstraint(fields=("attribution", "party_key", "claim_reference"), name="unique_claim_slice_invoice"),
+            models.CheckConstraint(condition=models.Q(recognized__gt=0), name="positive_claim_slice_credit"),
+        )
+
+    def save(self, *args, **kwargs):
+        if (self.pk or not getattr(self, "_proposal_write", False)
+                or self.attribution.status != PayableClaimAttribution.SUBMITTED or not self.attribution.is_split):
+            raise ValidationError("Retain invoice allocations; submit a new attribution version.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain invoice allocations and their independent decisions.")
 
 
 class JournalSubsidiaryLine(models.Model):
