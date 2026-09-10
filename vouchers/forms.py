@@ -767,6 +767,17 @@ class AccountingValidationForm(WorkflowForm):
             self.fields["jev_number"].help_text = "Leave blank when there are no deductions. With deductions, enter the adjustment JEV number."
 
 
+class DeductionCorrectionForm(WorkflowForm):
+    correction_date = forms.DateField(widget=DateInput, label="Actual correction date")
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="An exact reversal must be independently posted before this DV can be corrected. Original entries remain in the audit history.")
+
+
+class DeductionCorrectionWithdrawalForm(WorkflowForm):
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Withdraw only before the correction posts. Discard any draft first; the original deduction stays in force.")
+
+
 class CheckIssueForm(WorkflowForm):
     bank_account_code = forms.ChoiceField(label="Bank / payment account")
     fund_code = forms.ChoiceField(label="Cash fund", required=False)

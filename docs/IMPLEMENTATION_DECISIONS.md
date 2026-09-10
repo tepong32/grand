@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-075:** Correct posted prior-payable deductions by exact source reversal, protect unremitted balances and reopen the DV only after independent posting; allow reasoned withdrawal only before posting.
+
 - **D-074:** Generate reviewed earlier accruals through the existing posting request and original claim; require explicit recognition evidence, independent posting and a distinct pre-DV correction route.
 
 - **D-073:** Reserve original claim capacity across the existing separate-store DV handoff; post only actual deduction/payment effects, retain exact payment reversals and recover interrupted operations from pinned evidence.
@@ -768,6 +770,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-075 - Correct posted deductions without rewriting financial history
+
+- Date: 2026-09-10. Status: implemented in v0.7.82 on `codex/finance-deduction-corrections`; [validation and limits](FINANCE_DEDUCTION_CORRECTIONS_2026-09-10.md).
+- Goal: make the M02 posted-adjustment correction usable through the existing office workflow, then prove corrected settlement and signed tax output.
+- Decision: an existing posting request pins an exact reversal of the original deduction JEV. It retains original rule provenance without inventing a new posting recipe; independent posting retires the zero-consumption claim reservation and reopens DV preparation. A pending correction reserves the available withholding amount against remittance allocation.
+- Tradeoffs: silently editing the old JEV would destroy history. Re-running current mappings could reverse a different account. A new universal correction framework would add authority and maintenance overhead. Exact source reversal uses existing journal machinery, while requiring case/source locking and a shared Accounting-owner reservation boundary across setup releases.
+- Limits/revisit: before any payment instrument, with sufficient unreserved withholding. Post-issuance, remitted-tax/refund/external-filing correction, historical attribution and consolidated claims remain required. Unposted withdrawal does not undo a posted correction. Revisit only with concrete downstream correction requirements and retained evidence.
 
 ## D-074 - Generate the original payable before DV preparation
 

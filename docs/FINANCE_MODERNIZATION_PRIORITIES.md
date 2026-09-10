@@ -45,6 +45,8 @@ Make future national-government, COA and DBM changes manageable through reviewed
 
 ## Current execution
 
+Current v0.7.82 M02 work: [posted-deduction correction](FINANCE_DEDUCTION_CORRECTIONS_2026-09-10.md) supports exact reversal before any payment instrument, protected withholding capacity, independent posting, fresh DV validation/payment, signed tax output and pre-posting withdrawal. Historical attribution, consolidated claims, post-issuance/remitted-tax corrections and remaining Finance/acceptance gates are still open. Consult the actual validation record.
+
 Current v0.7.81 M02 work: [earlier-accrual generation](FINANCE_EARLIER_ACCRUAL_2026-09-10.md) queues a reviewed pre-DV recognition request, creates the original named payable after independent posting and connects it to later DV deductions/payment without another expense. Pre-DV correction, immutable source evidence and recoverable handoffs use the existing stores and workflow. Read its actual validation record. Historical attribution, posted-adjustment corrections and consolidated multi-claim settlement remain unfinished; Finance production remains NO-GO.
 
 Current M02 DV work: [prior-payable integration](FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md) links one original claim/fund to a DV, reserves its gross amount and propagates applications through deductions and the governed payment/return cycle. Continue earlier-accrual request generation, historical attribution and outstanding correction scenarios; no wider parity or acceptance completion is claimed. Read the validation record for actual run status.

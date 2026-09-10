@@ -37,16 +37,23 @@ def _mark_failed(request, exc):
 
 
 def materialize_voucher_journal(posting_request, actor):
-    if posting_request.payload.get("earlier_accrual"):
+    if posting_request.payload.get("earlier_accrual") or posting_request.payload.get("deduction_correction"):
         # Serialize source creation against a pre-DV return/cancellation on the default store.
         with transaction.atomic():
             VoucherCase.objects.select_for_update().get(pk=posting_request.case_id)
             try:
+                if posting_request.payload.get("deduction_correction"):
+                    from .deduction_corrections import materialize
+                    return materialize(posting_request, actor)
                 return _materialize_voucher_journal(posting_request, actor)
             except ValidationError as exc:
                 # Commit the inner failure record after its Finance transaction rolled back.
                 # Raising inside this default transaction would erase the recovery reason.
                 failure = exc
+                if posting_request.payload.get("deduction_correction"):
+                    VoucherPostingRequest.objects.filter(pk=posting_request.pk, status__in=(
+                        VoucherPostingRequest.PENDING, VoucherPostingRequest.MATERIALIZED, VoucherPostingRequest.FAILED)).update(
+                            status=VoucherPostingRequest.FAILED, failure_reason=" ".join(exc.messages))
         raise failure
     return _materialize_voucher_journal(posting_request, actor)
 
@@ -424,7 +431,7 @@ def reconcile_posted_voucher_entry(entry, actor):
     """Complete the recoverable finance-to-core handoff from stored posting proof."""
     from accounting.posted_evidence import require_persisted_posting, verify_source_link
     entry = require_persisted_posting(entry, actor, source_type="voucher")
-    if entry.source_snapshot.get("earlier_accrual"):
+    if entry.source_snapshot.get("earlier_accrual") or entry.source_snapshot.get("deduction_correction"):
         source = VoucherPostingRequest.objects.filter(public_id=entry.source_reference).first()
         if source:
             VoucherCase.objects.select_for_update().get(pk=source.case_id)
@@ -443,6 +450,11 @@ def reconcile_posted_voucher_entry(entry, actor):
     request.failure_reason = ""
     request.posted_at = entry.posted_at or timezone.now()
     request.save(update_fields=("status", "accounting_entry_public_id", "failure_reason", "posted_at"))
+
+    if request.payload.get("deduction_correction"):
+        from .deduction_corrections import complete
+        complete(request, actor)
+        return request
 
     from .advice import complete_returned_review_after_posting
     complete_returned_review_after_posting(posting_request=request, actor=actor)

@@ -22,6 +22,8 @@ Individual payable claims use original posted liability credits and linked appli
 
 Earlier accruals use the existing governed posting request before DV creation. Require actual recognition date/evidence and a reviewed gross-payable recipe; independent posting creates the original claim. Serialize pre-DV materialization, return and reconciliation on the default case lock. A posted accrual cannot be erased by returning its payable; later DV corrections retain it. See [earlier-accrual boundary](docs/FINANCE_EARLIER_ACCRUAL_2026-09-10.md).
 
+Posted prior-payable deductions are corrected by exact source reversal before any instrument exists, followed by independent posting and a fresh DV reservation. Pending corrections and remittance allocations share the Accounting-owner reservation lock across releases; display labels are not deduction identities. No posted JEV or tax evidence is rewritten. See [deduction correction boundary](docs/FINANCE_DEDUCTION_CORRECTIONS_2026-09-10.md).
+
 ### Development state
 
 Personal-handoff adapters are implemented. Current work prioritizes missing Finance functionality and statement calculations; operational scrutiny follows functional completion. Generic following, shared views and notifications remain deferred. Read the current branch’s CONTINUE.md for its checkpoint; a documentation update from master does not merge or publish development-branch work. Production remains NO-GO until functional completion, broad regression, operational scrutiny, critical-gap verification and LGU acceptance pass. Preserve the separate database and existing acceptance gates.

@@ -26,6 +26,7 @@ from .forms import (
     TracePointLinkForm, PayableEvidenceForm, PayableReviewForm, PayableSubmitForm,
     PayableAllocationAddForm, PayableAllocationRevisionForm, PayableClaimControlForm,
     ControlledPrintPrepareForm, FinancePacketAssemblyForm, PrintEvidenceForm,
+    DeductionCorrectionForm, DeductionCorrectionWithdrawalForm,
 )
 from .models import (
     PaymentInstrument, VoucherCase, VoucherCaseSavedView, VoucherOutput, VoucherPostingRequest,
@@ -417,6 +418,15 @@ def case_detail(request, public_id):
         "advice_form": BankAdviceForm(case=case),
         "release_form": CheckReleaseForm(case=case),
         "return_form": ReturnCaseForm(case=case),
+        "deduction_correction_form": DeductionCorrectionForm(case=case),
+        "deduction_withdrawal_form": DeductionCorrectionWithdrawalForm(case=case),
+        "can_withdraw_deduction_correction": bool(case.current_stage == VoucherCase.ACCOUNTING_EVENT_POSTING
+            and can_manage_owned_case_artifact(request.user, case, "vouchers.return_voucher_case")
+            and any(r.payload.get("deduction_correction") for r in case.posting_requests.filter(status__in=("pending", "failed", "materialized")))),
+        "can_correct_deductions": bool(case.current_stage == VoucherCase.TREASURY_CHECK_PREPARATION
+            and can_manage_owned_case_artifact(request.user, case, "vouchers.return_voucher_case")
+            and not case.payment_instruments.exists()
+            and case.posting_requests.filter(kind="adjustment", status="posted").exists()),
         "cancel_form": CancelCheckForm(case=case),
         "tracepoint_form": TracePointLinkForm(case=case),
         "controlled_print_form": ControlledPrintPrepareForm(case=case),
@@ -456,6 +466,8 @@ def case_action(request, public_id, action):
         "finalize-advice": BankAdviceForm,
         "release-check": CheckReleaseForm,
         "return": ReturnCaseForm,
+        "correct-deductions": DeductionCorrectionForm,
+        "withdraw-deduction-correction": DeductionCorrectionWithdrawalForm,
         "cancel-check": CancelCheckForm,
         "generate-dv": SubmitChecksForm,
         "prepare-controlled-print": ControlledPrintPrepareForm,
@@ -496,7 +508,13 @@ def case_action(request, public_id, action):
     data = form.cleaned_data
     common = {"case": case, "actor": request.user, "expected_version": data["state_version"], "idempotency_key": data["idempotency_key"]}
     try:
-        if action == "certify-budget":
+        if action == "correct-deductions":
+            from .deduction_corrections import request_correction
+            request_correction(**common, correction_date=data["correction_date"], reason=data["reason"])
+        elif action == "withdraw-deduction-correction":
+            from .deduction_corrections import withdraw_correction
+            withdraw_correction(**common, reason=data["reason"])
+        elif action == "certify-budget":
             certify_budget(
                 **common, obligation_date=data["obligation_date"], budget_source_reference=data["budget_source_reference"],
                 allocations=[{"fund_code": data["fund_code"], "responsibility_center_code": data["responsibility_center_code"], "account_code": data["account_code"], "amount": data["amount"]}],

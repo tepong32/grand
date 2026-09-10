@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.82 - Correct posted deductions before payment
+
+Accounting can request an exact reversal of a posted prior-payable deduction adjustment, protect its withholding amount from remittance reservation and reopen the DV only after independent posting. Original journal/tax evidence remains intact; corrected deductions and payment use a fresh claim reservation. Unposted corrections can be withdrawn after discarding any draft, and interrupted handoffs are recoverable. [Validation and remaining boundaries](docs/FINANCE_DEDUCTION_CORRECTIONS_2026-09-10.md).
+
 ## v0.7.81 - Generate earlier payable accruals before DV preparation
 
 Accounting payable review can now queue a configured delivery/acceptance or billing-validation accrual with an explicit actual date and supporting reference. Independent JEV posting creates the original named claim and unlocks DV preparation; settlement uses that exact claim. Pre-DV draft correction and interrupted handoffs preserve source history. Existing-payable and recognize-with-DV routes remain available. [Validation and limits](docs/FINANCE_EARLIER_ACCRUAL_2026-09-10.md).

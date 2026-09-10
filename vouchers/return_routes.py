@@ -44,7 +44,9 @@ def return_route_blocker(case, target_stage):
         if hasattr(case, "disbursement_voucher") or case.payment_instruments.exists():
             return "A DV or check already exists; use the later voucher/payment correction route instead of reopening payable allocations."
     if target_stage in {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.ACCOUNTING_VALIDATION}:
-        if case.posting_requests.filter(status=VoucherPostingRequest.POSTED).exclude(pk__in=[r.pk for r in early]).exists():
+        from .deduction_corrections import corrected_request_ids
+        if case.posting_requests.filter(status=VoucherPostingRequest.POSTED).exclude(pk__in=[r.pk for r in early]).exclude(
+                public_id__in=corrected_request_ids(case)).exists():
             return "This voucher already has a posted JEV. Use an adjusting/reversal entry and a replacement case instead of rewriting it."
         if case.posting_requests.filter(status=VoucherPostingRequest.MATERIALIZED).exists():
             return "Discard the draft GRAND JEV before returning this voucher for correction."

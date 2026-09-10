@@ -345,6 +345,10 @@ def _route_event_posting_or_resume(
 def supersede_discarded_event_posting_request(*, posting_request, actor, reason):
     """Create a numbered successor after a generated payment-event draft is discarded."""
     _require(actor, "accounting.prepare_journal_entries")
+    if posting_request.payload.get("deduction_correction"):
+        correction_case = VoucherCase.objects.select_for_update().get(pk=posting_request.case_id)
+        if department_for_user(actor).pk != correction_case.configuration_release.department_id:
+            raise PermissionDenied
     request = VoucherPostingRequest.objects.select_for_update().select_related(
         "case", "posting_rule",
     ).get(pk=posting_request.pk)
@@ -361,7 +365,15 @@ def supersede_discarded_event_posting_request(*, posting_request, actor, reason)
         raise VoucherWorkflowError("The voucher is no longer waiting at its payment-event Accounting handoff.")
     if request.status == VoucherPostingRequest.POSTED:
         raise VoucherWorkflowError("A posted payment-event request must be corrected through reversal, not draft replacement.")
-    if request.posting_rule_snapshot.get("accounting_effect") != FinancePostingRule.JOURNAL_ENTRY:
+    if request.payload.get("deduction_correction"):
+        from accounting.models import JournalEntry
+        from accounting.posted_evidence import verify_source_link
+        discarded = JournalEntry.objects.filter(source_type="voucher", source_reference=str(request.public_id),
+            department_id=request.finance_department_id, status=JournalEntry.VOIDED).first()
+        if discarded is None:
+            raise VoucherWorkflowError("Discard the exact correction draft before creating its successor.")
+        verify_source_link(request, discarded, source_type="voucher")
+    elif request.posting_rule_snapshot.get("accounting_effect") != FinancePostingRule.JOURNAL_ENTRY:
         raise VoucherWorkflowError("A no-entry accounting decision cannot have a discarded draft JEV.")
     version = (
         case.posting_requests.filter(kind=request.kind).aggregate(value=Max("version"))["value"] or 0
@@ -2187,6 +2199,11 @@ def return_case(*, case, actor, target_stage, reason, expected_version, idempote
     blocker = return_route_blocker(case, target_stage)
     if blocker:
         raise VoucherWorkflowError(blocker)
+    return _apply_case_return(case, actor, target_stage, reason, idempotency_key)
+
+
+def _apply_case_return(case, actor, target_stage, reason, idempotency_key):
+    """Apply a checked return, including an independently posted deduction correction."""
     if target_stage in {VoucherCase.ACCOUNTING_PREPARATION, VoucherCase.ACCOUNTING_VALIDATION,
             VoucherCase.PAYABLE_PREPARATION, VoucherCase.AWAITING_SIGNATURES}:
         from accounting.models import PayableClaimReservation

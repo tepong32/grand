@@ -9,7 +9,7 @@ from decimal import Decimal
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Max, Q, Sum
+from django.db.models import Max, Min, Q, Sum
 from django.utils import timezone
 
 from accounting.access import can_post_journals, can_prepare_journals
@@ -133,8 +133,8 @@ def withholding_availability(*, finance_department_id, transaction_type, as_of_d
         source_snapshot__transaction_type=transaction_type,
     ).values(
         "entry__fund__code", "journal_line__account__code", "journal_line__account__title",
-        "reference_key", "reference_label", "source_code",
-    ).annotate(debit_total=Sum("debit"), credit_total=Sum("credit"))
+        "reference_key", "source_code",
+    ).annotate(reference_label=Min("reference_label"), debit_total=Sum("debit"), credit_total=Sum("credit"))
     reservations = TreasuryRemittanceLine.objects.filter(
         status=TreasuryRemittanceLine.ACTIVE,
         batch__finance_department_id=finance_department_id,
@@ -151,6 +151,9 @@ def withholding_availability(*, finance_department_id, transaction_type, as_of_d
         (row["fund_code"], row["account_code"], row["reference_key"], row["deduction_code"]): row["total"]
         for row in reservations
     }
+    from .deduction_corrections import pending_holds
+    for key, amount in pending_holds(finance_department_id, transaction_type).items():
+        reserved[key] = reserved.get(key, Decimal("0.00")) + amount
     result = []
     for row in ledger_rows:
         identity = {
@@ -189,8 +192,9 @@ def _available_row(batch, choice_key):
 
 
 def _lock_reservation_scope(batch):
-    """Serialize live reservations across batches sharing the same governed release."""
-    FinanceConfigurationRelease.objects.select_for_update().get(pk=batch.configuration_release_id)
+    """Serialize remittance/correction reservations across the Accounting owner."""
+    from .deduction_corrections import lock_withholding_scope
+    lock_withholding_scope(batch.finance_department_id)
 
 
 @transaction.atomic

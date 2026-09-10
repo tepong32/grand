@@ -1,5 +1,7 @@
 # GRAND Finance roadmap completion audit
 
+Current v0.7.82 M02 work: [posted-deduction correction](FINANCE_DEDUCTION_CORRECTIONS_2026-09-10.md) supports exact reversal before any payment instrument, protected withholding capacity, independent posting, fresh DV validation/payment, signed tax output and pre-posting withdrawal. Historical attribution, consolidated claims, post-issuance/remitted-tax corrections and remaining Finance/acceptance gates are still open. Consult the actual validation record.
+
 Current v0.7.81 M02 work: [earlier-accrual generation](FINANCE_EARLIER_ACCRUAL_2026-09-10.md) queues a reviewed pre-DV recognition request, creates the original named payable after independent posting and connects it to later DV deductions/payment without another expense. Pre-DV correction, immutable source evidence and recoverable handoffs use the existing stores and workflow. Read its actual validation record. Historical attribution, posted-adjustment corrections and consolidated multi-claim settlement remain unfinished; Finance production remains NO-GO.
 
 Current M02 integration: [prior-payable DV settlement](FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md) connects named claims through independent validation, deduction adjustment, actual payment, cancellation, return and replacement. Native recovery/capacity tests pass; consult its final validation record. Earlier-accrual generation, historical attribution and posted-adjustment correction remain open. This does not close M02 or the Finance parity gate.
