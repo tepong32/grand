@@ -1,10 +1,20 @@
 from django.urls import path
 
-from . import advice_views, cash_views, remittance_views, views
+from . import advice_views, cash_views, collection_views, remittance_views, views
 
 app_name = "vouchers"
 
 urlpatterns = [
+    path('collections/', collection_views.register, name='collection_register'),
+    path('collections/new/', collection_views.receipt_create, name='collection_create'),
+    path('collections/deposits/new/', collection_views.deposit_create, name='collection_deposit_create'),
+    path('collections/export/', collection_views.export, name='collection_export'),
+    path('collections/<uuid:public_id>/', collection_views.detail, name='collection_detail'),
+    path('collections/<uuid:public_id>/review/', collection_views.review, name='collection_review'),
+    path('collections/<uuid:public_id>/correct/', collection_views.correction_create, name='collection_correction_create'),
+    path('collections/<uuid:public_id>/outputs/new/', collection_views.output_generate, name='collection_output_generate'),
+    path('collections/<uuid:public_id>/outputs/<uuid:output_id>/', collection_views.output_download, name='collection_output_download'),
+    path('collections/<uuid:public_id>/accounting/<slug:action>/', collection_views.accounting_action, name='collection_accounting_action'),
     path("", views.workspace, name="workspace"),
     path("saved-views/save/", views.saved_view_save, name="saved_view_save"),
     path("saved-views/<uuid:public_id>/delete/", views.saved_view_delete, name="saved_view_delete"),

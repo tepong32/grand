@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title_ext %} · {{ source.document_reference }}{% endblock %}
+{% block content %}
+<div class="container py-3"><a href="{% url 'vouchers:collection_register' %}">Collections and deposits</a>
+<h1 class="h3 mt-3">{{ source.get_kind_display }} {{ source.document_reference }}</h1>
+<dl><dt>Status</dt><dd>{{ source.get_status_display }}</dd><dt>Date / fund</dt><dd>{{ source.source_date }} · {{ source.fund_code }}</dd>
+<dt>Amount</dt><dd>{{ source.amount }}</dd><dt>Receipt book</dt><dd>{{ source.book_reference|default:"—" }}</dd>
+<dt>Payer / reference</dt><dd>{{ source.proposal.payer_reference|default:"—" }}</dd><dt>Evidence</dt><dd>{{ source.proposal.evidence_reference }}</dd>
+<dt>Prepared by</dt><dd>{{ source.prepared_by }} · {{ source.prepared_at }}</dd><dt>Independent decision</dt><dd>{{ source.reviewed_by|default:"Awaiting review" }} {{ source.review_reason }}</dd></dl>
+{% if source.withdrawn_at %}<p><strong>Approval withdrawn:</strong> {{ source.withdrawal_reason }} · {{ source.withdrawn_by }} · {{ source.withdrawn_at }}</p>{% endif %}
+{% if source.supersedes_id %}<p><a href="{% url 'vouchers:collection_detail' source.supersedes.public_id %}">Previous source version</a></p>{% endif %}
+{% if source.correction_of_id %}<p><a href="{% url 'vouchers:collection_detail' source.correction_of.public_id %}">Original posted source</a></p>{% endif %}
+{% if can_correct %}<a class="btn btn-outline-danger" href="{% url 'vouchers:collection_correction_create' source.public_id %}">Correct posted source</a>{% endif %}
+{% for correction in source.corrections.all %}<p>Correction: <a href="{% url 'vouchers:collection_detail' correction.public_id %}">{{ correction.source_date }} · {{ correction.get_status_display }}</a></p>{% endfor %}
+{% if can_replace %}{% if source.kind == 'receipt' %}<a class="btn btn-primary" href="{% url 'vouchers:collection_create' %}?supersedes={{ source.public_id }}">Prepare corrected receipt</a>{% else %}<a class="btn btn-primary" href="{% url 'vouchers:collection_deposit_create' %}">Prepare corrected deposit</a>{% endif %}{% endif %}
+{% if can_withdraw %}<form method="post" action="{% url 'vouchers:collection_review' source.public_id %}">{% csrf_token %}<input type="hidden" name="decision" value="withdraw">
+<p>Discard all unposted source JEVs in Accounting before withdrawing this approval.</p><label for="withdrawal-reason">Correction reason</label><textarea class="form-control" name="reason" id="withdrawal-reason" required></textarea><button class="btn btn-outline-danger mt-2">Withdraw unposted approval</button></form>{% endif %}
+{% if can_review %}<form method="post" action="{% url 'vouchers:collection_review' source.public_id %}">{% csrf_token %}
+<label for="decision">Decision</label><select class="form-control" id="decision" name="decision"><option value="approve">Approve</option><option value="reject">Return for correction</option></select>
+<label for="reason">Review basis</label><textarea class="form-control" id="reason" name="reason" required></textarea><button class="btn btn-primary mt-2">Record decision</button></form>{% endif %}
+{% if source.kind == 'deposit' %}<h2 class="h5 mt-3">Deposit allocations</h2><p>Receiving bank: {{ source.proposal.receiving_bank.bank_label }}</p><ul>{% for row in source.proposal.allocations %}<li><a href="{% url 'vouchers:collection_detail' row.receipt %}">Collection receipt</a> · {{ row.amount }}</li>{% endfor %}</ul>{% endif %}
+<h2 class="h5 mt-3">Accounting journals</h2><ul>{% for journal in journals %}<li>{{ journal.jev_number }} · {{ journal.get_status_display }}{% if journal.accounting_entry_public_id %} · <a href="{% url 'accounting:entry_detail' journal.accounting_entry_public_id %}">Open JEV</a>{% endif %}</li>{% empty %}<li>Awaiting independent source approval.</li>{% endfor %}</ul>
+{% if can_materialize %}<form method="post" action="{% url 'vouchers:collection_accounting_action' source.public_id 'materialize' %}">{% csrf_token %}<button class="btn btn-primary">Prepare / recover JEV</button></form>{% endif %}
+{% if can_reconcile %}<form method="post" action="{% url 'vouchers:collection_accounting_action' source.public_id 'reconcile' %}">{% csrf_token %}<button class="btn btn-outline-secondary mt-2">Reconcile posted JEV</button></form>{% endif %}
+{% if can_output %}<h2 class="h5 mt-3">Retained printable copies</h2>
+{% if source.status == 'posted' %}<form method="post" action="{% url 'vouchers:collection_output_generate' source.public_id %}">{% csrf_token %}<button class="btn btn-outline-primary">Save printable copy</button></form>{% endif %}
+<ul>{% for output in outputs %}<li><a href="{% url 'vouchers:collection_output_download' source.public_id output.public_id %}">Download copy {{ output.version }}</a> · {{ output.generated_at }}</li>{% empty %}<li>No printable copy saved yet.</li>{% endfor %}</ul>{% endif %}
+</div>{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title_ext %} · {{ title }}{% endblock %}
+{% block content %}
+<div class="container py-3"><h1 class="h3">{{ title }}</h1>
+<p>Retain the actual transaction date and supporting reference. Accounting independently reviews sources before posting.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}
+{% if shares %}<h2 class="h5">Receipts included in this deposit</h2><p>Enter each receipt and its actual deposited amount. Leave unused rows blank.</p>{{ shares.management_form }}{{ shares.non_form_errors }}
+<div id="deposit-shares">{% for share in shares %}<fieldset class="border p-3 mb-2"><legend class="h6">Receipt {{ forloop.counter }}</legend>{{ share.as_p }}</fieldset>{% endfor %}</div>
+<template id="deposit-share-template"><fieldset class="border p-3 mb-2"><legend class="h6">Additional receipt</legend>{{ shares.empty_form.as_p }}</fieldset></template>
+<button type="button" id="add-deposit-share" class="btn btn-outline-secondary mb-3">Add another receipt</button>
+<script src="{% static 'vouchers/collection-deposits.js' %}" defer></script>{% endif %}
+<button class="btn btn-primary">Send for review</button>
+<a class="btn btn-outline-secondary" href="{% url 'vouchers:collection_register' %}">Back to register</a></form></div>
+{% endblock %}

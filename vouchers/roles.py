@@ -7,7 +7,14 @@ FINANCE_UAT_VIEWER_GROUP = "Finance UAT Viewer"
 
 
 FINANCE_ROLE_PERMISSIONS = {
+    "Treasury Collection Officer": (
+        "vouchers.view_collection_register",
+        "vouchers.prepare_collections",
+        "vouchers.prepare_collection_deposits",
+        "finance.export_finance_work",
+    ),
     FINANCE_UAT_VIEWER_GROUP: (
+        "vouchers.view_collection_register",
         "finance.view_finance_setup",
         "vouchers.view_voucher_workbench",
         "vouchers.view_voucher_audit",
@@ -85,6 +92,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "vouchers.view_voucher_audit",
     ),
     "Accounting DV Preparer": (
+        "vouchers.view_collection_register",
         "finance.view_finance_setup",
         "vouchers.view_voucher_workbench",
         "vouchers.review_payable_intake",
@@ -123,6 +131,8 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.export_local_form_acceptance",
     ),
     "Accounting Reviewer": (
+        "vouchers.view_collection_register",
+        "vouchers.review_collections",
         "finance.view_finance_setup",
         "vouchers.view_voucher_workbench",
         "vouchers.validate_accounting_voucher",

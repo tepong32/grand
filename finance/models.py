@@ -386,6 +386,8 @@ class FinanceDocumentRule(models.Model):
 
 
 class FinancePostingRule(models.Model):
+    COLLECTION = "collection"
+    DEPOSIT = "deposit"
     RECOGNITION = "recognition"
     ADJUSTMENT = "adjustment"
     LIQUIDATION = "liquidation"
@@ -395,6 +397,8 @@ class FinancePostingRule(models.Model):
     REVERSAL = "reversal"
     REPLACEMENT = "replacement"
     EVENT_KIND_CHOICES = (
+        (COLLECTION, "Record an actual Treasury collection"),
+        (DEPOSIT, "Deposit previously recorded collections"),
         (RECOGNITION, "Recognize expense, asset, or payable"),
         (ADJUSTMENT, "Adjust an earlier recognition"),
         (LIQUIDATION, "Record liquidation"),
@@ -416,7 +420,11 @@ class FinancePostingRule(models.Model):
     LIQUIDATION_ACCEPTANCE = "liquidation_acceptance"
     PERIOD_END = "period_end"
     OTHER = "other"
+    COLLECTION_RECEIPT = "collection_receipt"
+    COLLECTION_DEPOSIT = "collection_deposit"
     RECOGNITION_POINT_CHOICES = (
+        (COLLECTION_RECEIPT, "Actual Treasury receipt"),
+        (COLLECTION_DEPOSIT, "Actual deposit of collections"),
         (DELIVERY_ACCEPTANCE, "Delivery / inspection acceptance"),
         (BILLING_VALIDATION, "Billing or claim validation"),
         (DV_VALIDATION, "DV Accounting validation"),

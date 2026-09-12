@@ -1,5 +1,7 @@
 # GRAND Finance roadmap completion audit
 
+v0.7.98 development checkpoint: [collection/deposit evidence](FINANCE_COLLECTIONS_IN_PROGRESS.md) demonstrates a receipt → partial deposits → ledger/output chain and dated exact corrections, retaining original records and printable copies. Native allocation/materialization races and account-role boundaries pass. Full SQLite regression passes 1044 discovered / 995 passed / 49 skipped; liquidation/advances, collection instrument breadth, exact local forms and all later acceptance gates remain incomplete. This is not full M03 or Finance completion.
+
 v0.7.97 development checkpoint: [actual receiving bank](FINANCE_RECEIPT_BANKS_2026-09-12.md) now follows independently reviewed routing through incoming posting, exact correction and exports, preserving original liabilities/fund and default historical proposals. Focused/native/dependent checks pass after fixing the initial release-reference error. Fees/netted receipts, actual agency repayments/offsets and broader Finance gates remain open.
 
 v0.7.96 development checkpoint: [posted receipt correction](FINANCE_POSTED_RECEIPT_CORRECTIONS_2026-09-12.md), D-083, adds exact independent reversal of an incorrectly posted receipt, protected dated withholding, reconciliation, corrected replacement, unposted withdrawal and retained exports. Focused/native/full-project checks pass. Actual outgoing repayments, other bank/fee/disposition cases and the wider Finance/office/output/acceptance gates remain open.

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title_ext %} · Collections and deposits{% endblock %}
+{% block content %}
+<div class="container-fluid py-3"><h1 class="h3">Collections and deposits</h1>
+<p>Available amounts exclude receipts already allocated to pending or posted deposits.</p>
+{% if can_prepare %}<a class="btn btn-primary mb-3" href="{% url 'vouchers:collection_create' %}">Record receipt</a>{% endif %}
+{% if can_deposit %}<a class="btn btn-primary mb-3" href="{% url 'vouchers:collection_deposit_create' %}">Record deposit</a>{% endif %}
+{% if can_export %}<a class="btn btn-outline-secondary mb-3" href="{% url 'vouchers:collection_export' %}">Download register CSV</a>{% endif %}
+<div class="table-responsive"><table class="table table-striped"><thead><tr><th>Date</th><th>Kind</th><th>Book / reference</th><th>Fund</th><th>Amount</th><th>Status</th><th>Available for deposit</th></tr></thead><tbody>
+{% for row in rows %}<tr><td>{{ row.source.source_date }}</td><td>{{ row.source.get_kind_display }}</td><td><a href="{% url 'vouchers:collection_detail' row.source.public_id %}">{{ row.source.book_reference }} {{ row.source.document_reference }}</a> · v{{ row.source.version }}</td><td>{{ row.source.fund_code }}</td><td>{{ row.source.amount }}</td><td>{{ row.source.get_status_display }}</td><td>{{ row.available|default_if_none:"—" }}</td></tr>
+{% empty %}<tr><td colspan="7">No collection or deposit records for this office.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

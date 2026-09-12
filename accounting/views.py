@@ -1749,11 +1749,14 @@ def entry_post(request, public_id):
         messages.error(request, " ".join(exc.messages))
     else:
         messages.success(request, "Journal posted to the general ledger.")
-        if posted.source_type in {"voucher", "remittance"}:
+        if posted.source_type in {"voucher", "remittance", "collection", "deposit", "collection_fix"}:
             try:
                 if posted.source_type == "voucher":
                     from vouchers.posting import reconcile_posted_voucher_entry
                     reconcile_posted_voucher_entry(posted, request.user)
+                elif posted.source_type in {"collection", "deposit", "collection_fix"}:
+                    from vouchers.collection_posting import reconcile
+                    reconcile(posted, request.user)
                 else:
                     from vouchers.remittances import reconcile_posted_remittance_entry
                     reconcile_posted_remittance_entry(posted, request.user)

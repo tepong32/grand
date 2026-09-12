@@ -651,6 +651,8 @@ class JournalEntry(DepartmentOwnedModel):
     VOIDED = "voided"
     STATUS_CHOICES = ((DRAFT, "Draft"), (SUBMITTED, "For posting"), (POSTED, "Posted"), (VOIDED, "Voided"))
     SOURCE_CHOICES = (
+        ("collection", "Treasury collection receipt"), ("deposit", "Deposit of Treasury collections"),
+        ("collection_fix", "Collection/deposit correction"),
         ("manual", "Manual journal"), ("voucher", "Voucher"),
         ("remittance", "Deduction / withholding remittance"),
         ("adjustment", "Adjusting entry"), ("reversal", "Reversing entry"),

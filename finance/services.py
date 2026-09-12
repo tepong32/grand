@@ -261,6 +261,23 @@ def posting_rule_snapshot(rule):
     return snapshot, hashlib.sha256(encoded).hexdigest()
 
 
+def collection_event_policy_error(rules):
+    """Return collection-only policy validity, or None for the payable cycle."""
+    events = {rule.event_kind for rule in rules}
+    collection_events = {FinancePostingRule.COLLECTION, FinancePostingRule.DEPOSIT}
+    if not events or not events.issubset(collection_events):
+        return None
+    points = {
+        FinancePostingRule.COLLECTION: FinancePostingRule.COLLECTION_RECEIPT,
+        FinancePostingRule.DEPOSIT: FinancePostingRule.COLLECTION_DEPOSIT,
+    }
+    for rule in rules:
+        if (rule.accounting_effect != FinancePostingRule.JOURNAL_ENTRY
+                or rule.recognition_point != points[rule.event_kind]):
+            return "Collection and deposit rules require a journal at their actual source event."
+    return ""
+
+
 def payment_event_policy_error(rules):
     """Reject an issuance-time settlement policy that would not undo/reapply its ledger effect."""
     by_event = {rule.event_kind: rule for rule in rules}
@@ -472,10 +489,13 @@ def transition_release(release, action, actor, reason=""):
                 FinancePostingRule.REPLACEMENT,
                 FinancePostingRule.REVERSAL,
             }
-            if not event_kinds.intersection({FinancePostingRule.RECOGNITION, FinancePostingRule.LIQUIDATION}):
+            collection_policy = collection_event_policy_error(list(variant.posting_rules.all()))
+            if collection_policy:
+                raise ValidationError(f"{variant.label}: {collection_policy}")
+            if collection_policy is None and not event_kinds.intersection({FinancePostingRule.RECOGNITION, FinancePostingRule.LIQUIDATION}):
                 raise ValidationError(f"{variant.label} needs a reviewed recognition or liquidation rule.")
             missing = required_payment_events - event_kinds
-            if missing:
+            if collection_policy is None and missing:
                 labels = dict(FinancePostingRule.EVENT_KIND_CHOICES)
                 raise ValidationError(
                     f"{variant.label} still needs payment-cycle decisions for: "
@@ -675,7 +695,9 @@ def evaluate_readiness(release, as_of=None):
                 has_initial_recognition = bool(
                     event_kinds & {FinancePostingRule.RECOGNITION, FinancePostingRule.LIQUIDATION}
                 )
-                if not has_initial_recognition or not required_payment_events.issubset(event_kinds):
+                collection_policy = collection_event_policy_error(rules)
+                if collection_policy or (collection_policy is None and (
+                        not has_initial_recognition or not required_payment_events.issubset(event_kinds))):
                     typed_posting_ready = False
                     break
                 if payment_event_policy_error(rules):

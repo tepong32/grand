@@ -1837,6 +1837,146 @@ class RemittanceReturnCorrection(models.Model):
         raise ValidationError('Receipt correction evidence cannot be deleted.')
 
 
+class TreasuryCollectionSource(models.Model):
+    """Actual receipt/deposit facts and their independently reviewed source version."""
+    RECEIPT, DEPOSIT, CORRECTION = 'receipt', 'deposit', 'correction'
+    KIND_CHOICES = ((RECEIPT, 'Collection receipt'), (DEPOSIT, 'Deposit of collections'), (CORRECTION, 'Posted source correction'))
+    PROPOSED, APPROVED, REJECTED, POSTED, WITHDRAWN = 'proposed', 'approved', 'rejected', 'posted', 'withdrawn'
+    STATUS_CHOICES = ((PROPOSED, 'For independent review'), (APPROVED, 'Approved; Accounting posting'),
+        (REJECTED, 'Returned for correction'), (POSTED, 'Posted'), (WITHDRAWN, 'Withdrawn before posting'))
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    treasury_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name='collection_sources')
+    configuration_release = models.ForeignKey(FinanceConfigurationRelease, on_delete=models.PROTECT, related_name='collection_sources')
+    transaction_variant = models.ForeignKey(FinanceTransactionVariant, on_delete=models.PROTECT, related_name='collection_sources')
+    finance_department_id = models.PositiveBigIntegerField()
+    finance_department_label = models.CharField(max_length=160)
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES)
+    book_reference = models.CharField(max_length=80, blank=True)
+    document_reference = models.CharField(max_length=80)
+    version = models.PositiveIntegerField(default=1)
+    supersedes = models.OneToOneField('self', on_delete=models.PROTECT, null=True, blank=True, related_name='successor')
+    correction_of = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='corrections')
+    source_date = models.DateField()
+    fund_code = models.CharField(max_length=80)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    proposal = models.JSONField(default=dict)
+    proposal_checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=PROPOSED)
+    prepared_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='prepared_collection_sources')
+    prepared_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name='reviewed_collection_sources')
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_reason = models.TextField(blank=True)
+    withdrawn_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='withdrawn_collection_sources')
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+    withdrawal_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ('-source_date', '-pk')
+        constraints = (
+            models.UniqueConstraint(fields=('treasury_department', 'kind', 'book_reference', 'document_reference', 'version'),
+                name='unique_collection_document_version'),
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name='positive_collection_source_amount'),
+        )
+        permissions = (
+            ('view_collection_register', 'Can view the Treasury collection and deposit register'),
+            ('prepare_collections', 'Can record actual Treasury collection receipts'),
+            ('prepare_collection_deposits', 'Can allocate collected receipts to actual bank deposits'),
+            ('review_collections', 'Can independently review collection and deposit sources'),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            immutable = ('treasury_department_id', 'configuration_release_id', 'transaction_variant_id',
+                'finance_department_id', 'finance_department_label', 'kind', 'book_reference', 'document_reference',
+                'version', 'supersedes_id', 'correction_of_id', 'source_date', 'fund_code', 'amount', 'proposal', 'proposal_checksum',
+                'prepared_by_id', 'prepared_at')
+            if any(getattr(prior, field) != getattr(self, field) for field in immutable):
+                raise ValidationError('Collection and deposit source versions are immutable. Retain a reasoned successor.')
+            if prior.status != self.PROPOSED and any(getattr(prior, field) != getattr(self, field) for field in
+                    ('reviewed_by_id', 'reviewed_at', 'review_reason')):
+                raise ValidationError('Retain the independent collection/deposit decision.')
+            if prior.withdrawn_at and any(getattr(prior, field) != getattr(self, field) for field in
+                    ('withdrawn_by_id', 'withdrawn_at', 'withdrawal_reason')):
+                raise ValidationError('Retain the independent withdrawal evidence.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Collection and deposit source evidence cannot be deleted.')
+
+
+class CollectionOutput(models.Model):
+    """Retained printable bytes and evidence for a posted collection source."""
+    public_id = models.UUIDField(default=uuid.uuid4,unique=True,editable=False)
+    source = models.ForeignKey(TreasuryCollectionSource,on_delete=models.PROTECT,related_name='issued_outputs')
+    version = models.PositiveIntegerField()
+    snapshot = models.JSONField(default=dict)
+    snapshot_checksum = models.CharField(max_length=64)
+    html = models.TextField()
+    checksum = models.CharField(max_length=64)
+    generated_by = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,related_name='collection_outputs')
+    generated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-version',)
+        constraints = (models.UniqueConstraint(fields=('source','version'),name='unique_collection_output_version'),)
+
+    def save(self,*args,**kwargs):
+        if self.pk:
+            raise ValidationError('Issued collection output is immutable. Retain a new version.')
+        return super().save(*args,**kwargs)
+
+    def delete(self,*args,**kwargs):
+        raise ValidationError('Issued collection output cannot be deleted.')
+
+
+class CollectionPostingRequest(models.Model):
+    """Recoverable handoff of one approved source version to the Finance ledger."""
+    PENDING, MATERIALIZED, POSTED, FAILED, CANCELLED = 'pending', 'materialized', 'posted', 'failed', 'cancelled'
+    STATUS_CHOICES = ((PENDING, 'Waiting for JEV creation'), (MATERIALIZED, 'Draft JEV created'),
+        (POSTED, 'JEV posted'), (FAILED, 'Needs intervention'), (CANCELLED, 'Cancelled'))
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    source = models.ForeignKey(TreasuryCollectionSource, on_delete=models.PROTECT, related_name='posting_requests')
+    version = models.PositiveIntegerField(default=1)
+    jev_number = models.CharField(max_length=60)
+    jev_date = models.DateField()
+    finance_department_id = models.PositiveBigIntegerField()
+    finance_department_label = models.CharField(max_length=160)
+    posting_rule = models.ForeignKey(FinancePostingRule, on_delete=models.PROTECT, related_name='collection_posting_requests')
+    posting_rule_snapshot = models.JSONField(default=dict)
+    posting_rule_checksum = models.CharField(max_length=64)
+    payload = models.JSONField(default=dict)
+    payload_checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
+    accounting_entry_public_id = models.UUIDField(null=True, blank=True)
+    failure_reason = models.TextField(blank=True)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='collection_posting_requests')
+    requested_at = models.DateTimeField(auto_now_add=True)
+    materialized_at = models.DateTimeField(null=True, blank=True)
+    posted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = (
+            models.UniqueConstraint(fields=('source', 'version'), name='unique_collection_posting_version'),
+            models.UniqueConstraint(fields=('finance_department_id', 'jev_number'), name='unique_collection_jev_number'),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            fields = ('source_id', 'version', 'jev_number', 'jev_date', 'finance_department_id', 'finance_department_label',
+                'posting_rule_id', 'posting_rule_snapshot', 'posting_rule_checksum', 'payload', 'payload_checksum',
+                'requested_by_id', 'requested_at')
+            if any(getattr(prior, field) != getattr(self, field) for field in fields):
+                raise ValidationError('Collection posting evidence is immutable. Retain a discarded-draft successor.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Collection posting evidence cannot be deleted.')
+
+
 class RemittanceEvent(models.Model):
     batch = models.ForeignKey(TreasuryRemittanceBatch, on_delete=models.PROTECT, related_name="events")
     action = models.CharField(max_length=80)

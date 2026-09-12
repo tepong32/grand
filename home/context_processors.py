@@ -46,6 +46,8 @@ def site_ui(request):
         context["can_access_budget"] = can_view_budget(request.user)
         context["can_access_finance_setup"] = can_view_finance_setup(request.user)
         context["can_access_vouchers"] = can_view_workbench(request.user)
+        from vouchers.access import can_view_collections
+        context["can_access_collections"] = can_view_collections(request.user)
         context["can_access_finance_operations"] = finance_operations_access(request.user, {
             "accounting": context["can_access_accounting"],
             "budget": context["can_access_budget"],
@@ -58,5 +60,6 @@ def site_ui(request):
         context["can_access_budget"] = False
         context["can_access_finance_setup"] = False
         context["can_access_vouchers"] = False
+        context["can_access_collections"] = False
         context["can_access_finance_operations"] = False
     return context

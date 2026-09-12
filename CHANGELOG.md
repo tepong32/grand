@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.98] - 2026-09-12
+### Added
+- feat(finance): connect collection and deposit source workflows
+
 ## [0.7.97] - 2026-09-12
 ### Added
 - feat(finance): retain actual receipt bank routing

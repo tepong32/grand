@@ -38,6 +38,10 @@ ACTION_PERMISSIONS = (
 )
 
 
+def can_view_collections(user):
+    return has_explicit_permission(user,'vouchers.view_collection_register')
+
+
 def department_for_user(user):
     profile = getattr(user, "employeeprofile", None)
     return getattr(profile, "assigned_department", None)

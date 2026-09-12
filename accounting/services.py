@@ -1131,6 +1131,9 @@ def record_event(entry, action, actor, reason="", snapshot=None):
 
 
 def validate_entry_for_submission(entry):
+    if entry.source_type in ('collection', 'deposit', 'collection_fix'):
+        from vouchers.collection_posting import validate_collection_journal
+        validate_collection_journal(entry)
     if entry.source_snapshot.get('remittance_return_correction'):
         from vouchers.receipt_corrections import validate_mirror
         validate_mirror(entry)
@@ -1192,6 +1195,10 @@ def post_entry(entry, actor):
     if locked.status != JournalEntry.SUBMITTED:
         raise ValidationError("Only a submitted journal can be posted.")
     workflow_exemption = None
+    if locked.source_type in ('collection', 'deposit', 'collection_fix') and actor.pk in {
+            locked.created_by_id, locked.submitted_by_id,
+            locked.source_snapshot.get('collection_payload', {}).get('prepared_by')}:
+        raise ValidationError('A collection/deposit requires independent posting by another Accounting officer.')
     if actor.pk in {locked.created_by_id, locked.submitted_by_id}:
         from finance.exemptions import workflow_exemption_for, workflow_exemption_snapshot
         from finance.models import FinanceWorkflowExemption
@@ -1263,6 +1270,8 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
     locked = JournalEntry.objects.select_for_update().select_related("fund").get(pk=entry.pk)
     if locked.status != JournalEntry.POSTED:
         raise ValidationError("Only a posted journal can be reversed.")
+    if locked.source_type in ('collection', 'deposit', 'collection_fix'):
+        raise ValidationError('Use the collection/deposit source correction workflow to preserve receipt allocations.')
     if locked.source_type == "voucher" and locked.source_snapshot.get("prior_payable"):
         raise ValidationError("Use the voucher's governed cancellation or bank-return workflow for a reserved prior-payable application; a detached reversal would leave its payment handoff unchanged.")
     if locked.source_type == "remittance" and (locked.source_snapshot.get("remittance_return") or
