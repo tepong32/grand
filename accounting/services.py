@@ -1262,6 +1262,9 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
         raise ValidationError("Only a posted journal can be reversed.")
     if locked.source_type == "voucher" and locked.source_snapshot.get("prior_payable"):
         raise ValidationError("Use the voucher's governed cancellation or bank-return workflow for a reserved prior-payable application; a detached reversal would leave its payment handoff unchanged.")
+    if locked.source_type == "remittance" and (locked.source_snapshot.get("remittance_return") or
+            JournalEntry.objects.filter(source_snapshot__remittance_return__original_entry=str(locked.public_id)).exclude(status=JournalEntry.VOIDED).exists()):
+        raise ValidationError("Resolve the retained remittance return workflow; a detached reversal would leave its allocated receipt evidence unchanged.")
     active_reversals = JournalEntry.objects.filter(reversal_of=locked).exclude(status=JournalEntry.VOIDED)
     if active_reversals.exists():
         raise ValidationError("A reversing journal has already been prepared for this entry.")

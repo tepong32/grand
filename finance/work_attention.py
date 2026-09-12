@@ -391,6 +391,7 @@ def _treasury_groups(user, department):
         "preparation": "remittance-preparation",
         "returned": "remittance-returned",
         "review": "remittance-review",
+        "return_review": "remittance-return-review",
         "release": "remittance-release",
     }
     for action, _label in remittance_action_choices_for_user(user):

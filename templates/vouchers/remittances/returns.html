@@ -1,0 +1,23 @@
+<div class="card mt-3">
+  <div class="card-header"><h2 class="card-title font-weight-bold">Amounts returned by the bank or recipient</h2></div>
+  <div class="card-body">
+    <p>The original remittance and filing history remain retained. Record only amounts actually received back, with explicit liability allocations and independent Accounting review.</p>
+    {% if can_prepare and batch.status == 'completed' %}<a class="btn btn-outline-primary" href="{% url 'vouchers:remittance_return_prepare' batch.public_id %}">Record actual return</a>{% endif %}
+    {% if remittance_returns %}<a class="btn btn-outline-secondary" href="{% url 'vouchers:remittance_return_export' batch.public_id %}">Export returned amounts</a>{% endif %}
+    {% for item in remittance_returns %}
+    <div class="border rounded p-3 mt-3">
+      <h3 class="h6">Return {{ item.version }} · {{ item.get_status_display }}</h3>
+      <p class="mb-1">{{ item.proposal.amount }} received {{ item.proposal.returned_on }} · {{ item.proposal.receipt_reference }}</p>
+      <p class="mb-1">{{ item.proposal.reason }}</p>
+      <p class="small">Filing review / disposition: {{ item.proposal.filing_basis }}</p>
+      {% if item.review_reason %}<p class="small">Accounting decision: {{ item.review_reason }}</p>{% endif %}
+      {% if item.posting_request %}<p class="small">JEV {{ item.posting_request.jev_number }} · {{ item.posting_request.get_status_display }}</p>{% endif %}
+      {% if can_review_returns and item.status == 'proposed' and item.prepared_by_id != request.user.pk %}
+      <form method="post" action="{% url 'vouchers:remittance_return_review' batch.public_id item.public_id %}">
+        {% csrf_token %}{{ review_form.as_p }}<button class="btn btn-warning btn-sm">Record independent return decision</button>
+      </form>
+      {% endif %}
+    </div>
+    {% empty %}<p class="text-muted mt-3 mb-0">No returned amount has been recorded.</p>{% endfor %}
+  </div>
+</div>

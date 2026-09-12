@@ -265,6 +265,7 @@ def save_draft(*, batch, actor, evidence=None, **values):
 @transaction.atomic
 def submit_evidence(*, evidence, actor):
     _require(actor, "vouchers.prepare_remittances")
+    TreasuryRemittanceBatch.objects.select_for_update().get(pk=evidence.batch_id)
     item = TaxFilingEvidence.objects.select_for_update().select_related("batch").get(pk=evidence.pk)
     _require_treasury_scope(actor, item.batch)
     if item.status not in {item.DRAFT, item.RETURNED}:
@@ -290,6 +291,7 @@ def submit_evidence(*, evidence, actor):
 @transaction.atomic
 def review_evidence(*, evidence, actor, approve, reason):
     _require(actor, "vouchers.approve_remittances")
+    TreasuryRemittanceBatch.objects.select_for_update().get(pk=evidence.batch_id)
     item = TaxFilingEvidence.objects.select_for_update().get(pk=evidence.pk)
     if item.status != item.FOR_REVIEW:
         raise TaxFilingWorkflowError("Only submitted filing evidence is awaiting review.")
@@ -309,6 +311,7 @@ def review_evidence(*, evidence, actor, approve, reason):
 @transaction.atomic
 def create_amendment(*, evidence, actor, reason):
     _require(actor, "vouchers.prepare_remittances")
+    TreasuryRemittanceBatch.objects.select_for_update().get(pk=evidence.batch_id)
     prior = TaxFilingEvidence.objects.select_for_update().select_related("batch").get(pk=evidence.pk)
     _require_treasury_scope(actor, prior.batch)
     if prior.status != prior.VERIFIED:

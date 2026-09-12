@@ -2331,6 +2331,7 @@ def _remittance_tasks(user, department, today):
         "preparation": "Treasury remittance preparers",
         "returned": "Treasury remittance preparers",
         "review": "Independent Accounting remittance reviewers",
+        "return_review": "Independent Accounting return reviewers",
         "release": "Treasury remittance release officers",
     }
     tasks = []
@@ -2430,7 +2431,14 @@ def _remittance_tasks(user, department, today):
                     for row in item.posting_requests.all()
                 ],
             }
+            subject_amount = item.total_amount
             received_at = item.submitted_at if action_key == "review" else item.updated_at
+            if action_key == "return_review":
+                pending_returns = list(item.returns.filter(status="proposed").exclude(prepared_by=user).order_by("prepared_at", "pk"))
+                projection["returns"] = [[str(row.public_id), row.version, row.status, row.proposal_checksum,
+                    row.prepared_by_id] for row in pending_returns]
+                subject_amount = sum((Decimal(row.proposal["amount"]) for row in pending_returns), Decimal("0.00"))
+                received_at = pending_returns[0].prepared_at if pending_returns else item.updated_at
             if action_key == "release":
                 received_at = item.reviewed_at or item.updated_at
             tasks.append(FinanceWorkTask(
@@ -2440,7 +2448,7 @@ def _remittance_tasks(user, department, today):
                 case_id=f"treasury-remittance:{item.public_id}",
                 reference=item.reference_code,
                 transaction_type=item.transaction_variant.label,
-                subject=f"{item.recipient_party.display_name} · {item.total_amount:.2f}",
+                subject=f"{item.recipient_party.display_name} · {subject_amount:.2f}",
                 action=next_action,
                 gate=spec["definition"],
                 owner_queue=f"{queue_labels[action_key]} · {department.name}",

@@ -70,14 +70,15 @@ def _event(batch, actor, action, previous, reason="", metadata=None):
     )
 
 
-def _consume_number(batch, actor, document_type, issue_document_type=None):
+def _consume_number(batch, actor, document_type, issue_document_type=None, *, as_of=None):
+    fiscal_year = (as_of or batch.remittance_date).year
     sequence = FinanceNumberingSequence.objects.select_for_update().filter(
-        release=batch.configuration_release, fiscal_year=batch.remittance_date.year,
+        release=batch.configuration_release, fiscal_year=fiscal_year,
         document_type=document_type, status="active",
     ).first()
     if sequence is None:
         raise RemittanceWorkflowError(
-            f"No active {document_type} numbering sequence is configured for {batch.remittance_date.year}."
+            f"No active {document_type} numbering sequence is configured for {fiscal_year}."
         )
     value = sequence.next_number
     formatted = f"{sequence.prefix}{value:0{sequence.padding}d}"
@@ -153,6 +154,9 @@ def withholding_availability(*, finance_department_id, transaction_type, as_of_d
     }
     from .deduction_corrections import pending_holds
     for key, amount in pending_holds(finance_department_id, transaction_type).items():
+        reserved[key] = reserved.get(key, Decimal("0.00")) + amount
+    from .remittance_returns import pending_receipt_holds
+    for key, amount in pending_receipt_holds(finance_department_id, transaction_type, as_of_date).items():
         reserved[key] = reserved.get(key, Decimal("0.00")) + amount
     result = []
     for row in ledger_rows:
@@ -502,6 +506,9 @@ def materialize_remittance_journal(posting_request, actor):
         raise PermissionDenied
     if request.status in {request.CANCELLED, request.POSTED}:
         raise RemittanceWorkflowError("This remittance request is no longer eligible for draft creation.")
+    if request.payload.get("remittance_return"):
+        from .remittance_returns import materialize_return
+        return materialize_return(request, actor)
     existing = JournalEntry.objects.filter(
         department_id=request.finance_department_id, source_type="remittance", source_reference=str(request.public_id),
     ).first()
@@ -610,6 +617,9 @@ def materialize_remittance_journal(posting_request, actor):
 def reconcile_posted_remittance_entry(entry, actor):
     from accounting.posted_evidence import require_persisted_posting, verify_source_link
     entry = require_persisted_posting(entry, actor, source_type="remittance")
+    if entry.source_snapshot.get("remittance_return"):
+        from .remittance_returns import reconcile_return
+        return reconcile_return(entry, actor)
     request = RemittancePostingRequest.objects.select_for_update().select_related("batch").filter(public_id=entry.source_reference).first()
     if request is None:
         raise RemittanceWorkflowError("The posted JEV's remittance request cannot be found.")
@@ -632,12 +642,13 @@ def reconcile_posted_remittance_entry(entry, actor):
 def supersede_discarded_request(*, posting_request, actor, reason):
     if not reason.strip():
         raise RemittanceWorkflowError("Explain why the generated remittance JEV draft was discarded.")
+    TreasuryRemittanceBatch.objects.select_for_update().get(pk=posting_request.batch_id)
     original = RemittancePostingRequest.objects.select_for_update().select_related("batch").get(pk=posting_request.pk)
     if original.status == original.POSTED:
         raise RemittanceWorkflowError("A posted remittance JEV cannot be replaced; use a reversal or adjustment.")
     original.status = original.CANCELLED; original.failure_reason = f"Draft discarded: {reason.strip()}"; original.save()
     version = original.batch.posting_requests.aggregate(value=Max("version"))["value"] or 1
-    jev_number = _consume_number(original.batch, actor, "journal-entry", f"journal-entry-v{version + 1}")
+    jev_number = _consume_number(original.batch, actor, "journal-entry", f"journal-entry-v{version + 1}", as_of=original.jev_date)
     successor = RemittancePostingRequest.objects.create(
         batch=original.batch, version=version + 1, jev_number=jev_number, jev_date=original.jev_date,
         finance_department_id=original.finance_department_id, finance_department_label=original.finance_department_label,
@@ -645,6 +656,10 @@ def supersede_discarded_request(*, posting_request, actor, reason):
         posting_rule_checksum=original.posting_rule_checksum, payload=original.payload,
         payload_checksum=original.payload_checksum, requested_by=actor,
     )
+    if original.payload.get("remittance_return"):
+        item = original.remittance_return
+        item.posting_request = successor
+        item.save(update_fields=("posting_request",))
     _event(original.batch, actor, "posting_request_replaced", original.batch.status, reason, {"prior_request": str(original.public_id), "successor_request": str(successor.public_id), "jev_number": jev_number})
     return successor
 
@@ -654,7 +669,7 @@ def export_batch_csv(*, batch, actor):
     output = io.StringIO(newline="")
     writer = csv.writer(output)
     writer.writerow(["remittance_reference", "status", "date", "fund", "recipient", "payment_method", "bank_account", "release_reference", "acknowledgement_reference", "line_version", "line_status", "deduction_code", "reference_key", "reference_label", "liability_account", "amount", "tax_family", "return_form_code", "atc", "tax_rule_checksum", "source_balance_checksum", "jev_number", "jev_status"])
-    latest_request = batch.posting_requests.order_by("-version").first()
+    latest_request = next((r for r in batch.posting_requests.order_by("-version") if not r.payload.get("remittance_return")), None)
     for line in batch.lines.order_by("lineage_key", "version"):
         writer.writerow([
             batch.reference_code, batch.get_status_display(), batch.remittance_date.isoformat(), batch.fund_code,

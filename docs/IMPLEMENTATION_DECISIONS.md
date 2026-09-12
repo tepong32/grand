@@ -10,6 +10,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-082:** Record actual remittance receipts as independently reviewed explicit original-liability allocations; preserve the outward batch and filing history.
 - **D-081:** Reconcile every cancelled check before correcting deductions; retain its evidence and retire its replacement route only through the posted correction. The 2026-09-12 extension applies the same rule to independently reviewed, exactly reversed bank returns.
 
 - **D-080:** Retain all claim shares on one exact historical-payment reversal line, using the existing journal allocation evidence and independent posting audit; never select one credit or fabricate split financial reversals.
@@ -782,6 +783,12 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-082 - Preserve the original remittance while recording actual returned money
+
+2026-09-12: [actual receipt implementation and evidence](FINANCE_REMITTANCE_RETURNS_IN_PROGRESS.md). The original completed batch remains the historical outgoing payment. `RemittanceReturn` retains immutable partial/full receipt proposals, original debit allocations and independent Accounting decisions; the existing posting-request mechanism retains the incoming JEV and recoverable handoff. Reserve explicit source shares rather than inventing a proportional split or reusing the editable `returned` batch status. A separate domain receipt record is justified by simultaneous partial receipts and their independently retained decisions; no generic workflow engine is added.
+
+Debit the original bank and restore only the allocated original withholding liabilities, preserving source-line and cash-purpose evidence. Incoming Finance postings become available only after operational reconciliation. Keep original and incoming JEVs distinct in exports. Retain verified filing evidence unchanged until its own explicit amendment workflow runs, with batch-first filing/return locks. A returned cash amount is not proof of a legally accepted tax amendment. Different receiving accounts, fees/netted receipts, later return corrections and non-cash agency dispositions remain explicit unfinished paths; revisit those with their real source evidence. This decision advances functional source-to-ledger-to-output coverage, not full Finance parity or operational/LGU acceptance.
 
 ## D-081 - Reconcile cancelled checks before reopening a deduction-bearing DV
 

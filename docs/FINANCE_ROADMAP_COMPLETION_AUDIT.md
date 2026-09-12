@@ -1,5 +1,7 @@
 # GRAND Finance roadmap completion audit
 
+v0.7.93 development checkpoint: [actual allocated remittance returns](FINANCE_REMITTANCE_RETURNS_IN_PROGRESS.md) connects web receipt entry and independent review to original-bank incoming journals, explicit partial liability restoration, recovery, retained filing/amendment evidence and separate exports. Full-project and native/concurrency checks pass. Later return corrections, other bank/fee dispositions, generated-history adoption and the broader Finance gates remain open.
+
 v0.7.92 development checkpoint: [dated withholding correction capacity](FINANCE_DATED_WITHHOLDING_CORRECTIONS_2026-09-12.md) prevents earlier corrections from consuming later posted remittances, preserves intermediate shortfalls and retains transaction classification on new reversals. Full-project and native validation pass. Actual returned-remittance/batch/tax-filing recovery, generated-history adoption and broader Finance gates remain open.
 
 v0.7.91 development checkpoint: [reviewed bank-return correction](FINANCE_RETURNED_CHECK_CORRECTIONS_2026-09-12.md) connects the retained payment reversal to independently posted deduction correction, fresh DV/printing/validation and new payment. Old replacement authorization is retired only by that posted correction. Full-project and native/concurrency validation pass. Remitted-withholding corrections, generated-history adoption and broader Finance gates remain open.

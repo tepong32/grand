@@ -1746,6 +1746,49 @@ class RemittancePostingRequest(models.Model):
         return super().save(*args, **kwargs)
 
 
+class RemittanceReturn(models.Model):
+    """An actual incoming return, allocated to immutable original remittance lines."""
+    PROPOSED = "proposed"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    POSTED = "posted"
+    STATUS_CHOICES = ((PROPOSED, "For independent review"), (APPROVED, "Approved; Accounting posting"),
+        (REJECTED, "Returned for correction"), (POSTED, "Return posted"))
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    batch = models.ForeignKey(TreasuryRemittanceBatch, on_delete=models.PROTECT, related_name="returns")
+    version = models.PositiveIntegerField()
+    proposal = models.JSONField(default=dict)
+    proposal_checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=PROPOSED)
+    prepared_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="prepared_remittance_returns")
+    prepared_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="reviewed_remittance_returns")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_reason = models.TextField(blank=True)
+    posting_request = models.OneToOneField(RemittancePostingRequest, on_delete=models.PROTECT, null=True, blank=True, related_name="remittance_return")
+
+    class Meta:
+        ordering = ("-version",)
+        constraints = (models.UniqueConstraint(fields=("batch", "version"), name="unique_remittance_return_version"),)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            if any(getattr(prior, field) != getattr(self, field) for field in
+                    ("batch_id", "version", "proposal", "proposal_checksum", "prepared_by_id", "prepared_at")):
+                raise ValidationError("Return proposals are immutable. Prepare a corrected successor.")
+            if prior.status != self.PROPOSED and any(getattr(prior, field) != getattr(self, field) for field in
+                    ("reviewed_by_id", "reviewed_at", "review_reason")):
+                raise ValidationError("Retain the independent return decision and posting source.")
+            if prior.posting_request_id and prior.posting_request_id != self.posting_request_id:
+                old, new = prior.posting_request, self.posting_request
+                if (old.status != old.CANCELLED or new is None or new.batch_id != old.batch_id
+                        or new.version <= old.version or new.payload != old.payload
+                        or new.payload_checksum != old.payload_checksum or prior.status != self.APPROVED):
+                    raise ValidationError("A return posting successor must preserve its discarded draft's approval evidence.")
+        return super().save(*args, **kwargs)
+
+
 class RemittanceEvent(models.Model):
     batch = models.ForeignKey(TreasuryRemittanceBatch, on_delete=models.PROTECT, related_name="events")
     action = models.CharField(max_length=80)

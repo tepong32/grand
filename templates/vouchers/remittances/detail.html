@@ -29,4 +29,5 @@
     {% if can_audit %}<div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Audit trail</h2></div><div class="card-body p-0"><ul class="list-group list-group-flush">{% for event in events %}<li class="list-group-item small"><strong>{{ event.action|title }}</strong><div>{{ event.actor.get_full_name|default:event.actor.username }} · {{ event.created_at|date:"M j, Y g:i A" }}</div>{% if event.reason %}<div class="text-muted">{{ event.reason }}</div>{% endif %}</li>{% empty %}<li class="list-group-item text-muted">No events.</li>{% endfor %}</ul></div></div>{% endif %}
   </div></div>
 </div>
+{% include 'vouchers/remittances/returns.html' %}
 {% endblock %}

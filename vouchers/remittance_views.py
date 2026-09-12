@@ -120,6 +120,9 @@ def detail(request, public_id):
         tax_filing_eligible = True
     return render(request, "vouchers/remittances/detail.html", {
         "batch": batch, "active_lines": active_lines,
+        "remittance_returns": batch.returns.select_related("prepared_by", "reviewed_by", "posting_request"),
+        "can_review_returns": can_act_on_remittances(request.user, "vouchers.approve_remittances")
+            and batch.finance_department_id == getattr(department_for_user(request.user), "pk", None),
         "line_history": batch.lines.exclude(status=TreasuryRemittanceLine.ACTIVE),
         "events": batch.events.select_related("actor", "actor_department")[:50] if can_audit else (),
         "posting_requests": batch.posting_requests.order_by("-version"),
@@ -145,6 +148,62 @@ def detail(request, public_id):
         "filing_review_form": TaxFilingEvidenceReviewForm(),
         "filing_amendment_form": TaxFilingAmendmentForm(),
     })
+
+
+@require_http_methods(["GET", "POST"])
+@voucher_access_required
+def prepare_return(request, public_id):
+    from .remittance_return_forms import RemittanceReturnForm
+    from .remittance_returns import propose_return
+    batch = _batch(public_id, request.user)
+    if not can_act_on_remittances(request.user, 'vouchers.prepare_remittances'):
+        raise PermissionDenied
+    _require_treasury_action(request.user, batch)
+    try:
+        form = RemittanceReturnForm(request.POST or None, batch=batch)
+    except ValidationError as exc:
+        _message_error(request, exc)
+        return redirect(batch)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            propose_return(batch=batch, actor=request.user, **form.cleaned_data_without_amounts())
+        except ValidationError as exc:
+            form.add_error(None, ' '.join(exc.messages))
+        else:
+            messages.success(request, 'Actual return recorded for independent Accounting review.')
+            return redirect(batch)
+    return render(request, 'vouchers/remittances/form.html', {'form': form,
+        'title': f'Record actual return of {batch.reference_code}', 'cancel_object': batch})
+
+
+@require_POST
+@voucher_access_required
+def decide_return(request, public_id, return_id):
+    from .remittance_returns import review_return
+    batch = _batch(public_id, request.user)
+    item = get_object_or_404(batch.returns, public_id=return_id)
+    form = RemittanceReviewForm(request.POST)
+    if form.is_valid():
+        try:
+            review_return(item=item, actor=request.user, approve=form.cleaned_data['decision'] == 'approve', reason=form.cleaned_data['reason'])
+        except ValidationError as exc:
+            _message_error(request, exc)
+        else:
+            messages.success(request, 'Return decision retained. An approved return requires independent journal posting.')
+    else:
+        _message_error(request, ValidationError('Complete the return decision and basis.'))
+    return redirect(batch)
+
+
+@require_GET
+@voucher_access_required
+def return_export(request, public_id):
+    from .remittance_returns import export_returns
+    batch = _batch(public_id, request.user)
+    content, _ = export_returns(batch, request.user)
+    response = HttpResponse(content, content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{slugify(batch.reference_code)}-returns.csv"'
+    return response
 
 
 @require_POST

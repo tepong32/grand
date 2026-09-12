@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.93] - 2026-09-12
+### Added
+- feat(finance): record allocated remittance returns
+
 ## [0.7.92] - 2026-09-12
 ### Fixed
 - fix(finance): preserve later withholding capacity on correction
