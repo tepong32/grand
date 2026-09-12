@@ -88,11 +88,10 @@ def request_correction(*, case, actor, correction_date, reason, expected_version
     if entry.status != JournalEntry.POSTED or entry.reversal_entries.exclude(status=JournalEntry.VOIDED).exists():
         raise ValidationError("The original deduction must be posted and have no active reversal.")
     lock_withholding_scope(original.finance_department_id)
-    from .remittances import withholding_availability
-    available = withholding_availability(finance_department_id=original.finance_department_id,
-        transaction_type=case.transaction_type, as_of_date=correction_date, include_nonpositive=True)
+    from .withholding_capacity import correction_balances
     keys = ("fund_code", "account_code", "reference_key", "deduction_code")
-    balances = {tuple(r[k] for k in keys): r["available"] for r in available}
+    balances = correction_balances(department_id=original.finance_department_id,
+        transaction_type=case.transaction_type, as_of_date=correction_date)
     withheld = []
     for detail in entry.subsidiary_lines.filter(category=JournalSubsidiaryLine.WITHHOLDING).select_related("journal_line__account"):
         row = dict(fund_code=entry.fund.code, account_code=detail.journal_line.account.code,

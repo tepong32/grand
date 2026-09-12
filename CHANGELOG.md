@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.92] - 2026-09-12
+### Fixed
+- fix(finance): preserve later withholding capacity on correction
+
 ## [0.7.91] - 2026-09-12
 ### Added
 - feat(finance): correct deductions after reviewed bank returns

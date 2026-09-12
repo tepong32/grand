@@ -1334,6 +1334,8 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
                     "reversal_of_subsidiary_line": original_subsidiary.pk,
                     "original_entry": str(locked.public_id),
                     "original_source_reference": original_subsidiary.source_reference,
+                    **({"transaction_type": original_subsidiary.source_snapshot["transaction_type"]}
+                        if (original_subsidiary.source_snapshot or {}).get("transaction_type") else {}),
                     "tax_reporting": (original_subsidiary.source_snapshot or {}).get("tax_reporting") or {},
                 },
             )
