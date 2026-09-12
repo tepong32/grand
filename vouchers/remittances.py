@@ -155,6 +155,9 @@ def withholding_availability(*, finance_department_id, transaction_type, as_of_d
     from .deduction_corrections import pending_holds
     for key, amount in pending_holds(finance_department_id, transaction_type).items():
         reserved[key] = reserved.get(key, Decimal("0.00")) + amount
+    from .receipt_corrections import pending_holds as receipt_correction_holds
+    for key, amount in receipt_correction_holds(finance_department_id, transaction_type).items():
+        reserved[key] = reserved.get(key, Decimal("0.00")) + amount
     from .remittance_returns import pending_receipt_holds
     for key, amount in pending_receipt_holds(finance_department_id, transaction_type, as_of_date).items():
         reserved[key] = reserved.get(key, Decimal("0.00")) + amount
@@ -506,6 +509,9 @@ def materialize_remittance_journal(posting_request, actor):
         raise PermissionDenied
     if request.status in {request.CANCELLED, request.POSTED}:
         raise RemittanceWorkflowError("This remittance request is no longer eligible for draft creation.")
+    if request.payload.get("remittance_return_correction"):
+        from .receipt_corrections import materialize_correction
+        return materialize_correction(request, actor)
     if request.payload.get("remittance_return"):
         from .remittance_returns import materialize_return
         return materialize_return(request, actor)
@@ -617,6 +623,9 @@ def materialize_remittance_journal(posting_request, actor):
 def reconcile_posted_remittance_entry(entry, actor):
     from accounting.posted_evidence import require_persisted_posting, verify_source_link
     entry = require_persisted_posting(entry, actor, source_type="remittance")
+    if entry.source_snapshot.get("remittance_return_correction"):
+        from .receipt_corrections import reconcile_correction
+        return reconcile_correction(entry, actor)
     if entry.source_snapshot.get("remittance_return"):
         from .remittance_returns import reconcile_return
         return reconcile_return(entry, actor)
@@ -656,7 +665,11 @@ def supersede_discarded_request(*, posting_request, actor, reason):
         posting_rule_checksum=original.posting_rule_checksum, payload=original.payload,
         payload_checksum=original.payload_checksum, requested_by=actor,
     )
-    if original.payload.get("remittance_return"):
+    if original.payload.get("remittance_return_correction"):
+        item = original.receipt_correction
+        item.posting_request = successor
+        item.save(update_fields=("posting_request",))
+    elif original.payload.get("remittance_return"):
         item = original.remittance_return
         item.posting_request = successor
         item.save(update_fields=("posting_request",))

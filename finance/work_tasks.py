@@ -2332,6 +2332,7 @@ def _remittance_tasks(user, department, today):
         "returned": "Treasury remittance preparers",
         "review": "Independent Accounting remittance reviewers",
         "return_review": "Independent Accounting return reviewers",
+        "receipt_correction_review": "Independent Accounting receipt correction reviewers",
         "release": "Treasury remittance release officers",
     }
     tasks = []
@@ -2439,6 +2440,14 @@ def _remittance_tasks(user, department, today):
                     row.prepared_by_id] for row in pending_returns]
                 subject_amount = sum((Decimal(row.proposal["amount"]) for row in pending_returns), Decimal("0.00"))
                 received_at = pending_returns[0].prepared_at if pending_returns else item.updated_at
+            if action_key == "receipt_correction_review":
+                from vouchers.models import RemittanceReturnCorrection
+                corrections = list(RemittanceReturnCorrection.objects.filter(receipt__batch=item,
+                    status='proposed').exclude(prepared_by=user).order_by('prepared_at', 'pk'))
+                projection['receipt_corrections'] = [[str(row.public_id), row.version, row.status,
+                    row.proposal_checksum, row.prepared_by_id] for row in corrections]
+                subject_amount = sum((Decimal(row.proposal['amount']) for row in corrections), Decimal('0.00'))
+                received_at = corrections[0].prepared_at if corrections else item.updated_at
             if action_key == "release":
                 received_at = item.reviewed_at or item.updated_at
             tasks.append(FinanceWorkTask(

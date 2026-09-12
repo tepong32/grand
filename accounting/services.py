@@ -1131,6 +1131,9 @@ def record_event(entry, action, actor, reason="", snapshot=None):
 
 
 def validate_entry_for_submission(entry):
+    if entry.source_snapshot.get('remittance_return_correction'):
+        from vouchers.receipt_corrections import validate_mirror
+        validate_mirror(entry)
     entry.full_clean()
     lines = list(entry.lines.select_related("account", "responsibility_center"))
     if len(lines) < 2:

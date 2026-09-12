@@ -1753,8 +1753,10 @@ class RemittanceReturn(models.Model):
     REJECTED = "rejected"
     POSTED = "posted"
     WITHDRAWN = "withdrawn"
+    CORRECTED = "corrected"
     STATUS_CHOICES = ((PROPOSED, "For independent review"), (APPROVED, "Approved; Accounting posting"),
-        (REJECTED, "Returned for correction"), (POSTED, "Return posted"), (WITHDRAWN, "Withdrawn before posting"))
+        (REJECTED, "Returned for correction"), (POSTED, "Return posted"), (WITHDRAWN, "Withdrawn before posting"),
+        (CORRECTED, "Receipt reversed by posted correction"))
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     batch = models.ForeignKey(TreasuryRemittanceBatch, on_delete=models.PROTECT, related_name="returns")
     version = models.PositiveIntegerField()
@@ -1788,6 +1790,51 @@ class RemittanceReturn(models.Model):
                         or new.payload_checksum != old.payload_checksum or prior.status != self.APPROVED):
                     raise ValidationError("A return posting successor must preserve its discarded draft's approval evidence.")
         return super().save(*args, **kwargs)
+
+
+class RemittanceReturnCorrection(models.Model):
+    """Independently reviewed exact correction of an incorrectly posted receipt."""
+    PROPOSED, APPROVED, REJECTED, POSTED = 'proposed', 'approved', 'rejected', 'posted'
+    WITHDRAWN = 'withdrawn'
+    STATUS_CHOICES = ((PROPOSED, 'For independent correction review'),
+        (APPROVED, 'Approved; correction posting'), (REJECTED, 'Correction rejected'), (POSTED, 'Correction posted'),
+        (WITHDRAWN, 'Correction withdrawn before posting'))
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    receipt = models.ForeignKey(RemittanceReturn, on_delete=models.PROTECT, related_name='corrections')
+    version = models.PositiveIntegerField()
+    proposal = models.JSONField(default=dict)
+    proposal_checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=PROPOSED)
+    prepared_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='prepared_receipt_corrections')
+    prepared_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name='reviewed_receipt_corrections')
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_reason = models.TextField(blank=True)
+    posting_request = models.OneToOneField(RemittancePostingRequest, on_delete=models.PROTECT, null=True, blank=True, related_name='receipt_correction')
+
+    class Meta:
+        ordering = ('-version',)
+        constraints = (models.UniqueConstraint(fields=('receipt', 'version'), name='unique_receipt_correction_version'),)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            if any(getattr(prior, f) != getattr(self, f) for f in
+                    ('receipt_id', 'version', 'proposal', 'proposal_checksum', 'prepared_by_id', 'prepared_at')):
+                raise ValidationError('Retain the immutable receipt correction proposal.')
+            if prior.status != self.PROPOSED and any(getattr(prior, f) != getattr(self, f) for f in
+                    ('reviewed_by_id', 'reviewed_at', 'review_reason')):
+                raise ValidationError('Retain the independent receipt correction decision.')
+            if prior.posting_request_id and prior.posting_request_id != self.posting_request_id:
+                old, new = prior.posting_request, self.posting_request
+                if (prior.status != self.APPROVED or old.status != old.CANCELLED or new is None
+                        or new.batch_id != old.batch_id or new.version <= old.version or new.payload != old.payload
+                        or new.payload_checksum != old.payload_checksum):
+                    raise ValidationError('Retain the approved correction in its discarded-draft successor.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Receipt correction evidence cannot be deleted.')
 
 
 class RemittanceEvent(models.Model):

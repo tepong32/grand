@@ -392,6 +392,7 @@ def _treasury_groups(user, department):
         "returned": "remittance-returned",
         "review": "remittance-review",
         "return_review": "remittance-return-review",
+        "receipt_correction_review": "remittance-receipt-correction-review",
         "release": "remittance-release",
     }
     for action, _label in remittance_action_choices_for_user(user):

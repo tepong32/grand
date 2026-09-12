@@ -4,6 +4,7 @@
     <p>The original remittance and filing history remain retained. Record only amounts actually received back, with explicit liability allocations and independent Accounting review.</p>
     {% if can_prepare and batch.status == 'completed' %}<a class="btn btn-outline-primary" href="{% url 'vouchers:remittance_return_prepare' batch.public_id %}">Record actual return</a>{% endif %}
     {% if remittance_returns %}<a class="btn btn-outline-secondary" href="{% url 'vouchers:remittance_return_export' batch.public_id %}">Export returned amounts</a>{% endif %}
+    {% if remittance_returns %}<a class="btn btn-outline-secondary" href="{% url 'vouchers:receipt_correction_export' batch.public_id %}">Export receipt corrections</a>{% endif %}
     {% for item in remittance_returns %}
     <div class="border rounded p-3 mt-3">
       <h3 class="h6">Return {{ item.version }} · {{ item.get_status_display }}</h3>
@@ -13,6 +14,35 @@
       {% if item.review_reason %}<p class="small">Accounting decision: {{ item.review_reason }}</p>{% endif %}
       {% if item.withdrawal %}<p class="small">Withdrawal: {{ item.withdrawal.reason }} · {{ item.withdrawal.actor.get_full_name|default:item.withdrawal.actor.username }} · {{ item.withdrawal.created_at }}</p>{% endif %}
       {% if item.posting_request %}<p class="small">JEV {{ item.posting_request.jev_number }} · {{ item.posting_request.get_status_display }}</p>{% endif %}
+      {% for correction in item.correction_history %}
+      <div class="border rounded p-2 my-2">
+        <h4 class="h6">Correction {{ correction.version }} · {{ correction.get_status_display }}</h4>
+        <p>{{ correction.proposal.correction_date }} · {{ correction.proposal.reason }}</p>
+        <p class="small">Evidence: {{ correction.proposal.evidence_reference }} · Filing disposition: {{ correction.proposal.filing_basis }}</p>
+        {% if correction.review_reason %}<p class="small">Independent decision: {{ correction.review_reason }}</p>{% endif %}
+        {% if correction.withdrawal %}<p class="small">Withdrawal: {{ correction.withdrawal.reason }} · {{ correction.withdrawal.actor }} · {{ correction.withdrawal.created_at }}</p>{% endif %}
+        {% if correction.posting_request %}<p class="small">Correction JEV {{ correction.posting_request.jev_number }} · {{ correction.posting_request.get_status_display }}</p>{% endif %}
+        {% if can_review_returns and correction.status == 'proposed' and correction.prepared_by_id != request.user.pk %}
+        <form method="post" action="{% url 'vouchers:receipt_correction_review' batch.public_id item.public_id correction.public_id %}">
+          {% csrf_token %}{{ review_form.as_p }}<button class="btn btn-warning btn-sm">Review receipt correction</button>
+        </form>
+        {% endif %}
+        {% if can_review_returns and correction.status == 'approved' and correction.prepared_by_id != request.user.pk %}
+        <form method="post" action="{% url 'vouchers:receipt_correction_withdraw' batch.public_id item.public_id correction.public_id %}">
+          {% csrf_token %}<label>Why must this unposted correction be withdrawn?<textarea name="reason" required rows="2" class="form-control"></textarea></label>
+          <button class="btn btn-outline-danger btn-sm">Withdraw unposted correction</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% if can_prepare and item.status == 'posted' %}
+      <details><summary>Correct an incorrectly posted receipt</summary>
+        <p>Use only for an error in the posted receipt. This reverses the full receipt before a corrected entry; it does not record an actual outgoing payment. Resolve any downstream use of its withholding first.</p>
+        <form method="post" action="{% url 'vouchers:receipt_correct' batch.public_id item.public_id %}">
+          {% csrf_token %}{{ receipt_correction_form.as_p }}<button class="btn btn-outline-danger btn-sm">Submit receipt correction</button>
+        </form>
+      </details>
+      {% endif %}
       {% if can_review_returns and item.status == 'proposed' and item.prepared_by_id != request.user.pk %}
       <form method="post" action="{% url 'vouchers:remittance_return_review' batch.public_id item.public_id %}">
         {% csrf_token %}{{ review_form.as_p }}<button class="btn btn-warning btn-sm">Record independent return decision</button>

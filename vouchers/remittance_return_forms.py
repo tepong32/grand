@@ -10,6 +10,16 @@ class RemittanceReturnWithdrawalForm(forms.Form):
         help_text='Discard any unposted JEV first. A posted receipt needs a separate Accounting correction.')
 
 
+class ReceiptCorrectionForm(forms.Form):
+    correction_date = forms.DateField(label='Correction posting date', initial=timezone.localdate,
+        widget=forms.DateInput(attrs={'type': 'date'}))
+    reason = forms.CharField(label='What was recorded incorrectly?', widget=forms.Textarea(attrs={'rows': 2}))
+    evidence_reference = forms.CharField(label='Evidence of the receipt error', max_length=200)
+    filing_basis = forms.CharField(label='Tax-filing review / disposition basis', widget=forms.Textarea(attrs={'rows': 2}),
+        help_text='The existing filing remains retained. Any filing amendment requires its own review.')
+    expected_version = forms.IntegerField(widget=forms.HiddenInput)
+
+
 class RemittanceReturnForm(forms.Form):
     returned_on = forms.DateField(label='Actual receipt date', initial=timezone.localdate,
         widget=forms.DateInput(attrs={'type': 'date'}))

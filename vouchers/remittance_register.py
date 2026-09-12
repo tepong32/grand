@@ -8,6 +8,13 @@ from .roles import is_finance_uat_viewer
 
 
 REMITTANCE_ACTION_SPECS = {
+    "receipt_correction_review": {
+        "permission": "vouchers.approve_remittances", "statuses": (TreasuryRemittanceBatch.COMPLETED,),
+        "title": "Posted receipt corrections for review",
+        "definition": "Receipt posting errors awaiting independent Accounting correction review.",
+        "next_action": "Review the original receipt, correction evidence, dated withholding capacity and filing disposition.",
+        "scope": "finance",
+    },
     "return_review": {
         "permission": "vouchers.approve_remittances", "statuses": (TreasuryRemittanceBatch.COMPLETED,),
         "title": "Actual remittance returns for review",
@@ -93,6 +100,10 @@ def remittance_action_queryset(user, action, queryset=None):
     if action == "return_review":
         from .models import RemittanceReturn
         base = base.filter(returns__in=RemittanceReturn.objects.filter(status=RemittanceReturn.PROPOSED).exclude(prepared_by=user))
+    if action == "receipt_correction_review":
+        from .models import RemittanceReturnCorrection
+        base = base.filter(returns__corrections__in=RemittanceReturnCorrection.objects.filter(
+            status=RemittanceReturnCorrection.PROPOSED).exclude(prepared_by=user))
     if action == "review":
         base = base.exclude(Q(created_by=user) | Q(submitted_by=user))
     return base.distinct(), action, spec

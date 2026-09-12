@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-083:** Correct an incorrectly posted receipt through a separately reviewed exact reversal, preserve its original history and protect every downstream withholding boundary.
+
 - **D-082:** Record actual remittance receipts as independently reviewed explicit original-liability allocations; preserve the outward batch and filing history.
 - **D-081:** Reconcile every cancelled check before correcting deductions; retain its evidence and retire its replacement route only through the posted correction. The 2026-09-12 extension applies the same rule to independently reviewed, exactly reversed bank returns.
 
@@ -934,3 +936,12 @@ Debit the original bank and restore only the allocated original withholding liab
 - Decision: introduce an explicit nominal-closing JEV source using existing preparation, balancing and independent posting. Limit its account types to nominal/equity transfers. Follow actual reversal ancestry for statement classification; exclude closing transfers from operating activity but retain them in ledger, position balances and statement source evidence. Do not infer purpose from descriptions or silently relabel historical journals.
 - Alternatives/tradeoffs: excluding all adjusting entries would hide real period adjustments. Reading free text cannot establish accounting meaning. A second reporting ledger would duplicate authority. The existing journal source and correction lineage provide the needed distinction, at the cost of an explicit classification and governed correction of old ambiguous closes.
 - Boundaries: this does not complete Cash Flow/Net Assets statements, historical corrections, comparative/form fidelity or LGU acceptance. Other statement presentation questions, including contra balances, require specific reproduction before reliance. The time-zone prerequisite was fixed only to make native validation faithful, not to expand unrelated infrastructure.
+
+
+## D-083 - Correct receipt posting errors without erasing actual payment history
+
+Date: 2026-09-12. Development decision; not LGU policy approval.
+
+The existing receipt workflow could withdraw unposted approval but could not correct a posted receipt. A detached journal reversal would leave its operational allocation and filing context unchanged. The chosen route retains an immutable error proposal, independent review and original receipt, reserves restored withholding under the existing Accounting-owner lock, and posts a separate exact reversal before releasing the original allocation from the correction date. Submission and posting both check financial mirrors. Unposted withdrawal preserves the approval and discarded request chain.
+
+This uses existing source requests, journal posting, reservations and office permissions. It avoids editing posted history or treating an actual outgoing agency payment as a receipt correction. The tradeoff is a full receipt reversal and fresh replacement rather than an in-place partial edit; this retains an intelligible source-to-ledger chain. Revisit for independently authorized actual bank repayments, other banks/fees and agency credit/offset dispositions, without weakening dated capacity or filing evidence. See [scope, evidence and remaining work](FINANCE_POSTED_RECEIPT_CORRECTIONS_2026-09-12.md).

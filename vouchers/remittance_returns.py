@@ -38,11 +38,15 @@ def original_payment(batch):
     return source, entry, details, bank[0]
 
 
-def remaining_allocations(batch, details, *, exclude=None):
+def remaining_allocations(batch, details, *, exclude=None, as_of=None):
     remaining = {str(d.pk): d.debit for d in details}
     for item in batch.returns.exclude(status__in=(RemittanceReturn.REJECTED, RemittanceReturn.WITHDRAWN)).exclude(pk=exclude):
         if _digest(item.proposal) != item.proposal_checksum:
             raise ValidationError('The retained return allocation checksum changed.')
+        if item.status == item.CORRECTED:
+            correction = item.corrections.filter(status='posted').get()
+            if as_of is None or date.fromisoformat(correction.proposal['correction_date']) <= as_of:
+                continue
         for row in item.proposal['allocations']:
             remaining[row['source_detail']] -= Decimal(row['amount'])
     return remaining
@@ -85,7 +89,7 @@ def propose_return(*, batch, actor, returned_on, receipt_reference, reason, fili
         raise ValidationError('Use the actual receipt date, on or after the remittance and no later than today.')
     if not all(str(value or '').strip() for value in (receipt_reference, reason, filing_basis)):
         raise ValidationError('Record the actual bank/recipient receipt, return reason and tax-filing disposition basis.')
-    remaining = remaining_allocations(batch, details)
+    remaining = remaining_allocations(batch, details, as_of=returned_on)
     rows = []
     seen = set()
     for supplied in allocations:
@@ -194,7 +198,7 @@ def reconcile_return(entry, actor):
     source = RemittancePostingRequest.objects.select_for_update().get(pk=source.pk)
     item = RemittanceReturn.objects.select_for_update().get(posting_request=source)
     verify_source_link(source, entry, source_type='remittance')
-    if source.status == source.POSTED and item.status == item.POSTED:
+    if source.status == source.POSTED and item.status in (item.POSTED, item.CORRECTED):
         return source
     if item.status != item.APPROVED or entry.source_snapshot.get('remittance_return') != source.payload['remittance_return']:
         raise ValidationError('The posted return differs from its approved incoming payment evidence.')
@@ -232,7 +236,7 @@ def export_returns(batch, actor):
             detail = original.subsidiary_lines.select_related('journal_line__account').get(pk=row['source_detail'])
             writer.writerow((batch.reference_code, item.version, item.get_status_display(),
                 item.proposal['returned_on'], item.proposal['receipt_reference'], detail.journal_line.account.code,
-                detail.reference_key, detail.source_code, row['amount'], row['amount'] if item.status == item.POSTED else '0.00',
+                detail.reference_key, detail.source_code, row['amount'], row['amount'] if item.status in (item.POSTED, item.CORRECTED) else '0.00',
                 original.reference, request.jev_number if request else '', request.get_status_display() if request else '',
                 item.proposal['filing_basis'], item.review_reason,
                 withdrawal.reason if withdrawal else '', withdrawal.actor_id if withdrawal else '',
@@ -258,7 +262,7 @@ def review_return(*, item, actor, approve, reason):
         current = [{**r, 'public_id': str(r['public_id'])} for r in filing_snapshot(batch)]
         if current != item.proposal['filing_evidence']:
             raise ValidationError('Filing evidence changed. Return this proposal and prepare a current successor.')
-        remaining = remaining_allocations(batch, details, exclude=item.pk)
+        remaining = remaining_allocations(batch, details, exclude=item.pk, as_of=date.fromisoformat(item.proposal['returned_on']))
         if any(Decimal(r['amount']) > remaining[r['source_detail']] for r in item.proposal['allocations']):
             raise ValidationError('The proposed amount no longer fits the retained original allocations.')
         numbering = copy(batch)

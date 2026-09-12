@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.96] - 2026-09-12
+### Added
+- feat(finance): correct posted remittance receipts
+
 ## [0.7.95] - 2026-09-12
 ### Added
 - test(finance): prove refunded remittance settlement

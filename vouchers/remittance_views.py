@@ -104,7 +104,7 @@ def create(request):
 @require_GET
 @voucher_access_required
 def detail(request, public_id):
-    from .remittance_return_forms import RemittanceReturnWithdrawalForm
+    from .remittance_return_forms import RemittanceReturnWithdrawalForm, ReceiptCorrectionForm
     if not _can_view(request.user):
         raise PermissionDenied
     batch = _batch(public_id, request.user)
@@ -118,6 +118,12 @@ def detail(request, public_id):
         batch.events.filter(action="remittance_return_withdrawn").select_related("actor")}
     for item in receipt_returns:
         item.withdrawal = withdrawals.get(str(item.public_id))
+    correction_withdrawals = {event.metadata.get('correction'): event for event in
+        batch.events.filter(action='receipt_correction_withdrawn').select_related('actor')}
+    for item in receipt_returns:
+        item.correction_history = list(item.corrections.select_related('posting_request'))
+        for correction in item.correction_history:
+            correction.withdrawal = correction_withdrawals.get(str(correction.public_id))
     try:
         tax_scope(batch)
     except ValidationError:
@@ -136,6 +142,7 @@ def detail(request, public_id):
         "line_form": RemittanceLineForm(batch=batch),
         "review_form": RemittanceReviewForm(), "release_form": RemittanceReleaseForm(),
         "return_withdrawal_form": RemittanceReturnWithdrawalForm(),
+        "receipt_correction_form": ReceiptCorrectionForm(initial={'expected_version': batch.state_version}),
         "can_prepare": (
             can_act_on_remittances(request.user, "vouchers.prepare_remittances")
             and batch.treasury_department == department_for_user(request.user)
@@ -199,6 +206,78 @@ def decide_return(request, public_id, return_id):
             messages.success(request, 'Return decision retained. An approved return requires independent journal posting.')
     else:
         _message_error(request, ValidationError('Complete the return decision and basis.'))
+    return redirect(batch)
+
+
+@require_POST
+@voucher_access_required
+def receipt_correct(request, public_id, return_id):
+    from .remittance_return_forms import ReceiptCorrectionForm
+    from .receipt_corrections import propose_correction
+    batch = _batch(public_id, request.user)
+    item = get_object_or_404(batch.returns, public_id=return_id)
+    form = ReceiptCorrectionForm(request.POST)
+    if form.is_valid():
+        try:
+            propose_correction(receipt=item, actor=request.user, **form.cleaned_data)
+        except ValidationError as exc:
+            _message_error(request, exc)
+        else:
+            messages.success(request, 'Receipt correction submitted for independent review. The original receipt remains retained.')
+    else:
+        _message_error(request, ValidationError('Complete the correction date, reason and evidence.'))
+    return redirect(batch)
+
+
+@require_POST
+@voucher_access_required
+def receipt_correction_review(request, public_id, return_id, correction_id):
+    from .receipt_corrections import review_correction
+    batch = _batch(public_id, request.user)
+    receipt = get_object_or_404(batch.returns, public_id=return_id)
+    item = get_object_or_404(receipt.corrections, public_id=correction_id)
+    form = RemittanceReviewForm(request.POST)
+    if form.is_valid():
+        try:
+            review_correction(item=item, actor=request.user, approve=form.cleaned_data['decision'] == 'approve', reason=form.cleaned_data['reason'])
+        except ValidationError as exc:
+            _message_error(request, exc)
+        else:
+            messages.success(request, 'Receipt correction decision retained. Approved corrections require independent journal posting.')
+    else:
+        _message_error(request, ValidationError('Complete the independent correction decision and basis.'))
+    return redirect(batch)
+
+
+@require_GET
+@voucher_access_required
+def receipt_correction_export(request, public_id):
+    from .receipt_corrections import export_corrections
+    batch = _batch(public_id, request.user)
+    content, _ = export_corrections(batch, request.user)
+    response = HttpResponse(content, content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{slugify(batch.reference_code)}-receipt-corrections.csv"'
+    return response
+
+
+@require_POST
+@voucher_access_required
+def receipt_correction_withdraw(request, public_id, return_id, correction_id):
+    from .remittance_return_forms import RemittanceReturnWithdrawalForm
+    from .receipt_corrections import withdraw_correction
+    batch = _batch(public_id, request.user)
+    receipt = get_object_or_404(batch.returns, public_id=return_id)
+    item = get_object_or_404(receipt.corrections, public_id=correction_id)
+    form = RemittanceReturnWithdrawalForm(request.POST)
+    if form.is_valid():
+        try:
+            withdraw_correction(item=item, actor=request.user, reason=form.cleaned_data['reason'])
+        except ValidationError as exc:
+            _message_error(request, exc)
+        else:
+            messages.success(request, 'Unposted correction withdrawn; original approval and discarded journals remain retained.')
+    else:
+        _message_error(request, ValidationError('Record why the unposted correction is withdrawn.'))
     return redirect(batch)
 
 
