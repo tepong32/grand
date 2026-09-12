@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% load static %}
+{% block title_ext %} - Officer advance{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a href="{% url 'accounting:advance_register' %}">Back to officer advances</a>
+  <h1 class="mt-3">Officer advance: {{ source.reference_label }}</h1>
+  <p>Original JEV <a href="{% url 'accounting:entry_detail' source.entry.public_id %}">{{ source.entry.reference }}</a> · {{ source.entry.entry_date }} · Recognized {{ source.debit|floatformat:2 }}</p>
+  {% if issue %}<div class="alert alert-warning">{{ issue }}</div>{% endif %}
+  {% if proof %}<div class="card card-body"><p>Actual releases: <strong>{{ proof.released|floatformat:2 }}</strong> · Returned instruments withheld: <strong>{{ proof.withheld_returns|floatformat:2 }}</strong> · Net released: <strong>{{ proof.released_net|floatformat:2 }}</strong></p>
+    <p>Applied or reserved: <strong>{{ proof.applied_or_reserved|floatformat:2 }}</strong> · Remaining released amount: <strong>{{ proof.remaining|floatformat:2 }}</strong></p>
+    <p class="mb-0">The original recognition is separate from cash release. Existing applications below also reserve their amounts; each new liquidation is checked again before approval.</p>
+  </div>{% endif %}
+  <h2>Liquidation history</h2>
+  {% for application in applications %}
+  <div class="card card-body">
+    <h3 class="h5">{{ application.payload.advance_application.document_reference }} · {{ application.payload.advance_application.amount }} · {{ application.jev_date }}</h3>
+    <p>{{ application.get_status_display }} · {{ application.jev_number }}</p>
+    <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Expense account</th><th>Document</th><th class="text-right">Amount</th></tr></thead><tbody>
+      {% for row in application.payload.advance_application.expenses %}<tr><td>{{ row.account_code }}</td><td>{{ row.document_reference }}</td><td class="text-right">{{ row.amount }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% if application.accounting_entry_public_id %}<p><a href="{% url 'accounting:entry_detail' application.accounting_entry_public_id %}">Open liquidation JEV</a></p>{% endif %}
+    {% if application.status != 'cancelled' and application.status != 'posted' %}
+      {% if can_prepare %}<form method="post" action="{% url 'accounting:advance_application_action' application.public_id 'recover' %}">{% csrf_token %}<button class="btn btn-outline-primary mb-2">Prepare or recover retained JEV</button></form>{% endif %}
+      {% if can_review %}<form method="post" action="{% url 'accounting:advance_application_action' application.public_id 'withdraw' %}">{% csrf_token %}<label for="reason-{{ application.pk }}">Withdrawal reason (all JEV drafts must first be discarded)</label><input id="reason-{{ application.pk }}" class="form-control mb-2" name="reason" required><button class="btn btn-outline-secondary">Withdraw unposted reservation</button></form>{% endif %}
+    {% endif %}
+  </div>
+  {% empty %}<p>No liquidation applications have been prepared for this original advance.</p>{% endfor %}
+  {% if can_prepare %}
+  <div class="card card-body"><h2>Prepare expense liquidation</h2><p>Enter accepted expenses and their actual document references. The JEV credits this original advance; it does not pay the officer again. Cash refunds and posted corrections require their own source workflow.</p>
+    <form method="post">{% csrf_token %}{{ form.as_p }}{{ expenses.management_form }}{{ expenses.non_form_errors }}
+      <div id="advance-expenses">{% for row in expenses %}<fieldset class="border p-3 mb-2"><legend class="h6">Expense {{ forloop.counter }}</legend>{{ row.as_p }}</fieldset>{% endfor %}</div>
+      <template id="advance-empty-expense"><fieldset class="border p-3 mb-2"><legend class="h6">Additional expense</legend>{{ expenses.empty_form.as_p }}</fieldset></template>
+      <button type="button" class="btn btn-outline-secondary" id="advance-add-expense">Add expense</button>
+      <button class="btn btn-primary">Prepare liquidation JEV for review</button>
+    </form>
+  </div><script src="{% static 'vouchers/advance-liquidations.js' %}"></script>
+  {% endif %}
+</div>
+{% endblock %}

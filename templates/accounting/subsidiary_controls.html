@@ -31,7 +31,9 @@
 
   <div class="card card-outline card-primary">
     <div class="card-header"><h2 class="card-title font-weight-bold">Recognized officer advances</h2><a class="btn btn-sm btn-outline-secondary float-right" href="{% url 'accounting:subsidiary_export' 'advance' %}?as_of={{ as_of_date|date:'Y-m-d' }}">Export controlled CSV</a></div>
-    <div class="card-body"><p class="mb-0">These are recognized assets. Actual release and the remaining amount for each liquidation must be checked against the original advance; this schedule does not authorize liquidation.</p></div>
+    <div class="card-body"><p>These are recognized assets. Open an original advance below to check its actual releases and prepare an expense liquidation.</p>
+      <ul>{% for source in advance_sources %}<li><a href="{% url 'accounting:advance_detail' source.pk %}">{{ source.entry.reference }} — {{ source.reference_label }} — {{ source.entry.fund.code }} — {{ source.debit|floatformat:2 }}</a></li>{% empty %}<li>No original advances through this date.</li>{% endfor %}</ul>
+    </div>
     <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Fund / account</th><th>Accountable officer</th><th>Transaction</th><th class="text-right">Debits</th><th class="text-right">Credits</th><th class="text-right">Debit balance</th></tr></thead>
       <tbody>{% for row in advances %}<tr><td>{{ row.fund_code }}<div class="small text-muted">{{ row.account_code }}</div></td><td>{{ row.reference_label }}<div class="small text-muted">{{ row.reference_key }}</div></td><td>{{ row.source_code }}</td><td class="text-right">{{ row.debit|floatformat:2 }}</td><td class="text-right">{{ row.credit|floatformat:2 }}</td><td class="text-right">{{ row.balance|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="6" class="text-muted">No recognized officer advances through this date.</td></tr>{% endfor %}</tbody>
       <tfoot><tr><th colspan="3">Totals</th><th class="text-right">{{ advance_totals.debit|floatformat:2 }}</th><th class="text-right">{{ advance_totals.credit|floatformat:2 }}</th><th class="text-right">{{ advance_totals.balance|floatformat:2 }}</th></tr></tfoot>

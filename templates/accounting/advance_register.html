@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title_ext %} - Officer advances{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a href="{% url 'accounting:workspace' %}">Back to Accounting</a>
+  <h1 class="mt-3">Officer advances and liquidations</h1>
+  <p>Open the original advance to check actual releases, retained applications and the remaining amount before preparing a liquidation.</p>
+  {% if can_export %}<p><a class="btn btn-outline-secondary" href="{% url 'accounting:advance_export' %}">Export recognized advance balances</a></p>{% endif %}
+  <form method="get" class="mb-3"><label for="advance-search">Officer or original JEV</label><input id="advance-search" class="form-control" name="q" value="{{ query }}"><button class="btn btn-primary mt-2">Search</button></form>
+  <div class="table-responsive"><table class="table table-striped"><thead><tr><th>Original JEV</th><th>Officer</th><th>Fund</th><th>Date</th><th class="text-right">Recognized</th></tr></thead><tbody>
+  {% for source in page %}<tr><td><a href="{% url 'accounting:advance_detail' source.pk %}">{{ source.entry.reference }}</a></td><td>{{ source.reference_label }}</td><td>{{ source.entry.fund.code }}</td><td>{{ source.entry.entry_date }}</td><td class="text-right">{{ source.debit|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="5">No original officer advances match this search.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if page.has_previous %}<a href="?q={{ query|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?q={{ query|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
+</div>
+{% endblock %}

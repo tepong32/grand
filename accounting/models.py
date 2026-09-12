@@ -1162,6 +1162,10 @@ class JournalSubsidiaryLine(models.Model):
 
     class Meta:
         ordering = ("entry__entry_date", "entry_id", "journal_line__sequence")
+        permissions = (
+            ("view_officer_advances", "Can view officer advances and liquidation history"),
+            ("export_officer_advances", "Can export officer advance balances"),
+        )
         constraints = (
             models.CheckConstraint(
                 condition=(

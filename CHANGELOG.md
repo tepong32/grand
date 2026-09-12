@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.100] - 2026-09-13
+### Added
+- feat(finance): liquidate expenses against original officer advances
+
 ## [0.7.99] - 2026-09-12
 ### Added
 - feat(finance): retain accountable advance recognition and controls

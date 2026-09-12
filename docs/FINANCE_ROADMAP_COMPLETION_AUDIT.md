@@ -1,6 +1,6 @@
 # GRAND Finance roadmap completion audit
 
-Advance recognition is in development: [scope](FINANCE_ADVANCES_IN_PROGRESS.md), D-085. Explicit officer asset/payable recognition and existing bank payment now feed a debit-balance subsidiary/control output. Original-advance selection, actual disbursement capacity and dated liquidation/refund applications remain incomplete. No full M03, official-form, operational or LGU acceptance claim follows from this bounded step.
+The [expense-liquidation route](FINANCE_ADVANCE_LIQUIDATIONS_2026-09-12.md), D-086, now selects the original recognized officer advance, verifies actual releases and applies explicit expense rows under dated reservations and independent posting. Native web/output, standard-role and reservation/materialization/posting/payment-recovery races are covered. Actual cash refunds, governed posted corrections, other recognition/application scenarios and all exact-form/office/operational/LGU gates remain incomplete. This is not full M03 or Finance completion.
 
 v0.7.98 development checkpoint: [collection/deposit evidence](FINANCE_COLLECTIONS_IN_PROGRESS.md) demonstrates a receipt → partial deposits → ledger/output chain and dated exact corrections, retaining original records and printable copies. Native allocation/materialization races and account-role boundaries pass. Full SQLite regression passes 1044 discovered / 995 passed / 49 skipped; liquidation/advances, collection instrument breadth, exact local forms and all later acceptance gates remain incomplete. This is not full M03 or Finance completion.
 

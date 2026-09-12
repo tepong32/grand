@@ -4,6 +4,22 @@ v0.7.99 development checkpoint on `codex/finance-advance-liquidation`, based on 
 This is a bounded advance-recognition step, not completed liquidation or Finance parity.
 The governing order remains [modernization priorities](FINANCE_MODERNIZATION_PRIORITIES.md).
 
+## Next development phase — source-linked expense applications
+
+Work in progress on `codex/finance-advance-applications`, based on pushed v0.7.99.
+`vouchers/advance_sources.py` verifies original recognized debits and reconciled actual
+release journals/claimant receipts by date. Returned-instrument observations withhold
+their original releases; replacement releases must retain their own source evidence.
+`vouchers/advance_applications.py` prepares retained expense rows against an explicitly
+selected original advance, reserves dated capacity under the existing default-store case
+lock, creates the existing voucher JEV request and mirrors its subsidiary credit. Posting
+locks the default case before the Finance journal and requires independent Accounting.
+The connected web entry, standard-role access, recovery, independent unposted withdrawal,
+source checks and native races are documented separately in
+[expense-liquidation evidence](FINANCE_ADVANCE_LIQUIDATIONS_2026-09-12.md). Actual cash
+refunds and governed posted corrections remain later source work. The sections below
+retain the historical v0.7.99 recognition checkpoint and its original limitations.
+
 ## Confirmed gap and current approach
 
 The prior checkout offered cash-advance/liquidation transaction kinds and a liquidation

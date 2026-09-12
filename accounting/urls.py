@@ -1,11 +1,15 @@
 from django.urls import path
 
-from . import views, cash_views, claim_views, shared_claim_views
+from . import views, cash_views, claim_views, shared_claim_views, advance_views
 
 
 app_name = "accounting"
 
 urlpatterns = [
+    path("advances/", advance_views.register, name="advance_register"),
+    path("advances/export/", advance_views.export, name="advance_export"),
+    path("advances/<int:pk>/", advance_views.detail, name="advance_detail"),
+    path("advance-applications/<uuid:public_id>/<slug:action>/", advance_views.action, name="advance_application_action"),
     path('claims/<int:line_id>/shared/', shared_claim_views.schedule_page, name='shared_claim_schedule'),
     path('claims/<int:line_id>/shared/<uuid:public_id>/<slug:decision>/', shared_claim_views.schedule_review, name='shared_claim_review'),
     path("claims/<int:line_id>/attribution/", claim_views.attribution_page, name="claim_attribution"),

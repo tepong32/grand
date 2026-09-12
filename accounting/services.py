@@ -1131,6 +1131,9 @@ def record_event(entry, action, actor, reason="", snapshot=None):
 
 
 def validate_entry_for_submission(entry):
+    if entry.source_snapshot.get("advance_application"):
+        from vouchers.advance_applications import validate
+        validate(entry)
     if entry.source_type in ('collection', 'deposit', 'collection_fix'):
         from vouchers.collection_posting import validate_collection_journal
         validate_collection_journal(entry)
@@ -1186,8 +1189,21 @@ def submit_entry(entry, actor):
     return locked
 
 
-@transaction.atomic(using=FINANCE_DB)
 def post_entry(entry, actor):
+    # Default case first, then Finance journal locks: same order as application
+    # reservations and payment/return source changes, including concurrent posts.
+    entry = JournalEntry.objects.get(pk=entry.pk)
+    if entry.source_snapshot.get("advance_application"):
+        from vouchers.models import VoucherCase, VoucherPostingRequest
+        with transaction.atomic(using="default"):
+            request = VoucherPostingRequest.objects.get(public_id=entry.source_reference)
+            VoucherCase.objects.select_for_update().get(pk=request.case_id)
+            return _post_entry(entry, actor)
+    return _post_entry(entry, actor)
+
+
+@transaction.atomic(using=FINANCE_DB)
+def _post_entry(entry, actor):
     locked = JournalEntry.objects.select_for_update().get(pk=entry.pk)
     department = department_for_user(actor)
     if not can_post_journals(actor) or department is None or department.pk != locked.department_id:
@@ -1195,6 +1211,10 @@ def post_entry(entry, actor):
     if locked.status != JournalEntry.SUBMITTED:
         raise ValidationError("Only a submitted journal can be posted.")
     workflow_exemption = None
+    if locked.source_snapshot.get("advance_application") and actor.pk in {
+            locked.created_by_id, locked.submitted_by_id,
+            locked.source_snapshot["advance_application"].get("prepared_by")}:
+        raise ValidationError("An advance liquidation requires independent Accounting posting.")
     if locked.source_type in ('collection', 'deposit', 'collection_fix') and actor.pk in {
             locked.created_by_id, locked.submitted_by_id,
             locked.source_snapshot.get('collection_payload', {}).get('prepared_by')}:

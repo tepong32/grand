@@ -508,7 +508,9 @@ class FinancePostingRuleLine(models.Model):
     FIXED_ACCOUNT = "fixed_account"
     PRIOR_PAYABLE = "prior_payable"
     ADVANCE_ACCOUNT = "advance_account"
+    PRIOR_ADVANCE = "prior_advance"
     ACCOUNT_SOURCE_CHOICES = (
+        (PRIOR_ADVANCE, "Selected original officer advance asset"),
         (ADVANCE_ACCOUNT, "Accountable officer advance asset"),
         (PRIOR_PAYABLE, "Selected prior payable claim account"),
         (ALLOCATION_ACCOUNTS, "Each voucher allocation account"),
@@ -586,6 +588,12 @@ class FinancePostingRuleLine(models.Model):
                 raise ValidationError("Advance recognition requires a cash-advance variant, DV-validation debit and gross amount.")
             if self.mapping_code.strip():
                 raise ValidationError({"mapping_code": "Select the explicit advance asset account instead."})
+        if self.account_source == self.PRIOR_ADVANCE and (
+                self.side != self.CREDIT or self.amount_source != self.GROSS
+                or self.rule.event_kind != FinancePostingRule.LIQUIDATION
+                or self.rule.recognition_point != FinancePostingRule.LIQUIDATION_ACCEPTANCE
+                or self.mapping_code.strip()):
+            raise ValidationError("An original advance application requires a gross credit at liquidation acceptance.")
         if self.account_source in {self.FIXED_ACCOUNT, self.ADVANCE_ACCOUNT}:
             if not self.ledger_account_code.strip():
                 raise ValidationError({"ledger_account_code": "Enter the locally confirmed posting account code."})

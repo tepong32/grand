@@ -14,6 +14,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "finance.export_finance_work",
     ),
     FINANCE_UAT_VIEWER_GROUP: (
+        "accounting.view_officer_advances",
         "vouchers.view_collection_register",
         "finance.view_finance_setup",
         "vouchers.view_voucher_workbench",
@@ -92,6 +93,8 @@ FINANCE_ROLE_PERMISSIONS = {
         "vouchers.view_voucher_audit",
     ),
     "Accounting DV Preparer": (
+        "accounting.view_officer_advances",
+        "accounting.export_officer_advances",
         "vouchers.view_collection_register",
         "finance.view_finance_setup",
         "vouchers.view_voucher_workbench",
@@ -131,6 +134,8 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.export_local_form_acceptance",
     ),
     "Accounting Reviewer": (
+        "accounting.view_officer_advances",
+        "accounting.export_officer_advances",
         "vouchers.view_collection_register",
         "vouchers.review_collections",
         "finance.view_finance_setup",

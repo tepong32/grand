@@ -2,7 +2,7 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-09-12
+Last updated: 2026-09-13
 
 Turning-point decisions are recorded separately in [the implementation decision log](docs/IMPLEMENTATION_DECISIONS.md), as requested by the user. Keep each choice tied to the canonical product goal, alternatives, tradeoffs, evidence and revisit conditions.
 
@@ -16,7 +16,11 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
-Current v0.7.99 development checkpoint on `codex/finance-advance-liquidation`, based on pushed v0.7.98: [advance recognition](docs/FINANCE_ADVANCES_IN_PROGRESS.md), D-085. An explicit reviewed gross advance-asset/payable recipe retains governed employee identity; existing payment discharges the payable against the bank. Accounting displays/exports recognized debit balances and detects unexplained GL movements, including other funds. Detached advance reversal is refused pending the governed source correction route. This is not liquidation authority. Next connect original advances and actual disbursements to dated partial liquidation/refund applications and exact corrections.
+Current v0.7.100 development checkpoint on `codex/finance-advance-applications`, based on pushed v0.7.99: [source/ledger/output evidence](docs/FINANCE_ADVANCE_LIQUIDATIONS_2026-09-12.md), D-086. Original advance selection, actual release proof, dated expense reservations, independent JEV posting, recovery, unposted withdrawal and retained exports are connected. Standard Accounting roles have specific advance read/export access and a searchable workspace entry point; the page shows applied/reserved and remaining amounts. Reservation locks are scoped to liquidation requests, preserving case-first order without taking payment-recovery locks. Native workflow/role/source and four race scenarios pass 16/16; final full-project SQLite passes 1,007 tests with 53 skipped (1,060 discovered, 543.265s, runner 97271 exit 0). Actual cash refunds, governed posted corrections and other advance scenarios remain next, before the remaining M01/M02/inventory/output/office/operational/LGU gates.
+
+All runners ended; owned native and browser-preview services stopped. The protected DB hash remains unchanged and eGAPS was untouched. Migrations ran only in disposable stores. Version Manager publishes only the explicit checkpoint and VERSION/CHANGELOG, preserving unrelated work and historical releases. Verify the remote development branch/tag; no master merge or deployment. This checkpoint does not establish full Finance completion or acceptance.
+
+Previous v0.7.99 development checkpoint on `codex/finance-advance-liquidation`, based on pushed v0.7.98: [advance recognition](docs/FINANCE_ADVANCES_IN_PROGRESS.md), D-085. An explicit reviewed gross advance-asset/payable recipe retains governed employee identity; existing payment discharges the payable against the bank. Accounting displays/exports recognized debit balances and detects unexplained GL movements, including other funds. Detached advance reversal is refused pending the governed source correction route. This was recognition-only evidence; the expense-liquidation extension is recorded above.
 
 PASS — final dependent SQLite 210/210 (81.374s, runner 4525 exit 0), native advance/Accounting 55/55 (21.314s, runner 56422 exit 0), system/migration-drift/diff checks. No skips. The feature record gives exact commands, the corrected initial permission-fixture failure and unperformed broader gates. Migrations accounting/0029 and finance/0024 ran only in disposable stores. All runners ended, owned MySQL stopped/port closed, protected DB unchanged and eGAPS untouched. Version Manager stages only the explicit checkpoint, preserves historical references and excludes the user DB/unrelated draft/images. Verify the remote branch/tag; no master merge or deployment is authorized. Finance and production acceptance remain unfinished.
 

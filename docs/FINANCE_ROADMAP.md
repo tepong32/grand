@@ -1,6 +1,6 @@
 # GRAND Finance complete-cycle roadmap
 
-Advance-recognition development now addresses the first missing advance subsidiary boundary: [scope](FINANCE_ADVANCES_IN_PROGRESS.md), D-085. Existing DV/payment and journal paths retain explicit officer advance assets and reconcile debit balances. Original-advance liquidation/refund controls remain the next functional work; this does not complete M03 or establish production acceptance.
+Expense-liquidation development now connects explicit original advances and actual releases to accepted expense rows, dated reservations, independent posting, recovery and retained outputs: [scope](FINANCE_ADVANCE_LIQUIDATIONS_2026-09-12.md), D-086. Standard Accounting roles can open the advance register, see remaining amounts and use separately authorized exports. Actual cash refunds, posted corrections and other advance scenarios remain the next M03 functionality; this is not complete M03 or production acceptance.
 
 v0.7.98 development checkpoint: [collection/deposit source chain](FINANCE_COLLECTIONS_IN_PROGRESS.md), D-084, connects receipt entry, explicit partial deposits, independent Accounting posting, correction/recovery and retained printable copies. Native scenarios/races and role boundaries pass; full SQLite regression passes 1044 discovered / 995 passed / 49 skipped. This does not establish complete liquidation/advance coverage, official-form parity, master integration or production acceptance.
 

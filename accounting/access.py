@@ -14,6 +14,8 @@ ACCOUNTING_PERMISSIONS = (
     "accounting.prepare_journal_entries",
     "accounting.post_journal_entries",
     "accounting.view_general_ledger",
+    "accounting.view_officer_advances",
+    "accounting.export_officer_advances",
     "accounting.reconcile_control_accounts",
     "accounting.view_bank_reconciliation",
     "accounting.prepare_bank_reconciliation",
@@ -98,6 +100,14 @@ def can_post_journals(user):
 
 def can_view_ledger(user):
     return has_explicit_permission(user, "accounting.view_general_ledger")
+
+
+def can_view_advances(user):
+    return can_view_ledger(user) or has_explicit_permission(user, "accounting.view_officer_advances")
+
+
+def can_export_advances(user):
+    return has_explicit_permission(user, "accounting.export_officer_advances")
 
 
 def can_reconcile_controls(user):
