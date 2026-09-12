@@ -10,6 +10,7 @@
       <h3 class="h6">Return {{ item.version }} · {{ item.get_status_display }}</h3>
       <p class="mb-1">{{ item.proposal.amount }} received {{ item.proposal.returned_on }} · {{ item.proposal.receipt_reference }}</p>
       <p class="mb-1">{{ item.proposal.reason }}</p>
+      {% if item.proposal.receiving_bank %}<p class="small">Receiving bank: {{ item.proposal.receiving_bank.bank_label }} · {{ item.proposal.receiving_bank.bank_code }} · {{ item.proposal.receiving_bank.ledger_account_code }}</p>{% endif %}
       <p class="small">Filing review / disposition: {{ item.proposal.filing_basis }}</p>
       {% if item.review_reason %}<p class="small">Accounting decision: {{ item.review_reason }}</p>{% endif %}
       {% if item.withdrawal %}<p class="small">Withdrawal: {{ item.withdrawal.reason }} · {{ item.withdrawal.actor.get_full_name|default:item.withdrawal.actor.username }} · {{ item.withdrawal.created_at }}</p>{% endif %}

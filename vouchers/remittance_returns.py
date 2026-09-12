@@ -78,7 +78,7 @@ def pending_receipt_holds(department_id, transaction_type, as_of_date):
 
 
 @transaction.atomic
-def propose_return(*, batch, actor, returned_on, receipt_reference, reason, filing_basis, allocations, expected_version):
+def propose_return(*, batch, actor, returned_on, receipt_reference, reason, filing_basis, allocations, expected_version, receiving_bank_id=None):
     _require(actor, 'vouchers.prepare_remittances')
     batch = TreasuryRemittanceBatch.objects.select_for_update().get(pk=batch.pk)
     _require_treasury_scope(actor, batch)
@@ -112,6 +112,9 @@ def propose_return(*, batch, actor, returned_on, receipt_reference, reason, fili
         'filing_evidence': [{**r, 'public_id': str(r['public_id'])} for r in filing_snapshot(batch)],
         'allocations': sorted(rows, key=lambda r: int(r['source_detail'])),
         'amount': str(sum((Decimal(r['amount']) for r in rows), Decimal('0')))}
+    if receiving_bank_id:
+        from .receipt_banks import bank_snapshot
+        proposal['receiving_bank'] = bank_snapshot(batch, receiving_bank_id, returned_on)
     item = RemittanceReturn.objects.create(batch=batch,
         version=(batch.returns.aggregate(v=Max('version'))['v'] or 0) + 1,
         proposal=proposal, proposal_checksum=_digest(proposal), prepared_by=actor)
@@ -164,7 +167,9 @@ def materialize_return(request, actor):
                 description=f'Return of {batch.reference_code}: {retained["reason"]}',
                 created_by_id=actor.pk, created_by_label=actor.get_full_name() or actor.username)
             entry.full_clean(); entry.save()
-            cash = JournalLine(entry=entry, sequence=1, account=bank.account, debit=Decimal(retained['amount']),
+            from .receipt_banks import receiving_account
+            account = receiving_account(batch, retained.get('receiving_bank'), bank)
+            cash = JournalLine(entry=entry, sequence=1, account=account, debit=Decimal(retained['amount']),
                 credit=0, cash_flow_category=bank.cash_flow_category, memo=f'Return of remittance {batch.reference_code}')
             cash.full_clean(); cash.save()
             originals = {str(d.pk): d for d in details}
@@ -223,7 +228,7 @@ def export_returns(batch, actor):
     writer.writerow(('original_remittance', 'return_version', 'status', 'receipt_date', 'receipt_reference',
         'liability_account', 'reference', 'deduction_code', 'allocated_receipt', 'posted_receipt',
         'original_jev', 'return_jev', 'return_jev_status', 'filing_disposition_basis', 'review_reason',
-        'withdrawal_reason', 'withdrawn_by', 'withdrawn_at'))
+        'withdrawal_reason', 'withdrawn_by', 'withdrawn_at', 'original_bank_ledger', 'receiving_bank', 'receiving_bank_ledger'))
     withdrawals = {event.metadata.get('return'): event for event in
         batch.events.filter(action='remittance_return_withdrawn').select_related('actor')}
     for item in batch.returns.select_related('posting_request').order_by('version'):
@@ -232,6 +237,8 @@ def export_returns(batch, actor):
         original = JournalEntry.objects.get(public_id=item.proposal['original_entry'])
         request = item.posting_request
         withdrawal = withdrawals.get(str(item.public_id))
+        original_bank = original.lines.select_related('account').get(pk=item.proposal['bank_line'])
+        receiving_bank = item.proposal.get('receiving_bank') or {}
         for row in item.proposal['allocations']:
             detail = original.subsidiary_lines.select_related('journal_line__account').get(pk=row['source_detail'])
             writer.writerow((batch.reference_code, item.version, item.get_status_display(),
@@ -240,7 +247,9 @@ def export_returns(batch, actor):
                 original.reference, request.jev_number if request else '', request.get_status_display() if request else '',
                 item.proposal['filing_basis'], item.review_reason,
                 withdrawal.reason if withdrawal else '', withdrawal.actor_id if withdrawal else '',
-                withdrawal.created_at.isoformat() if withdrawal else ''))
+                withdrawal.created_at.isoformat() if withdrawal else '', original_bank.account.code,
+                receiving_bank.get('bank_code', batch.bank_account_code),
+                receiving_bank.get('ledger_account_code', original_bank.account.code)))
     content = output.getvalue().encode('utf-8-sig')
     return content, archive_export(content=content, department=batch.treasury_department, user=actor,
         category='finance-remittance-returns', filename=f'{batch.reference_code}-returns.csv',
@@ -259,6 +268,11 @@ def review_return(*, item, actor, approve, reason):
         raise ValidationError('The immutable return proposal no longer reproduces.')
     if approve:
         source, entry, details, bank = original_payment(batch)
+        if item.proposal.get('receiving_bank'):
+            from .receipt_banks import bank_snapshot
+            retained_bank = item.proposal['receiving_bank']
+            if bank_snapshot(batch, retained_bank['configuration_item'], date.fromisoformat(item.proposal['returned_on'])) != retained_bank:
+                raise ValidationError('The receiving bank mapping changed. Return this proposal and prepare a current successor.')
         current = [{**r, 'public_id': str(r['public_id'])} for r in filing_snapshot(batch)]
         if current != item.proposal['filing_evidence']:
             raise ValidationError('Filing evidence changed. Return this proposal and prepare a current successor.')

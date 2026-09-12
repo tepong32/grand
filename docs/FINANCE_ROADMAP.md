@@ -1,5 +1,7 @@
 # GRAND Finance complete-cycle roadmap
 
+v0.7.97 development checkpoint: [actual receiving bank](FINANCE_RECEIPT_BANKS_2026-09-12.md) now follows independently reviewed routing through incoming posting, exact correction and exports, preserving original liabilities/fund and default historical proposals. Focused/native/dependent checks pass after fixing the initial release-reference error. Fees/netted receipts, actual agency repayments/offsets and broader Finance gates remain open.
+
 v0.7.96 development checkpoint: [posted receipt correction](FINANCE_POSTED_RECEIPT_CORRECTIONS_2026-09-12.md), D-083, adds exact independent reversal of an incorrectly posted receipt, protected dated withholding, reconciliation, corrected replacement, unposted withdrawal and retained exports. Focused/native/full-project checks pass. Actual outgoing repayments, other bank/fee/disposition cases and the wider Finance/office/output/acceptance gates remain open.
 
 v0.7.94 development checkpoint: [unposted receipt approval withdrawal](FINANCE_RETURN_WITHDRAWAL_2026-09-12.md) permits corrected receipts while retaining original approval/discarded-draft evidence and refusing posted-money withdrawal. Native concurrency and dependent voucher/My Work checks pass. Posted-return corrections and broader Finance gates remain open.

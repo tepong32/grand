@@ -788,6 +788,8 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 
 ## D-082 - Preserve the original remittance while recording actual returned money
 
+2026-09-12 receiving-bank follow-up: [actual bank routing](FINANCE_RECEIPT_BANKS_2026-09-12.md) retains the selected approved setup item/release and explicit mapped ledger account in the receipt proposal. Review rejects intervening mapping changes; after approval, mapping edits cannot silently redirect the journal. The original fund/liabilities and legacy default-source shapes remain retained. Fees/netting and actual outgoing agency dispositions remain separate.
+
 2026-09-12 follow-up: [pre-posting withdrawal](FINANCE_RETURN_WITHDRAWAL_2026-09-12.md) preserves the independent approval and records withdrawal separately. Only absent/discarded source journals permit allocation release. The batch and Finance journal locks prevent withdrawal from bypassing materialization or posting; posted receipt corrections require their own financial/source treatment.
 
 2026-09-12: [actual receipt implementation and evidence](FINANCE_REMITTANCE_RETURNS_IN_PROGRESS.md). The original completed batch remains the historical outgoing payment. `RemittanceReturn` retains immutable partial/full receipt proposals, original debit allocations and independent Accounting decisions; the existing posting-request mechanism retains the incoming JEV and recoverable handoff. Reserve explicit source shares rather than inventing a proportional split or reusing the editable `returned` batch status. A separate domain receipt record is justified by simultaneous partial receipts and their independently retained decisions; no generic workflow engine is added.

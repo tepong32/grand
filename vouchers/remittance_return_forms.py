@@ -24,6 +24,7 @@ class RemittanceReturnForm(forms.Form):
     returned_on = forms.DateField(label='Actual receipt date', initial=timezone.localdate,
         widget=forms.DateInput(attrs={'type': 'date'}))
     receipt_reference = forms.CharField(label='Bank or recipient receipt reference', max_length=200)
+    receiving_bank_id = forms.ChoiceField(label='Account that actually received the money', required=False)
     reason = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), label='Why was this amount returned?')
     filing_basis = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}),
         label='Tax-filing review / agency disposition evidence',
@@ -33,10 +34,18 @@ class RemittanceReturnForm(forms.Form):
     def __init__(self, *args, batch, **kwargs):
         super().__init__(*args, **kwargs)
         self.initial['expected_version'] = batch.state_version
-        self.fields['receipt_reference'].help_text = (
-            f'Confirm the amount was actually credited back to {batch.bank_account_code}. '
-            'A different receiving account or deducted bank fees require separate Accounting treatment.')
-        _, _, details, _ = original_payment(batch)
+        self.fields['receipt_reference'].help_text = 'Match the actual bank credit. Deducted bank fees require separate Accounting treatment.'
+        _, _, details, bank = original_payment(batch)
+        from .receipt_banks import available_banks
+        day = timezone.localdate()
+        if self.is_bound:
+            try:
+                day = self.fields['returned_on'].clean(self.data.get('returned_on'))
+            except forms.ValidationError:
+                pass
+        self.fields['receiving_bank_id'].choices = [('', f'Original account: {batch.bank_account_code} · {bank.account.code}')]
+        self.fields['receiving_bank_id'].choices += [(str(item.public_id), f'{item.label} · {item.code} · v{item.version}')
+            for item in available_banks(batch, day)]
         remaining = remaining_allocations(batch, details)
         self.source_keys = []
         for detail in details:

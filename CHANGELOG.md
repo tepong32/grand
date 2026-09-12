@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.97] - 2026-09-12
+### Added
+- feat(finance): retain actual receipt bank routing
+
 ## [0.7.96] - 2026-09-12
 ### Added
 - feat(finance): correct posted remittance receipts

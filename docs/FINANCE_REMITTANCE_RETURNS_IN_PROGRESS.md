@@ -1,5 +1,7 @@
 # Actual remittance returns
 
+Follow-up v0.7.97: [actual receiving-bank routing](FINANCE_RECEIPT_BANKS_2026-09-12.md) supports another authorized bank with pinned approval, incoming posting, exact correction and exports. Fees/netted receipts and actual outgoing agency dispositions remain open; earlier original-bank-only limitations below are historical.
+
 Follow-up v0.7.96: [posted receipt corrections](FINANCE_POSTED_RECEIPT_CORRECTIONS_2026-09-12.md) now retain exact reversal, independent approval, dated capacity, replacement and exports for posting errors. Actual outgoing repayments and other bank/fee/disposition cases remain open. Earlier validation and limitations below are historical where superseded.
 
 Follow-up v0.7.94: [unposted approval withdrawal](FINANCE_RETURN_WITHDRAWAL_2026-09-12.md) now supports corrected receipt proposals while preserving approval evidence. Posted-return corrections remain open. The v0.7.93 evidence below is retained historically.
