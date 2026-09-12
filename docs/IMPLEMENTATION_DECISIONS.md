@@ -10,6 +10,8 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **D-081:** Reconcile every cancelled check before correcting deductions; retain its evidence and retire its replacement route only through the posted correction.
+
 - **D-080:** Retain all claim shares on one exact historical-payment reversal line, using the existing journal allocation evidence and independent posting audit; never select one credit or fabricate split financial reversals.
 
 - **D-079:** Split a consolidated historical liability into reviewed invoice identities over the original credit; preserve exact application shares, dated parent/invoice capacity and pinned approval evidence through settlement and corrections.
@@ -780,6 +782,14 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - WFH boundary: account-based web navigation is a foundation, not an approved remote deployment. Physical signatures, printing, custody and instrument release retain their actual office procedure. Named-account remote access, failure/recovery exercises and LGU decisions remain required.
 - Evidence: live 2026-09-10 Accounting/Budget menu and DV-register inspection; Cash Disbursement internals unreviewed after launcher loss/server error 735. Source confirms missing dedicated Cash Flow/Changes in Net Assets datasets and blocked prior-payable linking. The printable assessment retains the v0.7.71 baseline separately from subsequent work. No eGAPS mutation or runtime dependency.
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
+
+## D-081 - Reconcile cancelled checks before reopening a deduction-bearing DV
+
+- Date: 2026-09-12. Status: implemented and validated in the v0.7.89 development checkpoint; see [actual evidence and remaining scope](FINANCE_CANCELLED_CHECK_CORRECTIONS_2026-09-12.md).
+- Goal: let Accounting correct an erroneous deduction after Treasury cancels an unreleased check, without deleting the old instrument or recognizing the expense again.
+- Decision: reuse the existing deduction-reversal request and case lock. Require every check's governed no-entry cancellation or exact independently posted payment cancellation; pin its identity, amount, actor/date and request checksums. Reproduce these before materialization and completion. The posted deduction correction retires old replacement eligibility; fresh DV approval/signatures and a new check use the corrected amount.
+- Alternatives/tradeoffs: an unconditional instrument-exists block strands resolved cancellations. Removing that block without reconciliation could reopen a paid DV. Deleting checks or reusing their numbers loses custody evidence. A separate retirement table duplicates the retained correction decision; using the existing sealed payload keeps one authority but requires verifying the posted decision when determining current eligibility.
+- Limits/revisit: generated-history adoption, released/bank-returned cycles, remitted withholding and discarded/superseded payment-request reconciliation remain separate unfinished paths. This change does not assert complete M02, exact local print acceptance or production readiness.
 
 ## D-080 - Preserve one financial line across shared-claim reversals
 

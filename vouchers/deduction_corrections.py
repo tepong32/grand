@@ -69,8 +69,6 @@ def request_correction(*, case, actor, correction_date, reason, expected_version
         return case
     if case.current_stage != VoucherCase.TREASURY_CHECK_PREPARATION:
         raise ValidationError("Correct posted deductions before payment preparation proceeds, or resolve the payment cycle first.")
-    if case.payment_instruments.exists():
-        raise ValidationError("A payment instrument already exists. Resolve its governed payment/cancellation and correction lineage first.")
     if case.posting_requests.filter(status__in=(VoucherPostingRequest.PENDING, VoucherPostingRequest.MATERIALIZED, VoucherPostingRequest.FAILED)).exists():
         raise ValidationError("Resolve pending source postings before correcting deductions.")
     reason = (reason or "").strip()
@@ -82,6 +80,8 @@ def request_correction(*, case, actor, correction_date, reason, expected_version
     if (not isinstance(correction_date, date) or correction_date < entry.entry_date
             or correction_date > timezone.localdate()):
         raise ValidationError("Use the actual correction date, on or after the original adjustment and no later than today.")
+    from .cancelled_corrections import cancellation_evidence
+    cancelled = cancellation_evidence(case, original.payload["prior_payable"], correction_date)
     if not AccountingPeriod.objects.filter(department_id=original.finance_department_id, status=AccountingPeriod.OPEN,
             starts_on__lte=correction_date, ends_on__gte=correction_date).exists():
         raise ValidationError("The correction date must be in an open Accounting period.")
@@ -113,6 +113,8 @@ def request_correction(*, case, actor, correction_date, reason, expected_version
         deduction_correction={"original_request": str(original.public_id), "original_entry": str(entry.public_id),
             "original_payload_checksum": original.payload_checksum, "original_rule_checksum": original.posting_rule_checksum,
             "reason": reason, "withholding": withheld})
+    if cancelled:
+        payload["deduction_correction"]["cancelled_instruments"] = cancelled
     request = VoucherPostingRequest(case=case, kind=Rule.REVERSAL, version=version, jev_number=number,
         jev_date=correction_date, origin_stage=case.current_stage, resume_stage=VoucherCase.ACCOUNTING_PREPARATION,
         trigger_key=f"deduction-correction:{original.public_id}:{version}", finance_department_id=original.finance_department_id,
@@ -157,6 +159,10 @@ def materialize(request, actor):
     if digest(request.payload) != request.payload_checksum:
         raise ValidationError("The correction source checksum no longer reproduces.")
     correction = request.payload["deduction_correction"]
+    from .cancelled_corrections import cancellation_evidence
+    if cancellation_evidence(request.case, request.payload["prior_payable"], request.jev_date,
+            exclude_request=request.pk) != correction.get("cancelled_instruments", []):
+        raise ValidationError("The cancelled checks differ from the retained correction evidence.")
     original = VoucherPostingRequest.objects.get(public_id=correction["original_request"], case_id=request.case_id, kind=Rule.ADJUSTMENT)
     if (original.status != original.POSTED or original.payload_checksum != correction["original_payload_checksum"]
             or original.posting_rule_checksum != correction["original_rule_checksum"]
@@ -221,6 +227,10 @@ def complete(request, actor):
     entry = require_persisted_posting(JournalEntry.objects.get(public_id=request.accounting_entry_public_id), actor, source_type="voucher")
     verify_source_link(request, entry, source_type="voucher")
     correction = request.payload["deduction_correction"]
+    from .cancelled_corrections import cancellation_evidence
+    if cancellation_evidence(request.case, request.payload["prior_payable"], request.jev_date,
+            exclude_request=request.pk) != correction.get("cancelled_instruments", []):
+        raise ValidationError("The cancelled checks differ from the retained correction evidence.")
     if not entry.reversal_of_id or str(entry.reversal_of.public_id) != correction["original_entry"]:
         raise ValidationError("The posted correction must reverse the exact retained deduction journal.")
     with transaction.atomic(using="finance"):

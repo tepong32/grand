@@ -864,6 +864,8 @@ class CheckIssueForm(WorkflowForm):
                 status__in=(PaymentInstrument.CANCELLED, PaymentInstrument.BANK_RETURNED),
                 replacement__isnull=True,
             )
+            from .cancelled_corrections import retired_instruments
+            self.fields["replaces"].queryset = self.fields["replaces"].queryset.exclude(public_id__in=retired_instruments(case))
             validation = case.accounting_validations.filter(decision="accepted").order_by("-pk").first()
             evidence = validation.prior_payable_snapshot if validation else {}
             if evidence.get("schema") == 2:

@@ -272,13 +272,23 @@ def dv_print_preparation_queryset(user, queryset=None):
                    for permission in DV_CUSTODY_ACTION_SPECS["signing_copy"]["permissions"])
     ):
         return base.none()
-    return base.filter(
+    candidates = base.filter(
         current_stage=VoucherCase.AWAITING_SIGNATURES,
         current_department_id=department.pk,
         configuration_release__department_id=department.pk,
         disbursement_voucher__isnull=False,
         voucher_template__controlled_print_required=True,
-    ).exclude(payment_instruments__isnull=False).distinct()
+    ).distinct()
+    from .cancelled_corrections import has_unretired_instruments
+    from django.core.exceptions import ValidationError
+    blocked = []
+    for case in candidates.filter(payment_instruments__isnull=False).distinct():
+        try:
+            if has_unretired_instruments(case):
+                blocked.append(case.pk)
+        except ValidationError:
+            blocked.append(case.pk)
+    return candidates.exclude(pk__in=blocked)
 
 
 def dv_custody_action_queryset(user, action, queryset=None):

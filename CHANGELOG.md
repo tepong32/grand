@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.89] - 2026-09-12
+### Added
+- feat(finance): correct deductions after check cancellation
+
 ## [0.7.88] - 2026-09-10
 ### Added
 - feat(finance): settle shared historical claims

@@ -1934,6 +1934,9 @@ def issue_check(*, case, actor, bank_account_code, check_number, amount, expecte
     if replaces is not None:
         replaces = PaymentInstrument.objects.select_for_update().get(pk=replaces.pk)
     replacement_statuses = {PaymentInstrument.CANCELLED, PaymentInstrument.BANK_RETURNED}
+    from .cancelled_corrections import retired_instruments
+    if replaces and str(replaces.public_id) in retired_instruments(case):
+        raise VoucherWorkflowError("This check belongs to a corrected DV. Prepare a new check for the newly validated amount.")
     if replaces and (
         replaces.case_id != case.pk or replaces.status not in replacement_statuses or hasattr(replaces, "replacement")
     ):
@@ -2436,7 +2439,8 @@ def prepare_controlled_dv_print(*, case, actor, replacement_reason, expected_ver
         raise VoucherWorkflowError("Prepare the DV and pin a preflighted workbook before creating a signing copy.")
     if case.current_stage != VoucherCase.AWAITING_SIGNATURES:
         raise VoucherWorkflowError("Controlled signing copies are prepared only in the DV printing and wet-signature step.")
-    if case.payment_instruments.exists():
+    from .cancelled_corrections import has_unretired_instruments
+    if has_unretired_instruments(case):
         raise VoucherWorkflowError("A check already exists. Use the coordinated payment correction route instead of reprinting the DV here.")
     print_jobs = case.print_jobs.select_for_update()
     latest = print_jobs.order_by("-version", "-pk").first()
