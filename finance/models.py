@@ -507,7 +507,9 @@ class FinancePostingRuleLine(models.Model):
     BANK_MAPPING = "bank_mapping"
     FIXED_ACCOUNT = "fixed_account"
     PRIOR_PAYABLE = "prior_payable"
+    ADVANCE_ACCOUNT = "advance_account"
     ACCOUNT_SOURCE_CHOICES = (
+        (ADVANCE_ACCOUNT, "Accountable officer advance asset"),
         (PRIOR_PAYABLE, "Selected prior payable claim account"),
         (ALLOCATION_ACCOUNTS, "Each voucher allocation account"),
         (DEDUCTION_MAPPINGS, "Each deduction's configured payable account"),
@@ -575,7 +577,16 @@ class FinancePostingRuleLine(models.Model):
             raise ValidationError({
                 "amount_source": "Choose gross, net, total deductions, or the current event amount for this account source."
             })
-        if self.account_source == self.FIXED_ACCOUNT:
+        if self.account_source == self.ADVANCE_ACCOUNT:
+            if (self.rule.variant.kind != FinanceTransactionVariant.CASH_ADVANCE
+                    or self.side != self.DEBIT
+                    or self.rule.event_kind != FinancePostingRule.RECOGNITION
+                    or self.rule.recognition_point != FinancePostingRule.DV_VALIDATION
+                    or self.amount_source != self.GROSS):
+                raise ValidationError("Advance recognition requires a cash-advance variant, DV-validation debit and gross amount.")
+            if self.mapping_code.strip():
+                raise ValidationError({"mapping_code": "Select the explicit advance asset account instead."})
+        if self.account_source in {self.FIXED_ACCOUNT, self.ADVANCE_ACCOUNT}:
             if not self.ledger_account_code.strip():
                 raise ValidationError({"ledger_account_code": "Enter the locally confirmed posting account code."})
         elif self.ledger_account_code.strip():

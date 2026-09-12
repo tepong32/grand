@@ -957,3 +957,11 @@ Observed eGAPS collection/deposit menus identify a missing source workflow; bala
 Keep entry, review, journal posting and export permissions separate. A collection officer does not inherit disbursement or posting authority. Preserve rejected/withdrawn approvals, original posted sources and separately issued printable bytes. The tradeoff is explicit source versions and correction lineage rather than editable posted rows; it reuses existing setup, numbering and ledger contracts instead of introducing another workflow engine or ledger. Historical corrections retain their original recipe while taking the current numbering sequence.
 
 This implements the reviewed cash-collection/deposit scenario, not all collection instruments, liquidation/advance subsidiaries, prescribed form layouts, actual refunds or full M03 parity. Revisit these boundaries against the actual inventory and local procedures; do not infer them from a menu or passing scenario. See [implementation, validation and limitations](FINANCE_COLLECTIONS_IN_PROGRESS.md).
+
+## D-085 - Separate recognized officer advances from liquidation authority
+
+Date: 2026-09-12. Development decision; local accounting timing and forms still require acceptance.
+
+Use an explicit governed advance-asset instruction and the existing DV/payable/payment chain to retain officer identity and original source evidence. Do not infer an advance from an asset code, payee label or generic liquidation transaction kind. A reviewed gross asset/payable recognition recipe must name an employee payee; existing independent posting and actual bank release retain their separate meanings. Advance schedules and control comparisons use debit balances while payable and withholding outputs retain credit balances.
+
+This reuses the existing journal/subsidiary and output mechanisms. The tradeoff is a narrowly supported recognition recipe rather than arbitrary advance timing or immediately claiming a complete liquidation module. Aggregate recognized assets cannot authorize liquidation. Next require explicitly selected original advances, actual release evidence, dated partial applications/refunds and correction lineage. Revisit the supported recipe against real local advance procedures, without rewriting posted history. See [scope and validation](FINANCE_ADVANCES_IN_PROGRESS.md).

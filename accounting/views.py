@@ -2142,6 +2142,7 @@ def subsidiary_controls(request):
     claims = claim_rows(department.pk, as_of_date)
     payables = subsidiary_schedule_rows(department.pk, JournalSubsidiaryLine.PAYABLE, as_of_date)
     withholdings = subsidiary_schedule_rows(department.pk, JournalSubsidiaryLine.WITHHOLDING, as_of_date)
+    advances = subsidiary_schedule_rows(department.pk, JournalSubsidiaryLine.ADVANCE, as_of_date)
     snapshot, _checksum = control_reconciliation_snapshot(department.pk, as_of_date)
 
     def totals(rows):
@@ -2156,6 +2157,8 @@ def subsidiary_controls(request):
         "payables": payables,
         "claims": claims,
         "withholdings": withholdings,
+        "advances": advances,
+        "advance_totals": totals(advances),
         "payable_totals": totals(payables),
         "withholding_totals": totals(withholdings),
         "current_reconciliation": snapshot,
@@ -2204,7 +2207,8 @@ def subsidiary_export(request, category):
     writer.writerow((
         "export_kind", "department", "as_of_date", "category", "fund_code", "control_account_code",
         "control_account_title", "reference_key", "reference_label", "source_code",
-        "debit_movements", "credit_movements", "credit_balance",
+        "debit_movements", "credit_movements",
+        "debit_balance" if category == JournalSubsidiaryLine.ADVANCE else "credit_balance",
     ))
     for row in rows:
         writer.writerow((

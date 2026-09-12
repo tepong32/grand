@@ -1817,8 +1817,10 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         case=case, decision=AccountingValidation.ACCEPTED, jev_number=jev_number.strip(), jev_date=jev_date,
         note=note.strip(), validated_by=actor, validated_at=timezone.now(), prior_payable_snapshot=prior_evidence,
     )
+    from .advances import recognition_evidence
     payload = {
         **({"prior_payable": prior_evidence} if prior_evidence else {}),
+        **recognition_evidence(case, posting_rule),
         "schema_version": 3,
         "voucher_case_public_id": str(case.public_id),
         "voucher_reference": case.reference_code,

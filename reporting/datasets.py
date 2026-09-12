@@ -554,7 +554,8 @@ class PostedSubsidiaryScheduleDataset(ApprovedDataset):
                 "source_pk": str(detail.journal_line_id if attribution else detail.pk), "source_public_id": str(detail.entry.public_id),
                 "source_reference": detail.entry.reference, "source_date": detail.entry.entry_date,
                 "control_group": self.control_group,
-                "amount": detail.credit - detail.debit,
+                "amount": (detail.debit - detail.credit if self.category == JournalSubsidiaryLine.ADVANCE
+                           else detail.credit - detail.debit),
                 "source_checksum": _snapshot_checksum(snapshot),
                 "source_url": reverse("accounting:entry_detail", kwargs={"public_id": detail.entry.public_id}),
                 "snapshot": snapshot,
@@ -573,7 +574,9 @@ class PostedSubsidiaryScheduleDataset(ApprovedDataset):
             controls["allocation_row_count"] = len(details)
         status = "reconciled" if configured and absolute_difference == 0 else "exception"
         if not configured:
-            message = "The required payable/withholding control-account mapping is not configured."
+            message = ("No explicit advance subsidiary source establishes an asset control through this date."
+                       if self.category == JournalSubsidiaryLine.ADVANCE
+                       else "The required payable/withholding control-account mapping is not configured.")
         elif absolute_difference:
             message = "Posted subsidiary detail does not agree with its mapped general-ledger control account."
         else:
@@ -600,6 +603,14 @@ class PostedWithholdingScheduleDataset(PostedSubsidiaryScheduleDataset):
     label = "Posted withholding-liability schedule (working schedule; BIR form acceptance pending)"
     category = "withholding"
     control_group = "withholding subsidiary"
+
+
+class PostedAdvanceScheduleDataset(PostedSubsidiaryScheduleDataset):
+    key = "finance_posted_advance_schedule"
+    label = "Recognized officer advances (not proof of disbursement or liquidation capacity)"
+    category = "advance"
+    control_group = "advance subsidiary"
+    columns = PostedSubsidiaryScheduleDataset.columns[:-1] + (Column("balance", "Debit balance", "decimal"),)
 
 
 def _tax_rule_checksum(tax):
@@ -1685,7 +1696,7 @@ DATASETS = (
     AssistanceVolumeDataset(), ProgramAccomplishmentDataset(), AttendanceReachDataset(),
     ActivityScheduleDataset(), DepartmentWorkloadDataset(), BudgetAccountabilityDataset(),
     PostedTrialBalanceDataset(), PostedGeneralLedgerDataset(), PostedPayableScheduleDataset(),
-    PostedWithholdingScheduleDataset(), GovernedTaxWithholdingDetailDataset(),
+    PostedWithholdingScheduleDataset(), PostedAdvanceScheduleDataset(), GovernedTaxWithholdingDetailDataset(),
     GovernedTaxReturnSummaryDataset(), BudgetVersusPostedActualDataset(),
     PaymentInstrumentRegisterDataset(), StatementOfFinancialPositionDataset(),
     StatementOfFinancialPerformanceDataset(), StatementOfChangesInNetAssetsDataset(), StatementOfCashFlowsDataset(),

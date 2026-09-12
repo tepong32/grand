@@ -267,16 +267,40 @@ def _materialize_voucher_journal(posting_request, actor):
                         account = reservation.source.account
                     elif account_source == FinancePostingRuleLine.PAYABLE_MAPPING:
                         account = mapped_account(PostingMapping.PAYABLE, mapping_code or payload["transaction_type"])
+                        if payload.get("advance_recognition") and (account.account_type != "liability"
+                                or account.normal_balance != "credit"):
+                            raise PostingRequestError("Advance recognition requires a credit-normal payable liability account.")
                     elif account_source == FinancePostingRuleLine.BANK_MAPPING:
                         bank_code = mapping_code or str(payload.get("bank_account_code") or "").strip()
                         if not bank_code:
                             raise PostingRequestError("The pinned bank instruction needs a payment-account mapping code.")
                         account = mapped_account(PostingMapping.BANK, bank_code)
+                    elif account_source == FinancePostingRuleLine.ADVANCE_ACCOUNT:
+                        evidence = payload.get("advance_recognition") or {}
+                        if (evidence.get("party_type") != "employee"
+                                or evidence.get("variant_kind") != "cash_advance"
+                                or evidence.get("party_code") != payload.get("payee_code")
+                                or payload.get("payee_key") != f"finance-party:{evidence.get('party_code')}"
+                                or request.posting_rule_snapshot.get("event_kind") != FinancePostingRule.RECOGNITION
+                                or request.posting_rule_snapshot.get("recognition_point") != FinancePostingRule.DV_VALIDATION
+                                or side != FinancePostingRuleLine.DEBIT
+                                or amount_source != FinancePostingRuleLine.GROSS):
+                            raise PostingRequestError("The advance instruction requires pinned officer and recognition evidence.")
+                        account = posting_account(str(instruction.get("ledger_account_code") or "").strip())
+                        if account.account_type != "asset" or account.normal_balance != "debit":
+                            raise PostingRequestError("The advance account must be a debit-normal asset account.")
                     elif account_source == FinancePostingRuleLine.FIXED_ACCOUNT:
                         account = posting_account(str(instruction.get("ledger_account_code") or "").strip())
                     else:
                         raise PostingRequestError("The pinned posting rule contains an unsupported account source.")
                     subsidiary = None
+                    if account_source == FinancePostingRuleLine.ADVANCE_ACCOUNT:
+                        subsidiary = {
+                            "category": JournalSubsidiaryLine.ADVANCE,
+                            "reference_key": payload["payee_key"],
+                            "reference_label": payload["payee_name"],
+                            "source_code": payload["transaction_type"],
+                        }
                     is_claim = reservation is not None and account_source in (
                         FinancePostingRuleLine.PRIOR_PAYABLE, FinancePostingRuleLine.PAYABLE_MAPPING)
                     if account_source in (FinancePostingRuleLine.PAYABLE_MAPPING, FinancePostingRuleLine.PRIOR_PAYABLE):
@@ -405,6 +429,8 @@ def _materialize_voucher_journal(posting_request, actor):
                         debit=line.debit,
                         credit=line.credit,
                         source_snapshot={
+                            **({"advance_recognition": payload["advance_recognition"]}
+                               if row["subsidiary"]["category"] == JournalSubsidiaryLine.ADVANCE else {}),
                             "posting_request": source_reference,
                             "voucher_case": payload["voucher_case_public_id"],
                             "voucher_reference": payload["voucher_reference"],

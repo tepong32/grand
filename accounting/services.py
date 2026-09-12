@@ -1272,6 +1272,8 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
         raise ValidationError("Only a posted journal can be reversed.")
     if locked.source_type in ('collection', 'deposit', 'collection_fix'):
         raise ValidationError('Use the collection/deposit source correction workflow to preserve receipt allocations.')
+    if locked.subsidiary_lines.filter(category=JournalSubsidiaryLine.ADVANCE).exists():
+        raise ValidationError("Advance corrections require the original advance and payment source workflow; detached reversal is not supported.")
     if locked.source_type == "voucher" and locked.source_snapshot.get("prior_payable"):
         raise ValidationError("Use the voucher's governed cancellation or bank-return workflow for a reserved prior-payable application; a detached reversal would leave its payment handoff unchanged.")
     if locked.source_type == "remittance" and (locked.source_snapshot.get("remittance_return") or
@@ -1413,7 +1415,7 @@ def subsidiary_schedule_rows(department_id, category, as_of_date, *, payable_det
             "source_code": row["source_code"],
             "debit": debit,
             "credit": credit,
-            "balance": credit - debit,
+            "balance": debit - credit if category == JournalSubsidiaryLine.ADVANCE else credit - debit,
         })
     return result
 
@@ -1451,6 +1453,14 @@ def control_reconciliation_snapshot(department_id, as_of_date, *, payable_detail
     for category, account_id, fund_id, source_code in subsidiary_pairs:
         pair = pairs.setdefault((category, account_id, fund_id), {"mapping_codes": set()})
         pair["mapping_codes"].add(source_code)
+    # Explicit advance instructions establish the asset controls. Once identified,
+    # include every fund's GL activity, even where no subsidiary row was supplied.
+    advance_accounts = {key[1] for key in pairs if key[0] == JournalSubsidiaryLine.ADVANCE}
+    for account_id, fund_id in JournalLine.objects.filter(
+        entry__department_id=department_id, entry__status=JournalEntry.POSTED,
+        entry__entry_date__lte=as_of_date, account_id__in=advance_accounts,
+    ).values_list("account_id", "entry__fund_id").distinct():
+        pairs.setdefault((JournalSubsidiaryLine.ADVANCE, account_id, fund_id), {"mapping_codes": set()})
     for detail in payable_details:
         pair = pairs.setdefault((JournalSubsidiaryLine.PAYABLE, detail.journal_line.account_id, detail.entry.fund_id), {"mapping_codes": set()})
         pair["mapping_codes"].add(detail.source_code)
@@ -1481,6 +1491,9 @@ def control_reconciliation_snapshot(department_id, as_of_date, *, payable_detail
         ).aggregate(debit=Sum("debit"), credit=Sum("credit"))
         gl_balance = (gl["credit"] or Decimal("0.00")) - (gl["debit"] or Decimal("0.00"))
         subsidiary_balance = (subsidiary["credit"] or Decimal("0.00")) - (subsidiary["debit"] or Decimal("0.00"))
+        if category == JournalSubsidiaryLine.ADVANCE:
+            gl_balance = -gl_balance
+            subsidiary_balance = -subsidiary_balance
         if category == JournalSubsidiaryLine.PAYABLE:
             subsidiary_balance = sum((detail.credit - detail.debit for detail in payable_details
                 if detail.journal_line.account_id == account_id and detail.entry.fund_id == fund_id), Decimal("0.00"))
@@ -1500,15 +1513,18 @@ def control_reconciliation_snapshot(department_id, as_of_date, *, payable_detail
             "difference": str(difference),
             "balanced": difference == 0,
         })
+    advance_configured = any(key[0] == JournalSubsidiaryLine.ADVANCE for key in pairs)
     snapshot = {
         "schema_version": 1,
         "as_of_date": as_of_date.isoformat(),
-        "balance_basis": "credit minus debit by fund and mapped control account",
-        "configured": bool(mappings),
-        "configured_categories": sorted({category_map[item.category] for item in mappings}),
+        "balance_basis": ("advances: debit minus credit; liabilities: credit minus debit by fund and control account"
+                          if advance_configured else "credit minus debit by fund and mapped control account"),
+        "configured": bool(mappings) or advance_configured,
+        "configured_categories": sorted({category_map[item.category] for item in mappings}
+                                        | ({JournalSubsidiaryLine.ADVANCE} if advance_configured else set())),
         "rows": result_rows,
         "absolute_difference_total": str(absolute_difference),
-        "balanced": bool(mappings) and absolute_difference == 0,
+        "balanced": (bool(mappings) or advance_configured) and absolute_difference == 0,
     }
     encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return snapshot, hashlib.sha256(encoded).hexdigest()

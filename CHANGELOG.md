@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.99] - 2026-09-12
+### Added
+- feat(finance): retain accountable advance recognition and controls
+
 ## [0.7.98] - 2026-09-12
 ### Added
 - feat(finance): connect collection and deposit source workflows

@@ -1136,7 +1136,9 @@ class PayableClaimSlice(models.Model):
 class JournalSubsidiaryLine(models.Model):
     PAYABLE = "payable"
     WITHHOLDING = "withholding"
+    ADVANCE = "advance"
     CATEGORY_CHOICES = (
+        (ADVANCE, "Accountable officer advances (recognized asset)"),
         (PAYABLE, "Payable by claimant / payee"),
         (WITHHOLDING, "Deduction / withholding payable"),
     )
