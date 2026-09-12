@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.90] - 2026-09-12
+### Fixed
+- fix(finance): trace bank returns to issuance payments
+
 ## [0.7.89] - 2026-09-12
 ### Added
 - feat(finance): correct deductions after check cancellation

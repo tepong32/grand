@@ -30,6 +30,8 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+The v0.7.90 development checkpoint repairs bank-return intake for checks posted at issuance or replacement. Select the retained actual payment source rather than assuming a release-time request exists; preserve its journal and check identity. See [scope and validation](docs/FINANCE_ISSUANCE_BANK_RETURNS_2026-09-12.md) and CONTINUE.md. Affected native and dependent voucher/Finance work-task validation passes; this prerequisite does not implement deduction correction after a released bank return.
+
 The v0.7.89 development checkpoint extends deduction correction through reconciled cancelled payment cycles, corrected printing/signatures and fresh DV settlement. Full-project SQLite and focused native/concurrency validation pass. See CONTINUE.md and the cancellation record for scope; generated-history adoption and later payment/remitted-withholding corrections remain open.
 
 Shared historical applications across distinct original credits are implemented in the v0.7.88 development checkpoint. Ordinary web entry and independent atomic group review preserve immutable proposals, complete approval groups and pinned invoice shares under fund-then-source locks. Exact native reversals retain every source share on one original financial line and seal it in the posting audit. Actual HTTP-to-DV tests cover deductions, payments/reissue, partial closing returns, recovery, correction and retained outputs. Full SQLite regression and focused native/concurrency validation pass; see [scope and evidence](docs/FINANCE_SHARED_APPLICATIONS_IN_PROGRESS.md), decision D-080 and CONTINUE.md. This is not full Finance parity or production acceptance.

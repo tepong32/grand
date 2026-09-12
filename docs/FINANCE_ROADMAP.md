@@ -1,5 +1,7 @@
 # GRAND Finance complete-cycle roadmap
 
+v0.7.90 development checkpoint: [bank-return source selection](FINANCE_ISSUANCE_BANK_RETURNS_2026-09-12.md) now connects issuance-time payments and replacements to their actual return/reversal/closure paths. Affected native and dependent voucher/Finance work-task validation passes. Later returned-DV corrections and the broader Finance gates remain open.
+
 v0.7.89 development checkpoint: [cancelled-check deduction correction](FINANCE_CANCELLED_CHECK_CORRECTIONS_2026-09-12.md) connects reconciled cancellation to a corrected DV and fresh payment, preserving old check/journal evidence. Full-project SQLite and focused native/concurrency validation pass; generated-history adoption, later payment/remitted-withholding corrections and broader Finance gates remain open.
 
 v0.7.88 shared-historical development checkpoint (full-project regression passed): [shared schedules](FINANCE_SHARED_APPLICATIONS_IN_PROGRESS.md) now connect ordinary web entry and independent group review to invoices across distinct original credits, exact shared-payment reversals, DV deductions/payments/reissue, partial closing returns, recovery and retained claim CSV. This advances M02 without adopting generated voucher/remittance history. Later instrument/remitted-withholding corrections, remaining M01/M03 and the actual inventory/output/operational/LGU gates remain open. Do not treat this development work as production acceptance.

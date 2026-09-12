@@ -407,7 +407,35 @@ def begin_returned_instrument_review(*, exception, actor):
         status__in=(VoucherPostingRequest.POSTED, VoucherPostingRequest.NOT_REQUIRED),
     ).order_by("-version").first()
     if payment_request is None:
-        raise ValidationError("Complete the governed payment-release Accounting decision before recording a bank return.")
+        # An issuance-time policy has no release posting request. Retain the
+        # actual payment (or replacement) rather than inventing a second one.
+        kind = FinancePostingRule.REPLACEMENT if instrument.replaces_id else FinancePostingRule.PAYMENT
+        candidates = list(case.posting_requests.filter(kind=kind, status=VoucherPostingRequest.POSTED,
+            trigger_key=f"payment-instrument:{instrument.public_id}:issued"))
+        if len(candidates) == 1:
+            candidate = candidates[0]
+            from accounting.models import JournalEntry
+            from accounting.posted_evidence import verify_source_link
+            entry = JournalEntry.objects.filter(public_id=candidate.accounting_entry_public_id).first()
+            if entry is None:
+                raise ValidationError("Reconcile the issuance payment's retained Accounting journal before recording a bank return.")
+            verify_source_link(candidate, entry, source_type="voucher")
+            point = (FinancePostingRule.PAYMENT_REPLACEMENT if instrument.replaces_id
+                else FinancePostingRule.PAYMENT_ISSUANCE)
+            trigger = candidate.payload.get("trigger", {})
+            if (candidate.posting_rule_snapshot.get("recognition_point") != point
+                    or trigger.get("type") != "payment_instrument_issued"
+                    or trigger.get("instrument_public_id") != str(instrument.public_id)
+                    or trigger.get("check_number") != instrument.check_number
+                    or candidate.payload.get("bank_account_code") != instrument.bank_account_code
+                    or Decimal(candidate.payload.get("event_amount", "0")) != instrument.amount
+                    or not instrument.issued_at or candidate.jev_date != timezone.localdate(instrument.issued_at)
+                    or entry.status != JournalEntry.POSTED or not entry.posted_at or not entry.posted_by_id
+                    or entry.reversal_entries.exclude(status=JournalEntry.VOIDED).exists()):
+                raise ValidationError("The issuance payment must reproduce this check and its unreversed posted journal.")
+            payment_request = candidate
+    if payment_request is None:
+        raise ValidationError("Complete the governed payment Accounting decision at issuance or release before recording a bank return.")
     review = ReturnedInstrumentReview.objects.create(
         exception=exception, case=case, instrument=instrument,
         original_payment_request=payment_request,
