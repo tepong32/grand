@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.95] - 2026-09-12
+### Added
+- test(finance): prove refunded remittance settlement
+
 ## [0.7.94] - 2026-09-12
 ### Added
 - feat(finance): withdraw unposted receipt approvals
