@@ -425,7 +425,7 @@ def case_detail(request, public_id, *, form_overrides=None):
             and any(r.payload.get("deduction_correction") for r in case.posting_requests.filter(status__in=("pending", "failed", "materialized")))),
         "can_correct_deductions": bool(case.current_stage == VoucherCase.TREASURY_CHECK_PREPARATION
             and can_manage_owned_case_artifact(request.user, case, "vouchers.return_voucher_case")
-            and not case.payment_instruments.exclude(status="cancelled").exists()
+            and not case.payment_instruments.exclude(status__in=("cancelled", "bank_returned")).exists()
             and case.posting_requests.filter(kind="adjustment", status="posted").exists()),
         "cancel_form": CancelCheckForm(case=case),
         "tracepoint_form": TracePointLinkForm(case=case),

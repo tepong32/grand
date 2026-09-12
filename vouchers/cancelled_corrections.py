@@ -35,7 +35,7 @@ def retired_instruments(case, *, exclude_request=None):
         if request.pk == exclude_request:
             continue
         correction = request.payload.get("deduction_correction", {})
-        rows = correction.get("cancelled_instruments", [])
+        rows = correction.get("resolved_instruments", correction.get("cancelled_instruments", []))
         if not rows:
             continue
         entry = _posted(request)
@@ -59,6 +59,10 @@ def cancellation_evidence(case, prior_evidence, correction_date, *, exclude_requ
     rows = []
     retired = retired_instruments(case, exclude_request=exclude_request)
     for instrument in case.payment_instruments.exclude(public_id__in=retired).order_by("pk"):
+        if instrument.status == PaymentInstrument.BANK_RETURNED:
+            from .returned_corrections import evidence
+            rows.append(evidence(instrument, prior_evidence, correction_date))
+            continue
         if (instrument.status != PaymentInstrument.CANCELLED or instrument.released_at
                 or not instrument.cancelled_at or not instrument.cancelled_by_id or not instrument.cancellation_reason):
             raise ValidationError("A payment instrument already exists. Cancel every unreleased check and reconcile its posting before correcting deductions.")

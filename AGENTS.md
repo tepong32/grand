@@ -30,6 +30,8 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+The v0.7.91 development checkpoint extends D-081 to independently reviewed, exactly reversed bank returns. Retain the original review outcome; a separately posted deduction correction pins return evidence and retires its replacement authorization in the recoverable handoff. Return review mutations take the case lock first. Fresh DV printing/validation/payment and completion retain the old instrument history. Full-project and focused native/concurrency checks pass; see [scope and evidence](docs/FINANCE_RETURNED_CHECK_CORRECTIONS_2026-09-12.md). Remitted withholding, close-without-reissue and broader Finance acceptance remain separate.
+
 The v0.7.90 development checkpoint repairs bank-return intake for checks posted at issuance or replacement. Select the retained actual payment source rather than assuming a release-time request exists; preserve its journal and check identity. See [scope and validation](docs/FINANCE_ISSUANCE_BANK_RETURNS_2026-09-12.md) and CONTINUE.md. Affected native and dependent voucher/Finance work-task validation passes; this prerequisite does not implement deduction correction after a released bank return.
 
 The v0.7.89 development checkpoint extends deduction correction through reconciled cancelled payment cycles, corrected printing/signatures and fresh DV settlement. Full-project SQLite and focused native/concurrency validation pass. See CONTINUE.md and the cancellation record for scope; generated-history adoption and later payment/remitted-withholding corrections remain open.

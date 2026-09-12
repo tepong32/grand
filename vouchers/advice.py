@@ -461,6 +461,8 @@ def begin_returned_instrument_review(*, exception, actor):
 @transaction.atomic
 def clarify_returned_instrument_review(*, review, actor, note, evidence_reference, expected_version=None):
     _require(actor, "vouchers.manage_payment_exceptions")
+    case_id = ReturnedInstrumentReview.objects.values_list("case_id", flat=True).get(pk=review.pk)
+    VoucherCase.objects.select_for_update().get(pk=case_id)
     locked = ReturnedInstrumentReview.objects.select_for_update().select_related(
         "exception__policy", "case", "instrument",
     ).get(pk=review.pk)
@@ -499,10 +501,11 @@ def decide_returned_instrument(
     evidence_reference="", expected_version=None,
 ):
     _require(actor, "vouchers.review_returned_instruments")
+    case_id = ReturnedInstrumentReview.objects.values_list("case_id", flat=True).get(pk=review.pk)
+    case = VoucherCase.objects.select_for_update().get(pk=case_id)
     locked = ReturnedInstrumentReview.objects.select_for_update().select_related(
         "case", "instrument", "exception__policy", "prepared_by",
     ).get(pk=review.pk)
-    case = VoucherCase.objects.select_for_update().get(pk=locked.case_id)
     department = department_for_user(actor)
     if (case.current_department_id != department.pk
             or case.configuration_release.department_id != department.pk):

@@ -1,0 +1,30 @@
+# Deduction correction after a reviewed bank return
+
+v0.7.91 development checkpoint on `codex/finance-returned-check-corrections`, based on v0.7.90 (`c4e8a13`). This extends the [cancelled-check correction boundary](FINANCE_CANCELLED_CHECK_CORRECTIONS_2026-09-12.md) using the [actual issuance/release payment source](FINANCE_ISSUANCE_BANK_RETURNS_2026-09-12.md).
+
+## Behavior and retained evidence
+
+A released prior-payable check returned unpaid by its bank can now proceed through the existing deduction correction and fresh DV workflow. Accounting must first independently review the return for reissue and post its exact payment reversal. The separate deduction correction then pins the reviewed return, original payment and reversal checksums, claim evidence, instrument allocation and actual dates. Materialization and completion reproduce that evidence. An active replacement blocks correction; earlier resolved replacement chains retain their individual evidence.
+
+Only independent posting of the deduction correction retires the old replacement authorization. Its original review outcome remains retained; the recoverable default-store handoff closes the review and resolves its exception with the correction reference. Withdrawal before posting preserves the original reissue route. A corrected DV requires fresh preparation, printing/signatures, validation and a new payment. The original returned check remains in history. Completion excludes it only when a posted correction proves its retirement.
+
+Return review decisions and clarification acquire the case before the review, matching correction/replacement locking. The existing case lock serializes the workflow, while Finance reservation release retains its existing recoverable cross-store boundary. No new table, status, outcome, posting recipe or rewritten journal is introduced.
+
+This deliberately reuses independently reviewed return and correction decisions. A new third return outcome would add another state machine and could strand unsupported remitted or partially settled cases. Revisit a dedicated intake choice only if actual operator trials show the existing sequence is confusing; preserve independent decisions and immutable evidence in either design.
+
+## Validation
+
+- FAIL - PRE-EXISTING: the new actual released/bank-returned fixture reproduced the old correction refusal: one error, 3.898 seconds (`.tmp/returned-correction-before.log`, runner 70759 exited 1).
+- FAIL - CAUSED BY CURRENT WORK: the initial repaired run reached the corrected payment but two full-cycle tests remained at Treasury release because the old returned check still counted as unsettled. Eleven tests, two failures, 9.041 seconds (`.tmp/returned-correction-first.log`, runner 8596 exited 1). The completion calculation now recognizes posted correction retirement.
+- PASS: `.venv/Scripts/python.exe .tmp/earlier_sqlite.py vouchers.test_returned_check_corrections vouchers.test_cancelled_check_corrections`: 23 tests, 18.340 seconds (`.tmp/returned-correction-focused.log`, runner 49165 exited 0). Includes actual corrected DV printing, packet/signatures, validation, check/advice/release and claim CSV under release-time and issuance-time policies; interrupted Finance/default handoff recovery; retained-review mismatch rejection; existing cancellation/permission/remittance guards.
+- PASS: `.venv/Scripts/python.exe .tmp/prior_native_authority.py vouchers.test_returned_check_corrections vouchers.test_returned_correction_concurrency vouchers.test_cancelled_correction_concurrency`: 18 tests, 32.987 seconds (`.tmp/returned-correction-native.log`, runner 91188 exited 0). Fresh MySQL 8.4.11 stores exercise the returned correction and recovery scenarios, replacement-versus-correction and stale-return-decision-versus-completion races, plus inherited correction races. Disposable stores were destroyed and the owned server shut down.
+- PASS: `.venv/Scripts/python.exe .tmp/earlier_sqlite.py`: PASS: full-project SQLite 924 discovered / 892 passed / 32 skipped, 461.505 seconds (`.tmp/returned-correction-project.log`, runner 2824 exited 0). Focused SQLite 23 tests passed in 18.340 seconds; native MySQL 18 tests passed in 32.987 seconds, including recovery and competing actions. System/migration-drift checks pass. No schema change. Skips and synthetic scenarios do not establish operational/LGU acceptance. Full scope is appropriate because correction retirement affects payment completion, shared voucher services and cross-store financial recovery.
+- PASS: `.venv/Scripts/python.exe .tmp/invoice_checks.py`: system check and no migration drift (`.tmp/returned-correction-checks.log`).
+- PASS: affected Python compilation, local document-link validation and `git diff --check`.
+- NOT RUN - OUT OF SCOPE: browser layout, physical printer and real office acceptance; no layout change. No eGAPS access or operator-store migration.
+
+## Limits and next work
+
+This covers unremitted deductions after a returned payment whose reviewed exact reversal restores the existing reservation. A close-without-reissue return already retires reservation capacity and remains outside this correction route. Paid/unreturned checks, unresolved replacements, remitted withholding and generated-history adoption remain separate work. This checkpoint does not establish full Finance parity, exact local output acceptance, WFH operational readiness or production approval. Continue the preserved scope in [CONTINUE.md](../CONTINUE.md) and [modernization priorities](FINANCE_MODERNIZATION_PRIORITIES.md).
+
+Final verification: all runners ended; owned MySQL is stopped and port 33308 is closed. Runtime hashes remain unchanged since the final regression launch. Protected user DB SHA256 remains `C8255385F64732838F7D07A84C5587B5CE5BA2F708A566F96AFFF80D94E7374C`. Version Manager uses an explicit checkpoint manifest and limits managed updates to VERSION/CHANGELOG; historical release evidence and unrelated files are preserved. No master merge, deployment, eGAPS access or operator-store migration. Verify actual remote branch/tag on resume.

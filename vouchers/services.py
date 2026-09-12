@@ -2111,9 +2111,11 @@ def release_check(*, case, instrument, actor, claimant, receipt_reference, expec
     unsettled = case.payment_instruments.exclude(
         status__in=(PaymentInstrument.RELEASED, PaymentInstrument.CANCELLED),
     )
+    from .cancelled_corrections import retired_instruments
+    retired = retired_instruments(case)
     remaining = any(item.status != PaymentInstrument.BANK_RETURNED or (
         not hasattr(item, "replacement") and not item.returned_accounting_reviews.filter(status="closed", outcome="close").exists())
-        for item in unsettled)
+        for item in unsettled if str(item.public_id) not in retired)
     resume_stage = VoucherCase.TREASURY_RELEASE if remaining else VoucherCase.COMPLETED
     posting_request = _create_event_posting_request(
         case=case,

@@ -55,8 +55,12 @@ class CancelledCheckCorrectionTests(fixtures.DeductionCorrectionTests):
         self.assertEqual(self.case.current_stage, VoucherCase.TREASURY_CHECK_PREPARATION)
         return instrument
 
+    def resolved_before_correction(self, *, issuance):
+        return self.cancel_before_correction(issuance=issuance)
+
     def assert_cancelled_correction(self, *, issuance):
-        instrument = self.cancel_before_correction(issuance=issuance)
+        instrument = self.resolved_before_correction(issuance=issuance)
+        retained_status = instrument.status
         original_lines = list(self.adjustment.lines.values("pk", "debit", "credit"))
         self.client.force_login(self.preparer)
         page = self.client.get(reverse("vouchers:case_detail", args=[self.case.public_id]))
@@ -65,14 +69,15 @@ class CancelledCheckCorrectionTests(fixtures.DeductionCorrectionTests):
             {"state_version": self.case.state_version, "idempotency_key": "correct-cancelled-http",
                 "correction_date": timezone.localdate().isoformat(), "reason": "Correct deductions after cancellation"})
         self.assertEqual(response.status_code, 302)
-        correction = self.case.posting_requests.get(kind=Rule.REVERSAL)
+        correction = next(r for r in self.case.posting_requests.filter(kind=Rule.REVERSAL) if r.payload.get("deduction_correction"))
         self.post_request(correction)
         self.case.refresh_from_db(); instrument.refresh_from_db()
         self.assertEqual(self.case.current_stage, VoucherCase.ACCOUNTING_PREPARATION)
-        self.assertEqual(instrument.status, PaymentInstrument.CANCELLED)
+        self.assertEqual(instrument.status, retained_status)
         self.assertEqual(list(self.adjustment.lines.values("pk", "debit", "credit")), original_lines)
         self.assertEqual(_capacity(self.source), Decimal("1500"))
-        self.assertEqual(correction.payload["deduction_correction"]["cancelled_instruments"][0]["instrument"], str(instrument.public_id))
+        detail = correction.payload["deduction_correction"]
+        self.assertEqual(detail.get("resolved_instruments", detail.get("cancelled_instruments"))[0]["instrument"], str(instrument.public_id))
         self.template.controlled_print_required = True
         self.template.save(update_fields=("controlled_print_required",))
         prepare_voucher(case=self.case, actor=self.preparer, voucher_date=timezone.localdate(), gross_amount=1000,
@@ -125,7 +130,7 @@ class CancelledCheckCorrectionTests(fixtures.DeductionCorrectionTests):
             self.post_request(self.case.posting_requests.get(kind=Rule.PAYMENT, trigger_key=f"payment-instrument:{fresh.public_id}:released"))
         self.case.refresh_from_db(); instrument.refresh_from_db()
         self.assertEqual(self.case.current_stage, VoucherCase.COMPLETED)
-        self.assertEqual(instrument.status, PaymentInstrument.CANCELLED)
+        self.assertEqual(instrument.status, retained_status)
         self.assertEqual(_capacity(self.source), Decimal("500"))
         self.client.force_login(self.validator)
         exported = self.client.get(reverse("accounting:payable_claim_export"), {"as_of": timezone.localdate().isoformat()})

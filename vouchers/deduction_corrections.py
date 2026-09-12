@@ -114,7 +114,8 @@ def request_correction(*, case, actor, correction_date, reason, expected_version
             "original_payload_checksum": original.payload_checksum, "original_rule_checksum": original.posting_rule_checksum,
             "reason": reason, "withholding": withheld})
     if cancelled:
-        payload["deduction_correction"]["cancelled_instruments"] = cancelled
+        key = "resolved_instruments" if any(row.get("bank_return") for row in cancelled) else "cancelled_instruments"
+        payload["deduction_correction"][key] = cancelled
     request = VoucherPostingRequest(case=case, kind=Rule.REVERSAL, version=version, jev_number=number,
         jev_date=correction_date, origin_stage=case.current_stage, resume_stage=VoucherCase.ACCOUNTING_PREPARATION,
         trigger_key=f"deduction-correction:{original.public_id}:{version}", finance_department_id=original.finance_department_id,
@@ -161,7 +162,7 @@ def materialize(request, actor):
     correction = request.payload["deduction_correction"]
     from .cancelled_corrections import cancellation_evidence
     if cancellation_evidence(request.case, request.payload["prior_payable"], request.jev_date,
-            exclude_request=request.pk) != correction.get("cancelled_instruments", []):
+            exclude_request=request.pk) != correction.get("resolved_instruments", correction.get("cancelled_instruments", [])):
         raise ValidationError("The cancelled checks differ from the retained correction evidence.")
     original = VoucherPostingRequest.objects.get(public_id=correction["original_request"], case_id=request.case_id, kind=Rule.ADJUSTMENT)
     if (original.status != original.POSTED or original.payload_checksum != correction["original_payload_checksum"]
@@ -229,7 +230,7 @@ def complete(request, actor):
     correction = request.payload["deduction_correction"]
     from .cancelled_corrections import cancellation_evidence
     if cancellation_evidence(request.case, request.payload["prior_payable"], request.jev_date,
-            exclude_request=request.pk) != correction.get("cancelled_instruments", []):
+            exclude_request=request.pk) != correction.get("resolved_instruments", correction.get("cancelled_instruments", [])):
         raise ValidationError("The cancelled checks differ from the retained correction evidence.")
     if not entry.reversal_of_id or str(entry.reversal_of.public_id) != correction["original_entry"]:
         raise ValidationError("The posted correction must reverse the exact retained deduction journal.")
@@ -251,5 +252,7 @@ def complete(request, actor):
                 reservation._release_transition = True
                 reservation.save(update_fields=("released_at", "released_by_id", "release_reason"))
     case = VoucherCase.objects.select_for_update().get(pk=request.case_id)
+    from .returned_corrections import close_reviews
+    close_reviews(request, actor)
     return _apply_case_return(case, actor, VoucherCase.ACCOUNTING_PREPARATION, correction["reason"],
         f"deduction-correction-posted:{request.public_id}")

@@ -10,7 +10,7 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
-- **D-081:** Reconcile every cancelled check before correcting deductions; retain its evidence and retire its replacement route only through the posted correction.
+- **D-081:** Reconcile every cancelled check before correcting deductions; retain its evidence and retire its replacement route only through the posted correction. The 2026-09-12 extension applies the same rule to independently reviewed, exactly reversed bank returns.
 
 - **D-080:** Retain all claim shares on one exact historical-payment reversal line, using the existing journal allocation evidence and independent posting audit; never select one credit or fabricate split financial reversals.
 
@@ -784,6 +784,8 @@ D-013 attribution/timing detail: retain intake preparer/submitter eligibility an
 - Revisit when: actual clerk sessions or accepted rule/form changes reveal a mismatch. Preserve the separate databases and M08 native scrutiny rather than declaring the broader modernization finished from a navigation pass.
 
 ## D-081 - Reconcile cancelled checks before reopening a deduction-bearing DV
+
+2026-09-12 extension: [reviewed bank-return corrections](FINANCE_RETURNED_CHECK_CORRECTIONS_2026-09-12.md) reuse the original reissue decision and exact payment reversal, then independently post the existing deduction correction. Pin both source requests and review evidence; close the reviewed authorization only in the recoverable correction handoff. Preserve its original outcome and instrument history. A new return outcome/state machine is unnecessary for this bounded path; revisit intake presentation after actual operator trials. Case-first review locking aligns with replacement/correction actions. Close-without-reissue, remitted withholding and unresolved replacements remain outside this path. The earlier limits below describe the original cancelled-check checkpoint.
 
 - Date: 2026-09-12. Status: implemented and validated in the v0.7.89 development checkpoint; see [actual evidence and remaining scope](FINANCE_CANCELLED_CHECK_CORRECTIONS_2026-09-12.md).
 - Goal: let Accounting correct an erroneous deduction after Treasury cancels an unreleased check, without deleting the old instrument or recognizing the expense again.
