@@ -1,5 +1,7 @@
 # Actual remittance returns
 
+Follow-up v0.7.94: [unposted approval withdrawal](FINANCE_RETURN_WITHDRAWAL_2026-09-12.md) now supports corrected receipt proposals while preserving approval evidence. Posted-return corrections remain open. The v0.7.93 evidence below is retained historically.
+
 v0.7.93 development checkpoint from v0.7.92 (`afadb21`) on `codex/finance-remittance-returns`; this does not establish every remitted-tax correction or production acceptance.
 
 ## Implemented checkpoint

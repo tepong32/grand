@@ -1752,8 +1752,9 @@ class RemittanceReturn(models.Model):
     APPROVED = "approved"
     REJECTED = "rejected"
     POSTED = "posted"
+    WITHDRAWN = "withdrawn"
     STATUS_CHOICES = ((PROPOSED, "For independent review"), (APPROVED, "Approved; Accounting posting"),
-        (REJECTED, "Returned for correction"), (POSTED, "Return posted"))
+        (REJECTED, "Returned for correction"), (POSTED, "Return posted"), (WITHDRAWN, "Withdrawn before posting"))
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     batch = models.ForeignKey(TreasuryRemittanceBatch, on_delete=models.PROTECT, related_name="returns")
     version = models.PositiveIntegerField()

@@ -104,6 +104,7 @@ def create(request):
 @require_GET
 @voucher_access_required
 def detail(request, public_id):
+    from .remittance_return_forms import RemittanceReturnWithdrawalForm
     if not _can_view(request.user):
         raise PermissionDenied
     batch = _batch(public_id, request.user)
@@ -112,6 +113,11 @@ def detail(request, public_id):
     can_audit = has_explicit_permission(request.user, "vouchers.view_remittance_audit")
     filing_history = batch.tax_filing_evidence.select_related("created_by", "reviewed_by").order_by("-version")
     current_filing = filing_history.exclude(status=TaxFilingEvidence.SUPERSEDED).first()
+    receipt_returns = list(batch.returns.select_related("prepared_by", "reviewed_by", "posting_request"))
+    withdrawals = {event.metadata.get("return"): event for event in
+        batch.events.filter(action="remittance_return_withdrawn").select_related("actor")}
+    for item in receipt_returns:
+        item.withdrawal = withdrawals.get(str(item.public_id))
     try:
         tax_scope(batch)
     except ValidationError:
@@ -120,7 +126,7 @@ def detail(request, public_id):
         tax_filing_eligible = True
     return render(request, "vouchers/remittances/detail.html", {
         "batch": batch, "active_lines": active_lines,
-        "remittance_returns": batch.returns.select_related("prepared_by", "reviewed_by", "posting_request"),
+        "remittance_returns": receipt_returns,
         "can_review_returns": can_act_on_remittances(request.user, "vouchers.approve_remittances")
             and batch.finance_department_id == getattr(department_for_user(request.user), "pk", None),
         "line_history": batch.lines.exclude(status=TreasuryRemittanceLine.ACTIVE),
@@ -129,6 +135,7 @@ def detail(request, public_id):
         "available_count": len([row for row in available if row["fund_code"] == batch.fund_code]),
         "line_form": RemittanceLineForm(batch=batch),
         "review_form": RemittanceReviewForm(), "release_form": RemittanceReleaseForm(),
+        "return_withdrawal_form": RemittanceReturnWithdrawalForm(),
         "can_prepare": (
             can_act_on_remittances(request.user, "vouchers.prepare_remittances")
             and batch.treasury_department == department_for_user(request.user)
@@ -204,6 +211,26 @@ def return_export(request, public_id):
     response = HttpResponse(content, content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = f'attachment; filename="{slugify(batch.reference_code)}-returns.csv"'
     return response
+
+
+@require_POST
+@voucher_access_required
+def withdraw_return_approval(request, public_id, return_id):
+    from .remittance_return_forms import RemittanceReturnWithdrawalForm
+    from .remittance_return_withdrawal import withdraw_return
+    batch = _batch(public_id, request.user)
+    item = get_object_or_404(batch.returns, public_id=return_id)
+    form = RemittanceReturnWithdrawalForm(request.POST)
+    if form.is_valid():
+        try:
+            withdraw_return(item=item, actor=request.user, reason=form.cleaned_data['reason'])
+        except ValidationError as exc:
+            _message_error(request, exc)
+        else:
+            messages.success(request, 'Unposted approval withdrawn. Treasury can prepare a corrected receipt; the original evidence remains retained.')
+    else:
+        _message_error(request, ValidationError('Record the withdrawal reason.'))
+    return redirect(batch)
 
 
 @require_POST

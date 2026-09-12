@@ -40,7 +40,7 @@ def original_payment(batch):
 
 def remaining_allocations(batch, details, *, exclude=None):
     remaining = {str(d.pk): d.debit for d in details}
-    for item in batch.returns.exclude(status=RemittanceReturn.REJECTED).exclude(pk=exclude):
+    for item in batch.returns.exclude(status__in=(RemittanceReturn.REJECTED, RemittanceReturn.WITHDRAWN)).exclude(pk=exclude):
         if _digest(item.proposal) != item.proposal_checksum:
             raise ValidationError('The retained return allocation checksum changed.')
         for row in item.proposal['allocations']:
@@ -218,19 +218,25 @@ def export_returns(batch, actor):
     writer = csv.writer(output)
     writer.writerow(('original_remittance', 'return_version', 'status', 'receipt_date', 'receipt_reference',
         'liability_account', 'reference', 'deduction_code', 'allocated_receipt', 'posted_receipt',
-        'original_jev', 'return_jev', 'return_jev_status', 'filing_disposition_basis', 'review_reason'))
+        'original_jev', 'return_jev', 'return_jev_status', 'filing_disposition_basis', 'review_reason',
+        'withdrawal_reason', 'withdrawn_by', 'withdrawn_at'))
+    withdrawals = {event.metadata.get('return'): event for event in
+        batch.events.filter(action='remittance_return_withdrawn').select_related('actor')}
     for item in batch.returns.select_related('posting_request').order_by('version'):
         if _digest(item.proposal) != item.proposal_checksum:
             raise ValidationError('The retained return proposal checksum changed.')
         original = JournalEntry.objects.get(public_id=item.proposal['original_entry'])
         request = item.posting_request
+        withdrawal = withdrawals.get(str(item.public_id))
         for row in item.proposal['allocations']:
             detail = original.subsidiary_lines.select_related('journal_line__account').get(pk=row['source_detail'])
             writer.writerow((batch.reference_code, item.version, item.get_status_display(),
                 item.proposal['returned_on'], item.proposal['receipt_reference'], detail.journal_line.account.code,
                 detail.reference_key, detail.source_code, row['amount'], row['amount'] if item.status == item.POSTED else '0.00',
                 original.reference, request.jev_number if request else '', request.get_status_display() if request else '',
-                item.proposal['filing_basis'], item.review_reason))
+                item.proposal['filing_basis'], item.review_reason,
+                withdrawal.reason if withdrawal else '', withdrawal.actor_id if withdrawal else '',
+                withdrawal.created_at.isoformat() if withdrawal else ''))
     content = output.getvalue().encode('utf-8-sig')
     return content, archive_export(content=content, department=batch.treasury_department, user=actor,
         category='finance-remittance-returns', filename=f'{batch.reference_code}-returns.csv',

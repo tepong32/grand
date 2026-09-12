@@ -4,6 +4,12 @@ from django.utils import timezone
 from .remittance_returns import original_payment, remaining_allocations
 
 
+class RemittanceReturnWithdrawalForm(forms.Form):
+    reason = forms.CharField(label='Why must this approved receipt be replaced?',
+        widget=forms.Textarea(attrs={'rows': 2}),
+        help_text='Discard any unposted JEV first. A posted receipt needs a separate Accounting correction.')
+
+
 class RemittanceReturnForm(forms.Form):
     returned_on = forms.DateField(label='Actual receipt date', initial=timezone.localdate,
         widget=forms.DateInput(attrs={'type': 'date'}))

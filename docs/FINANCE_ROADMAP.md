@@ -1,5 +1,7 @@
 # GRAND Finance complete-cycle roadmap
 
+v0.7.94 development checkpoint: [unposted receipt approval withdrawal](FINANCE_RETURN_WITHDRAWAL_2026-09-12.md) permits corrected receipts while retaining original approval/discarded-draft evidence and refusing posted-money withdrawal. Native concurrency and dependent voucher/My Work checks pass. Posted-return corrections and broader Finance gates remain open.
+
 v0.7.93 development checkpoint: [actual allocated remittance returns](FINANCE_REMITTANCE_RETURNS_IN_PROGRESS.md) connects web receipt entry and independent review to original-bank incoming journals, explicit partial liability restoration, recovery, retained filing/amendment evidence and separate exports. Full-project and native/concurrency checks pass. Later return corrections, other bank/fee dispositions, generated-history adoption and the broader Finance gates remain open.
 
 v0.7.92 development checkpoint: [dated withholding correction capacity](FINANCE_DATED_WITHHOLDING_CORRECTIONS_2026-09-12.md) prevents earlier corrections from consuming later posted remittances, preserves intermediate shortfalls and retains transaction classification on new reversals. Full-project and native validation pass. Actual returned-remittance/batch/tax-filing recovery, generated-history adoption and broader Finance gates remain open.

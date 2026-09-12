@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.94] - 2026-09-12
+### Added
+- feat(finance): withdraw unposted receipt approvals
+
 ## [0.7.93] - 2026-09-12
 ### Added
 - feat(finance): record allocated remittance returns

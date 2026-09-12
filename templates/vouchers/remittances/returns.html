@@ -11,10 +11,16 @@
       <p class="mb-1">{{ item.proposal.reason }}</p>
       <p class="small">Filing review / disposition: {{ item.proposal.filing_basis }}</p>
       {% if item.review_reason %}<p class="small">Accounting decision: {{ item.review_reason }}</p>{% endif %}
+      {% if item.withdrawal %}<p class="small">Withdrawal: {{ item.withdrawal.reason }} · {{ item.withdrawal.actor.get_full_name|default:item.withdrawal.actor.username }} · {{ item.withdrawal.created_at }}</p>{% endif %}
       {% if item.posting_request %}<p class="small">JEV {{ item.posting_request.jev_number }} · {{ item.posting_request.get_status_display }}</p>{% endif %}
       {% if can_review_returns and item.status == 'proposed' and item.prepared_by_id != request.user.pk %}
       <form method="post" action="{% url 'vouchers:remittance_return_review' batch.public_id item.public_id %}">
         {% csrf_token %}{{ review_form.as_p }}<button class="btn btn-warning btn-sm">Record independent return decision</button>
+      </form>
+      {% endif %}
+      {% if can_review_returns and item.status == 'approved' and item.prepared_by_id != request.user.pk %}
+      <form method="post" action="{% url 'vouchers:remittance_return_withdraw' batch.public_id item.public_id %}">
+        {% csrf_token %}{{ return_withdrawal_form.as_p }}<button class="btn btn-outline-danger btn-sm">Withdraw unposted approval</button>
       </form>
       {% endif %}
     </div>
