@@ -997,3 +997,20 @@ review, posting and corrections. Preserve department/role boundaries, issued byt
 the distinction between accounting correction and actual new cash movement. See
 [scope, tests and remaining work](FINANCE_ADVANCE_REFUNDS_IN_PROGRESS.md). Revisit the
 supported receipt basis against actual local cash/direct-bank practices and prescribed forms.
+
+## D-088 - Correct accepted expenses through exact retained reversals
+
+Date: 2026-09-13. Development decision; local accounting/form acceptance remains open.
+
+Use the existing posting request and journal correction lineage to reverse an incorrect
+posted expense liquidation, with independent posting and exact officer subsidiary
+evidence. Release its dated hold only after operational reconciliation. A corrected
+expense request retains its predecessor; actual returned money uses D-087's receipt
+route. Preserve case-before-Finance locks across both settlement choices.
+
+This avoids editing original expenses, recycling an old request identity or introducing
+another correction ledger. The tradeoff is an explicit reversal-and-replacement cycle
+and conservative capacity during interrupted cross-store recovery. Independent
+withdrawal is available only after all unposted correction drafts are discarded.
+Revisit historical/inactive-account and original-recognition correction breadth against
+actual local procedures. See [scope and evidence](FINANCE_LIQUIDATION_CORRECTIONS_2026-09-13.md).

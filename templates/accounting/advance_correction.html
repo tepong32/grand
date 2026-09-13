@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-3">
+  <a href="{% url 'accounting:advance_detail' original.original_detail %}">Back to original officer advance</a>
+  <h1 class="h3 mt-3">Correct posted expense liquidation</h1>
+  <p>{{ original.document_reference }} · JEV {{ application.jev_number }} · {{ application.jev_date }} · {{ original.amount }}</p>
+  <p>This creates a separate, exact reversing JEV. Another Accounting officer must post it before the correction restores the advance balance. The original liquidation remains in history. Prepare the corrected expenses afterward.</p>
+  <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Prepare correction JEV</button></form>
+</div>
+{% endblock %}

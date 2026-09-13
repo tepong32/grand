@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.103] - 2026-09-13
+### Added
+- feat(finance): correct posted expense liquidations with retained reversals
+
 ## [0.7.102] - 2026-09-13
 ### Added
 - feat(finance): connect officer advance cash refunds and deposits

@@ -16,7 +16,28 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
-Current v0.7.102 development checkpoint on `codex/finance-advance-refunds` follows v0.7.101:
+Current v0.7.103 development checkpoint on `codex/finance-liquidation-corrections`
+adds [posted expense-liquidation corrections](docs/FINANCE_LIQUIDATION_CORRECTIONS_2026-09-13.md), D-088. Exact independent reversal,
+dated capacity restoration, corrected replacement or actual cash refund, interrupted
+handoff recovery, independent draft withdrawal and retained original/export history
+are connected. No schema or operator-store migration. See the feature record for
+actual validation, scope and remaining limitations.
+
+PASS: full-project SQLite 1,107 discovered / 1,041 passed / 66 skipped, 610.806s
+(runner 7618 exit 0); native 40/40, 71.096s (31823 exit 0); final native workflow/UI
+checks 2/2, 9.297s (79483 exit 0). The feature record distinguishes the later additions
+from the earlier full-suite discovery. System/drift/diff checks and synthetic desktop/
+narrow template inspection pass. All runners ended; owned preview/MySQL services and
+browser closed, ports closed. Protected DB unchanged; eGAPS untouched.
+
+Pause implementation after committing and pushing this checkpoint, as requested.
+The next implementation work remains original advance-recognition corrections and
+other missing Finance scenarios, followed by inventory, ordinary office/output,
+usability/WFH and operational/LGU gates. Do not treat this checkpoint as full Finance
+completion, master integration or deployment. Preserve the modified operator DB and
+unrelated draft/screenshots. Remote branch/tag verification is required after publication.
+
+Previous v0.7.102 development checkpoint on `codex/finance-advance-refunds` follows v0.7.101:
 [actual officer refunds](docs/FINANCE_ADVANCE_REFUNDS_IN_PROGRESS.md), D-087. Receipt
 entry, shared dated refund/expense holds, independent Accounting, original advance
 subsidiary, deposit, exact receipt/deposit corrections and retained print/CSV source

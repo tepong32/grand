@@ -62,9 +62,12 @@ def capacity(detail, day, amount, *, exclude=None, exclude_refund=None):
            for row in controls["rows"]):
         raise ValidationError("Reconcile the advance control account before applying an individual source.")
     requests = [request for request in applications(recognition.case, detail) if request.pk != exclude]
+    from .liquidation_corrections import restored_movements
+    corrections = [movement for request in requests for movement in restored_movements(request)]
     from .advance_refunds import movements
     refund_movements = movements(detail, exclude=exclude_refund)
     boundaries = {day, timezone.localdate()}
+    boundaries.update(moment for moment, value in corrections if moment >= day)
     boundaries.update(moment for moment, value in refund_movements if moment >= day)
     boundaries.update(request.jev_date for request in requests if request.jev_date >= day)
     boundaries.update(timezone.localdate(item.released_at) for item in recognition.case.payment_instruments.all()
@@ -76,6 +79,7 @@ def capacity(detail, day, amount, *, exclude=None, exclude_refund=None):
         held = sum((money(request.payload["advance_application"]["amount"]) for request in requests
                     if request.jev_date <= boundary), Decimal("0"))
         held += sum((value for moment, value in refund_movements if moment <= boundary), Decimal('0'))
+        held += sum((value for moment, value in corrections if moment <= boundary), Decimal('0'))
         if amount + held > proof["released_net"]:
             raise ValidationError(f"The liquidation exceeds the released advance remaining on {boundary.isoformat()}.")
     return disbursement(detail, day)
@@ -130,15 +134,21 @@ def prepare(*, detail, actor, rule, day, expenses, evidence_reference, key):
     if existing:
         previous = dict(existing.payload.get("advance_application", {}))
         previous.pop("disbursement", None)
+        previous.pop('replaces_application', None)
         if existing.jev_date != day or previous != application or existing.posting_rule_checksum != checksum:
             raise ValidationError("This request identity belongs to a different retained liquidation.")
         if existing.status == Request.CANCELLED:
             raise ValidationError("This liquidation was withdrawn; prepare a new request identity.")
         capacity(detail, day, amount, exclude=existing.pk)
         return existing
-    if any(item.payload["advance_application"]["document_reference"].casefold()
-           == application["document_reference"].casefold() for item in applications(case, detail)):
-        raise ValidationError("This original advance already has an active liquidation with that document reference.")
+    from .liquidation_corrections import restored_movements
+    matching = [item for item in applications(case, detail)
+        if item.payload['advance_application']['document_reference'].casefold() == application['document_reference'].casefold()]
+    for item in matching:
+        if not any(moment <= day for moment, value in restored_movements(item)):
+            raise ValidationError("This original advance already has an active liquidation with that document reference.")
+    if matching:
+        application['replaces_application'] = str(max(matching, key=lambda row: row.version).public_id)
     application["disbursement"] = capacity(detail, day, amount)
     sequence = FinanceNumberingSequence.objects.select_for_update().filter(department_id=owner.pk,
         release=variant.release, fiscal_year=day.year, document_type="journal-entry", status="active").first()
@@ -279,7 +289,8 @@ def withdraw(request, actor, reason):
         raise PermissionDenied
     case = VoucherCase.objects.select_for_update().get(pk=request.case_id)
     request = Request.objects.select_for_update().get(pk=request.pk)
-    if not request.payload.get("advance_application") or actor.pk == request.requested_by_id or not str(reason).strip():
+    correction = request.payload.get('advance_application_correction')
+    if not (request.payload.get("advance_application") or correction) or actor.pk == request.requested_by_id or not str(reason).strip():
         raise ValidationError("An independent Accounting reviewer must retain a withdrawal reason.")
     if request.status == Request.CANCELLED:
         return request
@@ -291,7 +302,7 @@ def withdraw(request, actor, reason):
         request.failure_reason = str(reason).strip()
         request.save()
         from .services import _event
-        _event(case, actor, "advance_liquidation_withdrawn", case.current_stage, str(reason).strip(),
+        _event(case, actor, "advance_liquidation_correction_withdrawn" if correction else "advance_liquidation_withdrawn", case.current_stage, str(reason).strip(),
             {"posting_request": str(request.public_id), "payload_checksum": request.payload_checksum},
             f"advance-withdraw:{request.public_id}")
     return request

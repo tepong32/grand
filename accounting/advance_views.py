@@ -37,6 +37,13 @@ class LiquidationForm(forms.Form):
                 field.widget.attrs["class"] = "form-control"
 
 
+class LiquidationCorrectionForm(forms.Form):
+    day = forms.DateField(label='Correction date', widget=forms.DateInput(attrs={'type':'date', 'class':'form-control'}))
+    reason = forms.CharField(label='Why the posted liquidation is incorrect',
+        widget=forms.Textarea(attrs={'rows':3, 'class':'form-control'}))
+    key = forms.UUIDField(widget=forms.HiddenInput)
+
+
 class ExpenseForm(forms.Form):
     account = forms.ChoiceField(label="Expense account")
     amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal("0.01"))
@@ -56,7 +63,8 @@ class ExpenseForm(forms.Form):
 def detail(request, pk):
     owner = department_for_user(request.user)
     source = get_object_or_404(JournalSubsidiaryLine.objects.select_related("entry", "journal_line"),
-        pk=pk, category=JournalSubsidiaryLine.ADVANCE, debit__gt=0, entry__department_id=owner.pk)
+        pk=pk, category=JournalSubsidiaryLine.ADVANCE, debit__gt=0, entry__department_id=owner.pk,
+        entry__source_snapshot__advance_application_correction__isnull=True)
     form = LiquidationForm(request.POST or None, owner=owner, initial={"day":timezone.localdate(), "key":uuid.uuid4()})
     FormSet = forms.formset_factory(ExpenseForm, extra=1, max_num=100, validate_max=True, min_num=1, validate_min=True)
     expenses = FormSet(request.POST or None, prefix="expenses", form_kwargs={"owner":owner})
@@ -83,6 +91,12 @@ def detail(request, pk):
     proof, issue = None, ""
     retained = list(VoucherPostingRequest.objects.filter(finance_department_id=owner.pk,
         payload__advance_application__original_detail=source.pk).order_by("pk"))
+    retained_corrections = list(VoucherPostingRequest.objects.filter(finance_department_id=owner.pk,
+        payload__advance_application_correction__original_detail=source.pk).order_by('pk'))
+    active_corrections = {item.payload['advance_application_correction']['original_request']: item
+        for item in retained_corrections if item.status != VoucherPostingRequest.CANCELLED}
+    for item in retained:
+        item.current_correction = active_corrections.get(str(item.public_id))
     try:
         proof = disbursement(source, timezone.localdate())
         _, recognition, _ = original(source)
@@ -91,6 +105,9 @@ def detail(request, pk):
         from vouchers.advance_refunds import movements
         proof['applied_or_reserved'] += sum((value for day, value in movements(source)
             if day <= timezone.localdate()), Decimal('0'))
+        from vouchers.liquidation_corrections import restored_movements
+        proof['applied_or_reserved'] += sum((value for application in applications(recognition.case, source)
+            for day, value in restored_movements(application) if day <= timezone.localdate()), Decimal('0'))
         proof["remaining"] = proof["released_net"] - proof["applied_or_reserved"]
         capacity(source, timezone.localdate(), Decimal("0"))
     except ValidationError as exc:
@@ -99,7 +116,35 @@ def detail(request, pk):
         "form":form, "expenses":expenses, "applications":retained,
         "refunds":TreasuryCollectionSource.objects.filter(
             finance_department_id=owner.pk, proposal__advance_refund__original_detail=source.pk),
+        "corrections":retained_corrections,
         "can_prepare":can_prepare_journals(request.user), "can_review":can_post_journals(request.user)})
+
+
+@require_http_methods(['GET', 'POST'])
+@accounting_permission_required(lambda user: can_prepare_journals(user) and can_view_advances(user))
+def correct(request, public_id):
+    from vouchers.liquidation_corrections import prepare as prepare_correction, materialize as make_correction
+    owner = department_for_user(request.user)
+    application = get_object_or_404(VoucherPostingRequest, public_id=public_id,
+        finance_department_id=owner.pk, status=VoucherPostingRequest.POSTED)
+    data = application.payload.get('advance_application')
+    if not data:
+        raise PermissionDenied
+    form = LiquidationCorrectionForm(request.POST or None, initial={'day':timezone.localdate(), 'key':uuid.uuid4()})
+    if request.method == 'POST' and form.is_valid():
+        try:
+            correction = prepare_correction(application=application, actor=request.user, day=form.cleaned_data['day'],
+                reason=form.cleaned_data['reason'], key=str(form.cleaned_data['key']))
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            try:
+                entry, _ = make_correction(correction, request.user)
+            except ValidationError as exc:
+                messages.error(request, ' '.join(exc.messages) + ' The retained correction is available on the original advance for recovery.')
+                return redirect('accounting:advance_detail', pk=data['original_detail'])
+            return redirect('accounting:entry_detail', public_id=entry.public_id)
+    return render(request, 'accounting/advance_correction.html', {'application':application, 'original':data, 'form':form})
 
 
 @require_POST
@@ -107,12 +152,13 @@ def detail(request, pk):
 def action(request, public_id, action):
     owner = department_for_user(request.user)
     application = get_object_or_404(VoucherPostingRequest, public_id=public_id, finance_department_id=owner.pk)
-    data = application.payload.get("advance_application")
+    data = application.payload.get("advance_application") or application.payload.get('advance_application_correction')
     if not data:
         raise PermissionDenied
     try:
         if action == "recover":
-            entry, _ = materialize(application, request.user)
+            from vouchers.posting import materialize_voucher_journal
+            entry, _ = materialize_voucher_journal(application, request.user)
             return redirect("accounting:entry_detail", public_id=entry.public_id)
         if action == "withdraw":
             withdraw(application, request.user, request.POST.get("reason", ""))
@@ -130,7 +176,8 @@ def register(request):
     owner = department_for_user(request.user)
     sources = JournalSubsidiaryLine.objects.filter(category=JournalSubsidiaryLine.ADVANCE,
         debit__gt=0, entry__department_id=owner.pk, entry__status="posted", entry__source_type='voucher',
-        entry__entry_date__lte=timezone.localdate()).select_related("entry", "entry__fund")
+        entry__entry_date__lte=timezone.localdate()).exclude(
+            entry__source_snapshot__has_key='advance_application_correction').select_related("entry", "entry__fund")
     query = (request.GET.get("q") or "").strip()
     if query:
         sources = sources.filter(Q(reference_label__icontains=query) | Q(entry__reference__icontains=query))

@@ -2161,7 +2161,7 @@ def subsidiary_controls(request):
         "advances": advances,
         "advance_sources": JournalSubsidiaryLine.objects.filter(category=JournalSubsidiaryLine.ADVANCE,
             debit__gt=0, entry__department_id=department.pk, entry__status=JournalEntry.POSTED, entry__source_type='voucher',
-            entry__entry_date__lte=as_of_date).select_related("entry", "entry__fund").order_by("entry__entry_date", "pk"),
+            entry__entry_date__lte=as_of_date).exclude(entry__source_snapshot__has_key='advance_application_correction').select_related("entry", "entry__fund").order_by("entry__entry_date", "pk"),
         "advance_totals": totals(advances),
         "payable_totals": totals(payables),
         "withholding_totals": totals(withholdings),

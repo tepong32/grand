@@ -10,7 +10,7 @@ from finance.models import FinancePostingRule as Rule
 from .models import VoucherPostingRequest as Request, PaymentInstrumentException
 
 
-def posted_request(request):
+def posted_request(request, *, allow_reversal_reference=None):
     entry = JournalEntry.objects.filter(public_id=request.accounting_entry_public_id).first()
     if request.status != Request.POSTED or entry is None:
         raise ValidationError("Reconcile the independently posted source journal first.")
@@ -29,7 +29,10 @@ def posted_request(request):
             or event.department_id != entry.department_id or debit <= 0 or debit != credit
             or recorded != (debit, credit)):
         raise ValidationError("The source must retain independent posting attribution and exact audited totals.")
-    if entry.reversal_entries.exclude(status=JournalEntry.VOIDED).exists():
+    reversals = entry.reversal_entries.exclude(status=JournalEntry.VOIDED)
+    if allow_reversal_reference:
+        reversals = reversals.exclude(source_type='voucher', source_reference=str(allow_reversal_reference))
+    if reversals.exists():
         raise ValidationError("Resolve the source journal's reversal before using this advance.")
     return entry
 

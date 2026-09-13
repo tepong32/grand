@@ -6,6 +6,7 @@ from . import views, cash_views, claim_views, shared_claim_views, advance_views
 app_name = "accounting"
 
 urlpatterns = [
+    path('advance-liquidations/<uuid:public_id>/correct/', advance_views.correct, name='advance_liquidation_correct'),
     path("advances/", advance_views.register, name="advance_register"),
     path("advances/export/", advance_views.export, name="advance_export"),
     path("advances/<int:pk>/", advance_views.detail, name="advance_detail"),

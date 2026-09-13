@@ -17,6 +17,9 @@
   <div class="card card-body">
     <h3 class="h5">{{ application.payload.advance_application.document_reference }} · {{ application.payload.advance_application.amount }} · {{ application.jev_date }}</h3>
     <p>{{ application.get_status_display }} · {{ application.jev_number }}</p>
+    {% if application.payload.advance_application.replaces_application %}<p>Replacement of a corrected liquidation; the earlier source remains in this history.</p>{% endif %}
+    {% if application.current_correction %}<p>Correction {{ application.current_correction.jev_number }} · {{ application.current_correction.get_status_display }}. See the retained correction below.</p>
+    {% elif can_prepare and application.status == 'posted' %}<p><a href="{% url 'accounting:advance_liquidation_correct' application.public_id %}">Correct this posted liquidation</a></p>{% endif %}
     <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Expense account</th><th>Document</th><th class="text-right">Amount</th></tr></thead><tbody>
       {% for row in application.payload.advance_application.expenses %}<tr><td>{{ row.account_code }}</td><td>{{ row.document_reference }}</td><td class="text-right">{{ row.amount }}</td></tr>{% endfor %}
     </tbody></table></div>
@@ -27,6 +30,16 @@
     {% endif %}
   </div>
   {% empty %}<p>No liquidation applications have been prepared for this original advance.</p>{% endfor %}
+  <h2>Liquidation corrections</h2>
+  {% for correction in corrections %}<div class="card card-body">
+    <p>Original JEV {{ correction.payload.advance_application_correction.original_jev_number }} · Correction {{ correction.jev_number }} · {{ correction.jev_date }} · {{ correction.get_status_display }}</p>
+    <p>{{ correction.payload.advance_application_correction.reason }}</p>
+    {% if correction.accounting_entry_public_id %}<p><a href="{% url 'accounting:entry_detail' correction.accounting_entry_public_id %}">Open correction JEV</a></p>{% endif %}
+    {% if correction.status != 'posted' and correction.status != 'cancelled' %}
+      {% if can_prepare %}<form method="post" action="{% url 'accounting:advance_application_action' correction.public_id 'recover' %}">{% csrf_token %}<button class="btn btn-outline-primary mb-2">Prepare or recover correction JEV</button></form>{% endif %}
+      {% if can_review %}<form method="post" action="{% url 'accounting:advance_application_action' correction.public_id 'withdraw' %}">{% csrf_token %}<label for="fix-reason-{{ correction.pk }}">Withdrawal reason (discard the unposted draft first)</label><input id="fix-reason-{{ correction.pk }}" class="form-control mb-2" name="reason" required><button class="btn btn-outline-secondary">Withdraw unposted correction</button></form>{% endif %}
+    {% endif %}
+  </div>{% empty %}<p>No posted-liquidation correction requests.</p>{% endfor %}
   {% if can_prepare %}
   <div class="card card-body"><h2>Prepare expense liquidation</h2><p>Enter accepted expenses and their actual document references. The JEV credits this original advance; it does not pay the officer again. Cash refunds and posted corrections require their own source workflow.</p>
     <form method="post">{% csrf_token %}{{ form.as_p }}{{ expenses.management_form }}{{ expenses.non_form_errors }}

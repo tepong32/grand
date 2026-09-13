@@ -30,6 +30,13 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+Posted expense-liquidation corrections use exact independently posted reversals and
+retain original request/JEV/subsidiary evidence. Only reconciled correction movements
+restore dated expense/refund capacity; exclude correction debits from original advance
+selection. Replacements pin their corrected predecessor. Case-before-Finance locking
+and independent discarded-draft withdrawal remain mandatory. See [posted expense-liquidation corrections](docs/FINANCE_LIQUIDATION_CORRECTIONS_2026-09-13.md), D-088.
+Original recognition corrections and other advance scenarios remain open.
+
 Officer cash refunds reuse the Treasury receipt/deposit source and credit the original
 advance subsidiary. Refund and expense holds share dated capacity and default-case-first
 locks. Independent withdrawal preserves evidence; exact posted receipt correction releases
