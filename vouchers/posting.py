@@ -480,10 +480,11 @@ def reconcile_posted_voucher_entry(entry, actor):
         from .advance_applications import reconcile
         return reconcile(entry, actor)
     entry = require_persisted_posting(entry, actor, source_type="voucher")
-    if entry.source_snapshot.get("earlier_accrual") or entry.source_snapshot.get("deduction_correction"):
-        source = VoucherPostingRequest.objects.filter(public_id=entry.source_reference).first()
-        if source:
-            VoucherCase.objects.select_for_update().get(pk=source.case_id)
+    # All case workflows reserve under the case lock. Lock it before the source
+    # request, including payment recovery, to avoid reversing that order.
+    source = VoucherPostingRequest.objects.filter(public_id=entry.source_reference).first()
+    if source:
+        VoucherCase.objects.select_for_update().get(pk=source.case_id)
     request = VoucherPostingRequest.objects.select_for_update().select_related("case").filter(
         public_id=entry.source_reference,
     ).first()

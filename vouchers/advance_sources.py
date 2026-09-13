@@ -89,26 +89,46 @@ def disbursement(detail, as_of):
         if instrument.released_at is None or timezone.localdate(instrument.released_at) > as_of:
             continue
         day = timezone.localdate(instrument.released_at)
-        requests = list(recognition.case.posting_requests.filter(kind=Request.PAYMENT,
-            trigger_key=f"payment-instrument:{instrument.public_id}:released"))
+        requests = list(recognition.case.posting_requests.filter(kind__in=(Request.PAYMENT, Request.REPLACEMENT),
+            trigger_key__in=(f"payment-instrument:{instrument.public_id}:released",
+                            f"payment-instrument:{instrument.public_id}:issued"))
+            .exclude(status=Request.NOT_REQUIRED))
         if len(requests) != 1:
-            raise ValidationError("The released advance instrument needs one retained release posting decision.")
+            raise ValidationError("The released advance instrument needs one retained payment posting decision.")
         request = requests[0]
         if request.status != Request.POSTED:
             raise ValidationError("Post and reconcile the advance payment before applying its release.")
         payment = posted_request(request)
         trigger = request.payload.get("trigger", {})
+        try:
+            event_amount = Decimal(request.payload.get("event_amount", ""))
+        except (InvalidOperation, TypeError, ValueError):
+            event_amount = Decimal("NaN")
+        point = request.posting_rule_snapshot.get("recognition_point")
+        at_release = point == Rule.PAYMENT_RELEASE
+        if not at_release and instrument.issued_at is None:
+            raise ValidationError("Retain the actual advance instrument issuance date.")
+        expected_point = Rule.PAYMENT_REPLACEMENT if instrument.replaces_id else Rule.PAYMENT_ISSUANCE
+        expected_kind = Request.PAYMENT if at_release or not instrument.replaces_id else Request.REPLACEMENT
+        posting_day = day if at_release else timezone.localdate(instrument.issued_at)
         lines = list(payment.lines.select_related("account"))
         debits = [line for line in lines if line.debit]
         credits = [line for line in lines if line.credit]
-        if (payment.fund_id != detail.entry.fund_id or payment.entry_date != day
-                or request.posting_rule_snapshot.get("recognition_point") != Rule.PAYMENT_RELEASE
+        if (payment.fund_id != detail.entry.fund_id or payment.entry_date != posting_day
+                or posting_day > day or point not in (Rule.PAYMENT_RELEASE, expected_point)
+                or request.kind != expected_kind
+                or request.trigger_key != f"payment-instrument:{instrument.public_id}:{'released' if at_release else 'issued'}"
+                or trigger.get("type") != ("payment_instrument_released" if at_release else "payment_instrument_issued")
+                or trigger.get("check_number") != instrument.check_number
                 or request.payload.get("payee_key") != detail.reference_key
-                or request.payload.get("event_amount") != str(instrument.amount)
+                or not event_amount.is_finite() or event_amount != instrument.amount
                 or trigger.get("instrument_public_id") != str(instrument.public_id)
-                or trigger.get("receipt_reference") != instrument.receipt_reference
+                or (at_release and trigger.get("receipt_reference") != instrument.receipt_reference)
                 or not instrument.receipt_reference or not instrument.released_by_id
-                or trigger.get("claimant_id") != instrument.released_to_claimant_id
+                or not instrument.released_to_claimant_id
+                or (at_release and trigger.get("claimant_id") != instrument.released_to_claimant_id)
+                or (not at_release and trigger.get("replaces_instrument_public_id") !=
+                    (str(instrument.replaces.public_id) if instrument.replaces_id else ""))
                 or len(lines) != 2 or len(debits) != 1 or len(credits) != 1
                 or debits[0].account_id != payable.account_id or debits[0].debit != instrument.amount
                 or credits[0].credit != instrument.amount or credits[0].account.account_type != "asset"
@@ -121,6 +141,8 @@ def disbursement(detail, as_of):
             withheld += instrument.amount
         sources.append({"instrument": str(instrument.public_id), "check_number": instrument.check_number,
             "released_on": day.isoformat(), "receipt_reference": instrument.receipt_reference,
+            "claimant_id": instrument.released_to_claimant_id, "released_by_id": instrument.released_by_id,
+            "posting_point": point, "posted_on": posting_day.isoformat(),
             "request": str(request.public_id), "entry": str(payment.public_id),
             "payload_checksum": request.payload_checksum, "amount": str(instrument.amount),
             "returns": [{"exception": str(item.public_id), "observed_on": item.observed_on.isoformat()}

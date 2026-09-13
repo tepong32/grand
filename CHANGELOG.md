@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.101] - 2026-09-13
+### Added
+- fix(finance): connect issuance advances and serialize payment recovery
+
 ## [0.7.100] - 2026-09-13
 ### Added
 - feat(finance): liquidate expenses against original officer advances

@@ -59,8 +59,12 @@ class AdvanceRecognitionTests(TestCase):
             line_account_code="5-02-03", document_codes=["invoice"],
             expected_version=case.state_version, idempotency_key=key)
 
-    def paid_advance(self, *, reconcile=True):
+    def paid_advance(self, *, reconcile=True, at_issuance=False):
         self.enable_payment_event_rules("op_suppliers")
+        if at_issuance:
+            from finance.models import FinancePostingRule as Rule
+            Rule.objects.filter(variant=self.transaction_variant, event_kind=Rule.PAYMENT).update(
+                recognition_point=Rule.PAYMENT_ISSUANCE)
         case = self.ready_for_treasury()
         recognition = case.posting_requests.get(kind=VoucherPostingRequest.RECOGNITION)
         detail = JournalSubsidiaryLine.objects.get(category=JournalSubsidiaryLine.ADVANCE)
@@ -74,6 +78,14 @@ class AdvanceRecognitionTests(TestCase):
         instrument = issue_check(case=case, actor=self.treasury_user, bank_account_code="gf-lbp",
             check_number="ADV-001", amount=Decimal("1000"), expected_version=case.state_version,
             idempotency_key="advance-issue")
+        if at_issuance:
+            issued = case.posting_requests.get(trigger_key=f"payment-instrument:{instrument.public_id}:issued")
+            issued_entry, _ = materialize_voucher_journal(issued, self.preparer)
+            submit_entry(issued_entry, self.preparer); issued_entry.refresh_from_db()
+            post_entry(issued_entry, self.validator); issued_entry.refresh_from_db()
+            reconcile_posted_voucher_entry(issued_entry, self.validator)
+            # Accounting recognition alone is not receipt by the accountable officer.
+            self.assertEqual(disbursement(detail, timezone.localdate())["released_net"], 0)
         case.refresh_from_db()
         submit_checks_for_advice(case=case, actor=self.treasury_user,
             expected_version=case.state_version, idempotency_key="advance-submit")
@@ -88,6 +100,11 @@ class AdvanceRecognitionTests(TestCase):
             receipt_reference="SYNTHETIC-ADVANCE-RECEIPT", expected_version=case.state_version,
             idempotency_key="advance-release")
         request = case.posting_requests.get(kind=VoucherPostingRequest.PAYMENT)
+        if at_issuance:
+            case.refresh_from_db()
+            self.assertEqual(case.current_stage, VoucherCase.COMPLETED)
+            self.assertEqual(disbursement(detail, timezone.localdate())["released_net"], Decimal("1000"))
+            return detail, case, instrument
         entry, _ = materialize_voucher_journal(request, self.preparer)
         submit_entry(entry, self.preparer); entry.refresh_from_db()
         post_entry(entry, self.validator); entry.refresh_from_db()
@@ -189,6 +206,38 @@ class AdvanceRecognitionTests(TestCase):
             FinancePostingRuleLine(rule=rule, sequence=2, label="Original advance", side="credit",
                 account_source=FinancePostingRuleLine.PRIOR_ADVANCE, amount_source=FinancePostingRuleLine.GROSS)])
         return rule
+
+    def test_issued_payment_liquidates_only_after_actual_release(self):
+        from .advance_applications import prepare, materialize, reconcile
+        from .advance_sources import disbursement
+        from finance.models import FinancePostingRule as Rule
+        detail, case, instrument = self.paid_advance(at_issuance=True)
+        proof = disbursement(detail, timezone.localdate())
+        self.assertEqual(proof["sources"][0]["posting_point"], Rule.PAYMENT_ISSUANCE)
+        self.assertEqual(proof["sources"][0]["claimant_id"], self.claimant.pk)
+        type(instrument).objects.filter(pk=instrument.pk).update(check_number="CHANGED-CHECK")
+        with self.assertRaisesMessage(ValidationError, "must agree"):
+            disbursement(detail, timezone.localdate())
+        type(instrument).objects.filter(pk=instrument.pk).update(check_number=instrument.check_number)
+        type(instrument).objects.filter(pk=instrument.pk).update(receipt_reference="")
+        with self.assertRaisesMessage(ValidationError, "must agree"):
+            disbursement(detail, timezone.localdate())
+        instrument.refresh_from_db()
+        type(instrument).objects.filter(pk=instrument.pk).update(receipt_reference="SYNTHETIC-ADVANCE-RECEIPT")
+        payment = case.posting_requests.get(kind=VoucherPostingRequest.PAYMENT)
+        VoucherPostingRequest.objects.filter(pk=payment.pk).update(status=VoucherPostingRequest.MATERIALIZED)
+        with self.assertRaisesMessage(ValidationError, "Post and reconcile"):
+            disbursement(detail, timezone.localdate())
+        VoucherPostingRequest.objects.filter(pk=payment.pk).update(status=VoucherPostingRequest.POSTED)
+        request = prepare(detail=detail, actor=self.preparer, rule=self.liquidation_rule(), day=timezone.localdate(),
+            expenses=[{"account_code":"5-02-03", "amount":"1000", "document_reference":"ISSUED-EXPENSE"}],
+            evidence_reference="ISSUED-LIQUIDATION", key="issued-liquidation")
+        entry, _ = materialize(request, self.preparer)
+        submit_entry(entry, self.preparer); entry.refresh_from_db()
+        post_entry(entry, self.validator); entry.refresh_from_db()
+        reconcile(entry, self.validator)
+        self.assertFalse(entry.lines.filter(account__code="1-01-02").exists())
+        self.assertEqual(subsidiary_schedule_rows(self.accounting.pk, "advance", timezone.localdate())[0]["balance"], 0)
 
     def test_partial_liquidation_reserves_posts_and_reconciles_original_advance(self):
         from .advance_applications import prepare, materialize, reconcile

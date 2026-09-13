@@ -973,3 +973,9 @@ Date: 2026-09-12. Development decision; not local form or operational acceptance
 Reuse the existing immutable voucher posting request, governed recipe and independent Accounting JEV for expense liquidation. Each application selects an original officer advance, retains accepted expense documents and verifies its actual reconciled disbursement. Serialize reservations and posting on the default case before Finance journal locks; check dated capacity at the application and all later known source boundaries. Pending/posting recovery consumes one reservation, and native races verify competing proposals, materialization and posting.
 
 This closes a concrete source-to-ledger/output gap without another ledger or workflow engine. The tradeoff is explicit original-source evidence and an initial expense-only recipe; aggregate officer balances, generic “liquidation” labels and detached reversals cannot establish cash availability or corrections. Retain discarded drafts and independent withdrawal events; preserve previously exported bytes. Actual refunds, posted source corrections and other locally used advance scenarios remain the next functional work. See [scope and validation](FINANCE_ADVANCE_LIQUIDATIONS_2026-09-12.md).
+
+2026-09-13 extension: [issuance-time payment evidence](FINANCE_ADVANCE_ISSUANCE_2026-09-13.md)
+accepts the actual reviewed payment timing but still waits for actual officer release.
+Native recovery testing requires case-before-posting-request order for ordinary voucher
+reconciliation as well as advance applications; never automatically replay financial actions
+to conceal an inverted lock order. Refund receipts remain separate unfinished functionality.

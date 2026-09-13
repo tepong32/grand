@@ -16,7 +16,21 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
-Current v0.7.100 development checkpoint on `codex/finance-advance-applications`, based on pushed v0.7.99: [source/ledger/output evidence](docs/FINANCE_ADVANCE_LIQUIDATIONS_2026-09-12.md), D-086. Original advance selection, actual release proof, dated expense reservations, independent JEV posting, recovery, unposted withdrawal and retained exports are connected. Standard Accounting roles have specific advance read/export access and a searchable workspace entry point; the page shows applied/reserved and remaining amounts. Reservation locks are scoped to liquidation requests, preserving case-first order without taking payment-recovery locks. Native workflow/role/source and four race scenarios pass 16/16; final full-project SQLite passes 1,007 tests with 53 skipped (1,060 discovered, 543.265s, runner 97271 exit 0). Actual cash refunds, governed posted corrections and other advance scenarios remain next, before the remaining M01/M02/inventory/output/office/operational/LGU gates.
+Current v0.7.101 checkpoint on `codex/finance-advance-issuance`, based on published v0.7.100:
+[issuance-time advance payment](docs/FINANCE_ADVANCE_ISSUANCE_2026-09-13.md).
+The actual issuance/release source now supplies liquidation evidence while actual
+officer receipt still controls availability. Voucher reconciliation now locks the case
+before its posting request, resolving the native payment-recovery deadlock. PASS:
+dependent voucher SQLite 360 discovered / 332 passed / 28 skipped (244.196s, runner
+90431 exit 0), native 32/32 (48.970s, runner 67415 exit 0), and system/migration-drift
+checks. The feature record preserves the corrected failures and interrupted first
+dependent run. All runners ended, native/preview ports are closed, and the protected
+database remains unchanged. Version Manager preserves unrelated work and historical
+references; verify the development branch/tag after publication. Continue
+with linked actual cash refunds and governed posted corrections after this checkpoint;
+the wider Finance inventory, office/output and acceptance gates remain incomplete.
+
+Previous v0.7.100 development checkpoint on `codex/finance-advance-applications`, based on pushed v0.7.99: [source/ledger/output evidence](docs/FINANCE_ADVANCE_LIQUIDATIONS_2026-09-12.md), D-086. Original advance selection, actual release proof, dated expense reservations, independent JEV posting, recovery, unposted withdrawal and retained exports are connected. Standard Accounting roles have specific advance read/export access and a searchable workspace entry point; the page shows applied/reserved and remaining amounts. Reservation locks are scoped to liquidation requests. Native workflow/role/source and four race scenarios passed 16/16; final full-project SQLite passed 1,007 tests with 53 skipped (1,060 discovered, 543.265s, runner 97271 exit 0). The later native payment-recovery deadlock and its case-first fix are recorded in v0.7.101 above. Actual cash refunds, governed posted corrections and other advance scenarios remain next, before the remaining M01/M02/inventory/output/office/operational/LGU gates.
 
 All runners ended; owned native and browser-preview services stopped. The protected DB hash remains unchanged and eGAPS was untouched. Migrations ran only in disposable stores. Version Manager publishes only the explicit checkpoint and VERSION/CHANGELOG, preserving unrelated work and historical releases. Verify the remote development branch/tag; no master merge or deployment. This checkpoint does not establish full Finance completion or acceptance.
 
