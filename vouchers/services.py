@@ -793,7 +793,9 @@ def reconcile_authoritative_obligation(*, case, actor, expected_version, idempot
         return case
     if department_for_user(actor).pk != case.requesting_department_id:
         raise PermissionDenied
-    if case.current_stage != VoucherCase.PAYABLE_PREPARATION or hasattr(case, "disbursement_voucher"):
+    from .advance_recognition_corrections import correction_window
+    if case.current_stage != VoucherCase.PAYABLE_PREPARATION or (
+            hasattr(case, "disbursement_voucher") and not correction_window(case)):
         raise VoucherWorkflowError(
             "Return the case to requesting-office payable preparation before reconciling obligation relationships."
         )
@@ -996,7 +998,8 @@ def _validate_payable_freshness(case):
 
 
 def _require_payable_modification_window(case, actor):
-    if hasattr(case, "disbursement_voucher") or case.payment_instruments.exists():
+    from .advance_recognition_corrections import correction_window
+    if (hasattr(case, "disbursement_voucher") or case.payment_instruments.exists()) and not correction_window(case):
         raise VoucherWorkflowError(
             "A DV or check has already been issued. Use the coordinated voucher/payment reversal or cancellation route."
         )
@@ -1364,6 +1367,8 @@ def prepare_voucher(*, case, actor, voucher_date, gross_amount, deductions, line
         return case
     _require_current_office(case, actor)
     _require_active_case_foundation(case)
+    from .advance_recognition_corrections import check_replacement_date
+    check_replacement_date(case, voucher_date)
     if case.current_stage != VoucherCase.ACCOUNTING_PREPARATION:
         raise VoucherWorkflowError("This case is not awaiting Accounting DV preparation.")
     if case.payable_document_evidence.exists() and case.payable_intake.status != PayableIntake.READY:
@@ -1660,6 +1665,8 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
     if existing:
         return case
     _require_current_office(case, actor)
+    from .advance_recognition_corrections import check_replacement_date
+    check_replacement_date(case, jev_date)
     if case.current_stage != VoucherCase.ACCOUNTING_VALIDATION:
         raise VoucherWorkflowError("This voucher is not awaiting Accounting validation.")
     try:
@@ -1818,7 +1825,9 @@ def validate_accounting(*, case, actor, jev_number, jev_date, note, expected_ver
         note=note.strip(), validated_by=actor, validated_at=timezone.now(), prior_payable_snapshot=prior_evidence,
     )
     from .advances import recognition_evidence
+    from .advance_recognition_corrections import replacement_evidence
     payload = {
+        **replacement_evidence(case),
         **({"prior_payable": prior_evidence} if prior_evidence else {}),
         **recognition_evidence(case, posting_rule),
         "schema_version": 3,

@@ -312,7 +312,9 @@ class PayableIntake(models.Model):
         )
 
     def clean(self):
-        if self.initial_allocation_amount > self.claim_amount:
+        # Initial intake evidence stays historical after guided allocation/claim revisions.
+        # Revision and submission services validate the current versioned allocations.
+        if self._state.adding and self.initial_allocation_amount > self.claim_amount:
             raise ValidationError({
                 "initial_allocation_amount": "The initial obligation allocation cannot exceed the payable claim control total."
             })

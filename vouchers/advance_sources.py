@@ -45,8 +45,10 @@ def original(detail):
     if request is None or request.kind != Request.RECOGNITION:
         raise ValidationError("The advance needs its original governed DV recognition source.")
     entry = posted_request(request)
+    from .advance_recognition_corrections import corrected_request_ids
+    corrected = corrected_request_ids(request.case)
     case_sources = [str(value) for value in request.case.posting_requests.filter(kind=Request.RECOGNITION)
-                    .values_list("public_id", flat=True)]
+                    .values_list("public_id", flat=True) if str(value) not in corrected]
     if JournalSubsidiaryLine.objects.filter(category=JournalSubsidiaryLine.ADVANCE, debit__gt=0,
             entry__status=JournalEntry.POSTED, entry__source_type="voucher", entry__source_reference__in=case_sources).count() != 1:
         raise ValidationError("Resolve the case's ambiguous original advance recognitions before allocating its payments.")

@@ -16,7 +16,29 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
-Current v0.7.103 development checkpoint on `codex/finance-liquidation-corrections`
+The v0.7.104 development checkpoint on `codex/finance-advance-recognition-corrections`
+connects [unpaid original advance corrections](docs/FINANCE_ADVANCE_RECOGNITION_CORRECTIONS_IN_PROGRESS.md),
+D-089. Exact independent reversal and reconciliation reopen existing Budget/payable/DV
+work; replacement recognition and actual payment retain the predecessor evidence.
+Budget approval and replacement DV preparation share the default fiscal issuance/case
+boundary before Finance locks. Any payment instrument excludes this original-correction
+route. The later user `continue` supersedes the earlier nightly pause.
+
+PASS: final full-project SQLite 1,133 discovered / 1,059 passed / 74 skipped, 699.061s, runner 50416 exit 0;
+final native workflow/concurrency 25/25, 60.830s, runner 68429 exit 0; existing native
+Budget 32/32, 17.967s, runner 91070 exit 0. See the feature record for commands,
+earlier failures, initial full-run scope and synthetic browser evidence. System,
+migration-drift and diff checks pass. Owned native/preview services and browsers are
+closed; operator DB unchanged; eGAPS untouched. No schema migration or deployment.
+
+The checkpoint uses Version Manager with an explicit file list, preserving unrelated
+work and historical release references. Verify remote branch/tag before further work.
+Next functional work remains original advance corrections involving issued/cancelled/
+released instruments and other missing Finance scenarios. Actual inventory, ordinary
+office/output parity, usability/WFH and operational/LGU gates remain open. No master
+integration or full Finance completion is established.
+
+Previous v0.7.103 development checkpoint on `codex/finance-liquidation-corrections`
 adds [posted expense-liquidation corrections](docs/FINANCE_LIQUIDATION_CORRECTIONS_2026-09-13.md), D-088. Exact independent reversal,
 dated capacity restoration, corrected replacement or actual cash refund, interrupted
 handoff recovery, independent draft withdrawal and retained original/export history
@@ -30,7 +52,7 @@ from the earlier full-suite discovery. System/drift/diff checks and synthetic de
 narrow template inspection pass. All runners ended; owned preview/MySQL services and
 browser closed, ports closed. Protected DB unchanged; eGAPS untouched.
 
-Pause implementation after committing and pushing this checkpoint, as requested.
+The v0.7.103 checkpoint completed the earlier commit/push request; implementation has resumed.
 The next implementation work remains original advance-recognition corrections and
 other missing Finance scenarios, followed by inventory, ordinary office/output,
 usability/WFH and operational/LGU gates. Do not treat this checkpoint as full Finance

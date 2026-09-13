@@ -1,4 +1,5 @@
 import csv
+from .advance_recognition_corrections import correction_window as advance_correction_window
 from uuid import UUID
 
 from django.contrib import messages
@@ -440,6 +441,7 @@ def case_detail(request, public_id, *, form_overrides=None):
         "payable_allocation_revision_form": PayableAllocationRevisionForm(case=case),
         "payable_claim_control_form": PayableClaimControlForm(case=case),
         "payable_relationships": relationship_summary,
+        "advance_correction_window": advance_correction_window(case),
         "current_print_job": current_print_job,
         "can_amend_nonfinancial": bool(
             can_amend_nonfinancial_case(request.user, case)

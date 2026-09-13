@@ -112,7 +112,16 @@ def detail(request, pk):
         capacity(source, timezone.localdate(), Decimal("0"))
     except ValidationError as exc:
         issue = " ".join(exc.messages)
+    source_request = VoucherPostingRequest.objects.select_related('case').filter(public_id=source.source_reference).first()
+    recognition_corrections = VoucherPostingRequest.objects.filter(finance_department_id=owner.pk,
+        payload__advance_recognition_correction__original_detail=source.pk).order_by('pk')
+    can_correct_recognition = bool(source_request and source_request.status == VoucherPostingRequest.POSTED
+        and source_request.case.current_stage == 'treasury_check_preparation'
+        and not source_request.case.payment_instruments.exists()
+        and not recognition_corrections.exclude(status=VoucherPostingRequest.CANCELLED).exists())
     return render(request, "accounting/advance_detail.html", {"source":source, "proof":proof, "issue":issue,
+        "recognition_corrections":recognition_corrections, "can_correct_recognition":can_correct_recognition,
+        "original_recognition_has_correction":recognition_corrections.exclude(status=VoucherPostingRequest.CANCELLED).exists(),
         "form":form, "expenses":expenses, "applications":retained,
         "refunds":TreasuryCollectionSource.objects.filter(
             finance_department_id=owner.pk, proposal__advance_refund__original_detail=source.pk),
@@ -152,7 +161,8 @@ def correct(request, public_id):
 def action(request, public_id, action):
     owner = department_for_user(request.user)
     application = get_object_or_404(VoucherPostingRequest, public_id=public_id, finance_department_id=owner.pk)
-    data = application.payload.get("advance_application") or application.payload.get('advance_application_correction')
+    data = (application.payload.get("advance_application") or application.payload.get('advance_application_correction')
+            or application.payload.get('advance_recognition_correction'))
     if not data:
         raise PermissionDenied
     try:
@@ -161,13 +171,43 @@ def action(request, public_id, action):
             entry, _ = materialize_voucher_journal(application, request.user)
             return redirect("accounting:entry_detail", public_id=entry.public_id)
         if action == "withdraw":
-            withdraw(application, request.user, request.POST.get("reason", ""))
-            messages.success(request, "The unposted liquidation reservation was withdrawn; its history is retained.")
+            if application.payload.get('advance_recognition_correction'):
+                from vouchers.advance_recognition_corrections import withdraw as withdraw_recognition
+                withdraw_recognition(application, request.user, request.POST.get('reason', ''))
+            else:
+                withdraw(application, request.user, request.POST.get("reason", ""))
+            messages.success(request, "The unposted advance request was withdrawn; its history is retained.")
         else:
             raise PermissionDenied
     except ValidationError as exc:
         messages.error(request, " ".join(exc.messages))
     return redirect("accounting:advance_detail", pk=data["original_detail"])
+
+
+@require_http_methods(['GET', 'POST'])
+@accounting_permission_required(lambda user: can_prepare_journals(user) and can_view_advances(user))
+def correct_recognition(request, pk):
+    from vouchers.advance_recognition_corrections import prepare as prepare_correction
+    from vouchers.posting import materialize_voucher_journal
+    owner = department_for_user(request.user)
+    source = get_object_or_404(JournalSubsidiaryLine.objects.select_related('entry'), pk=pk,
+        category=JournalSubsidiaryLine.ADVANCE, debit__gt=0, entry__department_id=owner.pk)
+    form = LiquidationCorrectionForm(request.POST or None, initial={'day':timezone.localdate(), 'key':uuid.uuid4()})
+    form.fields['reason'].label = 'Why the original unpaid advance is incorrect'
+    if request.method == 'POST' and form.is_valid():
+        try:
+            correction = prepare_correction(detail=source, actor=request.user, day=form.cleaned_data['day'],
+                reason=form.cleaned_data['reason'], key=str(form.cleaned_data['key']))
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            try:
+                entry, _ = materialize_voucher_journal(correction, request.user)
+            except ValidationError as exc:
+                messages.error(request, ' '.join(exc.messages) + ' Recover the retained correction from the original advance.')
+                return redirect('accounting:advance_detail', pk=source.pk)
+            return redirect('accounting:entry_detail', public_id=entry.public_id)
+    return render(request, 'accounting/advance_recognition_correction.html', {'source':source, 'form':form})
 
 
 @require_http_methods(["GET"])

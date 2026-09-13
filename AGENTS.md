@@ -30,6 +30,15 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+Unpaid original advance corrections use an exact independently posted reversal before
+reopening the existing payable/Budget/DV route. The verified correction window is
+unavailable once any payment instrument exists. Replacement recognition pins its
+predecessor; initial intake allocations remain historical while guided revisions
+validate current allocations. Linked Budget corrections lock default-store fiscal
+issuance boundaries and cases before Finance locks, serializing with replacement DV
+issuance. Paid/cancelled-instrument original corrections remain open. See
+[scope and validation](docs/FINANCE_ADVANCE_RECOGNITION_CORRECTIONS_IN_PROGRESS.md).
+
 Posted expense-liquidation corrections use exact independently posted reversals and
 retain original request/JEV/subsidiary evidence. Only reconciled correction movements
 restore dated expense/refund capacity; exclude correction debits from original advance

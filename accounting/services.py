@@ -1131,6 +1131,9 @@ def record_event(entry, action, actor, reason="", snapshot=None):
 
 
 def validate_entry_for_submission(entry):
+    if entry.source_snapshot.get('advance_recognition_correction'):
+        from vouchers.advance_recognition_corrections import validate
+        validate(entry)
     if entry.source_snapshot.get('advance_application_correction'):
         from vouchers.liquidation_corrections import validate
         validate(entry)
@@ -1204,7 +1207,8 @@ def post_entry(entry, actor):
             request = CollectionPostingRequest.objects.select_related('source').get(public_id=entry.source_reference)
             lock_source_case(request.source)
             return _post_entry(entry, actor)
-    if entry.source_snapshot.get("advance_application") or entry.source_snapshot.get('advance_application_correction'):
+    if (entry.source_snapshot.get("advance_application") or entry.source_snapshot.get('advance_application_correction')
+            or entry.source_snapshot.get('advance_recognition_correction')):
         from vouchers.models import VoucherCase, VoucherPostingRequest
         with transaction.atomic(using="default"):
             request = VoucherPostingRequest.objects.get(public_id=entry.source_reference)
@@ -1222,11 +1226,12 @@ def _post_entry(entry, actor):
     if locked.status != JournalEntry.SUBMITTED:
         raise ValidationError("Only a submitted journal can be posted.")
     workflow_exemption = None
-    advance_source = locked.source_snapshot.get('advance_application') or locked.source_snapshot.get('advance_application_correction')
+    advance_source = (locked.source_snapshot.get('advance_application') or locked.source_snapshot.get('advance_application_correction')
+                      or locked.source_snapshot.get('advance_recognition_correction'))
     if advance_source and actor.pk in {
             locked.created_by_id, locked.submitted_by_id,
             advance_source.get("prepared_by")}:
-        raise ValidationError("An advance liquidation requires independent Accounting posting.")
+        raise ValidationError("This advance entry requires independent Accounting posting.")
     if locked.source_type in ('collection', 'deposit', 'collection_fix') and actor.pk in {
             locked.created_by_id, locked.submitted_by_id,
             locked.source_snapshot.get('collection_payload', {}).get('prepared_by')}:

@@ -1,6 +1,8 @@
 # GRAND Finance complete-cycle roadmap
 
-v0.7.103 development checkpoint: [posted expense-liquidation corrections](FINANCE_LIQUIDATION_CORRECTIONS_2026-09-13.md), D-088, connect exact independent reversal, dated restoration, corrected expense replacement or actual refund, recovery and retained output history. Original recognition corrections and other advance scenarios remain open. The feature record gives validation and limits. Implementation pauses after this checkpoint's commit/push; full Finance and production acceptance remain unfinished.
+v0.7.104 development checkpoint: [unpaid original advance corrections](FINANCE_ADVANCE_RECOGNITION_CORRECTIONS_IN_PROGRESS.md), D-089, connect independently posted reversal, reviewed Budget/payable changes, fresh DV signatures and replacement recognition/payment. The later `continue` supersedes the nightly pause. Full SQLite and native workflow/Budget validation pass; paid/instrument corrections and full Finance acceptance remain open.
+
+v0.7.103 development checkpoint: [posted expense-liquidation corrections](FINANCE_LIQUIDATION_CORRECTIONS_2026-09-13.md), D-088, connect exact independent reversal, dated restoration, corrected expense replacement or actual refund, recovery and retained output history. Original recognition corrections and other advance scenarios remain open. The feature record gives validation and limits. This published checkpoint completed the earlier nightly request; implementation has resumed. Full Finance and production acceptance remain unfinished.
 
 [Officer cash refunds](FINANCE_ADVANCE_REFUNDS_IN_PROGRESS.md), D-087, now connect the
 original advance to Treasury receipt, shared refund/expense holds, independent Accounting,

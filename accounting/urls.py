@@ -7,6 +7,7 @@ app_name = "accounting"
 
 urlpatterns = [
     path('advance-liquidations/<uuid:public_id>/correct/', advance_views.correct, name='advance_liquidation_correct'),
+    path('advances/<int:pk>/correct-recognition/', advance_views.correct_recognition, name='advance_recognition_correct'),
     path("advances/", advance_views.register, name="advance_register"),
     path("advances/export/", advance_views.export, name="advance_export"),
     path("advances/<int:pk>/", advance_views.detail, name="advance_detail"),

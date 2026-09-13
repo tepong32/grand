@@ -6,6 +6,16 @@
   <h1 class="mt-3">Officer advance: {{ source.reference_label }}</h1>
   <p>Original JEV <a href="{% url 'accounting:entry_detail' source.entry.public_id %}">{{ source.entry.reference }}</a> · {{ source.entry.entry_date }} · Recognized {{ source.debit|floatformat:2 }}</p>
   {% if issue %}<div class="alert alert-warning">{{ issue }}</div>{% endif %}
+  {% if can_prepare and can_correct_recognition %}<p><a href="{% url 'accounting:advance_recognition_correct' source.pk %}">Correct original unpaid advance</a></p>{% endif %}
+  {% for correction in recognition_corrections %}<div class="card card-body mb-3">
+    <h2 class="h5">Original advance correction · {{ correction.jev_number }}</h2>
+    <p>{{ correction.get_status_display }} · {{ correction.jev_date }} · {{ correction.payload.advance_recognition_correction.reason }}</p>
+    <p><a href="{{ correction.case.get_absolute_url }}">Open retained voucher and next action</a>{% if correction.accounting_entry_public_id %} · <a href="{% url 'accounting:entry_detail' correction.accounting_entry_public_id %}">Open correction JEV</a>{% endif %}</p>
+    {% if correction.status != 'posted' and correction.status != 'cancelled' %}
+      {% if can_prepare %}<form method="post" action="{% url 'accounting:advance_application_action' correction.public_id 'recover' %}">{% csrf_token %}<button class="btn btn-outline-primary mb-2">Prepare or recover correction JEV</button></form>{% endif %}
+      {% if can_review %}<form method="post" action="{% url 'accounting:advance_application_action' correction.public_id 'withdraw' %}">{% csrf_token %}<label for="recognition-reason-{{ correction.pk }}">Withdrawal reason (discard all unposted correction drafts first)</label><input class="form-control mb-2" id="recognition-reason-{{ correction.pk }}" name="reason" required><button class="btn btn-outline-secondary">Withdraw unposted correction</button></form>{% endif %}
+    {% endif %}
+  </div>{% endfor %}
   {% if proof %}<div class="card card-body"><p>Actual releases: <strong>{{ proof.released|floatformat:2 }}</strong> · Returned instruments withheld: <strong>{{ proof.withheld_returns|floatformat:2 }}</strong> · Net released: <strong>{{ proof.released_net|floatformat:2 }}</strong></p>
     <p>Applied or reserved: <strong>{{ proof.applied_or_reserved|floatformat:2 }}</strong> · Remaining released amount: <strong>{{ proof.remaining|floatformat:2 }}</strong></p>
     <p class="mb-0">The original recognition is separate from cash release. Existing applications below also reserve their amounts; each new liquidation is checked again before approval.</p>
@@ -40,7 +50,7 @@
       {% if can_review %}<form method="post" action="{% url 'accounting:advance_application_action' correction.public_id 'withdraw' %}">{% csrf_token %}<label for="fix-reason-{{ correction.pk }}">Withdrawal reason (discard the unposted draft first)</label><input id="fix-reason-{{ correction.pk }}" class="form-control mb-2" name="reason" required><button class="btn btn-outline-secondary">Withdraw unposted correction</button></form>{% endif %}
     {% endif %}
   </div>{% empty %}<p>No posted-liquidation correction requests.</p>{% endfor %}
-  {% if can_prepare %}
+  {% if can_prepare and not original_recognition_has_correction %}
   <div class="card card-body"><h2>Prepare expense liquidation</h2><p>Enter accepted expenses and their actual document references. The JEV credits this original advance; it does not pay the officer again. Cash refunds and posted corrections require their own source workflow.</p>
     <form method="post">{% csrf_token %}{{ form.as_p }}{{ expenses.management_form }}{{ expenses.non_form_errors }}
       <div id="advance-expenses">{% for row in expenses %}<fieldset class="border p-3 mb-2"><legend class="h6">Expense {{ forloop.counter }}</legend>{{ row.as_p }}</fieldset>{% endfor %}</div>

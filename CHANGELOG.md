@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.104] - 2026-09-13
+### Added
+- feat(finance): correct unpaid advance recognition through revised Budget and DV sources
+
 ## [0.7.103] - 2026-09-13
 ### Added
 - feat(finance): correct posted expense liquidations with retained reversals

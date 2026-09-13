@@ -468,9 +468,7 @@ def obligation_lineage_request_ids(request):
     return lineage
 
 
-def downstream_issuance_boundary(request):
-    """Return the first issued downstream artifact without making it a runtime dependency."""
-    from vouchers.models import DisbursementVoucher, PaymentInstrument
+def _linked_obligation_case_ids(request):
     root = obligation_lineage_root(request)
     case_ids = set(ObligationRequest.objects.filter(
         pk__in=obligation_lineage_request_ids(request), linked_voucher_case_public_id__isnull=False,
@@ -478,10 +476,22 @@ def downstream_issuance_boundary(request):
     case_ids.update(PayableObligationAllocation.objects.filter(
         obligation=root, status=PayableObligationAllocation.ACTIVE,
     ).values_list("voucher_case_public_id", flat=True))
+    return case_ids
+
+
+def downstream_issuance_boundary(request, *, as_of=None):
+    """Return the first issued artifact, retaining verified original-advance corrections."""
+    from vouchers.models import DisbursementVoucher, PaymentInstrument, VoucherCase
+    case_ids = _linked_obligation_case_ids(request)
     if PaymentInstrument.objects.filter(case__public_id__in=case_ids).exclude(status=PaymentInstrument.DRAFT).exists():
         return "check"
-    if DisbursementVoucher.objects.filter(case__public_id__in=case_ids).exists():
-        return "disbursement voucher"
+    from vouchers.advance_recognition_corrections import correction_window, check_replacement_date
+    issued_case_ids = DisbursementVoucher.objects.filter(case__public_id__in=case_ids).values_list('case_id', flat=True)
+    for case in VoucherCase.objects.filter(pk__in=issued_case_ids):
+        if not correction_window(case):
+            return "disbursement voucher"
+        if as_of is not None:
+            check_replacement_date(case, as_of)
     return ""
 
 
@@ -493,7 +503,7 @@ def validate_obligation_request(request, *, lock_lines=False):
     if not lines:
         raise ValidationError("Add at least one authorized appropriation line before submission.")
     if request.kind != ObligationRequest.ORIGINAL:
-        boundary = downstream_issuance_boundary(request.corrects)
+        boundary = downstream_issuance_boundary(request.corrects, as_of=request.obligation_date)
         if boundary:
             raise ValidationError(
                 f"The corrected obligation already has an issued {boundary}; use the later voucher/payment reversal or cancellation route."
@@ -530,8 +540,28 @@ def validate_obligation_request(request, *, lock_lines=False):
     return lines
 
 
-@transaction.atomic(using="finance")
 def transition_obligation_request(request, action, user, reason="", obligation_number=""):
+    """Acquire the issuance/case boundary before Finance locks for linked corrections."""
+    source = ObligationRequest.objects.select_related('fiscal_year', 'corrects').get(pk=request.pk)
+    if source.kind == ObligationRequest.ORIGINAL:
+        return _transition_obligation_request(source, action, user, reason, obligation_number)
+    from vouchers.models import VoucherCase
+    from vouchers.issuance_boundaries import lock_foundation_issuance_boundaries
+    with transaction.atomic(using='default'):
+        cases = list(VoucherCase.objects.filter(public_id__in=_linked_obligation_case_ids(source.corrects))
+                     .select_related('configuration_release'))
+        scopes = [{'department_id':source.fiscal_year.department_id, 'fiscal_year':source.fiscal_year.year}]
+        scopes.extend({'department_id':case.configuration_release.department_id,
+                       'fiscal_year':case.configuration_release.fiscal_year}
+                      for case in cases if case.configuration_release_id)
+        lock_foundation_issuance_boundaries(scopes)
+        list(VoucherCase.objects.select_for_update().filter(
+            public_id__in=_linked_obligation_case_ids(source.corrects)).order_by('pk'))
+        return _transition_obligation_request(source, action, user, reason, obligation_number)
+
+
+@transaction.atomic(using="finance")
+def _transition_obligation_request(request, action, user, reason="", obligation_number=""):
     request = ObligationRequest.objects.select_for_update().select_related(
         "authorization", "authorization__version", "fiscal_year", "corrects"
     ).get(pk=request.pk)

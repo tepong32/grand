@@ -1014,3 +1014,21 @@ and conservative capacity during interrupted cross-store recovery. Independent
 withdrawal is available only after all unposted correction drafts are discarded.
 Revisit historical/inactive-account and original-recognition correction breadth against
 actual local procedures. See [scope and evidence](FINANCE_LIQUIDATION_CORRECTIONS_2026-09-13.md).
+
+## D-089 - Reopen an unpaid advance through its existing source workflow
+
+Date: 2026-09-13. Development decision; paid/instrument correction breadth remains open.
+
+Correct an unpaid original advance by independently posting its exact reversal, then
+reconciling that correction before reopening payable, Budget adjustment and DV work.
+Retain the original request, journal and superseded signature/output history. New
+recognition pins the correction, and replacement dates cannot precede it. The verified
+exception to the issued-DV boundary requires no payment instruments and no remaining
+uncorrected recognition. Linked Budget amendments acquire default fiscal issuance
+boundaries and case locks before Finance locks, sharing the replacement-DV boundary.
+
+This reuses existing versioned allocations and reviews rather than introducing a second
+advance ledger. Initial intake allocations remain evidence; guided revision services
+validate current amounts. The tradeoff is an explicit reversal, revised source review
+and fresh signatures before payment. Do not extend this route to paid or cancelled
+instruments without their retained settlement evidence. See [workflow and validation](FINANCE_ADVANCE_RECOGNITION_CORRECTIONS_IN_PROGRESS.md).
