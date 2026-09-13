@@ -1,11 +1,18 @@
 # GRAND Finance roadmap completion audit
 
+[Actual officer cash refunds](FINANCE_ADVANCE_REFUNDS_IN_PROGRESS.md) are connected to
+the existing receipt/deposit workflow and original advance subsidiary, including shared
+dated reservations and exact receipt/deposit corrections. Native workflow/role/recovery
+and concurrency evidence passes; consult the feature record for the full regression
+status. This does not establish posted expense-liquidation/original-recognition correction,
+all advance scenarios, exact official forms or full Finance completion.
+
 The [issuance-time advance source extension](FINANCE_ADVANCE_ISSUANCE_2026-09-13.md)
 connects the existing issuance payment route to expense liquidation, still requiring
 actual officer release. Its validation record is authoritative for current status;
 cash refunds and governed posted corrections remain open.
 
-The [expense-liquidation route](FINANCE_ADVANCE_LIQUIDATIONS_2026-09-12.md), D-086, now selects the original recognized officer advance, verifies actual releases and applies explicit expense rows under dated reservations and independent posting. Native web/output, standard-role and reservation/materialization/posting/payment-recovery races are covered. Actual cash refunds, governed posted corrections, other recognition/application scenarios and all exact-form/office/operational/LGU gates remain incomplete. This is not full M03 or Finance completion.
+The [expense-liquidation route](FINANCE_ADVANCE_LIQUIDATIONS_2026-09-12.md), D-086, now selects the original recognized officer advance, verifies actual releases and applies explicit expense rows under dated reservations and independent posting. Native web/output, standard-role and reservation/materialization/posting/payment-recovery races are covered. Cash-refund coverage follows in D-087 above; governed posted expense/recognition corrections, other recognition/application scenarios and all exact-form/office/operational/LGU gates remain incomplete. This is not full M03 or Finance completion.
 
 v0.7.98 development checkpoint: [collection/deposit evidence](FINANCE_COLLECTIONS_IN_PROGRESS.md) demonstrates a receipt → partial deposits → ledger/output chain and dated exact corrections, retaining original records and printable copies. Native allocation/materialization races and account-role boundaries pass. Full SQLite regression passes 1044 discovered / 995 passed / 49 skipped; liquidation/advances, collection instrument breadth, exact local forms and all later acceptance gates remain incomplete. This is not full M03 or Finance completion.
 

@@ -77,6 +77,8 @@ def propose(*, original, actor, corrected_on, reason):
     office = require(actor,'vouchers.prepare_collections' if original.kind == Source.RECEIPT else 'vouchers.prepare_collection_deposits')
     if office.pk != original.treasury_department_id:
         raise PermissionDenied
+    from .advance_refunds import lock_source_case
+    lock_source_case(original)
     Department.objects.select_for_update().get(pk=office.pk)
     original = Source.objects.select_for_update().get(pk=original.pk)
     entry,posting = validate_target(original,corrected_on)
@@ -88,6 +90,8 @@ def propose(*, original, actor, corrected_on, reason):
         'original_proposal_checksum':original.proposal_checksum,'evidence_reference':reason.strip(),
         'posting_rule':str(posting.posting_rule.public_id),'posting_rule_snapshot':posting.posting_rule_snapshot,
         'posting_rule_checksum':posting.posting_rule_checksum,'fund_id':entry.fund_id,'financial_rows':mirror_rows(entry)}
+    if original.proposal.get('advance_refund'):
+        proposal['advance_refund_correction'] = original.proposal['advance_refund']
     correction = new_source(actor=actor,treasury=office,variant=original.transaction_variant,fund=entry.fund,
         kind=Source.CORRECTION,book='',reference=str(original.public_id),day=corrected_on,total=original.amount,proposal=proposal,
         correction_of=original)

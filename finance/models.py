@@ -567,7 +567,12 @@ class FinancePostingRuleLine(models.Model):
     def clean(self):
         if self.rule_id and self.rule.variant.release.status != "draft":
             raise ValidationError("Posting-rule lines can be changed only inside a draft configuration release.")
-        if self.cash_flow_category and self.account_source not in {self.BANK_MAPPING, self.FIXED_ACCOUNT}:
+        deposited_cash = (self.account_source == self.ALLOCATION_ACCOUNTS
+            and self.cash_flow_category == 'internal' and self.side == self.CREDIT
+            and self.amount_source == self.EACH_ALLOCATION
+            and self.rule.event_kind == FinancePostingRule.DEPOSIT
+            and self.rule.recognition_point == FinancePostingRule.COLLECTION_DEPOSIT)
+        if self.cash_flow_category and self.account_source not in {self.BANK_MAPPING, self.FIXED_ACCOUNT} and not deposited_cash:
             raise ValidationError({"cash_flow_category": "Classify a bank/cash or fixed cash-account instruction only."})
         if self.account_source == self.ALLOCATION_ACCOUNTS and self.amount_source != self.EACH_ALLOCATION:
             raise ValidationError({"amount_source": "Allocation accounts must use each allocation amount."})
@@ -588,12 +593,15 @@ class FinancePostingRuleLine(models.Model):
                 raise ValidationError("Advance recognition requires a cash-advance variant, DV-validation debit and gross amount.")
             if self.mapping_code.strip():
                 raise ValidationError({"mapping_code": "Select the explicit advance asset account instead."})
-        if self.account_source == self.PRIOR_ADVANCE and (
-                self.side != self.CREDIT or self.amount_source != self.GROSS
-                or self.rule.event_kind != FinancePostingRule.LIQUIDATION
-                or self.rule.recognition_point != FinancePostingRule.LIQUIDATION_ACCEPTANCE
-                or self.mapping_code.strip()):
-            raise ValidationError("An original advance application requires a gross credit at liquidation acceptance.")
+        if self.account_source == self.PRIOR_ADVANCE:
+            liquidation = (self.rule.event_kind == FinancePostingRule.LIQUIDATION
+                and self.rule.recognition_point == FinancePostingRule.LIQUIDATION_ACCEPTANCE
+                and self.amount_source == self.GROSS)
+            refund = (self.rule.event_kind == FinancePostingRule.COLLECTION
+                and self.rule.recognition_point == FinancePostingRule.COLLECTION_RECEIPT
+                and self.amount_source == self.EVENT_AMOUNT)
+            if self.side != self.CREDIT or self.mapping_code.strip() or not (liquidation or refund):
+                raise ValidationError("Apply an original advance by liquidation gross credit or actual refund receipt credit.")
         if self.account_source in {self.FIXED_ACCOUNT, self.ADVANCE_ACCOUNT}:
             if not self.ledger_account_code.strip():
                 raise ValidationError({"ledger_account_code": "Enter the locally confirmed posting account code."})

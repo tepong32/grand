@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.102] - 2026-09-13
+### Added
+- feat(finance): connect officer advance cash refunds and deposits
+
 ## [0.7.101] - 2026-09-13
 ### Added
 - fix(finance): connect issuance advances and serialize payment recovery

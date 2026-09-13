@@ -52,7 +52,7 @@ def applications(case, detail):
     return result
 
 
-def capacity(detail, day, amount, *, exclude=None):
+def capacity(detail, day, amount, *, exclude=None, exclude_refund=None):
     detail, recognition, _ = original(detail)
     from accounting.services import control_reconciliation_snapshot
     controls, _ = control_reconciliation_snapshot(detail.entry.department_id, timezone.localdate())
@@ -62,7 +62,10 @@ def capacity(detail, day, amount, *, exclude=None):
            for row in controls["rows"]):
         raise ValidationError("Reconcile the advance control account before applying an individual source.")
     requests = [request for request in applications(recognition.case, detail) if request.pk != exclude]
+    from .advance_refunds import movements
+    refund_movements = movements(detail, exclude=exclude_refund)
     boundaries = {day, timezone.localdate()}
+    boundaries.update(moment for moment, value in refund_movements if moment >= day)
     boundaries.update(request.jev_date for request in requests if request.jev_date >= day)
     boundaries.update(timezone.localdate(item.released_at) for item in recognition.case.payment_instruments.all()
                       if item.released_at and timezone.localdate(item.released_at) >= day)
@@ -72,6 +75,7 @@ def capacity(detail, day, amount, *, exclude=None):
         proof = disbursement(detail, boundary)
         held = sum((money(request.payload["advance_application"]["amount"]) for request in requests
                     if request.jev_date <= boundary), Decimal("0"))
+        held += sum((value for moment, value in refund_movements if moment <= boundary), Decimal('0'))
         if amount + held > proof["released_net"]:
             raise ValidationError(f"The liquidation exceeds the released advance remaining on {boundary.isoformat()}.")
     return disbursement(detail, day)

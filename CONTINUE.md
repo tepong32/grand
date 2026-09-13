@@ -16,7 +16,27 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
-Current v0.7.101 checkpoint on `codex/finance-advance-issuance`, based on published v0.7.100:
+Current v0.7.102 development checkpoint on `codex/finance-advance-refunds` follows v0.7.101:
+[actual officer refunds](docs/FINANCE_ADVANCE_REFUNDS_IN_PROGRESS.md), D-087. Receipt
+entry, shared dated refund/expense holds, independent Accounting, original advance
+subsidiary, deposit, exact receipt/deposit corrections and retained print/CSV source
+identity are connected. Refund corrections restore capacity only from the actual date;
+later corrections cannot fund earlier shortfalls. Treasury source selection preserves
+the original office and officer. The rule editor permits the deposit service's exact
+internal allocated-cash credit, retaining other cash-purpose restrictions.
+
+PASS — full-project SQLite 1,084 discovered / 1,025 passed / 59 skipped, 550.802s,
+runner 95480 exit 0; expanded native 41/41, 52.119s, runner 1503 exit 0; system/drift/diff
+checks and synthetic printable-template inspection. The feature record preserves the
+initial setup failures, commands, scope and limits. All runners ended; native/preview
+services stopped; protected DB unchanged; no operator migration; eGAPS untouched.
+Version Manager publishes only the explicit checkpoint and VERSION/CHANGELOG, preserving
+unrelated work and historical release references. Verify the development branch/tag.
+Next: governed posted expense-liquidation/original-advance corrections, other advance
+scenarios and remaining M03/M01/M02 coverage, then inventory, ordinary office/output,
+usability/WFH and operational/LGU gates. Full Finance and production acceptance remain NO-GO.
+
+Previous v0.7.101 checkpoint on `codex/finance-advance-issuance`, based on published v0.7.100:
 [issuance-time advance payment](docs/FINANCE_ADVANCE_ISSUANCE_2026-09-13.md).
 The actual issuance/release source now supplies liquidation evidence while actual
 officer receipt still controls availability. Voucher reconciliation now locks the case

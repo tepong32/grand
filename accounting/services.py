@@ -1193,6 +1193,14 @@ def post_entry(entry, actor):
     # Default case first, then Finance journal locks: same order as application
     # reservations and payment/return source changes, including concurrent posts.
     entry = JournalEntry.objects.get(pk=entry.pk)
+    refund_proposal = entry.source_snapshot.get('collection_payload', {}).get('proposal', {})
+    if refund_proposal.get('advance_refund') or refund_proposal.get('advance_refund_correction'):
+        from vouchers.models import CollectionPostingRequest
+        from vouchers.advance_refunds import lock_source_case
+        with transaction.atomic(using='default'):
+            request = CollectionPostingRequest.objects.select_related('source').get(public_id=entry.source_reference)
+            lock_source_case(request.source)
+            return _post_entry(entry, actor)
     if entry.source_snapshot.get("advance_application"):
         from vouchers.models import VoucherCase, VoucherPostingRequest
         with transaction.atomic(using="default"):

@@ -10,6 +10,8 @@
     <p>Applied or reserved: <strong>{{ proof.applied_or_reserved|floatformat:2 }}</strong> · Remaining released amount: <strong>{{ proof.remaining|floatformat:2 }}</strong></p>
     <p class="mb-0">The original recognition is separate from cash release. Existing applications below also reserve their amounts; each new liquidation is checked again before approval.</p>
   </div>{% endif %}
+  <h2>Cash refund history</h2>
+  {% for refund in refunds %}<p>{{ refund.book_reference }} / {{ refund.document_reference }} · {{ refund.source_date }} · {{ refund.amount }} · {{ refund.get_status_display }}. Review the retained receipt in the Treasury collection register.</p>{% empty %}<p>No cash refund receipts for this original advance.</p>{% endfor %}
   <h2>Liquidation history</h2>
   {% for application in applications %}
   <div class="card card-body">

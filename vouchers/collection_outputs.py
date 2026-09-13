@@ -64,6 +64,9 @@ def generate(*, source, actor):
             for c in source.corrections.order_by('pk')],
         'source_checksum':source.proposal_checksum,'posting_checksum':posting.payload_checksum,
         'output_version':version,'generated_at':timezone.now().isoformat(),'generated_by':actor.get_username()}
+    refund = source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction')
+    if refund:
+        snapshot['advance_refund'] = refund
     content=render_to_string('vouchers/collections/print.html',{'record':snapshot})
     return CollectionOutput.objects.create(source=source,version=version,snapshot=snapshot,
         snapshot_checksum=_digest(snapshot),html=content,checksum=hashlib.sha256(content.encode('utf-8')).hexdigest(),generated_by=actor)

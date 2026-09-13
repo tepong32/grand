@@ -15,7 +15,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from finance.models import FinancePostingRule
 from vouchers.advance_sources import disbursement, original
 from vouchers.advance_applications import prepare, materialize, withdraw, applications, capacity
-from vouchers.models import VoucherPostingRequest
+from vouchers.models import VoucherPostingRequest, TreasuryCollectionSource
 from .access import accounting_permission_required, can_view_advances, can_export_advances, can_prepare_journals, can_post_journals, department_for_user
 from .models import JournalSubsidiaryLine, LedgerAccount
 
@@ -88,12 +88,17 @@ def detail(request, pk):
         _, recognition, _ = original(source)
         proof["applied_or_reserved"] = sum((Decimal(item.payload["advance_application"]["amount"])
             for item in applications(recognition.case, source)), Decimal("0"))
+        from vouchers.advance_refunds import movements
+        proof['applied_or_reserved'] += sum((value for day, value in movements(source)
+            if day <= timezone.localdate()), Decimal('0'))
         proof["remaining"] = proof["released_net"] - proof["applied_or_reserved"]
         capacity(source, timezone.localdate(), Decimal("0"))
     except ValidationError as exc:
         issue = " ".join(exc.messages)
     return render(request, "accounting/advance_detail.html", {"source":source, "proof":proof, "issue":issue,
         "form":form, "expenses":expenses, "applications":retained,
+        "refunds":TreasuryCollectionSource.objects.filter(
+            finance_department_id=owner.pk, proposal__advance_refund__original_detail=source.pk),
         "can_prepare":can_prepare_journals(request.user), "can_review":can_post_journals(request.user)})
 
 
@@ -124,7 +129,7 @@ def action(request, public_id, action):
 def register(request):
     owner = department_for_user(request.user)
     sources = JournalSubsidiaryLine.objects.filter(category=JournalSubsidiaryLine.ADVANCE,
-        debit__gt=0, entry__department_id=owner.pk, entry__status="posted",
+        debit__gt=0, entry__department_id=owner.pk, entry__status="posted", entry__source_type='voucher',
         entry__entry_date__lte=timezone.localdate()).select_related("entry", "entry__fund")
     query = (request.GET.get("q") or "").strip()
     if query:

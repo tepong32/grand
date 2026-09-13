@@ -979,3 +979,21 @@ accepts the actual reviewed payment timing but still waits for actual officer re
 Native recovery testing requires case-before-posting-request order for ordinary voucher
 reconciliation as well as advance applications; never automatically replay financial actions
 to conceal an inverted lock order. Refund receipts remain separate unfinished functionality.
+
+## D-087 - Retain actual officer refunds in the existing collection workflow
+
+Date: 2026-09-13. Development decision; official receipt/form and LGU acceptance remain separate.
+
+Use an explicit original-advance choice on the ordinary Treasury receipt. Retain the
+officer and original Accounting source, post cash debit/advance credit independently,
+and use existing deposit allocations and exact source corrections. Expense and refund
+reservations share the original case lock and dated released capacity. A correction
+restores capacity from its actual date; later corrections cannot fund earlier shortfalls.
+
+This reuses existing immutable Treasury sources and Accounting journals instead of
+adding a second refund ledger or treating returned officer money as revenue. The tradeoff
+is explicit source selection and additional subsidiary validation through collection
+review, posting and corrections. Preserve department/role boundaries, issued bytes and
+the distinction between accounting correction and actual new cash movement. See
+[scope, tests and remaining work](FINANCE_ADVANCE_REFUNDS_IN_PROGRESS.md). Revisit the
+supported receipt basis against actual local cash/direct-bank practices and prescribed forms.

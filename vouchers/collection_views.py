@@ -16,6 +16,7 @@ from .access import department_for_user, has_explicit_permission
 from .models import TreasuryCollectionSource as Source
 from .collections import record_receipt, record_deposit, remaining_receipts, require
 from .roles import is_finance_uat_viewer
+from accounting.models import JournalSubsidiaryLine
 
 
 def visible_sources(user):
@@ -26,17 +27,25 @@ def visible_sources(user):
 
 
 class ReceiptForm(forms.Form):
+    advance_detail = forms.ModelChoiceField(queryset=JournalSubsidiaryLine.objects.none(), required=False,
+        label='Original officer advance (returned advance money only)',
+        help_text='Choose the original advance and a reviewed refund collection type. The officer identity is retained automatically.')
     variant = forms.ModelChoiceField(queryset=FinanceTransactionVariant.objects.none(), label='Collection type')
     received_on = forms.DateField(widget=forms.DateInput(attrs={'type':'date'}), label='Date received')
     fund_code = forms.ChoiceField(label='Fund')
     receipt_book = forms.CharField(max_length=80, label='Receipt book')
     receipt_number = forms.CharField(max_length=80)
-    payer_reference = forms.CharField(label='Payer / reference')
+    payer_reference = forms.CharField(label='Payer / reference', required=False)
     received_amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal('.01'), label='Amount received')
     evidence_reference = forms.CharField(widget=forms.Textarea(attrs={'rows':3}), label='Collection evidence / remarks')
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        if user:
+            from .advance_refunds import visible_originals
+            self.fields['advance_detail'].queryset = visible_originals(user).select_related('entry', 'entry__fund')
+            self.fields['advance_detail'].label_from_instance = lambda row: f'{row.reference_label} · {row.entry.reference} · {row.entry.fund.code} · original {row.debit}'
         self.fields['variant'].queryset = FinanceTransactionVariant.objects.filter(
             status='active', release__status='active', posting_rules__event_kind=FinancePostingRule.COLLECTION).distinct()
         self.fields['fund_code'].choices = [('', 'Choose a fund'), *FinanceConfigurationItem.objects.filter(
@@ -120,7 +129,8 @@ def receipt_create(request):
         initial = {'variant':prior.transaction_variant_id,'received_on':prior.source_date,'fund_code':prior.fund_code,
             'receipt_book':prior.book_reference,'receipt_number':prior.document_reference,'received_amount':prior.amount,
             'payer_reference':prior.proposal['payer_reference'],'evidence_reference':prior.proposal['evidence_reference']}
-    form = ReceiptForm(request.POST or None,initial=initial)
+        initial['advance_detail'] = prior.proposal.get('advance_refund', {}).get('original_detail')
+    form = ReceiptForm(request.POST or None,initial=initial,user=request.user)
     if request.method == 'POST' and form.is_valid():
         try:
             source = record_receipt(actor=request.user, **form.cleaned_data)
@@ -256,15 +266,17 @@ def export(request):
     writer = csv.writer(response)
     _safe_writerow(writer, ['Kind','Date','Book','Reference','Version','Fund','Amount','Status',
         'Available for deposit (after pending allocations)','Prepared by','Reviewed by','JEVs',
-        'Withdrawal reason','Withdrawn by','Withdrawn at'])
+        'Withdrawal reason','Withdrawn by','Withdrawn at','Original advance JEV','Officer advance identity'])
     for row in register_rows(request.user):
         source = row['source']
+        refund = source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction') or {}
         _safe_writerow(writer, [source.get_kind_display(),source.source_date,source.book_reference,
             source.document_reference,source.version,source.fund_code,source.amount,source.get_status_display(),
             row['available'],source.prepared_by.get_username(),
             source.reviewed_by.get_username() if source.reviewed_by else '',
             '; '.join(r.jev_number for r in row['journals']),source.withdrawal_reason,
-            source.withdrawn_by.get_username() if source.withdrawn_by else '',source.withdrawn_at])
+            source.withdrawn_by.get_username() if source.withdrawn_by else '',source.withdrawn_at,
+            refund.get('original_jev_number',''),refund.get('officer_key','')])
     return response
 
 

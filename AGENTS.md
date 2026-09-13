@@ -30,13 +30,20 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+Officer cash refunds reuse the Treasury receipt/deposit source and credit the original
+advance subsidiary. Refund and expense holds share dated capacity and default-case-first
+locks. Independent withdrawal preserves evidence; exact posted receipt correction releases
+its hold only from the correction date, after allocated deposits are corrected. See
+[refund implementation and validation](docs/FINANCE_ADVANCE_REFUNDS_IN_PROGRESS.md).
+Posted expense-liquidation and original-recognition corrections remain unfinished.
+
 Voucher posting reconciliation acquires the default case before its posting request,
 including payment recovery, to match advance reservations and avoid lock inversion.
 Issuance-time advance posting remains distinct from actual officer release; only actual
 release with claimant/receipt supplies liquidation capacity. See
 [issuance source evidence](docs/FINANCE_ADVANCE_ISSUANCE_2026-09-13.md).
 
-Officer advances retain explicit employee asset/payable recognition and [source-linked expense liquidation](docs/FINANCE_ADVANCE_LIQUIDATIONS_2026-09-12.md), D-085/D-086. Verify actual released payment evidence, select the original advance, reserve dated amounts under the default case lock and independently post accepted expenses against that asset. Keep default-case-before-Finance lock order, scope reservation locks to liquidation requests, preserve exact subsidiary evidence and require witnessed independent withdrawal before releasing unposted holds. Standard Accounting roles have specific advance read/export access; UAT mutation denial remains. Actual cash refunds, governed posted corrections and other advance scenarios remain open. Do not infer or relabel historical advances; see CONTINUE.md for current validation.
+Officer advances retain explicit employee asset/payable recognition and [source-linked expense liquidation](docs/FINANCE_ADVANCE_LIQUIDATIONS_2026-09-12.md), D-085/D-086. Verify actual released payment evidence, select the original advance, reserve dated amounts under the default case lock and independently post accepted expenses against that asset. Keep default-case-before-Finance lock order, scope reservation locks to liquidation requests, preserve exact subsidiary evidence and require witnessed independent withdrawal before releasing unposted holds. Standard Accounting roles have specific advance read/export access; UAT mutation denial remains. Cash-refund coverage is recorded in D-087; governed posted expense/recognition corrections and other advance scenarios remain open. Do not infer or relabel historical advances; see CONTINUE.md for current validation.
 
 The v0.7.98 development [M03 collection/deposit](docs/FINANCE_COLLECTIONS_IN_PROGRESS.md) checkpoint connects receipt capture, explicit partial deposits, independent posting, corrections and retained printable source copies. Copies preserve original rendered content/evidence and recheck current read/export authority; later corrections do not rewrite earlier copies. Native allocation/correction/materialization races, role boundaries and full SQLite regression pass. This does not establish official receipt/form parity, all collection instruments, liquidation/advances or operational acceptance. Continue missing functional breadth; further remittance fees/dispositions remain open and must not indefinitely displace the observed missing domains.
 

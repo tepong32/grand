@@ -3,6 +3,7 @@
 {% block content %}
 <div class="container py-3"><a href="{% url 'vouchers:collection_register' %}">Collections and deposits</a>
 <h1 class="h3 mt-3">{{ source.get_kind_display }} {{ source.document_reference }}</h1>
+{% if source.proposal.advance_refund %}<p><strong>Officer advance cash refund:</strong> {{ source.proposal.advance_refund.officer_name }} · Original JEV {{ source.proposal.advance_refund.original_jev_number }}. This receipt reduces the original advance.</p>{% endif %}
 <dl><dt>Status</dt><dd>{{ source.get_status_display }}</dd><dt>Date / fund</dt><dd>{{ source.source_date }} · {{ source.fund_code }}</dd>
 <dt>Amount</dt><dd>{{ source.amount }}</dd><dt>Receipt book</dt><dd>{{ source.book_reference|default:"—" }}</dd>
 <dt>Payer / reference</dt><dd>{{ source.proposal.payer_reference|default:"—" }}</dd><dt>Evidence</dt><dd>{{ source.proposal.evidence_reference }}</dd>

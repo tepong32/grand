@@ -118,7 +118,12 @@ def new_source(*, actor, treasury, variant, fund, kind, book, reference, day, to
 
 
 @transaction.atomic
-def record_receipt(*, actor, variant, received_on, fund_code, receipt_book, receipt_number, payer_reference, received_amount, evidence_reference):
+def record_receipt(*, actor, variant, received_on, fund_code, receipt_book, receipt_number, payer_reference, received_amount, evidence_reference, advance_detail=None):
+    if advance_detail is not None:
+        from .advance_refunds import record
+        return record(actor=actor, detail=advance_detail, variant=variant, received_on=received_on,
+            fund_code=fund_code, receipt_book=receipt_book, receipt_number=receipt_number,
+            payer_reference=payer_reference, received_amount=received_amount, evidence_reference=evidence_reference)
     treasury = require(actor, 'vouchers.prepare_collections')
     treasury = Department.objects.select_for_update().get(pk=treasury.pk)
     variant, fund, rule, snapshot, checksum = context(variant, received_on, fund_code, Source.RECEIPT)

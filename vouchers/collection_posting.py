@@ -19,6 +19,8 @@ from .remittances import _digest
 @transaction.atomic
 def review_source(*, source, actor, approve, reason):
     owner = require(actor,'vouchers.review_collections')
+    from .advance_refunds import lock_source_case, validate_source
+    lock_source_case(source)
     Department.objects.select_for_update().get(pk=source.treasury_department_id)
     source = Source.objects.select_for_update().get(pk=source.pk)
     if owner.pk != source.finance_department_id:
@@ -28,6 +30,7 @@ def review_source(*, source, actor, approve, reason):
     if _digest(source.proposal) != source.proposal_checksum:
         raise ValidationError('The retained collection/deposit proposal changed.')
     if approve:
+        validate_source(source)
         if source.kind == Source.CORRECTION:
             from .collection_corrections import validate_correction
             original,original_request=validate_correction(source)
@@ -88,12 +91,16 @@ def validate_collection_journal(entry):
         original=JournalEntry.objects.get(public_id=retained['proposal']['original_entry'])
         if entry.reversal_of_id != original.pk or rows != mirror_rows(original):
             raise ValidationError('The correction must exactly reverse its original source journal.')
+    from .advance_refunds import validate_journal
+    validate_journal(entry)
 
 
 @transaction.atomic
 def materialize(request,actor):
     if not can_prepare_journals(actor) or getattr(department_for_user(actor),'pk',None) != request.finance_department_id:
         raise PermissionDenied
+    from .advance_refunds import lock_source_case, validate_source, attach
+    lock_source_case(request.source)
     Department.objects.select_for_update().get(pk=request.source.treasury_department_id)
     source=Source.objects.select_for_update().get(pk=request.source_id)
     request=Request.objects.select_for_update().get(pk=request.pk)
@@ -102,6 +109,7 @@ def materialize(request,actor):
             or _digest(source.proposal) != source.proposal_checksum or _digest(request.payload) != request.payload_checksum):
         raise ValidationError('Retain the approved collection/deposit source and posting request.')
     source_type={Source.RECEIPT:'collection',Source.DEPOSIT:'deposit',Source.CORRECTION:'collection_fix'}[source.kind]
+    validate_source(source)
     with transaction.atomic(using='finance'):
         fund=Fund.objects.select_for_update().get(pk=source.proposal['fund_id'],department_id=source.finance_department_id)
         existing=JournalEntry.objects.filter(source_type=source_type,source_reference=str(request.public_id)).first()
@@ -144,6 +152,7 @@ def materialize(request,actor):
                 line=JournalLine(entry=entry,sequence=sequence,account=ledger,debit=Decimal(row['debit']),
                     credit=Decimal(row['credit']),cash_flow_category=row['cash_flow_category'],memo=source.document_reference)
                 line.full_clean();line.save()
+            attach(entry, source, request)
             validate_collection_journal(entry)
             from accounting.services import record_event
             record_event(entry,'collection_source_materialized',actor,snapshot={'proposal_checksum':source.proposal_checksum})
@@ -159,6 +168,8 @@ def reconcile(entry,actor):
     if entry.source_type not in ('collection','deposit','collection_fix'):
         raise ValidationError('Choose a posted collection/deposit journal.')
     request=Request.objects.select_related('source').get(public_id=entry.source_reference)
+    from .advance_refunds import lock_source_case
+    lock_source_case(request.source)
     Department.objects.select_for_update().get(pk=request.source.treasury_department_id)
     source=Source.objects.select_for_update().get(pk=request.source_id)
     request=Request.objects.select_for_update().get(pk=request.pk)
@@ -177,6 +188,8 @@ def reconcile(entry,actor):
 def withdraw_unposted(*, source, actor, reason):
     """Retire approval only after every possible Finance draft is safely discarded."""
     owner = require(actor, 'vouchers.review_collections')
+    from .advance_refunds import lock_source_case
+    lock_source_case(source)
     Department.objects.select_for_update().get(pk=source.treasury_department_id)
     source = Source.objects.select_for_update().get(pk=source.pk)
     if owner.pk != source.finance_department_id:
