@@ -34,6 +34,13 @@ def retired_instruments(case, *, exclude_request=None):
     for request in case.posting_requests.filter(status=VoucherPostingRequest.POSTED, kind=Rule.REVERSAL):
         if request.pk == exclude_request:
             continue
+        advance = request.payload.get('advance_recognition_correction', {})
+        if advance.get('cancelled_instruments'):
+            from .advance_sources import posted_request
+            from .advance_recognition_corrections import validate
+            validate(posted_request(request))
+            retired.update(row['instrument'] for row in advance['cancelled_instruments'])
+            continue
         correction = request.payload.get("deduction_correction", {})
         rows = correction.get("resolved_instruments", correction.get("cancelled_instruments", []))
         if not rows:
@@ -53,12 +60,15 @@ def has_unretired_instruments(case):
     return case.payment_instruments.exclude(public_id__in=retired_instruments(case)).exists()
 
 
-def cancellation_evidence(case, prior_evidence, correction_date, *, exclude_request=None):
+def cancellation_evidence(case, prior_evidence, correction_date, *, exclude_request=None, instrument_ids=None):
     """Caller holds the case lock shared by issue/cancel/release and corrections."""
     from .deduction_corrections import digest
     rows = []
-    retired = retired_instruments(case, exclude_request=exclude_request)
-    for instrument in case.payment_instruments.exclude(public_id__in=retired).order_by("pk"):
+    if instrument_ids is None:
+        instruments = case.payment_instruments.exclude(public_id__in=retired_instruments(case, exclude_request=exclude_request))
+    else:
+        instruments = case.payment_instruments.filter(public_id__in=instrument_ids)
+    for instrument in instruments.order_by("pk"):
         if instrument.status == PaymentInstrument.BANK_RETURNED:
             from .returned_corrections import evidence
             rows.append(evidence(instrument, prior_evidence, correction_date))

@@ -483,8 +483,10 @@ def downstream_issuance_boundary(request, *, as_of=None):
     """Return the first issued artifact, retaining verified original-advance corrections."""
     from vouchers.models import DisbursementVoucher, PaymentInstrument, VoucherCase
     case_ids = _linked_obligation_case_ids(request)
-    if PaymentInstrument.objects.filter(case__public_id__in=case_ids).exclude(status=PaymentInstrument.DRAFT).exists():
-        return "check"
+    from vouchers.cancelled_corrections import retired_instruments
+    for case in VoucherCase.objects.filter(public_id__in=case_ids):
+        if case.payment_instruments.exclude(status=PaymentInstrument.DRAFT).exclude(public_id__in=retired_instruments(case)).exists():
+            return "check"
     from vouchers.advance_recognition_corrections import correction_window, check_replacement_date
     issued_case_ids = DisbursementVoucher.objects.filter(case__public_id__in=case_ids).values_list('case_id', flat=True)
     for case in VoucherCase.objects.filter(pk__in=issued_case_ids):

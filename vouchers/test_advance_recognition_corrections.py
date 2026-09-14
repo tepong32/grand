@@ -16,6 +16,9 @@ class AdvanceRecognitionCorrectionTests(fixtures.AdvanceRecognitionTests):
     post_request = payment_fixtures.PriorPayableDVTests.post_request
     pay = payment_fixtures.PriorPayableDVTests.pay
 
+    def before_original_correction(self, case):
+        return 'disbursement voucher'
+
     def test_web_permissions_exact_mirror_and_independent_withdrawal(self):
         import uuid
         from django.urls import reverse
@@ -95,14 +98,15 @@ class AdvanceRecognitionCorrectionTests(fixtures.AdvanceRecognitionTests):
             codename__in=('view_officer_advances','export_officer_advances')))
         self.client.force_login(self.preparer)
         archived = self.client.get(reverse('accounting:advance_export')).content
-        self.assertEqual(downstream_issuance_boundary(obligation), 'disbursement voucher')
+        boundary = self.before_original_correction(case)
+        self.assertEqual(downstream_issuance_boundary(obligation), boundary)
         correction = prepare(detail=detail, actor=self.preparer, day=timezone.localdate(),
             reason='Original authorized advance amount was overstated', key='BUDGET-AMOUNT')
         from .posting import materialize_voucher_journal, reconcile_posted_voucher_entry
         from accounting.services import submit_entry, post_entry
         reversal, _ = materialize_voucher_journal(correction, self.preparer)
         submit_entry(reversal, self.preparer); post_entry(reversal, self.validator)
-        self.assertEqual(downstream_issuance_boundary(obligation), 'disbursement voucher')
+        self.assertEqual(downstream_issuance_boundary(obligation), boundary)
         reconcile_posted_voucher_entry(reversal, self.validator)
         case.refresh_from_db()
         self.assertEqual(case.current_stage, VoucherCase.PAYABLE_PREPARATION)

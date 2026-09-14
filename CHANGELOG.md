@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.105] - 2026-09-14
+### Added
+- feat(finance): correct cancelled advances with retained payment reversal evidence
+
 ## [0.7.104] - 2026-09-13
 ### Added
 - feat(finance): correct unpaid advance recognition through revised Budget and DV sources

@@ -5,7 +5,7 @@
   <h1 class="h3 mt-3">Correct original unpaid advance</h1>
   <p>{{ source.reference_label }} · Original JEV {{ source.entry.reference }} · {{ source.entry.entry_date }} · {{ source.debit|floatformat:2 }}</p>
   <p>This prepares an exact reversing JEV for independent Accounting posting. The original JEV and signed DV copies remain in history. After posting and reconciliation, return to payable preparation for any required Budget correction, then prepare and sign the corrected DV.</p>
-  <p>This route applies before any payment instrument exists. Released advances, cancelled checks and their liquidation or refund history require their linked payment correction workflow.</p>
+  <p>Every existing check must be cancelled before release, with its payment and cancellation posting reconciled. Cancelled checks remain in history and cannot be reused after the correction. Released advances and their liquidation or refund history require a separate linked correction.</p>
   <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Prepare original advance correction</button></form>
 </div>
 {% endblock %}

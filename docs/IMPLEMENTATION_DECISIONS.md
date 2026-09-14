@@ -1032,3 +1032,21 @@ advance ledger. Initial intake allocations remain evidence; guided revision serv
 validate current amounts. The tradeoff is an explicit reversal, revised source review
 and fresh signatures before payment. Do not extend this route to paid or cancelled
 instruments without their retained settlement evidence. See [workflow and validation](FINANCE_ADVANCE_RECOGNITION_CORRECTIONS_IN_PROGRESS.md).
+
+## D-090 - Retain cancelled advance instruments through source correction
+
+Date: 2026-09-14. Development decision; released/returned advances remain separate work.
+
+An unreleased cancelled check can reopen original advance correction only after its
+actual payment/cancellation decisions reconcile. Pin those decisions in the correction
+and retire the old replacement route only after independent posting and reconciliation.
+Budget, print preparation and check replacement use the same verified retirement.
+Historical checks remain visible while a new DV and check use revised source evidence.
+
+For payment-at-issuance advances, pin the original payment in new cancellation requests
+and require exact financial reversal and payable subsidiary evidence. Equal amounts or
+current mappings alone cannot establish reversal lineage. Reuse existing posting rules,
+case locks and correction history; do not relabel historical cancellations or add a
+second ledger. The tradeoff is explicit cancellation/review before revised DV issuance.
+Revisit actual-release, bank-return and downstream liquidation/refund corrections against
+their complete linked source movements. See [scope and validation](FINANCE_CANCELLED_ADVANCES_IN_PROGRESS.md).

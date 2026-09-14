@@ -2,7 +2,7 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-09-13
+Last updated: 2026-09-14
 
 Turning-point decisions are recorded separately in [the implementation decision log](docs/IMPLEMENTATION_DECISIONS.md), as requested by the user. Keep each choice tied to the canonical product goal, alternatives, tradeoffs, evidence and revisit conditions.
 
@@ -16,7 +16,30 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
-The v0.7.104 development checkpoint on `codex/finance-advance-recognition-corrections`
+The v0.7.105 development checkpoint on `codex/finance-cancelled-advance-corrections`
+adds [original advance correction after unreleased check cancellation](docs/FINANCE_CANCELLED_ADVANCES_IN_PROGRESS.md), D-090.
+Both payment-at-release and payment-at-issuance reach retained cancellation, original
+advance reversal, revised Budget/allocation/claim, fresh DV/signatures/recognition and
+actual payment. New issuance cancellations pin exact original payment reversal lineage.
+Old checks retire from replacement choices only after posted correction reconciliation.
+The corrected signing-copy queue/workbook, packet and payment cycle are demonstrated.
+
+PASS: full SQLite 1,158 discovered / 1,079 passed / 79 skipped, 1387.707s, runner
+41031 exit 0; expanded native 67/67, 130.895s, runner 12187 exit 0; final signing-copy
+native 1/1, 8.202s, runner 79369 exit 0. Earlier two-policy native replay passed 2/2,
+10.029s. See the feature record for commands, baseline failure and scope. Runtime was
+unchanged after the broad runs started; the later print test is covered separately.
+System/migration-drift/diff checks pass. All runners ended; owned MySQL is stopped and
+port 33308 closed. Protected operator DB unchanged; eGAPS untouched; no schema migration.
+
+Version Manager uses the reviewed explicit file list plus VERSION/CHANGELOG, preserving
+unrelated work and historical release references. Verify remote branch/tag after push.
+Next functional work includes released/returned advance corrections and other missing
+M03/M01/M02 scenarios. Exact local outputs, actual inventory, ordinary-office/WFH and
+operational/LGU acceptance remain open. No master integration, deployment or full
+Finance completion is established.
+
+Previous v0.7.104 development checkpoint on `codex/finance-advance-recognition-corrections`
 connects [unpaid original advance corrections](docs/FINANCE_ADVANCE_RECOGNITION_CORRECTIONS_IN_PROGRESS.md),
 D-089. Exact independent reversal and reconciliation reopen existing Budget/payable/DV
 work; replacement recognition and actual payment retain the predecessor evidence.

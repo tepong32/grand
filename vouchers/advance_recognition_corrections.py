@@ -30,14 +30,23 @@ def subsidiaries(entry):
             for x in entry.subsidiary_lines.select_related('journal_line').order_by('journal_line__sequence', 'pk')]
 
 
-def unpaid(case, *, exclude=None):
-    if case.payment_instruments.exists():
-        raise ValidationError('Resolve the issued payment cycle before correcting original advance recognition.')
+def unpaid(case, day, *, exclude=None):
+    from .advance_cancelled_cycles import evidence
+    cancelled = evidence(case, day, exclude_request=exclude)
     pending = case.posting_requests.filter(status__in=(Request.PENDING, Request.MATERIALIZED, Request.FAILED))
     if exclude:
         pending = pending.exclude(pk=exclude)
     if pending.exists():
         raise ValidationError('Resolve other pending source postings before correcting the original advance.')
+    return cancelled
+
+
+def available(case):
+    try:
+        unpaid(case, timezone.localdate())
+    except ValidationError:
+        return False
+    return True
 
 
 def no_payable_use(source):
@@ -57,6 +66,10 @@ def validate(entry):
         raise ValidationError('This original advance correction was withdrawn.')
     verify_source_link(request, entry, source_type='voucher')
     data = request.payload[KEY]
+    from .advance_cancelled_cycles import evidence
+    cancelled = data.get('cancelled_instruments', [])
+    if evidence(request.case, request.jev_date, instrument_ids=[row['instrument'] for row in cancelled]) != cancelled:
+        raise ValidationError('Retain the exact cancelled advance payment-cycle evidence.')
     original = Request.objects.get(case_id=request.case_id, public_id=data['original_request'], kind=Request.RECOGNITION)
     source = posted_request(original, allow_reversal_reference=request.public_id)
     no_payable_use(source)
@@ -90,6 +103,7 @@ def corrected_request_ids(case):
         entry = posted_request(request)
         validate(entry)
         result.update((str(request.public_id), request.payload[KEY]['original_request']))
+        result.update(source['id'] for row in request.payload[KEY].get('cancelled_instruments', []) for source in row['requests'])
     return result
 
 
@@ -97,7 +111,8 @@ def correction_window(case):
     """Read-only proof for an issued-DV exception; callers retain their normal locks."""
     if case.current_stage not in (VoucherCase.PAYABLE_PREPARATION, VoucherCase.PAYABLE_REVIEW, VoucherCase.ACCOUNTING_PREPARATION):
         return False
-    if case.payment_instruments.exists():
+    from .cancelled_corrections import has_unretired_instruments
+    if has_unretired_instruments(case):
         return False
     corrected = corrected_request_ids(case)
     originals = list(case.posting_requests.filter(kind=Request.RECOGNITION, status=Request.POSTED))
@@ -145,7 +160,7 @@ def prepare(*, detail, actor, day, reason, key):
         raise ValidationError('Retain the correction reason and request identity.')
     if case.current_stage != VoucherCase.TREASURY_CHECK_PREPARATION:
         raise ValidationError('Correct an original unpaid advance before check preparation proceeds.')
-    unpaid(case)
+    cancelled = unpaid(case, day)
     detail, original, payable = read_original(detail)
     source = detail.entry
     if not source.entry_date <= day <= timezone.localdate():
@@ -159,6 +174,8 @@ def prepare(*, detail, actor, day, reason, key):
             'original_checksum': original.payload_checksum, 'original_rule_checksum': original.posting_rule_checksum,
             'original_detail': detail.pk, 'lines': rows(source), 'subsidiaries': subsidiaries(source),
             'reason': str(reason).strip(), 'prepared_by': actor.pk}
+    if cancelled:
+        data['cancelled_instruments'] = cancelled
     version = (case.posting_requests.filter(kind=Request.REVERSAL).aggregate(v=Max('version'))['v'] or 0) + 1
     number = _consume_sequence_number(case, actor, 'journal-entry', f'advance-recognition-correction-{version}')
     request = Request(case=case, kind=Request.REVERSAL, version=version, jev_number=number, jev_date=day,
@@ -180,7 +197,7 @@ def materialize(request, actor):
     request = Request.objects.select_for_update().get(pk=request.pk)
     if request.status == Request.CANCELLED or _digest(request.payload) != request.payload_checksum:
         raise ValidationError('Retain an active unchanged original advance correction request.')
-    unpaid(case, exclude=request.pk)
+    unpaid(case, request.jev_date, exclude=request.pk)
     data = request.payload[KEY]
     original = Request.objects.get(case=case, public_id=data['original_request'])
     source = posted_request(original, allow_reversal_reference=request.public_id)
@@ -237,7 +254,7 @@ def reconcile(entry, actor):
     request = validate(entry)
     if request.status == Request.POSTED:
         return request
-    unpaid(case, exclude=request.pk)
+    unpaid(case, request.jev_date, exclude=request.pk)
     request.status, request.accounting_entry_public_id, request.posted_at = Request.POSTED, entry.public_id, entry.posted_at
     request.save()
     _apply_case_return(case, actor, VoucherCase.ACCOUNTING_PREPARATION, request.payload[KEY]['reason'],

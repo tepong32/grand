@@ -209,8 +209,10 @@ def _deduction_payload(item):
 
 def _event_posting_payload(case, posting_rule, rule_checksum, *, event_amount, bank_account_code, trigger):
     from .prior_payables import payload_evidence
+    from .advance_payment_cancellations import payload_evidence as advance_cancellation
     voucher = case.disbursement_voucher
     return {
+        **advance_cancellation(case, posting_rule, trigger),
         **payload_evidence(case, trigger=trigger, amount=event_amount),
         "schema_version": 4,
         "voucher_case_public_id": str(case.public_id),

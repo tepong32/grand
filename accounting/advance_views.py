@@ -115,9 +115,10 @@ def detail(request, pk):
     source_request = VoucherPostingRequest.objects.select_related('case').filter(public_id=source.source_reference).first()
     recognition_corrections = VoucherPostingRequest.objects.filter(finance_department_id=owner.pk,
         payload__advance_recognition_correction__original_detail=source.pk).order_by('pk')
+    from vouchers.advance_recognition_corrections import available
     can_correct_recognition = bool(source_request and source_request.status == VoucherPostingRequest.POSTED
         and source_request.case.current_stage == 'treasury_check_preparation'
-        and not source_request.case.payment_instruments.exists()
+        and available(source_request.case)
         and not recognition_corrections.exclude(status=VoucherPostingRequest.CANCELLED).exists())
     return render(request, "accounting/advance_detail.html", {"source":source, "proof":proof, "issue":issue,
         "recognition_corrections":recognition_corrections, "can_correct_recognition":can_correct_recognition,
