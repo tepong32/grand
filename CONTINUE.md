@@ -16,7 +16,7 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
-The v0.7.106 development checkpoint is prepared on
+The v0.7.106 development checkpoint was published on
 `codex/finance-returned-advance-corrections`, based on v0.7.105. See
 [implementation, validation and remaining scope](docs/FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md), D-091.
 
@@ -35,9 +35,15 @@ fixture error and its repair remain documented. System/migration-drift/diff chec
 All runners ended; owned MySQL is stopped. No schema migration; operator DB unchanged.
 
 Version Manager uses the reviewed adapter with 20 explicit files plus VERSION/CHANGELOG,
-preserving unrelated work and historical release references. Verify the remote branch/tag
-after publication. This is a development checkpoint; no master integration or deployment.
-Implementation pauses after this checkpoint as requested; resume on the next instruction.
+preserving unrelated work and historical release references. Both v0.7.106 remote refs
+were verified at 6b3f0a7417a2d95b5600601b46999916a5c89190.
+
+The user resumed implementation and requested a patch vm-commit with primary integration
+on 2026-09-14. v0.7.107 prepares that integration of the accumulated Finance checkpoints;
+verify the master remote and CI result before treating integration as complete. This
+release changes continuity/version metadata only relative to v0.7.106. No deployment
+or Finance production approval is implied. Continue the next functional checkpoint
+following the modernization priorities after integration.
 
 Remaining functional work includes paid-unreturned/close-without-reissue and wider
 instrument chains, generated-history adoption and other collection/remittance functions.

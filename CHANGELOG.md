@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.107] - 2026-09-14
+### Maintenance
+- chore(finance): prepare accumulated Finance checkpoints for master integration
+
 ## [0.7.106] - 2026-09-14
 ### Added
 - feat(finance): correct returned advances with retained liquidation and refund history
