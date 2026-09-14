@@ -47,6 +47,19 @@ The evidence column records the original assessment baseline. See Current execut
 
 ## Current execution
 
+Execution reconciliation (2026-09-14): collection/deposit is implemented in the verified
+v0.7.98 development checkpoint; advance recognition, actual release, expense liquidation,
+cash refunds and governed corrections subsequently advanced through v0.7.105.
+The uncommitted [returned-advance correction](FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md),
+D-091, now demonstrates revised Budget/DV/payment under both payment policies, retained
+corrected expense/refund/deposit history and selected native races. Full-project regression
+is running. These capabilities do not establish all M03 scenarios or Finance completion.
+Generated-history adoption, remaining collection/remittance instrument/disposition breadth
+and other explicitly open M01–M03 functions remain in the existing queue; inventory,
+ordinary-office, exact-output, usability and operational/LGU gates retain their order.
+Older execution paragraphs below preserve their original checkpoint baselines and must
+not be read as a current claim that collection/deposit or ordinary liquidation is absent.
+
 Execution reconciliation (2026-09-12, after v0.7.97): [M03 collection/deposit](FINANCE_COLLECTIONS_IN_PROGRESS.md) remains an unimplemented, observed domain while M02 now has demonstrated earlier/prior-payable, correction and remittance-return chains. Prioritize the complete receipt-to-deposit source/ledger/output scenario next, before further remittance edge-case expansion. Fees/netting, agency dispositions and generated-history adoption remain open. This follows the existing functionality-first direction; it does not claim M01/M02 completion or change the later inventory/output/acceptance gates.
 
 v0.7.98 execution state: the reviewed cash-collection/deposit source, partial allocations, independent ledger posting, corrections and retained printable copies now have full SQLite and focused native/race evidence. Next examine and implement actual advance/liquidation source and subsidiary gaps within M03 before extending further collection/remittance edge cases. Other collection instruments, actual refunds/returned deposits, exact forms, remaining M01/M02 and the later inventory/office/acceptance gates stay open.

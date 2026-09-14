@@ -30,6 +30,17 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+The v0.7.106 returned-advance checkpoint pins new bank-return JEVs to their original payment with
+distinct purpose evidence and unchanged cash-flow meaning. Availability reads retain
+the original release while withholding observed returns. Original correction
+now pins the reviewed return, retires its authorization during posting reconciliation,
+and excludes only verified retired instruments from replacement release evidence.
+Fully corrected liquidations and refund/deposit histories pin dated journal/source,
+fund and department evidence before original reversal and reproduce it afterward
+without recursive reuse authorization. Outstanding applications remain blocked;
+do not open correction based on BANK_RETURNED status alone. See
+[current work and validation](docs/FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md).
+
 Unpaid original advance corrections use an exact independently posted reversal before
 reopening the existing payable/Budget/DV route. The active cancelled-check extension
 requires all checks to be unreleased with reconciled cancellation evidence; only posted,

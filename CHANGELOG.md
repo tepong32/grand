@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.106] - 2026-09-14
+### Added
+- feat(finance): correct returned advances with retained liquidation and refund history
+
 ## [0.7.105] - 2026-09-14
 ### Added
 - feat(finance): correct cancelled advances with retained payment reversal evidence

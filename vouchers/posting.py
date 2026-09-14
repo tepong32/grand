@@ -47,7 +47,7 @@ def materialize_voucher_journal(posting_request, actor):
         from .advance_applications import materialize
         return materialize(posting_request, actor)
     if (posting_request.payload.get("earlier_accrual") or posting_request.payload.get("deduction_correction")
-            or posting_request.payload.get('advance_payment_cancellation')):
+            or posting_request.payload.get('advance_payment_cancellation') or posting_request.payload.get('advance_payment_return')):
         # Serialize source creation against a pre-DV return/cancellation on the default store.
         with transaction.atomic():
             VoucherCase.objects.select_for_update().get(pk=posting_request.case_id)
@@ -136,7 +136,7 @@ def _materialize_voucher_journal(posting_request, actor):
             reservations = []
             claim_amounts = None
             reversal_of = None
-            if payload.get('advance_payment_cancellation'):
+            if payload.get('advance_payment_cancellation') or payload.get('advance_payment_return'):
                 from .advance_payment_cancellations import source as cancellation_source
                 Fund.objects.select_for_update().get(pk=fund.pk)
                 original_entry = cancellation_source(request)
@@ -411,6 +411,7 @@ def _materialize_voucher_journal(posting_request, actor):
                     "payee_name": payload.get("payee_name", ""),
                     **({'advance_replacement':payload['advance_replacement']} if payload.get('advance_replacement') else {}),
                     **({'advance_payment_cancellation':payload['advance_payment_cancellation']} if payload.get('advance_payment_cancellation') else {}),
+                    **({'advance_payment_return':payload['advance_payment_return']} if payload.get('advance_payment_return') else {}),
                 },
                 description=f"{payload['voucher_reference']} · {payload['particulars']}",
                 reversal_of=reversal_of,
@@ -501,7 +502,7 @@ def reconcile_posted_voucher_entry(entry, actor):
         from .advance_applications import reconcile
         return reconcile(entry, actor)
     entry = require_persisted_posting(entry, actor, source_type="voucher")
-    if entry.source_snapshot.get('advance_payment_cancellation'):
+    if entry.source_snapshot.get('advance_payment_cancellation') or entry.source_snapshot.get('advance_payment_return'):
         from .advance_payment_cancellations import validate
         validate(entry)
     # All case workflows reserve under the case lock. Lock it before the source

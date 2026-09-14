@@ -16,6 +16,35 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
+The v0.7.106 development checkpoint is prepared on
+`codex/finance-returned-advance-corrections`, based on v0.7.105. See
+[implementation, validation and remaining scope](docs/FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md), D-091.
+
+Returned advances now retain the exact payment reversal and independent bank-return
+review through corrected Budget/DV/recognition/payment under both payment policies.
+Corrected liquidation/refund/deposit histories preserve dated source, fund and department
+evidence. Posted reconciliation retires the old reissue authorization; independent
+withdrawal preserves it. Outstanding applications still block original correction.
+
+PASS: final full SQLite 1,195 discovered / 1,109 passed / 86 skipped, 647.082s,
+runner 7356 exit 0. Focused fixture regression passed 3/3, 15.718s, runner 50804.
+Native issuance/withdrawal/three races passed 6/6, 29.099s, runner 70192; final
+fund/history checks passed 3/3, 17.364s, runner 29584. Native results predate only
+a test-fixture binding repair; production code was unchanged. The initial full run's
+fixture error and its repair remain documented. System/migration-drift/diff checks pass.
+All runners ended; owned MySQL is stopped. No schema migration; operator DB unchanged.
+
+Version Manager uses the reviewed adapter with 20 explicit files plus VERSION/CHANGELOG,
+preserving unrelated work and historical release references. Verify the remote branch/tag
+after publication. This is a development checkpoint; no master integration or deployment.
+Implementation pauses after this checkpoint as requested; resume on the next instruction.
+
+Remaining functional work includes paid-unreturned/close-without-reissue and wider
+instrument chains, generated-history adoption and other collection/remittance functions.
+Follow the modernization priorities: finish functionality before actual inventory,
+ordinary-office scenarios, exact outputs, UX and operational/LGU acceptance. Full
+Finance remains NO-GO; eGAPS remains untouched.
+
 The v0.7.105 development checkpoint on `codex/finance-cancelled-advance-corrections`
 adds [original advance correction after unreleased check cancellation](docs/FINANCE_CANCELLED_ADVANCES_IN_PROGRESS.md), D-090.
 Both payment-at-release and payment-at-issuance reach retained cancellation, original

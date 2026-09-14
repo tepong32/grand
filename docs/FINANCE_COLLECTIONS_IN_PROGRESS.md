@@ -1,6 +1,11 @@
 # Collection and deposit implementation — M03
 
-Active work on `codex/finance-collection-deposit`, based on published v0.7.97 (`9fad446`). Local source storage is in progress; no end-to-end collection/deposit capability or acceptance is claimed.
+Implemented development checkpoint: v0.7.98, originally on `codex/finance-collection-deposit`,
+is an ancestor of the current checkout. It connects receipt capture, partial deposits,
+independent posting, corrections and retained outputs; the checkpoint validation is
+recorded below. This does not establish all receipt instruments, exact local forms or
+operational acceptance. Earlier missing/in-progress statements in the chronological
+record describe the pre-v0.7.98 baseline. See [current handoff](../CONTINUE.md) for later work.
 
 ## Why this is the next functional phase
 

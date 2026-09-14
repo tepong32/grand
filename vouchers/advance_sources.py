@@ -90,7 +90,11 @@ def disbursement(detail, as_of):
     released = Decimal("0")
     withheld = Decimal("0")
     sources = []
+    from .cancelled_corrections import retired_instruments
+    retired = retired_instruments(recognition.case)
     for instrument in recognition.case.payment_instruments.order_by("pk"):
+        if str(instrument.public_id) in retired:
+            continue
         if instrument.released_at is None or timezone.localdate(instrument.released_at) > as_of:
             continue
         day = timezone.localdate(instrument.released_at)
@@ -103,7 +107,8 @@ def disbursement(detail, as_of):
         request = requests[0]
         if request.status != Request.POSTED:
             raise ValidationError("Post and reconcile the advance payment before applying its release.")
-        payment = posted_request(request)
+        from .advance_payment_cancellations import released_payment
+        payment, return_posting = released_payment(request, instrument)
         trigger = request.payload.get("trigger", {})
         try:
             event_amount = Decimal(request.payload.get("event_amount", ""))
@@ -150,6 +155,7 @@ def disbursement(detail, as_of):
             "posting_point": point, "posted_on": posting_day.isoformat(),
             "request": str(request.public_id), "entry": str(payment.public_id),
             "payload_checksum": request.payload_checksum, "amount": str(instrument.amount),
+            **({'return_posting':return_posting} if return_posting else {}),
             "returns": [{"exception": str(item.public_id), "observed_on": item.observed_on.isoformat()}
                         for item in returned]})
     if released - withheld > detail.debit:

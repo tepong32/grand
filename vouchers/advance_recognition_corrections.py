@@ -68,11 +68,21 @@ def validate(entry):
     data = request.payload[KEY]
     from .advance_cancelled_cycles import evidence
     cancelled = data.get('cancelled_instruments', [])
-    if evidence(request.case, request.jev_date, instrument_ids=[row['instrument'] for row in cancelled]) != cancelled:
+    from .advance_returned_cycles import matches
+    current = evidence(request.case, request.jev_date,
+        instrument_ids=[row['instrument'] for row in cancelled], correction=request)
+    if len(current) != len(cancelled) or not all(matches(now, old) for now, old in zip(current, cancelled)):
         raise ValidationError('Retain the exact cancelled advance payment-cycle evidence.')
     original = Request.objects.get(case_id=request.case_id, public_id=data['original_request'], kind=Request.RECOGNITION)
     source = posted_request(original, allow_reversal_reference=request.public_id)
     no_payable_use(source)
+    if not source.subsidiary_lines.filter(pk=data['original_detail'], category=JournalSubsidiaryLine.ADVANCE).exists():
+        raise ValidationError('Retain the original advance subsidiary identity in its correction.')
+    advance_application_history(data['original_detail'], request.case, request.jev_date,
+        retained=data.get('settled_applications', []))
+    from .advance_corrected_refunds import evidence as refund_evidence
+    refund_evidence(source.subsidiary_lines.get(pk=data['original_detail']), request.jev_date,
+        retained=data.get('settled_refunds', []))
     if (not original.payload.get('advance_recognition') or original.payload_checksum != data['original_checksum']
             or original.posting_rule_checksum != data['original_rule_checksum']
             or str(source.public_id) != data['original_entry'] or rows(source) != data['lines']
@@ -95,6 +105,12 @@ def validate(entry):
                 or x.source_snapshot != {'original_subsidiary': old['id'], 'original_snapshot': old['snapshot'], KEY: data}):
             raise ValidationError('The corrected officer/payable subsidiary differs from the original evidence.')
     return request
+
+
+def advance_application_history(detail_id, case, day, *, retained=None):
+    from .advance_corrected_applications import evidence
+    detail = JournalSubsidiaryLine.objects.get(pk=detail_id)
+    return evidence(detail, case, day, retained=retained)
 
 
 def corrected_request_ids(case):
@@ -162,6 +178,9 @@ def prepare(*, detail, actor, day, reason, key):
         raise ValidationError('Correct an original unpaid advance before check preparation proceeds.')
     cancelled = unpaid(case, day)
     detail, original, payable = read_original(detail)
+    settled = advance_application_history(detail.pk, case, day)
+    from .advance_corrected_refunds import evidence as refund_evidence
+    refunds = refund_evidence(detail, day)
     source = detail.entry
     if not source.entry_date <= day <= timezone.localdate():
         raise ValidationError('Use the actual correction date on or after original recognition.')
@@ -176,6 +195,10 @@ def prepare(*, detail, actor, day, reason, key):
             'reason': str(reason).strip(), 'prepared_by': actor.pk}
     if cancelled:
         data['cancelled_instruments'] = cancelled
+    if settled:
+        data['settled_applications'] = settled
+    if refunds:
+        data['settled_refunds'] = refunds
     version = (case.posting_requests.filter(kind=Request.REVERSAL).aggregate(v=Max('version'))['v'] or 0) + 1
     number = _consume_sequence_number(case, actor, 'journal-entry', f'advance-recognition-correction-{version}')
     request = Request(case=case, kind=Request.REVERSAL, version=version, jev_number=number, jev_date=day,
@@ -257,6 +280,8 @@ def reconcile(entry, actor):
     unpaid(case, request.jev_date, exclude=request.pk)
     request.status, request.accounting_entry_public_id, request.posted_at = Request.POSTED, entry.public_id, entry.posted_at
     request.save()
+    from .advance_returned_cycles import close_reviews
+    close_reviews(request, actor)
     _apply_case_return(case, actor, VoucherCase.ACCOUNTING_PREPARATION, request.payload[KEY]['reason'],
                        f'advance-recognition-corrected:{request.public_id}')
     if hasattr(case, 'payable_intake'):

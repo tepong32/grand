@@ -1050,3 +1050,32 @@ case locks and correction history; do not relabel historical cancellations or ad
 second ledger. The tradeoff is explicit cancellation/review before revised DV issuance.
 Revisit actual-release, bank-return and downstream liquidation/refund corrections against
 their complete linked source movements. See [scope and validation](FINANCE_CANCELLED_ADVANCES_IN_PROGRESS.md).
+
+## D-091 - Retain reviewed returns and corrected applications through advance correction
+
+Date: 2026-09-14. v0.7.106 development decision; full SQLite regression passed
+(1,109 passed, 86 skipped), with separate focused native and concurrency validation.
+
+An independently reviewed REISSUE bank return can precede original advance correction
+only with its exact posted payment reversal and no existing replacement. New return
+requests pin payment identity and cash-flow meaning. Original correction retains that
+review and closes its replacement authorization only during posted reconciliation,
+with an explicit version transition and recoverable default-store transaction.
+
+Fully corrected expense liquidations and cash refund/deposit histories remain posted.
+Validate them fully before preparing the original reversal, then reproduce their exact
+dated source/journal evidence, including fund and department, during later validation.
+Pending or unmatched applications still block. Later corrections cannot justify an
+earlier correction date. This avoids recursively authorizing a new use of the already
+reversed original advance and avoids treating an aggregate zero balance as source proof.
+
+The existing Budget/payable/DV/signature/payment route produces the revised advance.
+Only verified retired instruments leave new recognition's release calculation; historical
+checks and issued evidence remain retained. Unposted withdrawal preserves the existing
+reviewed replacement choice. Both payment policies and the selected native races pass.
+
+This reuses existing journals, source versions and case locks instead of another ledger
+or approval engine. The tradeoff is larger explicit retained evidence and an additional
+reversal/review cycle. Paid-unreturned advances, close-without-reissue outcomes and wider
+instrument chains remain separate functional work; exact local outputs and operational
+acceptance remain open. See [implementation, validation and scope](FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md).

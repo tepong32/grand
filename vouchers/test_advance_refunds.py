@@ -99,6 +99,9 @@ class AdvanceRefundTests(AdvanceRecognitionTests):
 
     def refund_setup(self):
         detail, case, instrument = self.paid_advance()
+        return detail, AdvanceRefundTests.configure_refund_rules(self)
+
+    def configure_refund_rules(self):
         # Build synthetic setup as draft, then activate it; never edit operator setup.
         type(self.release).objects.filter(pk=self.release.pk).update(status='draft')
         self.release.refresh_from_db()
@@ -123,7 +126,7 @@ class AdvanceRefundTests(AdvanceRecognitionTests):
         type(self.release).objects.filter(pk=self.release.pk).update(status='active')
         self.release.refresh_from_db()
         self.transaction_variant.refresh_from_db()
-        return detail, cash
+        return cash
 
     def capture_refund(self, detail, amount='400', number='001', day=None):
         return record_receipt(actor=self.treasury_user, advance_detail=detail, variant=self.transaction_variant,
