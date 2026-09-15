@@ -505,6 +505,7 @@ class FinancePostingRule(models.Model):
 
 
 class FinancePostingRuleLine(models.Model):
+    RETURN_RECEIVABLE = "return_receivable"
     ALLOCATION_ACCOUNTS = "allocation_accounts"
     DEDUCTION_MAPPINGS = "deduction_mappings"
     PAYABLE_MAPPING = "payable_mapping"
@@ -514,6 +515,7 @@ class FinancePostingRuleLine(models.Model):
     ADVANCE_ACCOUNT = "advance_account"
     PRIOR_ADVANCE = "prior_advance"
     ACCOUNT_SOURCE_CHOICES = (
+        (RETURN_RECEIVABLE, "Selected incoming-cheque return receivable"),
         (PRIOR_ADVANCE, "Selected original officer advance asset"),
         (ADVANCE_ACCOUNT, "Accountable officer advance asset"),
         (PRIOR_PAYABLE, "Selected prior payable claim account"),
@@ -571,6 +573,12 @@ class FinancePostingRuleLine(models.Model):
     def clean(self):
         if self.rule_id and self.rule.variant.release.status != "draft":
             raise ValidationError("Posting-rule lines can be changed only inside a draft configuration release.")
+        if self.account_source == self.RETURN_RECEIVABLE:
+            if (self.side != self.CREDIT or self.amount_source != self.EVENT_AMOUNT
+                    or self.rule.event_kind != FinancePostingRule.COLLECTION
+                    or self.rule.recognition_point != FinancePostingRule.COLLECTION_RECEIPT
+                    or self.mapping_code.strip() or self.ledger_account_code.strip() or self.cash_flow_category):
+                raise ValidationError("Cheque redemption credits the selected original return receivable for the actual principal receipt.")
         deposited_cash = (self.account_source == self.ALLOCATION_ACCOUNTS
             and self.cash_flow_category == 'internal' and self.side == self.CREDIT
             and self.amount_source == self.EACH_ALLOCATION

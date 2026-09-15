@@ -98,7 +98,7 @@ def receipt_rows(owner_id, snapshot, total, bank=None):
     return rows
 
 
-def new_source(*, actor, treasury, variant, fund, kind, book, reference, day, total, proposal, correction_of=None, return_receipt=None, return_deposit=None):
+def new_source(*, actor, treasury, variant, fund, kind, book, reference, day, total, proposal, correction_of=None, return_receipt=None, return_deposit=None, redemption_return=None):
     book, reference = str(book or '').strip(), str(reference or '').strip()
     if not reference or len(reference) > 80 or len(book) > 80 or kind == Source.RECEIPT and not book:
         raise ValidationError('Retain the actual receipt book/number or deposit reference, up to 80 characters each.')
@@ -118,6 +118,7 @@ def new_source(*, actor, treasury, variant, fund, kind, book, reference, day, to
         document_reference=reference, version=prior.version + 1 if prior else 1, supersedes=prior, correction_of=correction_of,
         source_date=day, fund_code=fund.code, amount=total, proposal=proposal,
         return_receipt=return_receipt, return_deposit=return_deposit,
+        redemption_return=redemption_return, redemption_active=redemption_return is not None,
         proposal_checksum=_digest(proposal), prepared_by=actor)
 
 

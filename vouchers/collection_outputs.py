@@ -26,7 +26,7 @@ def permitted_source(user, source_id):
 
 
 @transaction.atomic
-def generate(*, source, actor):
+def generate(*, source, actor, include_custody=False):
     permitted_source(actor,source.pk)
     Department.objects.select_for_update().get(pk=source.treasury_department_id)
     source=Source.objects.select_for_update().get(pk=source.pk)
@@ -77,6 +77,17 @@ def generate(*, source, actor):
     if source.kind == Source.CHEQUE_RETURN:
         snapshot['original_cheque'] = source.proposal['original_cheque']
         snapshot['applicability_reference'] = source.proposal['applicability_reference']
+        from .cheque_redemptions import history
+        snapshot['redemption_receipts'] = history(source)
+        if include_custody:
+            from .cheque_custody import evidence
+            snapshot['cheque_custody'] = evidence(source,actor)
+    if source.proposal.get('redemption'):
+        from .cheque_redemptions import settlement, OR_DISPOSITIONS
+        snapshot['redemption'] = source.proposal['redemption']
+        snapshot['redemption_settlement'] = settlement(source)
+        snapshot['old_receipt_disposition'] = OR_DISPOSITIONS[source.proposal['old_receipt_disposition']]
+        snapshot['old_receipt_evidence'] = source.proposal['old_receipt_evidence']
     refund = source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction')
     if refund:
         snapshot['advance_refund'] = refund
@@ -90,4 +101,6 @@ def content(output, actor):
     if (_digest(output.snapshot) != output.snapshot_checksum
             or hashlib.sha256(output.html.encode('utf-8')).hexdigest() != output.checksum):
         raise ValidationError('The retained printable copy failed its integrity check.')
+    from .cheque_custody import require_output_access
+    require_output_access(output.snapshot,actor)
     return output.html.encode('utf-8')

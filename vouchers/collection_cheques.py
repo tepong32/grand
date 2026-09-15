@@ -31,6 +31,10 @@ def capture(treasury, day, supplied, *, bank=None, advance=None):
     if not isinstance(issued_on, date) or issued_on > day:
         raise ValidationError('Record the cheque date; a future-dated instrument cannot be recorded as a current collection.')
     values['date'] = issued_on.isoformat()
+    if supplied.get('kind'):
+        if supplied['kind'] not in ('ordinary', 'manager', 'cashier'):
+            raise ValidationError('Choose an ordinary, manager’s or cashier’s cheque explicitly.')
+        values['kind'] = supplied['kind']
     values['identity'] = instrument_identity(values)
     # Caller holds the existing Treasury department lock across identity and source creation.
     from .collection_corrections import corrected_sources

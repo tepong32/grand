@@ -1937,6 +1937,12 @@ class TreasuryCollectionSource(models.Model):
     correction_of = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='corrections')
     return_receipt = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='cheque_returns')
     return_deposit = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='deposit_returns')
+    redemption_return = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='redemption_receipts')
+    redemption_active = models.BooleanField(default=False)
+    active_redemption_return = models.GeneratedField(
+        expression=models.Case(models.When(kind='receipt', redemption_active=True,
+            status__in=('proposed','approved','posted'), then=models.F('redemption_return_id')), default=models.Value(None)),
+        output_field=models.BigIntegerField(), db_persist=True, unique=True, null=True)
     active_return_receipt = models.GeneratedField(
         expression=models.Case(models.When(kind='cheque_return', status__in=('proposed','approved','posted'),
             then=models.F('return_receipt_id')), default=models.Value(None)),
@@ -1977,7 +1983,7 @@ class TreasuryCollectionSource(models.Model):
             prior = type(self).objects.get(pk=self.pk)
             immutable = ('treasury_department_id', 'configuration_release_id', 'transaction_variant_id',
                 'finance_department_id', 'finance_department_label', 'kind', 'book_reference', 'document_reference',
-                'version', 'supersedes_id', 'correction_of_id', 'return_receipt_id', 'return_deposit_id', 'source_date', 'fund_code', 'amount', 'proposal', 'proposal_checksum',
+                'version', 'supersedes_id', 'correction_of_id', 'return_receipt_id', 'return_deposit_id', 'redemption_return_id', 'source_date', 'fund_code', 'amount', 'proposal', 'proposal_checksum',
                 'prepared_by_id', 'prepared_at')
             if any(getattr(prior, field) != getattr(self, field) for field in immutable):
                 raise ValidationError('Collection and deposit source versions are immutable. Retain a reasoned successor.')
@@ -1991,6 +1997,39 @@ class TreasuryCollectionSource(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError('Collection and deposit source evidence cannot be deleted.')
+
+
+class CollectionChequeCustodyLink(models.Model):
+    source = models.ForeignKey(TreasuryCollectionSource,on_delete=models.PROTECT,related_name='custody_links')
+    item = models.ForeignKey('tracepoint.PacketItem',on_delete=models.PROTECT,related_name='cheque_custody_links')
+    version = models.PositiveIntegerField()
+    snapshot = models.JSONField()
+    checksum = models.CharField(max_length=64)
+    linked_by = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,related_name='linked_cheque_custody')
+    linked_at = models.DateTimeField(auto_now_add=True)
+    withdrawn_by = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,null=True,blank=True,related_name='withdrawn_cheque_custody')
+    withdrawn_at = models.DateTimeField(null=True,blank=True)
+    withdrawal_reason = models.TextField(blank=True)
+    active_source = models.GeneratedField(expression=models.Case(models.When(withdrawn_at__isnull=True,
+        then=models.F('source_id')),default=models.Value(None)),output_field=models.BigIntegerField(),db_persist=True,unique=True,null=True)
+    active_item = models.GeneratedField(expression=models.Case(models.When(withdrawn_at__isnull=True,
+        then=models.F('item_id')),default=models.Value(None)),output_field=models.BigIntegerField(),db_persist=True,unique=True,null=True)
+
+    class Meta:
+        ordering = ('version',)
+        constraints = (models.UniqueConstraint(fields=('source','version'),name='unique_cheque_custody_version'),)
+        permissions = (('link_collection_custody','Can link incoming cheque sources to TracePoint custody'),)
+
+    def save(self,*args,**kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            fields = ('source_id','item_id','version','snapshot','checksum','linked_by_id','linked_at')
+            if any(getattr(prior,key) != getattr(self,key) for key in fields) or prior.withdrawn_at:
+                raise ValidationError('Retain immutable cheque custody links and their withdrawal history.')
+        return super().save(*args,**kwargs)
+
+    def delete(self,*args,**kwargs):
+        raise ValidationError('Cheque custody association history cannot be deleted.')
 
 
 class CollectionChequeClearance(models.Model):

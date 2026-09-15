@@ -1,5 +1,13 @@
 # GRAND Finance roadmap completion audit
 
+Principal redemption/internal custody have a validated v0.7.112 development checkpoint.
+Broad SQLite passes 1,121 with 107 native-only skips; dated native passes 13/13 and
+the final custody/signature native run passes 17/17 (overlapping scenario sets). New receipts reserve
+the selected return principal once, retain replacement-cheque clearing status and reuse
+TracePoint's confirmed physical history with separate access. See [D-099 scope and results](FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md).
+Do not count external delivery, combined penalties, mixed purposes or officer timing
+as completed by this checkpoint.
+
 Incoming cheque returns have a validated v0.7.111 development posting/correction checkpoint:
 588 broad SQLite passes (39 native skips) and 13 final MySQL passes including four races.
 The first adapter preserves a single original cash-flow purpose and the

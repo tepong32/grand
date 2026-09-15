@@ -1,5 +1,11 @@
 # GRAND Finance complete-cycle roadmap
 
+Principal redemption and internal TracePoint cheque custody have a validated v0.7.112
+development checkpoint; actual validation is recorded in [the feature record](FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md),
+D-099. This closes neither combined principal/penalty treatment nor external payee/court
+delivery. Mixed-purpose return allocations and officer cheque-refund timing remain next
+functional adapters; ordinary Finance breadth and acceptance gates remain open.
+
 v0.7.111 development validates incoming cheque return posting with explicit original sources,
 whole-principal bank effects and reviewed receivable treatment. See the
 [active return scope](FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md); redemption/custody,

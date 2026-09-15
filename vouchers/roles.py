@@ -8,6 +8,10 @@ FINANCE_UAT_VIEWER_GROUP = "Finance UAT Viewer"
 
 FINANCE_ROLE_PERMISSIONS = {
     "Treasury Collection Officer": (
+        "vouchers.link_collection_custody",
+        "tracepoint.view_tracepoint_workspace",
+        "tracepoint.prepare_tracked_packets",
+        "tracepoint.print_packet_labels",
         "vouchers.view_collection_register",
         "vouchers.prepare_collections",
         "vouchers.prepare_collection_deposits",

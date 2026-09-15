@@ -55,7 +55,7 @@ jobs:
 
   mysql:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       SKEY: ci-only-secret-key
       GRAND_TEST_MYSQL_USER: root

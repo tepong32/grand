@@ -7,8 +7,13 @@ from . import presentation_views
 app_name = "vouchers"
 
 from . import cheque_return_views
+from . import cheque_redemption_views
+from . import cheque_custody_views
 
 urlpatterns = [
+    path("collections/<uuid:public_id>/custody/", cheque_custody_views.create, name="cheque_custody_create"),
+    path("collections/<uuid:public_id>/custody/<int:link_id>/withdraw/", cheque_custody_views.withdraw, name="cheque_custody_withdraw"),
+    path("collections/<uuid:public_id>/redeem/", cheque_redemption_views.create, name="cheque_redemption_create"),
     path("collections/<uuid:public_id>/bank-return/", cheque_return_views.create, name="cheque_return_create"),
     path('instruments/<uuid:instrument_id>/presentations/new/', presentation_views.create, name='presentation_create'),
     path('presentations/<uuid:public_id>/', presentation_views.detail, name='presentation_detail'),

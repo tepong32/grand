@@ -3,6 +3,8 @@
 {% block title_ext %} · {{ title }}{% endblock %}
 {% block content %}
 <div class="container py-3"><h1 class="h3">{{ title }}</h1>
+{% if custody_form %}<p>Use an item from your draft or currently held TracePoint packet. Linking identifies the cheque; only TracePoint's confirmed handover establishes physical custody.</p><p><a href="{% url 'tracepoint:workspace' %}">Open TracePoint to prepare or receive the actual packet</a></p>{% endif %}
+{% if redemption_form %}<p>Apply this new receipt to the original returned-cheque principal. A replacement cheque remains pending until bank clearing is confirmed. Record principal only here; fees and penalties need their separately reviewed collection treatment.</p>{% endif %}
 <p>{% if clearing_form %}Retain the bank confirmation and actual clearing date for independent Accounting review. The original receipt and deposit remain posted.{% else %}Retain the actual transaction date and supporting reference. Accounting independently reviews sources before posting.{% endif %}</p>
 <form method="post">{% csrf_token %}{{ form.as_p }}
 {% if shares %}<h2 class="h5">Receipts included in this deposit</h2><p>Enter each receipt and its actual deposited amount. Leave unused rows blank.</p>{{ shares.management_form }}{{ shares.non_form_errors }}
@@ -17,6 +19,6 @@
 <template id="collection-charge-template"><fieldset class="border p-3 mb-2"><legend class="h6">Additional charge</legend>{{ charges.empty_form.as_p }}</fieldset></template>
 <button type="button" id="add-collection-charge" class="btn btn-outline-secondary mb-3">Add another charge</button>
 <script src="{% static 'vouchers/collection-charges.js' %}" defer></script></details>{% endif %}
-<button class="btn btn-primary">Send for review</button>
+<button class="btn btn-primary">{% if custody_form %}Link custody item{% else %}Send for review{% endif %}</button>
 <a class="btn btn-outline-secondary" href="{% url 'vouchers:collection_register' %}">Back to register</a></form></div>
 {% endblock %}

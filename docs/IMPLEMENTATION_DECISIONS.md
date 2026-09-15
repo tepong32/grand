@@ -1217,3 +1217,24 @@ See [scope and actual validation](FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md). Redemp
 must link its new receipt to the completed return, reserve principal once, retain correction
 lineage and distinguish received replacement cheques from actual clearing. TracePoint remains
 the physical-custody authority. Other treatments and officer capacity remain subsequent adapters.
+
+## D-099 — Principal redemption and separate internal custody (2026-09-15)
+
+Reuse ordinary reviewed collection receipts with a selected-original-return receivable
+instruction. Reserve the whole principal under Treasury/source locks and a generated
+active identity. A replacement cheque retains its explicit manager/cashier subtype and
+requires reviewed clearing; a later dishonour creates a new linked obligation. Exact
+receipt correction retires the reservation only after reconciliation and from its actual
+date, including when authorizing a subsequent original-return correction.
+
+Versioned cheque/item associations reuse TracePoint's existing internal handover history.
+Linking an item does not assert physical receipt or alter financial settlement. Keep
+packet-before-item locks without accidentally locking joined historical packets. A mistaken
+association requires independent reasoned withdrawal. Finance-only copies retain existing
+access; explicitly included custody evidence additionally requires current TracePoint access,
+including on later downloads. Source-page association history follows the same visibility boundary.
+
+The [feature record](FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md) records actual validation.
+Principal plus fees/penalties, mixed original purposes, external payee/court delivery and
+officer cheque-refund timing remain separate adapters. Do not infer rates, physical acts
+or a universal locally accepted accounting recipe from the researched baseline.
