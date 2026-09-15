@@ -16,6 +16,18 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
+### v0.7.113 mixed-purpose cheque component checkpoint
+
+Continue in `C:/Users/Administrator/.codex/worktrees/grand-cheque-components`, branch
+`codex/finance-cheque-components`, based on pushed v0.7.112 `ce0c724` and
+[draft PR #73](https://github.com/tepong32/grand/pull/73). The main checkout retains the
+user's unrelated database/test/screenshot changes. Component SQLite (3), combined
+native (25, including six races), Finance/configuration SQLite (184) and dependent
+Accounting/reporting SQLite (320 passed, 29 native skips) pass. Browser desktop/mobile
+review passes; owned browser/server are stopped. See [actual scope and validation](docs/FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md).
+Continue the remaining fee/penalty,
+officer timing and external-delivery boundaries without asking for unavailable procedures.
+
 ### v0.7.112 principal redemption and internal custody checkpoint
 
 Branch `codex/finance-cheque-redemptions` starts from pushed v0.7.111 (`37d4183`),

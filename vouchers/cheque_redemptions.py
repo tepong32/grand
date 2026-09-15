@@ -26,7 +26,7 @@ def original(source, day):
     debits = list(entry.lines.filter(debit__gt=0).select_related('account'))
     if len(debits) != 1 or debits[0].debit != source.amount or entry.reversal_entries.exclude(status=entry.VOIDED).exists():
         raise ValidationError('Retain one exact original return receivable and resolve any reversal first.')
-    return entry, {'return_source':str(source.public_id), 'return_checksum':source.proposal_checksum,
+    proof = {'return_source':str(source.public_id), 'return_checksum':source.proposal_checksum,
         'return_entry':str(entry.public_id), 'return_request':str(request.public_id),
         'return_request_checksum':request.payload_checksum, 'receivable_line':debits[0].pk,
         'receivable_account':debits[0].account_id, 'receivable_code':debits[0].account.code,
@@ -34,6 +34,11 @@ def original(source, day):
         'original_receipt':str(source.return_receipt.public_id),
         'original_receipt_checksum':source.return_receipt.proposal_checksum,
         'cash_flow_purpose':source.proposal['original_cheque']['collection_purposes'][0]}
+    components = source.proposal['original_cheque'].get('cash_components')
+    if components:
+        proof.pop('cash_flow_purpose')
+        proof['cash_flow_components'] = components
+    return entry,proof
 
 
 def available(source, day, *, exclude=None):
@@ -66,6 +71,9 @@ def protect(source, day):
 
 
 def rows(owner, snapshot, total, proof):
+    if proof.get('cash_flow_components'):
+        from .cheque_components import redemption_rows
+        return redemption_rows(owner,snapshot,total,proof)
     instructions = snapshot.get('lines', [])
     cash = [row for row in instructions if row['side'] == Line.DEBIT and row['account_source'] == Line.FIXED_ACCOUNT
         and row['amount_source'] == Line.EVENT_AMOUNT]

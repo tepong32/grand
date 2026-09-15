@@ -1238,3 +1238,17 @@ The [feature record](FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md) records actual v
 Principal plus fees/penalties, mixed original purposes, external payee/court delivery and
 officer cheque-refund timing remain separate adapters. Do not infer rates, physical acts
 or a universal locally accepted accounting recipe from the researched baseline.
+
+## D-100 — Preserve original cash-purpose amounts across cheque settlement (2026-09-15)
+
+Extend the governed recipe with an explicit original-purpose amount instruction rather
+than treating a multi-charge cheque as one arbitrary cash category. Original posted
+receipt evidence supplies the exact amounts. Require a complete purpose set, one return
+receivable debit, original-bank credits, and one redemption collection asset with the
+selected-return receivable credit. Receipt, return, redemption and exact corrections
+retain their own sources; no revenue is recognized a second time.
+
+Single-purpose historical proof and recipe semantics remain unchanged. New mixed-purpose
+returns retain their component evidence explicitly, and later review rederives it from
+the original immutable receipt. This closes a reporting-treatment limitation, not combined
+penalties, external delivery or officer refund timing. See [scope and actual results](FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md).

@@ -21,7 +21,10 @@ def protect(source):
         raise ValidationError('Resolve the retained bank return before changing its receipt, deposit or clearing evidence.')
 
 
-def rows(owner, snapshot, total, bank, collection_cash=(), collection_purposes=()):
+def rows(owner, snapshot, total, bank, collection_cash=(), collection_purposes=(), components=None):
+    if components:
+        from .cheque_components import return_rows
+        return return_rows(owner,snapshot,total,bank,collection_cash,components)
     instructions = snapshot.get('lines', [])
     if (len(instructions) != 2 or {r['side'] for r in instructions} != {Line.DEBIT, Line.CREDIT}
             or any(r['amount_source'] != Line.EVENT_AMOUNT for r in instructions)):
@@ -57,6 +60,9 @@ def original_evidence(receipt, deposit, day):
         if row.get('cash_flow_category')})
     evidence['collection_purposes'] = sorted({row['cash_flow_category'] for row in receipt.proposal['financial_rows']
         if row.get('cash_flow_category')})
+    if len(evidence['collection_purposes']) > 1:
+        from .cheque_components import capture
+        evidence['cash_components'] = capture(receipt)
     return evidence
 
 
@@ -106,7 +112,7 @@ def capture(*, receipt, deposit, actor, variant, debited_on, debit_amount,
         receiving_bank=evidence['bank'], posting_rule=str(rule.public_id), posting_rule_snapshot=snapshot,
         posting_rule_checksum=checksum, fund_id=fund.pk,
         financial_rows=rows(variant.department_id, snapshot, total, evidence['bank'],
-            evidence['collection_cash_accounts'], evidence['collection_purposes']))
+            evidence['collection_cash_accounts'], evidence['collection_purposes'], evidence.get('cash_components')))
     return new_source(actor=actor, treasury=office, variant=variant, fund=fund,
         kind=Source.CHEQUE_RETURN, book='', reference=values['bank_reference'], day=debited_on,
         total=total, proposal=proposal, return_receipt=receipt, return_deposit=deposit)
@@ -133,7 +139,7 @@ def validate(source, *, lock_finance=False):
             or source.fund_code != source.return_receipt.fund_code
             or source.proposal['financial_rows'] != rows(source.finance_department_id,
                 source.proposal['posting_rule_snapshot'], source.amount, evidence['bank'],
-                evidence['collection_cash_accounts'], evidence['collection_purposes'])):
+                evidence['collection_cash_accounts'], evidence['collection_purposes'], evidence.get('cash_components'))):
         raise ValidationError('The return must reproduce its original whole-cheque bank effect and approved counterpart.')
 
 
