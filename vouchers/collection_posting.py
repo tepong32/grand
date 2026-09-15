@@ -30,6 +30,10 @@ def review_source(*, source, actor, approve, reason):
     if _digest(source.proposal) != source.proposal_checksum:
         raise ValidationError('The retained collection/deposit proposal changed.')
     if approve:
+        from .collection_charges import validate as validate_charges
+        validate_charges(source, review=True)
+        from .bank_collections import validate as validate_bank
+        validate_bank(source, review=True)
         validate_source(source)
         if source.kind == Source.CORRECTION:
             from .collection_corrections import validate_correction
@@ -45,6 +49,8 @@ def review_source(*, source, actor, approve, reason):
             balances=remaining_receipts(source.treasury_department_id,exclude=source.pk,as_of=source.source_date)
             for row in source.proposal['allocations']:
                 receipt=Source.objects.get(public_id=row['receipt'])
+                from .collection_cheques import validate_deposit
+                validate_deposit(receipt, row['amount'])
                 entry=posted_receipt(receipt)
                 if (receipt.proposal_checksum != row['proposal_checksum'] or str(entry.public_id) != row['entry']
                         or Decimal(row['amount']) > balances.get(row['receipt'],Decimal('0'))):
@@ -110,6 +116,10 @@ def materialize(request,actor):
         raise ValidationError('Retain the approved collection/deposit source and posting request.')
     source_type={Source.RECEIPT:'collection',Source.DEPOSIT:'deposit',Source.CORRECTION:'collection_fix'}[source.kind]
     validate_source(source)
+    from .collection_charges import validate as validate_charges
+    validate_charges(source)
+    from .bank_collections import validate as validate_bank
+    validate_bank(source)
     with transaction.atomic(using='finance'):
         fund=Fund.objects.select_for_update().get(pk=source.proposal['fund_id'],department_id=source.finance_department_id)
         existing=JournalEntry.objects.filter(source_type=source_type,source_reference=str(request.public_id)).first()
@@ -126,6 +136,8 @@ def materialize(request,actor):
                 for row in source.proposal['allocations']:
                     original=JournalEntry.objects.select_for_update().get(public_id=row['entry'])
                     receipt=Source.objects.get(public_id=row['receipt'])
+                    from .collection_cheques import validate_deposit
+                    validate_deposit(receipt, row['amount'])
                     if posted_receipt(receipt).pk != original.pk or Decimal(row['amount']) > balances.get(row['receipt'],Decimal('0')):
                         raise ValidationError('The deposit must retain its available posted collection shares.')
             period=AccountingPeriod.objects.get(department_id=source.finance_department_id,status=AccountingPeriod.OPEN,

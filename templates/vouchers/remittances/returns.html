@@ -8,7 +8,11 @@
     {% for item in remittance_returns %}
     <div class="border rounded p-3 mt-3">
       <h3 class="h6">Return {{ item.version }} · {{ item.get_status_display }}</h3>
-      <p class="mb-1">{{ item.proposal.amount }} received {{ item.proposal.returned_on }} · {{ item.proposal.receipt_reference }}</p>
+      {% if item.proposal.deducted_fee %}
+      <p class="mb-1">Gross refund {{ item.proposal.amount }} · Bank fee {{ item.proposal.deducted_fee.amount }} · Net bank credit {{ item.proposal.deducted_fee.net_received }}</p>
+      <p class="small">Fee: {{ item.proposal.deducted_fee.account_code }} · {{ item.proposal.deducted_fee.account_title }} · {{ item.proposal.deducted_fee.evidence_reference }}</p>
+      <p class="mb-1">Received {{ item.proposal.returned_on }} · {{ item.proposal.receipt_reference }}</p>
+      {% else %}<p class="mb-1">{{ item.proposal.amount }} received {{ item.proposal.returned_on }} · {{ item.proposal.receipt_reference }}</p>{% endif %}
       <p class="mb-1">{{ item.proposal.reason }}</p>
       {% if item.proposal.receiving_bank %}<p class="small">Receiving bank: {{ item.proposal.receiving_bank.bank_label }} · {{ item.proposal.receiving_bank.bank_code }} · {{ item.proposal.receiving_bank.ledger_account_code }}</p>{% endif %}
       <p class="small">Filing review / disposition: {{ item.proposal.filing_basis }}</p>

@@ -25,6 +25,12 @@ class RemittanceReturnForm(forms.Form):
         widget=forms.DateInput(attrs={'type': 'date'}))
     receipt_reference = forms.CharField(label='Bank or recipient receipt reference', max_length=200)
     receiving_bank_id = forms.ChoiceField(label='Account that actually received the money', required=False)
+    fee_amount = forms.DecimalField(label='Bank fee deducted from refund', required=False,
+        min_value=0, max_digits=18, decimal_places=2,
+        help_text='Enter only a documented deduction from the gross refund; leave blank when no fee was deducted.')
+    fee_account_id = forms.ChoiceField(label='Fee expense account for Accounting review', required=False)
+    fee_reference = forms.CharField(label='Bank fee advice / evidence reference', max_length=200, required=False)
+
     reason = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), label='Why was this amount returned?')
     filing_basis = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}),
         label='Tax-filing review / agency disposition evidence',
@@ -34,7 +40,9 @@ class RemittanceReturnForm(forms.Form):
     def __init__(self, *args, batch, **kwargs):
         super().__init__(*args, **kwargs)
         self.initial['expected_version'] = batch.state_version
-        self.fields['receipt_reference'].help_text = 'Match the actual bank credit. Deducted bank fees require separate Accounting treatment.'
+        self.fields['receipt_reference'].help_text = 'Match the net bank credit to the gross refund less any documented bank fee.'
+        from .receipt_fees import expense_accounts
+        self.fields['fee_account_id'].choices = [('', 'No deducted fee')] + [(str(a.pk), f'{a.code} · {a.title}') for a in expense_accounts(batch)]
         _, _, details, bank = original_payment(batch)
         from .receipt_banks import available_banks
         day = timezone.localdate()
@@ -56,7 +64,7 @@ class RemittanceReturnForm(forms.Form):
             self.source_keys.append((name, key))
             self.fields[name] = forms.DecimalField(required=False, min_value=0,
                 max_value=remaining[key], max_digits=18, decimal_places=2,
-                label=f'{detail.reference_label} / {detail.source_code} — amount received',
+                label=f'{detail.reference_label} / {detail.source_code} — gross refund before bank fee',
                 help_text=f'Unreturned and unreserved: {remaining[key]:,.2f}. Leave blank for no return against this line.')
 
     def clean(self):
@@ -64,7 +72,7 @@ class RemittanceReturnForm(forms.Form):
         cleaned['allocations'] = [{'source_detail': key, 'amount': cleaned[name]}
             for name, key in self.source_keys if cleaned.get(name)]
         if not cleaned['allocations']:
-            raise forms.ValidationError('Allocate the actual receipt to at least one original liability line.')
+            raise forms.ValidationError('Allocate the gross refund to at least one original liability line.')
         return cleaned
 
     def cleaned_data_without_amounts(self):

@@ -2,7 +2,7 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-09-14
+Last updated: 2026-09-15
 
 Turning-point decisions are recorded separately in [the implementation decision log](docs/IMPLEMENTATION_DECISIONS.md), as requested by the user. Keep each choice tied to the canonical product goal, alternatives, tradeoffs, evidence and revisit conditions.
 
@@ -15,6 +15,134 @@ The next task can begin with: **“continue”**
 Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
 
 ## Active direction — eGAPS-informed web modernization
+
+### v0.7.108 development checkpoint
+
+Branch `codex/finance-collection-clearing`, based on integrated v0.7.107. This checkpoint
+contains the netted-receipt fee, multi-charge collection, direct-bank receipt and incoming
+cheque capture/clearing work described below. Clearing retains independent bank evidence,
+withdrawal history and original journals/issued copies. An issue-date change cannot
+duplicate the same bank/account/cheque number. Dishonour/redemption, custody, officer
+cheque-refund timing, mixed instruments and later Finance/acceptance gates remain open.
+
+PASS: full SQLite `.venv/Scripts/python.exe .tmp/earlier_sqlite.py`, 1,362 discovered /
+1,266 passed / 96 native-only skips, 689.398s, exit 0 (`.tmp/cheque-clearing-full-sqlite.log`).
+The local count includes two unrelated untracked policy tests excluded from this release.
+The later database-independent fee-bound test passes separately (0.003s); final clearing
+form text/control presentation is browser-verified. Combined native: all 50 passed,
+including eight races (71.557s); final immutable-ID/web/print native: 2/2 (4.777s).
+System, migration-drift, compilation and diff checks pass. See the feature records below
+for exact commands, previous failures and proportional scope. No further broad rerun is
+needed solely for these documented input/presentation-only changes.
+
+All test runners ended. Owned MySQL, browser and browser server are stopped; their ports
+are closed. Operator DB hash remains unchanged. Do not include that DB, the unrelated
+policy-test draft or older unused screenshots in the release. Migration vouchers/0033
+was exercised only in disposable stores. No operator migration, deployment or eGAPS access.
+
+Next required input: the LGU-approved accounting treatment/reference for dishonoured
+cheque returns and redemption was requested on 2026-09-15; no answer is recorded yet.
+Do not substitute source-error reversals or invent statutory accounts/payment rules.
+Continue the source-linked return/redemption work when its governing treatment is known.
+Actual inventory, official output comparison and operational/LGU acceptance remain separate.
+
+Version Manager preview/execute uses `.tmp/collection_clearing_release.py`, limits managed
+updates to VERSION/CHANGELOG and explicitly includes 41 intended checkpoint files.
+Verify actual branch/tag/PR status on resumption; this text does not establish master
+integration or remote CI. Older local-validation details below are historical evidence.
+
+Current work: [incoming cheque collections](docs/FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md).
+Capture validation recovered: native all 43 passed (67.937s); final SQLite 37 passed,
+six native-only skips (39.615s). The active clearing extension retains Treasury proposals,
+independent Accounting decisions/withdrawals and original whole-deposit/source evidence.
+Source corrections and clearing share the Treasury lock. Migration vouchers/0033 adds
+default-store clearing evidence; no operator migration. Dishonour, custody, redemption
+and officer cheque-refund timing remain unfinished. Focused SQLite passed three tests
+(5.873s); initial native passed five clearing tests/races and reproduced duplicate
+bank/account/number acceptance after an issue-date change (six tests, one expected
+failure, 12.929s). The identity fix preserves old digests and compares retained fields.
+Combined validation PASS: SQLite 42 passed / eight native-only skips (38.924s),
+native all 50 passed including eight races (71.557s), both exit 0. Final public-ID
+immutability/web/print native tests passed 2/2 (4.777s). Logs:
+`.tmp/cheque-clearing-final-sqlite.log`, `.tmp/cheque-clearing-final-native.log`,
+`.tmp/cheque-clearing-final-source-native.log`. Full SQLite 25936 completed as recorded above,
+`.tmp/cheque-clearing-full-sqlite.log`.
+Final form-specific wording and input presentation followed the broad launch;
+browser checks cover independent review/withdrawal, early-date rejection with retained
+input, corrected version 2 and 1440px/390px layout. Synthetic browser and server stopped;
+fixture stores are under `.tmp/cheque-browser-20260915`. Owned MySQL is stopped.
+
+Treasury scope confirmed by the user on 2026-09-15: **cash, cheques and bank
+transfers** are routinely accepted. Direct-bank receipts are locally implemented and
+validated as recorded below. Complete cheque receipt, clearing and return handling
+next. These are required functional scope; capture alone does not finish a payment mode.
+Preserve the existing officer-refund source and capacity controls when extending modes.
+Verified source gaps and the required bank receipt demonstration are recorded in
+[direct-bank collections](docs/FINANCE_BANK_COLLECTIONS_IN_PROGRESS.md).
+
+Combined fee/multi-charge full SQLite regression completed in session 83114:
+`.venv/Scripts/python.exe .tmp/earlier_sqlite.py`, output
+`.tmp/receipt-breadth-full-sqlite.log`. PASS, exit 0: 1,247 discovered, 1,161 passed,
+86 native-only skips, 600.759 seconds. This covers the fee/multi-charge checkpoint
+before the following bank-transfer changes, not their final validation.
+
+Direct-bank receipt implementation connects explicit bank/reference capture, reviewed
+routing, multi-charge purposes, officer refunds, deposit exclusion and retained outputs.
+No schema change; local and uncommitted. Focused SQLite 57488 passed 4/4 (2.642s).
+First dependent runs exposed six fixture errors: model validation correctly rejected
+rule edits in an active synthetic release. The fixture now validates in draft and
+restores active status before receipts; production guards were unchanged.
+SQLite 95543: 28 passed, five native skips, six errors (39.434s, exit 1).
+Native 51582: 33 passed, six errors (52.858s, exit 1).
+
+Final validation PASS: SQLite 56117, 34 passed / five native-only skips (27.940s,
+exit 0); native 80199, all 39 passed including five races (92.273s, exit 0).
+Logs: `.tmp/bank-collections-final-sqlite.log`, `.tmp/bank-collections-final-native.log`.
+Scope includes seven new bank scenarios and dependent collection/refund coverage.
+System/migration-drift/diff checks pass. All runners are terminal and owned MySQL
+is stopped. Operator DB hash is unchanged. See the bank record for exact labels.
+Next implement cheque receipt, deposit, clearing and dishonour. Source-error reversal
+does not establish actual payer refunds or bank-reversed collection handling.
+Full Finance, official outputs and operational/LGU acceptance remain open.
+
+User direction on 2026-09-15: continue overnight and use recommended choices for
+routine questions. Keep local-policy/actual-acceptance facts explicit; do not invent
+them or touch eGAPS. The goal remains active and the old nightly pause is superseded.
+
+Current functional extension: [multi-charge collection receipts](docs/FINANCE_COLLECTION_CHARGES_IN_PROGRESS.md)
+adds explicit charge amounts using existing reviewed collection types, with one cash
+receipt total, partial deposits, exact correction and retained printable breakdown.
+The initial four-test run passed three and exposed one test-route-name error, now fixed.
+SQLite 7883 passed 5/5 in 3.726s; native 37237 passed 5/5 in 4.661s.
+Dependent SQLite 35497 passed 27 with five native-only skips (18.454s); native 83346
+passed all 32 including five races (61.792s). Both exited 0. System/migration drift,
+JavaScript syntax and diff checks pass. All runners ended; owned MySQL is stopped.
+The operator DB hash is unchanged. See the charge record for scope and remaining work. This work is
+uncommitted alongside the fee checkpoint below; do not claim a new release or completion.
+
+
+Current work: [netted remittance receipts](docs/FINANCE_RECEIPT_FEES_IN_PROGRESS.md),
+`codex/finance-remittance-receipt-fees`. The requested vm-commit patch/integration is
+complete: master and v0.7.107 both resolve to `1932735b3ff6ffa6051691e60eec0a80514a3904`;
+PR #69 and its full SQLite/MySQL/security checks passed. No deployment occurred.
+The user explicitly resumed work; the earlier nightly pause no longer applies.
+
+Follow-up scenario validation (2026-09-15): the full netted-refund → deduction
+correction → revised DV/payment → corrected remittance → retained-output cycle passed
+SQLite 67829 (1/1, 3.421s) and native 34276 (1/1, 6.372s), both exit 0. Production code
+is unchanged. SQLite 91133 passed both the final fixture isolation and inherited ordinary
+partial-return scenario (2/2, 9.365s, exit 0). Its log is `.tmp/receipt-fees-settlement-isolated-sqlite.log`.
+All native runners ended and owned MySQL is stopped. Post-push master CI 34860643656
+also completed successfully. See the fee record for final evidence and remaining scope.
+
+The next checkpoint implements gross refund, deducted bank fee and net bank credit
+through existing receipt review, posting, exact correction and output. Focused SQLite 25640 passed 4/4 (4.475s), and native 35269 passed 4/4 (5.931s).
+Dependent SQLite 62859 passed 23 tests with seven native-only skips (29.138s);
+native 53462 passed all 30 (60.322s), including all seven races. Both exited 0.
+System/migration-drift/diff checks pass. All local runners ended; owned MySQL is stopped.
+This implementation checkpoint is local and uncommitted; the published release remains
+v0.7.107. Full Finance, exact local outputs and operational acceptance remain incomplete.
+
 
 The v0.7.106 development checkpoint was published on
 `codex/finance-returned-advance-corrections`, based on v0.7.105. See
@@ -40,7 +168,7 @@ were verified at 6b3f0a7417a2d95b5600601b46999916a5c89190.
 
 The user resumed implementation and requested a patch vm-commit with primary integration
 on 2026-09-14. v0.7.107 prepares that integration of the accumulated Finance checkpoints;
-verify the master remote and CI result before treating integration as complete. This
+master/tag and passing full PR CI were verified at 1932735; PR #69 is merged. This
 release changes continuity/version metadata only relative to v0.7.106. No deployment
 or Finance production approval is implied. Continue the next functional checkpoint
 following the modernization priorities after integration.

@@ -52,6 +52,8 @@ def original_journal(source):
 
 
 def validate_target(source, day, *, exclude=None):
+    from .cheque_clearing import protect_correction
+    protect_correction(source)
     entry,posting = original_journal(source)
     if not isinstance(day,date) or not source.source_date <= day <= timezone.localdate():
         raise ValidationError('Use an actual correction date on or after the original source date, no later than today.')

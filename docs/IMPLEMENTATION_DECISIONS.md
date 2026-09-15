@@ -1079,3 +1079,90 @@ or approval engine. The tradeoff is larger explicit retained evidence and an add
 reversal/review cycle. Paid-unreturned advances, close-without-reissue outcomes and wider
 instrument chains remain separate functional work; exact local outputs and operational
 acceptance remain open. See [implementation, validation and scope](FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md).
+
+
+## D-092 - Record deducted receipt fees without overstating bank cash
+
+Date: 2026-09-14. Locally validated, uncommitted checkpoint after v0.7.107 master
+integration. Focused tests pass on both backends; dependent SQLite 23 passed / seven
+native-only skips and native 30/30 passed, including seven concurrency cases.
+
+Keep original-liability allocations gross, capture the documented deducted bank fee and
+actual net bank credit separately, and post the fee to an explicit active expense account
+reviewed by independent Accounting. Reuse the existing immutable receipt proposal and
+journal/correction route. A 100 gross refund with a 5 fee produces cash 95, expense 5 and
+withholding credit 100; a correction reverses the exact three amounts without changing
+the original remittance or filing evidence.
+
+Inferring the fee from a cash difference could restore the wrong withholding amount.
+A new generic fee framework or separate ledger is unnecessary for this documented
+receipt scenario. Retained account identity and evidence support review and reproduction;
+no hard-coded statutory account is selected. Positive net cash remains required; all-fee
+or non-cash agency dispositions remain separate functional work. Actual cash-flow lines
+record actual net money, with statutory/local presentation still requiring its later gate.
+See [validation and boundaries](FINANCE_RECEIPT_FEES_IN_PROGRESS.md).
+
+
+D-092 follow-up (2026-09-15): the full netted receipt → deduction correction → revised
+DV/payment → corrected remittance scenario now passes SQLite and MySQL, retaining fee,
+net cash, final zero withholding and prior exports. The isolated-fixture regression also
+preserves ordinary partial returns. This is functional-cycle evidence, not broader local
+form or production acceptance; see the receipt-fee record for actual commands/results.
+
+
+## D-093 - One collection receipt with explicit reviewed charge amounts
+
+Date: 2026-09-15. Locally validated, uncommitted checkpoint. Focused SQLite/native
+5/5 each; dependent SQLite 27 passed / five native-only skips and native all 32 passed,
+including five concurrency cases.
+
+Use existing reviewed collection variants to classify explicit component amounts rather
+than choosing arbitrary ledger accounts or recognizing the entire receipt against one
+revenue account. Retain each recipe and reconcile the charge sum to the actual receipt.
+The common fund, release and cash account preserve one accountable receipt; different
+cash purposes retain their own source debit amounts. Deposits combine the same actual
+cash once and do not recognize the revenues again. Correction reverses every original
+financial row after affected deposits are corrected. Prior printable copies are retained.
+
+Independent review compares current setup to the captured proposals; posting uses pinned
+approved recipes. This adds immutable breakdown evidence inside the existing source,
+not a new ledger, approval system or configurable allocation engine. Mixed funds/cash
+accounts and collection instrument breadth remain separate work. See
+[implementation and actual validation](FINANCE_COLLECTION_CHARGES_IN_PROGRESS.md).
+
+## D-094 - Explicit bank credits reuse collection sources and reviewed bank routing
+
+Date: 2026-09-15. User-confirmed required methods are cash, cheques and bank transfers.
+Direct-bank implementation is locally validated: SQLite 34 passed/five native-only skips;
+native all 39 passed including five races. It is uncommitted; cheque lifecycle remains open.
+
+Require an actual bank-credit reference and a reviewed BANK_MAPPING debit recipe.
+Independent source review checks captured setup; posting retains the approved account
+identity rather than rereading a later mapping. Ordinary and multi-charge collections
+use the same source/review/posting/correction path. Officer refunds retain the original
+advance, case-before-Finance locks, dated capacity and subsidiary evidence.
+
+Exclude direct bank receipts from cash deposit availability and selection because the
+money is already in the bank. Reusing a fixed cash receipt followed by an invented
+deposit would misstate custody and duplicate source evidence. Inferring method from an
+account code would relabel history. No parallel ledger or new approval framework is
+needed. Retain bank details in detail/CSV/issued source copies; exact source corrections
+do not rewrite earlier output. See [implementation and validation](FINANCE_BANK_COLLECTIONS_IN_PROGRESS.md).
+
+## D-095 - Confirm incoming cheque clearing over retained collection and deposit evidence
+
+Date: 2026-09-15. Locally validated in development v0.7.108; not LGU/production acceptance.
+
+Use a separate versioned clearing proposal with an independent Accounting decision
+over the original cheque receipt, whole posted deposit, pinned bank mapping and actual
+bank confirmation. Clearing supplies evidence without posting the bank credit twice.
+Treasury proposals and receipt/deposit corrections use the same department lock;
+active clearing evidence must be returned or independently withdrawn before correcting
+its sources. Withdrawal retains the original decision and issued copies; a new proposal
+gets a new version. Do not rewrite the cheque, receipt, deposit or prior output.
+
+Officer cheque refunds stay blocked until dated release/restoration controls consume
+valid clearing and dishonour evidence. Actual dishonour, notice/custody and redemption
+require their own source-linked financial treatment and applicable reviewed authority;
+source-error reversal is not a substitute. No inferred settlement deadline or statutory
+account code is introduced. See [scope and tests](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md).

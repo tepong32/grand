@@ -1,5 +1,36 @@
 # GRAND Finance roadmap completion audit
 
+v0.7.108 development checkpoint: incoming cheque capture and independent bank clearing
+retain whole deposits, source/journal identity, withdrawal history and issued copies.
+Duplicate bank/account/number capture cannot be bypassed by changing the issue date.
+Full SQLite passes 1,266 tests with 96 native-only skips; combined MySQL passes all 50
+including eight races, with final source checks 2/2. Later input/presentation checks are
+recorded separately in the [feature record](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md).
+Dishonour/redemption entries await the approved LGU accounting treatment/reference.
+Officer cheque refunds, mixed instruments, actual inventory/forms and operational/LGU
+acceptance remain open; these tests do not close M03 or the Finance completion gate.
+
+Required payment-method breadth now includes the user's confirmed cash, cheques and
+bank transfers. [Direct-bank receipt capture](FINANCE_BANK_COLLECTIONS_IN_PROGRESS.md)
+is implemented locally, including multi-charge receipts and officer refunds, and is
+validated by 34 passing SQLite tests (five native-only skips) and all 39 native tests
+including five races. Do not mark cheque clearing/return or exact
+local form acceptance complete from bank-credit coverage. The preceding combined
+fee/multi-charge full SQLite gate passed 1,161 tests with 86 native-only skips.
+
+Active M03 breadth: [multi-charge collection receipts](FINANCE_COLLECTION_CHARGES_IN_PROGRESS.md),
+D-093, combine explicit charge amounts from reviewed types and preserve mixed cash
+purposes, one receipt total, partial deposits, exact corrections and printable breakdown.
+Focused SQLite/native tests pass 5/5 each; dependent SQLite passes 27 with five
+native-only skips, and native passes all 32. This remains an uncommitted checkpoint,
+not a completed Finance parity gate.
+
+Current next checkpoint: [netted remittance receipts](FINANCE_RECEIPT_FEES_IN_PROGRESS.md)
+retains explicit gross refund, fee expense/evidence and net cash through existing review,
+posting, correction and output. Focused SQLite/native tests pass; dependent SQLite passes 23 with seven native-only
+skips, and native passes all 30 including those races. The feature remains local and uncommitted. This follows the completed v0.7.107 master integration and does not close
+other collection/remittance, output or acceptance gaps.
+
 Active work: [bank-returned advances](FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md) demonstrate original-payment reversal, reviewed-return retirement and the corrected Budget/DV/recognition/payment cycle, including retained corrected liquidation and refund/deposit history with dated and fund-identity checks. Both payment policies, independent withdrawal and three native correction/replacement/reconciliation races pass. The v0.7.106 checkpoint passes full SQLite regression (1,109 passed, 86 skipped), focused native tests and the three selected native races. This development checkpoint does not establish full Finance completion or deployment.
 
 v0.7.105 development checkpoint: [original advance correction after unreleased check cancellation](FINANCE_CANCELLED_ADVANCES_IN_PROGRESS.md), D-090, connects retained cancellation, revised Budget/DV and actual new payment under both payment policies. Exact issuance cancellation lineage, old-check retirement, corrected signing-copy/packet flow and independent posting are tested. Full SQLite and affected native regression pass. Released/returned advances, other missing Finance scenarios and local/operational acceptance remain open.

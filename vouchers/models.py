@@ -1909,6 +1909,52 @@ class TreasuryCollectionSource(models.Model):
         raise ValidationError('Collection and deposit source evidence cannot be deleted.')
 
 
+class CollectionChequeClearance(models.Model):
+    """Reviewed bank clearing evidence; receipt and deposit journals stay unchanged."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    receipt = models.ForeignKey(TreasuryCollectionSource, on_delete=models.PROTECT, related_name='cheque_clearances')
+    deposit = models.ForeignKey(TreasuryCollectionSource, on_delete=models.PROTECT, related_name='deposit_clearances')
+    version = models.PositiveIntegerField()
+    cleared_on = models.DateField()
+    snapshot = models.JSONField(default=dict)
+    checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=16, default='proposed', choices=(
+        ('proposed', 'For independent review'), ('approved', 'Bank clearing confirmed'),
+        ('rejected', 'Returned for correction'), ('withdrawn', 'Clearing evidence withdrawn')))
+    prepared_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    prepared_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+', null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_reason = models.TextField(blank=True)
+    withdrawn_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+', null=True, blank=True)
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+    withdrawal_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ('-version',)
+        constraints = (models.UniqueConstraint(fields=('receipt', 'version'), name='unique_cheque_clearance_version'),)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            fields = ('public_id', 'receipt_id', 'deposit_id', 'version', 'cleared_on', 'snapshot', 'checksum', 'prepared_by_id', 'prepared_at')
+            if any(getattr(prior, field) != getattr(self, field) for field in fields):
+                raise ValidationError('Retain the original clearing proposal; prepare a new version for corrections.')
+            allowed = {'proposed': ('approved', 'rejected'), 'approved': ('withdrawn',)}
+            if self.status != prior.status and self.status not in allowed.get(prior.status, ()):
+                raise ValidationError('Retain the clearing decision and withdrawal history.')
+            if prior.status != 'proposed' and any(getattr(prior, field) != getattr(self, field)
+                    for field in ('reviewed_by_id', 'reviewed_at', 'review_reason')):
+                raise ValidationError('Retain the independent clearing decision.')
+            if prior.withdrawn_at and any(getattr(prior, field) != getattr(self, field)
+                    for field in ('withdrawn_by_id', 'withdrawn_at', 'withdrawal_reason')):
+                raise ValidationError('Retain the clearing withdrawal evidence.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Clearing evidence cannot be deleted.')
+
+
 class CollectionOutput(models.Model):
     """Retained printable bytes and evidence for a posted collection source."""
     public_id = models.UUIDField(default=uuid.uuid4,unique=True,editable=False)

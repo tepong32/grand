@@ -30,6 +30,37 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+Incoming cheque capture retains instrument identity and requires whole-amount
+deposit allocations. Independent bank clearing proposals pin the original posted receipt,
+whole deposit and bank evidence; correction and clearing share the Treasury lock.
+Never infer clearing from posting or create a duplicate bank credit for clearing.
+The v0.7.108 development checkpoint is locally validated; dishonour and redemption remain unfinished.
+Officer cheque refunds must not release capacity as if they were cash. See
+[current cheque scope](docs/FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md).
+
+Direct-bank collection receipts now retain explicit bank-credit references and reviewed
+bank mappings through ordinary/multi-charge capture and officer refunds. Posted bank
+credits are excluded from cash deposit capacity and selection. Preserve original advance
+locks/subsidiaries and pinned routing; never infer a legacy receipt's payment method from
+its account code. This is included in v0.7.108; initial validation had 34 SQLite tests passed/five native
+skips and all 39 native tests passed, including five races. This is not cheque lifecycle
+or form acceptance. See [bank collection scope](docs/FINANCE_BANK_COLLECTIONS_IN_PROGRESS.md).
+
+Multi-charge receipts are included in v0.7.108: combine explicit amounts from existing reviewed
+collection types only when their cash account, fund and release agree. Keep distinct
+cash-flow purposes on separate cash lines; deposit the full receipt cash once. Retain
+each recipe and one actual receipt total; review detects changed recipes and posting
+uses pinned approvals. Deposits and exact corrections reuse the original source route.
+See [scope and validation](docs/FINANCE_COLLECTION_CHARGES_IN_PROGRESS.md).
+
+Netted remittance receipts are included in development v0.7.108 after
+integrated v0.7.107: retain explicit
+reviewed gross liability allocations, deducted fee expense/evidence and actual net bank
+credit. Fee expense selection is independently reviewed and pinned; later setup changes
+cannot reroute it. Keep no-fee proposal history unchanged and reverse cash, fee and
+withholding together through the existing receipt correction. See
+[scope and current validation](docs/FINANCE_RECEIPT_FEES_IN_PROGRESS.md), D-092.
+
 The v0.7.106 returned-advance checkpoint pins new bank-return JEVs to their original payment with
 distinct purpose evidence and unchanged cash-flow meaning. Availability reads retain
 the original release while withholding observed returns. Original correction

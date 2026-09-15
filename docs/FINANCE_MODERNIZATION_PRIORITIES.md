@@ -17,6 +17,12 @@ Preserve sound architecture, immutable financial history, balancing, independent
 
 ## Product goal
 
+Execution checkpoint v0.7.108 adds netted receipt fees, multi-charge collections,
+direct-bank receipts and incoming cheque capture/independent clearing. The complete
+cheque lifecycle remains next: approved LGU return/redemption accounting treatment
+is requested but not yet supplied. Do not invent it or substitute source-error reversals.
+See [validated scope and remaining work](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md).
+
 Improve the eGAPS office experience through GRAND: familiar Budget, Accounting and Treasury registers and terminology, delivered on the web through individual accounts and current department/role permissions. Support authorized work from home without making physical custody, wet signatures or instrument release appear remote when they still require an in-office act. eGAPS remains an untouched reference; do not modify its files, records or databases or introduce a runtime dependency.
 
 Make future national-government, COA and DBM changes manageable through reviewed, effective-dated rules, mappings and editable forms wherever the existing engine supports them. A new accounting behavior may require code and tests; never promise that every regulatory change is configuration-only. Preserve prior versions and issued evidence, and confirm current authority and local applicability before official use.
@@ -47,13 +53,25 @@ The evidence column records the original assessment baseline. See Current execut
 
 ## Current execution
 
-Execution reconciliation (2026-09-14): collection/deposit is implemented in the verified
-v0.7.98 development checkpoint; advance recognition, actual release, expense liquidation,
-cash refunds and governed corrections subsequently advanced through v0.7.105.
-The uncommitted [returned-advance correction](FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md),
-D-091, now demonstrates revised Budget/DV/payment under both payment policies, retained
-corrected expense/refund/deposit history and selected native races. Full-project regression
-is running. These capabilities do not establish all M03 scenarios or Finance completion.
+Execution reconciliation (2026-09-15): collection/deposit, advance recognition,
+actual release, expense liquidation, cash refunds and governed corrections through
+the [returned-advance checkpoint](FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md) are
+integrated in master/v0.7.107. Its full SQLite/MySQL CI passed. Local uncommitted
+[netted remittance receipts](FINANCE_RECEIPT_FEES_IN_PROGRESS.md) and
+[multi-charge receipts](FINANCE_COLLECTION_CHARGES_IN_PROGRESS.md) have focused
+and dependent SQLite/native validation; combined full SQLite passed 1,161 tests with
+86 native-only skips (1,247 discovered). Direct-bank implementation subsequently began;
+its validation is tracked in the [bank collection record](FINANCE_BANK_COLLECTIONS_IN_PROGRESS.md).
+These capabilities do not establish all M03 scenarios or Finance completion.
+
+The user confirmed on 2026-09-15 that Treasury routinely accepts **cash, cheques
+and bank transfers**. All three are required collection scope. Prioritize explicit
+direct-bank receipt capture and correction next, using reviewed routing and actual
+transaction evidence without counting bank credits as cash awaiting deposit. Follow
+with cheque receipt, clearing and return handling. Preserve officer-refund source
+and dated-capacity controls across supported payment methods. Existing cash workflows
+and free-text references do not establish bank-transfer or cheque lifecycle coverage.
+
 Generated-history adoption, remaining collection/remittance instrument/disposition breadth
 and other explicitly open M01–M03 functions remain in the existing queue; inventory,
 ordinary-office, exact-output, usability and operational/LGU gates retain their order.

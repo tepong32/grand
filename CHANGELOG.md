@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.108] - 2026-09-15
+### Added
+- feat(finance): retain collection payment modes, receipt fees and reviewed cheque clearing
+
 ## [0.7.107] - 2026-09-14
 ### Maintenance
 - chore(finance): prepare accumulated Finance checkpoints for master integration
