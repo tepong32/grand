@@ -2328,7 +2328,7 @@ def approve_override(*, override, actor):
 def link_tracepoint_item(*, case, item, actor, expected_version, idempotency_key):
     _require(actor, "vouchers.link_tracepoint_custody")
     from tracepoint.access import packet_is_visible
-    from tracepoint.models import PacketItem
+    from tracepoint.models import PacketItem, TrackedPacket
 
     case, existing = _locked(case, expected_version, idempotency_key)
     if not can_manage_owned_case_artifact(actor, case, "vouchers.link_tracepoint_custody"):
@@ -2337,8 +2337,13 @@ def link_tracepoint_item(*, case, item, actor, expected_version, idempotency_key
         return case
     if case.tracepoint_item_id:
         raise VoucherWorkflowError("This voucher already has a TracePoint item link.")
-    item = PacketItem.objects.select_for_update().select_related("current_packet").get(pk=item.pk)
-    if hasattr(item, "voucher_case") or not packet_is_visible(actor, item.current_packet):
+    candidate = PacketItem.objects.get(pk=item.pk)
+    packet = TrackedPacket.objects.select_for_update().get(pk=candidate.current_packet_id)
+    item = PacketItem.objects.select_for_update().get(pk=item.pk)
+    if item.current_packet_id != packet.pk:
+        raise VoucherWorkflowError("The item moved while being linked. Reload its current packet.")
+    if (hasattr(item, "voucher_case") or item.cheque_custody_links.filter(withdrawn_at__isnull=True).exists()
+            or not packet_is_visible(actor, item.current_packet)):
         raise VoucherWorkflowError("Choose an unlinked TracePoint item visible to this employee.")
     case.tracepoint_item = item
     case.state_version += 1

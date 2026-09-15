@@ -37,6 +37,16 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+The v0.7.112 development principal-redemption checkpoint links a new receipt to the exact posted
+bank-return receivable and reserve that principal once. A replacement manager's/cashier's
+cheque stays pending until independently confirmed clearing; later dishonour selects a
+new linked return instead of reopening the original reservation. Exact receipt correction
+retires its hold only after reconciliation and preserves dated deposit history. Versioned
+internal TracePoint associations retain separate physical handovers, independent mistaken-link
+withdrawal and joint visibility for custody-bearing outputs. External delivery, combined
+penalties and officer timing remain open. See
+[current redemption scope](docs/FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md).
+
 Incoming cheque bank returns have a validated v0.7.111 development checkpoint. Reuse collection sources with
 explicit original receipt/deposit links and a generated active return identity. The
 first reviewed treatment credits only the original whole-cheque bank amount and debits

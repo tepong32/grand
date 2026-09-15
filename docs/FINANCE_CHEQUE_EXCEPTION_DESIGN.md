@@ -108,6 +108,12 @@ remains visible and cannot authorize a second posting.
 
 ## C. Redemption and instrument custody
 
+The [principal and internal-custody implementation](FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md)
+now connects new receipts and versioned TracePoint item associations. Its validation
+record distinguishes supported principal/internal handovers from still-open combined
+penalties, mixed purposes, external delivery and officer timing. The design below remains
+the intended complete boundary, not a claim that every adapter is implemented.
+
 Add `vouchers/cheque_redemptions.py` as an adapter over receipt capture, charges and bank
 routing, linked to an independently posted/reconciled return. Retain original OR, new OR,
 return approval and remaining principal. Reserve the obligation once across concurrent

@@ -16,6 +16,25 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
+### v0.7.112 principal redemption and internal custody checkpoint
+
+Branch `codex/finance-cheque-redemptions` starts from pushed v0.7.111 (`37d4183`),
+verified on its remote branch and tag. [PR #72](https://github.com/tepong32/grand/pull/72)
+is a draft stacked on presentation reports. The return browser/server are stopped.
+Principal redemption and internal TracePoint custody associations are validated.
+Focused native checks pass (13 dated redemption/custody tests, followed by 17 final
+custody/signature tests); four DV-link SQLite regressions pass. The first broad run
+found five instances of the same unintended collection-role DV navigation grant.
+That grant is removed; focused role/UAT checks pass and the fresh broad rerun passes
+1,121 tests with 107 native-only skips (1,228 discovered), 730.895s, exit 0.
+See [actual scope/results](docs/FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md).
+Continue the remaining component/timing extensions. The mixed-purpose adapter is already
+in development on `codex/finance-cheque-components` in
+`C:/Users/Administrator/.codex/worktrees/grand-cheque-components`; its feature record owns
+the next validation. Retain this checkpoint as its base before publication. No new user
+procedure request is needed. Preserve unrelated drafts and operator DB. All owned
+redemption/custody browser processes are stopped.
+
 ### v0.7.111 incoming cheque return development checkpoint
 
 Branch `codex/finance-cheque-returns` continues pushed v0.7.110 (`ec3bad4`;

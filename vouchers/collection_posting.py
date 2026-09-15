@@ -32,6 +32,8 @@ def review_source(*, source, actor, approve, reason):
     if approve:
         from .cheque_returns import validate as validate_return
         validate_return(source)
+        from .cheque_redemptions import validate as validate_redemption
+        validate_redemption(source)
         from .collection_charges import validate as validate_charges
         validate_charges(source, review=True)
         from .bank_collections import validate as validate_bank
@@ -103,6 +105,8 @@ def validate_collection_journal(entry):
     validate_journal(entry)
     from .cheque_returns import validate_journal as validate_return_journal
     validate_return_journal(entry)
+    from .cheque_redemptions import validate_journal as validate_redemption_journal
+    validate_redemption_journal(entry)
 
 
 @transaction.atomic
@@ -128,6 +132,8 @@ def materialize(request,actor):
         fund=Fund.objects.select_for_update().get(pk=source.proposal['fund_id'],department_id=source.finance_department_id)
         from .cheque_returns import validate as validate_return
         validate_return(source, lock_finance=True)
+        from .cheque_redemptions import validate as validate_redemption
+        validate_redemption(source, lock_finance=True)
         existing=JournalEntry.objects.filter(source_type=source_type,source_reference=str(request.public_id)).first()
         if existing:
             verify_source_link(request,existing,source_type=source_type);validate_collection_journal(existing)
@@ -203,6 +209,10 @@ def reconcile(entry,actor):
         original = Source.objects.select_for_update().get(pk=source.correction_of_id)
         original.status = Source.CORRECTED
         original.save(update_fields=('status',))
+    if source.kind == Source.CORRECTION and source.correction_of.redemption_return_id:
+        original = Source.objects.select_for_update().get(pk=source.correction_of_id)
+        original.redemption_active = False
+        original.save(update_fields=('redemption_active',))
     return source
 
 

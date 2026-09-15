@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.112] - 2026-09-15
+### Added
+- feat(finance): link cheque principal redemption and internal custody
+
 ## [0.7.111] - 2026-09-15
 ### Added
 - feat(finance): post source-linked incoming cheque bank returns

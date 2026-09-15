@@ -4,6 +4,9 @@
 </style></head><body>
 <p class="metadata">GRAND · Retained source record · Copy {{ record.output_version }}</p>
 <h1>{{ record.kind }}</h1><p>{{ record.book }} {{ record.reference }} · Source version {{ record.source_version }}</p>
+{% if record.cheque_custody %}<h2>Physical custody evidence at issue</h2><p>{{ record.cheque_custody.tracking_number }} · {{ record.cheque_custody.item_reference }} · {{ record.cheque_custody.status }}.</p>{% if record.cheque_custody.physical_confirmation %}<p>TracePoint holder: {{ record.cheque_custody.holder }}.</p>{% else %}<p>Physical receipt has not been confirmed in TracePoint.</p>{% endif %}{% for handoff in record.cheque_custody.handoffs %}<p>Receipt {{ handoff.sequence }} · {{ handoff.from }} to {{ handoff.to }} · {{ handoff.confirmed_at }}.</p>{% endfor %}<p>Financial settlement and physical handover remain separate.</p>{% endif %}
+{% if record.redemption_receipts %}<h2>Principal receipt history at issue</h2>{% for item in record.redemption_receipts %}<p>{{ item.book }} {{ item.reference }} · {{ item.amount }} · {{ item.settlement.status }} {{ item.settlement.date }}</p>{% endfor %}{% endif %}
+{% if record.redemption %}<h2>Returned-cheque principal receipt</h2><p>Original bank return {{ record.redemption.return_source }} · Original receipt {{ record.redemption.original_receipt }} · Principal {{ record.redemption.principal }}.</p><p>{{ record.redemption_settlement.status }} {{ record.redemption_settlement.date }}</p><p class="evidence">Original receipt evidence: {{ record.old_receipt_disposition }} · {{ record.old_receipt_evidence }}</p>{% endif %}
 <table><tbody><tr><th>Date</th><td>{{ record.date }}</td><th>Fund</th><td>{{ record.fund }}</td></tr>
 <tr><th>Amount</th><td class="amount">{{ record.amount }}</td><th>JEV</th><td>{{ record.journal }}</td></tr>
 {% if record.payer %}<tr><th>Payer / reference</th><td colspan="3">{{ record.payer }}</td></tr>{% endif %}
