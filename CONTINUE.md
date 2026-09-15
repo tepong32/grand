@@ -16,6 +16,20 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
+### Cheque exception design — 2026-09-15
+
+The user has no local procedures and authorizes researched modular development and
+human resolution of rare cases. See [the design](docs/FINANCE_CHEQUE_EXCEPTION_DESIGN.md)
+for outgoing presentation reports, incoming returns, redemption/custody and the dependent
+officer refund extension. These new modules are planned, not implemented. No user
+procedure request is pending; reviewed applicable rules still govern specific postings.
+Preserve ordinary Finance priorities and the later local/production acceptance gates.
+
+This documentation-only checkpoint does not integrate development v0.7.108 or PR #70.
+PASS: documentation link/whitespace and destination-scope checks. Runtime, native and
+browser tests NOT RUN - OUT OF SCOPE for this design-only change. No runtime files,
+operator data, migrations or historical release evidence changed.
+
 ### v0.7.108 development checkpoint
 
 Branch `codex/finance-collection-clearing`, based on integrated v0.7.107. This checkpoint

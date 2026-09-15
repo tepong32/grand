@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.109] - 2026-09-15
+### Documentation
+- docs(finance): design modular cheque exceptions with human resolution
+
 ## [0.7.108] - 2026-09-15
 ### Added
 - feat(finance): retain collection payment modes, receipt fees and reviewed cheque clearing
