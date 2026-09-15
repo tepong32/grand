@@ -1,5 +1,9 @@
 # GRAND Finance complete-cycle roadmap
 
+v0.7.110 development adds [outgoing presentation reports](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md),
+independent findings and closure against completed original payment/return sources.
+Incoming dishonour and redemption/custody are next; ordinary Finance and acceptance gaps remain.
+
 v0.7.108 development checkpoint includes netted fees, multi-charge receipts, bank credits
 and incoming cheque capture with independently reviewed bank clearing. Full SQLite passes
 1,266 with 96 native-only skips; combined native 50/50, including eight races, and final

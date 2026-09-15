@@ -1219,6 +1219,82 @@ class TreasuryCashReservation(models.Model):
         raise ValidationError("Cash reservations cannot be deleted.")
 
 
+class PaymentPresentationReport(models.Model):
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    instrument = models.ForeignKey(PaymentInstrument, on_delete=models.PROTECT, related_name="presentation_reports")
+    treasury_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="presentation_reports")
+    accounting_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="presentation_reviews")
+    observed_on = models.DateField()
+    reason = models.TextField()
+    evidence_reference = models.TextField()
+    snapshot = models.JSONField()
+    checksum = models.CharField(max_length=64)
+    reported_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="payment_presentations")
+    reported_at = models.DateTimeField(auto_now_add=True)
+    is_open = models.BooleanField(default=True)
+    state_version = models.PositiveIntegerField(default=1)
+    active_instrument = models.GeneratedField(
+        expression=models.Case(models.When(is_open=True, then=models.F("instrument_id")), default=None),
+        output_field=models.BigIntegerField(), db_persist=True, unique=True, null=True,
+    )
+
+    class Meta:
+        ordering = ("-reported_at", "-pk")
+        permissions = (("record_payment_presentations", "Can record cheque presentation reports"),
+                       ("review_payment_presentations", "Can independently review cheque presentation reports"))
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            immutable = ("public_id", "instrument_id", "treasury_department_id", "accounting_department_id",
+                         "observed_on", "reason", "evidence_reference", "snapshot", "checksum", "reported_by_id", "reported_at")
+            if not prior.is_open or any(getattr(prior, f) != getattr(self, f) for f in immutable):
+                raise ValidationError("Presentation reports retain their original evidence and closed history.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Presentation report history cannot be deleted.")
+
+
+class PaymentPresentationDecision(models.Model):
+    PENDING = "pending"
+    PAID = "paid"
+    RETURNED = "returned"
+    NOT_PAID = "not_paid"
+    MISTAKEN = "mistaken"
+    PAID_RECONCILED = "paid_reconciled"
+    RETURN_LINKED = "return_linked"
+    CLOSED_OUTCOMES = (NOT_PAID, MISTAKEN, PAID_RECONCILED, RETURN_LINKED)
+    OUTCOMES = ((PENDING, "Awaiting bank evidence"), (PAID, "Bank confirms payment — reconcile"),
+                (RETURNED, "Bank confirms return — reconcile"), (NOT_PAID, "Bank confirms not paid — resolve"),
+                (MISTAKEN, "Mistaken report — resolve"),
+                (PAID_RECONCILED, "Payment reconciled to original source"),
+                (RETURN_LINKED, "Return resolved through Accounting"))
+    report = models.ForeignKey(PaymentPresentationReport, on_delete=models.PROTECT, related_name="decisions")
+    version = models.PositiveIntegerField()
+    outcome = models.CharField(max_length=16, choices=OUTCOMES)
+    effective_on = models.DateField()
+    evidence_reference = models.TextField()
+    reason = models.TextField()
+    next_action = models.TextField(blank=True)
+    snapshot = models.JSONField()
+    checksum = models.CharField(max_length=64)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="presentation_decisions")
+    reviewed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("version",)
+        constraints = (models.UniqueConstraint(fields=("report", "version"), name="unique_presentation_decision_version"),)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Presentation decisions are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Presentation decisions cannot be deleted.")
+
+
 class PaymentInstrumentException(models.Model):
     UNCLAIMED = "unclaimed"
     STALE = "stale"

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.110] - 2026-09-15
+### Added
+- feat(finance): retain cheque presentation reports and source-linked resolution
+
 ## [0.7.109] - 2026-09-15
 ### Documentation
 - docs(finance): design modular cheque exceptions with human resolution

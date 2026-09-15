@@ -1184,3 +1184,18 @@ form/production acceptance gates. Public LGU and bank references support the des
 NGA MDS examples do not establish this LGU's bank contract or statutory account mapping.
 Implementation reuses existing source posting, advice, reconciliation and TracePoint
 boundaries instead of adding a second ledger or general incident framework.
+
+## D-097 — Source-linked outgoing presentation reports (2026-09-15)
+
+Implement the bounded outgoing module from D-096 before incoming dishonour. Retain
+attempts separately from independently verified bank findings, pin office ownership to
+original issue/release evidence and preserve each decision/export. Default-case locks
+and a generated nullable active key serialize reports and conflicting financial actions;
+a late verified finding also protects an already-issued replacement in the same case.
+
+Verified payment/return closes only against its original completed payment or return
+source. A release request takes precedence over issuance, including when unfinished;
+no-entry replacement issuance cannot hide an unposted release. Missing actual release
+evidence stays open for human reconciliation. Never manufacture acknowledgement or
+automatic retrospective release. See [implementation and validation](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md).
+Incoming dishonour and redemption remain the next modules; this does not complete Finance.

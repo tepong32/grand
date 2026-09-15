@@ -2,10 +2,14 @@ from django.urls import path
 
 from . import advice_views, cash_views, collection_views, remittance_views, views
 from . import cheque_clearing_views
+from . import presentation_views
 
 app_name = "vouchers"
 
 urlpatterns = [
+    path('instruments/<uuid:instrument_id>/presentations/new/', presentation_views.create, name='presentation_create'),
+    path('presentations/<uuid:public_id>/', presentation_views.detail, name='presentation_detail'),
+    path('presentations/<uuid:public_id>/export/', presentation_views.export, name='presentation_export'),
     path('collections/', collection_views.register, name='collection_register'),
     path('collections/new/', collection_views.receipt_create, name='collection_create'),
     path('collections/deposits/new/', collection_views.deposit_create, name='collection_deposit_create'),

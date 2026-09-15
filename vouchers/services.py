@@ -1946,6 +1946,8 @@ def issue_check(*, case, actor, bank_account_code, check_number, amount, expecte
         raise VoucherWorkflowError("That physical check number has already been registered for this bank account and cannot be reused.")
     if replaces is not None:
         replaces = PaymentInstrument.objects.select_for_update().get(pk=replaces.pk)
+    from .payment_presentations import protect_case
+    protect_case(case)
     replacement_statuses = {PaymentInstrument.CANCELLED, PaymentInstrument.BANK_RETURNED}
     from .cancelled_corrections import retired_instruments
     if replaces and str(replaces.public_id) in retired_instruments(case):
@@ -2087,6 +2089,8 @@ def release_check(*, case, instrument, actor, claimant, receipt_reference, expec
         "current_advice_batch",
     ).get(pk=instrument.pk)
     claimant = FinancePartyClaimant.objects.select_for_update().get(pk=claimant.pk)
+    from .payment_presentations import protect_case
+    protect_case(case)
     if case.current_stage != VoucherCase.TREASURY_RELEASE or instrument.case_id != case.pk or instrument.status != PaymentInstrument.ADVISED:
         raise VoucherWorkflowError("Only an advised check in Treasury's release queue may be released.")
     if not instrument.current_advice_batch_id or instrument.current_advice_batch.status != BankAdviceBatch.ACKNOWLEDGED:
@@ -2173,6 +2177,8 @@ def cancel_check(*, case, instrument, actor, reason, expected_version, idempoten
     instrument = PaymentInstrument.objects.select_for_update().get(pk=instrument.pk)
     if instrument.case_id != case.pk or instrument.status not in {PaymentInstrument.ISSUED, PaymentInstrument.ADVISED}:
         raise VoucherWorkflowError("Only an issued or advised, unreleased check can be cancelled.")
+    from .payment_presentations import protect_case
+    protect_case(case)
     if not reason.strip():
         raise VoucherWorkflowError("A cancellation reason is required.")
     instrument.status, instrument.cancelled_by, instrument.cancelled_at = PaymentInstrument.CANCELLED, actor, timezone.now()

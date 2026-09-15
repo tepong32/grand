@@ -73,10 +73,11 @@ Copy or synchronize the complete export root with TraceSync so artifacts remain 
 
 ## Public guidance and local boundary
 
-The [cheque exception design](FINANCE_CHEQUE_EXCEPTION_DESIGN.md) adds a planned,
-evidence-based human-resolution route for presentation before advice completion. It
-does not relax the implemented approval/submission/acknowledgement controls or claim
-that an attempted encashment is a returned payment. No new report module is implemented yet.
+The [presentation module](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md) implements
+retained Treasury reports and independent Accounting findings in development v0.7.110.
+Financial closure links the original completed payment or bank-return source. Missing
+actual release evidence remains a human reconciliation boundary. The ordinary advice
+approval/submission/acknowledgement controls continue to apply.
 
 The COA Government Accounting Manual for National Government Agencies defines cancelled, outstanding, and returned checks and treats bank reconciliation as settlement of book/bank differences ([GAM Chapter 21 definitions](https://coa.gov.ph/wp-content/uploads/abc-help/gam_b/br1.1.htm)). It describes preparation of the Report of Checks Issued and related daily reporting to Accounting ([GAM Chapter 21 method](https://coa.gov.ph/wp-content/uploads/abc-help/gam_b/br1.2.htm)) and chronological recording of released, unreleased, and cancelled checks with actual release dates ([GAM Chapter 6 disbursements](https://www.coa.gov.ph/wp-content/uploads/ABC-Help/GAM_A/g5.htm)). COA also identifies JEVs and bank/check reports as sources for financial reporting ([GAM financial-report source records](https://coa.gov.ph/wp-content/uploads/abc-help/gam_b/fr1.30.htm)).
 

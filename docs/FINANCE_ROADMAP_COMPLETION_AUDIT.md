@@ -1,5 +1,10 @@
 # GRAND Finance roadmap completion audit
 
+v0.7.110 development: [presentation reports](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md)
+pass 125 affected SQLite tests (three native-only skips) and all 14 native tests,
+including three races. Financial closure retains original completed sources. This closes
+the bounded outgoing report checkpoint, not incoming dishonour or Finance completion.
+
 v0.7.108 development checkpoint: incoming cheque capture and independent bank clearing
 retain whole deposits, source/journal identity, withdrawal history and issued copies.
 Duplicate bank/account/number capture cannot be bypassed by changing the issue date.

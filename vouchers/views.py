@@ -405,7 +405,10 @@ def case_detail(request, public_id, *, form_overrides=None):
     }
     relationship_summary = payable_relationship_summary(case) if hasattr(case, "payable_intake") else None
     current_print_job = case.print_jobs.order_by("-version").first()
+    from .payment_presentations import can_act as presentation_action, visible_reports
     return render(request, "vouchers/case_detail.html", {
+        "can_record_presentation": presentation_action(request.user, 'record_payment_presentations'),
+        "presentation_reports": visible_reports(request.user).filter(instrument__case=case),
         "case": case, "permissions": permissions, "workspace_profile": profile,
         "next_action_label": STAGE_NEXT_ACTION.get(case.current_stage, case.get_current_stage_display()),
         "case_ready_for_user": ready_cases.exists(),
