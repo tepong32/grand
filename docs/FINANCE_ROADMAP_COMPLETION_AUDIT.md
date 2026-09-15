@@ -1,5 +1,11 @@
 # GRAND Finance roadmap completion audit
 
+Officer cheque capture/clearing has a validated v0.7.114 development checkpoint. Broad
+SQLite passes 925 with 111 native skips; native passes 29/29 including six races. It retains the existing dated
+reservation while a cheque is pending and when clearing evidence is withdrawn; it does
+not yet implement actual officer bank-return capacity restoration. See
+[current evidence](FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md).
+
 Mixed-purpose returns/redemption have a validated v0.7.113 development checkpoint: focused
 SQLite 3/3, combined native 25/25 including six races, and Finance/component SQLite
 184/184 pass. See [actual scope](FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md); dependent

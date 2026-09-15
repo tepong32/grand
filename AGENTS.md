@@ -37,6 +37,12 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+The v0.7.114 officer cheque refund checkpoint reserves the amount from receipt through
+pending/confirmed clearing, retain the original officer subsidiary, and never release
+application capacity merely by withdrawing clearing evidence. Clearing changes follow
+case-before-Treasury locks. Actual bank returns still require the separate dated
+original-advance adapter. See [current scope](docs/FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md).
+
 Mixed-purpose cheque return/redemption has a validated v0.7.113 development checkpoint.
 Use exact original cash-purpose amounts and a complete reviewed instruction set. Keep
 one original bank for returns and one collection asset for redemption; do not infer

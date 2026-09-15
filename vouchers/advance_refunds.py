@@ -72,7 +72,7 @@ def movements(detail, *, exclude=None):
 @transaction.atomic
 def record(*, actor, detail, variant, received_on, fund_code, receipt_book,
            receipt_number, payer_reference, received_amount, evidence_reference,
-           receiving_bank_id=None, bank_transaction_reference=""):
+           receiving_bank_id=None, bank_transaction_reference="", cheque=None):
     from .collections import require, context, amount, account, financial_row, new_source
     from .advance_applications import capacity
     treasury = require(actor, 'vouchers.prepare_collections')
@@ -91,6 +91,8 @@ def record(*, actor, detail, variant, received_on, fund_code, receipt_book,
         raise ValidationError('Retain the actual returned-money receipt evidence.')
     from .bank_collections import capture as capture_bank, debit_account
     bank_data = capture_bank(variant.department_id, received_on, receiving_bank_id, bank_transaction_reference)
+    from .collection_cheques import capture as capture_cheque
+    instrument = capture_cheque(treasury, received_on, cheque, bank=bank_data)
     instructions = snapshot['lines']
     cash = [row for row in instructions if row['side'] == Line.DEBIT
             and row['account_source'] == (Line.BANK_MAPPING if bank_data else Line.FIXED_ACCOUNT) and row['amount_source'] == Line.EVENT_AMOUNT]
@@ -120,6 +122,8 @@ def record(*, actor, detail, variant, received_on, fund_code, receipt_book,
         'posting_rule_checksum': checksum, 'fund_id': fund.pk, 'financial_rows': rows,
         'cash_account_id': cash_account.pk}
     proposal.update(bank_data)
+    if instrument:
+        proposal['cheque'] = instrument
     return new_source(actor=actor, treasury=treasury, variant=variant, fund=fund, kind=Source.RECEIPT,
         book=receipt_book, reference=receipt_number, day=received_on, total=total, proposal=proposal)
 
