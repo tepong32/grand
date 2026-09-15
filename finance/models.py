@@ -624,8 +624,11 @@ class FinancePostingRuleLine(models.Model):
             refund = (self.rule.event_kind == FinancePostingRule.COLLECTION
                 and self.rule.recognition_point == FinancePostingRule.COLLECTION_RECEIPT
                 and self.amount_source == self.EVENT_AMOUNT)
-            if self.side != self.CREDIT or self.mapping_code.strip() or not (liquidation or refund):
-                raise ValidationError("Apply an original advance by liquidation gross credit or actual refund receipt credit.")
+            bank_return = (self.rule.event_kind == FinancePostingRule.CHEQUE_RETURN
+                and self.rule.recognition_point == FinancePostingRule.COLLECTION_RETURN
+                and self.amount_source == self.EVENT_AMOUNT and self.side == self.DEBIT)
+            if self.mapping_code.strip() or not (bank_return or (self.side == self.CREDIT and (liquidation or refund))):
+                raise ValidationError("Use an original-advance liquidation/refund credit or an actual officer-cheque-return debit.")
         if self.account_source in {self.FIXED_ACCOUNT, self.ADVANCE_ACCOUNT}:
             if not self.ledger_account_code.strip():
                 raise ValidationError({"ledger_account_code": "Enter the locally confirmed posting account code."})

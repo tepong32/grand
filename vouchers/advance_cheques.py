@@ -21,6 +21,13 @@ def settlement(source):
         return {'status': 'Cheque amount reserved; receipt posting and bank clearing pending', 'date': ''}
     from .collections import posted_receipt
     posted_receipt(source)
+    bank_return = source.cheque_returns.filter(status__in=(Source.PROPOSED,Source.APPROVED,Source.POSTED)).first()
+    if bank_return:
+        if bank_return.status != Source.POSTED:
+            return {'status':'Bank return under review; cheque amount remains reserved','date':''}
+        from .collection_corrections import original_journal
+        original_journal(bank_return)
+        return {'status':'Bank returned cheque; original advance adjusted','date':bank_return.source_date.isoformat()}
     if source.corrections.filter(status__in=(Source.PROPOSED, Source.APPROVED)).exists():
         return {'status': 'Receipt correction pending; cheque amount remains reserved', 'date': ''}
     from .cheque_clearing import verify

@@ -16,6 +16,25 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
+### v0.7.115 officer cheque-return checkpoint — paused
+
+Owning checkout: `C:/Users/Administrator/.codex/worktrees/grand-officer-cheque-returns`,
+branch `codex/finance-officer-cheque-returns`, based on pushed v0.7.114 `ad7a300`
+([draft PR #75](https://github.com/tepong32/grand/pull/75)). Its candidate was aligned
+without changing tested Python/templates or the committed database baseline.
+Initial SQLite passes 30/30; native passes 39/39 including nine races. Dependent
+advance/correction, Finance, Accounting and reporting SQLite passes 600 with 48 native
+skips (648 discovered), 430.873s, exit 0. Browser source/review/posting desktop and
+narrow views pass; owned browser/server are stopped. The final register/correction-copy
+officer-reference test passes (1/1, 4.462s, exit 0), preserving the earlier issued copy.
+See [the checkpoint record](docs/FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md).
+
+Paused after this checkpoint at the user's 2026-09-15 request. Do not start another
+phase until asked to resume. Remaining combined fees,
+external delivery, broader Finance functionality and acceptance are not complete;
+consult the roadmap only when the user resumes. Preserve unrelated main-checkout
+database/test/screenshot work. No production migration or master integration is claimed.
+
 ### v0.7.114 officer cheque refund checkpoint
 
 Continue in `C:/Users/Administrator/.codex/worktrees/grand-cheque-components`, now on

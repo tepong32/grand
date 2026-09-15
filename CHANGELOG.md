@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.115] - 2026-09-15
+### Added
+- feat(finance): restore officer cheque returns through original advances
+
 ## [0.7.114] - 2026-09-15
 ### Added
 - feat(finance): retain officer cheque refund reservations through clearing

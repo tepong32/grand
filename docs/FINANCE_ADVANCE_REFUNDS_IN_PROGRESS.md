@@ -1,5 +1,10 @@
 # Officer advance cash refunds — development checkpoint
 
+Later development checkpoints extend this source to
+[explicit cheque reservations and clearing](FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md)
+and [dated bank returns, exact corrections and replacement principal](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md).
+The historical cash checkpoint and its validation below remain unchanged.
+
 Checkpoint v0.7.102 on `codex/finance-advance-refunds`, based on published v0.7.101. This connects
 actual officer cash returns to the original advance, existing Treasury receipt/deposit
 sources and independent Accounting. It is not full advance/Finance parity or production acceptance.

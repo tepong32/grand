@@ -98,6 +98,8 @@ def capture(*, original_return, actor, variant, received_on, received_amount, re
     office = require(actor,'vouchers.prepare_collections')
     if office.pk != original_return.treasury_department_id:
         raise PermissionDenied
+    from .advance_refunds import lock_source_case
+    lock_source_case(original_return)
     Department.objects.select_for_update().get(pk=office.pk)
     source = Source.objects.select_for_update().get(pk=original_return.pk)
     _, proof = original(source,received_on)
@@ -121,6 +123,13 @@ def capture(*, original_return, actor, variant, received_on, received_amount, re
         'fund_id':fund.pk,'financial_rows':financial,'cash_account_id':financial[0]['account_id']}
     if instrument:
         proposal['cheque'] = instrument
+    if source.proposal.get('advance_cheque_return'):
+        from .advance_applications import capacity
+        from accounting.models import JournalSubsidiaryLine
+        data = source.proposal['advance_cheque_return']
+        disbursement = capacity(JournalSubsidiaryLine.objects.get(pk=data['original_detail']),received_on,total)
+        proposal['advance_refund'] = dict(data,disbursement={key:str(value) if isinstance(value,Decimal) else value
+            for key,value in disbursement.items()})
     return new_source(actor=actor,treasury=office,variant=variant,fund=fund,kind=Source.RECEIPT,
         book=receipt_book,reference=receipt_number,day=received_on,total=total,proposal=proposal,redemption_return=source)
 
@@ -137,6 +146,11 @@ def validate(source, *, lock_finance=False):
         JournalEntry.objects.select_for_update().get(pk=entry.pk)
         _, current = original(source.redemption_return,source.source_date)
     expected = rows(source.finance_department_id,source.proposal['posting_rule_snapshot'],source.amount,proof)
+    current_officer = source.proposal.get('advance_refund')
+    original_officer = source.redemption_return.proposal.get('advance_cheque_return')
+    if ({key:value for key,value in (current_officer or {}).items() if key != 'disbursement'}
+            != {key:value for key,value in (original_officer or {}).items() if key != 'disbursement'}):
+        raise ValidationError('Retain the original officer refund identity on its replacement principal receipt.')
     if (proof != current or source.amount != Decimal(proof['principal']) or source.proposal['fund_id'] != entry.fund_id
             or source.finance_department_id != entry.department_id
             or source.treasury_department_id != source.redemption_return.treasury_department_id

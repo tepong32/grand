@@ -13,7 +13,8 @@ from .remittances import _digest
 
 
 def evidence(source):
-    return source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction')
+    from .advance_cheque_returns import evidence as return_evidence
+    return source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction') or return_evidence(source)
 
 
 def visible_originals(actor):
@@ -66,7 +67,8 @@ def movements(detail, *, exclude=None):
             if source.pk not in corrected_sources(source.treasury_department_id, correction.source_date):
                 raise ValidationError('Reconcile the exact refund correction before releasing its reservation.')
             rows.append((correction.source_date, -source.amount))
-    return rows
+    from .advance_cheque_returns import movements as return_movements
+    return rows + return_movements(detail)
 
 
 @transaction.atomic
@@ -129,6 +131,8 @@ def record(*, actor, detail, variant, received_on, fund_code, receipt_book,
 
 
 def validate_source(source, *, check_capacity=True):
+    from .advance_cheque_returns import validate_source as validate_return
+    validate_return(source,check_capacity=check_capacity)
     from .advance_applications import capacity
     data = source.proposal.get('advance_refund')
     if not data:
@@ -154,6 +158,8 @@ def validate_source(source, *, check_capacity=True):
 
 
 def attach(entry, source, request):
+    from .advance_cheque_returns import attach as attach_return
+    attach_return(entry,source,request)
     data = source.proposal.get('advance_refund')
     if data:
         detail = JournalSubsidiaryLine.objects.get(pk=data['original_detail'])
@@ -178,6 +184,8 @@ def attach(entry, source, request):
 
 
 def validate_journal(entry):
+    from .advance_cheque_returns import validate_journal as validate_return
+    validate_return(entry)
     from .models import CollectionPostingRequest
     retained = entry.source_snapshot.get('collection_payload', {})
     proposal = retained.get('proposal', {})

@@ -359,7 +359,8 @@ def export(request):
         clearing_history = output_evidence(source) if source.proposal.get('cheque') else []
         from .cheque_returns import history
         return_history = history(source)
-        refund = source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction') or {}
+        from .advance_refunds import evidence as officer_evidence
+        refund = officer_evidence(source) or {}
         _safe_writerow(writer, [source.get_kind_display(),source.source_date,source.book_reference,
             source.document_reference,source.version,source.fund_code,source.amount,source.get_status_display(),
             row['available'],source.prepared_by.get_username(),

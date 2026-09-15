@@ -91,6 +91,11 @@ def generate(*, source, actor, include_custody=False):
     refund = source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction')
     if refund:
         snapshot['advance_refund'] = refund
+    from .advance_cheque_returns import evidence as return_evidence
+    officer_return = return_evidence(source)
+    if officer_return:
+        snapshot['officer_return'] = officer_return
+        snapshot['officer_return_correction'] = source.kind == Source.CORRECTION
     from .advance_cheques import settlement
     officer_cheque = settlement(source)
     if officer_cheque:

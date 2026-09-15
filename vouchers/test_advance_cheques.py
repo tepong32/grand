@@ -101,13 +101,12 @@ class OfficerChequeTests(fixtures.AdvanceRefundTests):
         self.treasury_user.groups.add(Group.objects.get_or_create(name='Finance UAT Viewer')[0])
         with self.assertRaises(PermissionDenied): self.cheque(detail,receipt_number='uat')
 
-    def test_actual_bank_return_remains_blocked_without_dated_advance_adapter(self):
+    def test_return_evidence_retains_the_original_officer_refund(self):
         from .cheque_returns import original_evidence
         detail, _ = self.refund_setup()
         receipt = self.cheque(detail)
         deposit = self.deposited(receipt)
-        with self.assertRaisesMessage(ValidationError,'dependent dated-capacity adapter'):
-            original_evidence(receipt,deposit,timezone.localdate())
+        self.assertEqual(original_evidence(receipt,deposit,timezone.localdate())['advance_refund'],receipt.proposal['advance_refund'])
         self.assertEqual(movements(detail),[(receipt.source_date,Decimal('400'))])
 
     def test_web_capture_shows_pending_officer_cheque_without_claiming_cash(self):

@@ -37,6 +37,14 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+The v0.7.115 officer cheque bank-return checkpoint retains the original advance debit, officer subsidiary and
+bank purpose. Only a posted, reconciled return restores dated application capacity;
+its source-error correction reserves the amount again from proposal. Replacement
+principal receipts reuse the original officer and a specific return; a returned
+replacement never reopens the older redemption. Original-recognition correction still
+requires its existing refund/deposit correction evidence. See
+[return scope and validation](docs/FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md).
+
 The v0.7.114 officer cheque refund checkpoint reserves the amount from receipt through
 pending/confirmed clearing, retain the original officer subsidiary, and never release
 application capacity merely by withdrawing clearing evidence. Clearing changes follow
