@@ -37,6 +37,12 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+Mixed-purpose cheque return/redemption has a validated v0.7.113 development checkpoint.
+Use exact original cash-purpose amounts and a complete reviewed instruction set. Keep
+one original bank for returns and one collection asset for redemption; do not infer
+residual categories or rewrite single-purpose historical evidence. See
+[component scope](docs/FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md).
+
 The v0.7.112 development principal-redemption checkpoint links a new receipt to the exact posted
 bank-return receivable and reserve that principal once. A replacement manager's/cashier's
 cheque stays pending until independently confirmed clearing; later dishonour selects a

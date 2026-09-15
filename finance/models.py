@@ -534,7 +534,9 @@ class FinancePostingRuleLine(models.Model):
     NET = "net"
     TOTAL_DEDUCTIONS = "total_deductions"
     EVENT_AMOUNT = "event_amount"
+    ORIGINAL_CASH_COMPONENT = "original_cash_component"
     AMOUNT_SOURCE_CHOICES = (
+        (ORIGINAL_CASH_COMPONENT, "Original cheque amount for this cash-flow purpose"),
         (EACH_ALLOCATION, "Each allocation amount"),
         (EACH_DEDUCTION, "Each deduction amount"),
         (GROSS, "Voucher gross amount"),
@@ -573,6 +575,16 @@ class FinancePostingRuleLine(models.Model):
     def clean(self):
         if self.rule_id and self.rule.variant.release.status != "draft":
             raise ValidationError("Posting-rule lines can be changed only inside a draft configuration release.")
+        if self.amount_source == self.ORIGINAL_CASH_COMPONENT:
+            returning = (self.rule.event_kind == FinancePostingRule.CHEQUE_RETURN
+                and self.rule.recognition_point == FinancePostingRule.COLLECTION_RETURN
+                and self.side == self.CREDIT and self.account_source == self.BANK_MAPPING)
+            redeeming = (self.rule.event_kind == FinancePostingRule.COLLECTION
+                and self.rule.recognition_point == FinancePostingRule.COLLECTION_RECEIPT
+                and self.side == self.DEBIT and self.account_source == self.FIXED_ACCOUNT)
+            if (not (returning or redeeming) or not self.cash_flow_category
+                    or self.cash_flow_category == 'internal' or self.mapping_code.strip()):
+                raise ValidationError('Original cash components require an explicit original-purpose return bank credit or redemption collection debit.')
         if self.account_source == self.RETURN_RECEIVABLE:
             if (self.side != self.CREDIT or self.amount_source != self.EVENT_AMOUNT
                     or self.rule.event_kind != FinancePostingRule.COLLECTION

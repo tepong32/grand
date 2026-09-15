@@ -1,5 +1,10 @@
 # GRAND Finance complete-cycle roadmap
 
+The next [mixed-purpose cheque adapter](FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md), D-100,
+has a validated v0.7.113 development checkpoint. It preserves each original cash-purpose amount through
+return, redemption and exact correction. Combined penalties, external delivery and
+officer cheque refunds remain separate work.
+
 Principal redemption and internal TracePoint cheque custody have a validated v0.7.112
 development checkpoint; actual validation is recorded in [the feature record](FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md),
 D-099. This closes neither combined principal/penalty treatment nor external payee/court

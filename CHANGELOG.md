@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.113] - 2026-09-15
+### Added
+- feat(finance): preserve original cheque cash-purpose components
+
 ## [0.7.112] - 2026-09-15
 ### Added
 - feat(finance): link cheque principal redemption and internal custody

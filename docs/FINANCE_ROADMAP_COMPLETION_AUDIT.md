@@ -1,5 +1,11 @@
 # GRAND Finance roadmap completion audit
 
+Mixed-purpose returns/redemption have a validated v0.7.113 development checkpoint: focused
+SQLite 3/3, combined native 25/25 including six races, and Finance/component SQLite
+184/184 pass. See [actual scope](FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md); dependent
+Accounting/reporting checks pass 320 with 29 native-only skips. This does not complete fees, external
+delivery, officer timing or Finance acceptance.
+
 Principal redemption/internal custody have a validated v0.7.112 development checkpoint.
 Broad SQLite passes 1,121 with 107 native-only skips; dated native passes 13/13 and
 the final custody/signature native run passes 17/17 (overlapping scenario sets). New receipts reserve
