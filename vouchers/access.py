@@ -7,6 +7,8 @@ from .roles import is_finance_uat_viewer
 
 
 ACTION_PERMISSIONS = (
+    "vouchers.record_payment_presentations",
+    "vouchers.review_payment_presentations",
     "vouchers.initiate_budget_case",
     "vouchers.initiate_payable_case",
     "vouchers.review_payable_intake",

@@ -134,6 +134,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.export_local_form_acceptance",
     ),
     "Accounting Reviewer": (
+        "vouchers.review_payment_presentations",
         "accounting.view_officer_advances",
         "accounting.export_officer_advances",
         "vouchers.view_collection_register",
@@ -182,6 +183,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.export_local_form_acceptance",
     ),
     "Treasury Disbursement Officer": (
+        "vouchers.record_payment_presentations",
         "vouchers.view_voucher_workbench",
         "vouchers.issue_payment_instruments",
         "vouchers.release_payment_instruments",

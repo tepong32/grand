@@ -1,6 +1,9 @@
 # Cheque exceptions: modular implementation design
 
-Date: 2026-09-15. Status: **design, not implemented functionality or LGU acceptance**.
+Date: 2026-09-15. Status: reference design. The outgoing presentation module has a
+[validated v0.7.110 development checkpoint](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md).
+Incoming dishonour, redemption/custody and officer refund extensions remain planned.
+This does not establish LGU acceptance.
 
 The user has no local procedure to supply and authorizes research-led development.
 Rare cases may be resolved by people. Missing local paperwork does not block ordinary

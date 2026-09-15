@@ -16,19 +16,24 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
-### Cheque exception design — 2026-09-15
+### v0.7.110 presentation-report development checkpoint — 2026-09-15
 
 The user has no local procedures and authorizes researched modular development and
 human resolution of rare cases. See [the design](docs/FINANCE_CHEQUE_EXCEPTION_DESIGN.md)
 for outgoing presentation reports, incoming returns, redemption/custody and the dependent
-officer refund extension. These new modules are planned, not implemented. No user
+officer refund extension. Outgoing reports are implemented; incoming dishonour is next. No user
 procedure request is pending; reviewed applicable rules still govern specific postings.
 Preserve ordinary Finance priorities and the later local/production acceptance gates.
 
-This documentation-only checkpoint does not integrate development v0.7.108 or PR #70.
-PASS: documentation link/whitespace and destination-scope checks. Runtime, native and
-browser tests NOT RUN - OUT OF SCOPE for this design-only change. No runtime files,
-operator data, migrations or historical release evidence changed.
+Branch `codex/finance-payment-presentations`, based on `5282005` from the collection
+development branch. See [scope and commands](docs/FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md).
+PASS: final affected SQLite 128 discovered / 125 passed / three native-only skips,
+63.870s; final native 14/14 including three races, 17.456s; both exit 0.
+System, migration-drift and whitespace checks pass. Synthetic browser capture, independent
+review, closed history and desktop/mobile layouts pass. Migrations 0034–0035 were exercised
+only in disposable stores. Operator DB hash is unchanged. This is development evidence,
+not primary integration, deployment or LGU acceptance. Incoming dishonour, redemption/custody
+and officer cheque-refund timing remain the next phases.
 
 ### v0.7.108 development checkpoint
 
@@ -59,8 +64,8 @@ Philippine LGU/bank guidance, design modular implementations and allow human res
 of rare cases. This is not a blocker on ordinary Finance development. The
 [modular cheque exception design](docs/FINANCE_CHEQUE_EXCEPTION_DESIGN.md) separates
 outgoing presentation reports, incoming dishonour, redemption/custody and officer refunds.
-Design is complete; those new modules are not implemented. Begin the bounded presentation
-report checkpoint, then incoming return/redemption; preserve ordinary functionality priority.
+The design-only snapshot above preceded v0.7.110. Presentation reports are now implemented;
+continue incoming return/redemption while preserving ordinary functionality priority.
 Specific ledger postings still require reviewed applicable recipes, without invented
 statutory accounts or source-error reversals. No further procedure request is pending.
 Actual inventory, official output comparison and operational/LGU acceptance remain separate.

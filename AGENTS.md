@@ -37,6 +37,13 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+Outgoing cheque presentation reports retain original Treasury ownership, independent
+Accounting findings and immutable exports. Case-first locks and a generated active key
+serialize open reports and conflicting actions. Financial closure requires the original
+completed source; no-entry replacement issuance cannot hide an unfinished release payment.
+Never fabricate physical release or acknowledgement to close a bank finding. See the
+[v0.7.110 development checkpoint](docs/FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md).
+
 Incoming cheque capture retains instrument identity and requires whole-amount
 deposit allocations. Independent bank clearing proposals pin the original posted receipt,
 whole deposit and bank evidence; correction and clearing share the Treasury lock.
