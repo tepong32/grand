@@ -264,12 +264,13 @@ def posting_rule_snapshot(rule):
 def collection_event_policy_error(rules):
     """Return collection-only policy validity, or None for the payable cycle."""
     events = {rule.event_kind for rule in rules}
-    collection_events = {FinancePostingRule.COLLECTION, FinancePostingRule.DEPOSIT}
+    collection_events = {FinancePostingRule.COLLECTION, FinancePostingRule.DEPOSIT, FinancePostingRule.CHEQUE_RETURN}
     if not events or not events.issubset(collection_events):
         return None
     points = {
         FinancePostingRule.COLLECTION: FinancePostingRule.COLLECTION_RECEIPT,
         FinancePostingRule.DEPOSIT: FinancePostingRule.COLLECTION_DEPOSIT,
+        FinancePostingRule.CHEQUE_RETURN: FinancePostingRule.COLLECTION_RETURN,
     }
     for rule in rules:
         if (rule.accounting_effect != FinancePostingRule.JOURNAL_ENTRY

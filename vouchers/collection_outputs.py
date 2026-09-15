@@ -37,7 +37,7 @@ def generate(*, source, actor):
         raise ValidationError('Retain one posted source JEV before generating the printable copy.')
     posting=postings[0]
     entry=JournalEntry.objects.get(public_id=posting.accounting_entry_public_id)
-    source_type={Source.RECEIPT:'collection',Source.DEPOSIT:'deposit',Source.CORRECTION:'collection_fix'}[source.kind]
+    source_type={Source.RECEIPT:'collection',Source.DEPOSIT:'deposit',Source.CORRECTION:'collection_fix',Source.CHEQUE_RETURN:'cheque_return'}[source.kind]
     verify_source_link(posting,entry,source_type=source_type)
     from .collection_posting import validate_collection_journal
     validate_collection_journal(entry)
@@ -72,6 +72,11 @@ def generate(*, source, actor):
         snapshot['cheque'] = source.proposal['cheque']
         from .cheque_clearing import output_evidence
         snapshot['cheque_clearances'] = output_evidence(source)
+    from .cheque_returns import history
+    snapshot['cheque_returns'] = history(source)
+    if source.kind == Source.CHEQUE_RETURN:
+        snapshot['original_cheque'] = source.proposal['original_cheque']
+        snapshot['applicability_reference'] = source.proposal['applicability_reference']
     refund = source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction')
     if refund:
         snapshot['advance_refund'] = refund

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.111] - 2026-09-15
+### Added
+- feat(finance): post source-linked incoming cheque bank returns
+
 ## [0.7.110] - 2026-09-15
 ### Added
 - feat(finance): retain cheque presentation reports and source-linked resolution

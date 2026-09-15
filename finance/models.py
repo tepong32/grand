@@ -388,6 +388,7 @@ class FinanceDocumentRule(models.Model):
 class FinancePostingRule(models.Model):
     COLLECTION = "collection"
     DEPOSIT = "deposit"
+    CHEQUE_RETURN = "cheque_return"
     RECOGNITION = "recognition"
     ADJUSTMENT = "adjustment"
     LIQUIDATION = "liquidation"
@@ -399,6 +400,7 @@ class FinancePostingRule(models.Model):
     EVENT_KIND_CHOICES = (
         (COLLECTION, "Record an actual Treasury collection"),
         (DEPOSIT, "Deposit previously recorded collections"),
+        (CHEQUE_RETURN, "Record an incoming cheque bank debit"),
         (RECOGNITION, "Recognize expense, asset, or payable"),
         (ADJUSTMENT, "Adjust an earlier recognition"),
         (LIQUIDATION, "Record liquidation"),
@@ -422,9 +424,11 @@ class FinancePostingRule(models.Model):
     OTHER = "other"
     COLLECTION_RECEIPT = "collection_receipt"
     COLLECTION_DEPOSIT = "collection_deposit"
+    COLLECTION_RETURN = "collection_return"
     RECOGNITION_POINT_CHOICES = (
         (COLLECTION_RECEIPT, "Actual Treasury receipt"),
         (COLLECTION_DEPOSIT, "Actual deposit of collections"),
+        (COLLECTION_RETURN, "Actual bank debit for an incoming cheque"),
         (DELIVERY_ACCEPTANCE, "Delivery / inspection acceptance"),
         (BILLING_VALIDATION, "Billing or claim validation"),
         (DV_VALIDATION, "DV Accounting validation"),

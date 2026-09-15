@@ -1146,7 +1146,7 @@ def validate_entry_for_submission(entry):
     if entry.source_snapshot.get("advance_application"):
         from vouchers.advance_applications import validate
         validate(entry)
-    if entry.source_type in ('collection', 'deposit', 'collection_fix'):
+    if entry.source_type in ('collection', 'deposit', 'collection_fix', 'cheque_return'):
         from vouchers.collection_posting import validate_collection_journal
         validate_collection_journal(entry)
     if entry.source_snapshot.get('remittance_return_correction'):
@@ -1240,7 +1240,7 @@ def _post_entry(entry, actor):
             locked.created_by_id, locked.submitted_by_id,
             advance_source.get("prepared_by")}:
         raise ValidationError("This advance entry requires independent Accounting posting.")
-    if locked.source_type in ('collection', 'deposit', 'collection_fix') and actor.pk in {
+    if locked.source_type in ('collection', 'deposit', 'collection_fix', 'cheque_return') and actor.pk in {
             locked.created_by_id, locked.submitted_by_id,
             locked.source_snapshot.get('collection_payload', {}).get('prepared_by')}:
         raise ValidationError('A collection/deposit requires independent posting by another Accounting officer.')
@@ -1315,7 +1315,7 @@ def create_reversal(entry, actor, *, reference, entry_date, period, reason):
     locked = JournalEntry.objects.select_for_update().select_related("fund").get(pk=entry.pk)
     if locked.status != JournalEntry.POSTED:
         raise ValidationError("Only a posted journal can be reversed.")
-    if locked.source_type in ('collection', 'deposit', 'collection_fix'):
+    if locked.source_type in ('collection', 'deposit', 'collection_fix', 'cheque_return'):
         raise ValidationError('Use the collection/deposit source correction workflow to preserve receipt allocations.')
     if locked.subsidiary_lines.filter(category=JournalSubsidiaryLine.ADVANCE).exists():
         raise ValidationError("Advance corrections require the original advance and payment source workflow; detached reversal is not supported.")

@@ -653,6 +653,7 @@ class JournalEntry(DepartmentOwnedModel):
     SOURCE_CHOICES = (
         ("collection", "Treasury collection receipt"), ("deposit", "Deposit of Treasury collections"),
         ("collection_fix", "Collection/deposit correction"),
+        ("cheque_return", "Incoming cheque bank return"),
         ("manual", "Manual journal"), ("voucher", "Voucher"),
         ("remittance", "Deduction / withholding remittance"),
         ("adjustment", "Adjusting entry"), ("reversal", "Reversing entry"),
