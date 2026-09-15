@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.109] - 2026-09-15
+### Documentation
+- docs(finance): design modular cheque exceptions with human resolution
+
 ## [0.7.107] - 2026-09-14
 ### Maintenance
 - chore(finance): prepare accumulated Finance checkpoints for master integration
