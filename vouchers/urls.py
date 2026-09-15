@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import advice_views, cash_views, collection_views, remittance_views, views
+from . import cheque_clearing_views
 
 app_name = "vouchers"
 
@@ -10,6 +11,8 @@ urlpatterns = [
     path('collections/deposits/new/', collection_views.deposit_create, name='collection_deposit_create'),
     path('collections/export/', collection_views.export, name='collection_export'),
     path('collections/<uuid:public_id>/', collection_views.detail, name='collection_detail'),
+    path('collections/<uuid:public_id>/clearing/new/', cheque_clearing_views.create, name='cheque_clearing_create'),
+    path('collections/<uuid:public_id>/clearing/<uuid:clearance_id>/review/', cheque_clearing_views.review, name='cheque_clearing_review'),
     path('collections/<uuid:public_id>/review/', collection_views.review, name='collection_review'),
     path('collections/<uuid:public_id>/correct/', collection_views.correction_create, name='collection_correction_create'),
     path('collections/<uuid:public_id>/outputs/new/', collection_views.output_generate, name='collection_output_generate'),

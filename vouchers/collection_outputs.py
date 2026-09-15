@@ -64,6 +64,14 @@ def generate(*, source, actor):
             for c in source.corrections.order_by('pk')],
         'source_checksum':source.proposal_checksum,'posting_checksum':posting.payload_checksum,
         'output_version':version,'generated_at':timezone.now().isoformat(),'generated_by':actor.get_username()}
+    if source.proposal.get('bank_transaction_reference'):
+        snapshot['bank_transaction_reference'] = source.proposal['bank_transaction_reference']
+    if source.proposal.get('charges'):
+        snapshot['charges'] = source.proposal['charges']
+    if source.proposal.get('cheque'):
+        snapshot['cheque'] = source.proposal['cheque']
+        from .cheque_clearing import output_evidence
+        snapshot['cheque_clearances'] = output_evidence(source)
     refund = source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction')
     if refund:
         snapshot['advance_refund'] = refund

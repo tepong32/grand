@@ -27,6 +27,16 @@ def visible_sources(user):
 
 
 class ReceiptForm(forms.Form):
+    cheque_bank = forms.CharField(max_length=160, required=False, label='Cheque drawee bank (cheque only)')
+    cheque_drawer_account = forms.CharField(max_length=160, required=False, label='Cheque drawer account reference')
+    cheque_number = forms.CharField(max_length=160, required=False, label='Cheque number')
+    cheque_drawer = forms.CharField(max_length=160, required=False, label='Cheque drawer')
+    cheque_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type':'date'}), label='Cheque date')
+    receiving_bank_id = forms.ModelChoiceField(queryset=FinanceConfigurationItem.objects.none(),
+        to_field_name='public_id', required=False, label='Receiving bank (bank transfer only)',
+        help_text='Choose only after the incoming bank credit is confirmed. Leave blank for cash.')
+    bank_transaction_reference = forms.CharField(max_length=160, required=False,
+        label='Bank credit reference (bank transfer only)')
     advance_detail = forms.ModelChoiceField(queryset=JournalSubsidiaryLine.objects.none(), required=False,
         label='Original officer advance (returned advance money only)',
         help_text='Choose the original advance and a reviewed refund collection type. The officer identity is retained automatically.')
@@ -42,6 +52,8 @@ class ReceiptForm(forms.Form):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        self.fields['receiving_bank_id'].queryset = FinanceConfigurationItem.objects.filter(
+            category='bank_account',status='active',release__status='active').select_related('release')
         if user:
             from .advance_refunds import visible_originals
             self.fields['advance_detail'].queryset = visible_originals(user).select_related('entry', 'entry__fund')
@@ -52,6 +64,20 @@ class ReceiptForm(forms.Form):
             category='fund',status='active',release__status='active').order_by('code','label').values_list('code','label').distinct()]
         for field in self.fields.values():
             field.widget.attrs['class'] = 'form-control'
+
+
+class CollectionChargeForm(forms.Form):
+    variant = forms.ModelChoiceField(queryset=FinanceTransactionVariant.objects.none(), to_field_name='public_id', label='Charge type')
+    amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal('.01'), label='Charge amount')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['variant'].queryset = ReceiptForm().fields['variant'].queryset
+        for field in self.fields.values():
+            field.widget.attrs['class'] = 'form-control'
+
+
+CollectionCharges = forms.formset_factory(CollectionChargeForm, extra=2)
 
 
 class DepositForm(forms.Form):
@@ -86,7 +112,7 @@ class DepositShareForm(forms.Form):
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['receipt'].queryset = visible_sources(user).filter(
-            treasury_department=department_for_user(user),kind=Source.RECEIPT,status=Source.POSTED)
+            treasury_department=department_for_user(user),kind=Source.RECEIPT,status=Source.POSTED).exclude(proposal__has_key="receiving_bank")
         for field in self.fields.values():
             field.widget.attrs['class'] = 'form-control'
 
@@ -122,6 +148,7 @@ def receipt_create(request):
     require(request.user, 'vouchers.prepare_collections')
     visible_sources(request.user)
     initial = {}
+    charge_initial = []
     if request.method == 'GET' and request.GET.get('supersedes'):
         prior = get_object_or_404(visible_sources(request.user).filter(
             Q(status__in=(Source.REJECTED,Source.WITHDRAWN)) | Q(corrections__status=Source.POSTED)).distinct(),
@@ -129,16 +156,33 @@ def receipt_create(request):
         initial = {'variant':prior.transaction_variant_id,'received_on':prior.source_date,'fund_code':prior.fund_code,
             'receipt_book':prior.book_reference,'receipt_number':prior.document_reference,'received_amount':prior.amount,
             'payer_reference':prior.proposal['payer_reference'],'evidence_reference':prior.proposal['evidence_reference']}
+        initial['receiving_bank_id'] = prior.proposal.get('receiving_bank', {}).get('configuration_item')
+        initial['bank_transaction_reference'] = prior.proposal.get('bank_transaction_reference', '')
+        for key, value in prior.proposal.get('cheque', {}).items():
+            if key != 'identity':
+                initial['cheque_' + key] = value
         initial['advance_detail'] = prior.proposal.get('advance_refund', {}).get('original_detail')
+        charge_initial = [{'variant':row['variant'],'amount':row['amount']} for row in prior.proposal.get('charges',[])]
     form = ReceiptForm(request.POST or None,initial=initial,user=request.user)
-    if request.method == 'POST' and form.is_valid():
+    charge_data = request.POST if request.method == 'POST' and any(key.startswith('charges-') for key in request.POST) else None
+    charges = CollectionCharges(charge_data, prefix='charges', initial=charge_initial)
+    if request.method == 'POST' and form.is_valid() and (not charges.is_bound or charges.is_valid()):
+        values = dict(form.cleaned_data)
+        if values.get('receiving_bank_id'):
+            values['receiving_bank_id'] = values['receiving_bank_id'].public_id
+        cheque = {key: values.pop('cheque_' + key) for key in ('bank','drawer_account','number','drawer','date')}
+        if any(cheque.values()):
+            values['cheque'] = cheque
+        if charges.is_bound:
+            values['charges'] = [{'variant':str(row.cleaned_data['variant'].public_id),'amount':row.cleaned_data['amount']}
+                for row in charges if row.cleaned_data]
         try:
-            source = record_receipt(actor=request.user, **form.cleaned_data)
+            source = record_receipt(actor=request.user, **values)
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
             return redirect('vouchers:collection_detail', public_id=source.public_id)
-    return render(request, 'vouchers/collections/form.html', {'form':form, 'title':'Record collection receipt'})
+    return render(request, 'vouchers/collections/form.html', {'form':form, 'charges':charges, 'has_charges':bool(charge_initial), 'title':'Record collection receipt'})
 
 
 def register_rows(user):
@@ -165,6 +209,14 @@ def detail(request, public_id):
     from accounting.access import can_prepare_journals, can_post_journals
     source = get_object_or_404(visible_sources(request.user), public_id=public_id)
     return render(request, 'vouchers/collections/detail.html', {'source':source,
+        'clearances':source.cheque_clearances.all(),
+        'can_clear_cheque':source.status == Source.POSTED and bool(source.proposal.get('cheque'))
+            and not is_finance_uat_viewer(request.user)
+            and source.treasury_department_id == department_for_user(request.user).pk
+            and has_explicit_permission(request.user,'vouchers.prepare_collections'),
+        'can_review_clearing':not is_finance_uat_viewer(request.user)
+            and source.finance_department_id == department_for_user(request.user).pk
+            and has_explicit_permission(request.user,'vouchers.review_collections'),
         'journals':source.posting_requests.all(),
         'outputs':source.issued_outputs.all(),
         'can_output':has_explicit_permission(request.user,'finance.export_finance_work'),
@@ -266,9 +318,13 @@ def export(request):
     writer = csv.writer(response)
     _safe_writerow(writer, ['Kind','Date','Book','Reference','Version','Fund','Amount','Status',
         'Available for deposit (after pending allocations)','Prepared by','Reviewed by','JEVs',
-        'Withdrawal reason','Withdrawn by','Withdrawn at','Original advance JEV','Officer advance identity'])
+        'Withdrawal reason','Withdrawn by','Withdrawn at','Original advance JEV','Officer advance identity',
+        'Receiving bank','Bank credit reference','Cheque bank','Cheque number','Cheque date','Cheque drawer',
+        'Cheque clearing history'])
     for row in register_rows(request.user):
         source = row['source']
+        from .cheque_clearing import output_evidence
+        clearing_history = output_evidence(source) if source.proposal.get('cheque') else []
         refund = source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction') or {}
         _safe_writerow(writer, [source.get_kind_display(),source.source_date,source.book_reference,
             source.document_reference,source.version,source.fund_code,source.amount,source.get_status_display(),
@@ -276,7 +332,13 @@ def export(request):
             source.reviewed_by.get_username() if source.reviewed_by else '',
             '; '.join(r.jev_number for r in row['journals']),source.withdrawal_reason,
             source.withdrawn_by.get_username() if source.withdrawn_by else '',source.withdrawn_at,
-            refund.get('original_jev_number',''),refund.get('officer_key','')])
+            refund.get('original_jev_number',''),refund.get('officer_key',''),
+            source.proposal.get('receiving_bank',{}).get('bank_label',''),
+            source.proposal.get('bank_transaction_reference',''),
+            source.proposal.get('cheque',{}).get('bank',''),source.proposal.get('cheque',{}).get('number',''),
+            source.proposal.get('cheque',{}).get('date',''),source.proposal.get('cheque',{}).get('drawer',''),
+            '; '.join(f"v{item['version']} {item['status']} {item['date']} {item['bank_reference']} [{item['checksum']}]"
+                for item in clearing_history)])
     return response
 
 

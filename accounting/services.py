@@ -1131,6 +1131,9 @@ def record_event(entry, action, actor, reason="", snapshot=None):
 
 
 def validate_entry_for_submission(entry):
+    if entry.source_snapshot.get("remittance_return", {}).get("deducted_fee"):
+        from vouchers.receipt_fees import validate as validate_receipt_fee
+        validate_receipt_fee(entry)
     if entry.source_snapshot.get('advance_payment_cancellation') or entry.source_snapshot.get('advance_payment_return'):
         from vouchers.advance_payment_cancellations import validate
         validate(entry)

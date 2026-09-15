@@ -3,11 +3,29 @@
 {% block content %}
 <div class="container py-3"><a href="{% url 'vouchers:collection_register' %}">Collections and deposits</a>
 <h1 class="h3 mt-3">{{ source.get_kind_display }} {{ source.document_reference }}</h1>
-{% if source.proposal.advance_refund %}<p><strong>Officer advance cash refund:</strong> {{ source.proposal.advance_refund.officer_name }} · Original JEV {{ source.proposal.advance_refund.original_jev_number }}. This receipt reduces the original advance.</p>{% endif %}
+{% if source.proposal.advance_refund %}<p><strong>Officer advance refund:</strong> {{ source.proposal.advance_refund.officer_name }} · Original JEV {{ source.proposal.advance_refund.original_jev_number }}. This receipt reduces the original advance.</p>{% endif %}
 <dl><dt>Status</dt><dd>{{ source.get_status_display }}</dd><dt>Date / fund</dt><dd>{{ source.source_date }} · {{ source.fund_code }}</dd>
 <dt>Amount</dt><dd>{{ source.amount }}</dd><dt>Receipt book</dt><dd>{{ source.book_reference|default:"—" }}</dd>
 <dt>Payer / reference</dt><dd>{{ source.proposal.payer_reference|default:"—" }}</dd><dt>Evidence</dt><dd>{{ source.proposal.evidence_reference }}</dd>
 <dt>Prepared by</dt><dd>{{ source.prepared_by }} · {{ source.prepared_at }}</dd><dt>Independent decision</dt><dd>{{ source.reviewed_by|default:"Awaiting review" }} {{ source.review_reason }}</dd></dl>
+{% if source.proposal.bank_transaction_reference %}<p><strong>Bank transfer received:</strong> {{ source.proposal.receiving_bank.bank_label }} · {{ source.proposal.bank_transaction_reference }}. Already received in the bank; no cash deposit is required.</p>{% endif %}
+{% if source.proposal.charges %}<h2 class="h5">Charge breakdown</h2><table class="table"><thead><tr><th>Charge type</th><th>Amount</th></tr></thead><tbody>{% for charge in source.proposal.charges %}<tr><td>{{ charge.label }} · {{ charge.code }}</td><td>{{ charge.amount }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+{% if source.proposal.cheque %}<h2 class="h5">Cheque received</h2><p>{{ source.proposal.cheque.bank }} · Cheque {{ source.proposal.cheque.number }} · {{ source.proposal.cheque.date }} · Drawer {{ source.proposal.cheque.drawer }}.</p><p>Deposit this instrument in full. Receipt and deposit posting do not establish bank clearing.</p>{% endif %}
+{% if can_clear_cheque %}<a class="btn btn-outline-primary" href="{% url 'vouchers:cheque_clearing_create' source.public_id %}">Record bank clearing</a>{% endif %}
+{% for clearing in clearances %}<section class="card my-3"><div class="card-body text-break">
+<h2 class="h5">Cheque clearing · Version {{ clearing.version }}</h2>
+<p>{{ clearing.get_status_display }} · {{ clearing.cleared_on }} · Bank reference {{ clearing.snapshot.bank_reference }}</p>
+<p>Evidence: {{ clearing.snapshot.evidence_reference }}</p>
+<p>Independent review: {{ clearing.reviewed_by|default:"Awaiting review" }} · {{ clearing.review_reason }}</p>
+{% if clearing.withdrawn_at %}<p>Withdrawn: {{ clearing.withdrawn_by }} · {{ clearing.withdrawal_reason }}</p>{% endif %}
+{% if can_review_clearing and clearing.prepared_by_id != request.user.pk %}
+{% if clearing.status == 'proposed' or clearing.status == 'approved' %}
+<form method="post" action="{% url 'vouchers:cheque_clearing_review' source.public_id clearing.public_id %}">{% csrf_token %}
+<label for="clearing-decision-{{ clearing.pk }}">Decision</label><select class="form-control" id="clearing-decision-{{ clearing.pk }}" name="decision">
+{% if clearing.status == 'proposed' %}<option value="approve">Confirm bank clearing</option><option value="reject">Return for correction</option>{% else %}<option value="withdraw">Withdraw clearing evidence</option>{% endif %}</select>
+<label for="clearing-reason-{{ clearing.pk }}">Decision basis</label><textarea class="form-control" id="clearing-reason-{{ clearing.pk }}" name="reason" required></textarea>
+<button class="btn btn-primary mt-2">Record clearing decision</button></form>{% endif %}{% endif %}
+</div></section>{% endfor %}
 {% if source.withdrawn_at %}<p><strong>Approval withdrawn:</strong> {{ source.withdrawal_reason }} · {{ source.withdrawn_by }} · {{ source.withdrawn_at }}</p>{% endif %}
 {% if source.supersedes_id %}<p><a href="{% url 'vouchers:collection_detail' source.supersedes.public_id %}">Previous source version</a></p>{% endif %}
 {% if source.correction_of_id %}<p><a href="{% url 'vouchers:collection_detail' source.correction_of.public_id %}">Original posted source</a></p>{% endif %}

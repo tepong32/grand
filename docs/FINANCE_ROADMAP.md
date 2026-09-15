@@ -1,5 +1,44 @@
 # GRAND Finance complete-cycle roadmap
 
+v0.7.108 development checkpoint includes netted fees, multi-charge receipts, bank credits
+and incoming cheque capture with independently reviewed bank clearing. Full SQLite passes
+1,266 with 96 native-only skips; combined native 50/50, including eight races, and final
+source native 2/2 pass. A later database-independent fee-bound check passes separately.
+The [cheque record](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md) gives scope and evidence.
+The [modular exception design](FINANCE_CHEQUE_EXCEPTION_DESIGN.md) now guides researched
+development with human resolution for rare cases; no user procedure is pending. Officer cheque
+refund timing and other Finance/acceptance work remain incomplete. This is not master
+integration, deployment or full collection parity. Older checkpoint summaries below
+retain their original validation scope.
+
+Incoming cheque lifecycle is the active functional gap. [Capture and whole-cheque
+deposit controls](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md) passed the preceding
+43-test native gate. Independent bank clearing, withdrawal and retained output are
+now under validation (three focused SQLite tests passed). Dishonour, redemption and
+officer cheque refund timing remain required work; do not count clearing evidence as
+complete lifecycle coverage.
+
+Current required collection breadth: [direct-bank receipts](FINANCE_BANK_COLLECTIONS_IN_PROGRESS.md),
+D-094, are implemented locally for ordinary/multi-charge receipts and officer refunds.
+Bank references/routing are retained and credits bypass cash deposit availability.
+Focused SQLite passes four scenarios; dependent SQLite passes 34 with five native-only
+skips, and native passes all 39 including seven bank scenarios and five races.
+Cheque receipt, clearing and return remain
+next required work following the user's confirmation of all three payment methods.
+
+Active M03 breadth: [multi-charge collection receipts](FINANCE_COLLECTION_CHARGES_IN_PROGRESS.md),
+D-093, combine explicit charge amounts from reviewed types and preserve mixed cash
+purposes, one receipt total, partial deposits, exact corrections and printable breakdown.
+Focused SQLite/native tests pass 5/5 each; dependent SQLite passes 27 with five
+native-only skips, and native passes all 32. This remains an uncommitted checkpoint,
+not a completed Finance parity gate.
+
+Current next checkpoint: [netted remittance receipts](FINANCE_RECEIPT_FEES_IN_PROGRESS.md)
+retains explicit gross refund, fee expense/evidence and net cash through existing review,
+posting, correction and output. Focused SQLite/native tests pass; dependent SQLite passes 23 with seven native-only
+skips, and native passes all 30 including those races. The feature remains local and uncommitted. This follows the completed v0.7.107 master integration and does not close
+other collection/remittance, output or acceptance gaps.
+
 Active work: [bank-returned advances](FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md) demonstrate original-payment reversal, reviewed-return retirement and the corrected Budget/DV/recognition/payment cycle, including retained corrected liquidation and refund/deposit history with dated and fund-identity checks. Both payment policies, independent withdrawal and three native correction/replacement/reconciliation races pass. The v0.7.106 checkpoint passes full SQLite regression (1,109 passed, 86 skipped), focused native tests and the three selected native races. This development checkpoint does not establish full Finance completion or deployment.
 
 v0.7.105 development checkpoint: [original advance correction after unreleased check cancellation](FINANCE_CANCELLED_ADVANCES_IN_PROGRESS.md), D-090, connects retained cancellation, revised Budget/DV and actual new payment under both payment policies. Exact issuance cancellation lineage, old-check retirement, corrected signing-copy/packet flow and independent posting are tested. Full SQLite and affected native regression pass. Released/returned advances, other missing Finance scenarios and local/operational acceptance remain open.

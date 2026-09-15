@@ -75,14 +75,15 @@ def financial_row(ledger, value, side, purpose=''):
         'credit':str(value if side == Line.CREDIT else Decimal('0.00')), 'cash_flow_category':purpose}
 
 
-def receipt_rows(owner_id, snapshot, total):
+def receipt_rows(owner_id, snapshot, total, bank=None):
     instructions = snapshot['lines']
-    if (len(instructions) != 2 or any(r['account_source'] != Line.FIXED_ACCOUNT or r['amount_source'] != Line.EVENT_AMOUNT for r in instructions)
+    if (len(instructions) != 2 or any(r['amount_source'] != Line.EVENT_AMOUNT or (r['side'] == Line.CREDIT and r['account_source'] != Line.FIXED_ACCOUNT) for r in instructions)
             or {r['side'] for r in instructions} != {Line.DEBIT, Line.CREDIT}):
         raise ValidationError('A cash collection needs the reviewed cash debit and revenue/liability credit for the received amount.')
     rows = []
     for instruction in instructions:
-        ledger = account(owner_id, instruction['ledger_account_code'])
+        from .bank_collections import debit_account
+        ledger = debit_account(owner_id, instruction, bank) if instruction['side'] == Line.DEBIT else account(owner_id, instruction['ledger_account_code'])
         if ((instruction['side'] == Line.DEBIT and ledger.account_type != 'asset')
                 or (instruction['side'] == Line.CREDIT and ledger.account_type not in ('revenue', 'liability'))):
             raise ValidationError('Use the reviewed cash asset and revenue/liability collection accounts.')
@@ -118,23 +119,38 @@ def new_source(*, actor, treasury, variant, fund, kind, book, reference, day, to
 
 
 @transaction.atomic
-def record_receipt(*, actor, variant, received_on, fund_code, receipt_book, receipt_number, payer_reference, received_amount, evidence_reference, advance_detail=None):
+def record_receipt(*, actor, variant, received_on, fund_code, receipt_book, receipt_number, payer_reference, received_amount, evidence_reference, advance_detail=None, charges=None, receiving_bank_id=None, bank_transaction_reference="", cheque=None):
     if advance_detail is not None:
+        if cheque:
+            raise ValidationError('Officer cheque refunds require the pending cheque-clearing workflow; do not record them as cash refunds.')
+        if charges:
+            raise ValidationError('Keep an officer advance refund separate from ordinary collection charges.')
         from .advance_refunds import record
         return record(actor=actor, detail=advance_detail, variant=variant, received_on=received_on,
             fund_code=fund_code, receipt_book=receipt_book, receipt_number=receipt_number,
-            payer_reference=payer_reference, received_amount=received_amount, evidence_reference=evidence_reference)
+            payer_reference=payer_reference, received_amount=received_amount, evidence_reference=evidence_reference,
+            receiving_bank_id=receiving_bank_id, bank_transaction_reference=bank_transaction_reference)
     treasury = require(actor, 'vouchers.prepare_collections')
     treasury = Department.objects.select_for_update().get(pk=treasury.pk)
     variant, fund, rule, snapshot, checksum = context(variant, received_on, fund_code, Source.RECEIPT)
     total = amount(received_amount)
     if not str(payer_reference or '').strip() or not str(evidence_reference or '').strip():
         raise ValidationError('Record the payer/reference and actual collection evidence.')
-    rows = receipt_rows(variant.department_id, snapshot, total)
+    from .bank_collections import capture as capture_bank
+    bank_data = capture_bank(variant.department_id, received_on, receiving_bank_id, bank_transaction_reference)
+    from .collection_cheques import capture as capture_cheque
+    cheque_data = capture_cheque(treasury, received_on, cheque, bank=bank_data)
+    rows = receipt_rows(variant.department_id, snapshot, total, bank_data.get('receiving_bank'))
     proposal = {'schema_version':1, 'payer_reference':str(payer_reference).strip(),
         'evidence_reference':str(evidence_reference).strip(), 'posting_rule':str(rule.public_id),
         'posting_rule_snapshot':snapshot, 'posting_rule_checksum':checksum, 'fund_id':fund.pk,
         'financial_rows':rows, 'cash_account_id':next(r['account_id'] for r in rows if Decimal(r['debit']) > 0)}
+    proposal.update(bank_data)
+    if cheque_data:
+        proposal['cheque'] = cheque_data
+    if charges:
+        from .collection_charges import build
+        proposal['financial_rows'], proposal['charges'] = build(variant, received_on, fund_code, total, charges, bank_data.get('receiving_bank'))
     return new_source(actor=actor, treasury=treasury, variant=variant, fund=fund, kind=Source.RECEIPT,
         book=receipt_book, reference=receipt_number, day=received_on, total=total, proposal=proposal)
 
@@ -169,7 +185,7 @@ def remaining_receipts(treasury_id, *, exclude=None, as_of=None):
     held = Source.objects.filter(treasury_department_id=treasury_id,kind=Source.CORRECTION,
         correction_of__kind=Source.RECEIPT,status__in=(Source.PROPOSED,Source.APPROVED,Source.POSTED)).values_list('correction_of_id',flat=True)
     remaining = {str(r.public_id):r.amount for r in Source.objects.filter(
-        treasury_department_id=treasury_id, kind=Source.RECEIPT, status=Source.POSTED).exclude(pk__in=held)}
+        treasury_department_id=treasury_id, kind=Source.RECEIPT, status=Source.POSTED).exclude(pk__in=held) if not r.proposal.get('receiving_bank')}
     for deposit in Source.objects.filter(treasury_department_id=treasury_id, kind=Source.DEPOSIT,
             status__in=(Source.PROPOSED, Source.APPROVED, Source.POSTED)).exclude(pk=exclude).exclude(pk__in=corrected):
         if _digest(deposit.proposal) != deposit.proposal_checksum:
@@ -200,8 +216,13 @@ def record_deposit(*, actor, variant, deposited_on, fund_code, deposit_reference
         if receipt is None or key in seen or receipt.source_date > deposited_on or value > balances.get(key, Decimal('0')):
             raise ValidationError('Each deposit share must fit a distinct posted receipt from this office/fund and date.')
         entry = posted_receipt(receipt)
+        from .collection_cheques import validate_deposit
+        validate_deposit(receipt, value)
         cash_id = receipt.proposal['cash_account_id']
-        credit = credits.setdefault(cash_id, {'amount':Decimal('0'), 'code':entry.lines.get(account_id=cash_id, debit__gt=0).account.code})
+        cash_lines = list(entry.lines.filter(account_id=cash_id, debit__gt=0).select_related('account'))
+        if not cash_lines or sum((line.debit for line in cash_lines), Decimal('0')) != receipt.amount or any(line.credit for line in cash_lines):
+            raise ValidationError('Retain the complete collection cash amount before allocating its deposit.')
+        credit = credits.setdefault(cash_id, {'amount':Decimal('0'), 'code':cash_lines[0].account.code})
         credit['amount'] += value
         retained.append({'receipt':key, 'amount':str(value), 'proposal_checksum':receipt.proposal_checksum,
             'entry':str(entry.public_id), 'cash_account_id':cash_id})
