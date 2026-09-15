@@ -36,14 +36,14 @@ def corrected_sources(treasury_id, day):
 
 def original_journal(source):
     from .collection_posting import validate_collection_journal
-    if source.status != Source.POSTED or source.kind not in (Source.RECEIPT,Source.DEPOSIT):
+    if source.status not in (Source.POSTED, Source.CORRECTED) or source.kind not in (Source.RECEIPT,Source.DEPOSIT,Source.CHEQUE_RETURN):
         raise ValidationError('Choose a posted receipt or deposit for correction.')
     postings = list(source.posting_requests.filter(status='posted'))
     if len(postings) != 1 or _digest(source.proposal) != source.proposal_checksum:
         raise ValidationError('Retain one unchanged posted source and its JEV.')
     posting = postings[0]
     entry = JournalEntry.objects.get(public_id=posting.accounting_entry_public_id)
-    verify_source_link(posting,entry,source_type='collection' if source.kind == Source.RECEIPT else 'deposit')
+    verify_source_link(posting,entry,source_type={Source.RECEIPT:'collection', Source.DEPOSIT:'deposit', Source.CHEQUE_RETURN:'cheque_return'}[source.kind])
     validate_collection_journal(entry)
     if (entry.status != entry.POSTED or not entry.posted_at or not entry.posted_by_id
             or not entry.audit_events.filter(action='posted',actor_id=entry.posted_by_id).exists()):
@@ -54,6 +54,8 @@ def original_journal(source):
 def validate_target(source, day, *, exclude=None):
     from .cheque_clearing import protect_correction
     protect_correction(source)
+    from .cheque_returns import protect
+    protect(source)
     entry,posting = original_journal(source)
     if not isinstance(day,date) or not source.source_date <= day <= timezone.localdate():
         raise ValidationError('Use an actual correction date on or after the original source date, no later than today.')

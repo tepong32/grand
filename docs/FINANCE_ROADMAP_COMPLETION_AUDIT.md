@@ -1,5 +1,11 @@
 # GRAND Finance roadmap completion audit
 
+Incoming cheque returns have a validated v0.7.111 development posting/correction checkpoint:
+588 broad SQLite passes (39 native skips) and 13 final MySQL passes including four races.
+The first adapter preserves a single original cash-flow purpose and the
+whole cheque share of a combined deposit. See [scope and results](FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md).
+This is not completion of redemption, custody or all incoming return treatments.
+
 v0.7.110 development: [presentation reports](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md)
 pass 125 affected SQLite tests (three native-only skips) and all 14 native tests,
 including three races. Financial closure retains original completed sources. This closes

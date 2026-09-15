@@ -16,6 +16,22 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
+### v0.7.111 incoming cheque return development checkpoint
+
+Branch `codex/finance-cheque-returns` continues pushed v0.7.110 (`ec3bad4`;
+[draft PR #71](https://github.com/tepong32/grand/pull/71), stacked on collection clearing).
+Outgoing branch and v0.7.110 tag were verified at the same remote commit. Its owned
+browser/server are stopped. Incoming bank-return capture, governed posting, correction
+and source outputs have a validated receivable-treatment checkpoint; see
+[scope and commands](docs/FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md). PASS: broad SQLite
+627 discovered/588 passed/39 native-only skips, 403.972s; final MySQL 13/13 including
+four races, 20.796s; both exit 0. The broader snapshot precedes the final purpose guard,
+which the final native run covers. Browser capture, independent review, readable proposed
+financial rows and desktop/mobile layouts pass. Only disposable migrations were applied.
+Redemption/custody, mixed-purpose return allocation and officer cheque-refund timing remain
+subsequent phases. Preserve the operator DB and unrelated drafts. No primary feature merge,
+production deployment or LGU acceptance is claimed.
+
 ### v0.7.110 presentation-report development checkpoint — 2026-09-15
 
 The user has no local procedures and authorizes researched modular development and

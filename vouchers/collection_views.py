@@ -207,9 +207,13 @@ def register(request):
 @require_GET
 def detail(request, public_id):
     from accounting.access import can_prepare_journals, can_post_journals
+    from finance.cash_flows import CASH_FLOW_CHOICES
     source = get_object_or_404(visible_sources(request.user), public_id=public_id)
     return render(request, 'vouchers/collections/detail.html', {'source':source,
+        'return_financial_rows':[{**row, 'purpose_label':dict(CASH_FLOW_CHOICES).get(row.get('cash_flow_category',''), '')}
+            for row in source.proposal.get('financial_rows', [])] if source.kind == Source.CHEQUE_RETURN else [],
         'clearances':source.cheque_clearances.all(),
+        'cheque_returns':source.cheque_returns.all(),
         'can_clear_cheque':source.status == Source.POSTED and bool(source.proposal.get('cheque'))
             and not is_finance_uat_viewer(request.user)
             and source.treasury_department_id == department_for_user(request.user).pk
@@ -228,7 +232,7 @@ def detail(request, public_id):
             and department_for_user(request.user).pk == source.finance_department_id
             and source.prepared_by_id != request.user.pk
             and has_explicit_permission(request.user,'vouchers.review_collections'),
-        'can_correct':source.status == Source.POSTED and source.kind in (Source.RECEIPT,Source.DEPOSIT)
+        'can_correct':source.status == Source.POSTED and source.kind in (Source.RECEIPT,Source.DEPOSIT,Source.CHEQUE_RETURN)
             and not source.corrections.filter(status__in=(Source.PROPOSED,Source.APPROVED,Source.POSTED)).exists()
             and not is_finance_uat_viewer(request.user) and source.treasury_department_id == department_for_user(request.user).pk
             and has_explicit_permission(request.user,'vouchers.prepare_collections' if source.kind == Source.RECEIPT else 'vouchers.prepare_collection_deposits'),
@@ -269,7 +273,7 @@ def review(request, public_id):
 @require_http_methods(['GET','POST'])
 def correction_create(request, public_id):
     from .collection_corrections import propose
-    original=get_object_or_404(visible_sources(request.user),public_id=public_id,kind__in=(Source.RECEIPT,Source.DEPOSIT))
+    original=get_object_or_404(visible_sources(request.user),public_id=public_id,kind__in=(Source.RECEIPT,Source.DEPOSIT,Source.CHEQUE_RETURN))
     office=require(request.user,'vouchers.prepare_collections' if original.kind == Source.RECEIPT else 'vouchers.prepare_collection_deposits')
     if office.pk != original.treasury_department_id:
         raise PermissionDenied
@@ -320,11 +324,13 @@ def export(request):
         'Available for deposit (after pending allocations)','Prepared by','Reviewed by','JEVs',
         'Withdrawal reason','Withdrawn by','Withdrawn at','Original advance JEV','Officer advance identity',
         'Receiving bank','Bank credit reference','Cheque bank','Cheque number','Cheque date','Cheque drawer',
-        'Cheque clearing history'])
+        'Cheque clearing history','Original returned receipt','Original returned deposit','Return applicability','Bank return history'])
     for row in register_rows(request.user):
         source = row['source']
         from .cheque_clearing import output_evidence
         clearing_history = output_evidence(source) if source.proposal.get('cheque') else []
+        from .cheque_returns import history
+        return_history = history(source)
         refund = source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction') or {}
         _safe_writerow(writer, [source.get_kind_display(),source.source_date,source.book_reference,
             source.document_reference,source.version,source.fund_code,source.amount,source.get_status_display(),
@@ -338,7 +344,11 @@ def export(request):
             source.proposal.get('cheque',{}).get('bank',''),source.proposal.get('cheque',{}).get('number',''),
             source.proposal.get('cheque',{}).get('date',''),source.proposal.get('cheque',{}).get('drawer',''),
             '; '.join(f"v{item['version']} {item['status']} {item['date']} {item['bank_reference']} [{item['checksum']}]"
-                for item in clearing_history)])
+                for item in clearing_history),
+            source.proposal.get('original_cheque',{}).get('receipt',''),
+            source.proposal.get('original_cheque',{}).get('deposit',''),
+            source.proposal.get('applicability_reference',''),
+            '; '.join(f"{item['reference']} {item['date']} {item['amount']} {item['status']} [{item['checksum']}]" for item in return_history)])
     return response
 
 

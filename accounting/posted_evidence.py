@@ -56,7 +56,7 @@ def verify_source_link(source, entry, *, source_type):
     if source_type == "voucher":
         if snapshot.get("voucher_case") != str(source.case.public_id):
             raise ValidationError("The stored JEV points to a different voucher case.")
-    elif source_type in ('collection', 'deposit', 'collection_fix'):
+    elif source_type in ('collection', 'deposit', 'collection_fix', 'cheque_return'):
         if snapshot.get('collection_source') != str(source.source.public_id):
             raise ValidationError('The stored JEV points to a different collection/deposit source.')
     elif snapshot.get("remittance_batch") != str(source.batch.public_id):

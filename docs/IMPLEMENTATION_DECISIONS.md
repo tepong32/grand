@@ -1199,3 +1199,21 @@ no-entry replacement issuance cannot hide an unposted release. Missing actual re
 evidence stays open for human reconciliation. Never manufacture acknowledgement or
 automatic retrospective release. See [implementation and validation](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md).
 Incoming dishonour and redemption remain the next modules; this does not complete Finance.
+
+## D-098 — Incoming cheque returns reuse governed collection posting (2026-09-15)
+
+Use a new collection-source kind and explicit original receipt/deposit links instead
+of a parallel approval ledger. A generated active receipt key and Treasury-first locking
+prevent duplicate returns and incompatible clearing/source correction. Return only the
+whole cheque share, preserving the rest of a combined deposit and prior clearing history.
+
+The first adapter uses an explicitly reviewed receivable debit and the original bank
+credit, with unchanged cash-flow purpose and retained authority/applicability. Original
+multi-charge components remain evidence; mixed purposes need explicit component treatments.
+No NGA account code, fee or penalty is inferred. Exact source-error correction retires the
+return only after independent posting/reconciliation and cannot fund an earlier replacement.
+
+See [scope and actual validation](FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md). Redemption
+must link its new receipt to the completed return, reserve principal once, retain correction
+lineage and distinguish received replacement cheques from actual clearing. TracePoint remains
+the physical-custody authority. Other treatments and officer capacity remain subsequent adapters.

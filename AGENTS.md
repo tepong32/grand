@@ -37,6 +37,14 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+Incoming cheque bank returns have a validated v0.7.111 development checkpoint. Reuse collection sources with
+explicit original receipt/deposit links and a generated active return identity. The
+first reviewed treatment credits only the original whole-cheque bank amount and debits
+an explicit receivable; combined deposits and earlier clearing stay intact. Source-error
+correction retires the return only after its exact reversal posts and reconciles, with
+dated replacement checks. Preserve the original cash-flow purpose; mixed-purpose returns
+need explicit component treatments. See [active scope](docs/FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md).
+
 Outgoing cheque presentation reports retain original Treasury ownership, independent
 Accounting findings and immutable exports. Case-first locks and a generated active key
 serialize open reports and conflicting actions. Financial closure requires the original

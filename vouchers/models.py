@@ -1918,10 +1918,11 @@ class RemittanceReturnCorrection(models.Model):
 class TreasuryCollectionSource(models.Model):
     """Actual receipt/deposit facts and their independently reviewed source version."""
     RECEIPT, DEPOSIT, CORRECTION = 'receipt', 'deposit', 'correction'
-    KIND_CHOICES = ((RECEIPT, 'Collection receipt'), (DEPOSIT, 'Deposit of collections'), (CORRECTION, 'Posted source correction'))
+    CHEQUE_RETURN, CORRECTED = 'cheque_return', 'corrected'
+    KIND_CHOICES = ((RECEIPT, 'Collection receipt'), (DEPOSIT, 'Deposit of collections'), (CORRECTION, 'Posted source correction'), (CHEQUE_RETURN, 'Incoming cheque bank return'))
     PROPOSED, APPROVED, REJECTED, POSTED, WITHDRAWN = 'proposed', 'approved', 'rejected', 'posted', 'withdrawn'
     STATUS_CHOICES = ((PROPOSED, 'For independent review'), (APPROVED, 'Approved; Accounting posting'),
-        (REJECTED, 'Returned for correction'), (POSTED, 'Posted'), (WITHDRAWN, 'Withdrawn before posting'))
+        (REJECTED, 'Returned for correction'), (POSTED, 'Posted'), (WITHDRAWN, 'Withdrawn before posting'), (CORRECTED, 'Retired by posted exact correction'))
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     treasury_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name='collection_sources')
     configuration_release = models.ForeignKey(FinanceConfigurationRelease, on_delete=models.PROTECT, related_name='collection_sources')
@@ -1934,6 +1935,13 @@ class TreasuryCollectionSource(models.Model):
     version = models.PositiveIntegerField(default=1)
     supersedes = models.OneToOneField('self', on_delete=models.PROTECT, null=True, blank=True, related_name='successor')
     correction_of = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='corrections')
+    return_receipt = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='cheque_returns')
+    return_deposit = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='deposit_returns')
+    active_return_receipt = models.GeneratedField(
+        expression=models.Case(models.When(kind='cheque_return', status__in=('proposed','approved','posted'),
+            then=models.F('return_receipt_id')), default=models.Value(None)),
+        output_field=models.BigIntegerField(), db_persist=True, unique=True, null=True)
+
     source_date = models.DateField()
     fund_code = models.CharField(max_length=80)
     amount = models.DecimalField(max_digits=18, decimal_places=2)
@@ -1969,7 +1977,7 @@ class TreasuryCollectionSource(models.Model):
             prior = type(self).objects.get(pk=self.pk)
             immutable = ('treasury_department_id', 'configuration_release_id', 'transaction_variant_id',
                 'finance_department_id', 'finance_department_label', 'kind', 'book_reference', 'document_reference',
-                'version', 'supersedes_id', 'correction_of_id', 'source_date', 'fund_code', 'amount', 'proposal', 'proposal_checksum',
+                'version', 'supersedes_id', 'correction_of_id', 'return_receipt_id', 'return_deposit_id', 'source_date', 'fund_code', 'amount', 'proposal', 'proposal_checksum',
                 'prepared_by_id', 'prepared_at')
             if any(getattr(prior, field) != getattr(self, field) for field in immutable):
                 raise ValidationError('Collection and deposit source versions are immutable. Retain a reasoned successor.')

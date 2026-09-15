@@ -49,6 +49,8 @@ def propose(*, receipt, deposit, actor, cleared_on, bank_reference, evidence_ref
     deposit = Source.objects.get(pk=deposit.pk)
     if receipt.cheque_clearances.filter(status__in=('proposed', 'approved')).exists():
         raise ValidationError('Resolve the existing cheque clearing proposal or decision first.')
+    from .cheque_returns import protect
+    protect(receipt)
     snapshot = source_evidence(receipt, deposit, cleared_on)
     bank_reference, evidence_reference = str(bank_reference or '').strip(), str(evidence_reference or '').strip()
     if not bank_reference or len(bank_reference) > 160 or not evidence_reference:
@@ -77,6 +79,9 @@ def review(*, clearance, actor, approve, reason):
     if row.status != 'proposed' or actor.pk == row.prepared_by_id or not str(reason or '').strip():
         raise ValidationError('An independent reviewer must decide the proposed clearing evidence with a retained basis.')
     verify(row)
+    if approve:
+        from .cheque_returns import protect
+        protect(row.receipt)
     if approve and row.receipt.cheque_clearances.exclude(pk=row.pk).filter(status='approved').exists():
         raise ValidationError('This cheque already retains approved clearing evidence.')
     row.status = 'approved' if approve else 'rejected'
@@ -95,6 +100,8 @@ def withdraw(*, clearance, actor, reason):
     if row.status != 'approved' or actor.pk == row.prepared_by_id or not str(reason or '').strip():
         raise ValidationError('An independent reviewer must withdraw approved clearing evidence with a reason.')
     verify(row)
+    from .cheque_returns import protect
+    protect(row.receipt)
     # Officer cheque refunds remain blocked until dependent dated capacity is implemented.
     if row.receipt.proposal.get('advance_refund'):
         raise ValidationError('Resolve the dependent officer refund before withdrawing its clearing evidence.')

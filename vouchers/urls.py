@@ -6,7 +6,10 @@ from . import presentation_views
 
 app_name = "vouchers"
 
+from . import cheque_return_views
+
 urlpatterns = [
+    path("collections/<uuid:public_id>/bank-return/", cheque_return_views.create, name="cheque_return_create"),
     path('instruments/<uuid:instrument_id>/presentations/new/', presentation_views.create, name='presentation_create'),
     path('presentations/<uuid:public_id>/', presentation_views.detail, name='presentation_detail'),
     path('presentations/<uuid:public_id>/export/', presentation_views.export, name='presentation_export'),

@@ -1,5 +1,10 @@
 # GRAND Finance complete-cycle roadmap
 
+v0.7.111 development validates incoming cheque return posting with explicit original sources,
+whole-principal bank effects and reviewed receivable treatment. See the
+[active return scope](FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md); redemption/custody,
+mixed-purpose return allocations and officer cheque-refund timing remain open.
+
 v0.7.110 development adds [outgoing presentation reports](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md),
 independent findings and closure against completed original payment/return sources.
 Incoming dishonour and redemption/custody are next; ordinary Finance and acceptance gaps remain.

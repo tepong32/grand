@@ -2,7 +2,8 @@
 
 Date: 2026-09-15. Status: reference design. The outgoing presentation module has a
 [validated v0.7.110 development checkpoint](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md).
-Incoming dishonour, redemption/custody and officer refund extensions remain planned.
+Incoming dishonour has a [validated v0.7.111 receivable-treatment checkpoint](FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md);
+redemption/custody and officer refund extensions remain planned.
 This does not establish LGU acceptance.
 
 The user has no local procedure to supply and authorizes research-led development.

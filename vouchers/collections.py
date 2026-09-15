@@ -56,6 +56,8 @@ def context(variant, day, fund_code, kind):
     if fund is None:
         raise ValidationError('The approved fund needs its active Accounting ledger counterpart.')
     event, point = (Rule.COLLECTION, Rule.COLLECTION_RECEIPT) if kind == Source.RECEIPT else (Rule.DEPOSIT, Rule.COLLECTION_DEPOSIT)
+    if kind == Source.CHEQUE_RETURN:
+        event, point = Rule.CHEQUE_RETURN, Rule.COLLECTION_RETURN
     rule = variant.posting_rules.filter(event_kind=event, recognition_point=point, accounting_effect=Rule.JOURNAL_ENTRY).first()
     if rule is None:
         raise ValidationError('Configure the reviewed collection/deposit posting rule for this transaction.')
@@ -96,7 +98,7 @@ def receipt_rows(owner_id, snapshot, total, bank=None):
     return rows
 
 
-def new_source(*, actor, treasury, variant, fund, kind, book, reference, day, total, proposal, correction_of=None):
+def new_source(*, actor, treasury, variant, fund, kind, book, reference, day, total, proposal, correction_of=None, return_receipt=None, return_deposit=None):
     book, reference = str(book or '').strip(), str(reference or '').strip()
     if not reference or len(reference) > 80 or len(book) > 80 or kind == Source.RECEIPT and not book:
         raise ValidationError('Retain the actual receipt book/number or deposit reference, up to 80 characters each.')
@@ -115,6 +117,7 @@ def new_source(*, actor, treasury, variant, fund, kind, book, reference, day, to
         finance_department_label=variant.department.name, kind=kind, book_reference=book,
         document_reference=reference, version=prior.version + 1 if prior else 1, supersedes=prior, correction_of=correction_of,
         source_date=day, fund_code=fund.code, amount=total, proposal=proposal,
+        return_receipt=return_receipt, return_deposit=return_deposit,
         proposal_checksum=_digest(proposal), prepared_by=actor)
 
 
