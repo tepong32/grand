@@ -1,5 +1,12 @@
 # GRAND Finance complete-cycle roadmap
 
+The [officer cheque return adapter](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md),
+D-102, has a validated v0.7.115 development checkpoint connecting actual bank debit, dated advance restoration, reserved exact correction
+and replacement principal to the original officer. Native and dependent regression
+pass; final output validation passes and is recorded in the feature report. Work is
+paused after this checkpoint at the user's 2026-09-15 request. Combined fees, external
+delivery and the wider functional/acceptance gates remain open.
+
 The [officer cheque refund module](FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md) has a
 validated v0.7.114 development checkpoint: pending receipt reservations and independent clearing remain separate.
 Actual officer bank-return adjustments/redemption are still a dependent adapter.

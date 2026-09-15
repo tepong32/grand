@@ -1,5 +1,13 @@
 # GRAND Finance roadmap completion audit
 
+Officer return/restoration and replacement principal now have 39/39 native tests
+(nine races) and 600 passed/48 native skips in the dependent SQLite regression.
+The explicit original-advance debit and officer subsidiary survive exact correction;
+correction proposals reserve dated capacity before posting. The final output check
+passes (1/1); the v0.7.115 checkpoint and user-requested pause are tracked in
+[the feature record](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md).
+This does not close combined fees, external physical delivery or Finance acceptance.
+
 Officer cheque capture/clearing has a validated v0.7.114 development checkpoint. Broad
 SQLite passes 925 with 111 native skips; native passes 29/29 including six races. It retains the existing dated
 reservation while a cheque is pending and when clearing evidence is withdrawn; it does

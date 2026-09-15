@@ -21,7 +21,10 @@ def protect(source):
         raise ValidationError('Resolve the retained bank return before changing its receipt, deposit or clearing evidence.')
 
 
-def rows(owner, snapshot, total, bank, collection_cash=(), collection_purposes=(), components=None):
+def rows(owner, snapshot, total, bank, collection_cash=(), collection_purposes=(), components=None, officer=None):
+    if officer:
+        from .advance_cheque_returns import return_rows
+        return return_rows(owner,snapshot,total,bank,collection_purposes,officer)
     if components:
         from .cheque_components import return_rows
         return return_rows(owner,snapshot,total,bank,collection_cash,components)
@@ -54,7 +57,9 @@ def rows(owner, snapshot, total, bank, collection_cash=(), collection_purposes=(
 def original_evidence(receipt, deposit, day):
     evidence = source_evidence(receipt, deposit, day)
     if receipt.proposal.get('advance_refund'):
-        raise ValidationError('Officer cheque refund returns require their dependent dated-capacity adapter.')
+        from .advance_refunds import validate_source
+        validate_source(receipt,check_capacity=False)
+        evidence['advance_refund'] = receipt.proposal['advance_refund']
     evidence['charges'] = receipt.proposal.get('charges', [])
     evidence['collection_cash_accounts'] = sorted({row['account_id'] for row in receipt.proposal['financial_rows']
         if row.get('cash_flow_category')})
@@ -88,6 +93,8 @@ def capture(*, receipt, deposit, actor, variant, debited_on, debit_amount,
     office = require(actor, 'vouchers.prepare_collections')
     if office.pk != receipt.treasury_department_id:
         raise PermissionDenied
+    from .advance_refunds import lock_source_case
+    lock_source_case(receipt)
     Department.objects.select_for_update().get(pk=office.pk)
     sources = {row.pk: row for row in Source.objects.select_for_update().filter(
         pk__in=(receipt.pk, deposit.pk)).order_by('pk')}
@@ -112,7 +119,9 @@ def capture(*, receipt, deposit, actor, variant, debited_on, debit_amount,
         receiving_bank=evidence['bank'], posting_rule=str(rule.public_id), posting_rule_snapshot=snapshot,
         posting_rule_checksum=checksum, fund_id=fund.pk,
         financial_rows=rows(variant.department_id, snapshot, total, evidence['bank'],
-            evidence['collection_cash_accounts'], evidence['collection_purposes'], evidence.get('cash_components')))
+            evidence['collection_cash_accounts'], evidence['collection_purposes'], evidence.get('cash_components'), evidence.get('advance_refund')))
+    if evidence.get('advance_refund'):
+        proposal['advance_cheque_return'] = evidence['advance_refund']
     return new_source(actor=actor, treasury=office, variant=variant, fund=fund,
         kind=Source.CHEQUE_RETURN, book='', reference=values['bank_reference'], day=debited_on,
         total=total, proposal=proposal, return_receipt=receipt, return_deposit=deposit)
@@ -139,7 +148,8 @@ def validate(source, *, lock_finance=False):
             or source.fund_code != source.return_receipt.fund_code
             or source.proposal['financial_rows'] != rows(source.finance_department_id,
                 source.proposal['posting_rule_snapshot'], source.amount, evidence['bank'],
-                evidence['collection_cash_accounts'], evidence['collection_purposes'], evidence.get('cash_components'))):
+            evidence['collection_cash_accounts'], evidence['collection_purposes'], evidence.get('cash_components'), evidence.get('advance_refund'))
+            or source.proposal.get('advance_cheque_return') != evidence.get('advance_refund')):
         raise ValidationError('The return must reproduce its original whole-cheque bank effect and approved counterpart.')
 
 

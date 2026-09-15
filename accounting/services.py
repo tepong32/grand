@@ -1206,7 +1206,8 @@ def post_entry(entry, actor):
     # reservations and payment/return source changes, including concurrent posts.
     entry = JournalEntry.objects.get(pk=entry.pk)
     refund_proposal = entry.source_snapshot.get('collection_payload', {}).get('proposal', {})
-    if refund_proposal.get('advance_refund') or refund_proposal.get('advance_refund_correction'):
+    if any(refund_proposal.get(key) for key in ('advance_refund','advance_refund_correction',
+            'advance_cheque_return','advance_cheque_return_correction')):
         from vouchers.models import CollectionPostingRequest
         from vouchers.advance_refunds import lock_source_case
         with transaction.atomic(using='default'):

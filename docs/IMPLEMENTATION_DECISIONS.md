@@ -1268,3 +1268,23 @@ withdrawal rather than inventing another adjustment ledger. Actual dishonour is 
 entry mistake: retain its explicit guard until a dated original-advance return and
 redemption adapter is implemented. This is a phased module, not a completed officer
 cheque lifecycle. See [scope and actual validation](FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md).
+
+## D-102 — Restore officer cheque returns through the original advance (2026-09-15)
+
+An actual bank debit for an officer refund cheque is a new source event: debit the
+selected original advance, credit its original deposit bank and retain the exact
+officer subsidiary and cash purpose. Restore application capacity only from the actual
+return date after independent posting and source reconciliation. A later restoration
+cannot fund an earlier shortfall.
+
+A source-error reversal of that return consumes capacity again. Reserve it from its
+proposed correction date under the same original-case lock used by expense/refund
+applications; recheck later commitments. Independent rejection or withdrawal releases
+an unposted hold only after its journals are discarded. Posted correction mirrors the
+original return and retains dated history.
+
+Replacement principal uses the original officer refund identity and a specific return.
+A returned replacement creates its own dated restoration while the earlier redemption
+remains occupied. Original-recognition correction does not silently adopt actual
+bank-return history as exact receipt/deposit correction evidence. Native races and
+dependent output validation are recorded in [the feature report](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md).

@@ -98,6 +98,10 @@ def propose(*, original, actor, corrected_on, reason):
         'posting_rule_checksum':posting.posting_rule_checksum,'fund_id':entry.fund_id,'financial_rows':mirror_rows(entry)}
     if original.proposal.get('advance_refund'):
         proposal['advance_refund_correction'] = original.proposal['advance_refund']
+    from .advance_cheque_returns import prepare_correction
+    officer_return = prepare_correction(original,corrected_on)
+    if officer_return:
+        proposal['advance_cheque_return_correction'] = officer_return
     correction = new_source(actor=actor,treasury=office,variant=original.transaction_variant,fund=entry.fund,
         kind=Source.CORRECTION,book='',reference=str(original.public_id),day=corrected_on,total=original.amount,proposal=proposal,
         correction_of=original)

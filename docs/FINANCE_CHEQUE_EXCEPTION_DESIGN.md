@@ -2,8 +2,12 @@
 
 Date: 2026-09-15. Status: reference design. The outgoing presentation module has a
 [validated v0.7.110 development checkpoint](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md).
-Incoming dishonour has a [validated v0.7.111 receivable-treatment checkpoint](FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md);
-redemption/custody and officer refund extensions remain planned.
+Incoming dishonour has a [validated v0.7.111 receivable-treatment checkpoint](FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md).
+Later checkpoints cover [principal redemption/internal custody](FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md),
+[mixed cash-purpose components](FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md),
+[officer cheque reservations/clearing](FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md) and
+[officer bank returns/corrections/replacement](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md).
+Combined fees/penalties and external physical delivery remain separate boundaries.
 This does not establish LGU acceptance.
 
 The user has no local procedure to supply and authorizes research-led development.
@@ -133,10 +137,11 @@ Financial settlement and physical handover have separate statuses. A court-direc
 transfer retains authority and receiving evidence. Electronic approval never asserts a
 physical act occurred. Source read/export permissions also apply to linked evidence.
 
-Officer cheque refunds remain a separate dependent checkpoint: capacity is released
-only at the supported effective settlement/clearing boundary and restored by actual
-return/correction lineage, under existing case-first dated capacity checks. Ordinary
-cheque functionality must not wait for this specialized extension.
+Officer cheque refunds retain one dated reservation while clearing is pending or
+confirmed. Clearing withdrawal does not free the amount. An actual bank return restores
+capacity only from its posted/reconciled date; correcting that return reserves the amount
+again from proposal under the original case lock. See the implemented boundaries and
+actual tests in the officer records linked above.
 
 ## Checkpoints and acceptance examples
 
