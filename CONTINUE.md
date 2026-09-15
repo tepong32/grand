@@ -40,10 +40,15 @@ are closed. Operator DB hash remains unchanged. Do not include that DB, the unre
 policy-test draft or older unused screenshots in the release. Migration vouchers/0033
 was exercised only in disposable stores. No operator migration, deployment or eGAPS access.
 
-Next required input: the LGU-approved accounting treatment/reference for dishonoured
-cheque returns and redemption was requested on 2026-09-15; no answer is recorded yet.
-Do not substitute source-error reversals or invent statutory accounts/payment rules.
-Continue the source-linked return/redemption work when its governing treatment is known.
+User direction clarified on 2026-09-15: no local procedures are available. Research
+Philippine LGU/bank guidance, design modular implementations and allow human resolution
+of rare cases. This is not a blocker on ordinary Finance development. The
+[modular cheque exception design](docs/FINANCE_CHEQUE_EXCEPTION_DESIGN.md) separates
+outgoing presentation reports, incoming dishonour, redemption/custody and officer refunds.
+Design is complete; those new modules are not implemented. Begin the bounded presentation
+report checkpoint, then incoming return/redemption; preserve ordinary functionality priority.
+Specific ledger postings still require reviewed applicable recipes, without invented
+statutory accounts or source-error reversals. No further procedure request is pending.
 Actual inventory, official output comparison and operational/LGU acceptance remain separate.
 
 Version Manager preview/execute uses `.tmp/collection_clearing_release.py`, limits managed

@@ -7,15 +7,18 @@ The later fee-input boundary test passes separately; final clearing entry-form p
 is browser-verified. Native combined 50/50 and final source 2/2 pass. All runners ended;
 owned MySQL and browser/server stopped. The operator DB remains unchanged.
 
-The approved LGU return/redemption accounting reference has been requested and remains
-unprovided. This blocks finalizing those ledger effects; keep the remaining lifecycle open.
+The user has no local procedure and authorizes researched modular development with human
+resolution of rare cases. No procedure request remains pending. Follow the
+[exception design](FINANCE_CHEQUE_EXCEPTION_DESIGN.md); reviewed applicable rules govern
+individual postings, while ordinary Finance development continues. New return/redemption
+modules remain planned, not implemented.
 
 Required scope confirmed by the user: cash, cheques and bank transfers. Continue
 the complete cheque lifecycle; capture/deposit support alone is not completion.
 
 ## Current local implementation
 
-Bank clearing is now being implemented as a separately retained proposal/decision
+Bank clearing is implemented in development v0.7.108 as a separately retained proposal/decision
 over the original posted cheque receipt and its whole posted deposit. Treasury records
 the actual clearing date, bank reference and evidence location; Accounting independently
 confirms or returns it. Reviewed withdrawal retains the decision and permits a new
@@ -25,7 +28,7 @@ changes the original collection/deposit journals. Officer cheque refunds remain 
 
 Migration vouchers/0033 adds clearing evidence in the default store only. No operator
 database migration has been performed. Web entry/review and retained printable evidence
-are under test; this does not complete dishonour, redemption or custody handling.
+passed the recorded checks; this does not complete dishonour, redemption or custody handling.
 
 An ordinary or multi-charge receipt can retain the drawee bank, drawer/account
 reference, number and issue date. Its identity is checked under the existing Treasury
@@ -47,7 +50,7 @@ as cash or claim this blocked route as completed coverage.
 
 ## Outstanding lifecycle
 
-Implement independently reviewed bank clearing and actual dishonour, dated return
+Build on independently reviewed bank clearing with actual dishonour, dated return
 effects, original cheque/receipt/deposit links, custody/notice evidence and governed
 settlement. Preserve the original collections and deposits. An actual dishonour is
 not a source-error correction; ordinary payer refunds and reversed incoming transfers

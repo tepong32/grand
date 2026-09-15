@@ -5,7 +5,8 @@ and incoming cheque capture with independently reviewed bank clearing. Full SQLi
 1,266 with 96 native-only skips; combined native 50/50, including eight races, and final
 source native 2/2 pass. A later database-independent fee-bound check passes separately.
 The [cheque record](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md) gives scope and evidence.
-Dishonour/redemption treatment awaits an approved LGU accounting reference; officer cheque
+The [modular exception design](FINANCE_CHEQUE_EXCEPTION_DESIGN.md) now guides researched
+development with human resolution for rare cases; no user procedure is pending. Officer cheque
 refund timing and other Finance/acceptance work remain incomplete. This is not master
 integration, deployment or full collection parity. Older checkpoint summaries below
 retain their original validation scope.

@@ -19,8 +19,10 @@ Preserve sound architecture, immutable financial history, balancing, independent
 
 Execution checkpoint v0.7.108 adds netted receipt fees, multi-charge collections,
 direct-bank receipts and incoming cheque capture/independent clearing. The complete
-cheque lifecycle remains next: approved LGU return/redemption accounting treatment
-is requested but not yet supplied. Do not invent it or substitute source-error reversals.
+cheque lifecycle remains open. The user authorizes researched modular development and
+human resolution of rare cases; no local procedure is available or required to continue
+development. Use [the exception design](FINANCE_CHEQUE_EXCEPTION_DESIGN.md) and reviewed
+applicable posting rules. Rare cases must not indefinitely displace ordinary Finance gaps.
 See [validated scope and remaining work](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md).
 
 Improve the eGAPS office experience through GRAND: familiar Budget, Accounting and Treasury registers and terminology, delivered on the web through individual accounts and current department/role permissions. Support authorized work from home without making physical custody, wet signatures or instrument release appear remote when they still require an in-office act. eGAPS remains an untouched reference; do not modify its files, records or databases or introduce a runtime dependency.

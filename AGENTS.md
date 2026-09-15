@@ -6,6 +6,13 @@ Department-aware Django platform for municipal public services and internal oper
 
 ### Durable boundaries
 
+Cheque exceptions (2026-09-15): user has no local procedures and authorizes public-source
+research, modular implementation and human resolution of rare cases. Missing local
+paperwork must not block ordinary Finance development. Separate reported presentation,
+actual bank disposition and system approval; never invent acknowledgement, release or
+ledger evidence. Use reviewed applicable posting rules and retained physical custody.
+See [modular design and implementation checkpoints](docs/FINANCE_CHEQUE_EXCEPTION_DESIGN.md).
+
 Product direction (2026-09-10, clarified): finish Finance functionality and demonstrate source-to-ledger-to-output parity first; eGAPS is the capability floor, not the design ceiling. Then complete the actual inventory, ordinary office scenarios, exact outputs, clerk usability and operational acceptance, in that order. Preserve account-based web access, authorized WFH and maintainable national/COA/DBM changes. Keep eGAPS untouched. Do not expand UX, framework, collaboration or surrounding infrastructure ahead of unresolved functionality unless needed to complete or validate it. Retain sound financial architecture and explicit on-site signature/custody duties. See [modernization priorities](docs/FINANCE_MODERNIZATION_PRIORITIES.md).
 
 Keep the default and Finance databases separate; never merge Finance into the default store. Preserve department/role boundaries, independent maker-checker approval, immutable financial history and correction lineage. Finance UAT Viewer membership denies financial mutation even when operational permissions are also granted; preserve separately authorized read/export access. Production secrets/settings are environment-driven. GRAND creates valid backup/export artifacts; TraceSync transports them and does not establish backup validity or restore acceptance.

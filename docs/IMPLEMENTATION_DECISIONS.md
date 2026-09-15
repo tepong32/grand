@@ -1166,3 +1166,21 @@ valid clearing and dishonour evidence. Actual dishonour, notice/custody and rede
 require their own source-linked financial treatment and applicable reviewed authority;
 source-error reversal is not a substitute. No inferred settlement deadline or statutory
 account code is introduced. See [scope and tests](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md).
+
+## D-096 - Research-led cheque exceptions with human resolution
+
+Date: 2026-09-15. Design complete; new exception modules are not implemented.
+
+The user has no local procedures and accepts human intervention for rare scenarios.
+Do not make supplying those procedures a prerequisite for further Finance development.
+Use the [researched modular design](FINANCE_CHEQUE_EXCEPTION_DESIGN.md): outgoing early
+presentation reports, incoming bank returns, redemption/custody and the dependent officer
+refund extension. Actual bank evidence, independent decisions and reviewed posting recipes
+remain necessary for the affected financial action. A complaint is not proof of payment;
+late evidence cannot manufacture timely approval. Preserve ordinary Finance priorities.
+
+This replaces the blanket input blocker recorded at v0.7.108, not the separate local
+form/production acceptance gates. Public LGU and bank references support the design;
+NGA MDS examples do not establish this LGU's bank contract or statutory account mapping.
+Implementation reuses existing source posting, advice, reconciliation and TracePoint
+boundaries instead of adding a second ledger or general incident framework.

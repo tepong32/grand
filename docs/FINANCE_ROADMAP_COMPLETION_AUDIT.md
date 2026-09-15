@@ -6,7 +6,8 @@ Duplicate bank/account/number capture cannot be bypassed by changing the issue d
 Full SQLite passes 1,266 tests with 96 native-only skips; combined MySQL passes all 50
 including eight races, with final source checks 2/2. Later input/presentation checks are
 recorded separately in the [feature record](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md).
-Dishonour/redemption entries await the approved LGU accounting treatment/reference.
+Dishonour/redemption modules remain planned under the [researched exception design](FINANCE_CHEQUE_EXCEPTION_DESIGN.md).
+The user authorizes development without supplying local procedures; no such input is pending.
 Officer cheque refunds, mixed instruments, actual inventory/forms and operational/LGU
 acceptance remain open; these tests do not close M03 or the Finance completion gate.
 

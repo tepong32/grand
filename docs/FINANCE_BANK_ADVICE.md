@@ -73,6 +73,11 @@ Copy or synchronize the complete export root with TraceSync so artifacts remain 
 
 ## Public guidance and local boundary
 
+The [cheque exception design](FINANCE_CHEQUE_EXCEPTION_DESIGN.md) adds a planned,
+evidence-based human-resolution route for presentation before advice completion. It
+does not relax the implemented approval/submission/acknowledgement controls or claim
+that an attempted encashment is a returned payment. No new report module is implemented yet.
+
 The COA Government Accounting Manual for National Government Agencies defines cancelled, outstanding, and returned checks and treats bank reconciliation as settlement of book/bank differences ([GAM Chapter 21 definitions](https://coa.gov.ph/wp-content/uploads/abc-help/gam_b/br1.1.htm)). It describes preparation of the Report of Checks Issued and related daily reporting to Accounting ([GAM Chapter 21 method](https://coa.gov.ph/wp-content/uploads/abc-help/gam_b/br1.2.htm)) and chronological recording of released, unreleased, and cancelled checks with actual release dates ([GAM Chapter 6 disbursements](https://www.coa.gov.ph/wp-content/uploads/ABC-Help/GAM_A/g5.htm)). COA also identifies JEVs and bank/check reports as sources for financial reporting ([GAM financial-report source records](https://coa.gov.ph/wp-content/uploads/abc-help/gam_b/fr1.30.htm)).
 
 DBM's Citizen's Charter identifies bank submission of the Advice of Checks Issued and Cancelled as a concrete external handoff in DBM practice ([DBM Citizen's Charter, 2022](https://www.dbm.gov.ph/wp-content/uploads/AboutDBM/Updated-DBM-Charter-as-of-March-2022_FINAL.pdf)). DBM's PFM reform roadmap also supports movement toward digital payment and advice mechanisms ([PFM Reforms Roadmap 2024–2028](https://www.dbm.gov.ph/wp-content/uploads/DBM%20Publications/PFM-Reforms/PFM_roadmap-110624.pdf)).
