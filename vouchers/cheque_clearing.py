@@ -44,6 +44,8 @@ def propose(*, receipt, deposit, actor, cleared_on, bank_reference, evidence_ref
     office = require(actor, 'vouchers.prepare_collections')
     if office.pk != receipt.treasury_department_id:
         raise PermissionDenied
+    from .advance_refunds import lock_source_case
+    lock_source_case(receipt)
     Department.objects.select_for_update().get(pk=office.pk)
     receipt = Source.objects.select_for_update().get(pk=receipt.pk)
     deposit = Source.objects.get(pk=deposit.pk)
@@ -72,6 +74,8 @@ def verify(row):
 @transaction.atomic
 def review(*, clearance, actor, approve, reason):
     office = require(actor, 'vouchers.review_collections')
+    from .advance_refunds import lock_source_case
+    lock_source_case(clearance.receipt)
     Department.objects.select_for_update().get(pk=clearance.receipt.treasury_department_id)
     row = Clearance.objects.select_for_update().select_related('receipt', 'deposit').get(pk=clearance.pk)
     if office.pk != row.receipt.finance_department_id:
@@ -93,6 +97,8 @@ def review(*, clearance, actor, approve, reason):
 @transaction.atomic
 def withdraw(*, clearance, actor, reason):
     office = require(actor, 'vouchers.review_collections')
+    from .advance_refunds import lock_source_case
+    lock_source_case(clearance.receipt)
     Department.objects.select_for_update().get(pk=clearance.receipt.treasury_department_id)
     row = Clearance.objects.select_for_update().select_related('receipt', 'deposit').get(pk=clearance.pk)
     if office.pk != row.receipt.finance_department_id:
@@ -102,9 +108,8 @@ def withdraw(*, clearance, actor, reason):
     verify(row)
     from .cheque_returns import protect
     protect(row.receipt)
-    # Officer cheque refunds remain blocked until dependent dated capacity is implemented.
-    if row.receipt.proposal.get('advance_refund'):
-        raise ValidationError('Resolve the dependent officer refund before withdrawing its clearing evidence.')
+    # A refund remains reserved while its cheque is pending. Withdrawing clearing
+    # evidence does not release money or change the original receipt/advance ledger.
     row.status = 'withdrawn'
     row.withdrawn_by, row.withdrawn_at, row.withdrawal_reason = actor, timezone.now(), reason.strip()
     row.save()

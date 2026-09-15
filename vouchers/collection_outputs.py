@@ -91,6 +91,10 @@ def generate(*, source, actor, include_custody=False):
     refund = source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction')
     if refund:
         snapshot['advance_refund'] = refund
+    from .advance_cheques import settlement
+    officer_cheque = settlement(source)
+    if officer_cheque:
+        snapshot['advance_cheque_settlement'] = officer_cheque
     content=render_to_string('vouchers/collections/print.html',{'record':snapshot})
     return CollectionOutput.objects.create(source=source,version=version,snapshot=snapshot,
         snapshot_checksum=_digest(snapshot),html=content,checksum=hashlib.sha256(content.encode('utf-8')).hexdigest(),generated_by=actor)

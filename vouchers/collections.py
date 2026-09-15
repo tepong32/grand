@@ -125,15 +125,13 @@ def new_source(*, actor, treasury, variant, fund, kind, book, reference, day, to
 @transaction.atomic
 def record_receipt(*, actor, variant, received_on, fund_code, receipt_book, receipt_number, payer_reference, received_amount, evidence_reference, advance_detail=None, charges=None, receiving_bank_id=None, bank_transaction_reference="", cheque=None):
     if advance_detail is not None:
-        if cheque:
-            raise ValidationError('Officer cheque refunds require the pending cheque-clearing workflow; do not record them as cash refunds.')
         if charges:
             raise ValidationError('Keep an officer advance refund separate from ordinary collection charges.')
         from .advance_refunds import record
         return record(actor=actor, detail=advance_detail, variant=variant, received_on=received_on,
             fund_code=fund_code, receipt_book=receipt_book, receipt_number=receipt_number,
             payer_reference=payer_reference, received_amount=received_amount, evidence_reference=evidence_reference,
-            receiving_bank_id=receiving_bank_id, bank_transaction_reference=bank_transaction_reference)
+            receiving_bank_id=receiving_bank_id, bank_transaction_reference=bank_transaction_reference, cheque=cheque)
     treasury = require(actor, 'vouchers.prepare_collections')
     treasury = Department.objects.select_for_update().get(pk=treasury.pk)
     variant, fund, rule, snapshot, checksum = context(variant, received_on, fund_code, Source.RECEIPT)

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.114] - 2026-09-15
+### Added
+- feat(finance): retain officer cheque refund reservations through clearing
+
 ## [0.7.113] - 2026-09-15
 ### Added
 - feat(finance): preserve original cheque cash-purpose components

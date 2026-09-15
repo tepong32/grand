@@ -1,5 +1,9 @@
 # GRAND Finance complete-cycle roadmap
 
+The [officer cheque refund module](FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md) has a
+validated v0.7.114 development checkpoint: pending receipt reservations and independent clearing remain separate.
+Actual officer bank-return adjustments/redemption are still a dependent adapter.
+
 The next [mixed-purpose cheque adapter](FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md), D-100,
 has a validated v0.7.113 development checkpoint. It preserves each original cash-purpose amount through
 return, redemption and exact correction. Combined penalties, external delivery and

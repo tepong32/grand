@@ -1252,3 +1252,19 @@ Single-purpose historical proof and recipe semantics remain unchanged. New mixed
 returns retain their component evidence explicitly, and later review rederives it from
 the original immutable receipt. This closes a reporting-treatment limitation, not combined
 penalties, external delivery or officer refund timing. See [scope and actual results](FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md).
+
+## D-101 — Keep officer cheque reservations separate from clearing (2026-09-15)
+
+Extend the existing original-advance refund route to explicitly identified incoming
+cheques. Pending receipt/deposit posting retains the reviewed advance credit and exact
+officer subsidiary, while the full dated amount remains reserved against the original
+release. Independent clearing confirmation changes the settlement evidence only; an
+independent withdrawal returns it to pending and does not release application capacity.
+Neither operation creates another bank credit or rewrites an earlier issued copy.
+
+Use the existing original-case-before-Treasury lock order for clearing mutations as well
+as refunds. Reuse current exact receipt/deposit corrections and witnessed unposted
+withdrawal rather than inventing another adjustment ledger. Actual dishonour is not an
+entry mistake: retain its explicit guard until a dated original-advance return and
+redemption adapter is implemented. This is a phased module, not a completed officer
+cheque lifecycle. See [scope and actual validation](FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md).

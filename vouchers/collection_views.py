@@ -39,7 +39,7 @@ class ReceiptForm(forms.Form):
         label='Bank credit reference (bank transfer only)')
     advance_detail = forms.ModelChoiceField(queryset=JournalSubsidiaryLine.objects.none(), required=False,
         label='Original officer advance (returned advance money only)',
-        help_text='Choose the original advance and a reviewed refund collection type. The officer identity is retained automatically.')
+        help_text='Choose the original advance and a reviewed refund collection type. The officer identity is retained automatically. The cheque amount is reserved against this advance. Receipt posting alone is not bank clearing; clearing needs independent bank evidence.')
     variant = forms.ModelChoiceField(queryset=FinanceTransactionVariant.objects.none(), label='Collection type')
     received_on = forms.DateField(widget=forms.DateInput(attrs={'type':'date'}), label='Date received')
     fund_code = forms.ChoiceField(label='Fund')
@@ -211,6 +211,7 @@ def detail(request, public_id):
     from finance.cash_flows import CASH_FLOW_CHOICES
     source = get_object_or_404(visible_sources(request.user), public_id=public_id)
     from .cheque_redemptions import settlement, OR_DISPOSITIONS
+    from .advance_cheques import settlement as advance_cheque_settlement
     from .cheque_custody import evidence as custody_evidence
     from tracepoint.access import can_resolve_exceptions, packet_is_visible
     custody = None
@@ -233,6 +234,7 @@ def detail(request, public_id):
         'old_receipt_label':OR_DISPOSITIONS.get(source.proposal.get('old_receipt_disposition'),''),
         'redemption_receipts':[{'source':row, 'settlement':settlement(row)} for row in source.redemption_receipts.all()],
         'redemption_settlement':settlement(source) if source.redemption_return_id else None,
+        'advance_cheque_settlement':advance_cheque_settlement(source),
         'can_redeem':source.kind == Source.CHEQUE_RETURN and source.status == Source.POSTED
             and not is_finance_uat_viewer(request.user) and source.treasury_department_id == department_for_user(request.user).pk
             and has_explicit_permission(request.user,'vouchers.prepare_collections'),

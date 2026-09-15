@@ -16,6 +16,20 @@ Before changing code, inspect the current branch, status, recent commits, this f
 
 ## Active direction — eGAPS-informed web modernization
 
+### v0.7.114 officer cheque refund checkpoint
+
+Continue in `C:/Users/Administrator/.codex/worktrees/grand-cheque-components`, now on
+`codex/finance-officer-cheques` from pushed v0.7.113 `a3bd6c8` ([draft PR #74](https://github.com/tepong32/grand/pull/74)).
+Pending instruments keep the existing dated refund reservation; independent clearing
+and withdrawal do not free it. Focused SQLite passes 23 with six native skips; native
+passes all 29 including six races. Broad vouchers/Accounting/reporting SQLite passes
+925 with 111 native skips (1,036 discovered), 585.778s, exit 0. Browser desktop/mobile
+checks pass; owned browser/server are stopped. Actual returns are being validated in
+`C:/Users/Administrator/.codex/worktrees/grand-officer-cheque-returns`; align that candidate
+to this committed checkpoint before publication. This checkpoint alone retains the
+explicit officer bank-return guard.
+See [scope and current validation](docs/FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md).
+
 ### v0.7.113 mixed-purpose cheque component checkpoint
 
 Continue in `C:/Users/Administrator/.codex/worktrees/grand-cheque-components`, branch
