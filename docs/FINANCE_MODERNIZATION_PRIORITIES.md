@@ -1,5 +1,10 @@
 # GRAND Finance modernization priorities
 
+**Current direction — 2026-09-18:** the [foundation gate](FINANCE_FOUNDATION_GATE.md)
+supersedes the order below: retrieval, Budget decision context, verified domain
+semantics, ordinary continuity, outputs, usability, then broader scenarios. Limit
+parity to purchased/used LGU Finance scope. Retain earlier evidence and deferred work.
+
 Direction accepted by the user on 2026-09-10. This is a focused work queue under the [Finance roadmap](FINANCE_ROADMAP.md), not a replacement roadmap or a production-completion claim.
 
 ## Authoritative delivery order (clarified 2026-09-10)

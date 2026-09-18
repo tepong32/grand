@@ -1,5 +1,9 @@
 # Finance gap register
 
+Active foundation gaps FG-01–FG-10 are maintained in the [2026-09-18 foundation
+gate](FINANCE_FOUNDATION_GATE.md#living-scope-and-gap-register), including scope,
+classification, user/control impact and dependencies. Historical findings remain below.
+
 ## FIN-GAP-037 - Contra balances increase statement totals
 
 - Severity/status: **HIGH - VERIFIED** in v0.7.74 on `codex/finance-statement-movements`; affected native and broad SQLite verification passed.

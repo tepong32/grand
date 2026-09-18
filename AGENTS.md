@@ -6,6 +6,12 @@ Department-aware Django platform for municipal public services and internal oper
 
 ### Durable boundaries
 
+Current direction (2026-09-18): the [Finance foundation gate](docs/FINANCE_FOUNDATION_GATE.md)
+supersedes the earlier breadth-first order. Complete register retrieval, Budget
+historical context and verified planning/certificate semantics, ordinary continuity,
+outputs and usability before broader features. eGAPS is a reference for purchased/used
+LGU Finance scope only. Preserve unknowns and controls; deliver resumable checkpoints.
+
 Cheque exceptions (2026-09-15): user has no local procedures and authorizes public-source
 research, modular implementation and human resolution of rare cases. Missing local
 paperwork must not block ordinary Finance development. Separate reported presentation,

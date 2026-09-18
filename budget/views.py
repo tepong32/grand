@@ -2,6 +2,7 @@ import csv
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -11,6 +12,7 @@ from django.views.decorators.http import require_GET, require_POST
 from src.export_archive import archive_export
 
 from accounting.models import FiscalYear
+from .retrieval import ObligationRetrievalForm
 
 from .access import budget_access_required, budget_permission_required, department_for_user, has_budget_permission, can_act_on_budget
 from .forms import (
@@ -708,6 +710,8 @@ def obligation_workspace(request):
     fiscal_year_id = request.GET.get("fiscal_year", "").strip()
     fiscal_year = None
     if fiscal_year_id:
+        if not fiscal_year_id.isascii() or not fiscal_year_id.isdecimal() or len(fiscal_year_id) > 18:
+            raise Http404("Unknown fiscal year")
         fiscal_year = get_object_or_404(
             FiscalYear.objects.filter(pk__in=base_items.values("fiscal_year_id")).distinct(),
             pk=fiscal_year_id,
@@ -718,11 +722,19 @@ def obligation_workspace(request):
         attention=request.GET.get("attention", "").strip(),
         actor=request.user,
     )
-    items = list(items.select_related("fiscal_year", "authorization", "corrects")[:100])
+    retrieval = ObligationRetrievalForm(request.GET, scope=base_items)
+    items = retrieval.apply(items).select_related("fiscal_year", "authorization", "corrects").order_by(
+        "-fiscal_year__year", "-obligation_date", "-created_at", "-pk",
+    )
+    page = Paginator(items, 50).get_page(request.GET.get("page"))
+    items = list(page.object_list)
+    query = request.GET.copy()
+    query.pop("page", None)
     for item in items:
         item.next_action_label = next_obligation_action(item)
     return render(request, "budget/obligation_workspace.html", {
         "department": department, "authority_rows": authority_rows, "requests": items,
+        "retrieval_form": retrieval, "page_obj": page, "page_query": query.urlencode(),
         "fiscal_years": FiscalYear.objects.filter(
             pk__in=base_items.values("fiscal_year_id"),
         ).distinct().order_by("-year", "pk"),
@@ -748,6 +760,8 @@ def obligation_register_export(request):
     fiscal_year_id = request.GET.get("fiscal_year", "").strip()
     fiscal_year = None
     if fiscal_year_id:
+        if not fiscal_year_id.isascii() or not fiscal_year_id.isdecimal() or len(fiscal_year_id) > 18:
+            raise Http404("Unknown fiscal year")
         fiscal_year = get_object_or_404(
             FiscalYear.objects.filter(pk__in=base_items.values("fiscal_year_id")).distinct(),
             pk=fiscal_year_id,
@@ -758,9 +772,14 @@ def obligation_register_export(request):
         attention=request.GET.get("attention", "").strip(),
         actor=request.user,
     )
+    retrieval = ObligationRetrievalForm(request.GET, scope=base_items)
+    items = retrieval.apply(items)
+    if not retrieval.is_valid():
+        return HttpResponse("Invalid register filters. Correct the filters in the obligation register.", status=400)
     content, filename, receipt = build_obligation_register(
         department, request.user, items, fiscal_year=fiscal_year, kind=selected_kind,
         form_type=selected_form_type, status=selected_status, attention=selected_attention,
+        retrieval_filters=retrieval.evidence(),
     )
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'

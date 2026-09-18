@@ -1,5 +1,9 @@
 # GRAND Finance roadmap completion audit
 
+Current work resumed on 2026-09-18 under the [Finance foundation gate](FINANCE_FOUNDATION_GATE.md).
+Its supplied audit baseline and FG-01–FG-10 remain open until individually verified.
+Earlier capability tests do not establish ordinary workflow or local output parity.
+
 Officer return/restoration and replacement principal now have 39/39 native tests
 (nine races) and 600 passed/48 native skips in the dependent SQLite regression.
 The explicit original-advance debit and officer subsidiary survive exact correction;

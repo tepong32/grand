@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.116] - 2026-09-18
+### Fixed
+- fix(finance): restore complete scoped OBR retrieval
+
 ## [0.7.115] - 2026-09-15
 ### Added
 - feat(finance): restore officer cheque returns through original advances

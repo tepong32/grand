@@ -2,7 +2,24 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-09-15
+Last updated: 2026-09-18
+
+## Current checkpoint — Finance foundation retrieval
+
+The user resumed on 2026-09-18 with the Finance Completion Gate, superseding older
+pause instructions and the breadth-first queue. See the [current report and gap
+register](docs/FINANCE_FOUNDATION_GATE.md). Owning checkout:
+`C:/Users/Administrator/.codex/worktrees/grand-finance-foundation`, branch
+`codex/finance-foundation-retrieval`, based on v0.7.115 `36a4974` (remote branch/tag
+verified). The canonical checkout and unrelated database/drafts are preserved.
+OBR retrieval passes 39/39 final Budget/work-queue tests (16.634s), with earlier
+3/3 focused checks and passing system/drift/compile/diff checks. Both disposable
+stores were destroyed. See the report for exact commands and validation limits.
+Release candidate v0.7.116 uses Version Manager with historical references preserved;
+verify the actual branch/tag after publication. Browser/volume acceptance remains
+open. Collection retrieval follows, then Budget
+historical context and verified planning/certificate semantics. No master integration,
+deployment or LGU acceptance is claimed; production remains NO-GO.
 
 Turning-point decisions are recorded separately in [the implementation decision log](docs/IMPLEMENTATION_DECISIONS.md), as requested by the user. Keep each choice tied to the canonical product goal, alternatives, tradeoffs, evidence and revisit conditions.
 
