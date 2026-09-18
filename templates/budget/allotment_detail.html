@@ -8,6 +8,7 @@
     <div>{% if order.status == 'posted' %}<a class="btn btn-outline-primary" href="{% url 'budget:allotment_export' order.public_id %}">Export posted schedule</a>{% endif %}{% if can_prepare and order.status == 'draft' or can_prepare and order.status == 'returned' %}<a class="btn btn-outline-secondary" href="{% url 'budget:allotment_edit' order.public_id %}">Edit draft</a><a class="btn btn-primary" href="{% url 'budget:allotment_line_create' order.public_id %}">Add schedule line</a>{% endif %}</div>
   </div>
   <div class="alert {% if order.status == 'posted' %}alert-success{% else %}alert-warning{% endif %}"><strong>{{ order.get_status_display }}.</strong> Signed/computed/difference: {{ order.signed_control_total|floatformat:2 }} / {{ order.computed_total|floatformat:2 }} / {{ order.control_difference|floatformat:2 }}. {% if order.status == 'posted' %}Posted movements are immutable.{% else %}This order does not affect balances yet.{% endif %}</div>
+  {% include "budget/allotment_planning.html" %}
   <div class="row">
     <div class="col-xl-8">
       <div class="card mb-3"><div class="card-body"><dl class="row mb-0">

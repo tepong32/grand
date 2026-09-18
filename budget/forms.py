@@ -154,6 +154,7 @@ class AllotmentReleaseOrderForm(forms.ModelForm):
         fields = (
             "authorization", "order_number", "kind", "release_date", "effective_date",
             "authority_reference", "evidence_reference", "purpose", "signed_control_total", "corrects",
+            "planning_deviation_basis",
         )
         widgets = {
             "release_date": DateInput(), "effective_date": DateInput(),
@@ -271,3 +272,19 @@ class ObligationRequestLineForm(forms.ModelForm):
         self.fields["movement_type"].choices = [
             choice for choice in ObligationRequestLine.MOVEMENT_CHOICES if choice[0] in allowed
         ]
+
+class QuarterlyPlanForm(forms.Form):
+    reference = forms.CharField(max_length=120, label="Plan reference")
+    prepared_on = forms.DateField(widget=DateInput(), label="Prepared as of")
+    evidence_reference = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), label="Preparation and approval-route evidence")
+    change_basis = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), label="Planning or revision basis")
+
+
+class QuarterlyPlanLineForm(forms.ModelForm):
+    class Meta:
+        from .models import QuarterlyPlanLine
+        model = QuarterlyPlanLine
+        fields = ("q1", "q2", "q3", "q4", "basis", "indicator", "target_unit", "target_q1", "target_q2", "target_q3", "target_q4")
+        widgets = {"basis": forms.Textarea(attrs={"rows": 3})}
+        labels = {"q1": "Q1 allocation", "q2": "Q2 allocation", "q3": "Q3 allocation", "q4": "Q4 allocation",
+                  "target_q1": "Q1 physical target", "target_q2": "Q2 physical target", "target_q3": "Q3 physical target", "target_q4": "Q4 physical target"}

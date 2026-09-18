@@ -40,7 +40,7 @@ potential future integration, out of current scope, or unknown before work begin
 | FG-01 | Budget | OBR retrieval stops at 100; inadequate reference retrieval | IMPLEMENTED | Direct retrieval of older OBRs | Scope and full matching export preserved | Existing obligation selector/export | Automated, browser and synthetic volume checks passed; local acceptance open |
 | FG-02 | Treasury | Collection narrowing/counts/pagination | IMPLEMENTED | Locate and inspect matching sources | Availability retains excluded allocations; totals separate states | Collection register and source routes | SQLite/native/browser and synthetic volume checks passed; local acceptance open |
 | FG-03 | Budget | Historical proposal decision context | PARTIALLY IMPLEMENTED | Dated context now appears on proposals | Retained activity, explicit estimates and original authority stay distinct | Dated ledger and authority evidence | Checkpoint 2A validated locally; certified expenditure/coverage still open |
-| FG-04 | Budget | Operational quarterly financial plan | MISSING | Annual-to-quarter planning absent | Plan must remain separate from spending authority | Existing authorized schedule and ARO | Initial domain/source investigation recorded; local reserved-column meaning unknown |
+| FG-04 | Budget | Operational quarterly financial plan | PARTIALLY IMPLEMENTED | Versioned quarters now connect authority and AROs | Approval does not move money; ARO evidence remains pinned | Existing authorized schedule and ARO | Focused/native/browser and full SQLite regression pass; local reserved-column/form acceptance open |
 | FG-05 | Budget | Distinct earmark certificate lifecycle | MISSING | Certificate identity/consumption absent | Generic withholding is not procurement certification | Exact capacity, consumption and correction semantics | Initial municipal evidence located; local lifecycle rules unresolved |
 | FG-06 | Reporting | Exact required office outputs | PARTIALLY IMPLEMENTED | Generic output may not meet office need | Local acceptance remains unproven | Required-output inventory and accepted references | Open |
 | FG-07 | Cross-office | Ordinary end-to-end workflow proof | PARTIALLY IMPLEMENTED | Handoffs may remain confusing | Tests do not establish LGU acceptance | Existing Budget/Accounting/Treasury chains | Open |
@@ -172,3 +172,17 @@ Required pre-implementation investigation for FG-04/05 is recorded in
 It identifies missing operational lifecycles without treating public examples as
 accepted Bocaue policy. Quarterly allocations are planning context; existing ARO
 and obligation controls retain their separate financial authority.
+
+## Checkpoint 3A — Quarterly plan to ARO continuity
+
+Existing immutable authority, release/withholding movements and obligation checks
+remain the financial foundation. New versioned plans add explicit quarters, basis,
+separate physical targets, independent review and retained control sources. Draft AROs
+show intended timing; submission and exports pin the exact plan, while explained
+deviations retain annual controls. This removes a separate planning lookup and prevents
+later plan revisions from obscuring the source used for a release decision.
+
+Focused SQLite, expanded fresh native Budget and synthetic browser checks pass;
+full SQLite passes 1,376 with 123 skips (1,499 discovered). No production migration, exact local form acceptance,
+procurement certificate or local reserved-column meaning is claimed. See
+[checkpoint evidence and remaining scope](FINANCE_QUARTERLY_PLANNING.md).

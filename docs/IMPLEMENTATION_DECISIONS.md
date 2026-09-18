@@ -1338,3 +1338,21 @@ snapshots. Existing historical approvals receive no invented comparison snapshot
 Original final authority is distinct from supplemental/successor evidence and an
 adjusted balance. Revisit the narrower projection when accepted expenditure coverage
 and classification evidence become available. See [scope and validation](FINANCE_BUDGET_PLANNING_CONTEXT.md).
+
+## D-106 — Quarterly plans explain timing without creating authority (2026-09-18)
+
+The domain/source investigation distinguishes approved quarterly allocations from
+ARO release and obligation certification. Reuse immutable appropriation lines,
+existing Budget prepare/review permissions and financial controls. Require explicit
+four-quarter allocations and a basis; missing is not zero, and unplanned authority
+is not a withholding reserve or cash balance. Keep physical targets separate by unit.
+
+Retain submission evidence, deny review by preparation contributors, and serialize
+competing successor approvals on the existing authority parent. An ARO pins the plan
+it used; above-plan positive releases need an explained timing basis, with intervening
+releases rechecked under the existing source locks. The explanation does not bypass
+annual financial controls. Historical AROs receive no invented planning context.
+
+This removes separate plan reconstruction during release review without inventing a
+mandatory legal quarter cap. The distinct procurement earmark lifecycle is not aliased
+to generic withholding. See [implementation and validation](FINANCE_QUARTERLY_PLANNING.md).

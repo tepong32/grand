@@ -4,7 +4,49 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-18
 
-## Current checkpoint — Budget historical planning context
+## Active work — quarterly financial planning
+
+Current branch `codex/finance-quarterly-planning` starts from published v0.7.118
+`07b9185c9fb5e622426123eefd5ca45fc266ef31` ([draft PR #79](https://github.com/tepong32/grand/pull/79));
+remote branch/tag were verified. The v0.7.119 quarterly development checkpoint is
+validated locally and uses Version Manager publication on the current branch. See
+[the feature record](docs/FINANCE_QUARTERLY_PLANNING.md) and D-106.
+
+Implemented: complete classified quarterly schedules, explicit missing/zero handling,
+separate physical targets, independent review, contributor denial, retained snapshots,
+serialized successors and ARO timing comparisons/deviation basis pinned through output.
+No planning service posts financial movements. Exact local reserved-column meaning,
+earmark lifecycle and broader Finance/form/operational gates remain open.
+
+Validation: first focused SQLite 6/6; final Budget/work-queue SQLite 51 passed, three
+native-only skips (54 discovered, 27.279s); initial native 8/8 and final expanded native
+54/54 (46.087s), including three Budget races. Browser create/enter/submit/independent
+approval/export and ARO reject-without-basis/correct/post/export passed. Screenshots
+are in output/playwright/quarterly-*.png. Template-only layout/state refinements were
+visually rechecked after restarting the owned server. Owned browser/server/MySQL are
+stopped; operator database hash is unchanged. Migration 0010 touched fixtures only.
+
+Full SQLite PASS: 1,376 passed, 123 skipped, 1,499 discovered, 815.100s, exit 0.
+Command `python .tmp/earlier_sqlite.py`, log `.tmp/quarterly-full-sqlite.log`; both test
+stores destroyed. Session 66776 is complete; do not resume or duplicate it. Final
+reviewer-button visibility fix passes seven quarterly tests (4.066s, exit 0), log
+`.tmp/quarterly-final-ui.log`. It hides contributor review controls and explains the
+independent reviewer needed; service enforcement is unchanged.
+
+Version Manager preview uses `.tmp/release_quarterly.py`, managing VERSION/CHANGELOG
+only to preserve historical references. Draft PR body: `.tmp/quarterly-pr-body.md`.
+Verify remote branch/tag and draft PR after execution. No master merge or deployment.
+Next bounded checkpoint: connect OBR detail to visible linked payables and the existing
+source-scoped intake, without re-keying or GET mutations. Investigation notes are in
+`.tmp/next-ordinary-checkpoint.md`; existing full-chain service replay remains the
+baseline, not proof of ordinary browser or LGU acceptance.
+
+The user confirmed that the earmark capacity basis is not yet known (appropriation
+before ARO versus released allotment). This uncertainty is durable in the design
+report. Do not ask them to reconstruct the same missing rule or invent an answer;
+continue independent ordinary-workflow/output work while the certificate gap stays open.
+
+## Published checkpoint — Budget historical planning context
 
 Owning checkout: `C:/Users/Administrator/.codex/worktrees/grand-finance-foundation`,
 branch `codex/finance-budget-history`, based on remotely verified v0.7.117 `f5f4d83`
@@ -27,10 +69,9 @@ and draft PR body `.tmp/planning-pr-body.md` preserve the exact release scope.
 Owned browser/server/MySQL stopped; disposable test stores destroyed. Operator
 `db.sqlite3` hash remains unchanged. Migration 0009 was applied only to test fixtures.
 
-Version Manager preview selects v0.7.118; the adapter restricts automatic updates to
-VERSION/CHANGELOG to preserve historical release evidence. Publish this development
-checkpoint after validation and verify branch/tag. Do not merge the stacked feature
-history into master or claim deployment/operational acceptance.
+Version Manager published v0.7.118 with automatic updates restricted to VERSION/CHANGELOG
+to preserve historical release evidence. Branch/tag verification is recorded above.
+Do not merge stacked feature history into master or claim deployment/operational acceptance.
 
 Next: complete authoritative expenditure coverage mapping and investigate quarterly
 plan/earmark semantics. Initial source/domain findings and implementation boundaries

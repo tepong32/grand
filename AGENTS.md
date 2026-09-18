@@ -43,6 +43,12 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+Quarterly planning retains explicit Q1–Q4 schedules against immutable appropriation
+lines. Plan approval does not move money. Successors serialize on the authority;
+AROs pin their submitted plan and explained timing differences without weakening
+financial controls. Generic reserves are not certificates. See
+[scope and validation](docs/FINANCE_QUARTERLY_PLANNING.md).
+
 Budget proposal context groups dated posted expense activity by the explicit
 ledger/fund/office/account, with separate dated estimates and original authority.
 Submission retains the comparison for independent review. Never infer PPA attribution,

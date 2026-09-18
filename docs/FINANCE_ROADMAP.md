@@ -6,8 +6,13 @@ complete existing retrieval and Budget context before broader Finance features.
 [Budget historical context](FINANCE_BUDGET_PLANNING_CONTEXT.md) now connects dated
 posted expense activity, explicit second-half estimates and original authorized
 schedules to retained proposal review. Certified expenditure/coverage remains open;
-do not relabel this narrower projection as accepted actuals. Quarterly-plan and
-earmark semantics still require investigation before domain expansion.
+do not relabel this narrower projection as accepted actuals. Local reserved-column
+and earmark semantics still require evidence before extending those controls.
+
+[Quarterly planning](FINANCE_QUARTERLY_PLANNING.md) now has an operational versioned
+schedule and retained ARO comparison. Explicit allocations and explained timing
+deviations do not create financial authority. Local reserved-column meaning, form
+acceptance and the distinct earmark lifecycle remain open.
 
 The [officer cheque return adapter](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md),
 D-102, has a validated v0.7.115 development checkpoint connecting actual bank debit, dated advance restoration, reserved exact correction
