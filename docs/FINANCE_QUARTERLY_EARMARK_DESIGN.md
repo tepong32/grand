@@ -1,5 +1,9 @@
 # Quarterly planning and earmark semantics — investigation checkpoint
 
+Implementation follow-up: [checkpoint 3A](FINANCE_QUARTERLY_PLANNING.md) now provides
+the quarterly schedule and ARO connection. The investigation below records the
+starting evidence; unresolved local certificate/reserved-column semantics remain open.
+
 2026-09-18. This records the required investigation before implementation under
 [FG-04/FG-05](FINANCE_FOUNDATION_GATE.md). No new planning or certificate lifecycle
 is implemented by this document. The supplied eGAPS audit is evidence of observed
@@ -66,6 +70,19 @@ unchanged financial balances, exports and the ordinary browser workflow.
 
 ## Earmark decisions still required
 
+The user confirmed on 2026-09-18 that the local capacity basis is **not yet confirmed**:
+approved appropriation before ARO versus already released allotment. Preserve this
+as an unresolved business rule, not an instruction to select either basis. Continue
+ordinary Finance work while gathering evidence; do not let a guessed basis alter
+certificate availability or obligation balances.
+
+Additional primary evidence: [Pulilan's Budget charter, pages 1–2](https://pulilan.gov.ph/wp-content/uploads/2023/09/Budget.pdf)
+separates a procurement appropriation certificate from the later obligation request.
+It describes account charging, Budget preparation/review/signing and a retained log,
+but its availability check names appropriation/allotment together. It therefore
+supports a distinct lifecycle without resolving Bocaue's exact capacity rule. No
+procurement thresholds or timings from that other LGU are adopted into GRAND.
+
 Establish whether the certificate reserves appropriation, released allotment or a
 distinct procurement envelope; which office certifies it; and its exact procurement
 reference and numbering. Establish partial obligation consumption, unconsumed release,
@@ -74,6 +91,6 @@ cash availability or an automatic link from a generic reserve. The smallest even
 adapter must reuse existing authority and obligation locks, consume a hold once,
 and preserve original certification and correction evidence.
 
-FG-04 is a confirmed missing operational planning lifecycle with a supported planning
+FG-04 now has the operational planning lifecycle linked above, with a supported planning
 meaning; local reserved-column semantics remain unknown. FG-05 is a confirmed missing
 certificate lifecycle with local policy details still unresolved. Neither is complete.

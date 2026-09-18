@@ -370,8 +370,13 @@ def transition_allotment_order(order, action, user, reason=""):
     ).get(pk=order.pk)
     _require_action(user, order, "approve_allotment_releases" if action in ("post", "return") else "prepare_allotment_releases")
     now, label = timezone.now(), actor_label(user)
+    posting_planning_context = {}
     if action == "submit" and order.status in (AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED):
         validate_allotment_order(order, lock_lines=True)
+        from .quarterly import allotment_planning_context
+        order.planning_context_snapshot = allotment_planning_context(order)
+        if order.planning_context_snapshot.get("deviation") and not order.planning_deviation_basis.strip():
+            raise ValidationError("This release exceeds the quarterly plan. Record the planning deviation basis; the annual financial controls still apply.")
         order.status = AllotmentReleaseOrder.FOR_REVIEW
         order.submitted_by_id, order.submitted_by_label, order.submitted_at = user.pk, label, now
     elif action == "post" and order.status == AllotmentReleaseOrder.FOR_REVIEW:
@@ -382,6 +387,17 @@ def transition_allotment_order(order, action, user, reason=""):
         if order.movements.exists():
             raise ValidationError("This allotment order already has posted movements.")
         lines, projected = validate_allotment_order(order, lock_lines=True)
+        submitted = BudgetAuditEvent.objects.filter(target_id=str(order.public_id), action="allotment_submit").order_by("-pk").first()
+        retained = submitted.snapshot.get("planning_context") if submitted else None
+        if (retained is not None or order.planning_context_snapshot) and retained != order.planning_context_snapshot:
+            raise ValidationError("Allotment planning evidence changed after submission. Return and resubmit.")
+        if order.planning_context_snapshot.get("plan_id"):
+            if order.planning_deviation_basis != order.planning_context_snapshot.get("deviation_basis", ""):
+                raise ValidationError("The planning deviation basis changed after submission. Return and resubmit.")
+            from .quarterly import allotment_planning_context
+            posting_planning_context = allotment_planning_context(order, retained_plan_id=order.planning_context_snapshot["plan_id"])
+            if posting_planning_context.get("deviation") and not order.planning_deviation_basis.strip():
+                raise ValidationError("Other releases now exceed the retained quarterly plan. Return and record a planning deviation basis.")
         payload, movements = [], []
         for line in lines:
             release_effect, hold_effect = allotment_effect(line.movement_type, line.amount)
@@ -426,6 +442,8 @@ def transition_allotment_order(order, action, user, reason=""):
         "status": order.status, "order_number": order.order_number,
         "control_total": str(order.signed_control_total), "snapshot_checksum": order.snapshot_checksum,
         "movement_count": order.movements.count(),
+        "planning_context": order.planning_context_snapshot,
+        "posting_planning_context": posting_planning_context,
     })
     return order
 

@@ -1,0 +1,6 @@
+{% if authorization.status == 'authorized' %}
+<section class="card mt-3"><div class="card-body"><h2 class="h5">Quarterly financial planning</h2>
+<p>Plan timing against this authority. Plan approval does not release allotment or certify an obligation.</p>
+{% if can_plan %}<a class="btn btn-outline-primary" href="{% url 'budget:quarterly_create' authorization.public_id %}">Prepare plan or successor</a>{% endif %}
+<ul class="mt-3">{% for plan in authorization.quarterly_plans.all %}<li><a href="{% url 'budget:quarterly_detail' plan.public_id %}">{{ plan.reference }} · v{{ plan.version }}</a> · {{ plan.get_status_display }}{% if authorization.current_quarterly_plan_id == plan.pk %} · Current approved plan{% endif %}</li>{% empty %}<li>No quarterly plan recorded.</li>{% endfor %}</ul>
+</div></section>{% endif %}

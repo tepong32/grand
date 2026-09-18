@@ -459,6 +459,7 @@ def authorization_detail(request, public_id):
         "authorization": item,
         "can_prepare": can_act_on_budget(request.user, "prepare_budget_proposals"),
         "can_authorize": can_act_on_budget(request.user, "authorize_appropriations"),
+        "can_plan": can_act_on_budget(request.user, "prepare_allotment_releases"),
     })
 
 
@@ -622,8 +623,17 @@ def allotment_detail(request, public_id):
     line_rows = [
         {"line": line, "balance": allotment_line_balance(line.appropriation_line)} for line in item.lines.all()
     ]
+    from .quarterly import allotment_planning_context
+    planning = item.planning_context_snapshot
+    planning_error = ""
+    if item.status in (item.DRAFT, item.RETURNED):
+        try:
+            planning = allotment_planning_context(item)
+        except ValidationError as exc:
+            planning_error = " ".join(exc.messages)
     return render(request, "budget/allotment_detail.html", {
         "order": item, "line_rows": line_rows,
+        "planning": planning, "planning_error": planning_error,
         "can_prepare": can_act_on_budget(request.user, "prepare_allotment_releases"),
         "can_post": can_act_on_budget(request.user, "approve_allotment_releases"),
     })
@@ -740,6 +750,7 @@ def allotment_export(request, public_id):
         "ppa", "funding_source", "account", "expense_class", "movement_type", "movement_amount",
         "release_effect", "hold_effect", "authorized_amount", "released_to_date", "reserved_to_date", "deferred_to_date", "held_to_date",
         "unreleased_balance", "executable_balance", "remarks",
+        "quarterly_plan_reference", "quarterly_plan_version", "quarterly_plan_checksum", "planning_quarter", "planning_deviation_basis",
     ))
     for movement in item.movements.all():
         line, balance = movement.appropriation_line, allotment_line_balance(movement.appropriation_line)
@@ -750,6 +761,9 @@ def allotment_export(request, public_id):
             line.funding_source_code, line.account_code, line.expense_class, movement.movement_type,
             movement.amount, movement.release_effect, movement.hold_effect, balance["authorized"],
             balance["released"], balance["reserved"], balance["deferred"], balance["held"], balance["unreleased"], balance["executable"], movement.remarks,
+            item.planning_context_snapshot.get("reference", "No retained plan"), item.planning_context_snapshot.get("version", ""),
+            item.planning_context_snapshot.get("checksum", ""), item.planning_context_snapshot.get("quarter", ""),
+            item.planning_context_snapshot.get("deviation_basis", ""),
         )))
     filename = f"allotment-{slugify(item.order_number)}.csv"
     archived = archive_export(
@@ -758,6 +772,7 @@ def allotment_export(request, public_id):
         metadata={
             "kind": "posted_allotment_schedule", "allotment_public_id": str(item.public_id),
             "appropriation_public_id": str(item.authorization.public_id), "snapshot_checksum": item.snapshot_checksum,
+            "planning_context": item.planning_context_snapshot,
             "official_status": "controlled schedule export; exact local/DBM/COA form acceptance remains required",
         },
     )

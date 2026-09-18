@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.119] - 2026-09-18
+### Feat
+- feat(budget): connect quarterly planning to allotment review
+
 ## [0.7.118] - 2026-09-18
 ### Feat
 - feat(budget): retain dated proposal planning context

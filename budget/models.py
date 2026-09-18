@@ -230,6 +230,8 @@ class BudgetVersionSource(BudgetOwnedModel):
 
 
 class AppropriationAuthorization(BudgetOwnedModel):
+    current_quarterly_plan = models.ForeignKey("QuarterlyFinancialPlan", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="+", editable=False)
     ORDINANCE, SUPPLEMENTAL, REENACTED = "ordinance", "supplemental", "reenacted"
     AUTHORITY_CHOICES = ((ORDINANCE, "Annual appropriation ordinance"), (SUPPLEMENTAL, "Supplemental appropriation"), (REENACTED, "Reenacted budget authority"))
     PENDING, FAVORABLE, CONDITIONAL, ADVERSE = "pending", "favorable", "conditional", "adverse"
@@ -331,6 +333,8 @@ class AuthorizedAppropriationLine(BudgetOwnedModel):
 
 
 class AllotmentReleaseOrder(BudgetOwnedModel):
+    planning_context_snapshot = models.JSONField(default=dict, blank=True, editable=False)
+    planning_deviation_basis = models.TextField(blank=True)
     INITIAL, LATER, RESERVE, DEFERRAL, ADJUSTMENT, RETURN, CANCELLATION = (
         "initial", "later", "reserve", "deferral", "adjustment", "return", "cancellation"
     )
@@ -414,6 +418,7 @@ class AllotmentReleaseOrder(BudgetOwnedModel):
                 governed = (
                     "authorization_id", "fiscal_year_id", "order_number", "kind", "release_date", "effective_date",
                     "authority_reference", "evidence_reference", "purpose", "signed_control_total", "corrects_id", "snapshot_checksum",
+                    "planning_context_snapshot", "planning_deviation_basis",
                 )
                 if any(getattr(prior, field) != getattr(self, field) for field in governed):
                     raise ValidationError("Posted allotment orders are immutable. Record a linked correcting order.")
@@ -829,3 +834,88 @@ class BudgetAuditEvent(BudgetOwnedModel):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Budget audit events cannot be deleted.")
+
+class QuarterlyFinancialPlan(BudgetOwnedModel):
+    DRAFT, FOR_REVIEW, RETURNED, APPROVED = "draft", "for_review", "returned", "approved"
+    STATUS_CHOICES = ((DRAFT, "Draft"), (FOR_REVIEW, "For review"), (RETURNED, "Returned"), (APPROVED, "Approved plan"))
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    authorization = models.ForeignKey(AppropriationAuthorization, on_delete=models.PROTECT, related_name="quarterly_plans")
+    version = models.PositiveIntegerField()
+    supersedes = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT, related_name="successors")
+    reference = models.CharField(max_length=120)
+    prepared_on = models.DateField()
+    evidence_reference = models.TextField()
+    change_basis = models.TextField()
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
+    submitted_snapshot = models.JSONField(default=dict, blank=True, editable=False)
+    snapshot_checksum = models.CharField(max_length=64, blank=True, editable=False)
+    created_by_id = models.PositiveBigIntegerField()
+    created_by_label = models.CharField(max_length=180)
+    submitted_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    approved_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    approved_by_label = models.CharField(max_length=180, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    decision_basis = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-version", "-pk")
+        constraints = (models.UniqueConstraint(fields=("authorization", "version"), name="unique_quarterly_plan_version"),)
+
+    def clean(self):
+        from django.utils import timezone
+        if self.authorization.department_id != self.department_id or self.authorization.status != AppropriationAuthorization.AUTHORIZED:
+            raise ValidationError("Select an authorized appropriation in this Budget office.")
+        if self.prepared_on > timezone.localdate():
+            raise ValidationError("The plan preparation date cannot be in the future.")
+        if self.supersedes_id and (self.supersedes.authorization_id != self.authorization_id or self.supersedes.status != self.APPROVED):
+            raise ValidationError("A successor must retain an approved plan for the same authority.")
+
+    def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk, status=self.APPROVED).exists():
+            raise ValidationError("Approved planning history is immutable. Create a successor.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain planning versions and their review history.")
+
+
+class QuarterlyPlanLine(BudgetOwnedModel):
+    plan = models.ForeignKey(QuarterlyFinancialPlan, on_delete=models.PROTECT, related_name="lines")
+    appropriation_line = models.ForeignKey(AuthorizedAppropriationLine, on_delete=models.PROTECT, related_name="quarterly_plan_lines")
+    q1 = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    q2 = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    q3 = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    q4 = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    basis = models.TextField(blank=True)
+    indicator = models.CharField(max_length=240, blank=True)
+    target_unit = models.CharField(max_length=80, blank=True)
+    target_q1 = models.CharField(max_length=120, blank=True)
+    target_q2 = models.CharField(max_length=120, blank=True)
+    target_q3 = models.CharField(max_length=120, blank=True)
+    target_q4 = models.CharField(max_length=120, blank=True)
+
+    class Meta:
+        ordering = ("appropriation_line_id",)
+        constraints = (models.UniqueConstraint(fields=("plan", "appropriation_line"), name="unique_quarterly_plan_source"),)
+
+    def clean(self):
+        if self.department_id != self.plan.department_id or self.appropriation_line.authorization_id != self.plan.authorization_id:
+            raise ValidationError("Planning rows must use the plan's exact authorized schedule.")
+        amounts = [getattr(self, f"q{i}") for i in range(1, 5)]
+        if any(value is not None and value < 0 for value in amounts):
+            raise ValidationError("Quarter allocations cannot be negative.")
+        if sum((value or Decimal("0") for value in amounts), Decimal("0")) > self.appropriation_line.amount:
+            raise ValidationError("Quarter allocations exceed this line's authorized appropriation.")
+        targets = [getattr(self, f"target_q{i}") for i in range(1, 5)]
+        if any(targets) and (not self.indicator.strip() or not self.target_unit.strip()):
+            raise ValidationError("Physical targets need their indicator and unit; they are not financial amounts.")
+
+    def save(self, *args, **kwargs):
+        if self.plan.status not in (QuarterlyFinancialPlan.DRAFT, QuarterlyFinancialPlan.RETURNED):
+            raise ValidationError("Return the plan before editing its rows.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain the complete authorized schedule; use explicit zero allocations.")

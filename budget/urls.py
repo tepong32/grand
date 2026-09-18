@@ -1,10 +1,17 @@
 from django.urls import path
 
 from . import views
+from . import quarterly_views
 
 app_name = "budget"
 
 urlpatterns = [
+    path("appropriations/<uuid:public_id>/quarterly/new/", quarterly_views.create, name="quarterly_create"),
+    path("quarterly/<uuid:public_id>/", quarterly_views.detail, name="quarterly_detail"),
+    path("quarterly/<uuid:public_id>/edit/", quarterly_views.edit, name="quarterly_edit"),
+    path("quarterly/<uuid:public_id>/lines/<int:line_id>/", quarterly_views.line_edit, name="quarterly_line_edit"),
+    path("quarterly/<uuid:public_id>/export/", quarterly_views.export, name="quarterly_export"),
+    path("quarterly/<uuid:public_id>/<slug:action>/", quarterly_views.action, name="quarterly_action"),
     path("", views.workspace, name="workspace"),
     path("export/", views.annual_register_export, name="annual_register_export"),
     path("calls/new/", views.call_create, name="call_create"),
