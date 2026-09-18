@@ -1,5 +1,8 @@
 # GRAND Finance complete-cycle roadmap
 
+Current execution follows the [2026-09-18 foundation gate](FINANCE_FOUNDATION_GATE.md):
+complete existing retrieval and Budget context before broader Finance features.
+
 The [officer cheque return adapter](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md),
 D-102, has a validated v0.7.115 development checkpoint connecting actual bank debit, dated advance restoration, reserved exact correction
 and replacement principal to the original officer. Native and dependent regression

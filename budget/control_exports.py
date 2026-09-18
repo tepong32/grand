@@ -228,6 +228,7 @@ def build_allotment_register(
 
 def build_obligation_register(
     department, actor, queryset, *, fiscal_year=None, kind="", form_type="", status="", attention="",
+    retrieval_filters=None,
 ):
     _assert_actor_department(department, actor)
     if not any(has_budget_permission(actor, codename) for codename in (
@@ -265,6 +266,7 @@ def build_obligation_register(
         "obligation_kind_filter": kind or "all", "form_type_filter": form_type or "all",
         "status_filter": status or "all", "attention_filter": attention or "all",
         "request_count": len(items),
+        "retrieval_filters": retrieval_filters or {},
         "role_scope": "current user's Budget-registry and/or requesting-office visibility",
         "authority_boundary": (
             "Queue oversight evidence only; only certified movements affect balances and exact local/DBM/COA "

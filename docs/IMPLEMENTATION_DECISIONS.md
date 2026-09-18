@@ -1288,3 +1288,21 @@ A returned replacement creates its own dated restoration while the earlier redem
 remains occupied. Original-recognition correction does not silently adopt actual
 bank-return history as exact receipt/deposit correction evidence. Native races and
 dependent output validation are recorded in [the feature report](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md).
+
+## D-103 — Finance foundation before further breadth (2026-09-18)
+
+The attached user goal supersedes earlier breadth-first sequencing. eGAPS is the
+reference for the LGU's purchased/used Budget–Accounting–Treasury work; disabled
+menus do not authorize new modules. Start with complete scoped retrieval, then
+historical Budget context, verified quarterly-plan/certificate semantics, ordinary
+continuity, required outputs and usability. Preserve unknowns, controls, separate
+stores, original history and operational acceptance gates.
+
+The first bounded repair replaces OBR's silent 100-row slice with 50-row pagination,
+reference/payee search, scoped office/fund and inclusive date filters shared with
+its full matching export. Fund filtering selects whole requests, avoiding duplicate
+rows without misrepresenting multi-fund amounts. Invalid filters do not broaden
+results. Retain filter evidence in archived exports. Increasing the old cap alone
+would leave the functional defect unresolved.
+
+See [the living gap register and checkpoint evidence](FINANCE_FOUNDATION_GATE.md).
