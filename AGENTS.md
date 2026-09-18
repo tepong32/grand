@@ -43,6 +43,12 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+Foundation retrieval checkpoints v0.7.116–v0.7.117 add scoped OBR/collection search,
+pagination, truthful counts and complete matching exports. Collection source totals
+separate fund/kind/status; narrowed retrieval must never narrow deposit-availability
+controls. [Validation and next gaps](docs/FINANCE_FOUNDATION_GATE.md) distinguish
+automated/browser/synthetic load evidence from production and LGU acceptance.
+
 The v0.7.115 officer cheque bank-return checkpoint retains the original advance debit, officer subsidiary and
 bank purpose. Only a posted, reconciled return restores dated application capacity;
 its source-error correction reserves the amount again from proposal. Replacement

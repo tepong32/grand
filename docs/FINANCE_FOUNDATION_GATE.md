@@ -37,8 +37,8 @@ potential future integration, out of current scope, or unknown before work begin
 
 | ID | Area | Gap | Classification | User impact | Financial/control impact | Dependency | Status |
 |---|---|---|---|---|---|---|---|
-| FG-01 | Budget | OBR retrieval stops at 100; inadequate reference retrieval | PARTIALLY IMPLEMENTED | Older OBRs were inaccessible in register | Scoped records were silently omitted | Existing obligation selector/export | Retrieval repair verified; browser/volume acceptance open |
-| FG-02 | Treasury | Collection narrowing/counts/pagination | PARTIALLY IMPLEMENTED | Hard to locate and reconcile receipts | Incomplete retrieval proof | Collection register and source routes | Next retrieval slice |
+| FG-01 | Budget | OBR retrieval stops at 100; inadequate reference retrieval | IMPLEMENTED | Direct retrieval of older OBRs | Scope and full matching export preserved | Existing obligation selector/export | Automated, browser and synthetic volume checks passed; local acceptance open |
+| FG-02 | Treasury | Collection narrowing/counts/pagination | IMPLEMENTED | Locate and inspect matching sources | Availability retains excluded allocations; totals separate states | Collection register and source routes | SQLite/native/browser and synthetic volume checks passed; local acceptance open |
 | FG-03 | Budget | Historical proposal decision context | PARTIALLY IMPLEMENTED | Manual reconstruction | Actuals/estimates must not be inferred | Dated ledger and authority evidence | Inspect after retrieval |
 | FG-04 | Budget | Operational quarterly financial plan | UNKNOWN | Annual-to-quarter planning unclear | Avoid duplicate authority/allotment concepts | Inspect annual authority, reserves, releases | Semantics investigation pending |
 | FG-05 | Budget | Distinct earmark certificate lifecycle | UNKNOWN | Certificate identity/consumption unclear | Reserve is not automatically a certificate | Verify business semantics and existing domain | Investigation pending |
@@ -94,3 +94,63 @@ operator database, test draft and screenshots are preserved.
   Budget context. The ordinary chain still uses existing annual authority →
   allotment → obligation → Accounting payable/DV/JEV → Treasury instrument/advice/
   physical release; later checkpoints must prove coherent human use throughout.
+
+## Checkpoint 1B — Collection retrieval
+
+Base: remotely verified v0.7.116 `128e5ae`, [draft PR #77](https://github.com/tepong32/grand/pull/77).
+Branch `codex/finance-collection-retrieval` uses the same isolated foundation worktree.
+
+- Already implemented: actual collection/deposit source capture, independent review,
+  posting, corrections, current-office visibility and separately authorized CSV export.
+- Repair/new retrieval: reference/book/payer search, inclusive source dates, scoped
+  funds, record type/status, stable 50-row pages and total/range counts. Both page
+  and complete matching CSV share validated filters. Invalid filters fail closed.
+- Source totals are grouped by fund, kind and status over every matching page.
+  They are retained source face amounts, not net collections or bank/cash balances.
+  Never sum receipts, their deposits and correction/return groups as new cash.
+- Friction removed: locate a receipt without scanning the entire office register;
+  export the exact matching set and inspect each financial state's recorded total.
+- Controls: source visibility and separate export permission remain; UAT cannot
+  acquire capture/deposit actions. Paginate before source/JEV enrichment. Availability
+  retains the complete existing office allocation calculation, including deposits
+  outside the selected date/search filters. No financial transition or schema changes.
+- PASS — focused 3/3 (3.847s), `.tmp/collection-retrieval-focused.log`.
+  Final dependent SQLite: 165 discovered, 146 passed, 19 native-only skips,
+  139.177s, exit 0, `.tmp/collection-retrieval-regression.log`. Command:
+  `.tmp/earlier_sqlite.py vouchers.test_collection_retrieval vouchers.test_collection_workflow vouchers.test_bank_collections vouchers.test_collection_cheques vouchers.test_cheque_returns vouchers.test_cheque_redemptions vouchers.test_advance_cheque_returns`.
+  This covers source capture, deposits, corrections, bank/cheque routes and retained
+  officer references through the changed register/export. Skips are not passes.
+- PASS — fresh native MySQL 8.4.11, 3/3, 10.343s, exit 0:
+  `.tmp/retrieval_native.py vouchers.test_collection_retrieval`, invoking the committed
+  two-store runner; `.tmp/collection-retrieval-native.log`. Verifies JSON payer search,
+  full matching export, scope, invalid filters, exact grouped totals and unchanged
+  deposit availability against a real posted receipt. No new concurrency behavior.
+- PASS — system checks, migration drift, touched Python compilation and whitespace.
+  NOT RUN — OUT OF SCOPE: full project/full native suite for this read-only retrieval
+  change; affected source-route regressions and targeted native behavior are covered.
+- PASS — browser search, retained-filter next-page navigation (51–100 of 10,000),
+  desktop 1440px and narrow 390px layouts in both registers; no page-level horizontal
+  overflow at 390px. Collection export downloaded the one matching LOAD-09999 row,
+  amount 100.00, proposed status. Screenshots: [collection desktop](../output/playwright/collection-retrieval-desktop.png),
+  [collection search/totals](../output/playwright/collection-retrieval-search.png),
+  [collection narrow](../output/playwright/collection-retrieval-narrow.png),
+  [OBR desktop](../output/playwright/obr-retrieval-desktop.png),
+  [OBR narrow](../output/playwright/obr-retrieval-narrow.png).
+  Initial browser seed failed on duplicate fixture usernames; names were isolated
+  in a fresh fixture. Missing fixture default media was copied from repository assets.
+  Neither issue required application changes. These checks extend checkpoint 1A.
+- Synthetic SQLite volume check: 10,106 collection records and 10,105 OBR requests.
+  First-page requests: 1.012s / 0.208s respectively; exact reference searches: 0.124s
+  each. Returned rows are limited to 50; all-record counts and single matches are
+  asserted. Query counts remain 146 / 192 respectively for page and single search,
+  including existing navigation/access queries. `.tmp/retrieval_volume.py` and
+  `.tmp/retrieval-volume.log`; synthetic browser fixture `.tmp/retrieval-browser-20260918b`.
+  The added 10,000 records per register are unposted drafts/proposals. This is not
+  a benchmark of a large posted-allocation history, concurrent operators or production
+  hardware; those remain operational qualification work.
+- Both test stores were destroyed, owned browser/server closed, owned MySQL stopped
+  and ports 8776/33308 closed. Operator DB hash remains the checkpoint 1A hash.
+  eGAPS untouched. Version Manager previews v0.7.117 with only VERSION/CHANGELOG
+  managed automatically, preserving historical evidence; verify published branch/tag.
+- Remaining: production workload and LGU acceptance; FG-03–FG-10. Next work is dated
+  historical Budget proposal context, then verified planning/certificate semantics.

@@ -6,6 +6,18 @@ Last updated: 2026-09-18
 
 ## Current checkpoint — Finance foundation retrieval
 
+Current branch is `codex/finance-collection-retrieval` in the foundation worktree,
+based on remotely verified v0.7.116 `128e5ae` ([draft PR #77](https://github.com/tepong32/grand/pull/77)).
+Collection retrieval and grouped source totals pass 146 SQLite tests (19 native-only
+skips; 165 discovered, 139.177s) and 3/3 fresh MySQL tests (10.343s). Both registers
+pass synthetic desktop/narrow browser search/paging checks and 10,000-added-record
+retrieval measurements. Collection CSV download matches the filtered source.
+See checkpoint 1B for commands, screenshots, fixture issues and workload limits.
+Both stores were destroyed; owned browser/server/MySQL stopped, ports closed.
+Version Manager candidate v0.7.117 preserves earlier release references; verify remote
+branch/tag after publication. Next: historical Budget proposal context, followed by
+verified quarterly-plan/certificate semantics. OBR publication below is verified.
+
 The user resumed on 2026-09-18 with the Finance Completion Gate, superseding older
 pause instructions and the breadth-first queue. See the [current report and gap
 register](docs/FINANCE_FOUNDATION_GATE.md). Owning checkout:

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.117] - 2026-09-18
+### Fixed
+- fix(finance): add scoped collection register retrieval and totals
+
 ## [0.7.116] - 2026-09-18
 ### Fixed
 - fix(finance): restore complete scoped OBR retrieval
