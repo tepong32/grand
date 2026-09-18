@@ -4,7 +4,36 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-18
 
-## Active work — quarterly financial planning
+## Active work — OBR to payable handoff
+
+Owning checkout remains `C:/Users/Administrator/.codex/worktrees/grand-finance-foundation`.
+Branch `codex/finance-obr-payable-handoff` starts from remotely verified v0.7.119
+`a85d61e8e2a7703132aec51fcf3550229f967889`, [draft PR #80](https://github.com/tepong32/grand/pull/80).
+PR #80 verify/MySQL checks are still pending; GitGuardian passed. No master merge.
+
+The OBR now shows scoped linked cases (including pending and non-primary/history
+allocations), remaining claim capacity and the existing source-selected payable
+intake. No financial mutation on GET or inferred invoice/claim data. UAT intake is
+denied. See [checkpoint scope](docs/FINANCE_OBR_PAYABLE_HANDOFF.md), D-107.
+
+Focused SQLite 4/4 passes (3.160s); fresh native MySQL 5/5 passes (18.964s), including
+the authoritative Budget-to-reconciled-Treasury-report replay. Browser source
+selection, blank claim fields, linked-case navigation and desktop/narrow layouts
+pass. Owned browser/server/MySQL stopped; both native test stores destroyed.
+
+Dependent SQLite PASS: 146 passed, three native-only skips, 149 discovered,
+89.869s, exit 0. Command `python .tmp/earlier_sqlite.py budget vouchers.tests finance.test_work_tasks.FinanceBudgetWorkTaskContractTests`,
+log `.tmp/handoff-regression.log`; both test stores destroyed. Session 48269 is
+complete; do not resume or duplicate it. Operator database hash is unchanged.
+
+User requested on 2026-09-18: **pause implementation after this checkpoint**.
+Complete the v0.7.120 Version Manager development publication and remote verification,
+then pause the active goal. Do not start another implementation checkpoint. On explicit
+resume, continue remaining ordinary handoffs and exact required-output mapping.
+Earmark capacity remains unconfirmed; no invented certificate rule, production
+readiness or LGU acceptance. No master merge or operator migration.
+
+## Published checkpoint — quarterly financial planning
 
 Current branch `codex/finance-quarterly-planning` starts from published v0.7.118
 `07b9185c9fb5e622426123eefd5ca45fc266ef31` ([draft PR #79](https://github.com/tepong32/grand/pull/79));

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.120] - 2026-09-18
+### Feat
+- fix(finance): connect OBR detail to scoped payable work
+
 ## [0.7.119] - 2026-09-18
 ### Feat
 - feat(budget): connect quarterly planning to allotment review

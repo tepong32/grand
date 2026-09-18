@@ -14,6 +14,11 @@ schedule and retained ARO comparison. Explicit allocations and explained timing
 deviations do not create financial authority. Local reserved-column meaning, form
 acceptance and the distinct earmark lifecycle remain open.
 
+[OBR-to-payable continuity](FINANCE_OBR_PAYABLE_HANDOFF.md) connects certified source
+context, visible linked cases and eligible requesting-office intake. Whole ordinary
+workflow and exact output acceptance remain open; do not equate one connected handoff
+or the service replay with LGU acceptance.
+
 The [officer cheque return adapter](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md),
 D-102, has a validated v0.7.115 development checkpoint connecting actual bank debit, dated advance restoration, reserved exact correction
 and replacement principal to the original officer. Native and dependent regression

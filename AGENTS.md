@@ -41,6 +41,10 @@ Posted prior-payable deductions are corrected by exact source reversal, followed
 
 Consolidated DVs retain explicit per-claim gross/deduction/net allocations for one payee and fund. Create the entire Finance reservation group atomically under sorted original-credit locks; recover only the same immutable allocation. Partial checks require explicit shares, and replacements retain the original shares. Closing a returned check retires only its independently posted shares on the actual return date, preserving other instruments and earlier-date capacity controls. See [consolidated settlement](docs/FINANCE_CONSOLIDATED_DV_2026-09-10.md).
 
+OBR-to-payable navigation reuses the existing scoped case and intake contracts.
+Retain non-primary/history allocations and interrupted bindings; GET source selection
+never creates claims or infers invoice amounts. See [handoff scope](docs/FINANCE_OBR_PAYABLE_HANDOFF.md).
+
 ### Development state
 
 Quarterly planning retains explicit Q1–Q4 schedules against immutable appropriation

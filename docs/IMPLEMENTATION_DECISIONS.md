@@ -1356,3 +1356,14 @@ annual financial controls. Historical AROs receive no invented planning context.
 This removes separate plan reconstruction during release review without inventing a
 mandatory legal quarter cap. The distinct procurement earmark lifecycle is not aliased
 to generic withholding. See [implementation and validation](FINANCE_QUARTERLY_PLANNING.md).
+
+## D-107 — Continue from the OBR through the existing payable route (2026-09-18)
+
+Use the existing eligibility, capacity, case visibility and intake services rather
+than introducing a second creation or financial handoff. Show primary, non-primary
+and historical allocation links with pending-binding recovery, paginated without a
+silent record ceiling. GET source selection remains read-only and office-scoped;
+claim/payee/invoice values require actual evidence rather than copying OBR totals.
+UAT read access cannot confer preparation. This removes source reselection and
+unclear next-office navigation while preserving cross-store recovery and financial
+control. See [scope and verification](FINANCE_OBR_PAYABLE_HANDOFF.md).

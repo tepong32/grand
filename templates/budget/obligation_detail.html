@@ -10,6 +10,7 @@
   <div class="alert {% if obligation.status == 'certified' %}alert-success{% else %}alert-warning{% endif %}"><strong>{{ obligation.get_status_display }}.</strong> Signed/computed/difference: {{ obligation.signed_control_total|floatformat:2 }} / {{ obligation.computed_effect_total|floatformat:2 }} / {{ obligation.control_difference|floatformat:2 }}. {% if obligation.status == 'certified' %}The registry movements are immutable.{% else %}No obligation balance changes until Budget certification.{% endif %}</div>
   {% if downstream_boundary %}<div class="alert alert-danger"><strong>Later issuance boundary reached:</strong> a linked {{ downstream_boundary }} exists. Do not create an obligation-only rewrite; use the coordinated voucher/payment correction route.</div>{% endif %}
   <div class="row">
+    {% include "budget/payable_handoff.html" %}
     <div class="col-xl-8"><div class="card mb-3"><div class="card-body"><dl class="row mb-0">
       <dt class="col-sm-4">Request reference</dt><dd class="col-sm-8">{{ obligation.request_reference }}</dd>
       <dt class="col-sm-4">Obligation number</dt><dd class="col-sm-8">{{ obligation.obligation_number|default:"Assigned by Budget at certification" }}</dd>

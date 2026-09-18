@@ -43,7 +43,7 @@ potential future integration, out of current scope, or unknown before work begin
 | FG-04 | Budget | Operational quarterly financial plan | PARTIALLY IMPLEMENTED | Versioned quarters now connect authority and AROs | Approval does not move money; ARO evidence remains pinned | Existing authorized schedule and ARO | Focused/native/browser and full SQLite regression pass; local reserved-column/form acceptance open |
 | FG-05 | Budget | Distinct earmark certificate lifecycle | MISSING | Certificate identity/consumption absent | Generic withholding is not procurement certification | Exact capacity, consumption and correction semantics | Initial municipal evidence located; local lifecycle rules unresolved |
 | FG-06 | Reporting | Exact required office outputs | PARTIALLY IMPLEMENTED | Generic output may not meet office need | Local acceptance remains unproven | Required-output inventory and accepted references | Open |
-| FG-07 | Cross-office | Ordinary end-to-end workflow proof | PARTIALLY IMPLEMENTED | Handoffs may remain confusing | Tests do not establish LGU acceptance | Existing Budget/Accounting/Treasury chains | Open |
+| FG-07 | Cross-office | Ordinary end-to-end workflow proof | PARTIALLY IMPLEMENTED | Handoffs may remain confusing | Tests do not establish LGU acceptance | Existing Budget/Accounting/Treasury chains | OBR handoff focused/native/browser and dependent regression pass; wider ordinary proof open |
 | FG-08 | Accounting | Remaining source/history adoption | PARTIALLY IMPLEMENTED | Historical sources not all connected | Preserve original financial evidence | Existing reviewed attribution routes | Open; no speculative expansion |
 | FG-09 | Finance | Broader routine scenarios | PARTIALLY IMPLEMENTED | Not all ordinary work demonstrated | Controls must survive corrections | Earlier foundation checkpoints | Deferred until foundation coherent |
 | FG-10 | Deployment | Live configured rendering/production verification | UNKNOWN | Actual deployment behavior unverified | No production readiness inference | Authorized environment and operational gates | Open |
@@ -186,3 +186,13 @@ Focused SQLite, expanded fresh native Budget and synthetic browser checks pass;
 full SQLite passes 1,376 with 123 skips (1,499 discovered). No production migration, exact local form acceptance,
 procurement certificate or local reserved-column meaning is claimed. See
 [checkpoint evidence and remaining scope](FINANCE_QUARTERLY_PLANNING.md).
+
+## Checkpoint 4A — OBR to payable continuation
+
+Certified OBR detail now shows existing scoped linked payables, retained pending-link
+recovery guidance and current claim capacity. Authorized requesting-office staff
+continue through the existing intake with the exact eligible source selected, without
+invented invoice amounts or financial writes on GET. Complete linked-case retrieval
+uses pagination and truthful counts. UAT preparation remains denied. See
+[the implementation and validation record](FINANCE_OBR_PAYABLE_HANDOFF.md).
+FG-07 remains partial pending wider ordinary screen and LGU workflow proof.
