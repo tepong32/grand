@@ -9,6 +9,7 @@
       <form method="post"><div class="card-body">
         {% csrf_token %}
         {% if guidance %}<div class="alert alert-info small">{{ guidance }}</div>{% endif %}
+        {% if source_obligation %}<p>Continuing from <a href="{% url 'budget:obligation_detail' source_obligation.public_id %}">{{ source_obligation.obligation_number }}</a>. Confirm the actual claim and invoice amounts; the obligation is not itself an invoice.</p>{% endif %}
         {{ form.as_p }}
       </div><div class="card-footer"><button class="btn btn-primary">Save and continue</button></div></form>
     </div>

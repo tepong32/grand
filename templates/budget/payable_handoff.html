@@ -1,0 +1,11 @@
+{% if payable_handoff %}<section class="col-12 mb-3" style="min-height:0 !important" aria-label="Payable handoff"><div class="card" style="min-height:0"><div class="card-body">
+<h2 class="h5">Continue to payable and payment</h2>
+<p>Current obligation {{ payable_handoff.current|floatformat:2 }} · allocated to claims {{ payable_handoff.allocated|floatformat:2 }} · remaining claim capacity {{ payable_handoff.remaining|floatformat:2 }}. This is not cash available for payment.</p>
+{% if payable_handoff.can_prepare %}<a class="btn btn-primary mb-2" href="{% url 'vouchers:case_create' %}?obligation={{ obligation.public_id }}">Prepare payable from this OBR</a>{% else %}<p class="small">The requesting office prepares payable evidence where unallocated claim capacity remains. Existing claims continue in their linked case.</p>{% endif %}
+{% if payable_handoff.can_view_cases %}
+<p class="small">{{ payable_handoff.page.paginator.count }} visible linked case{{ payable_handoff.page.paginator.count|pluralize }}{% if payable_handoff.page.paginator.count %} · showing {{ payable_handoff.page.start_index }}–{{ payable_handoff.page.end_index }}{% endif %}. Includes earlier allocation history; a link does not establish payment or physical release.</p>
+<ul>{% for row in payable_handoff.rows %}<li><a href="{{ row.case.get_absolute_url }}">{{ row.case.reference_code }}</a> · {{ row.case.get_current_stage_display }} · {{ row.case.current_department.name }}<p class="small">{% if row.needs_recovery %}Resolve the retained obligation link in this case before continuing; do not replace it with a duplicate claim.{% else %}{{ row.next_action }}{% endif %}</p></li>{% empty %}<li>No linked cases visible under your current access.</li>{% endfor %}</ul>
+{% if payable_handoff.page.has_previous %}<a href="?payable_page={{ payable_handoff.page.previous_page_number }}">Previous cases</a>{% endif %}
+{% if payable_handoff.page.has_next %}<a href="?payable_page={{ payable_handoff.page.next_page_number }}">Next cases</a>{% endif %}
+{% else %}<p class="small">Payable case details require Voucher Workbench access. The requesting office continues the claim; Accounting reviews its evidence.</p>{% endif %}
+</div></div></section>{% endif %}

@@ -929,6 +929,7 @@ def obligation_edit(request, public_id):
 
 @budget_access_required
 def obligation_detail(request, public_id):
+    from .payable_handoff import payable_handoff
     _require_obligation_permission(
         request.user, "view_obligation_registry", "initiate_obligation_requests", "certify_obligations"
     )
@@ -942,6 +943,7 @@ def obligation_detail(request, public_id):
         "can_edit": can_act_on_budget(request.user, "initiate_obligation_requests") and item.requesting_department_id == department.pk,
         "can_certify": can_act_on_budget(request.user, "certify_obligations") and item.department_id == department.pk,
         "downstream_boundary": downstream_issuance_boundary(item),
+        "payable_handoff": payable_handoff(item, request.user, request.GET.get("payable_page")),
     })
 
 

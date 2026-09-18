@@ -285,7 +285,7 @@ def dv_custody_register_export(request):
 
 @voucher_access_required
 def case_create(request):
-    if not has_explicit_permission(request.user, "vouchers.initiate_payable_case"):
+    if is_finance_uat_viewer(request.user) or not has_explicit_permission(request.user, "vouchers.initiate_payable_case"):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     try:
@@ -295,6 +295,14 @@ def case_create(request):
         return redirect("vouchers:workspace")
     department = department_for_user(request.user)
     form = PayableIntakeForm(request.POST or None, release=release, department=department)
+    source_obligation = None
+    if request.method == "GET" and "obligation" in request.GET:
+        try:
+            source_id = UUID(request.GET["obligation"])
+        except (ValueError, TypeError, AttributeError):
+            raise Http404("Certified obligation is unavailable for payable preparation.")
+        source_obligation = get_object_or_404(form.fields["authoritative_obligation"].queryset, public_id=source_id)
+        form.initial["authoritative_obligation"] = source_obligation.pk
     if request.method == "POST" and form.is_valid():
         try:
             case = create_payable_case_from_obligation(actor=request.user, **form.cleaned_data)
@@ -311,6 +319,7 @@ def case_create(request):
             return redirect(case)
     return render(request, "vouchers/form.html", {
         "form": form, "title": "Open payable from certified obligation",
+        "source_obligation": source_obligation,
         "guidance": "Select the requesting office's certified F4.2 obligation and reference, rather than duplicate, procurement, delivery, inspection/acceptance, invoice, and claim evidence. Use synthetic UAT evidence until local forms and procedures are accepted.",
     })
 
