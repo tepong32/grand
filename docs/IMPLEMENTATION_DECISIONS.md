@@ -1306,3 +1306,19 @@ results. Retain filter evidence in archived exports. Increasing the old cap alon
 would leave the functional defect unresolved.
 
 See [the living gap register and checkpoint evidence](FINANCE_FOUNDATION_GATE.md).
+
+## D-104 — Collection retrieval keeps source states and availability distinct (2026-09-18)
+
+Use one scoped, validated filter for collection pages and complete matching exports.
+Paginate before source/JEV enrichment. Search source references, books and payer;
+filter inclusive source dates, source fund, kind and status. Invalid filters cannot
+silently broaden the result. Keep read and export authority separate.
+
+Group recorded face amounts by fund, kind and status over all matching pages.
+These totals are not cash balances: receipts, later deposits and corrections may
+refer to the same money. Keep deposit availability on the existing full-office
+allocation calculation even when the selected register excludes those deposits.
+Do not weaken a financial check to make a narrow search look self-contained.
+
+See checkpoint 1B in [the foundation gate](FINANCE_FOUNDATION_GATE.md) for SQLite,
+native, browser and synthetic volume evidence, and their operational limitations.

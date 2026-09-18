@@ -6,6 +6,7 @@ from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -15,6 +16,7 @@ from finance.models import FinanceConfigurationItem, FinanceTransactionVariant, 
 from .access import department_for_user, has_explicit_permission
 from .models import TreasuryCollectionSource as Source
 from .collections import record_receipt, record_deposit, remaining_receipts, require
+from .collection_retrieval import CollectionRegisterForm, source_totals
 from .roles import is_finance_uat_viewer
 from accounting.models import JournalSubsidiaryLine
 
@@ -186,8 +188,9 @@ def receipt_create(request):
     return render(request, 'vouchers/collections/form.html', {'form':form, 'charges':charges, 'has_charges':bool(charge_initial), 'title':'Record collection receipt'})
 
 
-def register_rows(user):
-    sources = list(visible_sources(user).select_related('prepared_by', 'reviewed_by').prefetch_related('posting_requests'))
+def _register_rows(sources):
+    """Enrich an already scoped, optionally paginated register queryset."""
+    sources = list(sources.select_related('prepared_by', 'reviewed_by', 'withdrawn_by').prefetch_related('posting_requests'))
     balances = {}
     for treasury_id in {source.treasury_department_id for source in sources}:
         balances.update(remaining_receipts(treasury_id))
@@ -198,7 +201,15 @@ def register_rows(user):
 @login_required
 @require_GET
 def register(request):
-    return render(request, 'vouchers/collections/register.html', {'rows':register_rows(request.user),
+    scope = visible_sources(request.user)
+    filters = CollectionRegisterForm(request.GET, scope=scope)
+    sources = filters.apply(scope)
+    page = Paginator(sources, 50).get_page(request.GET.get('page'))
+    query = request.GET.copy()
+    query.pop('page', None)
+    return render(request, 'vouchers/collections/register.html', {
+        'rows':_register_rows(page.object_list),
+        'filters':filters, 'page_obj':page, 'page_query':query.urlencode(), 'totals':source_totals(sources),
         'can_export':has_explicit_permission(request.user,'finance.export_finance_work'),
         'can_deposit':not is_finance_uat_viewer(request.user) and has_explicit_permission(request.user,'vouchers.prepare_collection_deposits'),
         'can_prepare':not is_finance_uat_viewer(request.user) and has_explicit_permission(request.user,'vouchers.prepare_collections')})
@@ -344,6 +355,11 @@ def export(request):
     # Download authority is separate from read access, including for UAT viewers.
     if not has_explicit_permission(request.user, 'finance.export_finance_work'):
         raise PermissionDenied
+    scope = visible_sources(request.user)
+    filters = CollectionRegisterForm(request.GET, scope=scope)
+    sources = filters.apply(scope)
+    if not filters.is_valid():
+        return HttpResponse('Invalid register filters. Correct the filters in the collection register.', status=400)
     from .views import _safe_writerow
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="collection-deposit-register.csv"'
@@ -353,7 +369,7 @@ def export(request):
         'Withdrawal reason','Withdrawn by','Withdrawn at','Original advance JEV','Officer advance identity',
         'Receiving bank','Bank credit reference','Cheque bank','Cheque number','Cheque date','Cheque drawer',
         'Cheque clearing history','Original returned receipt','Original returned deposit','Return applicability','Bank return history'])
-    for row in register_rows(request.user):
+    for row in _register_rows(sources):
         source = row['source']
         from .cheque_clearing import output_evidence
         clearing_history = output_evidence(source) if source.proposal.get('cheque') else []

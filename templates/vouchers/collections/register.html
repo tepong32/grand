@@ -5,9 +5,26 @@
 <p>Available amounts exclude receipts already allocated to pending or posted deposits.</p>
 {% if can_prepare %}<a class="btn btn-primary mb-3" href="{% url 'vouchers:collection_create' %}">Record receipt</a>{% endif %}
 {% if can_deposit %}<a class="btn btn-primary mb-3" href="{% url 'vouchers:collection_deposit_create' %}">Record deposit</a>{% endif %}
-{% if can_export %}<a class="btn btn-outline-secondary mb-3" href="{% url 'vouchers:collection_export' %}">Download register CSV</a>{% endif %}
+<form method="get" class="card card-body mb-3">
+<h2 class="h5">Find collections and deposits</h2>
+{{ filters.non_field_errors }}
+<div class="row">{% for field in filters %}<div class="form-group col-md-4"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}</div>
+<div class="d-flex flex-wrap gap-2"><button class="btn btn-primary" type="submit">Apply filters</button><a class="btn btn-outline-secondary" href="{% url 'vouchers:collection_register' %}">Clear</a>
+{% if can_export %}<button class="btn btn-outline-secondary" type="submit" formaction="{% url 'vouchers:collection_export' %}">Export all matching records</button>{% endif %}</div>
+<p class="small text-muted mt-2 mb-0">Dates include both endpoints. Search matches receipt/deposit references, books and payers. Export includes all matching pages in your current office scope. Deposit availability still accounts for all pending and posted allocations, including records outside these filters.</p>
+</form>
+<p>Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }} matching records</p>
 <div class="table-responsive"><table class="table table-striped"><thead><tr><th>Date</th><th>Kind</th><th>Book / reference</th><th>Fund</th><th>Amount</th><th>Status</th><th>Available for deposit</th></tr></thead><tbody>
 {% for row in rows %}<tr><td>{{ row.source.source_date }}</td><td>{{ row.source.get_kind_display }}</td><td><a href="{% url 'vouchers:collection_detail' row.source.public_id %}">{{ row.source.book_reference }} {{ row.source.document_reference }}</a> · v{{ row.source.version }}</td><td>{{ row.source.fund_code }}</td><td>{{ row.source.amount }}</td><td>{{ row.source.get_status_display }}</td><td>{{ row.available|default_if_none:"—" }}</td></tr>
 {% empty %}<tr><td colspan="7">No collection or deposit records for this office.</td></tr>{% endfor %}
+</tbody></table></div>
+<nav class="d-flex align-items-center gap-2 my-3" aria-label="Collection register pages">
+{% if page_obj.has_previous %}<a class="btn btn-outline-primary" href="?{{ page_query }}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+<span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+{% if page_obj.has_next %}<a class="btn btn-outline-primary" href="?{{ page_query }}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}</nav>
+<h2 class="h5">All matching recorded amounts</h2>
+<p class="small text-muted">Source face amounts by fund, type and status across all pages. These are not net collections, bank balances or available cash. Receipts, deposits and correction/return records can describe the same money; do not add these groups together.</p>
+<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fund</th><th>Record type</th><th>Status</th><th class="text-right">Records</th><th class="text-right">Recorded amount</th></tr></thead><tbody>
+{% for total in totals %}<tr><td>{{ total.fund_code }}</td><td>{{ total.kind_label }}</td><td>{{ total.status_label }}</td><td class="text-right">{{ total.record_count }}</td><td class="text-right">{{ total.recorded_amount|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="5">No matching recorded amounts.</td></tr>{% endfor %}
 </tbody></table></div></div>
 {% endblock %}
