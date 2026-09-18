@@ -1,0 +1,32 @@
+{% if planning_error %}<div class="alert alert-warning">{{ planning_error }}</div>{% endif %}
+{% if planning %}
+<section class="card mb-3" aria-labelledby="planning-heading">
+  <div class="card-header"><h2 id="planning-heading" class="h5 mb-0">Historical decision context</h2></div>
+  <div class="card-body">
+    <a class="btn btn-sm btn-outline-primary mb-2" href="{% url 'budget:planning_context_export' version.public_id %}">Export planning context</a>
+    <p>Budget {{ planning.budget_year }} · planning year {{ planning.current_year }} · sources captured {{ planning.as_of }}.
+    {% if version.status == 'draft' or version.status == 'returned' %}Live context; submission retains a copy for independent review.{% else %}Retained submission context; later ledger entries do not rewrite this copy.{% endif %}</p>
+    <p class="text-muted small">Posted expense activity is debit less credit from the selected Finance ledger, excluding opening, nominal closing and direct-equity entries and their reversals. It is not a certified expenditure schedule. No matching evidence is shown as missing, not zero. Figures are grouped by fund, office and account; no PPA or funding-source allocation is inferred.</p>
+    {% if not planning.prior_period_complete or not planning.half_period_complete %}<p class="text-warning">A comparison period has not ended at the capture date. Activity is partial; do not treat it as a full-period actual.</p>{% endif %}
+  </div>
+  <div class="table-responsive"><table class="table table-sm"><thead><tr>
+    <th>Fund / office / account</th><th>{{ planning.prior_year }} posted expense activity</th><th>{{ planning.current_year }} Jan–Jun posted expense activity</th><th>{{ planning.current_year }} Jul–Dec estimate</th><th>Indicative activity + estimate</th><th>{{ planning.current_year }} original appropriation</th><th>{{ planning.budget_year }} proposed</th>
+  </tr></thead><tbody>{% for row in planning.rows %}<tr>
+    <td>{{ row.fund }} / {{ row.office }} / {{ row.account }}<div class="small">{{ row.account_title }}</div></td>
+    <td>{% if row.prior_amount != None %}{{ row.prior_amount }}{% else %}Missing matching expense evidence{% endif %}</td>
+    <td>{% if row.half_amount != None %}{{ row.half_amount }}{% else %}Missing matching expense evidence{% endif %}</td>
+    <td>{% if row.estimate != None %}{{ row.estimate }}{% else %}Missing estimate/basis{% endif %}</td>
+    <td>{% if row.indicative_total != None %}{{ row.indicative_total }}{% else %}Incomplete context{% endif %}</td>
+    <td>{% if row.original_authority != None %}{{ row.original_authority }}{% else %}{{ row.authority_state }}{% endif %}</td><td>{{ row.proposed }}</td>
+  </tr>{% empty %}<tr><td colspan="7">Add classified proposal lines to locate their historical context.</td></tr>{% endfor %}</tbody></table></div>
+  <div class="card-body pt-0"><p class="small text-muted">An indicative total combines recorded expense activity and a planning estimate; it is neither certified full-year expenditure nor adjusted spending authority. Capital outlay and other non-expense objects require their own accepted expenditure evidence. Certification/coverage of actuals remains unverified here.</p>
+  {% for row in planning.rows %}<details class="mb-2"><summary>{{ row.fund }} / {{ row.office }} / {{ row.account }} — proposal lines and source evidence</summary>
+    <ul>{% for line in row.lines %}<li>{{ line.particulars }} · PPA {{ line.program|default:"not specified" }} · proposed {{ line.proposed }} · second-half estimate {{ line.estimate|default_if_none:"missing" }} {% if line.estimate_as_of %}(prepared {{ line.estimate_as_of }}){% endif %}<div>{{ line.estimate_basis }}</div>
+    {% if can_prepare and version.status == 'draft' or can_prepare and version.status == 'returned' %}<a href="{% url 'budget:planning_estimate' version.public_id line.id %}">Record or correct estimate</a>{% endif %}</li>{% endfor %}</ul>
+    <p>Prior-year sources:</p><ul>{% for source in row.prior_sources %}<li>{{ source.reference }} · {{ source.date }} · net expense {{ source.net_expense }} · line {{ source.line }}</li>{% empty %}<li>No matching posted expense lines located.</li>{% endfor %}</ul>
+    <p>First-half sources:</p><ul>{% for source in row.half_sources %}<li>{{ source.reference }} · {{ source.date }} · net expense {{ source.net_expense }} · line {{ source.line }}</li>{% empty %}<li>No matching posted expense lines located.</li>{% endfor %}</ul>
+    <p>Authorized schedules (other kinds/successors remain separate; they are not automatically added as an adjusted balance):</p><ul>{% for source in row.authorities %}<li>{{ source.reference }} · {{ source.date }} · {{ source.kind }}{% if source.successor %} successor{% endif %} · amount {{ source.amount }}</li>{% empty %}<li>No matching authorized schedules located.</li>{% endfor %}</ul>
+    {% if row.excluded_sources %}<p>Excluded non-period-activity sources:</p><ul>{% for source in row.excluded_sources %}<li>{{ source.reference }} · {{ source.date }}</li>{% endfor %}</ul>{% endif %}
+  </details>{% endfor %}</div>
+</section>
+{% endif %}

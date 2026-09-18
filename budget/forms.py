@@ -86,6 +86,14 @@ class BudgetProposalLineForm(forms.ModelForm):
             self.fields[name].queryset = self.fields[name].queryset.filter(department_id=ledger)
 
 
+class BudgetEstimateForm(forms.Form):
+    amount = forms.DecimalField(required=False, max_digits=18, decimal_places=2, min_value=0,
+        label="Current-year second-half estimate", help_text="Enter an explicit zero when supported; leave all fields blank to mark evidence missing.")
+    as_of = forms.DateField(required=False, widget=DateInput(), label="Estimate prepared as of")
+    basis = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}),
+        label="Planning basis and evidence reference")
+
+
 class BudgetReviewCommentForm(forms.ModelForm):
     class Meta:
         model = BudgetReviewComment

@@ -4,34 +4,42 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-18
 
-## Current checkpoint — Finance foundation retrieval
+## Current checkpoint — Budget historical planning context
 
-Current branch is `codex/finance-collection-retrieval` in the foundation worktree,
-based on remotely verified v0.7.116 `128e5ae` ([draft PR #77](https://github.com/tepong32/grand/pull/77)).
-Collection retrieval and grouped source totals pass 146 SQLite tests (19 native-only
-skips; 165 discovered, 139.177s) and 3/3 fresh MySQL tests (10.343s). Both registers
-pass synthetic desktop/narrow browser search/paging checks and 10,000-added-record
-retrieval measurements. Collection CSV download matches the filtered source.
-See checkpoint 1B for commands, screenshots, fixture issues and workload limits.
-Both stores were destroyed; owned browser/server/MySQL stopped, ports closed.
-Version Manager candidate v0.7.117 preserves earlier release references; verify remote
-branch/tag after publication. Next: historical Budget proposal context, followed by
-verified quarterly-plan/certificate semantics. OBR publication below is verified.
+Owning checkout: `C:/Users/Administrator/.codex/worktrees/grand-finance-foundation`,
+branch `codex/finance-budget-history`, based on remotely verified v0.7.117 `f5f4d83`
+([draft PR #78](https://github.com/tepong32/grand/pull/78)). OBR v0.7.116 `128e5ae`
+and collection v0.7.117 branches/tags are published; the earlier browser/volume gap
+is covered by checkpoint 1B. Neither was merged into master.
 
-The user resumed on 2026-09-18 with the Finance Completion Gate, superseding older
-pause instructions and the breadth-first queue. See the [current report and gap
-register](docs/FINANCE_FOUNDATION_GATE.md). Owning checkout:
-`C:/Users/Administrator/.codex/worktrees/grand-finance-foundation`, branch
-`codex/finance-foundation-retrieval`, based on v0.7.115 `36a4974` (remote branch/tag
-verified). The canonical checkout and unrelated database/drafts are preserved.
-OBR retrieval passes 39/39 final Budget/work-queue tests (16.634s), with earlier
-3/3 focused checks and passing system/drift/compile/diff checks. Both disposable
-stores were destroyed. See the report for exact commands and validation limits.
-Release candidate v0.7.116 uses Version Manager with historical references preserved;
-verify the actual branch/tag after publication. Browser/volume acceptance remains
-open. Collection retrieval follows, then Budget
-historical context and verified planning/certificate semantics. No master integration,
-deployment or LGU acceptance is claimed; production remains NO-GO.
+[Checkpoint 2A](docs/FINANCE_BUDGET_PLANNING_CONTEXT.md) connects dated expense
+activity, original authority and explicit second-half estimates to proposal review.
+Submission retains the comparison; no inferred PPA allocation, certified expenditure
+claim or backfilled old approval. FG-03 remains partial pending expenditure coverage.
+Budget/work-queue SQLite passes 44 with one native-only skip (45 discovered, 24.723s);
+fresh MySQL passes 6/6 including the estimate/submission race (9.462s). Synthetic
+browser entry, submit, independent approval and retained CSV pass at desktop/narrow
+widths. Full SQLite regression passes: 1,369 passed, 121 skipped (1,490 discovered,
+854.123s, exit 0). Command `python .tmp/earlier_sqlite.py`; log
+`.tmp/planning-full-sqlite.log`. Both test stores destroyed. The process is complete;
+do not resume or duplicate it. Prepared release adapter `.tmp/release_planning.py`
+and draft PR body `.tmp/planning-pr-body.md` preserve the exact release scope.
+Owned browser/server/MySQL stopped; disposable test stores destroyed. Operator
+`db.sqlite3` hash remains unchanged. Migration 0009 was applied only to test fixtures.
+
+Version Manager preview selects v0.7.118; the adapter restricts automatic updates to
+VERSION/CHANGELOG to preserve historical release evidence. Publish this development
+checkpoint after validation and verify branch/tag. Do not merge the stacked feature
+history into master or claim deployment/operational acceptance.
+
+Next: complete authoritative expenditure coverage mapping and investigate quarterly
+plan/earmark semantics. Initial source/domain findings and implementation boundaries
+are recorded in [the investigation](docs/FINANCE_QUARTERLY_EARMARK_DESIGN.md).
+Existing reserves hold released
+allotment; they are not automatically procurement certificates. The user's attached
+goal remains active and resumable. See [the living gap register](docs/FINANCE_FOUNDATION_GATE.md).
+The canonical checkout's unrelated database, draft concurrency test and screenshots
+remain untouched. Production remains NO-GO pending the established gates.
 
 Turning-point decisions are recorded separately in [the implementation decision log](docs/IMPLEMENTATION_DECISIONS.md), as requested by the user. Keep each choice tied to the canonical product goal, alternatives, tradeoffs, evidence and revisit conditions.
 

@@ -1322,3 +1322,19 @@ Do not weaken a financial check to make a narrow search look self-contained.
 
 See checkpoint 1B in [the foundation gate](FINANCE_FOUNDATION_GATE.md) for SQLite,
 native, browser and synthetic volume evidence, and their operational limitations.
+
+## D-105 — Retain Budget comparison evidence without inventing actuals (2026-09-18)
+
+Reuse the proposal FiscalYear's explicit Accounting ledger and exact fund/office/account
+keys. Do not match departments by name or apportion one ledger amount across multiple
+PPAs without evidence. Present posted expense activity separately from certified
+expenditure, because capital outlay and completeness cannot be inferred from expense
+accounts alone. Missing activity/authority is not zero.
+
+Retain dated second-half estimates and their basis on proposal lines. Serialize edits
+and submission on the same version lock; retain a submission snapshot and compare it
+with the audit event before independent approval. Return/resubmit preserves prior
+snapshots. Existing historical approvals receive no invented comparison snapshot.
+Original final authority is distinct from supplemental/successor evidence and an
+adjusted balance. Revisit the narrower projection when accepted expenditure coverage
+and classification evidence become available. See [scope and validation](FINANCE_BUDGET_PLANNING_CONTEXT.md).

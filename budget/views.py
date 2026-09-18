@@ -13,6 +13,8 @@ from src.export_archive import archive_export
 
 from accounting.models import FiscalYear
 from .retrieval import ObligationRetrievalForm
+from .planning_context import build_context, can_read_context, displayed_context, set_estimate
+from .forms import BudgetEstimateForm
 
 from .access import budget_access_required, budget_permission_required, department_for_user, has_budget_permission, can_act_on_budget
 from .forms import (
@@ -234,12 +236,81 @@ def version_detail(request, public_id):
     department = department_for_user(request.user)
     version = get_object_or_404(BudgetVersion.objects.select_related("budget_call", "fiscal_year", "supersedes").prefetch_related("lines__fund", "lines__responsibility_center", "lines__program", "lines__account", "resource_estimates__funding_source", "review_comments", "source_links__source_version"), public_id=public_id, department_id=department.pk)
     events = BudgetAuditEvent.objects.filter(target_id=str(version.public_id))[:30]
+    planning = None
+    planning_error = ""
+    if can_read_context(request.user, version):
+        if version.status in (BudgetVersion.DRAFT, BudgetVersion.RETURNED):
+            try:
+                planning = build_context(version, request.user)
+            except ValidationError as exc:
+                planning_error = " ".join(exc.messages)
+        else:
+            planning = version.planning_context_snapshot or None
+            if planning is None:
+                planning_error = "This historical proposal has no retained planning context. No approval evidence has been backfilled."
     return render(request, "budget/version_detail.html", {
         "version": version, "ceiling_rows": ceiling_differences(version), "events": events,
+        "planning": planning, "planning_error": planning_error,
         "comment_form": BudgetReviewCommentForm(),
         "can_prepare": can_act_on_budget(request.user, "prepare_budget_proposals"),
         "can_review": can_act_on_budget(request.user, "review_budget_proposals"),
     })
+
+
+@budget_permission_required("prepare_budget_proposals")
+def planning_estimate(request, public_id, line_id):
+    version = get_object_or_404(BudgetVersion, public_id=public_id, department_id=department_for_user(request.user).pk)
+    line = get_object_or_404(version.lines, pk=line_id)
+    form = BudgetEstimateForm(request.POST if request.method == "POST" else None,
+        initial={"amount": line.second_half_estimate, "as_of": line.estimate_as_of, "basis": line.estimate_basis})
+    if request.method == "POST" and form.is_valid():
+        try:
+            set_estimate(version=version, line_id=line.pk, actor=request.user, **form.cleaned_data)
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            return redirect("budget:version_detail", public_id=version.public_id)
+    return render(request, "budget/form.html", {"form": form, "title": "Second-half planning estimate",
+        "guidance": f"{line.particulars}: July–December {version.fiscal_year.year-1}. An estimate is not actual expenditure or spending authority."})
+
+
+@require_GET
+@budget_access_required
+def planning_context_export(request, public_id):
+    version = get_object_or_404(BudgetVersion, public_id=public_id, department_id=department_for_user(request.user).pk)
+    try:
+        context = displayed_context(version, request.user)
+    except ValidationError as exc:
+        return HttpResponse(" ".join(exc.messages), status=400)
+    if context is None:
+        return HttpResponse("No retained planning context exists for this historical proposal.", status=409)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    writer = csv.writer(response)
+    writer.writerow(("Capture date", "Budget year", "Prior year", "Current year", "Fund", "Office", "Account",
+        "Prior posted expense activity (not certified actual)", "Jan-Jun posted expense activity (not certified actual)",
+        "Jul-Dec estimate", "Indicative activity plus estimate", "Original appropriation", "Authority state", "Proposed",
+        "Prior sources", "First-half sources", "Estimate basis"))
+    for row in context["rows"]:
+        writer.writerow(tuple(_csv_text(value) for value in (context["as_of"], context["budget_year"],
+            context["prior_year"], context["current_year"], row["fund"], row["office"], row["account"],
+            row["prior_amount"] if row["prior_amount"] is not None else "Missing evidence",
+            row["half_amount"] if row["half_amount"] is not None else "Missing evidence",
+            row["estimate"] if row["estimate"] is not None else "Missing evidence",
+            row["indicative_total"] if row["indicative_total"] is not None else "Incomplete context",
+            row["original_authority"] if row["original_authority"] is not None else "Missing or ambiguous",
+            row["authority_state"], row["proposed"],
+            "; ".join(f'{s["reference"]} / {s["date"]} / line {s["line"]}' for s in row["prior_sources"]),
+            "; ".join(f'{s["reference"]} / {s["date"]} / line {s["line"]}' for s in row["half_sources"]),
+            "; ".join(f'{s["particulars"]}: {s["estimate"]} as of {s["estimate_as_of"]}: {s["estimate_basis"]}' for s in row["lines"]),
+        )))
+    filename = f"proposal-planning-context-{version.public_id}.csv"
+    receipt = archive_export(content=response.content, department=department_for_user(request.user), user=request.user,
+        category="budget-planning-context", filename=filename,
+        metadata={"version": str(version.public_id), "planning_context": context, "certified_expenditure": False})
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    record_event(version, "planning_context_exported", request.user, snapshot={"sha256": receipt["sha256"], "relative_path": receipt["relative_path"]})
+    return response
 
 
 @budget_permission_required("prepare_budget_proposals")

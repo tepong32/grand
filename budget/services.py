@@ -93,6 +93,8 @@ def validate_version_for_submission(version):
         raise ValidationError("Proposals may be submitted only under a published budget call.")
     if not version.lines.exists():
         raise ValidationError("Add at least one classified proposal line.")
+    for line in version.lines.select_related("version__fiscal_year"):
+        line.full_clean()
     exceeded = [row for row in ceiling_differences(version) if row["difference"] < 0]
     if exceeded:
         raise ValidationError("The proposal exceeds one or more approved department ceilings.")
@@ -105,8 +107,14 @@ def transition_version(version, action, user, reason=""):
     now, label = timezone.now(), actor_label(user)
     if action == "submit" and version.status in (BudgetVersion.DRAFT, BudgetVersion.RETURNED):
         validate_version_for_submission(version)
+        from .planning_context import build_context
+        version.planning_context_snapshot = build_context(version, user)
         version.status, version.submitted_by_id, version.submitted_by_label, version.submitted_at = BudgetVersion.FOR_REVIEW, user.pk, label, now
     elif action == "approve" and version.status == BudgetVersion.FOR_REVIEW:
+        submitted = BudgetAuditEvent.objects.filter(target_id=str(version.public_id), action="submit").order_by("-pk").first()
+        retained = submitted.snapshot.get("planning_context") if submitted else None
+        if (retained is not None or version.planning_context_snapshot) and retained != version.planning_context_snapshot:
+            raise ValidationError("The retained planning context differs from the submitted evidence. Return and resubmit the proposal.")
         if version.submitted_by_id == user.pk:
             raise ValidationError("The proposal preparer cannot approve the same budget version.")
         if not reason.strip():
@@ -122,7 +130,8 @@ def transition_version(version, action, user, reason=""):
     version.state_version += 1
     version.full_clean()
     version.save()
-    record_event(version, action, user, reason, {"status": version.status, "total": str(version.total_amount), "state_version": version.state_version, "spendable": False})
+    record_event(version, action, user, reason, {"status": version.status, "total": str(version.total_amount), "state_version": version.state_version, "spendable": False,
+        "planning_context": version.planning_context_snapshot})
     return version
 
 
@@ -180,6 +189,7 @@ def consolidate_versions(*, sources, user, title, change_explanation):
                 expense_class=line.expense_class, appropriation_type=line.appropriation_type,
                 particulars=line.particulars, performance_target=line.performance_target,
                 amount=line.amount, change_explanation=f"Consolidated from {source.title} v{source.version}. {line.change_explanation}".strip(),
+                second_half_estimate=line.second_half_estimate, estimate_as_of=line.estimate_as_of, estimate_basis=line.estimate_basis,
             ))
         for estimate in source.resource_estimates.all():
             estimate_copies.append(BudgetResourceEstimate(
