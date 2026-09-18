@@ -96,6 +96,7 @@ class BudgetCeiling(BudgetOwnedModel):
 
 
 class BudgetVersion(BudgetOwnedModel):
+    planning_context_snapshot = models.JSONField(default=dict, blank=True, editable=False)
     DEPARTMENT, EXECUTIVE, SANGGUNIAN, FINAL, SUPPLEMENTAL, REENACTED = "department", "executive", "sanggunian", "final", "supplemental", "reenacted"
     KIND_CHOICES = ((DEPARTMENT, "Department proposal"), (EXECUTIVE, "Executive proposal"), (SANGGUNIAN, "Sanggunian version"), (FINAL, "Final approved budget"), (SUPPLEMENTAL, "Supplemental budget"), (REENACTED, "Reenacted budget"))
     DRAFT, FOR_REVIEW, RETURNED, APPROVED, AUTHORIZED = "draft", "for_review", "returned", "approved", "authorized"
@@ -147,12 +148,15 @@ class BudgetVersion(BudgetOwnedModel):
             raise ValidationError({"supersedes": "A version may supersede only an earlier version in the same fiscal year."})
         if self.pk:
             prior = type(self).objects.filter(pk=self.pk).first()
-            governed = ("budget_call_id", "fiscal_year_id", "kind", "version", "title", "requesting_department_id", "requesting_department_label", "change_explanation", "supersedes_id")
+            governed = ("budget_call_id", "fiscal_year_id", "kind", "version", "title", "requesting_department_id", "requesting_department_label", "change_explanation", "supersedes_id", "planning_context_snapshot")
             if prior and prior.status in (self.APPROVED, self.AUTHORIZED) and any(getattr(prior, field) != getattr(self, field) for field in governed):
                 raise ValidationError("Approved budget versions are immutable. Create a successor version.")
 
 
 class BudgetProposalLine(BudgetOwnedModel):
+    second_half_estimate = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    estimate_as_of = models.DateField(null=True, blank=True)
+    estimate_basis = models.TextField(blank=True)
     APPROPRIATION_CHOICES = (("new", "New"), ("continuing", "Continuing"), ("statutory", "Statutory / mandatory"), ("supplemental", "Supplemental"))
     version = models.ForeignKey(BudgetVersion, on_delete=models.PROTECT, related_name="lines")
     fund = models.ForeignKey(Fund, on_delete=models.PROTECT, related_name="budget_lines")
@@ -171,6 +175,14 @@ class BudgetProposalLine(BudgetOwnedModel):
         ordering = ("responsibility_center__code", "program__code", "account__code", "pk")
 
     def clean(self):
+        if self.second_half_estimate is not None:
+            if self.second_half_estimate < 0 or not self.estimate_as_of or not self.estimate_basis.strip():
+                raise ValidationError("A second-half estimate requires a nonnegative amount, dated basis and evidence reference.")
+            from django.utils import timezone
+            if self.estimate_as_of.year != self.version.fiscal_year.year - 1 or self.estimate_as_of > timezone.localdate():
+                raise ValidationError("Date the estimate within the current planning year, not in the future.")
+        elif self.estimate_as_of or self.estimate_basis:
+            raise ValidationError("Supply the estimate amount, including an explicit zero, or clear all estimate fields.")
         if self.amount <= Decimal("0"):
             raise ValidationError({"amount": "A proposed amount must be greater than zero."})
         if self.department_id != self.version.department_id:

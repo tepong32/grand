@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.118] - 2026-09-18
+### Feat
+- feat(budget): retain dated proposal planning context
+
 ## [0.7.117] - 2026-09-18
 ### Fixed
 - fix(finance): add scoped collection register retrieval and totals

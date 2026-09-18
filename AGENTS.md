@@ -43,6 +43,12 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 ### Development state
 
+Budget proposal context groups dated posted expense activity by the explicit
+ledger/fund/office/account, with separate dated estimates and original authority.
+Submission retains the comparison for independent review. Never infer PPA attribution,
+backfill old approvals or label expense activity as certified expenditure. FG-03
+coverage remains partial; see [context scope](docs/FINANCE_BUDGET_PLANNING_CONTEXT.md).
+
 Foundation retrieval checkpoints v0.7.116–v0.7.117 add scoped OBR/collection search,
 pagination, truthful counts and complete matching exports. Collection source totals
 separate fund/kind/status; narrowed retrieval must never narrow deposit-availability

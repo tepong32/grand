@@ -39,9 +39,9 @@ potential future integration, out of current scope, or unknown before work begin
 |---|---|---|---|---|---|---|---|
 | FG-01 | Budget | OBR retrieval stops at 100; inadequate reference retrieval | IMPLEMENTED | Direct retrieval of older OBRs | Scope and full matching export preserved | Existing obligation selector/export | Automated, browser and synthetic volume checks passed; local acceptance open |
 | FG-02 | Treasury | Collection narrowing/counts/pagination | IMPLEMENTED | Locate and inspect matching sources | Availability retains excluded allocations; totals separate states | Collection register and source routes | SQLite/native/browser and synthetic volume checks passed; local acceptance open |
-| FG-03 | Budget | Historical proposal decision context | PARTIALLY IMPLEMENTED | Manual reconstruction | Actuals/estimates must not be inferred | Dated ledger and authority evidence | Inspect after retrieval |
-| FG-04 | Budget | Operational quarterly financial plan | UNKNOWN | Annual-to-quarter planning unclear | Avoid duplicate authority/allotment concepts | Inspect annual authority, reserves, releases | Semantics investigation pending |
-| FG-05 | Budget | Distinct earmark certificate lifecycle | UNKNOWN | Certificate identity/consumption unclear | Reserve is not automatically a certificate | Verify business semantics and existing domain | Investigation pending |
+| FG-03 | Budget | Historical proposal decision context | PARTIALLY IMPLEMENTED | Dated context now appears on proposals | Retained activity, explicit estimates and original authority stay distinct | Dated ledger and authority evidence | Checkpoint 2A validated locally; certified expenditure/coverage still open |
+| FG-04 | Budget | Operational quarterly financial plan | MISSING | Annual-to-quarter planning absent | Plan must remain separate from spending authority | Existing authorized schedule and ARO | Initial domain/source investigation recorded; local reserved-column meaning unknown |
+| FG-05 | Budget | Distinct earmark certificate lifecycle | MISSING | Certificate identity/consumption absent | Generic withholding is not procurement certification | Exact capacity, consumption and correction semantics | Initial municipal evidence located; local lifecycle rules unresolved |
 | FG-06 | Reporting | Exact required office outputs | PARTIALLY IMPLEMENTED | Generic output may not meet office need | Local acceptance remains unproven | Required-output inventory and accepted references | Open |
 | FG-07 | Cross-office | Ordinary end-to-end workflow proof | PARTIALLY IMPLEMENTED | Handoffs may remain confusing | Tests do not establish LGU acceptance | Existing Budget/Accounting/Treasury chains | Open |
 | FG-08 | Accounting | Remaining source/history adoption | PARTIALLY IMPLEMENTED | Historical sources not all connected | Preserve original financial evidence | Existing reviewed attribution routes | Open; no speculative expansion |
@@ -154,3 +154,21 @@ Branch `codex/finance-collection-retrieval` uses the same isolated foundation wo
   managed automatically, preserving historical evidence; verify published branch/tag.
 - Remaining: production workload and LGU acceptance; FG-03–FG-10. Next work is dated
   historical Budget proposal context, then verified planning/certificate semantics.
+
+## Checkpoint 2A — Budget historical decision context
+
+Existing annual proposals, independent review, posted Accounting lines and retained
+appropriation schedules now supply an explicit dated comparison on proposal detail.
+New per-line second-half estimates carry date/basis; submission freezes the comparison
+and CSV preserves its sources. This removes repeated manual ledger lookups and keeps
+reviewers on the evidence actually submitted. Permission, UAT, maker-checker and
+separate-store controls remain in place. No expenditure certification, PPA allocation
+or adjusted spending authority is inferred. FG-03 remains partial; exact expenditure
+coverage, formal outputs, quarterly planning and certificate semantics remain open.
+See [the implementation and validation report](FINANCE_BUDGET_PLANNING_CONTEXT.md).
+
+Required pre-implementation investigation for FG-04/05 is recorded in
+[quarterly planning and earmark semantics](FINANCE_QUARTERLY_EARMARK_DESIGN.md).
+It identifies missing operational lifecycles without treating public examples as
+accepted Bocaue policy. Quarterly allocations are planning context; existing ARO
+and obligation controls retain their separate financial authority.
