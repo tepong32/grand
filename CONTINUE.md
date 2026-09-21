@@ -4,7 +4,48 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-21
 
-## Current checkpoint — required office output mapping
+## Current checkpoint — ordinary cross-office output replay
+
+Branch `codex/finance-cross-office-output-replay` starts at verified v0.7.122
+`5a1f50e6e94d7972e8b4614421a31e85abcd0375`,
+[draft PR #84](https://github.com/tepong32/grand/pull/84). Its verify/MySQL checks
+were running when this checkpoint began; GitGuardian passed. No master merge.
+
+The existing ordinary service replay now compares Budget accountability/actuals,
+Accounting trial balance/ledger/payable/withholding, Treasury payment output and
+bank reconciliation for one source chain. It also checks dated Budget exclusion,
+retained pre-payment output, actual workbook totals and cross-office download
+scope. See [scenario and proof limits](docs/FINANCE_CROSS_OFFICE_OUTPUT_REPLAY.md).
+Only tests and continuity documentation change; no application financial behavior.
+
+Initial SQLite source/control/download replay: PASS 1/1, 28.123s, exit 0,
+`.tmp/output-replay-focused.log`. Numeric workbook-cell assertions were then added;
+SQLite with all numeric assertions: PASS 1/1, 10.268s, exit 0,
+`.tmp/output-replay-final-sqlite.log`. The redundant response close was removed
+after this SQLite run loaded; the corrected final harness is checked natively.
+Initial native run: FAIL — CAUSED BY CURRENT WORK (test harness), 43.560s.
+An explicit second `response.close()` after consuming the Django test-client stream
+fired connection cleanup outside its protected wrapper and invalidated the MySQL
+TestCase transaction. Removed the redundant close; no application code changed.
+Final corrected fresh MySQL 8.4.11 replay: PASS 1/1, no skips, 14.408s, exit 0,
+`.tmp/output-replay-native-final.log`. Commands (Python 3.11):
+`python .tmp/earlier_sqlite.py vouchers.tests.VoucherWorkflowTests.test_authoritative_budget_to_reconciled_treasury_report_replay`
+and `python .tmp/retrieval_native.py vouchers.tests.VoucherWorkflowTests.test_authoritative_budget_to_reconciled_treasury_report_replay`.
+The wrappers redirect logs / supply private fixture credentials to the documented
+Django / `scripts/run_mysql_tests.py` runners. Test stores were destroyed and the
+owned MySQL fixture stopped. All recorded sessions are terminal; do not resume.
+Operator database hash remains unchanged. Full suites: NOT RUN — OUT OF SCOPE
+for a test-only extension; the final native source-to-output replay covers the
+changed assertions, with prior Reporting regression retained separately.
+
+v0.7.123 uses the previewed `.tmp/release_output_replay.py` Version Manager adapter
+(VERSION/CHANGELOG managed updates only); draft PR stacks on #84. No production
+migration, master merge, deployed behavior or local acceptance is claimed.
+Keep the goal active and do not claim LGU acceptance.
+Next: ordinary screen-level handoffs and actual required-output fidelity from
+accepted evidence; local earmark semantics remain unconfirmed.
+
+## Published checkpoint — required office output mapping
 
 Current branch `codex/finance-required-output-map` starts from remotely verified
 v0.7.121 `b1a21ea5b034f0c9a8eb6dd09f73d2f644f2f551`,

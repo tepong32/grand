@@ -213,3 +213,12 @@ links current office work to existing source exports and governed datasets while
 keeping local form requirements and acceptance unconfirmed. Report-run retrieval
 now reaches matches beyond 100 with filter-preserving pagination and complete
 filtered exports. This is not closure of FG-06 or exact-output acceptance.
+
+## Checkpoint 4C / 5B — Ordinary sources into office outputs
+
+The existing full-cycle replay now compares the same real service-created OBR,
+recognition/payment journals and instrument with Budget accountability/actuals,
+Accounting trial balance/ledger/payable/withholding and Treasury output. It verifies
+retained earlier payable evidence, dated Budget exclusion, source identities and
+permission-checked workbook downloads. See [scenario and validation scope](FINANCE_CROSS_OFFICE_OUTPUT_REPLAY.md).
+FG-06/FG-07 remain partial pending wider screen-level, exact-form and LGU proof.

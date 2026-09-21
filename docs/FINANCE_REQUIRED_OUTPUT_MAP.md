@@ -58,3 +58,8 @@ full filtered register export remain the governing scope.
 Validation results are recorded in CONTINUE.md. This read-only register change
 adds no persistence schema, financial posting or report approval behavior.
 FG-06 and the complete Finance foundation gate remain open.
+
+The [ordinary cross-office output replay](FINANCE_CROSS_OFFICE_OUTPUT_REPLAY.md)
+now exercises one linked Budget/Accounting/Treasury transaction through working
+outputs and retained downloads. This is bounded synthetic evidence; it does not
+close required-form fidelity or ordinary LGU workflow acceptance.
