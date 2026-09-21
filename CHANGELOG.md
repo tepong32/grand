@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.122] - 2026-09-21
+### Feat
+- fix(reporting): retrieve all matching report runs
+
 ## [0.7.121] - 2026-09-21
 ### Feat
 - fix(finance): expose pending payable link recovery

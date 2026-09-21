@@ -3,6 +3,7 @@ import json
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Count, Q
 from django.http import FileResponse, HttpResponse
@@ -172,10 +173,13 @@ def workspace(request):
     )
     if selected_action:
         attention = selected_action
-    visible_run_count = filtered_runs.count()
-    runs = list(filtered_runs.select_related(
+    run_page = Paginator(filtered_runs.select_related(
         "definition", "template_version", "created_by", "reviewed_by", "approved_by",
-    )[:100])
+    ).order_by("-created_at", "-pk"), 50).get_page(request.GET.get("page"))
+    visible_run_count = run_page.paginator.count
+    runs = list(run_page)
+    page_filters = request.GET.copy()
+    page_filters.pop("page", None)
     for run in runs:
         run.next_action_label = next_report_action(run)
     schedules = ReportSchedule.objects.filter(definition__department=department, is_active=True).select_related("definition")[:8]
@@ -186,6 +190,7 @@ def workspace(request):
     return render(request, "reporting/workspace.html", {
         "department": department, "definitions": definitions, "recent_runs": runs, "schedules": schedules,
         "visible_run_count": visible_run_count,
+        "run_page": run_page, "run_page_filters": page_filters.urlencode(),
         "run_definition_choices": run_definitions, "run_period_year_choices": run_period_years,
         "run_status_choices": ReportRun.STATUS_CHOICES,
         "run_format_choices": ReportDefinition.FORMAT_CHOICES,

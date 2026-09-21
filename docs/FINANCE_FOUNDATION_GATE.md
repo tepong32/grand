@@ -42,7 +42,7 @@ potential future integration, out of current scope, or unknown before work begin
 | FG-03 | Budget | Historical proposal decision context | PARTIALLY IMPLEMENTED | Dated context now appears on proposals | Retained activity, explicit estimates and original authority stay distinct | Dated ledger and authority evidence | Checkpoint 2A validated locally; certified expenditure/coverage still open |
 | FG-04 | Budget | Operational quarterly financial plan | PARTIALLY IMPLEMENTED | Versioned quarters now connect authority and AROs | Approval does not move money; ARO evidence remains pinned | Existing authorized schedule and ARO | Focused/native/browser and full SQLite regression pass; local reserved-column/form acceptance open |
 | FG-05 | Budget | Distinct earmark certificate lifecycle | MISSING | Certificate identity/consumption absent | Generic withholding is not procurement certification | Exact capacity, consumption and correction semantics | Initial municipal evidence located; local lifecycle rules unresolved |
-| FG-06 | Reporting | Exact required office outputs | PARTIALLY IMPLEMENTED | Generic output may not meet office need | Local acceptance remains unproven | Required-output inventory and accepted references | Open |
+| FG-06 | Reporting | Exact required office outputs | PARTIALLY IMPLEMENTED | Generic output may not meet office need | Local acceptance remains unproven | [Working output map](FINANCE_REQUIRED_OUTPUT_MAP.md); accepted references remain required | Mapping and report retrieval checkpoint; exact acceptance open |
 | FG-07 | Cross-office | Ordinary end-to-end workflow proof | PARTIALLY IMPLEMENTED | Handoffs may remain confusing | Tests do not establish LGU acceptance | Existing Budget/Accounting/Treasury chains | OBR handoff focused/native/browser and dependent regression pass; wider ordinary proof open |
 | FG-08 | Accounting | Remaining source/history adoption | PARTIALLY IMPLEMENTED | Historical sources not all connected | Preserve original financial evidence | Existing reviewed attribution routes | Open; no speculative expansion |
 | FG-09 | Finance | Broader routine scenarios | PARTIALLY IMPLEMENTED | Not all ordinary work demonstrated | Controls must survive corrections | Earlier foundation checkpoints | Deferred until foundation coherent |
@@ -204,3 +204,12 @@ binding. Next-action guidance prioritizes source reconciliation over replacement
 allocation. Focused SQLite/native recovery checks and synthetic browser validation
 pass; final dependent regression passes 102/102 with no skips. FG-07 remains partial. See
 [the checkpoint record](FINANCE_PENDING_PAYABLE_RECOVERY.md).
+
+## Checkpoint 5A — Output map and complete report retrieval
+
+The office rarely uses eGAPS reports because of usability difficulties; this does
+not establish that reports are unnecessary. The [required-output working map](FINANCE_REQUIRED_OUTPUT_MAP.md)
+links current office work to existing source exports and governed datasets while
+keeping local form requirements and acceptance unconfirmed. Report-run retrieval
+now reaches matches beyond 100 with filter-preserving pagination and complete
+filtered exports. This is not closure of FG-06 or exact-output acceptance.
