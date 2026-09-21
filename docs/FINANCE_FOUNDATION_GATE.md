@@ -196,3 +196,11 @@ invented invoice amounts or financial writes on GET. Complete linked-case retrie
 uses pagination and truthful counts. UAT preparation remains denied. See
 [the implementation and validation record](FINANCE_OBR_PAYABLE_HANDOFF.md).
 FG-07 remains partial pending wider ordinary screen and LGU workflow proof.
+
+## Checkpoint 4B — Interrupted payable continuation
+
+The retained pending case now exposes the same governed recovery action as a failed
+binding. Next-action guidance prioritizes source reconciliation over replacement
+allocation. Focused SQLite/native recovery checks and synthetic browser validation
+pass; final dependent regression passes 102/102 with no skips. FG-07 remains partial. See
+[the checkpoint record](FINANCE_PENDING_PAYABLE_RECOVERY.md).

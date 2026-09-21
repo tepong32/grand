@@ -102,3 +102,73 @@ class PayableHandoffTests(TestCase):
         next_page = payable_handoff(self.obligation, self.requester, 2)
         self.assertEqual(len(next_page['rows']), 3)
         self.assertFalse({row['case'].pk for row in page['rows']} & {row['case'].pk for row in next_page['rows']})
+
+    def interrupted_intake(self, fault):
+        from unittest.mock import patch
+        from finance.models import FinanceParty, FinanceTransactionVariant
+        from vouchers.services import create_payable_case_from_obligation
+        FinanceTransactionVariant.objects.create(department=self.accounting_office, release=self.release,
+            code='ordinary-recovery', label='Synthetic ordinary claim', kind=FinanceTransactionVariant.ORDINARY_SUPPLIER,
+            authority_reference='Synthetic reviewed ordinary route', effective_from=date(2026,1,1),
+            status='active', created_by=self.certifier)
+        party = FinanceParty.objects.create(department=self.accounting_office, release=self.release,
+            code='recovery-supplier', version=1, display_name='Synthetic recovery supplier',
+            party_type=FinanceParty.SUPPLIER, effective_from=date(2026,1,1), status='active', created_by=self.certifier)
+        with patch('vouchers.services.' + fault, side_effect=KeyboardInterrupt('Simulated process interruption')):
+            with self.assertRaises(KeyboardInterrupt):
+                create_payable_case_from_obligation(actor=self.requester, authoritative_obligation=self.obligation,
+                    payee=party, transaction_type='ordinary-recovery', claim_reference='RECOVERY-CLAIM',
+                    invoice_number='RECOVERY-INVOICE', invoice_date=date(2027,1,15), claim_amount=Decimal('10000'),
+                    procurement_reference='', delivery_reference='', inspection_acceptance_reference='',
+                    evidence_reference='Synthetic retained claim', duplicate_review_note='', idempotency_key='interrupted-intake')
+        case = VoucherCase.objects.get(payable_intake__claim_reference='RECOVERY-CLAIM')
+        self.assertEqual(case.obligation_binding_status, VoucherCase.BINDING_PENDING)
+        return case
+
+    def recover_in_browser_route(self, case):
+        self.client.force_login(self.requester)
+        response = self.client.get(case.get_absolute_url())
+        self.assertContains(response, 'Reconcile obligation link')
+        self.assertContains(response, 'Reconcile the retained obligation link before submitting this payable')
+        self.assertNotContains(response, 'No active obligation allocation. Add one before submission.')
+        url = reverse('vouchers:case_action', args=[case.public_id, 'reconcile-obligation'])
+        payload = {'state_version': case.state_version, 'idempotency_key': 'recover-retained-case'}
+        self.assertEqual(self.client.post(url, payload).status_code, 302)
+        self.assertEqual(self.client.post(url, payload).status_code, 302)
+        case.refresh_from_db()
+        self.assertEqual(case.obligation_binding_status, VoucherCase.BINDING_LINKED)
+        self.assertEqual(VoucherCase.objects.count(), 1)
+        allocations = PayableObligationAllocation.objects.filter(voucher_case_public_id=case.public_id, status='active')
+        self.assertEqual(allocations.count(), 1)
+        self.assertEqual(allocations.get().allocated_amount, Decimal('10000'))
+        self.assertEqual(case.obligation.certified_amount, Decimal('10000'))
+        self.assertEqual(ObligationMovement.objects.count(), 1)
+        self.assertEqual(case.events.filter(action='obligation_link_reconciled').count(), 1)
+        self.assertNotContains(self.client.get(case.get_absolute_url()), 'Reconcile obligation link')
+
+    def test_pending_before_allocation_recovers_retained_case_once(self):
+        case = self.interrupted_intake('_write_payable_allocation')
+        self.assertEqual(PayableObligationAllocation.objects.count(), 0)
+        self.recover_in_browser_route(case)
+
+    def test_pending_after_allocation_reuses_existing_finance_hold(self):
+        case = self.interrupted_intake('_rebuild_payable_projection')
+        allocation_id = PayableObligationAllocation.objects.get().pk
+        self.recover_in_browser_route(case)
+        self.assertEqual(PayableObligationAllocation.objects.get().pk, allocation_id)
+
+    def test_pending_recovery_controls_require_requesting_office_and_not_uat(self):
+        case = self.interrupted_intake('_write_payable_allocation')
+        self.certifier.user_permissions.add(Permission.objects.get(content_type__app_label='vouchers', codename='initiate_payable_case'))
+        self.client.force_login(self.certifier)
+        self.assertNotContains(self.client.get(case.get_absolute_url()), 'Reconcile obligation link')
+        url = reverse('vouchers:case_action', args=[case.public_id, 'reconcile-obligation'])
+        payload = {'state_version': case.state_version, 'idempotency_key': 'denied-recovery'}
+        self.assertEqual(self.client.post(url, payload).status_code, 403)
+        self.requester.groups.add(Group.objects.get_or_create(name='Finance UAT Viewer')[0])
+        self.client.force_login(self.requester)
+        self.assertNotContains(self.client.get(case.get_absolute_url()), 'Reconcile obligation link')
+        self.assertEqual(self.client.post(url, payload).status_code, 403)
+        case.refresh_from_db()
+        self.assertEqual(case.obligation_binding_status, VoucherCase.BINDING_PENDING)
+        self.assertEqual(PayableObligationAllocation.objects.count(), 0)

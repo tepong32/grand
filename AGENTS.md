@@ -43,7 +43,8 @@ Consolidated DVs retain explicit per-claim gross/deduction/net allocations for o
 
 OBR-to-payable navigation reuses the existing scoped case and intake contracts.
 Retain non-primary/history allocations and interrupted bindings; GET source selection
-never creates claims or infers invoice amounts. See [handoff scope](docs/FINANCE_OBR_PAYABLE_HANDOFF.md).
+never creates claims or infers invoice amounts. Pending/failed intake links recover
+through the retained case and existing allocation; see [recovery scope](docs/FINANCE_PENDING_PAYABLE_RECOVERY.md). See [handoff scope](docs/FINANCE_OBR_PAYABLE_HANDOFF.md).
 
 ### Development state
 
