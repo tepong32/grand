@@ -4,7 +4,54 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-21
 
-## Active work — pending payable recovery
+## Current checkpoint — required office output mapping
+
+Current branch `codex/finance-required-output-map` starts from remotely verified
+v0.7.121 `b1a21ea5b034f0c9a8eb6dd09f73d2f644f2f551`,
+[draft PR #83](https://github.com/tepong32/grand/pull/83). The recovery checkpoint is
+published; worktree was clean before this documentation update. No master merge.
+
+User clarification on 2026-09-21: the office does not really utilize eGAPS reporting
+capabilities because they are not user-friendly. Absence of actual eGAPS report use
+must not be treated as absence of reporting needs. Do not use its menu or assumed
+usage as the required-output inventory. Map actual Budget/Accounting/Treasury work
+and applicable authoritative output requirements to the existing GRAND sources,
+then identify unresolved local fields, signatories, layouts and acceptance.
+Keep generation straightforward without replacing the governed reporting framework
+or inventing local practice. The existing candidate catalog is evidence to inspect,
+not blanket authorization to implement every form. Continue source/output mapping
+and ordinary handoff proof under the full foundation gate. See
+[the source/output map and retrieval scope](docs/FINANCE_REQUIRED_OUTPUT_MAP.md).
+This v0.7.122 development checkpoint uses `.tmp/release_reports.py` (Version
+Manager, VERSION/CHANGELOG managed updates only); its draft PR stacks on #83.
+Next bounded task: replay ordinary linked source identities, dates and totals
+through the existing office outputs. Local acceptance and production remain open.
+
+### Current report retrieval validation
+
+Focused `python .tmp/earlier_sqlite.py reporting.test_run_retrieval`: PASS 2/2,
+6.151s, exit 0. Initial synthetic fixture omitted unique idempotency keys and failed;
+corrected before the passing run. Coverage includes all 110 matches across three
+pages, tied timestamps, retained filters, own/department scope, invalid/empty
+pages and complete filtered CSV export from page three.
+
+Synthetic Budget browser: PASS, third page shows rows 101–110 of 110; Previous
+runs reaches page two with 50 rows and all filters retained. At 390px the document
+width is 390px; the existing wide table scrolls inside its container. Screenshots:
+`output/playwright/report-runs-page-three.png` and `report-runs-narrow.png`.
+Fixtures are disposable; no operator database writes or real report outputs.
+Full Reporting regression: PASS 148, SKIP 1 (149 discovered), 138.123s, exit 0.
+Command: `python .tmp/earlier_sqlite.py reporting` (log-redirection wrapper for
+`python manage.py test reporting --noinput`); log `.tmp/report-retrieval-regression.log`.
+The skipped statement-package race requires native MySQL row locks.
+Both test stores were destroyed. Session67837 finished; do not resume it.
+Owned browser/server are stopped. Operator database SHA256 remains unchanged.
+Native MySQL: NOT RUN — OUT OF SCOPE for this read-only pagination/template change,
+with no persistence/schema/locking change. Full project regression: NOT RUN — OUT
+OF SCOPE; full Reporting is the dependent regression for this shared register.
+
+
+## Published checkpoint — pending payable recovery
 
 The goal was resumed through the active goal control on 2026-09-21, lifting the
 2026-09-18 pause. Current owning branch: `codex/finance-pending-payable-recovery`,
@@ -12,7 +59,7 @@ based on v0.7.120 `05fbf23f6575282dc5346584c96d9f6a36f37ef1`. PR #81 remains ope
 GitGuardian, verify (17m29s) and MySQL (35m13s) checks all pass on that exact head.
 Canonical checkout user changes remain untouched.
 
-Repair in progress: pending as well as failed obligation bindings expose the existing
+Published repair: pending as well as failed obligation bindings expose the existing
 requesting-office recovery action; next-action and empty-allocation guidance direct
 users to reconcile the retained link. Scope/UAT/pre-DV checks remain. See
 [scope and actual validation](docs/FINANCE_PENDING_PAYABLE_RECOVERY.md).
@@ -29,11 +76,10 @@ is complete; do not resume or duplicate it. Operator database hash is unchanged.
 
 v0.7.121 development publication uses the previewed `.tmp/release_pending.py`
 Version Manager adapter (VERSION/CHANGELOG automatic updates only); PR body is
-`.tmp/pending-pr-body.md`. Verify remote branch/tag and draft PR after execution.
+`.tmp/pending-pr-body.md`. Remote branch/tag and draft PR #83 were verified.
 No financial service or schema changed; no master merge or deployment authorized.
-Continue ordinary workflow and required-output mapping. The user has been asked for
-familiar names of actually used office outputs; do not infer the answer from the
-31-form candidate catalog. Earmark capacity remains unconfirmed. The full goal is
+Continue ordinary workflow and required-output mapping. The user clarified that eGAPS reports are largely unused because of usability;
+do not infer requirements from the 31-form candidate catalog. Earmark capacity remains unconfirmed. The full goal is
 active, not complete; production and LGU acceptance remain open.
 
 ## Published checkpoint — OBR to payable handoff

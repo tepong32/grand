@@ -231,3 +231,9 @@ Finance persistence changes require native MySQL validation as well as SQLite: S
 - Investigate failures before calling them unrelated. Fix regressions caused by the change and document evidence for pre-existing failures. A skipped test or unperformed human/operational acceptance is never a pass.
 - Keep documentation, code and validation evidence sufficient for a fresh session to resume without a conversation transcript.
 - Install additional standalone software/tooling under C:/xxx/_INSTALLS/_HERE/_xxx unless the user specifies otherwise.
+
+Required-output clarification (2026-09-21): low eGAPS reporting use reflects
+usability difficulty, not absence of reporting needs. Use the
+[working output map](docs/FINANCE_REQUIRED_OUTPUT_MAP.md), existing source controls
+and accepted local evidence; do not treat the candidate catalog as the required
+inventory or broaden scope merely to reproduce eGAPS menus.

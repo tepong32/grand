@@ -3,6 +3,13 @@
 Current execution follows the [2026-09-18 foundation gate](FINANCE_FOUNDATION_GATE.md):
 complete existing retrieval and Budget context before broader Finance features.
 
+Output direction clarified 2026-09-21: the office largely avoids eGAPS reporting
+because it is not user-friendly. Derive the required-output map from actual office
+work and applicable authoritative requirements, with local acceptance still explicit.
+Do not equate low eGAPS usage with no reporting need, or its available menu with the
+LGU's required inventory. Reuse GRAND's governed reporting framework and make the
+ordinary generation path understandable. See the [working output map](FINANCE_REQUIRED_OUTPUT_MAP.md).
+
 [Budget historical context](FINANCE_BUDGET_PLANNING_CONTEXT.md) now connects dated
 posted expense activity, explicit second-half estimates and original authorized
 schedules to retained proposal review. Certified expenditure/coverage remains open;

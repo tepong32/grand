@@ -66,6 +66,7 @@
           </form>
           {% if run_work_spec %}<p class="small text-muted mb-1"><strong>{{ run_work_spec.title }}:</strong> {{ run_work_spec.definition }} Opening this filtered register does not generate, review, approve, supersede, or otherwise alter a report.</p>{% endif %}
           <p class="small text-muted mb-0">This register mirrors your exact visibility and filters. Open a run for its output, row-level control evidence, and reproduction receipt. The register itself is not an approved report, signed form, or filing acknowledgement.</p>
+          <p class="small mb-0 mt-2">Showing {{ run_page.start_index }}–{{ run_page.end_index }} of {{ visible_run_count }} matching runs.</p>
         </div>
         <div class="table-responsive"><table class="table table-hover mb-0">
           <thead><tr><th>Report</th><th>Period</th><th>Format</th><th>Status / next action</th><th>Created</th><th class="text-right">Output</th></tr></thead>
@@ -75,6 +76,11 @@
             <td class="text-right">{% if run.output_file and can_download %}{% if run.is_printable %}<a href="{% url 'reporting:run_print_preview' run.public_id %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary" aria-label="Print {{ run.definition.name }} PDF"><i class="fas fa-print"></i></a>{% endif %}<a href="{% url 'reporting:run_download' run.public_id %}" class="btn btn-sm btn-outline-primary" aria-label="Download {{ run.definition.name }}"><i class="fas fa-download"></i></a>{% else %}<span class="text-muted">&mdash;</span>{% endif %}</td>
           </tr>{% empty %}<tr><td colspan="6" class="text-muted text-center py-4">No report runs match this view.</td></tr>{% endfor %}</tbody>
         </table></div>
+        {% if run_page.has_other_pages %}<nav class="card-footer d-flex justify-content-between align-items-center" aria-label="Report run pages">
+          <span>{% if run_page.has_previous %}<a href="?{{ run_page_filters }}&amp;page={{ run_page.previous_page_number }}">Previous runs</a>{% endif %}</span>
+          <span>Page {{ run_page.number }} of {{ run_page.paginator.num_pages }}</span>
+          <span>{% if run_page.has_next %}<a href="?{{ run_page_filters }}&amp;page={{ run_page.next_page_number }}">Next runs</a>{% endif %}</span>
+        </nav>{% endif %}
       </section>
     </div>
     <div class="col-xl-4">
