@@ -1367,3 +1367,13 @@ claim/payee/invoice values require actual evidence rather than copying OBR total
 UAT read access cannot confer preparation. This removes source reselection and
 unclear next-office navigation while preserving cross-store recovery and financial
 control. See [scope and verification](FINANCE_OBR_PAYABLE_HANDOFF.md).
+
+## D-108 — Expose retained recovery after interrupted payable intake (2026-09-21)
+
+A pending initial link is a recoverable source state, not a reason to create another
+claim. The case page now exposes its existing reconciliation action for both pending
+and failed links, scoped to requesting-office preparation, UAT denial and the existing
+pre-DV/corrected-advance boundary. Prioritize recovery in next-action and empty-row
+guidance. Reuse the same case/allocation across either cross-store interruption point;
+never infer that the first store's success completed the second. See
+[scope and verification](FINANCE_PENDING_PAYABLE_RECOVERY.md).

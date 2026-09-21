@@ -414,12 +414,16 @@ def case_detail(request, public_id, *, form_overrides=None):
     }
     relationship_summary = payable_relationship_summary(case) if hasattr(case, "payable_intake") else None
     current_print_job = case.print_jobs.order_by("-version").first()
+    can_recover_obligation = bool(permissions["initiate_payable"]
+        and case.obligation_binding_status in (VoucherCase.BINDING_PENDING, VoucherCase.BINDING_FAILED)
+        and (not hasattr(case, "disbursement_voucher") or advance_correction_window(case)))
     from .payment_presentations import can_act as presentation_action, visible_reports
     return render(request, "vouchers/case_detail.html", {
         "can_record_presentation": presentation_action(request.user, 'record_payment_presentations'),
         "presentation_reports": visible_reports(request.user).filter(instrument__case=case),
+        "can_recover_obligation": can_recover_obligation,
         "case": case, "permissions": permissions, "workspace_profile": profile,
-        "next_action_label": STAGE_NEXT_ACTION.get(case.current_stage, case.get_current_stage_display()),
+        "next_action_label": "Reconcile the retained obligation link before submitting this payable" if can_recover_obligation else STAGE_NEXT_ACTION.get(case.current_stage, case.get_current_stage_display()),
         "case_ready_for_user": ready_cases.exists(),
         "budget_form": BudgetCertificationForm(case=case),
         "voucher_form": VoucherPreparationForm(case=case),

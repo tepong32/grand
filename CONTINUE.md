@@ -2,9 +2,41 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-09-18
+Last updated: 2026-09-21
 
-## Active work — OBR to payable handoff
+## Active work — pending payable recovery
+
+The goal was resumed through the active goal control on 2026-09-21, lifting the
+2026-09-18 pause. Current owning branch: `codex/finance-pending-payable-recovery`,
+based on v0.7.120 `05fbf23f6575282dc5346584c96d9f6a36f37ef1`. PR #81 remains open/draft;
+GitGuardian, verify (17m29s) and MySQL (35m13s) checks all pass on that exact head.
+Canonical checkout user changes remain untouched.
+
+Repair in progress: pending as well as failed obligation bindings expose the existing
+requesting-office recovery action; next-action and empty-allocation guidance direct
+users to reconcile the retained link. Scope/UAT/pre-DV checks remain. See
+[scope and actual validation](docs/FINANCE_PENDING_PAYABLE_RECOVERY.md).
+
+Focused SQLite PASS 7/7 (10.840s) and fresh native MySQL PASS 7/7 (14.112s), including
+both interruption points and idempotent HTTP recovery. Both finished; do not resume
+sessions 30853/54128. Browser recovery and final 390px layout pass; the long stage
+badge now wraps within the case heading. Owned browser/server/MySQL are stopped.
+
+Final dependent SQLite PASS: 102/102, no skips, 64.933s, exit 0. Command
+`python .tmp/earlier_sqlite.py budget.test_payable_handoff vouchers.tests finance.test_work_tasks.FinanceBudgetWorkTaskContractTests`,
+log `.tmp/pending-recovery-regression.log`. Both test stores destroyed. Session32503
+is complete; do not resume or duplicate it. Operator database hash is unchanged.
+
+v0.7.121 development publication uses the previewed `.tmp/release_pending.py`
+Version Manager adapter (VERSION/CHANGELOG automatic updates only); PR body is
+`.tmp/pending-pr-body.md`. Verify remote branch/tag and draft PR after execution.
+No financial service or schema changed; no master merge or deployment authorized.
+Continue ordinary workflow and required-output mapping. The user has been asked for
+familiar names of actually used office outputs; do not infer the answer from the
+31-form candidate catalog. Earmark capacity remains unconfirmed. The full goal is
+active, not complete; production and LGU acceptance remain open.
+
+## Published checkpoint — OBR to payable handoff
 
 Owning checkout remains `C:/Users/Administrator/.codex/worktrees/grand-finance-foundation`.
 Branch `codex/finance-obr-payable-handoff` starts from remotely verified v0.7.119

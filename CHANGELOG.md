@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.121] - 2026-09-21
+### Feat
+- fix(finance): expose pending payable link recovery
+
 ## [0.7.120] - 2026-09-18
 ### Feat
 - fix(finance): connect OBR detail to scoped payable work
