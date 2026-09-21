@@ -1765,6 +1765,26 @@ class VoucherWorkflowTests(TestCase):
         case, payment_rule, obligation, accounting_owner = self.authoritative_payable_for_review()
         from finance.work_tasks import finance_work_tasks
 
+        # Generate outputs from the actual service-created sources, not fabricated report rows.
+        from openpyxl import load_workbook
+
+        for actor in (self.budget_user, self.preparer):
+            actor.user_permissions.add(*Permission.objects.filter(
+                content_type__app_label="reporting",
+                codename__in=("view_reporting_workspace", "generate_reports", "download_reports"),
+            ))
+            for cache in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
+                actor.__dict__.pop(cache, None)
+        seed_finance_presets()
+
+        def working_report(department, key, actor, end=date(2026, 12, 31)):
+            definition = ReportDefinition.objects.get(department=department, dataset_key=key)
+            run = create_manual_run(definition, definition.current_template, "xlsx",
+                                    date(2026, 1, 1), end, {}, actor)
+            self.assertEqual(run.control_status, ReportRun.CONTROL_RECONCILED, run.control_message)
+            self.assertFalse(run.is_official_output)
+            return run
+
         work_case_id = f"voucher-case:{case.public_id}"
         self.assertTrue(any(task["case_id"] == work_case_id for task in finance_work_tasks(self.requesting_user, view="waiting")["tasks"]))
         self.assertTrue(any(task["case_id"] == work_case_id and task["subject"] == "Submitted payable for Accounting review"
@@ -1833,6 +1853,11 @@ class VoucherWorkflowTests(TestCase):
         reconcile_posted_voucher_entry(recognition_entry, self.validator)
         self.assertEqual(len(waiting_for_case(self.requesting_user)), 1)
         self.assertFalse(waiting_for_case(self.treasury_user))  # Authorized check preparation.
+
+        unpaid = working_report(self.accounting, "finance_posted_payable_schedule", self.preparer)
+        self.assertEqual(Decimal(unpaid.control_totals["subsidiary_balance"]), Decimal("900.00"))
+        unpaid_bytes = Path(unpaid.output_file.path).read_bytes()
+        unpaid_checksum = unpaid.checksum
 
         case.refresh_from_db()
         instrument = issue_check(
@@ -1988,6 +2013,85 @@ class VoucherWorkflowTests(TestCase):
         report_row = report_run.dataset_snapshot["rows"][0]
         self.assertEqual(report_row["case_reference"], case.reference_code)
         self.assertEqual(report_row["receipt_reference"], "RCPT-2026-CYCLE-001")
+
+        budget = working_report(self.budget, "finance_budget_accountability", self.budget_user)
+        for key in ("appropriation", "released_allotment", "obligation"):
+            self.assertEqual(Decimal(budget.control_totals[key]), Decimal("1000.00"))
+        self.assertEqual(Decimal(budget.control_totals["unobligated_allotment"]), Decimal("0.00"))
+        budget_source = budget.source_records.get(source_model="ObligationMovement")
+        self.assertEqual(budget_source.source_public_id, str(obligation.public_id))
+        self.assertEqual(budget_source.source_date, obligation.obligation_date)
+        before_obligation = working_report(self.budget, "finance_budget_accountability",
+                                           self.budget_user, date(2026, 8, 19))
+        self.assertEqual(Decimal(before_obligation.control_totals["obligation"]), Decimal("0.00"))
+
+        actual = working_report(self.budget, "finance_budget_vs_posted_actual", self.budget_user)
+        self.assertEqual(Decimal(actual.control_totals["posted_actual"]), Decimal("1000.00"))
+        self.assertEqual(Decimal(actual.control_totals["mapped_actual"]), Decimal("1000.00"))
+        self.assertEqual(actual.control_totals["mapping_exception_count"], 0)
+        expense_source = actual.source_records.get(source_model="JournalEntry")
+        self.assertEqual(expense_source.source_public_id, str(recognition_entry.public_id))
+        self.assertEqual(expense_source.source_date, recognition_entry.entry_date)
+
+        trial = working_report(self.accounting, "finance_posted_trial_balance", self.preparer)
+        ledger = working_report(self.accounting, "finance_posted_general_ledger", self.preparer)
+        for run in (trial, ledger):
+            self.assertEqual(Decimal(run.control_totals["debit"]), Decimal("3900.00"))
+            self.assertEqual(Decimal(run.control_totals["credit"]), Decimal("3900.00"))
+            self.assertEqual(run.source_record_count, 3)  # Opening, recognition, payment.
+            self.assertTrue(run.source_records.filter(source_public_id=str(payment_entry.public_id),
+                                                       source_date=payment_entry.entry_date).exists())
+        trial_rows = {row["account_code"]: row for row in trial.dataset_snapshot["rows"]}
+        self.assertEqual(Decimal(trial_rows["1-01-02"]["net_debit"]), Decimal("1100.00"))
+        self.assertEqual(Decimal(trial_rows[self.expense_account.code]["net_debit"]), Decimal("1000.00"))
+        self.assertEqual(bank_snapshot["book_balance"], trial_rows["1-01-02"]["net_debit"])
+
+        paid = working_report(self.accounting, "finance_posted_payable_schedule", self.preparer)
+        withheld = working_report(self.accounting, "finance_posted_withholding_schedule", self.preparer)
+        self.assertEqual(Decimal(paid.control_totals["subsidiary_balance"]), Decimal("0.00"))
+        self.assertEqual(Decimal(withheld.control_totals["subsidiary_balance"]), Decimal("100.00"))
+        self.assertEqual(Decimal(report_run.control_totals["released_amount"]) +
+                         Decimal(withheld.control_totals["subsidiary_balance"]),
+                         Decimal(actual.control_totals["posted_actual"]))
+        unpaid.refresh_from_db()
+        self.assertEqual(unpaid.checksum, unpaid_checksum)
+        self.assertEqual(Path(unpaid.output_file.path).read_bytes(), unpaid_bytes)
+        self.assertEqual(Decimal(unpaid.control_totals["subsidiary_balance"]), Decimal("900.00"))
+
+        workbook_totals = {
+            budget.pk: {"Authorized appropriation": "1000", "Obligation": "1000"},
+            actual.pk: {"Posted actual expense": "1000"},
+            trial.pk: {"Debit": "3900", "Credit": "3900"},
+            ledger.pk: {"Debit": "3900", "Credit": "3900"},
+            unpaid.pk: {"Credit balance": "900"},
+            paid.pk: {"Credit balance": "0"},
+            withheld.pk: {"Credit balance": "100"},
+            report_run.pk: {"Amount": "900"},
+        }
+        # Download the retained workbook through each office's real permission-checked route.
+        for run, actor in ((budget, self.budget_user), (actual, self.budget_user),
+                           (trial, self.preparer), (ledger, self.preparer),
+                           (unpaid, self.preparer), (paid, self.preparer),
+                           (withheld, self.preparer), (report_run, self.treasury_user)):
+            self.client.force_login(actor)
+            response = self.client.get(reverse("reporting:run_download", args=[run.public_id]))
+            self.assertEqual(response.status_code, 200)
+            # The test client closes a consumed stream with connection cleanup suppressed.
+            payload = b"".join(response.streaming_content) if response.streaming else response.content
+            self.assertEqual(payload, Path(run.output_file.path).read_bytes())
+            workbook = load_workbook(io.BytesIO(payload), data_only=True)
+            sheet = workbook["Official Report"]
+            self.assertEqual(sheet["A2"].value, run.template_version.title)
+            self.assertGreaterEqual(sheet.max_row, 7)
+            headers = [cell.value for cell in sheet[6]]
+            for header, expected in workbook_totals[run.pk].items():
+                column = headers.index(header) + 1
+                amount = sum((Decimal(str(sheet.cell(index, column).value or 0))
+                              for index in range(7, 7 + len(run.dataset_snapshot["rows"]))), Decimal("0"))
+                self.assertEqual(amount, Decimal(expected), (run.definition.name, header))
+            workbook.close()
+        self.client.force_login(self.budget_user)
+        self.assertEqual(self.client.get(reverse("reporting:run_download", args=[trial.public_id])).status_code, 404)
 
     def test_cancellation_and_replacement_record_explicit_no_entry_decisions(self):
         self.enable_payment_event_rules()

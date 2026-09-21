@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.123] - 2026-09-21
+### Feat
+- test(finance): reconcile ordinary cross-office outputs
+
 ## [0.7.122] - 2026-09-21
 ### Feat
 - fix(reporting): retrieve all matching report runs
