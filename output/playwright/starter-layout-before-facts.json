@@ -1,0 +1,61 @@
+{
+  "synthetic_configuration": true,
+  "real_approval_claimed": false,
+  "case": "a538ebfa-c55a-462f-a183-e3a401fc3004",
+  "input_snapshot": {
+    "case": "a538ebfa-c55a-462f-a183-e3a401fc3004",
+    "case_state_version": 8,
+    "obr_number": "MULTI/CASE-2026-03020776A3",
+    "dv_number": "DV-00001",
+    "gross_amount": "1000.00",
+    "deductions": "10.00",
+    "net_amount": "990.00",
+    "template_checksum": "6ff65db366c57e894132bcd65e61182a9f55f143f9dbc42b3ea91a3a5b5d28b1",
+    "signature_round": 1,
+    "signatories": [
+      {
+        "role_code": "department-head",
+        "display_name": "Synthetic Department Head",
+        "position_title": "Department Head"
+      },
+      {
+        "role_code": "municipal-accountant",
+        "display_name": "Synthetic Municipal Accountant",
+        "position_title": "Municipal Accountant"
+      }
+    ],
+    "template_context": {
+      "GRAND_FUND_CODES": "general-fund",
+      "GRAND_OBLIGATION_REFERENCES": "OBR-2026-CYCLE-001; OBR-2026-CYCLE-002",
+      "GRAND_CLAIM_REFERENCE": "CLAIM-2026-CYCLE-001",
+      "GRAND_PAYEE_ADDRESS": "Unit 123, Second Floor, Municipal Commercial Building, Barangay Sample, Sample Municipality, Sample Province",
+      "GRAND_PAYEE_TIN": "000-123-456-000"
+    },
+    "template_context_sources": {
+      "obligations": [
+        {
+          "allocation_public_id": "fffbf866-b9fd-4c6e-91b3-1a2f244520e4",
+          "allocation_version": 2,
+          "obligation_public_id": "3e9d6c70-ed65-40d7-ac91-67616b6eefae",
+          "obligation_number": "OBR-2026-CYCLE-001",
+          "source_checksum": "ee156c24a69f854667881106dc9cd61fe4baece84957e7e22414255acdcb9482",
+          "allocated_amount": "500.00"
+        },
+        {
+          "allocation_public_id": "770cf558-2e8d-4acb-9d85-7df9f6faa84f",
+          "allocation_version": 1,
+          "obligation_public_id": "015d3fb2-596e-4cd1-bddc-5e3b1a9bdd41",
+          "obligation_number": "OBR-2026-CYCLE-002",
+          "source_checksum": "3eea53b4297a3fa861b4edfaaa2c344b3b6eb39a5630781dcabe988651f02e36",
+          "allocated_amount": "500.00"
+        }
+      ]
+    },
+    "payee_version_id": 2
+  },
+  "file_sha256": "642d098b30fdff398da4017dfa927c717960311e1886f78b74b033793ff86ec6",
+  "case_particulars": "Synthetic office supply payment",
+  "line_descriptions": [
+    "Synthetic office supplies"
+  ]
+}

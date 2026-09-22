@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.134] - 2026-09-22
+### Fixed
+- fix(finance): preserve particulars in populated DV starters
+
 ## [0.7.133] - 2026-09-22
 ### Fixed
 - fix(finance): bind optional DV context to retained sources

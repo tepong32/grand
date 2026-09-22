@@ -1,0 +1,11 @@
+{
+  "old_conflict_rejected": "GRAND_PARTICULARS overlaps controlled field GRAND_LINE_ITEMS.",
+  "corrected_preflight_passes": true,
+  "case_particulars_retained": true,
+  "detail_row_capacity": 10,
+  "financial_totals_and_context_unchanged": true,
+  "instructions_values_unchanged": true,
+  "before_sha256": "642d098b30fdff398da4017dfa927c717960311e1886f78b74b033793ff86ec6",
+  "after_sha256": "a257f7fdcf09f978678e5402cdf4c5948622b621e7c00cb260d833187ecef98f",
+  "render_only_not_physical_print_acceptance": true
+}

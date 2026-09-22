@@ -73,14 +73,21 @@ def build_finance_starter_workbook(values):
     sheet["A8"], sheet["B8"] = "OBR / ORS / ALOBS reference", ""
     sheet.merge_cells("B8:D8")
     sheet["E8"], sheet["F8"] = "Claim reference", ""
-    sheet["A9"], sheet["B9"], sheet["C9"] = "Particulars", "Account code", "Amount"
-    sheet.merge_cells("C9:F9")
+    sheet.merge_cells("A9:A10")
+    sheet["A9"] = "Particulars"
+    sheet.merge_cells("B9:F10")
+    sheet.row_dimensions[9].height = 22
+    sheet.row_dimensions[10].height = 22
+    table_header_row = 11
+    sheet["A11"], sheet["B11"], sheet["C11"] = "Description", "Account code", "Amount"
+    sheet.merge_cells("C11:F11")
 
-    detail_start = 10
+    detail_start = 12
     detail_end = detail_start + int(values["particulars_rows"]) - 1
     for row in range(detail_start, detail_end + 1):
         sheet.merge_cells(start_row=row, start_column=3, end_row=row, end_column=6)
         sheet.row_dimensions[row].height = 22
+        sheet.cell(row, 3).number_format = "#,##0.00"
     totals_row = detail_end + 1
     for offset, (label, name) in enumerate((
         ("Gross amount", "GRAND_GROSS_AMOUNT"),
@@ -134,7 +141,7 @@ def build_finance_starter_workbook(values):
         "GRAND_PAYEE_TIN": "$F$7",
         "GRAND_OBLIGATION_REFERENCES": "$B$8",
         "GRAND_CLAIM_REFERENCE": "$F$8",
-        "GRAND_PARTICULARS": "$A$10",
+        "GRAND_PARTICULARS": "$B$9",
         "GRAND_LINE_ITEMS": f"$A${detail_start}:$C${detail_end}",
     }
     for name, coordinate in fixed_names.items():
@@ -145,11 +152,11 @@ def build_finance_starter_workbook(values):
             cell.border = plain_border
             cell.font = cell.font.copy(name="Arial", size=cell.font.sz or 9)
             cell.alignment = cell.alignment.copy(vertical=cell.alignment.vertical or "center", wrap_text=True)
-    for cell in sheet[9]:
+    for cell in sheet[table_header_row]:
         cell.fill = header_fill
         cell.font = Font(name="Arial", size=9, bold=True)
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    sheet.row_dimensions[9].height = 28
+    sheet.row_dimensions[table_header_row].height = 28
     sheet.column_dimensions["A"].width = 42
     sheet.column_dimensions["B"].width = 18
     sheet.column_dimensions["C"].width = 8
@@ -157,9 +164,9 @@ def build_finance_starter_workbook(values):
     sheet.column_dimensions["E"].width = 12
     sheet.column_dimensions["F"].width = 18
     sheet.sheet_view.showGridLines = False
-    sheet.freeze_panes = "A9"
+    sheet.freeze_panes = f"A{detail_start}"
     sheet.print_area = f"A1:F{footer_row}"
-    sheet.print_title_rows = "1:9"
+    sheet.print_title_rows = f"1:{table_header_row}"
     sheet.page_setup.paperSize = {"a4": "9", "letter": "1", "legal": "5"}[values["paper_size"]]
     sheet.page_setup.orientation = values["orientation"]
     sheet.page_setup.fitToWidth = 1
@@ -856,8 +863,11 @@ def inspect_finance_workbook(payload, document_type="disbursement-voucher", *, a
                 if len(flattened) != 1:
                     raise FinanceTemplateError(f"{name} must point to exactly one cell.")
         mapping[name] = {"worksheet": sheet.title, "range": coordinate}
-    # Newly bound context may not overwrite an existing scalar or detail table.
-    for name in optional_names:
+    # Every controlled scalar needs its own writable destination. Otherwise
+    # generation silently replaces source evidence with another field or row.
+    for name in mapping:
+        if name == table_name:
+            continue
         destination = mapping[name]
         sheet = workbook[destination["worksheet"]]
         region = CellRange(destination["range"])

@@ -61,6 +61,9 @@ DV optional context binds only names retained by that template's preflight; neve
 reinterpret an existing approval after adding a recognized name. Use actual certified
 obligation references for multi-source claims and the case's pinned party version.
 Retain output context/source identities and literal text; see [source-context contract](docs/FINANCE_DV_SOURCE_CONTEXT.md).
+Controlled scalars must not overlap other fields or the detail table. Conflicting
+older templates require a reviewed correction before new generation; issued copies
+remain unchanged. See [starter layout and reproduction](docs/FINANCE_STARTER_LAYOUT.md).
 
 ### Development state
 

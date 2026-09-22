@@ -308,3 +308,12 @@ party-detail fields through opt-in template preflight. Actual multi-obligation
 references replace the compatibility placeholder in those fields; old approvals
 retain their original mapping. See [source rules, validation and limits](FINANCE_DV_SOURCE_CONTEXT.md).
 FG-06 remains partial: source binding does not establish local form or printer acceptance.
+
+## Checkpoint 5A - Populated DV starter layout
+
+Actual output reproduction found case particulars overwritten by the first detail
+row. New starter geometry separates them, and controlled-field collision checks
+reject templates that would silently lose a source value. Both before/after
+workbooks and renders are retained with matching context and financial totals.
+See [reproduction and validation](FINANCE_STARTER_LAYOUT.md). This does not close
+FG-06: Treasury field acceptance, physical printing and local form fidelity remain open.
