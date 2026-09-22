@@ -6,8 +6,10 @@ complete existing retrieval and Budget context before broader Finance features.
 The [full requirement audit](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md) identifies
 remaining ledger (1,000), cash/remittance (100) and shadow-cycle (100) row caps.
 The [ledger repair](FINANCE_LEDGER_RETRIEVAL.md) now preserves running balances
-across scoped pages and rejects invalid account selection. Next: cash/remittances
-and supporting history. These remaining defects take
+across scoped pages and rejects invalid account selection.
+[Treasury register retrieval](FINANCE_TREASURY_REGISTER_RETRIEVAL.md) now pages all
+cash lists and remittance matches without limiting financial reservations.
+Next: shadow cycles and supporting history. These remaining defects take
 priority over further output breadth; local policy and acceptance remain separate.
 
 Output direction clarified 2026-09-21: the office largely avoids eGAPS reporting

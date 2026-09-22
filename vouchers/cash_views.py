@@ -12,6 +12,7 @@ from finance.models import FinanceConfigurationItem, FinanceConfigurationRelease
 
 from .access import department_for_user, has_explicit_permission, voucher_access_required
 from .roles import is_finance_uat_viewer
+from .register_pagination import register_page
 from .cash_positions import (
     can_mutate_cash, create_policy, create_position, decide_policy, decide_position, export_cash_position_csv,
     open_instrument_exception, policy_availability, resolve_instrument_exception,
@@ -46,7 +47,9 @@ def workspace(request):
     if not _can_view(request.user):
         raise PermissionDenied
     policy_query = visible_cash_policies(request.user)
-    policies = list(policy_query.order_by("-effective_from", "bank_account_code", "fund_code")[:100])
+    policy_order = ("-effective_from", "bank_account_code", "fund_code", "-version", "-pk")
+    policy_page = register_page(policy_query.order_by(*policy_order), request, "policy_page", "cash-policies")
+    policies = list(policy_page.object_list)
     for policy in policies:
         availability = policy_availability(policy)
         policy.current_position = availability["position"]
@@ -62,15 +65,22 @@ def workspace(request):
     if not has_explicit_permission(request.user, "vouchers.approve_cash_position") and not is_finance_uat_viewer(request.user):
         instrument_query = instrument_query.filter(case__current_department=department_for_user(request.user))
         exception_query = exception_query.filter(policy__treasury_department=department_for_user(request.user))
-    instruments = instrument_query.order_by("-issued_at", "check_number")[:100]
-    exceptions = exception_query[:100]
+    instrument_page = register_page(
+        instrument_query.order_by("-issued_at", "check_number", "pk"), request, "instrument_page", "cash-instruments",
+    )
+    exception_page = register_page(
+        exception_query.order_by("-observed_on", "-pk"), request, "exception_page", "cash-exceptions",
+    )
     work_items, selected_attention, work_spec = cash_attention_queryset(
         request.user, request.GET.get("attention", ""),
     )
+    work_order = ("-as_of_date", "-version", "-pk") if work_spec and work_spec["kind"] == "position" else policy_order
+    work_page = register_page(work_items.order_by(*work_order), request, "work_page", "cash-work")
     return render(request, "vouchers/cash/workspace.html", {
-        "policies": policies, "instruments": instruments, "exceptions": exceptions,
-        "cash_work_items": work_items[:100],
-        "cash_work_count": work_items.count(),
+        "policies": policies, "instruments": instrument_page.object_list, "exceptions": exception_page.object_list,
+        "policy_page": policy_page, "instrument_page": instrument_page, "exception_page": exception_page,
+        "work_page": work_page, "cash_work_items": work_page.object_list,
+        "cash_work_count": work_page.paginator.count,
         "cash_work_spec": work_spec,
         "selected_attention": selected_attention,
         "attention_choices": CASH_ATTENTION_CHOICES,

@@ -156,6 +156,32 @@ class RemittanceWorkRegisterTests(TestCase):
             ) else "",
         )
 
+    def test_remittance_register_retrieves_every_match_with_scoped_navigation(self):
+        expected = {self._batch(f"VOLUME-{index:03}").pk for index in range(111)}
+        foreign = self._batch("FOREIGN-REMIT", owner=self.other)
+        returned = self._batch("RETURNED-REMIT", status=TreasuryRemittanceBatch.RETURNED)
+        self.client.force_login(self.preparer)
+        url = reverse("vouchers:remittance_workspace")
+        first = self.client.get(url, {"attention": "preparation"})
+        self.assertEqual(len(first.context["batches"]), 50)
+        seen = set()
+        for number in range(1, 4):
+            response = self.client.get(url, {"attention": "preparation", "page": number})
+            ids = {batch.pk for batch in response.context["batches"]}
+            self.assertFalse(seen & ids)
+            seen |= ids
+        self.assertEqual(seen, expected)
+        self.assertNotIn(foreign.pk, seen)
+        self.assertNotIn(returned.pk, seen)
+        self.assertContains(response, "of 111 matching records")
+        self.assertContains(response, "attention=preparation&amp;page=2")
+        status = self.client.get(url, {"status": TreasuryRemittanceBatch.RETURNED, "page": 9})
+        self.assertEqual([batch.pk for batch in status.context["batches"]], [returned.pk])
+        self.assertEqual(status.context["batch_page"].number, 1)
+        self.client.force_login(self.outsider)
+        scoped = self.client.get(url)
+        self.assertEqual([batch.pk for batch in scoped.context["batches"]], [foreign.pk])
+
     def test_personal_waiting_remittance_excludes_ready_release_and_other_preparers(self):
         waiting = self._batch("REM-WAIT", status=TreasuryRemittanceBatch.FOR_REVIEW)
         self._batch("REM-RELEASE", status=TreasuryRemittanceBatch.APPROVED)

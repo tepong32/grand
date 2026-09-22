@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.140] - 2026-09-22
+### Fixed
+- fix(treasury): complete cash and remittance register pagination
+
 ## [0.7.139] - 2026-09-22
 ### Fixed
 - fix(accounting): paginate ledger with continuous scoped balances
