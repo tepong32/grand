@@ -43,7 +43,7 @@ from finance.models import (
     FinanceDocumentRule, FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
     FinanceAuditEvent, FinanceSignatory, FinanceTemplateVersion, FinanceTransactionVariant, FinanceWorkflowExemption,
 )
-from finance.services import preflight_finance_template, inspect_finance_workbook
+from finance.services import preflight_finance_template, inspect_finance_workbook, build_finance_starter_workbook
 from openpyxl import Workbook, load_workbook
 from openpyxl.workbook.defined_name import DefinedName
 from records.services import RecordWorkflowError, source_department
@@ -3154,11 +3154,12 @@ class VoucherWorkflowTests(TestCase):
             {"financeconfigurationrelease", "financeworkflowexemption", "financeauditevent"},
         )
 
-    def _context_template_fixture(self, *, legacy=False):
-        workbook = load_workbook(self.template.workbook.path)
-        for row, name in enumerate(FinanceTemplateVersion.DV_CONTEXT_NAMES, 5):
-            workbook.defined_names.add(DefinedName(name, attr_text=f"'Voucher'!$E${row}"))
-            workbook["Voucher"].cell(row, 5).value = "LEGACY MANUAL CONTEXT"
+    def _context_template_fixture(self, *, legacy=False, starter_payload=None):
+        workbook = load_workbook(io.BytesIO(starter_payload) if starter_payload else self.template.workbook.path)
+        if starter_payload is None:
+            for row, name in enumerate(FinanceTemplateVersion.DV_CONTEXT_NAMES, 5):
+                workbook.defined_names.add(DefinedName(name, attr_text=f"'Voucher'!$E${row}"))
+                workbook["Voucher"].cell(row, 5).value = "LEGACY MANUAL CONTEXT"
         buffer = io.BytesIO(); workbook.save(buffer); payload = buffer.getvalue()
         _, mapping, result = inspect_finance_workbook(payload, approved_optional_names=() if legacy else None)
         # Approved synthetic setup, like setUpTestData; no workflow approval is claimed.
@@ -3171,6 +3172,27 @@ class VoucherWorkflowTests(TestCase):
             preflight_result=result, preflighted_by=self.preparer, preflighted_at=timezone.now(),
             effective_from=date(2026, 1, 1), created_by=self.preparer,
         )
+
+    def test_actual_starter_retains_case_particulars_and_separate_line_description(self):
+        from finance.forms import FinanceStarterTemplateForm
+        values = {name: field.initial for name, field in FinanceStarterTemplateForm.base_fields.items()}
+        values["lgu_name"] = "Synthetic municipality"
+        template = self._context_template_fixture(starter_payload=build_finance_starter_workbook(values))
+        case = self.create_case("starter-case")
+        self.budget_certify(case, "starter-budget")
+        self.accounting_prepare(case, "starter-prepare")
+        output = generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="starter-output")
+        workbook = load_workbook(output.file.path)
+        location = template.mapping["GRAND_PARTICULARS"]
+        self.assertEqual(workbook[location["worksheet"]][location["range"]].value, case.particulars)
+        table = template.mapping["GRAND_LINE_ITEMS"]
+        first_row = workbook[table["worksheet"]][table["range"]][0]
+        line = case.disbursement_voucher.line_items.get()
+        self.assertNotEqual(line.description, case.particulars)
+        self.assertEqual(first_row[0].value, line.description)
+        self.assertEqual(first_row[1].value, line.account_code)
+        self.assertEqual(first_row[2].value, line.amount)
+        self.assertEqual(first_row[2].number_format, "#,##0.00")
 
     def test_dv_context_uses_pinned_sources_and_retains_output_evidence(self):
         template = self._context_template_fixture()

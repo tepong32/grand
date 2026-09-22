@@ -453,6 +453,18 @@ class FinanceSetupCenterTests(TestCase):
         self.assertEqual(preview["Voucher"]["E5"].value, "LEGACY MANUAL CONTEXT")
         self.assertNotIn("GRAND_CLAIM_REFERENCE", template.mapping)
 
+    def test_controlled_scalars_cannot_overlap_other_scalars_or_detail_rows(self):
+        for coordinate in ("$A$1", "$A$12"):
+            with self.subTest(coordinate=coordinate):
+                workbook = load_workbook(io.BytesIO(self._workbook()))
+                workbook.defined_names.add(DefinedName("GRAND_PARTICULARS", attr_text=f"'Voucher'!{coordinate}"))
+                payload = io.BytesIO(); workbook.save(payload)
+                with self.assertRaisesMessage(FinanceTemplateError, "overlaps"):
+                    inspect_finance_workbook(payload.getvalue())
+                # An old mapping cannot authorize silently overwritten source data.
+                with self.assertRaisesMessage(FinanceTemplateError, "overlaps"):
+                    inspect_finance_workbook(payload.getvalue(), approved_optional_names=())
+
     def test_optional_context_cannot_overwrite_controlled_values_or_merged_fragments(self):
         for coordinate, merged, message in (
             ("$A$1", None, "overlaps"),

@@ -4,7 +4,35 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - DV source context
+## Current checkpoint - Populated DV starter layout
+
+Branch `codex/finance-starter-layout` begins at v0.7.133
+`9a31d932e93c597e9faf1f6442ace8ffb97b5d62`, [draft PR #94](https://github.com/tepong32/grand/pull/94).
+Actual source-to-output reproduction found the starter's case particulars were
+silently replaced by its first detail description. New starters separate those
+fields, retain configured detail capacity and format numeric line amounts to two
+decimals. Preflight now rejects scalar/scalar and scalar/table collisions.
+Conflicting old templates require a corrected reviewed version for new generation;
+retained issued files are unchanged. See [reproduction, validation and limits](docs/FINANCE_STARTER_LAYOUT.md).
+
+Before/after actual application outputs and renders are retained. Source context,
+gross 1,000, deductions 10 and net 990 agree; both case particulars and detail
+description are now present. The long synthetic address and two references are
+visible in the renderer. No physical-print or local form acceptance claimed.
+Initial scoped tests PASS 164/164 (66.299s); final broader SQLite PASS 364/364
+(195.499s), no skips. Both runners exited 0 and destroyed disposable stores.
+Native not run for geometry-only validation; scope and commands are in the report.
+No posting, amount, schema,
+permission or lock-order change; operator DB remains untouched.
+
+Next: compare Treasury bank-advice and payment/release outputs against their
+actual posted and physical-release sources, using the existing output map. Do
+not fill a pre-payment DV with invented future Treasury details.
+Physical printer behavior, exact accepted layouts, local earmark semantics and
+LGU acceptance remain open. Full goal incomplete, production NO-GO. eGAPS may
+stay closed. No master merge or deployment.
+
+## Prior checkpoint - DV source context
 
 Branch `codex/finance-dv-source-context` begins at v0.7.132
 `05503560242bfe3f24ab57fcc6fadd44227a6c33`, [draft PR #93](https://github.com/tepong32/grand/pull/93).
