@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.131] - 2026-09-22
+### Fixed
+- docs(finance): verify controlled signing copy browser workflow
+
 ## [0.7.130] - 2026-09-22
 ### Fixed
 - docs(finance): retain retrieval browser and custody validation

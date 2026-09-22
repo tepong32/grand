@@ -4,7 +4,33 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Resumed validation after v0.7.129
+## Current checkpoint - Controlled-print browser rehearsal
+
+Branch `codex/finance-controlled-print-rehearsal` begins at v0.7.130
+`6319ddcf24f79600efc74b54b697fc9a6e52d9cb`, [draft PR #91](https://github.com/tepong32/grand/pull/91).
+Parent GitGuardian PASS; parent verify/MySQL still running at 13:27 UTC.
+No application code changes. User's resumed goal and careful review instruction
+remain in force. See [actual steps, evidence and limits](docs/FINANCE_CONTROLLED_PRINT_BROWSER.md).
+
+Browser PASS: signing file v1/download, simulated printing/packet, blank replacement
+reason rejection, v2/download and fresh evidence, ordered returned signatures,
+then independent validator's next-action visibility. Fixture assertions PASS:
+two retained output versions, v1 superseded, v2 linked and returned, old pending
+tasks retired, shared packet, all download/stored/archive hashes match. Case ends
+at Accounting validation with no payment instruments; no browser financial posting.
+The setup helper's wrong constant was corrected before review; no application defect.
+
+Unchanged-code baseline remains 21/21 printing/custody tests PASS from prior turn;
+no redundant suite run for evidence-only files. Browser/server stopped. Operator
+DB unchanged. Screenshots, both actual synthetic downloads and facts retained.
+
+Next: inspect signing workbook values, named ranges, print area and pagination
+against the source and existing template contract. Fix only demonstrated gaps.
+Actual printer, paper, wet signatures, physical handover and accepted office form
+fidelity remain unverified. Full goal incomplete; production NO-GO. No master merge
+or deployment. Local earmark basis remains unknown; eGAPS stays closed.
+
+## Prior checkpoint - Resumed validation after v0.7.129
 
 User explicitly resumed on 2026-09-22 and requested careful evidence-led review
 before code changes. No application code changed in this validation checkpoint.
