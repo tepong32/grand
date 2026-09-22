@@ -3,6 +3,12 @@
 Current execution follows the [2026-09-18 foundation gate](FINANCE_FOUNDATION_GATE.md):
 complete existing retrieval and Budget context before broader Finance features.
 
+The [full requirement audit](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md) identifies
+remaining ledger (1,000), cash/remittance (100) and shadow-cycle (100) row caps.
+Next: reproduce ledger truncation and preserve running balances while completing
+scoped retrieval, then cash/remittances and supporting history. These defects take
+priority over further output breadth; local policy and acceptance remain separate.
+
 Output direction clarified 2026-09-21: the office largely avoids eGAPS reporting
 because it is not user-friendly. Derive the required-output map from actual office
 work and applicable authoritative requirements, with local acceptance still explicit.

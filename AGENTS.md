@@ -74,6 +74,11 @@ reversals retain their own journal dates and missing releases stay pending. See
 
 ### Development state
 
+The [full foundation requirement audit](docs/FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md)
+records remaining ledger/cash/remittance/shadow retrieval caps. Complete these
+with preserved running balances and scope before further output breadth.
+
+
 Voucher action failures retain bound inputs and original state/idempotency tokens;
 never silently rebase or replay a stale financial submission. See the
 [ordinary browser handoff and recovery proof](docs/FINANCE_ORDINARY_BROWSER_HANDOFF.md).

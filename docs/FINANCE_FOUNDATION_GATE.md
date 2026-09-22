@@ -30,6 +30,12 @@ and leaves a recoverable handoff. A checkpoint is not whole-goal completion.
 
 ## Living scope and gap register
 
+The [2026-09-22 A–K requirement audit](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md)
+maps all 22 attached sections and records remaining source-confirmed caps: ledger
+1,000 lines; Treasury cash/remittances and shadow cycles 100 records. Retrieval is
+not complete. Reproduce and repair ledger pagination with running-balance continuity
+before further output or feature breadth; FG-11 remains partial.
+
 Classification describes connected capability, not a model/menu's existence.
 All rows below concern the actual Finance workflow or a supporting dependency.
 Other eGAPS capabilities must be classified as in scope, supporting dependency,
