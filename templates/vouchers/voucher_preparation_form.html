@@ -12,6 +12,7 @@
         </div>
         <button type="button" class="btn btn-sm btn-outline-primary" id="add-deduction-row">Add another</button>
       </div>
+      {{ voucher_deduction_formset.non_form_errors }}
       {{ voucher_deduction_formset.management_form }}
       <div id="deduction-rows">
         {% for deduction_form in voucher_deduction_formset %}

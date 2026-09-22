@@ -222,3 +222,15 @@ Accounting trial balance/ledger/payable/withholding and Treasury output. It veri
 retained earlier payable evidence, dated Budget exclusion, source identities and
 permission-checked workbook downloads. See [scenario and validation scope](FINANCE_CROSS_OFFICE_OUTPUT_REPLAY.md).
 FG-06/FG-07 remain partial pending wider screen-level, exact-form and LGU proof.
+
+
+## Checkpoint 4D — Ordinary browser handoff and retained corrections
+
+A real browser completed the submitted-payable-to-payment route with separate
+preparer, validator and Treasury accounts in a fresh synthetic fixture. The route
+exposed discarded input on failed forms; voucher actions now retain submissions
+and their original concurrency/retry tokens, while financial validation remains
+unchanged. Named signature choices replace internal object labels. See
+[scenario, validation and retained evidence](FINANCE_ORDINARY_BROWSER_HANDOFF.md).
+FG-07 remains partial: initial Budget setup used services and real printing,
+physical custody, bank evidence and LGU acceptance were not performed.

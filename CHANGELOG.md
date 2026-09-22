@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.124] - 2026-09-22
+### Fixed
+- fix(vouchers): retain entries after action validation errors
+
 ## [0.7.123] - 2026-09-21
 ### Feat
 - test(finance): reconcile ordinary cross-office outputs
