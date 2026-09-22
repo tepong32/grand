@@ -4,7 +4,34 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Controlled workbook print coverage
+## Current checkpoint - DV source context
+
+Branch `codex/finance-dv-source-context` begins at v0.7.132
+`05503560242bfe3f24ab57fcc6fadd44227a6c33`, [draft PR #93](https://github.com/tepong32/grand/pull/93).
+The starter's five visible context fields now have optional governed mappings.
+New outputs use actual certified obligation references, linked claim reference,
+retained fund codes and the case's party version. Old approved mappings and issued
+files remain unchanged. See [contract and actual validation](docs/FINANCE_DV_SOURCE_CONTEXT.md).
+
+Preflight rejects context collisions, non-anchor merged destinations and omitted
+print areas. Text stays literal. Output snapshots retain context/source identities;
+idempotent replay preserves bytes. The multi-source fixture retains both original
+Budget obligations and obtains sufficient reviewed allotment. No amount, posting,
+permission, migration or lock-order changes.
+
+SQLite PASS 362/362 (199.059s); native MySQL PASS 35/35 (9.482s), no skips.
+Both runners exited 0 and destroyed disposable stores; native server stopped.
+Commands, initial fixture failures and scope rationale are in the linked report.
+Source/starter inspection PASS;
+both prior output hashes and operator DB hash remain unchanged. Physical printing,
+long-reference layout and exact accepted-form fidelity remain unverified.
+
+Next: compare a populated actual starter and long/multiple references with source
+values and rendered layout. Full Finance goal remains incomplete, production
+NO-GO; local earmark semantics and exact accepted forms unresolved. eGAPS may stay
+closed. No master merge or deployment.
+
+## Prior checkpoint - Controlled workbook print coverage
 
 Branch `codex/finance-template-print-coverage` starts at v0.7.131
 `e0b3a7a68b3360fa3955d8beb21f8f5246372060`, [draft PR #92](https://github.com/tepong32/grand/pull/92).

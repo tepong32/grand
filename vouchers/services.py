@@ -16,7 +16,7 @@ from django.utils import timezone
 from finance.exemptions import workflow_exemption_for, workflow_exemption_snapshot
 from finance.models import (
     FinanceConfigurationItem, FinanceConfigurationRelease, FinanceNumberingSequence,
-    FinancePartyClaimant, FinancePostingRule, FinanceSignatory, FinanceTransactionVariant, FinanceWorkflowExemption,
+    FinancePartyClaimant, FinancePostingRule, FinanceSignatory, FinanceTemplateVersion, FinanceTransactionVariant, FinanceWorkflowExemption,
     finance_tax_rule_snapshot,
 )
 from finance.services import (
@@ -2352,6 +2352,36 @@ def link_tracepoint_item(*, case, item, actor, expected_version, idempotency_key
     return case
 
 
+def _dv_context_values(case, mapping):
+    """Bind only context fields explicitly included in this template's preflight."""
+    wanted = set(mapping).intersection(FinanceTemplateVersion.DV_CONTEXT_NAMES)
+    values, sources = {}, {}
+    if "GRAND_FUND_CODES" in wanted:
+        values["GRAND_FUND_CODES"] = ", ".join(sorted(set(
+            case.obligation.allocation_lines.values_list("fund_code", flat=True)
+        )))
+    if "GRAND_OBLIGATION_REFERENCES" in wanted:
+        allocations = list(_active_payable_allocations(case))
+        references = [row.obligation.obligation_number for row in allocations]
+        sources["obligations"] = [{
+            "allocation_public_id": str(row.public_id), "allocation_version": row.version,
+            "obligation_public_id": str(row.obligation.public_id),
+            "obligation_number": row.obligation.obligation_number,
+            "source_checksum": row.obligation_checksum_snapshot,
+            "allocated_amount": str(row.allocated_amount),
+        } for row in allocations]
+        if not references and case.obligation.source_kind.startswith("authoritative_f4"):
+            raise VoucherWorkflowError("The authoritative obligation references are missing. Reconcile the source before generating the DV.")
+        values["GRAND_OBLIGATION_REFERENCES"] = "; ".join(sorted(set(references))) if references else case.obligation.obr_number
+    if "GRAND_CLAIM_REFERENCE" in wanted:
+        values["GRAND_CLAIM_REFERENCE"] = getattr(getattr(case, "payable_intake", None), "claim_reference", "")
+    if "GRAND_PAYEE_ADDRESS" in wanted:
+        values["GRAND_PAYEE_ADDRESS"] = case.payee.address if case.payee_id else ""
+    if "GRAND_PAYEE_TIN" in wanted:
+        values["GRAND_PAYEE_TIN"] = case.payee.tax_identifier if case.payee_id else ""
+    return values, sources
+
+
 @transaction.atomic
 def generate_shadow_dv(*, case, actor, idempotency_key):
     _require(actor, "vouchers.prepare_disbursement_voucher")
@@ -2371,7 +2401,9 @@ def generate_shadow_dv(*, case, actor, idempotency_key):
         template.workbook.open("rb")
         payload = template.workbook.read()
         template.workbook.close()
-        workbook, _mapping, _result = inspect_finance_workbook(payload, template.document_type)
+        workbook, mapping, _result = inspect_finance_workbook(
+            payload, template.document_type, approved_optional_names=template.mapping,
+        )
     except FinanceTemplateError as exc:
         raise VoucherWorkflowError(str(exc)) from exc
     voucher = case.disbursement_voucher
@@ -2394,12 +2426,17 @@ def generate_shadow_dv(*, case, actor, idempotency_key):
         "GRAND_CERTIFIED_BY": case.obligation.certified_by.get_full_name() or case.obligation.certified_by.username,
         "GRAND_APPROVED_BY": approval_task.signatory_name_snapshot if approval_task else "WET SIGNATURE — VERIFY ORIGINAL",
     }
+    context_values, context_sources = _dv_context_values(case, mapping)
+    values.update(context_values)
     for name, value in values.items():
         sheet, coordinate = _destination(workbook, name)
         target = sheet[coordinate]
         if isinstance(target, tuple):
             target = target[0][0] if isinstance(target[0], tuple) else target[0]
         target.value = value
+        if name in context_values:
+            # Source references and party details are literal text, never formulas.
+            target.data_type = "s"
     sheet, coordinate = _destination(workbook, "GRAND_LINE_ITEMS")
     cells = sheet[coordinate]
     if cells and not isinstance(cells[0], tuple):
@@ -2431,6 +2468,10 @@ def generate_shadow_dv(*, case, actor, idempotency_key):
             for task in signature_tasks
         ],
     }
+    if context_values:
+        snapshot["template_context"] = context_values
+        snapshot["template_context_sources"] = context_sources
+        snapshot["payee_version_id"] = case.payee_id
     output = VoucherOutput(
         case=case, output_type="disbursement-voucher", version=version, template=template,
         checksum=hashlib.sha256(output_payload).hexdigest(), input_snapshot=snapshot,

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.133] - 2026-09-22
+### Fixed
+- fix(finance): bind optional DV context to retained sources
+
 ## [0.7.132] - 2026-09-22
 ### Fixed
 - fix(finance): reject omitted controlled fields in workbook print areas

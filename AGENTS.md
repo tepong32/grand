@@ -57,6 +57,11 @@ across separately printed areas. Reverify before new output generation without
 rewriting historical issued files. Coverage alone does not establish legibility,
 printer pagination or local acceptance. See [print coverage](docs/FINANCE_TEMPLATE_PRINT_COVERAGE.md).
 
+DV optional context binds only names retained by that template's preflight; never
+reinterpret an existing approval after adding a recognized name. Use actual certified
+obligation references for multi-source claims and the case's pinned party version.
+Retain output context/source identities and literal text; see [source-context contract](docs/FINANCE_DV_SOURCE_CONTEXT.md).
+
 ### Development state
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

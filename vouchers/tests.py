@@ -1,6 +1,8 @@
 from datetime import date, timedelta
 from decimal import Decimal
 import csv
+import hashlib
+import json
 import io
 from calendar import monthrange
 from pathlib import Path
@@ -41,8 +43,8 @@ from finance.models import (
     FinanceDocumentRule, FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
     FinanceAuditEvent, FinanceSignatory, FinanceTemplateVersion, FinanceTransactionVariant, FinanceWorkflowExemption,
 )
-from finance.services import preflight_finance_template
-from openpyxl import Workbook
+from finance.services import preflight_finance_template, inspect_finance_workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.workbook.defined_name import DefinedName
 from records.services import RecordWorkflowError, source_department
 from reporting.models import ReportDefinition, ReportRun, ReportTemplateVersion
@@ -1427,7 +1429,7 @@ class VoucherWorkflowTests(TestCase):
         request.refresh_from_db()
         self.assertEqual(request.status, VoucherPostingRequest.POSTED)
 
-    def authoritative_payable_for_review(self):
+    def authoritative_payable_for_review(self, *, authority_amount=Decimal("1000.00")):
         """Build and submit one payable through real Budget and intake services."""
         self.budget_user.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="budget",
@@ -1597,7 +1599,7 @@ class VoucherWorkflowTests(TestCase):
             requesting_department_label=self.requesting.name,
             fund=self.accounting_fund,
             expense_class="MOOE",
-            amount=Decimal("1000.00"),
+            amount=authority_amount,
             basis="Synthetic reviewed ceiling schedule.",
         )
         budget_version = BudgetVersion.objects.create(
@@ -1622,7 +1624,7 @@ class VoucherWorkflowTests(TestCase):
             expense_class="MOOE",
             particulars="Synthetic office supplies for the governed replay",
             performance_target="Complete one controlled finance cycle",
-            amount=Decimal("1000.00"),
+            amount=authority_amount,
             change_explanation="Supported by the synthetic work plan.",
         )
         authorization = AppropriationAuthorization.objects.create(
@@ -1636,7 +1638,7 @@ class VoucherWorkflowTests(TestCase):
             review_reference="Synthetic favorable review for full-cycle replay",
             review_date=date(2025, 12, 28),
             evidence_reference="Synthetic retained ordinance, review, and signed schedule references.",
-            signed_control_total=Decimal("1000.00"),
+            signed_control_total=authority_amount,
             created_by_id=self.budget_user.pk,
             created_by_label=self.budget_user.username,
         )
@@ -1658,7 +1660,7 @@ class VoucherWorkflowTests(TestCase):
             authority_reference="Synthetic reviewed allotment authority.",
             evidence_reference="Synthetic retained signed allotment schedule.",
             purpose="Release the one-case full-cycle operating allotment.",
-            signed_control_total=Decimal("1000.00"),
+            signed_control_total=authority_amount,
             created_by_id=self.budget_user.pk,
             created_by_label=self.budget_user.username,
         )
@@ -1667,7 +1669,7 @@ class VoucherWorkflowTests(TestCase):
             order=allotment,
             appropriation_line=authorization.schedule_lines.get(),
             movement_type=AllotmentOrderLine.RELEASE,
-            amount=Decimal("1000.00"),
+            amount=authority_amount,
             remarks="Synthetic reviewed release schedule line.",
         )
         transition_allotment_order(allotment, "submit", self.budget_user)
@@ -3151,6 +3153,122 @@ class VoucherWorkflowTests(TestCase):
             finance_models,
             {"financeconfigurationrelease", "financeworkflowexemption", "financeauditevent"},
         )
+
+    def _context_template_fixture(self, *, legacy=False):
+        workbook = load_workbook(self.template.workbook.path)
+        for row, name in enumerate(FinanceTemplateVersion.DV_CONTEXT_NAMES, 5):
+            workbook.defined_names.add(DefinedName(name, attr_text=f"'Voucher'!$E${row}"))
+            workbook["Voucher"].cell(row, 5).value = "LEGACY MANUAL CONTEXT"
+        buffer = io.BytesIO(); workbook.save(buffer); payload = buffer.getvalue()
+        _, mapping, result = inspect_finance_workbook(payload, approved_optional_names=() if legacy else None)
+        # Approved synthetic setup, like setUpTestData; no workflow approval is claimed.
+        return FinanceTemplateVersion.objects.create(
+            department=self.accounting, release=self.release, document_type="disbursement-voucher",
+            version=2, title="Synthetic optional-context template", status="active",
+            workbook=SimpleUploadedFile("context-dv.xlsx", payload),
+            workbook_checksum=hashlib.sha256(payload).hexdigest(), mapping=mapping,
+            mapping_checksum=hashlib.sha256(json.dumps(mapping, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+            preflight_result=result, preflighted_by=self.preparer, preflighted_at=timezone.now(),
+            effective_from=date(2026, 1, 1), created_by=self.preparer,
+        )
+
+    def test_dv_context_uses_pinned_sources_and_retains_output_evidence(self):
+        template = self._context_template_fixture()
+        self.party = FinanceParty.objects.create(
+            department=self.accounting, release=self.release, code="context-payee", version=1,
+            display_name="Synthetic context payee", address="=1+1", tax_identifier="000-123-456",
+            status="active", effective_from=date(2026, 1, 1), created_by=self.preparer,
+        )
+        case = self.create_case("context-create")
+        self.budget_certify(case, "context-budget")
+        self.accounting_prepare(case, "context-prepare")
+        case.refresh_from_db()
+        self.assertEqual(case.voucher_template_id, template.pk)
+        FinanceParty.objects.create(
+            department=self.accounting, release=self.release, code=self.party.code, version=2,
+            display_name="Successor party", address="Successor address", tax_identifier="SUCCESSOR-TIN",
+            status="active", effective_from=date(2026, 8, 25), created_by=self.preparer, supersedes=self.party,
+        )
+        output = generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="context-output")
+        workbook = load_workbook(output.file.path)
+        context = output.input_snapshot["template_context"]
+        self.assertEqual(context["GRAND_FUND_CODES"], "general-fund")
+        self.assertEqual(context["GRAND_OBLIGATION_REFERENCES"], case.obligation.obr_number)
+        self.assertEqual(context["GRAND_CLAIM_REFERENCE"], "")
+        self.assertEqual(context["GRAND_PAYEE_ADDRESS"], self.party.address)
+        self.assertEqual(context["GRAND_PAYEE_TIN"], self.party.tax_identifier)
+        self.assertEqual(output.input_snapshot["payee_version_id"], self.party.pk)
+        for name, expected in context.items():
+            location = template.mapping[name]
+            self.assertEqual(workbook[location["worksheet"]][location["range"]].value or "", expected)
+        address = template.mapping["GRAND_PAYEE_ADDRESS"]
+        self.assertEqual(workbook[address["worksheet"]][address["range"]].data_type, "s")
+        before = Path(output.file.path).read_bytes()
+        replay = generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="context-output")
+        self.assertEqual(replay.pk, output.pk)
+        self.assertEqual(Path(output.file.path).read_bytes(), before)
+
+    def test_dv_context_does_not_fill_unapproved_legacy_names(self):
+        template = self._context_template_fixture(legacy=True)
+        case = self.create_case("legacy-context-create")
+        self.budget_certify(case, "legacy-context-budget")
+        self.accounting_prepare(case, "legacy-context-prepare")
+        output = generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="legacy-context-output")
+        workbook = load_workbook(output.file.path)
+        self.assertNotIn("template_context", output.input_snapshot)
+        self.assertFalse(set(template.mapping).intersection(FinanceTemplateVersion.DV_CONTEXT_NAMES))
+        for row in range(5, 10):
+            self.assertEqual(workbook["Voucher"].cell(row, 5).value, "LEGACY MANUAL CONTEXT")
+
+    def test_dv_context_lists_actual_multiple_obligations_and_claim_reference(self):
+        from budget.models import PayableObligationAllocation
+        from .services import add_payable_obligation_allocation, revise_payable_obligation_allocation
+        self._context_template_fixture()
+        case, _, original, _ = self.authoritative_payable_for_review(authority_amount=Decimal("1500.00"))
+        review_payable_intake(case=case, actor=self.validator, decision=PayableIntake.RETURNED,
+            reason="Synthetic source allocation refinement", expected_version=case.state_version,
+            idempotency_key="context-return")
+        case.refresh_from_db()
+        first = PayableObligationAllocation.objects.get(voucher_case_public_id=case.public_id, status="active")
+        revise_payable_obligation_allocation(case=case, allocation_public_id=first.public_id,
+            revised_amount=Decimal("500.00"), relationship_type="partial", reason="Split source allocation",
+            actor=self.requesting_user, expected_version=case.state_version, idempotency_key="context-revise")
+        owner = {"department_id": original.department_id, "department_label": original.department_label}
+        second = ObligationRequest.objects.create(**owner, authorization=original.authorization,
+            fiscal_year=original.fiscal_year, requesting_department_id=self.requesting.pk,
+            requesting_department_label=self.requesting.name, kind=ObligationRequest.ORIGINAL,
+            form_type=ObligationRequest.OBR, request_reference="CONTEXT-SECOND", obligation_date=original.obligation_date,
+            claimant_payee=self.party.display_name, particulars="Second source", evidence_reference="Synthetic second source",
+            signed_control_total=Decimal("500.00"), created_by_id=self.requesting_user.pk,
+            created_by_label=self.requesting_user.username)
+        ObligationRequestLine.objects.create(**owner, request=second,
+            appropriation_line=original.lines.get().appropriation_line, movement_type=ObligationRequestLine.OBLIGATE,
+            amount=Decimal("500.00"), remarks="Synthetic second source")
+        transition_obligation_request(second, "submit", self.requesting_user)
+        second = transition_obligation_request(second, "certify", self.budget_user, "Reviewed second source", "OBR-2026-CYCLE-002")
+        case.refresh_from_db()
+        add_payable_obligation_allocation(case=case, obligation=second, allocation_amount=Decimal("500.00"),
+            relationship_type="full", reason="Complete claim across two sources", actor=self.requesting_user,
+            expected_version=case.state_version, idempotency_key="context-add")
+        case.refresh_from_db()
+        submit_payable_intake(case=case, actor=self.requesting_user, expected_version=case.state_version,
+            idempotency_key="context-submit")
+        case.refresh_from_db()
+        review_payable_intake(case=case, actor=self.validator, decision=PayableIntake.READY,
+            reason="Independent two-source review", expected_version=case.state_version, idempotency_key="context-review")
+        case.refresh_from_db()
+        prepare_voucher(case=case, actor=self.preparer, voucher_date=date(2026, 8, 25), gross_amount=Decimal("1000.00"),
+            deductions=[{"tax_rule_item":self.tax_rule_item,"code":self.tax_rule_item.code,
+                         "description":self.tax_rule_item.label,"tax_base":Decimal("1000.00"),"amount":Decimal("10.00")}],
+            line_description="Synthetic office supplies", line_account_code="5-02-03", document_codes=["invoice"],
+            expected_version=case.state_version, idempotency_key="context-dv")
+        output = generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="multi-context-output")
+        context = output.input_snapshot["template_context"]
+        self.assertEqual(context["GRAND_OBLIGATION_REFERENCES"], "; ".join(sorted((original.obligation_number, second.obligation_number))))
+        self.assertNotIn("MULTI/", context["GRAND_OBLIGATION_REFERENCES"])
+        self.assertEqual(context["GRAND_CLAIM_REFERENCE"], "CLAIM-2026-CYCLE-001")
+        self.assertEqual(len(output.input_snapshot["template_context_sources"]["obligations"]), 2)
+        self.assertEqual(output.input_snapshot["gross_amount"], "1000.00")
 
     def test_shadow_dv_output_pins_template_snapshot_and_checksum(self):
         case = self.create_case("output-create")
