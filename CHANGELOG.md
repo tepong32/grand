@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.138] - 2026-09-22
+### Documentation
+- docs(finance): audit foundation requirements and remaining retrieval gaps
+
 ## [0.7.137] - 2026-09-22
 ### Test
 - test(finance): verify Treasury exports across release and posting

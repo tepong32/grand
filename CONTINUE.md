@@ -4,7 +4,29 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Treasury output rehearsal
+## Current checkpoint - Full foundation requirement audit
+
+Branch `codex/finance-foundation-requirement-audit` begins at v0.7.137
+`3deb36e6c2be85745de2955adef5a94b434e5cd5`, [draft PR #98](https://github.com/tepong32/grand/pull/98).
+The [A–K report and all 22 requirements](docs/FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md)
+separate implemented work, code gaps, unknown local rules and unperformed acceptance.
+Source inspection confirms ledger first-1,000 truncation despite full CSV export,
+and 100-record limits in Treasury cash/remittance and Finance shadow workspaces.
+No application change; volume reproductions for these findings remain next work.
+
+Validation: source/template review, local Markdown targets and `git diff --check`
+PASS. Application/native/browser suites NOT RUN - OUT OF SCOPE for documentation
+only. Prior PR #98 remote checks still pending at audit time. No master merge or
+deployment; operator database untouched; production NO-GO and goal active.
+
+Next: reproduce ledger >1,000 rows and invalid account selection, then add stable
+pagination, truthful scope/counts and per-account running balances across pages.
+Validate credit-normal signs, tied dates, department access and full CSV agreement.
+Then cash/remittances and shadow/history reachability. Preserve Budget actuals
+coverage and earmark unknowns; no repeated local-policy question or invented rules.
+eGAPS may remain closed. Latest user steering requires careful reasoning before code.
+
+## Prior checkpoint - Treasury output rehearsal
 
 Branch `codex/finance-treasury-output-rehearsal` begins at v0.7.136
 `967c3f8b4a28ba774af39f392ba6d2e23cf6ef75`, [draft PR #97](https://github.com/tepong32/grand/pull/97).
