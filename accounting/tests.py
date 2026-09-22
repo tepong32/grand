@@ -203,6 +203,41 @@ class StandaloneAccountingTests(TestCase):
         self.assertEqual(self.client.get(url, {"handoff_q": "QUEUE"}).context["source_requests"].paginator.count, 0)
         self.assertEqual(VoucherPostingRequest.objects.filter(status=VoucherPostingRequest.PENDING).count(), 61)
 
+    def test_bank_register_retrieves_every_statement_and_exports_all_matches(self):
+        BankStatementBatch.objects.bulk_create([
+            BankStatementBatch(department_id=self.accounting_department.pk,
+                               department_label=self.accounting_department.name, fund=self.fund,
+                               bank_account_code="VOLUME-BANK", bank_name="Synthetic bank",
+                               statement_reference=f"VOLUME-STMT-{number:03}", received_on=date(2027, 1, 31),
+                               period_start=date(2027, 1, 1), period_end=date(2027, 1, 31),
+                               opening_balance=0, closing_balance=0, expected_row_count=0,
+                               created_by_id=self.preparer.pk, created_by_label=self.preparer.username)
+            for number in range(111)
+        ])
+        self.client.force_login(self.preparer)
+        url = reverse("accounting:bank_reconciliation_workspace")
+        seen = []
+        for number, count in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(url, {"q": "VOLUME", "page": number, "status": "draft"})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["visible_count"], 111)
+            self.assertEqual(len(response.context["batches"]), count)
+            seen.extend(row.pk for row in response.context["batches"])
+            self.assertIn("q=VOLUME", response.context["page_obj"].next_url)
+        self.assertEqual(len(set(seen)), 111)
+        self.assertContains(response, "VOLUME-STMT-000")
+        self.assertContains(response, "Showing 101–111 of 111 matching records")
+        export = self.client.get(reverse("accounting:bank_reconciliation_register_export"), {"q": "VOLUME", "page": 3})
+        self.assertEqual(export.status_code, 200)
+        rows = list(csv.DictReader(io.StringIO(export.content.decode("utf-8-sig"))))
+        self.assertEqual(len(rows), 111)
+        exact = self.client.get(url, {"q": "VOLUME-STMT-000", "page": "bad"})
+        self.assertEqual(exact.context["visible_count"], 1)
+        self._grant(self.outsider, "view_bank_reconciliation")
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"page": 3}).context["visible_count"], 0)
+        self.assertEqual(BankStatementBatch.objects.filter(status=BankStatementBatch.DRAFT).count(), 111)
+
     def _fiscal_foundation(self, year=2027):
         fiscal_year = FiscalYear.objects.create(
             department_id=self.accounting_department.pk,

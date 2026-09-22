@@ -1,6 +1,8 @@
 from datetime import date
 from pathlib import Path
 import tempfile
+import csv
+import io
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -82,6 +84,41 @@ class GovernedPeriodCloseTests(TestCase):
         run = self._run(period)
         submit_period_close_run(run, self.preparer)
         return decide_period_close_run(run, self.reviewer, approve=True, note="Evidence checked independently.")
+
+    def test_close_register_retrieves_every_retained_version_and_exports_all(self):
+        original = self._run()
+        PeriodCloseRun.objects.bulk_create([
+            PeriodCloseRun(department_id=self.department.pk, department_label=self.department.name,
+                           period=self.january, version=number, policy=original.policy,
+                           policy_snapshot=original.policy_snapshot, policy_checksum=original.policy_checksum,
+                           checklist_snapshot=original.checklist_snapshot, checklist_checksum=original.checklist_checksum,
+                           adjustment_review_note="Synthetic retrieval fixture", evidence_reference="Synthetic",
+                           prepared_by_id=self.preparer.pk, prepared_by_label=self.preparer.username)
+            for number in range(2, 112)
+        ])
+        self.client.force_login(self.preparer)
+        url = reverse("accounting:period_close_workspace")
+        seen = []
+        for number, count in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(url, {"status": PeriodCloseRun.DRAFT, "page": number})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["visible_count"], 111)
+            self.assertEqual(len(response.context["runs"]), count)
+            seen.extend(row.pk for row in response.context["runs"])
+            self.assertIn("status=draft", response.context["page_obj"].next_url)
+        self.assertEqual(len(set(seen)), 111)
+        self.assertContains(response, "Showing 101–111 of 111 matching records")
+        self.assertContains(response, original.get_absolute_url() if hasattr(original, "get_absolute_url") else reverse("accounting:period_close_detail", args=[original.public_id]))
+        export = self.client.get(reverse("accounting:period_close_register_export"), {"status": "draft", "page": 3})
+        self.assertEqual(export.status_code, 200)
+        rows = list(csv.DictReader(io.StringIO(export.content.decode("utf-8-sig"))))
+        self.assertEqual(len(rows), 111)
+        empty = self.client.get(url, {"status": PeriodCloseRun.CLOSED, "page": "bad"})
+        self.assertContains(empty, "Showing 0–0 of 0 matching records")
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"page": 3}).context["visible_count"], 0)
+        self.january.refresh_from_db()
+        self.assertEqual(self.january.status, AccountingPeriod.OPEN)
 
     def test_observe_starter_explains_advisory_gaps_and_independent_approval_closes(self):
         run = self._run()
