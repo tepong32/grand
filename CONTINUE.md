@@ -4,7 +4,37 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Budget proposal and allotment retrieval
+## Current checkpoint - Accounting control-register retrieval
+
+Branch `codex/finance-accounting-control-retrieval` starts at verified v0.7.127
+`6dd971cee82ba9f6e16dace3b3c98bb7f4fcb54d`, [draft PR #89](https://github.com/tepong32/grand/pull/89).
+Its checks were running at checkpoint start. Earlier PR #86 now has verify, native
+MySQL and GitGuardian PASS on its exact v0.7.124 head; that is not current-head proof.
+
+Period-close and bank-reconciliation displays silently sliced at 100 despite full
+exports. Both now page all matches with stable ordering, ranges and retained filters.
+The close-register `runs` queryset interface is preserved separately from page
+metadata. Services, scope, actions and export rules unchanged. See
+[scope and actual validation](docs/FINANCE_ACCOUNTING_CONTROL_RETRIEVAL.md).
+
+Initial focused failure: omitted required bank received date in new fixture; fixed.
+Initial broader failure: one context-queryset compatibility error; fixed. Corrected
+regression PASS 67/67, no skips, 17.619s, exit 0; directly dependent bank/close task
+checks PASS 13/13, no skips, 10.962s, exit 0. All test stores destroyed and runner
+sessions terminal; commands/logs in the linked report. Browser PASS: actual third-page navigation and both
+111-row CSV downloads; desktop/narrow screenshots retained. Read-only synthetic
+fixtures do not prove financial close/reconciliation acceptance. Browser/server
+stopped. No owned native server started; operator database hash unchanged.
+
+Version Manager adapter previews v0.7.128 with historical references preserved.
+Draft PR stacks on #89; no master merge, deployment or production migration.
+Next: Reporting local-form registry still silently slices at 100; source drill-through
+explicitly labels its 100-row preview but complete navigation remains to inspect.
+FG-11 stays partial. Then ordinary printing/custody and exact-output proof; local
+earmark semantics, official forms and live/LGU acceptance remain unresolved.
+Full foundation goal remains active.
+
+## Published checkpoint - Budget proposal and allotment retrieval
 
 Branch `codex/finance-budget-register-retrieval` starts at verified v0.7.126
 `fe122b65414f0928b94e5bc255398e649ad39418`, [draft PR #88](https://github.com/tepong32/grand/pull/88).

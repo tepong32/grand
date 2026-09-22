@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.128] - 2026-09-22
+### Fixed
+- fix(accounting): paginate close and bank control registers
+
 ## [0.7.127] - 2026-09-22
 ### Fixed
 - fix(budget): retrieve all proposal and allotment matches

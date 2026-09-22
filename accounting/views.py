@@ -469,8 +469,9 @@ def period_close_workspace(request):
         "-fiscal_year", "-period_number",
     )
     policies = PeriodClosePolicy.objects.filter(department_id=department.pk)
+    page = _workspace_page(runs.order_by(*PeriodCloseRun._meta.ordering, "-pk"), request, "page", "close-register")
     return render(request, "accounting/period_close_workspace.html", {
-        "runs": runs[:100], "periods": periods, "policies": policies,
+        "runs": page.object_list, "page_obj": page, "periods": periods, "policies": policies,
         "current_policy": current_period_close_policy(department.pk),
         "can_prepare_close": can_prepare_period_close(request.user),
         "can_approve_close": can_approve_period_close(request.user),
@@ -482,7 +483,7 @@ def period_close_workspace(request):
         "attention_choices": period_close_action_choices_for_user(request.user),
         "selected_status": selected_status,
         "selected_attention": selected_attention,
-        "visible_count": runs.count(),
+        "visible_count": page.paginator.count,
     })
 
 
@@ -1194,12 +1195,13 @@ def bank_reconciliation_workspace(request):
         attention=request.GET.get("attention", "").strip(), search=request.GET.get("q", ""),
         actor=request.user,
     )
-    visible_count = batches.count()
-    display_batches = list(batches[:100])
+    page = _workspace_page(batches.order_by(*BankStatementBatch._meta.ordering), request, "page", "bank-register")
+    visible_count = page.paginator.count
+    display_batches = list(page)
     for batch in display_batches:
         batch.next_action_label = next_bank_action(batch)
     return render(request, "accounting/bank_reconciliation_workspace.html", {
-        "batches": display_batches, "metrics": metrics, "visible_count": visible_count,
+        "batches": display_batches, "page_obj": page, "metrics": metrics, "visible_count": visible_count,
         "status_choices": BankStatementBatch.STATUS_CHOICES,
         "attention_choices": bank_reconciliation_attention_choices_for_user(request.user),
         "fund_choices": Fund.objects.filter(department_id=department.pk).order_by("code"),
