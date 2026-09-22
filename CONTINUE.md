@@ -4,7 +4,28 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - General-ledger retrieval
+## Current checkpoint - Treasury cash/remittance retrieval
+
+Branch `codex/finance-treasury-register-retrieval` begins at v0.7.139
+`cc152fada4ea0407fee03e8cdfe6cfeb308da331`, [draft PR #100](https://github.com/tepong32/grand/pull/100).
+Two baseline tests reproduced the 100-record cap before application edits. Cash
+work/policies/exceptions/instruments now have independent stable 50-row pages;
+remittance status/action matches have complete pagination. Existing scope, cash
+availability, exports and mutation controls are retained. See
+[commands, validation and screenshots](docs/FINANCE_TREASURY_REGISTER_RETRIEVAL.md).
+
+Baseline: 2 expected failures, 2.683s. Final SQLite PASS 30/30, 20.058s; native
+MySQL PASS 26/26, 15.605s; no skips, both exit 0. Tests include off-page cash
+reservations and actual dependent cash/remittance workflows. Desktop/narrow
+Playwright navigation checks passed on synthetic stores. Diff/local links checked;
+operator DB unchanged; test stores destroyed, native/browser servers stopped.
+
+Next: shadow-cycle 100-record retrieval limit and complete history reachability.
+FG-11 remains partial; do not defer Budget coverage/earmark unknowns and exact
+outputs indefinitely. Full goal active; production NO-GO; no master merge or
+deployment. eGAPS may remain closed.
+
+## Prior checkpoint - General-ledger retrieval
 
 Branch `codex/finance-ledger-retrieval` begins at v0.7.138
 `a03f82d16e18276d30ab7396b4e67b833a6e8990`, [draft PR #99](https://github.com/tepong32/grand/pull/99).

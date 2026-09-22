@@ -7,6 +7,7 @@ from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from departments.models import Department
 from finance.models import FinanceConfigurationRelease
@@ -14,7 +15,8 @@ from finance.work_tasks import finance_work_tasks
 from profiles.models import EmployeeProfile
 
 from .cash_register import cash_attention_queryset
-from .models import TreasuryCashEvent, TreasuryCashPolicy, TreasuryCashPosition
+from .models import (PaymentInstrument, PaymentInstrumentException, TreasuryCashEvent,
+                     TreasuryCashPolicy, TreasuryCashPosition, TreasuryCashReservation, VoucherCase)
 from .cash_positions import submit_policy, decide_policy
 from .roles import FINANCE_UAT_VIEWER_GROUP
 
@@ -130,6 +132,107 @@ class CashWorkRegisterTests(TestCase):
         )
         self.assertNotContains(response, "counts actual records rather than mixing two kinds of work")
         self.assertContains(response, "This list does not assign, submit, approve, or alter any record")
+
+    def test_cash_policy_and_position_retrieval_reaches_every_scoped_record(self):
+        for version in range(5, 110):
+            self._policy(self.release, self.treasury, self.user, TreasuryCashPolicy.DRAFT, version)
+            self._position(self.active_policy, self.user, TreasuryCashPosition.DRAFT, version)
+        self.client.force_login(self.user)
+        url = reverse("vouchers:cash_workspace")
+        first = self.client.get(url, {"attention": "policy_needs_preparation"})
+        self.assertEqual(len(first.context["policies"]), 50)
+        self.assertEqual(first.context["cash_work_count"], 107)
+        seen_policies, seen_work = set(), set()
+        for page in range(1, 4):
+            response = self.client.get(url, {
+                "attention": "policy_needs_preparation", "policy_page": page, "work_page": page,
+            })
+            policy_ids = {item.pk for item in response.context["policies"]}
+            work_ids = {item.pk for item in response.context["cash_work_items"]}
+            self.assertFalse(seen_policies & policy_ids)
+            self.assertFalse(seen_work & work_ids)
+            seen_policies |= policy_ids
+            seen_work |= work_ids
+        self.assertEqual(len(seen_policies), 109)
+        self.assertEqual(len(seen_work), 107)
+        self.assertNotIn(self.hidden_policy.pk, seen_policies)
+        self.assertContains(response, "of 109 matching records")
+        self.assertContains(response, "attention=policy_needs_preparation&amp;policy_page=2&amp;work_page=3")
+        last_positions = self.client.get(url, {"attention": "position_needs_preparation", "work_page": 3})
+        self.assertEqual(len(last_positions.context["cash_work_items"]), 7)
+        self.assertEqual(last_positions.context["cash_work_count"], 107)
+        self.assertEqual(last_positions.context["policy_page"].number, 1)
+
+    def test_instrument_exception_pages_do_not_limit_cash_reservations(self):
+        # Synthetic retained records exercise read projection, not actual issue.
+        case = VoucherCase.objects.create(
+            reference_code="CASH-VOLUME", transaction_type="ordinary-supplier-claim",
+            requesting_department=self.treasury, current_department=self.treasury,
+            payee_name="Synthetic payee", particulars="Synthetic retrieval volume", created_by=self.user,
+        )
+        issued_at = timezone.now()
+        instruments = [PaymentInstrument.objects.create(
+            case=case, bank_account_code="GF-LBP", fund_code="GF", check_number=f"CHECK-{index:03}",
+            amount=Decimal("2.00"), status=PaymentInstrument.ISSUED, issued_at=issued_at, issued_by=self.user,
+        ) for index in range(105)]
+        for instrument in instruments:
+            PaymentInstrumentException.objects.create(
+                instrument=instrument, policy=self.active_policy, kind=PaymentInstrumentException.UNCLAIMED,
+                observed_on=date(2026, 9, 2), reason="Synthetic", evidence_reference="Synthetic",
+                opened_by=self.user,
+            )
+            TreasuryCashReservation.objects.create(
+                position=self.approved_position, instrument=instrument, amount=instrument.amount, created_by=self.user,
+            )
+        # Unrelated/closed records must not enter the corresponding counts.
+        foreign_case = VoucherCase.objects.create(
+            reference_code="CASH-FOREIGN", transaction_type="ordinary-supplier-claim",
+            requesting_department=self.other, current_department=self.other,
+            payee_name="Foreign", particulars="Synthetic", created_by=self.user,
+        )
+        foreign = PaymentInstrument.objects.create(
+            case=foreign_case, bank_account_code="OTHER", fund_code="GF", check_number="FOREIGN",
+            amount=1, status=PaymentInstrument.ISSUED, issued_at=issued_at,
+        )
+        PaymentInstrumentException.objects.create(
+            instrument=foreign, policy=self.hidden_policy, kind=PaymentInstrumentException.UNCLAIMED,
+            observed_on=date(2026, 9, 2), reason="Synthetic", evidence_reference="Foreign", opened_by=self.user,
+        )
+        PaymentInstrument.objects.create(case=case, bank_account_code="GF-LBP", fund_code="GF",
+                                         check_number="DRAFT", amount=1, status=PaymentInstrument.DRAFT)
+        PaymentInstrument.objects.create(case=case, bank_account_code="GF-LBP", fund_code="GF",
+                                         check_number="CANCELLED", amount=1, status=PaymentInstrument.CANCELLED)
+        PaymentInstrumentException.objects.create(
+            instrument=instruments[0], policy=self.active_policy, kind=PaymentInstrumentException.STALE,
+            status=PaymentInstrumentException.RESOLVED, observed_on=date(2026, 9, 2),
+            reason="Synthetic", evidence_reference="Closed", opened_by=self.user,
+        )
+        self.client.force_login(self.user)
+        url = reverse("vouchers:cash_workspace")
+        seen_instruments, seen_exceptions = set(), set()
+        event_count = TreasuryCashEvent.objects.count()
+        for number in range(1, 4):
+            response = self.client.get(url, {"instrument_page": number, "exception_page": number})
+            self.assertEqual(response.context["instrument_page"].paginator.count, 105)
+            self.assertEqual(response.context["exception_page"].paginator.count, 105)
+            ids = {item.pk for item in response.context["instruments"]}
+            exceptions = {item.instrument_id for item in response.context["exceptions"]}
+            self.assertFalse(seen_instruments & ids)
+            self.assertFalse(seen_exceptions & exceptions)
+            seen_instruments |= ids
+            seen_exceptions |= exceptions
+            policy = next(item for item in response.context["policies"] if item.pk == self.active_policy.pk)
+            self.assertEqual(policy.reserved_amount, Decimal("210.00"))
+            self.assertEqual(policy.available_amount, self.approved_position.approved_available_cash - Decimal("210.00"))
+        self.assertEqual(seen_instruments, {item.pk for item in instruments})
+        self.assertEqual(seen_exceptions, seen_instruments)
+        self.assertContains(response, "instrument_page=2&amp;exception_page=3")
+        self.assertEqual(TreasuryCashEvent.objects.count(), event_count)
+        self.assertEqual(TreasuryCashReservation.objects.filter(status=TreasuryCashReservation.RESERVED).count(), 105)
+        self.client.force_login(self.reviewer)
+        reviewed = self.client.get(url, {"instrument_page": 3, "exception_page": 3})
+        self.assertEqual(reviewed.context["instrument_page"].paginator.count, 106)
+        self.assertEqual(reviewed.context["exception_page"].paginator.count, 106)
 
     def test_position_source_and_my_work_counts_are_identical(self):
         self.client.force_login(self.user)

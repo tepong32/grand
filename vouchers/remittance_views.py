@@ -12,6 +12,7 @@ from .forms import (
     TaxFilingEvidenceForm, TaxFilingEvidenceReviewForm,
 )
 from .models import TaxFilingEvidence, TreasuryRemittanceBatch, TreasuryRemittanceLine
+from .register_pagination import register_page
 from .remittance_register import (
     remittance_action_choices_for_user, remittance_action_queryset,
     visible_remittance_batches,
@@ -58,7 +59,7 @@ def workspace(request):
         raise PermissionDenied
     batches = visible_remittance_batches(
         request.user,
-        TreasuryRemittanceBatch.objects.select_related("recipient_party", "treasury_department"),
+        TreasuryRemittanceBatch.objects.select_related("recipient_party", "treasury_department", "transaction_variant", "created_by"),
     )
     attention = request.GET.get("attention", "")
     work_items, selected_attention, work_spec = remittance_action_queryset(
@@ -72,8 +73,9 @@ def workspace(request):
         batches = batches.filter(status=selected)
     else:
         selected = ""
+    page = register_page(batches.order_by("-remittance_date", "-pk"), request, "page", "remittance-register")
     return render(request, "vouchers/remittances/workspace.html", {
-        "batches": batches[:100], "status_choices": TreasuryRemittanceBatch.STATUS_CHOICES,
+        "batches": page.object_list, "batch_page": page, "status_choices": TreasuryRemittanceBatch.STATUS_CHOICES,
         "selected_status": selected,
         "selected_attention": selected_attention,
         "work_spec": work_spec,
