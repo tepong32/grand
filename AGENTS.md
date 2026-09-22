@@ -68,6 +68,9 @@ remain unchanged. See [starter layout and reproduction](docs/FINANCE_STARTER_LAY
 Treasury instrument reports must use the same active local date for database
 selection, issue/release/cancellation totals and source dates. Preserve actual
 instants and distinct issue/release evidence; see [period boundary validation](docs/FINANCE_TREASURY_REPORT_DATES.md).
+Configured payment-release tax reporting uses the same local-date conversion;
+reversals retain their own journal dates and missing releases stay pending. See
+[tax release-date validation](docs/FINANCE_TAX_RELEASE_DATES.md).
 
 ### Development state
 

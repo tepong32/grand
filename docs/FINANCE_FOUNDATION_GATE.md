@@ -325,3 +325,11 @@ period control totals. New reports align issue/release/cancellation totals and
 source dates with local-date selection; retained source history is unchanged.
 See [reproduction and validation](FINANCE_TREASURY_REPORT_DATES.md). The analogous
 governed-tax release-date path remains a specific next audit item. FG-06 stays partial.
+
+## Checkpoint 5A - Governed tax payment-release dates
+
+Reproduced a local March 1 release reported as February 28. The configured
+payment-release basis now reuses the local-date conversion, with retained rule
+checksums and independent reversal dates. See [source and generated-output tests](FINANCE_TAX_RELEASE_DATES.md).
+This closes the specific date follow-up from the Treasury checkpoint, not FG-06
+or local tax-rule/form acceptance. Continue bank-advice/payment output comparison.
