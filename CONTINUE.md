@@ -4,7 +4,31 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Governed tax release dates
+## Current checkpoint - Treasury output rehearsal
+
+Branch `codex/finance-treasury-output-rehearsal` begins at v0.7.136
+`967c3f8b4a28ba774af39f392ba6d2e23cf6ef75`, [draft PR #97](https://github.com/tepong32/grand/pull/97).
+Fresh ordinary Budget-to-Treasury replay retained payment/advice exports at bank
+acknowledgement, recorded release before posting, and completed posting. Source
+IDs, 900 amount, advice checksum, receipt/JEV evidence and archive manifests agree.
+Earlier exports remain unchanged. See [actual evidence and limits](docs/FINANCE_TREASURY_OUTPUT_REHEARSAL.md).
+
+Initial verifier's assumption that a pending JEV number must be blank was wrong:
+the existing workflow reserves its number before creating the journal. The status
+correctly changes from Waiting for JEV creation to JEV posted. Corrected read-only
+verification passed against the same retained evidence; no source rewrite.
+Application code unchanged; committed replay assertions now retain this coverage.
+SQLite PASS 9/9 affected tests, no skips, 12.740s, exit 0; fresh stores destroyed.
+Corrected retained-evidence verifier exit 0; all runners terminal. Scope/commands
+are in the report. No physical release or LGU acceptance
+claimed; no new browser run. Operator DB unchanged, no master merge/deployment.
+
+Next: reconcile the complete user-requested foundation requirements with the gap
+register and prepare the A-K checkpoint report. Separate actionable implementation
+from local earmark semantics, exact accepted forms and human/operational acceptance.
+Full goal incomplete; production NO-GO. eGAPS may remain closed.
+
+## Prior checkpoint - Governed tax release dates
 
 Branch `codex/finance-tax-release-dates` begins at v0.7.135
 `383b91d371cefa7e3da7ccb4d6a40c4d7f598f23`, [draft PR #96](https://github.com/tepong32/grand/pull/96).

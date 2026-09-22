@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.137] - 2026-09-22
+### Test
+- test(finance): verify Treasury exports across release and posting
+
 ## [0.7.136] - 2026-09-22
 ### Fixed
 - fix(reporting): retain local payment-release dates in tax reports

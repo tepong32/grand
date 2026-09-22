@@ -1971,10 +1971,48 @@ class VoucherWorkflowTests(TestCase):
         )
         self.assertFalse(waiting_for_case(self.validator))  # Independent batch-review action.
         self.assertEqual(len(waiting_for_case(self.treasury_user)), 1)
+        from django.conf import settings
+        retained_exports = []
+        def treasury_exports():
+            self.client.force_login(self.treasury_user)
+            exported = {}
+            for kind, route, public_id in (
+                ("payment", "vouchers:payment_register_export", case.public_id),
+                ("advice", "vouchers:advice_batch_export", advice.public_id),
+            ):
+                response = self.client.get(reverse(route, args=[public_id]))
+                self.assertEqual(response.status_code, 200)
+                payload = response.content
+                checksum = hashlib.sha256(payload).hexdigest()
+                self.assertEqual(checksum, response["X-GRAND-Export-SHA256"])
+                archive = Path(settings.GRAND_EXPORT_ROOT) / response["X-GRAND-Export-Relative-Path"]
+                self.assertEqual(archive.read_bytes(), payload)
+                manifest = json.loads(archive.with_name(archive.name + ".manifest.json").read_text())
+                self.assertEqual(manifest["sha256"], checksum)
+                self.assertEqual(manifest["exported_by"]["id"], self.treasury_user.pk)
+                retained_exports.append((archive, payload))
+                rows = list(csv.DictReader(io.StringIO(payload.decode("utf-8-sig"))))
+                if kind == "advice":
+                    rows = [row for row in rows if row["record_type"] == "instrument"]
+                    self.assertEqual(rows[0]["instrument_id"], str(instrument.public_id))
+                    self.assertEqual(rows[0]["snapshot_checksum"], advice.snapshot_checksum)
+                    self.assertEqual(rows[0]["acknowledgement_reference"], "BANK-ACK-2026-CYCLE-001")
+                else:
+                    self.assertEqual(rows[0]["case_public_id"], str(case.public_id))
+                    self.assertEqual(rows[0]["instrument_public_id"], str(instrument.public_id))
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0]["amount"], "900.00")
+                exported[kind] = rows[0]
+            return exported
+
         self.acknowledge_advice(advice, reference="BANK-ACK-2026-CYCLE-001")
         case.refresh_from_db()
         self.assertEqual(len(waiting_for_case(self.requesting_user)), 1)
         self.assertFalse(waiting_for_case(self.treasury_user))  # Authorized claimant/check release.
+        acknowledged_exports = treasury_exports()
+        self.assertEqual(acknowledged_exports["payment"]["released_at"], "")
+        self.assertEqual(acknowledged_exports["payment"]["receipt_reference"], "")
+        self.assertEqual(acknowledged_exports["payment"]["payment_jev_number"], "")
         instrument.refresh_from_db()
         release_check(
             case=case,
@@ -1991,6 +2029,11 @@ class VoucherWorkflowTests(TestCase):
         self.assertFalse(waiting_for_case(self.preparer))  # Authorized payment source creation.
         payment_request = case.posting_requests.get(kind=VoucherPostingRequest.PAYMENT)
         self.assertEqual(payment_request.posting_rule, payment_rule)
+        released_exports = treasury_exports()
+        self.assertTrue(released_exports["payment"]["released_at"])
+        self.assertEqual(released_exports["payment"]["receipt_reference"], "RCPT-2026-CYCLE-001")
+        self.assertEqual(released_exports["payment"]["payment_jev_number"], payment_request.jev_number)
+        self.assertEqual(released_exports["payment"]["payment_posting_status"], "Waiting for JEV creation")
         payment_entry, created = materialize_voucher_journal(payment_request, self.preparer)
         self.assertTrue(created)
         submit_entry(payment_entry, self.preparer)
@@ -2000,6 +2043,14 @@ class VoucherWorkflowTests(TestCase):
         case.refresh_from_db()
         self.assertFalse(waiting_for_case(self.requesting_user))
         self.assertFalse(waiting_for_case(self.treasury_user))
+        posted_exports = treasury_exports()
+        self.assertEqual(posted_exports["payment"]["payment_posting_status"], "JEV posted")
+        self.assertEqual(posted_exports["payment"]["payment_jev_number"], payment_request.jev_number)
+        self.assertEqual(posted_exports["payment"]["released_at"], released_exports["payment"]["released_at"])
+        self.assertEqual(acknowledged_exports["advice"], released_exports["advice"])
+        self.assertEqual(released_exports["advice"], posted_exports["advice"])
+        for archive, payload in retained_exports:
+            self.assertEqual(archive.read_bytes(), payload)
         self.assertEqual(case.current_stage, VoucherCase.COMPLETED)
         self.assertEqual(case.authoritative_obligation_public_id, obligation.public_id)
         self.assertEqual(case.disbursement_voucher.net_amount, instrument.amount)
