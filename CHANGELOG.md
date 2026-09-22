@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.129] - 2026-09-22
+### Fixed
+- fix(reporting): paginate local forms and retained report sources
+
 ## [0.7.128] - 2026-09-22
 ### Fixed
 - fix(accounting): paginate close and bank control registers

@@ -4,7 +4,29 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Accounting control-register retrieval
+## Current checkpoint - Reporting retrieval; implementation pause requested
+
+Branch `codex/finance-reporting-source-retrieval` starts at verified v0.7.128
+`90957df0a330599c1b3ff649bfd8521c2b9cb010`, [draft PR #90](https://github.com/tepong32/grand/pull/90).
+Local forms and retained report sources now use complete 50-row navigation with
+counts and preserved filters. Output files, financial evidence and review controls
+remain unchanged. See [scope and validation](docs/FINANCE_REPORTING_SOURCE_RETRIEVAL.md).
+
+Focused SQLite PASS 2/2, no skips, 5.065s. Full Reporting regression PASS: 150 passed, 1 skipped (151 discovered),
+50.619s, exit 0; both disposable test stores destroyed.
+No browser or native MySQL run for this checkpoint; limits are recorded in the
+linked report. Operator database SHA-256 remains unchanged from prior checkpoint.
+Version Manager preview is v0.7.129, with historical references preserved.
+No master merge, deployment or production migration.
+
+Pause implementation after saving this checkpoint, as explicitly requested by the
+user. Resume only on request. The full Finance Completion Gate is incomplete;
+production remains NO-GO. Next bounded work: visual verification of the new pages,
+ordinary printing/custody and exact-output qualification. Local earmark reservation
+basis and accepted office forms remain unconfirmed. The office rarely uses eGAPS
+reports due to usability; this does not remove reporting needs. eGAPS can stay closed.
+
+## Published checkpoint - Accounting control-register retrieval
 
 Branch `codex/finance-accounting-control-retrieval` starts at verified v0.7.127
 `6dd971cee82ba9f6e16dace3b3c98bb7f4fcb54d`, [draft PR #89](https://github.com/tepong32/grand/pull/89).
