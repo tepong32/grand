@@ -333,3 +333,12 @@ payment-release basis now reuses the local-date conversion, with retained rule
 checksums and independent reversal dates. See [source and generated-output tests](FINANCE_TAX_RELEASE_DATES.md).
 This closes the specific date follow-up from the Treasury checkpoint, not FG-06
 or local tax-rule/form acceptance. Continue bank-advice/payment output comparison.
+
+## Checkpoint 5B - Treasury source/output stages
+
+The ordinary replay now verifies permission-checked payment/advice exports before
+release, after recorded release but before posting, and after completed posting.
+Reserved JEV numbers remain distinct from posting status; archive and source
+identity checks pass. See [retained evidence](FINANCE_TREASURY_OUTPUT_REHEARSAL.md).
+No application change or new UX claim. FG-06/FG-07 remain partial pending exact
+forms and human acceptance. Next consolidate the full requirement/gap audit.

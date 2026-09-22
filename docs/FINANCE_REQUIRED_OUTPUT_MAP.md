@@ -63,3 +63,8 @@ The [ordinary cross-office output replay](FINANCE_CROSS_OFFICE_OUTPUT_REPLAY.md)
 now exercises one linked Budget/Accounting/Treasury transaction through working
 outputs and retained downloads. This is bounded synthetic evidence; it does not
 close required-form fidelity or ordinary LGU workflow acceptance.
+
+[Treasury stage-specific export evidence](FINANCE_TREASURY_OUTPUT_REHEARSAL.md)
+now verifies bank acknowledgement, recorded release/pending posting and completed
+posting against retained sources and archives. It preserves the distinction
+between a reserved JEV number and actual posting, without claiming local form acceptance.
