@@ -33,16 +33,38 @@ Log: `.tmp/reporting-source-regression.log` (local, ignored).
 
 NOT RUN - OUT OF SCOPE: native MySQL for this read-only view/template change;
 no schema, financial write, locking or conditional identity changes.
-NOT RUN: interactive browser/physical print acceptance for this checkpoint.
+At v0.7.129, interactive browser validation had not run; the resumed proof below
+now covers navigation. Physical print acceptance remains NOT RUN.
 Django response checks establish rendered navigation and actual source retrieval,
 not visual or LGU acceptance. No eGAPS access, production migration or deployment.
 
 ## Pause and remaining work
 
-User requested implementation pause after the current checkpoint. Resume only on
-request. Office rarely uses eGAPS reporting because it is not user-friendly;
+User requested a pause after v0.7.129, then explicitly resumed on 2026-09-22. Office rarely uses eGAPS reporting because it is not user-friendly;
 this does not establish that reporting is unnecessary or approve every eGAPS form.
 Required outputs remain grounded in actual Budget–Accounting–Treasury work.
 Earmark reservation basis remains unconfirmed. Next work includes browser proof
 for these pages, ordinary printing/custody and exact-output qualification.
 The full Finance Completion Gate remains incomplete and production remains NO-GO.
+
+## Resumed browser proof - 2026-09-22
+
+No application code changes. Disposable copied two-store fixture, loopback port
+8776. Actual Next links reached page 3 in both lists; source 111 opened posted
+journal RETRIEVAL-JEV-109. The filtered form query survived both Next links.
+Read-only post-browser assertions confirm unchanged generated output SHA-256,
+111 retained sources and all 111 local-form candidates still draft.
+
+Both viewport and document width were 390px. Tables retain horizontal scrolling;
+this is not a claim that all columns fit simultaneously on a narrow screen.
+Screenshots inspected: `output/playwright/reporting-source-page3.png`,
+`reporting-source-page3-narrow.png`, `reporting-forms-page3-narrow.png`, and
+`reporting-forms-pagination-narrow.png` (all in the same directory).
+Facts: `output/playwright/reporting-retrieval-browser-facts.json`.
+No CSV was downloaded in this browser pass; the existing automated 111-row export
+check remains the export evidence. Browser/server stopped; operator database unchanged.
+
+Existing controlled-print/reprint and office-boundary tests plus the Finance DV
+custody work-task class passed 21/21, no skips, 11.731s (command in CONTINUE.md).
+They establish the current service baseline before the next controlled-print
+browser rehearsal. Real paper, wet signatures and physical custody remain unproved.

@@ -4,27 +4,38 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Reporting retrieval; implementation pause requested
+## Current checkpoint - Resumed validation after v0.7.129
 
-Branch `codex/finance-reporting-source-retrieval` starts at verified v0.7.128
-`90957df0a330599c1b3ff649bfd8521c2b9cb010`, [draft PR #90](https://github.com/tepong32/grand/pull/90).
-Local forms and retained report sources now use complete 50-row navigation with
-counts and preserved filters. Output files, financial evidence and review controls
-remain unchanged. See [scope and validation](docs/FINANCE_REPORTING_SOURCE_RETRIEVAL.md).
+User explicitly resumed on 2026-09-22 and requested careful evidence-led review
+before code changes. No application code changed in this validation checkpoint.
+Branch `codex/finance-reporting-source-retrieval`, [draft PR #91](https://github.com/tepong32/grand/pull/91),
+has v0.7.129 at `b3995e87d110c51c46c0be98568d601a759fa970`.
+Its GitGuardian check passed; verify/MySQL remained running when checked at 13:19 UTC.
+Do not infer current-head remote regression completion.
 
-Focused SQLite PASS 2/2, no skips, 5.065s. Full Reporting regression PASS: 150 passed, 1 skipped (151 discovered),
-50.619s, exit 0; both disposable test stores destroyed.
-No browser or native MySQL run for this checkpoint; limits are recorded in the
-linked report. Operator database SHA-256 remains unchanged from prior checkpoint.
-Version Manager preview is v0.7.129, with historical references preserved.
-No master merge, deployment or production migration.
+Browser PASS: actual Next navigation through all three pages for 111 retained
+report sources and 111 draft local forms; the final source opens posted journal
+RETRIEVAL-JEV-109. Both pages have viewport/document width 390px, with responsive
+horizontal table scrolling. Report output SHA-256 unchanged and all form candidates
+remain draft. Screenshots and asserted facts are retained under output/playwright;
+see [scope and evidence](docs/FINANCE_REPORTING_SOURCE_RETRIEVAL.md).
+The initial unauthenticated navigation occurred before state restoration completed;
+after restoration, the authorized route and source link returned successfully.
+Browser and disposable server are stopped. Operator database hash remains unchanged.
 
-Pause implementation after saving this checkpoint, as explicitly requested by the
-user. Resume only on request. The full Finance Completion Gate is incomplete;
-production remains NO-GO. Next bounded work: visual verification of the new pages,
-ordinary printing/custody and exact-output qualification. Local earmark reservation
-basis and accepted office forms remain unconfirmed. The office rarely uses eGAPS
-reports due to usability; this does not remove reporting needs. eGAPS can stay closed.
+Controlled printing/custody baseline PASS: 21/21, no skips, 11.731s, exit 0.
+Command: `python .tmp/earlier_sqlite.py vouchers.tests.VoucherWorkflowTests.test_controlled_print_reprint_and_tracepoint_packet_gate_wet_signatures vouchers.tests.VoucherWorkflowTests.test_print_custody_and_signature_services_reject_actor_outside_current_office finance.test_work_tasks.FinanceDVCustodyWorkTaskContractTests`.
+Log `.tmp/controlled-print-resume.log`; both test stores destroyed, runner terminal.
+This validates existing service/task controls; it does not establish a browser
+replay with controlled printing enabled, real physical custody or actual printer use.
+No native re-run: no application, schema, locking or financial write changes.
+
+Next: replay the ordinary workflow with controlled printing enabled, verify retained
+signing output/replacement and packet evidence, then assess exact output requirements.
+Do not change code absent a demonstrated gap; preserve review and financial boundaries.
+The full Finance Completion Gate is incomplete and production remains NO-GO.
+Local earmark basis and accepted forms remain unconfirmed; eGAPS can remain closed.
+No master merge, deployment or production migration is authorized by this checkpoint.
 
 ## Published checkpoint - Accounting control-register retrieval
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.130] - 2026-09-22
+### Fixed
+- docs(finance): retain retrieval browser and custody validation
+
 ## [0.7.129] - 2026-09-22
 ### Fixed
 - fix(reporting): paginate local forms and retained report sources
