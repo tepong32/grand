@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.127] - 2026-09-22
+### Fixed
+- fix(budget): retrieve all proposal and allotment matches
+
 ## [0.7.126] - 2026-09-22
 ### Fixed
 - fix(vouchers): paginate complete queue and history

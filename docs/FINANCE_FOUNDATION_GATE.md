@@ -47,7 +47,7 @@ potential future integration, out of current scope, or unknown before work begin
 | FG-08 | Accounting | Remaining source/history adoption | PARTIALLY IMPLEMENTED | Historical sources not all connected | Preserve original financial evidence | Existing reviewed attribution routes | Open; no speculative expansion |
 | FG-09 | Finance | Broader routine scenarios | PARTIALLY IMPLEMENTED | Not all ordinary work demonstrated | Controls must survive corrections | Earlier foundation checkpoints | Deferred until foundation coherent |
 | FG-10 | Deployment | Live configured rendering/production verification | UNKNOWN | Actual deployment behavior unverified | No production readiness inference | Authorized environment and operational gates | Open |
-| FG-11 | Cross-office retrieval | Remaining register row caps | PARTIALLY IMPLEMENTED | Older journals/handoffs and other registers can be hidden | Preserve department scope and complete export meaning | Existing Accounting, voucher, Budget and bank registers | Accounting and voucher retrieval focused/dependent/browser checks passed; Budget/other caps remain |
+| FG-11 | Cross-office retrieval | Remaining register row caps | PARTIALLY IMPLEMENTED | Older journals/handoffs and other registers can be hidden | Preserve department scope and complete export meaning | Existing Accounting, voucher, Budget and bank registers | Accounting/voucher and Budget proposal/ARO retrieval validated; other Accounting caps remain |
 
 ## Checkpoint 1A — OBR retrieval
 
@@ -251,3 +251,11 @@ Complete scoped stage sets now distinguish actionable work from history before
 pagination, so old queue cases no longer spill into history. Saved-view navigation
 and full matching exports remain intact. See [evidence and remaining scope](FINANCE_VOUCHER_RETRIEVAL.md).
 FG-11 remains partial pending Budget and other register repairs.
+
+## Checkpoint 1F - Budget proposal and allotment retrieval
+
+Annual proposal and allotment registers now page all matches and search familiar
+source titles/numbers. Screen and full CSV share search rules and retain the search
+in export evidence. Counts distinguish all matches from the visible page. See
+[validation and remaining scope](FINANCE_BUDGET_REGISTER_RETRIEVAL.md). FG-11 stays
+partial pending Accounting period-close/bank-reconciliation retrieval.

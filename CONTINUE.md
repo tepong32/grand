@@ -4,7 +4,37 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Voucher queue and history retrieval
+## Current checkpoint - Budget proposal and allotment retrieval
+
+Branch `codex/finance-budget-register-retrieval` starts at verified v0.7.126
+`fe122b65414f0928b94e5bc255398e649ad39418`, [draft PR #88](https://github.com/tepong32/grand/pull/88).
+Its remote verify/MySQL checks were running at checkpoint start. No master merge.
+
+Both Budget registers silently capped display at 100. They now page all matches,
+show complete counts/ranges and search proposal/office/ordinance or ARO/purpose/
+ordinance text. Screen/export share search and retain it in archive/audit metadata.
+Authority and movement controls remain unchanged. See
+[scope and validation](docs/FINANCE_BUDGET_REGISTER_RETRIEVAL.md).
+
+Focused SQLite PASS 2/2, no skips, 3.583s, exit 0. Initial broader run: 63 discovered,
+59 passed / 3 skipped / one failed in 33.125s; failure is the changed counter wording.
+The assertion now checks the new label and matching count. Final regression PASS:
+60 passed, 3 native-only skips (63 discovered), 31.885s, exit 0. Native focused PASS
+2/2, no skips, 5.348s, exit 0. All test stores destroyed and owned MySQL stopped;
+all runner sessions terminal. Commands and browser limits are in the linked report.
+
+Browser PASS: actual third-page navigation, exact search and both 111-row downloads;
+390px viewport/document width. Browser/server stopped; fixture-only username collision
+resolved in a fresh copy with distinct users. Operator DB hash unchanged. No actual
+financial action or eGAPS access. Version Manager adapter previews v0.7.127, retaining
+historical documentation; draft PR will stack on #88. No production migration/deploy.
+
+Next: Accounting period-close and bank-reconciliation register caps. FG-11 remains
+partial; then resume ordinary printing/custody/output proof. Local earmark basis,
+exact accepted forms, configured deployment and LGU acceptance remain open.
+Full foundation goal remains active.
+
+## Published checkpoint - Voucher queue and history retrieval
 
 Branch `codex/finance-voucher-retrieval` starts at verified v0.7.125
 `e8f095739e17692dd31df45fef3a0e3ac3d72775`, [draft PR #87](https://github.com/tepong32/grand/pull/87).
