@@ -4,7 +4,38 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Accounting journal and handoff retrieval
+## Current checkpoint - Voucher queue and history retrieval
+
+Branch `codex/finance-voucher-retrieval` starts at verified v0.7.125
+`e8f095739e17692dd31df45fef3a0e3ac3d72775`, [draft PR #87](https://github.com/tepong32/grand/pull/87).
+That base's verify/MySQL checks remain in progress; GitGuardian passed. Earlier
+PR #86 verify and GitGuardian passed; its MySQL job remains in progress.
+
+The voucher workbench's old 100-ID queue slice caused older actionable cases to
+spill into history, with both sections truncated. Queue/history now partition all
+scoped filtered stages first, then page independently. Saved-view identity, filters,
+other-page selection and full exports remain intact. Financial controls unchanged.
+See [scope and validation](docs/FINANCE_VOUCHER_RETRIEVAL.md).
+
+PASS focused SQLite 2/2, no skips, 3.478s; dependent 122/122, no skips, 70.697s;
+both exit 0. Commands/logs are in the linked report. Browser clicked through both
+third pages from a real private saved view and downloaded 222 unique records;
+111 actionable plus 111 completed. Desktop/narrow screenshots and CSV retained.
+Read-only fixture rows do not establish actual financial transitions. Both browser
+and server are stopped, and test stores destroyed; all owned sessions terminal.
+No native server started. Operator DB hash unchanged; `git diff --check` passes.
+
+Version Manager preview/execute adapter targets v0.7.126 with VERSION/CHANGELOG-only
+automatic updates; draft PR stacks on #87. No master merge/deployment. Native/full
+local tests not run for this query/template change, with rationale in the report.
+
+Next: Budget annual proposal and allotment registers have confirmed 100-row display
+caps after complete filtered querysets. Repair retrieval while preserving existing
+full exports. Then Accounting period-close/bank reconciliation caps; FG-11 remains
+partial. Continue ordinary printing/custody/output proof. Earmark basis, official
+forms, configured deployment and LGU acceptance remain open; full goal active.
+
+## Published checkpoint - Accounting journal and handoff retrieval
 
 The goal was paused after v0.7.124, then explicitly resumed by the active goal
 continuation on 2026-09-22. Full foundation scope remains active and incomplete.

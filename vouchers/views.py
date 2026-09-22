@@ -4,6 +4,7 @@ from uuid import UUID
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Count, Sum
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -159,17 +160,24 @@ def workspace(request):
         search=filter_values.get("q", ""), actor=request.user,
     )
     queue_query = cases.filter(current_stage__in=queue_stages)
-    queue_ids = list(queue_query.values_list("pk", flat=True)[:100])
-    queue_cases = _decorate_cases(
-        cases.filter(pk__in=queue_ids).order_by("-updated_at", "-pk"),
-        actionable_stages,
-    )
-    other_cases = _decorate_cases(cases.exclude(pk__in=queue_ids)[:100], actionable_stages)
+    history_query = cases.exclude(current_stage__in=queue_stages)
+    queue_page = Paginator(queue_query.order_by("-updated_at", "-pk"), 50).get_page(request.GET.get("queue_page"))
+    history_page = Paginator(history_query.order_by("-updated_at", "-pk"), 50).get_page(request.GET.get("history_page"))
+    for page, parameter, anchor in (
+        (queue_page, "queue_page", "case-queue"), (history_page, "history_page", "case-history"),
+    ):
+        params = request.GET.copy()
+        for name, number in (("previous_url", page.number - 1), ("next_url", page.number + 1)):
+            params[parameter] = number
+            setattr(page, name, "?" + params.urlencode() + "#" + anchor)
+    queue_cases = _decorate_cases(queue_page, actionable_stages)
+    other_cases = _decorate_cases(history_page, actionable_stages)
     stage_counts = {stage: cases.filter(current_stage=stage).count() for stage, _label in VoucherCase.STAGE_CHOICES}
     return render(request, "vouchers/workspace.html", {
         "cases": other_cases, "queue_cases": queue_cases, "workspace_profile": profile,
         "stage_counts": stage_counts, "permissions": permissions,
-        "queue_count": queue_query.count(),
+        "queue_count": queue_page.paginator.count, "queue_page": queue_page,
+        "history_page": history_page,
         "open_count": cases.exclude(current_stage__in=(VoucherCase.COMPLETED, VoucherCase.CANCELLED)).count(),
         "completed_count": stage_counts[VoucherCase.COMPLETED],
         "visible_count": cases.count(), "stage_choices": VoucherCase.STAGE_CHOICES,

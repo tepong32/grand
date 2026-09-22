@@ -2747,6 +2747,76 @@ class VoucherWorkflowTests(TestCase):
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.get(reverse("vouchers:workspace")).status_code, 403)
 
+    def test_workspace_pages_keep_actionable_cases_out_of_shared_history(self):
+        for stage, prefix in ((VoucherCase.ACCOUNTING_PREPARATION, "QUEUE"), (VoucherCase.COMPLETED, "HISTORY")):
+            VoucherCase.objects.bulk_create([
+                VoucherCase(reference_code=f"VOLUME-{prefix}-{index:03}",
+                            requesting_department=self.requesting, current_department=self.accounting,
+                            current_stage=stage, payee_name="Synthetic volume payee",
+                            particulars="Read-only retrieval fixture", created_by=self.requesting_user)
+                for index in range(111)
+            ])
+        self.client.force_login(self.preparer)
+        url = reverse("vouchers:workspace")
+        queue_ids, history_ids = [], []
+        for number, count in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(url, {"q": "VOLUME", "queue_page": number, "history_page": number})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["visible_count"], 222)
+            self.assertEqual(response.context["queue_count"], 111)
+            self.assertEqual(response.context["history_page"].paginator.count, 111)
+            queue = response.context["queue_cases"]
+            history = response.context["cases"]
+            self.assertEqual(len(queue), count)
+            self.assertEqual(len(history), count)
+            self.assertTrue(all(row.current_stage == VoucherCase.ACCOUNTING_PREPARATION for row in queue))
+            self.assertTrue(all(row.current_stage == VoucherCase.COMPLETED for row in history))
+            queue_ids.extend(row.pk for row in queue)
+            history_ids.extend(row.pk for row in history)
+            self.assertIn("q=VOLUME", response.context["queue_page"].next_url)
+            self.assertIn(f"history_page={number}", response.context["queue_page"].next_url)
+        self.assertEqual(len(set(queue_ids)), 111)
+        self.assertEqual(len(set(history_ids)), 111)
+        self.assertFalse(set(queue_ids) & set(history_ids))
+        self.assertContains(response, "VOLUME-QUEUE-000")
+        self.assertContains(response, "VOLUME-HISTORY-000")
+        self.assertContains(response, "Showing 101–111 of 111 matching records", count=2)
+        export = self.client.get(reverse("vouchers:case_control_register_export"), {"q": "VOLUME", "queue_page": 3})
+        self.assertEqual(export.status_code, 200)
+        rows = list(csv.DictReader(io.StringIO(export.content.decode("utf-8-sig"))))
+        self.assertEqual(len(rows), 222)
+        exact = self.client.get(url, {"q": "VOLUME-QUEUE-000", "queue_page": "invalid"})
+        self.assertEqual(len(exact.context["queue_cases"]), 1)
+        self.assertEqual(exact.context["history_page"].paginator.count, 0)
+
+    def test_saved_case_view_pagination_retains_scope_and_owner(self):
+        VoucherCase.objects.bulk_create([
+            VoucherCase(reference_code=f"SAVED-PAGE-{index:03}",
+                        requesting_department=self.requesting, current_department=self.accounting,
+                        current_stage=VoucherCase.ACCOUNTING_PREPARATION,
+                        payee_name="Synthetic", particulars="Read-only saved retrieval", created_by=self.preparer)
+            for index in range(61)
+        ])
+        saved = VoucherCaseSavedView.objects.create(owner=self.preparer, name="Paged queue", filters={"q": "SAVED-PAGE"})
+        self.client.force_login(self.preparer)
+        url = reverse("vouchers:workspace")
+        response = self.client.get(url, {"saved": str(saved.public_id), "queue_page": 2})
+        self.assertEqual(len(response.context["queue_cases"]), 11)
+        self.assertContains(response, "SAVED-PAGE-000")
+        self.assertIn(f"saved={saved.public_id}", response.context["queue_page"].previous_url)
+        self.client.force_login(self.validator)
+        self.assertEqual(self.client.get(url, {"saved": str(saved.public_id), "queue_page": 2}).status_code, 404)
+        other_department = Department.objects.create(name="Other retrieval office", slug="retrieval-other-office")
+        VoucherCase.objects.create(reference_code="SAVED-PAGE-FOREIGN", requesting_department=other_department,
+                                   current_department=self.accounting, payee_name="Foreign office",
+                                   particulars="Must stay outside requesting-office scope", created_by=self.preparer)
+        self.client.force_login(self.requesting_user)
+        response = self.client.get(url, {"q": "SAVED-PAGE", "history_page": 2})
+        self.assertEqual(response.context["visible_count"], 61)
+        self.assertEqual(response.context["queue_count"], 0)
+        self.assertEqual(len(response.context["cases"]), 11)
+        self.assertNotContains(response, "SAVED-PAGE-FOREIGN")
+
     def test_workspace_presentation_follows_the_assigned_finance_department(self):
         for user, title in (
             (self.budget_user, "Budget voucher workspace"),

@@ -46,6 +46,11 @@ Retain non-primary/history allocations and interrupted bindings; GET source sele
 never creates claims or infers invoice amounts. Pending/failed intake links recover
 through the retained case and existing allocation; see [recovery scope](docs/FINANCE_PENDING_PAYABLE_RECOVERY.md). See [handoff scope](docs/FINANCE_OBR_PAYABLE_HANDOFF.md).
 
+Register pagination must partition complete scoped querysets before slicing. In the
+Voucher Workbench, older actionable cases remain in the queue rather than spilling
+into shared history; saved views recheck current scope and exports retain all matches.
+See [voucher retrieval](docs/FINANCE_VOUCHER_RETRIEVAL.md).
+
 ### Development state
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;
