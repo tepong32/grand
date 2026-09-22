@@ -6,6 +6,7 @@ from pathlib import Path
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Max, Q, Sum
 from django.http import Http404, HttpResponse
@@ -111,6 +112,15 @@ def _form_for_setup(kind, *args, department, **kwargs):
     return form_class(*args, department=department, **kwargs)
 
 
+def _workspace_page(queryset, request, parameter, anchor):
+    page = Paginator(queryset, 50).get_page(request.GET.get(parameter))
+    params = request.GET.copy()
+    for name, number in (("previous_url", page.number - 1), ("next_url", page.number + 1)):
+        params[parameter] = number
+        setattr(page, name, "?" + params.urlencode() + "#" + anchor)
+    return page
+
+
 @require_GET
 @accounting_access_required
 def workspace(request):
@@ -140,13 +150,29 @@ def workspace(request):
     source_requests = VoucherPostingRequest.objects.filter(
         finance_department_id=department.pk,
         status__in=(VoucherPostingRequest.PENDING, VoucherPostingRequest.FAILED, VoucherPostingRequest.MATERIALIZED),
-    ).select_related("case")[:50]
+    ).select_related("case")
     remittance_requests = RemittancePostingRequest.objects.filter(
         finance_department_id=department.pk,
         status__in=(RemittancePostingRequest.PENDING, RemittancePostingRequest.FAILED, RemittancePostingRequest.MATERIALIZED),
-    ).select_related("batch", "batch__recipient_party")[:50]
-    visible_count = entries.count()
-    display_entries = list(entries[:100])
+    ).select_related("batch", "batch__recipient_party")
+    handoff_query = request.GET.get("handoff_q", "").strip()[:160]
+    if handoff_query:
+        source_requests = source_requests.filter(
+            Q(jev_number__icontains=handoff_query) | Q(case__reference_code__icontains=handoff_query)
+            | Q(case__payee_name__icontains=handoff_query),
+        )
+        remittance_requests = remittance_requests.filter(
+            Q(jev_number__icontains=handoff_query) | Q(batch__reference_code__icontains=handoff_query)
+            | Q(batch__recipient_party__display_name__icontains=handoff_query),
+        )
+    source_requests = _workspace_page(source_requests.order_by("-requested_at", "-pk"), request, "voucher_page", "voucher-handoffs")
+    remittance_requests = _workspace_page(remittance_requests.order_by("-requested_at", "-pk"), request, "remittance_page", "remittance-handoffs")
+    journal_page = _workspace_page(entries.order_by("-entry_date", "-pk"), request, "page", "journal-register")
+    visible_count = journal_page.paginator.count
+    display_entries = list(journal_page)
+    # Each search resets its own pagination and retains the other register's filters.
+    handoff_preserved = [(key, value) for key, value in request.GET.items()
+                         if key not in ("handoff_q", "voucher_page", "remittance_page")]
     for entry in display_entries:
         entry.next_action_label = next_journal_action(entry)
     return render(request, "accounting/workspace.html", {
@@ -159,7 +185,8 @@ def workspace(request):
             "status": selected_status, "source_type": selected_source_type, "period": selected_period,
             "fund": selected_fund, "attention": selected_attention, "q": query,
         },
-        "visible_count": visible_count,
+        "visible_count": visible_count, "journal_page": journal_page,
+        "handoff_query": handoff_query, "handoff_preserved": handoff_preserved,
         "can_manage_setup": can_manage_setup(request.user), "can_prepare": can_prepare_journals(request.user),
         "can_post": can_post_journals(request.user), "can_view_ledger": can_view_ledger(request.user),
         "can_view_advances": can_view_advances(request.user),

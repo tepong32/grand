@@ -100,6 +100,39 @@ class RemittanceWorkRegisterTests(TestCase):
         ))
         return get_user_model().objects.get(pk=user.pk)
 
+    def test_accounting_handoff_retrieval_reaches_every_remittance(self):
+        from .models import RemittancePostingRequest
+        self.reviewer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="accounting", codename="view_accounting_workspace",
+        ))
+        batch = self._batch("QUEUE-REMIT", status=TreasuryRemittanceBatch.ACCOUNTING_POSTING)
+        for index in range(61):
+            RemittancePostingRequest.objects.create(
+                batch=batch, version=index + 1, jev_number=f"REMIT-JEV-{index:03}",
+                jev_date=date(2026, 9, 3), finance_department_id=self.accounting.pk,
+                finance_department_label=self.accounting.name, posting_rule=self.rule,
+                posting_rule_snapshot={}, posting_rule_checksum="a" * 64,
+                payload={}, payload_checksum="b" * 64, requested_by=self.preparer,
+            )
+        self.client.force_login(self.reviewer)
+        url = reverse("accounting:workspace")
+        first = self.client.get(url, {"handoff_q": "Synthetic Revenue Agency", "voucher_page": 2})
+        page = first.context["remittance_requests"]
+        self.assertEqual(page.paginator.count, 61)
+        self.assertEqual(len(page), 50)
+        self.assertIn("voucher_page=2", page.next_url)
+        second = self.client.get(url, {"remittance_page": 2})
+        self.assertEqual(len(second.context["remittance_requests"]), 11)
+        self.assertContains(second, "REMIT-JEV-000")
+        exact = self.client.get(url, {"handoff_q": "REMIT-JEV-000"})
+        self.assertEqual(exact.context["remittance_requests"].paginator.count, 1)
+        self.assertNotContains(exact, "Create remittance JEV")
+        self.outsider.user_permissions.add(Permission.objects.get(
+            content_type__app_label="accounting", codename="view_accounting_workspace",
+        ))
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url).context["remittance_requests"].paginator.count, 0)
+
     def _batch(self, reference, *, owner=None, status=TreasuryRemittanceBatch.DRAFT):
         owner = owner or self.treasury
         return TreasuryRemittanceBatch.objects.create(

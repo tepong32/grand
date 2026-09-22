@@ -47,6 +47,7 @@ potential future integration, out of current scope, or unknown before work begin
 | FG-08 | Accounting | Remaining source/history adoption | PARTIALLY IMPLEMENTED | Historical sources not all connected | Preserve original financial evidence | Existing reviewed attribution routes | Open; no speculative expansion |
 | FG-09 | Finance | Broader routine scenarios | PARTIALLY IMPLEMENTED | Not all ordinary work demonstrated | Controls must survive corrections | Earlier foundation checkpoints | Deferred until foundation coherent |
 | FG-10 | Deployment | Live configured rendering/production verification | UNKNOWN | Actual deployment behavior unverified | No production readiness inference | Authorized environment and operational gates | Open |
+| FG-11 | Cross-office retrieval | Remaining register row caps | PARTIALLY IMPLEMENTED | Older journals/handoffs and other registers can be hidden | Preserve department scope and complete export meaning | Existing Accounting, voucher, Budget and bank registers | Accounting focused/dependent/browser checks passed; other caps require route-level validation |
 
 ## Checkpoint 1A — OBR retrieval
 
@@ -234,3 +235,12 @@ unchanged. Named signature choices replace internal object labels. See
 [scenario, validation and retained evidence](FINANCE_ORDINARY_BROWSER_HANDOFF.md).
 FG-07 remains partial: initial Budget setup used services and real printing,
 physical custody, bank evidence and LGU acceptance were not performed.
+
+## Checkpoint 1D - Accounting register and source retrieval
+
+Accounting journal and voucher/remittance handoff lists now expose all matches
+through independent pagination, truthful counts and reference search. This removes
+silent 100/50-row limits without changing posting or department controls. Focused,
+dependent and browser checks pass within the [recorded scope](FINANCE_ACCOUNTING_RETRIEVAL.md).
+FG-11 retains other observed register caps for route-level investigation; this does
+not establish repository-wide retrieval completion or LGU acceptance.
