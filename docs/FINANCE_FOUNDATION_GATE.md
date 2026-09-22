@@ -291,3 +291,12 @@ signature returns through actual browser actions. Both downloads match retained
 and archived checksums. No application code changed. FG-07 remains partial: source
 setup was service-based, and actual physical/official-form acceptance remains open.
 Next inspect workbook source values and print configuration before changing code.
+
+## Checkpoint 5A - Required workbook print coverage
+
+Read-only workbook/source inspection exposed a preflight gap: required financial
+fields could fall outside print areas. [Reproduction and correction](FINANCE_TEMPLATE_PRINT_COVERAGE.md)
+retain repeated headers and complete split areas while rejecting missing regions
+and clipped merged fields. Issued output bytes remain unchanged. This is a bounded
+technical output-control repair, not accepted-form fidelity or actual printer proof.
+FG-06 and FG-07 remain partial; continue source-to-output and local acceptance work.

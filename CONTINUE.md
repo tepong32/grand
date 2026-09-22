@@ -4,7 +4,37 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Controlled-print browser rehearsal
+## Current checkpoint - Controlled workbook print coverage
+
+Branch `codex/finance-template-print-coverage` starts at v0.7.131
+`e0b3a7a68b3360fa3955d8beb21f8f5246372060`, [draft PR #92](https://github.com/tepong32/grand/pull/92).
+Source/workbook inspection reproduced three preflight omissions before editing.
+The fix verifies full controlled-region coverage, repeated titles and complete
+merged fields; split detail areas remain supported. Historical output files and
+mapping/checksum evidence are not rewritten. See [scope and actual validation](docs/FINANCE_TEMPLATE_PRINT_COVERAGE.md).
+
+Initial Finance PASS 27/27 (4.131s); initial broad PASS 347/347 (189.120s).
+Final-application broad run: 348 pass, one test-fixture failure (349 total,
+189.846s). Cause: openpyxl retains repeat columns when assigned None. Negative
+fixture now starts from a fresh workbook; no application change after this run.
+Corrected Finance module PASS 29/29, no skips, 4.108s, exit 0. All test runners
+are terminal and disposable stores destroyed; commands/logs are in the report.
+
+Read-only output/source checks pass for both prior downloads and the actual
+editable starter. Original hashes remain unchanged. Artifact Tool inspection
+produced a viewable minimal-fixture render but exited 1 without a diagnostic;
+its process is not a PASS. It does not prove accepted-form layout.
+No schema, financial write or lock change; native MySQL not run for this geometry
+repair. No browser/device acceptance claimed. Operator DB remains unchanged.
+
+Next: inspect the production starter's reference/context fields against retained
+source values and governed template mapping before extending generation. Distinguish
+intentional starter placeholders from demonstrated omissions; do not invent local
+requirements. Full Finance goal remains incomplete, production NO-GO. eGAPS stays
+closed; local earmark semantics and exact accepted forms remain unresolved.
+No master merge, deployment or production migration.
+
+## Prior checkpoint - Controlled-print browser rehearsal
 
 Branch `codex/finance-controlled-print-rehearsal` begins at v0.7.130
 `6319ddcf24f79600efc74b54b697fc9a6e52d9cb`, [draft PR #91](https://github.com/tepong32/grand/pull/91).
