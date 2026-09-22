@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.126] - 2026-09-22
+### Fixed
+- fix(vouchers): paginate complete queue and history
+
 ## [0.7.125] - 2026-09-22
 ### Fixed
 - fix(accounting): retrieve all journals and source handoffs
