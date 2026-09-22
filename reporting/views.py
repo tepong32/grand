@@ -253,6 +253,15 @@ def _local_form_validation(item):
     return validate_local_form(item)
 
 
+def _retrieval_page(queryset, request, parameter, anchor):
+    page = Paginator(queryset, 50).get_page(request.GET.get(parameter))
+    params = request.GET.copy()
+    for name, number in (("previous_url", page.number - 1), ("next_url", page.number + 1)):
+        params[parameter] = number
+        setattr(page, name, "?" + params.urlencode() + "#" + anchor)
+    return page
+
+
 @reporting_access_required
 def local_form_workspace(request):
     department = department_for_user(request.user)
@@ -266,10 +275,11 @@ def local_form_workspace(request):
         attention=request.GET.get("attention", "").strip(),
         search=request.GET.get("q", ""),
     )
-    visible_count = records.count()
-    records = list(records.select_related(
+    page = _retrieval_page(records.select_related(
         "report_template__definition", "finance_template", "created_by", "reviewed_by", "supersedes",
-    ).prefetch_related("sections", "test_attempts")[:100])
+    ).prefetch_related("sections", "test_attempts").order_by("code", "-version", "-pk"), request, "page", "local-form-register")
+    visible_count = page.paginator.count
+    records = list(page)
     for item in records:
         sections = list(item.sections.all())
         _latest, test_counts = latest_test_summary(item)
@@ -283,7 +293,7 @@ def local_form_workspace(request):
     allowed_attention = {value for value, _label in attention_choices}
     return render(request, "reporting/local_form_workspace.html", {
         "department": department,
-        "records": records,
+        "records": records, "page_obj": page,
         "visible_count": visible_count,
         "status_choices": FinanceLocalFormAcceptance.STATUS_CHOICES,
         "source_type_choices": FinanceLocalFormAcceptance.SOURCE_CHOICES,
@@ -1920,6 +1930,7 @@ def template_promotion_export(request, public_id):
 @reporting_access_required
 def run_detail(request, public_id):
     run = get_object_or_404(_runs_visible_to(request.user).select_related("definition__department", "template_version", "created_by", "reviewed_by", "approved_by"), public_id=public_id)
+    source_page = _retrieval_page(run.source_records.all(), request, "source_page", "report-sources")
     can_download = can_download_reports(request.user)
     official_record = None
     if run.is_official_output:
@@ -1935,7 +1946,7 @@ def run_detail(request, public_id):
         "run": run, "can_review": (can_review_reports(request.user) and report_source_mutation_allowed(request.user, run.definition, control_gate_required=run.control_gate_required)),
         "can_approve": (can_approve_reports(request.user) and report_source_mutation_allowed(request.user, run.definition, control_gate_required=run.control_gate_required)), "can_download": can_download,
         "can_print": can_download and run.is_printable, "official_record": official_record,
-        "source_records": run.source_records.all()[:100],
+        "source_records": source_page.object_list, "source_page": source_page,
         "statement_comparison_controls": comparison_controls(run),
         "reference_comparisons": run.reference_comparisons.select_related("created_by", "reviewed_by").all(),
         "can_prepare_reference_comparisons": can_prepare_reference_comparisons(request.user),

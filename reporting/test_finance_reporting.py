@@ -349,6 +349,35 @@ class FinanceAccountabilityReportingTests(TestCase):
         self.assertEqual(broken_evidence["control_status"], ReportRun.CONTROL_EXCEPTION)
         self.assertGreater(broken_evidence["control_totals"]["invalid_rule_or_amount_count"], 0)
 
+    def test_source_drillthrough_retrieves_all_posted_journals_without_changing_output(self):
+        for number in range(110):
+            self._post_statement_adjustment(f"RETRIEVAL-JEV-{number:03}", self.cash, self.revenue, Decimal("1.00"))
+        run = self.generate_accounting()
+        self.assertEqual(run.source_records.count(), 111)
+        original = (run.dataset_checksum, run.control_checksum, run.checksum, run.source_record_count)
+        output_bytes = Path(run.output_file.path).read_bytes()
+        self.client.force_login(self.accounting_preparer)
+        seen = []
+        for number, count in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(run.get_absolute_url(), {"source_page": number})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["source_page"].paginator.count, 111)
+            sources = list(response.context["source_records"])
+            self.assertEqual(len(sources), count)
+            seen.extend(source.pk for source in sources)
+            for source in sources:
+                self.assertContains(response, source.source_url)
+        self.assertEqual(len(set(seen)), 111)
+        self.assertContains(response, "Showing 101–111 of 111 matching records")
+        self.assertEqual(self.client.get(sources[-1].source_url).status_code, 200)
+        invalid = self.client.get(run.get_absolute_url(), {"source_page": "invalid"})
+        self.assertEqual(invalid.context["source_page"].number, 1)
+        run.refresh_from_db()
+        self.assertEqual((run.dataset_checksum, run.control_checksum, run.checksum, run.source_record_count), original)
+        self.assertEqual(Path(run.output_file.path).read_bytes(), output_bytes)
+        self.client.force_login(self.budget_preparer)
+        self.assertEqual(self.client.get(run.get_absolute_url(), {"source_page": 3}).status_code, 404)
+
     def test_trial_balance_run_pins_reconciled_controls_and_source_drillthrough(self):
         run = self.generate_accounting()
         self.assertEqual(run.control_status, ReportRun.CONTROL_RECONCILED)

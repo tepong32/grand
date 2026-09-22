@@ -47,7 +47,7 @@ potential future integration, out of current scope, or unknown before work begin
 | FG-08 | Accounting | Remaining source/history adoption | PARTIALLY IMPLEMENTED | Historical sources not all connected | Preserve original financial evidence | Existing reviewed attribution routes | Open; no speculative expansion |
 | FG-09 | Finance | Broader routine scenarios | PARTIALLY IMPLEMENTED | Not all ordinary work demonstrated | Controls must survive corrections | Earlier foundation checkpoints | Deferred until foundation coherent |
 | FG-10 | Deployment | Live configured rendering/production verification | UNKNOWN | Actual deployment behavior unverified | No production readiness inference | Authorized environment and operational gates | Open |
-| FG-11 | Cross-office retrieval | Remaining register row caps | PARTIALLY IMPLEMENTED | Older journals/handoffs and other registers can be hidden | Preserve department scope and complete export meaning | Existing Accounting, voucher, Budget and bank registers | Accounting/voucher/Budget and close/bank retrieval validated; Reporting local-form/source navigation remains to inspect |
+| FG-11 | Cross-office retrieval | Remaining register row caps | PARTIALLY IMPLEMENTED | Older journals/handoffs and other registers can be hidden | Preserve department scope and complete export meaning | Existing Accounting, voucher, Budget and bank registers | Accounting/voucher/Budget and close/bank retrieval validated; Reporting local-form/source pagination implemented, qualification remains partial |
 
 ## Checkpoint 1A — OBR retrieval
 
@@ -267,3 +267,18 @@ without changing full exports, department scope or financial actions. See
 [validation and remaining audit](FINANCE_ACCOUNTING_CONTROL_RETRIEVAL.md).
 FG-11 remains partial pending Reporting local-form/source navigation inspection
 and broader retrieval qualification.
+
+## Checkpoint 1H - Reporting source and local-form retrieval
+
+The local-form register and retained report sources now have complete paginated
+navigation. See [scope and validation](FINANCE_REPORTING_SOURCE_RETRIEVAL.md).
+FG-11 remains partial; this is not repository-wide or human acceptance proof.
+Implementation paused after v0.7.129, then the user explicitly resumed on 2026-09-22. The office’s
+limited use of eGAPS reports reflects usability friction; output needs must still
+be established from actual office work, without cloning its entire report catalog.
+
+Resumed browser evidence reaches all 111 report sources/forms and preserves report
+bytes; 21 existing printing/custody baseline tests pass. See the checkpoint report.
+The next ordinary proof must enable controlled printing, omitted from the earlier
+browser case. Physical and LGU acceptance remain open; no code change was needed
+for this validation pass.
