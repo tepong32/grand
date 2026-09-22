@@ -4,7 +4,35 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint — ordinary browser handoff and form recovery
+## Current checkpoint - Accounting journal and handoff retrieval
+
+The goal was paused after v0.7.124, then explicitly resumed by the active goal
+continuation on 2026-09-22. Full foundation scope remains active and incomplete.
+Branch `codex/finance-accounting-retrieval` starts at v0.7.124
+`4c2c3eb2f651f2471c638168bf60b45eadffcf98`, [draft PR #86](https://github.com/tepong32/grand/pull/86).
+That base's verify/MySQL checks were still running at this checkpoint; GitGuardian passed.
+
+Accounting had another silent 100-row journal cap and two 50-row handoff caps.
+The lists now have independent pagination, truthful counts and preserved filters;
+awaiting handoffs have their own JEV/source/payee/agency search. Existing journal
+filters and full matching CSV remain unchanged. Source services and controls remain
+unchanged. See [implementation and validation](docs/FINANCE_ACCOUNTING_RETRIEVAL.md).
+
+PASS focused 3/3 (5.040s) and dependent 66/66 (19.440s), no skips, both exit 0.
+Commands and logs are in the linked report. All test sessions are terminal.
+Browser passed actual Next navigation beyond both caps and exact oldest-handoff
+search. Explicit search anchors were browser-verified after the regression run.
+Browser/server are stopped; no owned MySQL was started. Operator DB hash unchanged.
+Native/full-project local suites not run for this read-only change, with rationale
+in the report. Version Manager preview/execute adapter targets v0.7.125 and preserves
+historical release evidence; draft PR stacks on #86. No master merge/deployment.
+
+Next: FG-11 now tracks remaining voucher, Budget and Accounting register caps.
+Inspect their complete retrieval paths before repair. Continue ordinary controlled
+printing/custody and output proof; local earmark basis, exact forms and LGU acceptance
+remain open. eGAPS stays closed and untouched.
+
+## Published checkpoint — ordinary browser handoff and form recovery
 
 Branch `codex/finance-ordinary-browser-handoff` starts at v0.7.123
 `a31d26d3201956e5d7b0bb6509ea0bd50dd087da`,

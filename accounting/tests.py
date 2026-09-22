@@ -130,6 +130,79 @@ class StandaloneAccountingTests(TestCase):
         )
         return entry
 
+    def test_workspace_retrieves_all_journals_and_preserves_filtered_export(self):
+        JournalEntry.objects.bulk_create([
+            JournalEntry(department_id=self.accounting_department.pk,
+                         department_label=self.accounting_department.name,
+                         reference=f"PAGE-JEV-{index:03}", entry_date=date(2027, 1, 15),
+                         period=self.period, fund=self.fund, description="Volume retrieval",
+                         created_by_id=self.preparer.pk, created_by_label="Synthetic")
+            for index in range(111)
+        ])
+        self.client.force_login(self.poster)
+        url = reverse("accounting:workspace")
+        seen = []
+        for number, expected in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(url, {"q": "PAGE-JEV-", "page": number, "handoff_q": "A&B"})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["visible_count"], 111)
+            rows = response.context["entries"]
+            self.assertEqual(len(rows), expected)
+            seen.extend(row.pk for row in rows)
+            if number < 3:
+                self.assertIn("handoff_q=A%26B", response.context["journal_page"].next_url)
+                self.assertContains(response, "Next")
+        self.assertEqual(len(set(seen)), 111)
+        self.assertContains(response, "Showing 101–111 of 111 matching records")
+        exact = self.client.get(url, {"q": "PAGE-JEV-000", "page": "invalid"})
+        self.assertEqual([row.reference for row in exact.context["entries"]], ["PAGE-JEV-000"])
+        export = self.client.get(reverse("accounting:journal_register_export"), {"q": "PAGE-JEV-", "page": 3})
+        self.assertEqual(export.status_code, 200)
+        body = b"".join(export.streaming_content) if export.streaming else export.content
+        for index in range(111):
+            self.assertIn(f"PAGE-JEV-{index:03}".encode(), body)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url).context["visible_count"], 0)
+
+    def test_workspace_retrieves_old_handoffs_and_scopes_search(self):
+        from vouchers.models import VoucherPostingRequest
+        case = VoucherCase.objects.create(
+            reference_code="QUEUE-CASE", requesting_department=self.accounting_department,
+            current_department=self.accounting_department, payee_name="Synthetic queue payee",
+            particulars="Retrieval fixture only", created_by=self.preparer,
+        )
+        for index in range(61):
+            VoucherPostingRequest.objects.create(
+                case=case, version=index + 1, jev_number=f"QUEUE-JEV-{index:03}",
+                jev_date=date(2027, 1, 15), finance_department_id=self.accounting_department.pk,
+                finance_department_label=self.accounting_department.name,
+                payload={}, payload_checksum="a" * 64, requested_by=self.preparer,
+            )
+        VoucherPostingRequest.objects.create(
+            case=case, version=62, jev_number="QUEUE-POSTED", jev_date=date(2027, 1, 15),
+            finance_department_id=self.accounting_department.pk, status=VoucherPostingRequest.POSTED,
+            payload={}, payload_checksum="b" * 64, requested_by=self.preparer,
+        )
+        self.client.force_login(self.viewer)
+        url = reverse("accounting:workspace")
+        first = self.client.get(url, {"handoff_q": "QUEUE", "q": "journal filter"})
+        page = first.context["source_requests"]
+        self.assertEqual(page.paginator.count, 61)
+        self.assertEqual(len(page), 50)
+        self.assertIn("q=journal+filter", page.next_url)
+        second = self.client.get(url, {"voucher_page": 2, "handoff_q": "QUEUE"})
+        self.assertEqual(len(second.context["source_requests"]), 11)
+        self.assertContains(second, "QUEUE-JEV-000")
+        self.assertNotContains(second, "Create GRAND JEV")
+        exact = self.client.get(url, {"handoff_q": "QUEUE-JEV-000"})
+        self.assertEqual(exact.context["source_requests"].paginator.count, 1)
+        empty = self.client.get(url, {"handoff_q": "does-not-exist"})
+        self.assertContains(empty, "Showing 0–0 of 0 matching records")
+        self.assertContains(empty, 'value="does-not-exist"')
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"handoff_q": "QUEUE"}).context["source_requests"].paginator.count, 0)
+        self.assertEqual(VoucherPostingRequest.objects.filter(status=VoucherPostingRequest.PENDING).count(), 61)
+
     def _fiscal_foundation(self, year=2027):
         fiscal_year = FiscalYear.objects.create(
             department_id=self.accounting_department.pk,

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.125] - 2026-09-22
+### Fixed
+- fix(accounting): retrieve all journals and source handoffs
+
 ## [0.7.124] - 2026-09-22
 ### Fixed
 - fix(vouchers): retain entries after action validation errors
