@@ -10,6 +10,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
 from django.urls import reverse
+from django.utils import timezone
 
 from assistance.models import AssistanceRequest
 from departments.models import Department
@@ -1015,6 +1016,13 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
         )
 
 
+def _report_activity_date(value):
+    """Match DateTimeField __date filtering in the active report timezone."""
+    if value is None:
+        return None
+    return timezone.localdate(value) if timezone.is_aware(value) else value.date()
+
+
 class PaymentInstrumentRegisterDataset(ApprovedDataset):
     key = "finance_payment_instrument_register"
     label = "Payment instrument and disbursement register"
@@ -1089,11 +1097,14 @@ class PaymentInstrumentRegisterDataset(ApprovedDataset):
             ):
                 row_exceptions.append("current advice is not bank-acknowledged")
             exception_count += len(row_exceptions)
-            if instrument.issued_at and period_start <= instrument.issued_at.date() <= period_end:
+            issued_date = _report_activity_date(instrument.issued_at)
+            released_date = _report_activity_date(instrument.released_at)
+            cancelled_date = _report_activity_date(instrument.cancelled_at)
+            if issued_date and period_start <= issued_date <= period_end:
                 issued_amount += instrument.amount
-            if instrument.released_at and period_start <= instrument.released_at.date() <= period_end:
+            if released_date and period_start <= released_date <= period_end:
                 released_amount += instrument.amount
-            if instrument.cancelled_at and period_start <= instrument.cancelled_at.date() <= period_end:
+            if cancelled_date and period_start <= cancelled_date <= period_end:
                 cancelled_amount += instrument.amount
             row = {
                 "case_reference": instrument.case.reference_code,
@@ -1125,7 +1136,7 @@ class PaymentInstrumentRegisterDataset(ApprovedDataset):
                 "source_app": "vouchers", "source_model": "PaymentInstrument",
                 "source_pk": str(instrument.pk), "source_public_id": str(instrument.public_id),
                 "source_reference": instrument.check_number,
-                "source_date": instrument.issued_at.date() if instrument.issued_at else None,
+                "source_date": issued_date,
                 "control_group": "payment instrument", "amount": instrument.amount,
                 "source_checksum": _snapshot_checksum(snapshot),
                 "source_url": reverse("vouchers:case_detail", kwargs={"public_id": instrument.case.public_id}),

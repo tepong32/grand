@@ -4,7 +4,30 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Populated DV starter layout
+## Current checkpoint - Treasury report local dates
+
+Branch `codex/finance-treasury-report-dates` begins at v0.7.134
+`27c0209fe80d431c0b623612b901bd493ad1703e`, [draft PR #95](https://github.com/tepong32/grand/pull/95).
+Boundary tests reproduced included local-day instruments with zero issued totals,
+and a next-month release counted in the previous month. The report now uses the
+same active local dates for selection, event totals and source evidence. Actual
+instants and retained issue/release/cancellation records remain unchanged.
+See [reproduction, commands and actual validation](docs/FINANCE_TREASURY_REPORT_DATES.md).
+
+Baseline: two expected failures in 0.100s. SQLite PASS 47/47 (23.253s); native
+MySQL PASS 5/5 (1.710s), no skips. Includes report generation, ordinary Budget-to-
+Treasury replay and native timezone conversion. Both runs terminal exit 0, fresh
+stores destroyed, owned native server stopped; commands are in the report. No schema, financial posting, permission or
+lock-order change. Existing stored reports are not rewritten.
+
+Next: reproduce and verify the same raw-date pattern in governed tax reporting's
+payment-release basis, with retained rule/reversal/source tests; that path is not
+yet fixed or validated. Then continue bank-advice/payment output comparison.
+Full goal incomplete; exact accepted forms, physical printing, local earmark basis
+and LGU acceptance remain open. Production NO-GO. eGAPS stays closed. No master
+merge or deployment.
+
+## Prior checkpoint - Populated DV starter layout
 
 Branch `codex/finance-starter-layout` begins at v0.7.133
 `9a31d932e93c597e9faf1f6442ace8ffb97b5d62`, [draft PR #94](https://github.com/tepong32/grand/pull/94).

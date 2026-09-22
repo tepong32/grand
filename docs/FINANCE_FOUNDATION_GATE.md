@@ -317,3 +317,11 @@ reject templates that would silently lose a source value. Both before/after
 workbooks and renders are retained with matching context and financial totals.
 See [reproduction and validation](FINANCE_STARTER_LAYOUT.md). This does not close
 FG-06: Treasury field acceptance, physical printing and local form fidelity remain open.
+
+## Checkpoint 5A - Treasury report date boundaries
+
+Reproduced local-midnight discrepancies between included payment instruments and
+period control totals. New reports align issue/release/cancellation totals and
+source dates with local-date selection; retained source history is unchanged.
+See [reproduction and validation](FINANCE_TREASURY_REPORT_DATES.md). The analogous
+governed-tax release-date path remains a specific next audit item. FG-06 stays partial.

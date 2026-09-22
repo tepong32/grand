@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.135] - 2026-09-22
+### Fixed
+- fix(reporting): align Treasury totals with local activity dates
+
 ## [0.7.134] - 2026-09-22
 ### Fixed
 - fix(finance): preserve particulars in populated DV starters
