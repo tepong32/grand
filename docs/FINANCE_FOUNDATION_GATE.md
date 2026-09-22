@@ -282,3 +282,12 @@ bytes; 21 existing printing/custody baseline tests pass. See the checkpoint repo
 The next ordinary proof must enable controlled printing, omitted from the earlier
 browser case. Physical and LGU acceptance remain open; no code change was needed
 for this validation pass.
+
+## Checkpoint 4C - Controlled printing browser evidence
+
+The [controlled-print rehearsal](FINANCE_CONTROLLED_PRINT_BROWSER.md) exercises
+original/replacement signing outputs, simulated print/packet evidence and ordered
+signature returns through actual browser actions. Both downloads match retained
+and archived checksums. No application code changed. FG-07 remains partial: source
+setup was service-based, and actual physical/official-form acceptance remains open.
+Next inspect workbook source values and print configuration before changing code.
