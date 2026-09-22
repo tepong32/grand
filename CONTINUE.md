@@ -4,7 +4,28 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Full foundation requirement audit
+## Current checkpoint - General-ledger retrieval
+
+Branch `codex/finance-ledger-retrieval` begins at v0.7.138
+`a03f82d16e18276d30ab7396b4e67b833a6e8990`, [draft PR #99](https://github.com/tepong32/grand/pull/99).
+Reproduced silent first-1,000 truncation and invalid account fallback/conversion
+errors before changing application code. Ledger now has stable 50-line pages,
+full counts, SQL-aggregated preceding balances and a shared strict account selector
+with full CSV export. Invalid selectors fail closed; no financial writes/migration.
+See [implementation, actual commands and evidence](docs/FINANCE_LEDGER_RETRIEVAL.md).
+
+Baseline 2 tests failed as expected (12 assertions/subtests, 2 conversion errors),
+3.051s. Final SQLite PASS 57/57, 13.400s; native MySQL PASS 6/6, 5.305s;
+no skips, both runners exit 0. Browser desktop/narrow retrieval and navigation
+passed on synthetic two-store fixture. Diff/local links checked. Test stores
+destroyed, native/browser servers stopped, operator DB hash unchanged.
+
+Next: remaining Treasury cash/remittance 100-record caps, then shadow/history
+reachability. FG-11 remains partial. Preserve Budget coverage/earmark unknowns and
+local form/operational acceptance. Full goal active; production NO-GO; no master
+merge/deployment. eGAPS may remain closed.
+
+## Prior checkpoint - Full foundation requirement audit
 
 Branch `codex/finance-foundation-requirement-audit` begins at v0.7.137
 `3deb36e6c2be85745de2955adef5a94b434e5cd5`, [draft PR #98](https://github.com/tepong32/grand/pull/98).

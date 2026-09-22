@@ -1985,29 +1985,61 @@ def remittance_source_reconcile(request, public_id):
     return redirect("accounting:entry_detail", public_id=entry.public_id)
 
 
+def _ledger_scope(department, selected_account):
+    """Share the posted scope and strict account selection with the full export."""
+    accounts = LedgerAccount.objects.filter(department_id=department.pk)
+    lines = JournalLine.objects.filter(
+        entry__department_id=department.pk, entry__status=JournalEntry.POSTED,
+    ).select_related("entry", "entry__fund", "account", "responsibility_center").order_by(
+        "entry__entry_date", "entry_id", "sequence", "pk",
+    )
+    account = None
+    error = ""
+    if selected_account:
+        # Reject malformed/oversized input before converting or sending it to SQL.
+        if (selected_account.isascii() and selected_account.isdecimal()
+                and len(selected_account) <= 19 and int(selected_account) <= 2**63 - 1):
+            account = accounts.filter(pk=int(selected_account)).first()
+        if account is None:
+            error = "Choose an account from this department, or select All posting accounts."
+            lines = lines.none()
+        else:
+            lines = lines.filter(account=account)
+    return accounts, lines, account, error
+
+
 @require_GET
 @accounting_permission_required(can_view_ledger)
 def ledger(request):
-    department = department_for_user(request.user)
-    accounts = LedgerAccount.objects.filter(department_id=department.pk)
-    selected_account = request.GET.get("account", "").strip()
-    lines = JournalLine.objects.filter(
-        entry__department_id=department.pk, entry__status=JournalEntry.POSTED,
-    ).select_related("entry", "entry__fund", "account", "responsibility_center").order_by("entry__entry_date", "entry_id", "sequence")
-    account = None
-    if selected_account.isdigit():
-        account = accounts.filter(pk=int(selected_account)).first()
-        if account:
-            lines = lines.filter(account=account)
+    accounts, lines, account, error = _ledger_scope(
+        department_for_user(request.user), request.GET.get("account", "").strip(),
+    )
+    page = _workspace_page(lines, request, "page", "ledger-lines")
+    page_lines = list(page.object_list)
     balances = {}
+    if page.has_previous() and page_lines:
+        first = page_lines[0]
+        # Aggregate preceding lines in SQL, never load the entire ledger into a page.
+        # This boundary exactly matches the stable display/export ordering above.
+        preceding = (
+            Q(entry__entry_date__lt=first.entry.entry_date)
+            | Q(entry__entry_date=first.entry.entry_date, entry_id__lt=first.entry_id)
+            | Q(entry_id=first.entry_id, sequence__lt=first.sequence)
+            | Q(entry_id=first.entry_id, sequence=first.sequence, pk__lt=first.pk)
+        )
+        totals = lines.filter(preceding, account_id__in={line.account_id for line in page_lines}).order_by().values(
+            "account_id",
+        ).annotate(debit=Sum("debit"), credit=Sum("credit"))
+        balances = {row["account_id"]: row["debit"] - row["credit"] for row in totals}
     rows = []
-    for line in lines[:1000]:
-        delta = line.debit - line.credit
-        if line.account.normal_balance == "credit":
-            delta = -delta
-        balances[line.account_id] = balances.get(line.account_id, Decimal("0.00")) + delta
-        rows.append((line, balances[line.account_id]))
-    return render(request, "accounting/ledger.html", {"rows": rows, "accounts": accounts, "selected_account": account})
+    for line in page_lines:
+        balance = balances.get(line.account_id, Decimal("0.00")) + line.debit - line.credit
+        balances[line.account_id] = balance
+        rows.append((line, -balance if line.account.normal_balance == "credit" else balance))
+    return render(request, "accounting/ledger.html", {
+        "rows": rows, "accounts": accounts, "selected_account": account,
+        "ledger_page": page, "filter_error": error,
+    }, status=400 if error else 200)
 
 
 @require_GET
@@ -2059,15 +2091,11 @@ def _archived_csv_response(*, response, request, department, category, filename,
 @accounting_permission_required(can_view_ledger)
 def ledger_export(request):
     department = department_for_user(request.user)
-    account_id = request.GET.get("account", "").strip()
-    account = LedgerAccount.objects.filter(department_id=department.pk, pk=account_id).first() if account_id.isdigit() else None
-    lines = JournalLine.objects.filter(
-        entry__department_id=department.pk, entry__status=JournalEntry.POSTED,
-    ).select_related("entry", "entry__fund", "account", "responsibility_center").order_by(
-        "entry__entry_date", "entry_id", "sequence",
+    _accounts, lines, account, error = _ledger_scope(
+        department, request.GET.get("account", "").strip(),
     )
-    if account:
-        lines = lines.filter(account=account)
+    if error:
+        return HttpResponse(error, status=400, content_type="text/plain; charset=utf-8")
     filename = f"general-ledger-{slugify(account.code) if account else 'all-accounts'}.csv"
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
