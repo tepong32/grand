@@ -2,9 +2,59 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
-## Current checkpoint — ordinary cross-office output replay
+## Current checkpoint — ordinary browser handoff and form recovery
+
+Branch `codex/finance-ordinary-browser-handoff` starts at v0.7.123
+`a31d26d3201956e5d7b0bb6509ea0bd50dd087da`,
+[draft PR #85](https://github.com/tepong32/grand/pull/85). All three remote checks
+PASS on that head: verify 13m14s, MySQL 27m38s, GitGuardian. No master merge.
+
+The actual browser journey found invalid review submissions discarded entered text.
+Voucher actions now retain bound forms/deduction rows for field and service errors,
+including original state/idempotency tokens. Signature choices show retained signer,
+position/role, round and step. Financial services, schema and permissions unchanged.
+See [browser route, evidence and limits](docs/FINANCE_ORDINARY_BROWSER_HANDOFF.md).
+
+Browser PASS: submitted payable review through corrected DV (1,000 gross / 10 tax /
+990 net), two simulated signature returns, independent recognition posting, corrected
+check issue, advice review/simulated response, claimant receipt and independent payment
+posting to completed. Actual downloaded CSV and final read-only fixture assertions
+confirm one case, one instrument and two posted voucher journals. The 390px error
+screen has document width 390px. Initial Budget/source setup used services; physical
+printing, custody and real outside acknowledgements were not performed.
+
+Native focused PASS: 3/3, no skips, 6.516s, exit 0; `.tmp/form-retention-native.log`.
+Command: `python .tmp/retrieval_native.py vouchers.tests.VoucherWorkflowTests.test_payable_review_retains_invalid_fields_and_allows_corrected_submission vouchers.tests.VoucherWorkflowTests.test_dv_retains_deductions_for_field_and_service_errors_then_creates_once vouchers.tests.VoucherWorkflowTests.test_treasury_invalid_form_retains_values_without_instrument_or_events`.
+Signature label-only change was verified separately in the browser after test loading.
+An initial focused SQLite setup was stopped to correct a missing test model reference;
+it did not establish a test result.
+Initial broad SQLite: FAIL — CAUSED BY CURRENT WORK (changed error-response contract),
+868 discovered, 770 passed, 97 skipped, one failure; 611.232s, exit 1.
+`python .tmp/earlier_sqlite.py vouchers finance.test_work_tasks budget.test_payable_handoff`,
+log `.tmp/form-retention-regression.log`. The signature-order test expected the old
+302 redirect. It now expects the bound error page and checks retained note, denied
+out-of-order choice and unchanged signature/event state. Session28681 is terminal.
+Final affected SQLite regression: PASS 120/120, no skips, 68.688s, exit 0:
+`python .tmp/earlier_sqlite.py vouchers.tests budget.test_payable_handoff finance.test_work_tasks.FinanceDVCustodyWorkTaskContractTests`,
+log `.tmp/form-retention-final.log`. Session89084 is terminal; do not resume it.
+This wider scope covers the shared action handler, source integrations and role/task
+boundaries. Browser/server and owned MySQL are stopped; the disposable browser stores
+are retained under `.tmp/ordinary-browser-20260922` with path-asserting helper scripts.
+
+v0.7.124 publication uses previewed `.tmp/release_form_recovery.py` (Version Manager,
+VERSION/CHANGELOG managed updates only); draft PR stacks on #85. `git diff --check`
+passes and operator database SHA256 remains unchanged. No production migration,
+master merge or deployment. Full project regression: NOT RUN — OUT OF SCOPE for
+this shared voucher-form change; broad affected and corrected targeted results are
+recorded above. Native-only cases skipped by SQLite are not counted as passes.
+
+Next: source-focused Accounting queue navigation at volume, remaining ordinary UI and
+output fidelity, then controlled-print/custody rehearsal. Local earmark basis and exact
+forms remain unconfirmed. Keep the full goal active; production/LGU acceptance open.
+
+## Published checkpoint — ordinary cross-office output replay
 
 Branch `codex/finance-cross-office-output-replay` starts at verified v0.7.122
 `5a1f50e6e94d7972e8b4614421a31e85abcd0375`,

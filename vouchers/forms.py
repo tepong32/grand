@@ -611,8 +611,14 @@ VoucherDeductionFormSet = formset_factory(
 )
 
 
+class SignatureTaskChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, task):
+        position = task.position_snapshot or task.role_code
+        return f"Round {task.round_number}, step {task.sequence} — {task.signatory_name_snapshot} · {position}"
+
+
 class SignatureReturnForm(WorkflowForm):
-    task = forms.ModelChoiceField(queryset=WetSignatureTask.objects.none(), label="Returned wet-signature step")
+    task = SignatureTaskChoiceField(queryset=WetSignatureTask.objects.none(), label="Returned wet-signature step")
     note = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
 
     def __init__(self, *args, case=None, user=None, **kwargs):

@@ -48,6 +48,10 @@ through the retained case and existing allocation; see [recovery scope](docs/FIN
 
 ### Development state
 
+Voucher action failures retain bound inputs and original state/idempotency tokens;
+never silently rebase or replay a stale financial submission. See the
+[ordinary browser handoff and recovery proof](docs/FINANCE_ORDINARY_BROWSER_HANDOFF.md).
+
 Quarterly planning retains explicit Q1–Q4 schedules against immutable appropriation
 lines. Plan approval does not move money. Successors serialize on the authority;
 AROs pin their submitted plan and explained timing differences without weakening

@@ -1761,6 +1761,83 @@ class VoucherWorkflowTests(TestCase):
         case.refresh_from_db()
         return case, payment_rule, obligation, accounting_owner
 
+    def test_payable_review_retains_invalid_fields_and_allows_corrected_submission(self):
+        case, *_ = self.authoritative_payable_for_review()
+        self.client.force_login(self.validator)
+        form = self.client.get(case.get_absolute_url()).context["payable_review_form"]
+        data = {**form.initial, "decision": PayableIntake.READY,
+                "reason": "Retain this independently reviewed invoice explanation",
+                "recognition_decision": form.fields["recognition_decision"].choices[0][0],
+                "recognition_basis": "Actual synthetic supplier evidence",
+                "obligation_adjustment_decision": form.fields["obligation_adjustment_decision"].choices[0][0]}
+        before = (case.state_version, case.events.count())
+        url = reverse("vouchers:case_action", args=[case.public_id, "review-payable"])
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+        bound = response.context["payable_review_form"]
+        self.assertTrue(bound.is_bound)
+        self.assertIn("obligation_adjustment_basis", bound.errors)
+        self.assertEqual(bound["reason"].value(), data["reason"])
+        self.assertEqual(bound["idempotency_key"].value(), data["idempotency_key"])
+        self.assertContains(response, data["reason"])
+        case.refresh_from_db()
+        self.assertEqual((case.state_version, case.events.count()), before)
+        data["obligation_adjustment_basis"] = "The certified amount exactly covers the reviewed claim."
+        self.assertEqual(self.client.post(url, data).status_code, 302)
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_PREPARATION)
+
+    def test_dv_retains_deductions_for_field_and_service_errors_then_creates_once(self):
+        case = self.create_case("retained-dv")
+        self.budget_certify(case, "retained-dv-budget")
+        self.client.force_login(self.preparer)
+        form = self.client.get(case.get_absolute_url()).context["voucher_form"]
+        data = {**form.initial, "voucher_date": "2026-08-25", "gross_amount": "1000.00",
+                "line_description": "Retain these reviewed office supplies", "line_account_code": "5-02-03",
+                "document_codes": ["invoice"], "deductions-TOTAL_FORMS": "1",
+                "deductions-INITIAL_FORMS": "0", "deductions-MIN_NUM_FORMS": "0",
+                "deductions-MAX_NUM_FORMS": "20", "deductions-0-tax_rule": str(self.tax_rule_item.pk),
+                "deductions-0-tax_base": "1000.00", "deductions-0-amount": ""}
+        url = reverse("vouchers:case_action", args=[case.public_id, "prepare-dv"])
+        case.refresh_from_db()
+        before = (case.state_version, case.events.count())
+        for amount in ("", "99.00"):
+            data["deductions-0-amount"] = amount
+            response = self.client.post(url, data)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["voucher_form"]["line_description"].value(), data["line_description"])
+            rows = response.context["voucher_deduction_formset"]
+            self.assertTrue(rows.is_bound)
+            self.assertEqual(rows.forms[0]["amount"].value(), amount)
+            self.assertEqual(rows.forms[0]["tax_base"].value(), "1000.00")
+            if amount:
+                self.assertTrue(response.context["voucher_form"].non_field_errors())
+            else:
+                self.assertTrue(rows.forms[0].errors)
+            case.refresh_from_db()
+            self.assertEqual((case.state_version, case.events.count()), before)
+            self.assertFalse(hasattr(case, "disbursement_voucher"))
+        data["deductions-0-amount"] = "10.00"
+        self.assertEqual(self.client.post(url, data).status_code, 302)
+        case.refresh_from_db()
+        self.assertEqual(case.disbursement_voucher.net_amount, Decimal("990.00"))
+        self.assertEqual(case.disbursement_voucher.deductions.count(), 1)
+
+    def test_treasury_invalid_form_retains_values_without_instrument_or_events(self):
+        case = self.ready_for_treasury("-retained-form")
+        self.client.force_login(self.treasury_user)
+        form = self.client.get(case.get_absolute_url()).context["check_form"]
+        data = {**form.initial, "bank_account_code": "gf-lbp", "check_number": "", "amount": "900.00"}
+        before = (case.state_version, case.events.count(), case.payment_instruments.count())
+        response = self.client.post(reverse("vouchers:case_action", args=[case.public_id, "issue-check"]), data)
+        self.assertEqual(response.status_code, 200)
+        bound = response.context["check_form"]
+        self.assertIn("check_number", bound.errors)
+        self.assertEqual(bound["amount"].value(), "900.00")
+        self.assertEqual(bound["bank_account_code"].value(), "gf-lbp")
+        case.refresh_from_db()
+        self.assertEqual((case.state_version, case.events.count(), case.payment_instruments.count()), before)
+
     def test_authoritative_budget_to_reconciled_treasury_report_replay(self):
         case, payment_rule, obligation, accounting_owner = self.authoritative_payable_for_review()
         from finance.work_tasks import finance_work_tasks
@@ -4798,7 +4875,10 @@ class VoucherWorkflowTests(TestCase):
             "task": tasks[1].pk, "note": "An altered form cannot skip the source order.",
             "state_version": original_version, "idempotency_key": "out-of-order-form",
         })
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("task", response.context["signature_form"].errors)
+        self.assertEqual(response.context["signature_form"]["note"].value(),
+                         "An altered form cannot skip the source order.")
         case.refresh_from_db(); tasks[1].refresh_from_db()
         self.assertEqual(case.state_version, original_version)
         self.assertEqual(tasks[1].status, WetSignatureTask.PENDING)

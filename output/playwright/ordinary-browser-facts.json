@@ -1,0 +1,29 @@
+{
+  "synthetic_only": true,
+  "case": "CASE-2026-36B8BD7D87",
+  "stage": "completed",
+  "case_count": 1,
+  "instrument_count": 1,
+  "gross": "1000.00",
+  "deduction": "10.00",
+  "net": "990.00",
+  "receipt": "SYNTHETIC-RECEIPT-BROWSER-001",
+  "journals": [
+    {
+      "reference": "PAY-JEV-00001",
+      "status": "posted",
+      "totals": [
+        "990",
+        "990"
+      ]
+    },
+    {
+      "reference": "JEV-2026-BROWSER-RECOGNITION",
+      "status": "posted",
+      "totals": [
+        "1000",
+        "1000"
+      ]
+    }
+  ]
+}
