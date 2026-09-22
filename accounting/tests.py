@@ -1630,6 +1630,102 @@ class StandaloneAccountingTests(TestCase):
         self.assertEqual(self.period.status, AccountingPeriod.OPEN)
         self.assertContains(response, "unposted journal")
 
+    def test_ledger_retrieves_beyond_one_thousand_with_continuous_balances(self):
+        # Synthetic posted projection fixture; ordinary posting is covered below.
+        entry = self._entry(reference="SYN-LEDGER-VOLUME")
+        JournalLine.objects.filter(entry=entry).delete()
+        JournalLine.objects.bulk_create([
+            JournalLine(entry=entry, sequence=index + 1,
+                        account=self.cash if index % 2 == 0 else self.revenue,
+                        debit=Decimal("2.00") if index % 2 == 0 else Decimal("0.00"),
+                        credit=Decimal("0.00") if index % 2 == 0 else Decimal("2.00"))
+            for index in range(1002)
+        ])
+        JournalEntry.objects.filter(pk=entry.pk).update(status=JournalEntry.POSTED)
+        self._entry(reference="SYN-LEDGER-EXCLUDED-DRAFT")
+        self.client.force_login(self.poster)
+        first = self.client.get(reverse("accounting:ledger"))
+        self.assertEqual(len(first.context["rows"]), 50)
+        self.assertContains(first, "of 1002 matching records")
+        last = self.client.get(reverse("accounting:ledger"), {"page": 21})
+        self.assertEqual([(line.sequence, balance) for line, balance in last.context["rows"]],
+                         [(1001, Decimal("1002.00")), (1002, Decimal("1002.00"))])
+        self.assertNotContains(last, "SYN-LEDGER-EXCLUDED-DRAFT")
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            exported = self.client.get(reverse("accounting:ledger_export"))
+            records = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8"))))
+        self.assertEqual(len(records), 1002)
+        self.assertEqual([Decimal(row["running_normal_balance"]) for row in records[-2:]],
+                         [balance for line, balance in last.context["rows"]])
+        for account in (self.cash, self.revenue):
+            page = self.client.get(reverse("accounting:ledger"), {"account": account.pk, "page": 2})
+            self.assertEqual(page.context["rows"][0][1], Decimal("102.00"))
+            self.assertEqual(page.context["rows"][-1][1], Decimal("200.00"))
+            self.assertContains(page, f"account={account.pk}&amp;page=3")
+            self.assertTrue(all(line.account_id == account.pk for line, _ in page.context["rows"]))
+
+    def test_ledger_invalid_account_never_widens_view_or_export(self):
+        entry = self._entry(reference="SYN-LEDGER-PRIVATE")
+        JournalEntry.objects.filter(pk=entry.pk).update(status=JournalEntry.POSTED)
+        foreign = LedgerAccount.objects.create(
+            department_id=self.other_department.pk, department_label=self.other_department.name,
+            code="FOREIGN", title="Foreign account", account_type="asset", normal_balance="debit",
+        )
+        self.client.force_login(self.poster)
+        for value in (str(foreign.pk), "999999999", "invalid", "-1", "²", "9" * 100):
+            for route in ("accounting:ledger", "accounting:ledger_export"):
+                with self.subTest(account=value, route=route):
+                    response = self.client.get(reverse(route), {"account": value})
+                    self.assertEqual(response.status_code, 400)
+                    self.assertContains(response, "Choose an account from this department", status_code=400)
+                    self.assertNotContains(response, entry.reference, status_code=400)
+        self.assertFalse(AccountingAuditEvent.objects.filter(action="report_exported").exists())
+
+    def test_ledger_date_order_reductions_and_department_boundaries(self):
+        # A page boundary inside a same-date journal must include prior dates and
+        # earlier same-date journals, but never a future date or another office.
+        entries = []
+        for index in range(27):
+            entry = self._entry(reference=f"SYN-ORDER-{index:03}")
+            entries.append(entry)
+        JournalEntry.objects.filter(pk=entries[0].pk).update(entry_date=date(2027, 1, 20))
+        JournalEntry.objects.filter(pk=entries[-1].pk).update(entry_date=date(2027, 1, 1))
+        # Reverse the direction of the two lines in one journal before posting.
+        JournalLine.objects.filter(entry=entries[1], account=self.cash).update(debit=0, credit=25)
+        JournalLine.objects.filter(entry=entries[1], account=self.revenue).update(debit=25, credit=0)
+        JournalEntry.objects.filter(pk__in=[entry.pk for entry in entries]).update(status=JournalEntry.POSTED)
+        foreign = self._entry(reference="SYN-FOREIGN-LEDGER")
+        JournalEntry.objects.filter(pk=foreign.pk).update(
+            department_id=self.other_department.pk, status=JournalEntry.POSTED,
+        )
+        self.client.force_login(self.poster)
+        second = self.client.get(reverse("accounting:ledger"), {"page": 2})
+        self.assertContains(second, "of 54 matching records")
+        rows = second.context["rows"]
+        self.assertEqual([line.entry_id for line, _ in rows],
+                         [entries[25].pk, entries[25].pk, entries[0].pk, entries[0].pk])
+        self.assertEqual([balance for _, balance in rows],
+                         [Decimal("2475.00"), Decimal("2475.00"), Decimal("2575.00"), Decimal("2575.00")])
+        self.assertNotContains(second, foreign.reference)
+        for value, expected in (("nonsense", 1), ("999", 2), ("0", 2)):
+            response = self.client.get(reverse("accounting:ledger"), {"page": value})
+            self.assertEqual(response.context["ledger_page"].number, expected)
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            response = self.client.get(reverse("accounting:ledger_export"))
+            records = list(csv.DictReader(io.StringIO(response.content.decode("utf-8"))))
+        self.assertEqual(len(records), 54)
+        self.assertEqual([Decimal(row["running_normal_balance"]) for row in records[-4:]],
+                         [balance for _, balance in rows])
+
+    def test_ledger_empty_selection_and_read_permission(self):
+        self.client.force_login(self.poster)
+        empty = self.client.get(reverse("accounting:ledger"), {"account": self.cash.pk, "page": 20})
+        self.assertEqual(empty.context["rows"], [])
+        self.assertContains(empty, "of 0 matching records")
+        self.client.force_login(self.viewer)
+        for route in ("accounting:ledger", "accounting:ledger_export"):
+            self.assertEqual(self.client.get(reverse(route)).status_code, 403)
+
     def test_ledger_shows_posted_entries_only(self):
         posted = self._entry(reference="SYN-JEV-POSTED")
         draft = self._entry(reference="SYN-JEV-DRAFT")

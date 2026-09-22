@@ -75,8 +75,10 @@ reversals retain their own journal dates and missing releases stay pending. See
 ### Development state
 
 The [full foundation requirement audit](docs/FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md)
-records remaining ledger/cash/remittance/shadow retrieval caps. Complete these
-with preserved running balances and scope before further output breadth.
+records ledger/cash/remittance/shadow retrieval caps. The subsequent
+[ledger repair](docs/FINANCE_LEDGER_RETRIEVAL.md) preserves preceding posted balances
+across pages and rejects invalid account scope in both screen and export. Complete
+remaining cash/remittance/shadow retrieval before further output breadth.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

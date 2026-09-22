@@ -33,8 +33,10 @@ and leaves a recoverable handoff. A checkpoint is not whole-goal completion.
 The [2026-09-22 A–K requirement audit](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md)
 maps all 22 attached sections and records remaining source-confirmed caps: ledger
 1,000 lines; Treasury cash/remittances and shadow cycles 100 records. Retrieval is
-not complete. Reproduce and repair ledger pagination with running-balance continuity
-before further output or feature breadth; FG-11 remains partial.
+not complete. The subsequent [ledger checkpoint](FINANCE_LEDGER_RETRIEVAL.md)
+repairs the 1,000-line cap with running-balance continuity and strict account scope.
+Continue cash/remittances, then shadow/history retrieval before further output or
+feature breadth; FG-11 remains partial.
 
 Classification describes connected capability, not a model/menu's existence.
 All rows below concern the actual Finance workflow or a supporting dependency.
