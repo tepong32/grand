@@ -68,7 +68,7 @@ def _csv_safe(value):
     return value
 
 
-def apply_annual_filters(queryset, *, fiscal_year=None, kind="", status="", attention="", actor=None):
+def apply_annual_filters(queryset, *, fiscal_year=None, kind="", status="", attention="", actor=None, search=""):
     if fiscal_year is not None:
         queryset = queryset.filter(fiscal_year=fiscal_year)
     if kind in dict(BudgetVersion.KIND_CHOICES):
@@ -106,6 +106,9 @@ def apply_annual_filters(queryset, *, fiscal_year=None, kind="", status="", atte
         )
     else:
         attention = ""
+    search = (search or "").strip()[:160]
+    if search:
+        queryset = queryset.filter(Q(title__icontains=search) | Q(requesting_department_label__icontains=search) | Q(appropriation_authorization__ordinance_number__icontains=search))
     return queryset, kind, status, attention
 
 
@@ -139,7 +142,7 @@ def _authorization(version):
         return None
 
 
-def build_annual_register(department, actor, queryset, *, fiscal_year=None, kind="", status="", attention=""):
+def build_annual_register(department, actor, queryset, *, fiscal_year=None, kind="", status="", attention="", search=""):
     actor_department = department_for_user(actor)
     if not can_view(actor) or actor_department is None or actor_department.pk != department.pk:
         raise PermissionDenied
@@ -194,7 +197,7 @@ def build_annual_register(department, actor, queryset, *, fiscal_year=None, kind
         "fiscal_year": fiscal_year.year if fiscal_year is not None else "all",
         "version_kind_filter": kind or "all",
         "status_filter": status or "all",
-        "attention_filter": attention or "all",
+        "attention_filter": attention or "all", "search": (search or "").strip()[:160],
         "version_count": len(versions),
         "authority_boundary": (
             "Budget oversight evidence only; approved proposals remain nonspendable unless the row carries "

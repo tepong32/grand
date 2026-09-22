@@ -68,9 +68,20 @@ def _require_obligation_permission(user, *codenames):
         raise PermissionDenied
 
 
+def _budget_register_page(queryset, request):
+    ordering = tuple(queryset.query.order_by or queryset.model._meta.ordering)
+    page = Paginator(queryset.order_by(*ordering, "-pk"), 50).get_page(request.GET.get("page"))
+    params = request.GET.copy()
+    for name, number in (("previous_url", page.number - 1), ("next_url", page.number + 1)):
+        params["page"] = number
+        setattr(page, name, "?" + params.urlencode() + "#budget-register")
+    return page
+
+
 @budget_access_required
 def workspace(request):
     department = department_for_user(request.user)
+    search = request.GET.get("q", "").strip()[:160]
     calls = BudgetCall.objects.filter(department_id=department.pk).prefetch_related("ceilings", "versions")
     fiscal_year_id = request.GET.get("fiscal_year", "").strip()
     fiscal_year = None
@@ -85,11 +96,12 @@ def workspace(request):
         kind=request.GET.get("kind", "").strip(),
         status=request.GET.get("status", "").strip(),
         attention=request.GET.get("attention", "").strip(),
-        actor=request.user,
+        actor=request.user, search=search,
     )
-    versions = list(versions.select_related(
+    page = _budget_register_page(versions.select_related(
         "fiscal_year", "budget_call", "appropriation_authorization",
-    ).prefetch_related("lines")[:100])
+    ).prefetch_related("lines"), request)
+    versions = list(page)
     for version in versions:
         version.next_action_label = next_annual_action(version)
     return render(request, "budget/workspace.html", {
@@ -98,7 +110,7 @@ def workspace(request):
         "selected_fiscal_year": fiscal_year_id,
         "selected_kind": selected_kind,
         "selected_status": selected_status,
-        "selected_attention": selected_attention,
+        "selected_attention": selected_attention, "search": search, "page_obj": page,
         "kind_choices": BudgetVersion.KIND_CHOICES,
         "status_choices": BudgetVersion.STATUS_CHOICES,
         "attention_choices": ANNUAL_ATTENTION_CHOICES,
@@ -115,6 +127,7 @@ def workspace(request):
 @budget_access_required
 def annual_register_export(request):
     department = department_for_user(request.user)
+    search = request.GET.get("q", "").strip()[:160]
     fiscal_year_id = request.GET.get("fiscal_year", "").strip()
     fiscal_year = None
     if fiscal_year_id:
@@ -128,7 +141,7 @@ def annual_register_export(request):
         kind=request.GET.get("kind", "").strip(),
         status=request.GET.get("status", "").strip(),
         attention=request.GET.get("attention", "").strip(),
-        actor=request.user,
+        actor=request.user, search=search,
     )
     content, filename, receipt = build_annual_register(
         department,
@@ -137,7 +150,7 @@ def annual_register_export(request):
         fiscal_year=fiscal_year,
         kind=selected_kind,
         status=selected_status,
-        attention=selected_attention,
+        attention=selected_attention, search=search,
     )
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
@@ -502,6 +515,7 @@ def authorization_export(request, public_id):
 @budget_permission_required("view_allotment_control")
 def allotment_workspace(request):
     department = department_for_user(request.user)
+    search = request.GET.get("q", "").strip()[:160]
     authorizations = list(AppropriationAuthorization.objects.filter(
         department_id=department.pk, status=AppropriationAuthorization.AUTHORIZED,
     ).select_related("version", "version__fiscal_year").prefetch_related("schedule_lines"))
@@ -519,9 +533,10 @@ def allotment_workspace(request):
     orders, selected_kind, selected_status, selected_attention = apply_allotment_filters(
         base_orders, fiscal_year=fiscal_year, kind=request.GET.get("kind", "").strip(),
         status=request.GET.get("status", "").strip(), attention=request.GET.get("attention", "").strip(),
-        actor=request.user,
+        actor=request.user, search=search,
     )
-    orders = list(orders.select_related("fiscal_year", "authorization", "corrects")[:100])
+    page = _budget_register_page(orders.select_related("fiscal_year", "authorization", "corrects"), request)
+    orders = list(page)
     for order in orders:
         order.next_action_label = next_allotment_action(order)
     return render(request, "budget/allotment_workspace.html", {
@@ -530,7 +545,7 @@ def allotment_workspace(request):
             allotment_release_orders__department_id=department.pk,
         ).distinct().order_by("-year", "pk"),
         "selected_fiscal_year": fiscal_year_id, "selected_kind": selected_kind,
-        "selected_status": selected_status, "selected_attention": selected_attention,
+        "selected_status": selected_status, "selected_attention": selected_attention, "search": search, "page_obj": page,
         "kind_choices": AllotmentReleaseOrder.KIND_CHOICES,
         "status_choices": AllotmentReleaseOrder.STATUS_CHOICES,
         "attention_choices": ALLOTMENT_ATTENTION_CHOICES,
@@ -542,6 +557,7 @@ def allotment_workspace(request):
 @budget_permission_required("view_allotment_control")
 def allotment_register_export(request):
     department = department_for_user(request.user)
+    search = request.GET.get("q", "").strip()[:160]
     base_orders = AllotmentReleaseOrder.objects.filter(department_id=department.pk)
     fiscal_year_id = request.GET.get("fiscal_year", "").strip()
     fiscal_year = None
@@ -553,11 +569,11 @@ def allotment_register_export(request):
     orders, selected_kind, selected_status, selected_attention = apply_allotment_filters(
         base_orders, fiscal_year=fiscal_year, kind=request.GET.get("kind", "").strip(),
         status=request.GET.get("status", "").strip(), attention=request.GET.get("attention", "").strip(),
-        actor=request.user,
+        actor=request.user, search=search,
     )
     content, filename, receipt = build_allotment_register(
         department, request.user, orders, fiscal_year=fiscal_year, kind=selected_kind,
-        status=selected_status, attention=selected_attention,
+        status=selected_status, attention=selected_attention, search=search,
     )
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'

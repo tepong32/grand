@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal
 import json
+import csv
+import io
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
@@ -78,6 +80,64 @@ class AnnualBudgetPreparationTests(TestCase):
         user.employeeprofile.save(update_fields=("assigned_department",))
         user.user_permissions.add(*Permission.objects.filter(content_type__app_label="budget", codename__in=permissions))
         return get_user_model().objects.get(pk=user.pk)
+
+    def test_annual_register_pages_search_and_export_share_all_matches(self):
+        call = self.make_call()
+        for index in range(1, 112):
+            item = self.make_version(call, version=index)
+            item.title = f"Retrieval proposal {index:03}"
+            item.save(update_fields=("title",))
+        self.client.force_login(self.preparer)
+        url = reverse("budget:workspace")
+        seen = []
+        for number, count in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(url, {"q": "Retrieval", "page": number, "status": BudgetVersion.DRAFT})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["page_obj"].paginator.count, 111)
+            self.assertEqual(len(response.context["versions"]), count)
+            seen.extend(item.pk for item in response.context["versions"])
+            self.assertIn("q=Retrieval", response.context["page_obj"].next_url)
+        self.assertEqual(len(set(seen)), 111)
+        self.assertContains(response, "Showing 101–111 of 111 matching records")
+        exact = self.client.get(url, {"q": "proposal 001", "page": "invalid"})
+        self.assertEqual(exact.context["page_obj"].paginator.count, 1)
+        for search, count in (("Retrieval", 111), ("proposal 001", 1), ("absent", 0)):
+            export = self.client.get(reverse("budget:annual_register_export"), {"q": search, "page": 3})
+            self.assertEqual(export.status_code, 200)
+            rows = list(csv.DictReader(io.StringIO(export.content.decode("utf-8-sig"))))
+            self.assertEqual(len(rows), count)
+            event = BudgetAuditEvent.objects.filter(action="annual_register_exported").latest("pk")
+            self.assertEqual(event.snapshot["search"], search)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"q": "Retrieval"}).context["page_obj"].paginator.count, 0)
+
+    def test_allotment_register_pages_search_and_export_share_all_matches(self):
+        authority = self.make_authorized_appropriation()
+        for index in range(1, 112):
+            self.make_allotment_order(authority, number=f"RETRIEVAL-ARO-{index:03}", total="0")
+        self.client.force_login(self.preparer)
+        url = reverse("budget:allotment_workspace")
+        seen = []
+        for number, count in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(url, {"q": "RETRIEVAL", "page": number, "status": AllotmentReleaseOrder.DRAFT})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["page_obj"].paginator.count, 111)
+            self.assertEqual(len(response.context["orders"]), count)
+            seen.extend(item.pk for item in response.context["orders"])
+            self.assertIn("q=RETRIEVAL", response.context["page_obj"].next_url)
+        self.assertEqual(len(set(seen)), 111)
+        self.assertContains(response, "Showing 101–111 of 111 matching records")
+        for search, count in (("RETRIEVAL", 111), ("ARO-001", 1), ("absent", 0)):
+            response = self.client.get(url, {"q": search})
+            self.assertEqual(response.context["page_obj"].paginator.count, count)
+            export = self.client.get(reverse("budget:allotment_register_export"), {"q": search, "page": 3})
+            self.assertEqual(export.status_code, 200)
+            rows = list(csv.DictReader(io.StringIO(export.content.decode("utf-8-sig"))))
+            self.assertEqual(len(rows), count)
+            event = BudgetAuditEvent.objects.filter(action="allotment_register_exported").latest("pk")
+            self.assertEqual(event.snapshot["search"], search)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"q": "RETRIEVAL"}).context["page_obj"].paginator.count, 0)
 
     def make_call(self, status=BudgetCall.DRAFT):
         return BudgetCall.objects.create(
@@ -296,7 +356,8 @@ class AnnualBudgetPreparationTests(TestCase):
         self.assertContains(response, review.title)
         self.assertNotContains(response, draft.title)
         self.assertContains(response, "Independent reviewer: approve or return")
-        self.assertContains(response, "1 visible version")
+        self.assertContains(response, "1 matching version")
+        self.assertEqual(response.context["page_obj"].paginator.count, 1)
 
         response = self.client.get(reverse("budget:workspace"), {
             "status": BudgetVersion.DRAFT,
