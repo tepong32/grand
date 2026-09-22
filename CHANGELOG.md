@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.132] - 2026-09-22
+### Fixed
+- fix(finance): reject omitted controlled fields in workbook print areas
+
 ## [0.7.131] - 2026-09-22
 ### Fixed
 - docs(finance): verify controlled signing copy browser workflow

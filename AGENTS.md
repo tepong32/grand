@@ -51,6 +51,12 @@ Voucher Workbench, older actionable cases remain in the queue rather than spilli
 into shared history; saved views recheck current scope and exports retain all matches.
 See [voucher retrieval](docs/FINANCE_VOUCHER_RETRIEVAL.md).
 
+Controlled workbook preflight must cover all required fields and detail rows in
+printable regions, including valid repeated titles; a merged field cannot be split
+across separately printed areas. Reverify before new output generation without
+rewriting historical issued files. Coverage alone does not establish legibility,
+printer pagination or local acceptance. See [print coverage](docs/FINANCE_TEMPLATE_PRINT_COVERAGE.md).
+
 ### Development state
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

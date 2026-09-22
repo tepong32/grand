@@ -437,6 +437,67 @@ class FinanceSetupCenterTests(TestCase):
         with self.assertRaisesMessage(FinanceTemplateError, "Suspicious"):
             inspect_finance_workbook(self._workbook(formula='=WEBSERVICE("https://example.invalid")'))
 
+    def test_workbook_preflight_rejects_controlled_fields_outside_print_area(self):
+        workbook = load_workbook(io.BytesIO(self._workbook()))
+        workbook["Voucher"].print_area = "A1:H10"
+        payload = io.BytesIO(); workbook.save(payload)
+        with self.assertRaisesMessage(FinanceTemplateError, "GRAND_LINE_ITEMS"):
+            inspect_finance_workbook(payload.getvalue())
+
+    def test_workbook_preflight_accepts_complete_split_print_areas_but_rejects_gaps(self):
+        workbook = load_workbook(io.BytesIO(self._workbook()))
+        sheet = workbook["Voucher"]
+        sheet.print_area = ["A1:H15", "A16:H30"]
+        payload = io.BytesIO(); workbook.save(payload)
+        self.assertTrue(inspect_finance_workbook(payload.getvalue())[2]["passed"])
+        sheet.print_area = ["A1:H15", "A17:H30"]
+        payload = io.BytesIO(); workbook.save(payload)
+        with self.assertRaisesMessage(FinanceTemplateError, "GRAND_LINE_ITEMS"):
+            inspect_finance_workbook(payload.getvalue())
+
+    def test_workbook_preflight_accepts_controlled_fields_in_repeated_print_titles(self):
+        workbook = load_workbook(io.BytesIO(self._workbook()))
+        sheet = workbook["Voucher"]
+        sheet.print_area = "C4:H30"
+        sheet.print_title_rows = "1:3"
+        sheet.print_title_cols = "A:B"
+        payload = io.BytesIO(); workbook.save(payload)
+        self.assertTrue(inspect_finance_workbook(payload.getvalue())[2]["passed"])
+        # Without repeat columns, mapped fields and line values are omitted.
+        # Use a fresh workbook: openpyxl's None setter retains existing titles.
+        workbook = load_workbook(io.BytesIO(self._workbook()))
+        sheet = workbook["Voucher"]
+        sheet.print_area = "C4:H30"
+        sheet.print_title_rows = "1:3"
+        payload = io.BytesIO(); workbook.save(payload)
+        with self.assertRaisesMessage(FinanceTemplateError, "GRAND_DV_NUMBER"):
+            inspect_finance_workbook(payload.getvalue())
+
+    def test_workbook_preflight_requires_whole_merged_controlled_field_in_print_area(self):
+        workbook = load_workbook(io.BytesIO(self._workbook()))
+        workbook.defined_names.add(DefinedName(
+            "GRAND_PREPARED_BY", attr_text="'Voucher'!$A$31",
+        ))
+        workbook["Voucher"].merge_cells("A31:J31")
+        workbook["Voucher"].print_area = "A1:H32"
+        # The mapped anchor is printable, but the full merged name field is not.
+        payload = io.BytesIO(); workbook.save(payload)
+        with self.assertRaisesMessage(FinanceTemplateError, "GRAND_PREPARED_BY"):
+            inspect_finance_workbook(payload.getvalue())
+
+    def test_workbook_preflight_rejects_merged_field_split_between_print_areas(self):
+        workbook = load_workbook(io.BytesIO(self._workbook()))
+        workbook.defined_names.add(DefinedName("GRAND_PREPARED_BY", attr_text="'Voucher'!$A$31"))
+        sheet = workbook["Voucher"]
+        sheet.merge_cells("A31:J31")
+        sheet.print_area = ["A1:H32", "I1:J32"]
+        payload = io.BytesIO(); workbook.save(payload)
+        with self.assertRaisesMessage(FinanceTemplateError, "GRAND_PREPARED_BY"):
+            inspect_finance_workbook(payload.getvalue())
+        sheet.print_area = "A1:J32"
+        payload = io.BytesIO(); workbook.save(payload)
+        self.assertTrue(inspect_finance_workbook(payload.getvalue())[2]["passed"])
+
     def test_workbook_preflight_rejects_external_link_parts_and_macro_payloads(self):
         original = self._workbook()
         for member, expected in (("xl/externalLinks/externalLink1.xml", "External"), ("xl/vbaProject.bin", "Macro")):

@@ -13,7 +13,10 @@ from django.utils import timezone
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.workbook.defined_name import DefinedName
+from openpyxl.utils.cell import range_boundaries
 from openpyxl.worksheet.page import PageMargins
+from openpyxl.worksheet.cell_range import CellRange
+from openpyxl.worksheet.print_settings import PrintArea
 
 from .access import can_approve_finance_configuration, can_manage_finance_configuration, can_manage_finance_templates
 from .models import (
@@ -762,6 +765,49 @@ def _destination(workbook, name):
     return workbook[sheet_name], coordinate
 
 
+def _print_region_groups(sheet):
+    """Include repeat-title strips and their corner for each actual print area."""
+    areas = list(PrintArea.from_string(sheet.print_area).ranges)
+    groups = []
+    title_rows = range_boundaries(sheet.print_title_rows) if sheet.print_title_rows else None
+    title_cols = range_boundaries(sheet.print_title_cols) if sheet.print_title_cols else None
+    for area in areas:
+        regions = [area]
+        if title_rows:
+            regions.append(CellRange(min_col=area.min_col, max_col=area.max_col,
+                                     min_row=title_rows[1], max_row=title_rows[3]))
+        if title_cols:
+            regions.append(CellRange(min_col=title_cols[0], max_col=title_cols[2],
+                                     min_row=area.min_row, max_row=area.max_row))
+        if title_rows and title_cols:
+            regions.append(CellRange(min_col=title_cols[0], max_col=title_cols[2],
+                                     min_row=title_rows[1], max_row=title_rows[3]))
+        groups.append(regions)
+    return groups
+
+
+def _print_areas_cover(required, areas):
+    """Check rectangular coverage without expanding potentially large cell ranges."""
+    intersecting = [area for area in areas if not area.isdisjoint(required)]
+    row_edges = {required.min_row, required.max_row + 1}
+    for area in intersecting:
+        row_edges.update((max(required.min_row, area.min_row),
+                          min(required.max_row + 1, area.max_row + 1)))
+    for row_start in sorted(row_edges)[:-1]:
+        spans = sorted(
+            (max(required.min_col, area.min_col), min(required.max_col, area.max_col))
+            for area in intersecting if area.min_row <= row_start <= area.max_row
+        )
+        next_column = required.min_col
+        for first, last in spans:
+            if first > next_column:
+                return False
+            next_column = max(next_column, last + 1)
+        if next_column <= required.max_col:
+            return False
+    return True
+
+
 def inspect_finance_workbook(payload, document_type="disbursement-voucher"):
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:
@@ -818,6 +864,22 @@ def inspect_finance_workbook(payload, document_type="disbursement-voucher"):
     mapped_sheets = {value["worksheet"] for value in mapping.values()}
     if mapped_sheets - set(print_sheets):
         raise FinanceTemplateError("Every worksheet receiving a controlled GRAND field must define a print area.")
+    for name, destination in mapping.items():
+        sheet = workbook[destination["worksheet"]]
+        groups = _print_region_groups(sheet)
+        areas = [area for group in groups for area in group]
+        required = CellRange(destination["range"])
+        # A merged field must fit in one print-area group, not clipped fragments
+        # across separately printed areas. Ordinary detail rows may span areas.
+        merged_fields = [merged for merged in sheet.merged_cells.ranges
+                         if not merged.isdisjoint(required)]
+        if (not _print_areas_cover(required, areas)
+                or any(not any(_print_areas_cover(merged, group) for group in groups)
+                       for merged in merged_fields)):
+            raise FinanceTemplateError(
+                f"{name} and any merged cells it occupies must be fully included in "
+                f"the print area or repeated print titles on {sheet.title}."
+            )
     return workbook, mapping, {
         "passed": True, "worksheets": len(workbook.sheetnames), "required_names": len(mapping),
         "line_item_row_capacity": row_capacity, "print_area_sheets": print_sheets,
