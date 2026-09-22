@@ -4,7 +4,31 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-22
 
-## Current checkpoint - Treasury report local dates
+## Current checkpoint - Governed tax release dates
+
+Branch `codex/finance-tax-release-dates` begins at v0.7.135
+`383b91d371cefa7e3da7ccb4d6a40c4d7f598f23`, [draft PR #96](https://github.com/tepong32/grand/pull/96).
+Reproduced a local March 1 release included in February under the configured
+payment-release reporting basis. Reuse the Treasury local-date helper; preserve
+tax rules/amounts/checksums, earliest-release selection, actual instants and
+reversal journal dates. Missing release evidence remains pending. See
+[reproduction and validation](docs/FINANCE_TAX_RELEASE_DATES.md).
+
+Baseline: one expected failure in 1.067s. SQLite PASS 48/48 (25.779s), native
+MySQL PASS 6/6 (1.650s), no skips; both runners exit 0. Fresh stores destroyed,
+owned native server stopped; commands and scope rationale are in the report.
+Tests cover a generated workbook, unchanged retained bytes/source checksums,
+missing-release exclusion, local month boundary and independent reversal date.
+No schema, posting, permission or lock-order change; no stored-output rewrite.
+This is existing configured behavior, not a new statutory tax-timing decision.
+
+Next: continue bank-advice and payment output source comparison. Both observed
+Finance date-conversion paths now have targeted coverage, but exact local forms,
+physical printing, local earmark semantics and LGU acceptance remain open.
+Full goal incomplete; production NO-GO. eGAPS remains closed. No master merge
+or deployment.
+
+## Prior checkpoint - Treasury report local dates
 
 Branch `codex/finance-treasury-report-dates` begins at v0.7.134
 `27c0209fe80d431c0b623612b901bd493ad1703e`, [draft PR #95](https://github.com/tepong32/grand/pull/95).

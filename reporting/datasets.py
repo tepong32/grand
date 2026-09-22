@@ -668,7 +668,7 @@ def _governed_tax_payload(department, period_start, period_end):
             case__public_id__in=case_ids, released_at__isnull=False,
         ).order_by("released_at", "pk"):
             key = str(instrument.case.public_id)
-            releases.setdefault(key, instrument.released_at.date())
+            releases.setdefault(key, _report_activity_date(instrument.released_at))
 
     rows, sources = [], []
     formula_difference = Decimal("0.00")

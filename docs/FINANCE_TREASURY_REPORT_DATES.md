@@ -64,3 +64,7 @@ Continue that boundary audit, then finish bank-advice/payment output comparison.
 Exact local forms, physical printing, local earmark semantics and LGU acceptance
 remain open. Full Finance goal incomplete; production NO-GO. eGAPS remains closed.
 No master merge, deployment or operator data changes.
+
+Subsequent checkpoint: [governed tax release dates](FINANCE_TAX_RELEASE_DATES.md)
+reproduces and fixes that specific follow-up with generated-output, reversal and
+native tests. The earlier Treasury validation above remains its original scope.
