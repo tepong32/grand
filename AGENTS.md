@@ -65,6 +65,10 @@ Controlled scalars must not overlap other fields or the detail table. Conflictin
 older templates require a reviewed correction before new generation; issued copies
 remain unchanged. See [starter layout and reproduction](docs/FINANCE_STARTER_LAYOUT.md).
 
+Treasury instrument reports must use the same active local date for database
+selection, issue/release/cancellation totals and source dates. Preserve actual
+instants and distinct issue/release evidence; see [period boundary validation](docs/FINANCE_TREASURY_REPORT_DATES.md).
+
 ### Development state
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;
