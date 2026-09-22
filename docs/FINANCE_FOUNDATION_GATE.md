@@ -300,3 +300,11 @@ retain repeated headers and complete split areas while rejecting missing regions
 and clipped merged fields. Issued output bytes remain unchanged. This is a bounded
 technical output-control repair, not accepted-form fidelity or actual printer proof.
 FG-06 and FG-07 remain partial; continue source-to-output and local acceptance work.
+
+## Checkpoint 5A - DV source context
+
+The editable starter now maps its existing fund, obligation/claim reference and
+party-detail fields through opt-in template preflight. Actual multi-obligation
+references replace the compatibility placeholder in those fields; old approvals
+retain their original mapping. See [source rules, validation and limits](FINANCE_DV_SOURCE_CONTEXT.md).
+FG-06 remains partial: source binding does not establish local form or printer acceptance.

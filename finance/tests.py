@@ -1,4 +1,6 @@
 import io
+import hashlib
+import json
 import tempfile
 import zipfile
 from datetime import date
@@ -27,7 +29,7 @@ from .services import (
     FinanceTemplateError, build_finance_starter_workbook, create_payment_event_posting_starters,
     create_recognition_posting_starter,
     evaluate_readiness, inspect_finance_workbook, payment_event_policy_error, posting_rule_snapshot, preflight_finance_template,
-    correct_finance_template, record_event, synthetic_preview, transition_release,
+    correct_finance_template, record_event, synthetic_preview, transition_release, verify_template_evidence,
 )
 
 
@@ -429,6 +431,52 @@ class FinanceSetupCenterTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "no longer matches"):
             transition_release(self.release, "approve", self.approver, "Synthetic Accounting review.")
 
+    def test_optional_dv_context_is_preflighted_without_reinterpreting_legacy_mapping(self):
+        workbook = load_workbook(io.BytesIO(self._workbook()))
+        workbook.defined_names.add(DefinedName("GRAND_CLAIM_REFERENCE", attr_text="'Voucher'!$E$5"))
+        workbook["Voucher"]["E5"] = "LEGACY MANUAL CONTEXT"
+        payload = io.BytesIO(); workbook.save(payload)
+        template = self._template()
+        template.workbook = SimpleUploadedFile("context.xlsx", payload.getvalue())
+        template.save()
+        preflight_finance_template(template, self.manager)
+        self.assertIn("GRAND_CLAIM_REFERENCE", template.mapping)
+        preview = load_workbook(io.BytesIO(synthetic_preview(template, self.manager)))
+        self.assertEqual(preview["Voucher"]["E5"].value, "SYNTHETIC-CLAIM-000001")
+        # Reconstruct a prior-schema approval over the same unchanged bytes.
+        _, legacy_mapping, _ = inspect_finance_workbook(payload.getvalue(), approved_optional_names=())
+        template.mapping = legacy_mapping
+        template.mapping_checksum = hashlib.sha256(json.dumps(legacy_mapping, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        template.save(update_fields=("mapping", "mapping_checksum"))
+        self.assertTrue(verify_template_evidence(template))
+        preview = load_workbook(io.BytesIO(synthetic_preview(template, self.manager)))
+        self.assertEqual(preview["Voucher"]["E5"].value, "LEGACY MANUAL CONTEXT")
+        self.assertNotIn("GRAND_CLAIM_REFERENCE", template.mapping)
+
+    def test_optional_context_cannot_overwrite_controlled_values_or_merged_fragments(self):
+        for coordinate, merged, message in (
+            ("$A$1", None, "overlaps"),
+            ("$A$12", None, "overlaps"),
+            ("$F$5", "E5:F5", "top-left"),
+        ):
+            with self.subTest(coordinate=coordinate):
+                workbook = load_workbook(io.BytesIO(self._workbook()))
+                if merged:
+                    workbook["Voucher"].merge_cells(merged)
+                workbook.defined_names.add(DefinedName("GRAND_CLAIM_REFERENCE", attr_text=f"'Voucher'!{coordinate}"))
+                payload = io.BytesIO(); workbook.save(payload)
+                with self.assertRaisesMessage(FinanceTemplateError, message):
+                    inspect_finance_workbook(payload.getvalue())
+                self.assertTrue(inspect_finance_workbook(payload.getvalue(), approved_optional_names=())[2]["passed"])
+
+    def test_optional_context_must_fit_print_area_when_newly_preflighted(self):
+        workbook = load_workbook(io.BytesIO(self._workbook()))
+        workbook.defined_names.add(DefinedName("GRAND_CLAIM_REFERENCE", attr_text="'Voucher'!$J$50"))
+        payload = io.BytesIO(); workbook.save(payload)
+        with self.assertRaisesMessage(FinanceTemplateError, "GRAND_CLAIM_REFERENCE"):
+            inspect_finance_workbook(payload.getvalue())
+        self.assertTrue(inspect_finance_workbook(payload.getvalue(), approved_optional_names=())[2]["passed"])
+
     def test_workbook_preflight_rejects_missing_names_print_area_and_suspicious_formulas(self):
         with self.assertRaisesMessage(FinanceTemplateError, "GRAND_APPROVED_BY"):
             inspect_finance_workbook(self._workbook(names=FinanceTemplateVersion.REQUIRED_NAMES[:-1]))
@@ -528,7 +576,7 @@ class FinanceSetupCenterTests(TestCase):
         workbook, mapping, result = inspect_finance_workbook(payload)
         self.assertTrue(result["passed"])
         self.assertEqual(result["line_item_row_capacity"], 10)
-        self.assertEqual(set(mapping), set(FinanceTemplateVersion.REQUIRED_NAMES))
+        self.assertEqual(set(mapping), set(FinanceTemplateVersion.REQUIRED_NAMES) | set(FinanceTemplateVersion.DV_CONTEXT_NAMES))
         self.assertEqual(workbook["DV Starter"]["A1"].value, "Municipality of Sample")
         self.assertIn("not automatically an official", workbook["Read Me First"]["B2"].value)
 

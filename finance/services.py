@@ -63,7 +63,7 @@ def build_finance_starter_workbook(values):
     sheet["A4"].font = Font(name="Arial", size=9, italic=True)
     sheet["E4"], sheet["F4"] = "DV No.", ""
     sheet["E5"], sheet["F5"] = "DV Date", ""
-    sheet["A5"], sheet["B5"] = "Fund", ""
+    sheet["A5"], sheet["B5"] = "Fund code(s)", ""
     sheet.merge_cells("B5:D5")
     sheet["A6"], sheet["B6"] = "Payee", ""
     sheet.merge_cells("B6:F6")
@@ -129,6 +129,11 @@ def build_finance_starter_workbook(values):
         "GRAND_DV_NUMBER": "$F$4",
         "GRAND_DV_DATE": "$F$5",
         "GRAND_PAYEE": "$B$6",
+        "GRAND_FUND_CODES": "$B$5",
+        "GRAND_PAYEE_ADDRESS": "$B$7",
+        "GRAND_PAYEE_TIN": "$F$7",
+        "GRAND_OBLIGATION_REFERENCES": "$B$8",
+        "GRAND_CLAIM_REFERENCE": "$F$8",
         "GRAND_PARTICULARS": "$A$10",
         "GRAND_LINE_ITEMS": f"$A${detail_start}:$C${detail_end}",
     }
@@ -808,7 +813,7 @@ def _print_areas_cover(required, areas):
     return True
 
 
-def inspect_finance_workbook(payload, document_type="disbursement-voucher"):
+def inspect_finance_workbook(payload, document_type="disbursement-voucher", *, approved_optional_names=None):
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:
             members = archive.infolist()
@@ -838,7 +843,11 @@ def inspect_finance_workbook(payload, document_type="disbursement-voucher"):
         raise FinanceTemplateError("That finance document type does not have an approved controlled-range schema.")
     mapping = {}
     table_name = schema["table"]
-    for name in schema["required"]:
+    optional_names = tuple(
+        name for name in schema.get("optional", ())
+        if name in (workbook.defined_names if approved_optional_names is None else approved_optional_names)
+    )
+    for name in (*schema["required"], *optional_names):
         sheet, coordinate = _destination(workbook, name)
         if name != table_name:
             area = sheet[coordinate]
@@ -847,6 +856,21 @@ def inspect_finance_workbook(payload, document_type="disbursement-voucher"):
                 if len(flattened) != 1:
                     raise FinanceTemplateError(f"{name} must point to exactly one cell.")
         mapping[name] = {"worksheet": sheet.title, "range": coordinate}
+    # Newly bound context may not overwrite an existing scalar or detail table.
+    for name in optional_names:
+        destination = mapping[name]
+        sheet = workbook[destination["worksheet"]]
+        region = CellRange(destination["range"])
+        for merged in sheet.merged_cells.ranges:
+            if not merged.isdisjoint(region):
+                if (region.min_col, region.min_row) != (merged.min_col, merged.min_row):
+                    raise FinanceTemplateError(f"{name} must use the top-left cell of its merged field.")
+                region = merged
+                break
+        for other, target in mapping.items():
+            if other != name and target["worksheet"] == sheet.title:
+                if not region.isdisjoint(CellRange(target["range"])):
+                    raise FinanceTemplateError(f"{name} overlaps controlled field {other}.")
     row_capacity = 0
     if table_name:
         line_sheet, line_coordinate = _destination(workbook, table_name)
@@ -956,7 +980,9 @@ def verify_template_evidence(template):
     payload = _workbook_bytes(template)
     if hashlib.sha256(payload).hexdigest() != template.workbook_checksum:
         raise FinanceTemplateError(f"{template} no longer matches its preflighted workbook checksum.")
-    _workbook, mapping, _result = inspect_finance_workbook(payload, template.document_type)
+    _workbook, mapping, _result = inspect_finance_workbook(
+        payload, template.document_type, approved_optional_names=template.mapping,
+    )
     mapping_checksum = hashlib.sha256(json.dumps(mapping, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     if mapping_checksum != template.mapping_checksum:
         raise FinanceTemplateError(f"{template} no longer matches its preflighted named-range mapping.")
@@ -970,7 +996,9 @@ def synthetic_preview(template, actor):
     checksum = hashlib.sha256(payload).hexdigest()
     if not template.preflight_passed or checksum != template.workbook_checksum:
         raise FinanceTemplateError("Preview requires the exact workbook version that passed preflight.")
-    workbook, _mapping, _result = inspect_finance_workbook(payload, template.document_type)
+    workbook, mapping, _result = inspect_finance_workbook(
+        payload, template.document_type, approved_optional_names=template.mapping,
+    )
     special_values = {
         "GRAND_DV_NUMBER": "SYNTHETIC-DV-000001", "GRAND_DV_DATE": timezone.localdate(),
         "GRAND_OBR_NUMBER": "SYNTHETIC-OBR-000001", "GRAND_OBR_DATE": timezone.localdate(),
@@ -983,10 +1011,13 @@ def synthetic_preview(template, actor):
         "GRAND_RESPONSIBILITY_CENTER": "Synthetic Office", "GRAND_ACCOUNT_CODE": "SYNTHETIC-ACCOUNT",
         "GRAND_PREPARED_BY": "Sample Preparer", "GRAND_CERTIFIED_BY": "Sample Certifier", "GRAND_APPROVED_BY": "Sample Approver",
         "GRAND_RELEASED_BY": "Sample Releasing Officer", "GRAND_ACKNOWLEDGED_BY": "Sample Claimant",
+        "GRAND_FUND_CODES": "SYNTHETIC-FUND", "GRAND_OBLIGATION_REFERENCES": "SYNTHETIC-OBR-000001",
+        "GRAND_CLAIM_REFERENCE": "SYNTHETIC-CLAIM-000001",
+        "GRAND_PAYEE_ADDRESS": "Synthetic demonstration address", "GRAND_PAYEE_TIN": "SYNTHETIC-TIN",
     }
     schema = FinanceTemplateVersion.schema_for(template.document_type)
     table_name = schema["table"]
-    values = {name: special_values.get(name, "SYNTHETIC PREVIEW") for name in schema["required"] if name != table_name}
+    values = {name: special_values.get(name, "SYNTHETIC PREVIEW") for name in mapping if name != table_name}
     for name, value in values.items():
         sheet, coordinate = _destination(workbook, name)
         cells = sheet[coordinate]

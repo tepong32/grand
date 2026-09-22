@@ -799,8 +799,14 @@ class FinanceTemplateVersion(models.Model):
         "GRAND_GROSS_AMOUNT", "GRAND_TOTAL_DEDUCTIONS", "GRAND_NET_AMOUNT", "GRAND_LINE_ITEMS",
         "GRAND_PREPARED_BY", "GRAND_CERTIFIED_BY", "GRAND_APPROVED_BY",
     )
+    DV_CONTEXT_NAMES = (
+        "GRAND_FUND_CODES", "GRAND_OBLIGATION_REFERENCES", "GRAND_CLAIM_REFERENCE",
+        "GRAND_PAYEE_ADDRESS", "GRAND_PAYEE_TIN",
+    )
     TEMPLATE_SCHEMAS = {
-        "disbursement-voucher": {"required": REQUIRED_NAMES, "table": "GRAND_LINE_ITEMS"},
+        "disbursement-voucher": {
+            "required": REQUIRED_NAMES, "table": "GRAND_LINE_ITEMS", "optional": DV_CONTEXT_NAMES,
+        },
         "obr": {"required": (
             "GRAND_OBR_NUMBER", "GRAND_OBR_DATE", "GRAND_PAYEE", "GRAND_PARTICULARS",
             "GRAND_FUND", "GRAND_RESPONSIBILITY_CENTER", "GRAND_ACCOUNT_CODE",

@@ -1,0 +1,42 @@
+{
+  "starter_context_mapping": {
+    "GRAND_FUND_CODES": {
+      "worksheet": "DV Starter",
+      "range": "$B$5"
+    },
+    "GRAND_OBLIGATION_REFERENCES": {
+      "worksheet": "DV Starter",
+      "range": "$B$8"
+    },
+    "GRAND_CLAIM_REFERENCE": {
+      "worksheet": "DV Starter",
+      "range": "$F$8"
+    },
+    "GRAND_PAYEE_ADDRESS": {
+      "worksheet": "DV Starter",
+      "range": "$B$7"
+    },
+    "GRAND_PAYEE_TIN": {
+      "worksheet": "DV Starter",
+      "range": "$F$7"
+    }
+  },
+  "issued_outputs": [
+    {
+      "version": 1,
+      "source_values_match": true,
+      "print_coverage_passes": true,
+      "sha256": "c050a6a9c7d4832cd139f9a546b5abad97526b71d71562efa8fac4d1e2e89458"
+    },
+    {
+      "version": 2,
+      "source_values_match": true,
+      "print_coverage_passes": true,
+      "sha256": "6a6a60f0352d1c9539f0ee9521de3a4fe497c53e0e72c121a4bfaf75dd0e18df"
+    }
+  ],
+  "current_starter_print_coverage_passes": true,
+  "starter_print_area": "'DV Starter'!$A$1:$F$31",
+  "starter_repeat_rows": "$1:$9",
+  "official_form_acceptance": false
+}
