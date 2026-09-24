@@ -36,8 +36,11 @@ do not relabel this narrower projection as accepted actuals. Local reserved-colu
 and earmark semantics still require evidence before extending those controls.
 The [actuals source audit](FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md) verifies DBM's
 Form 1/2 certification and object-coverage instructions for the next Budget checkpoint.
-It also reproduces the existing Budget report's incorrect nominal-closing netting;
-repair that calculation and reversal boundary after My Work, before broader actuals.
+It also reproduces the existing Budget report's incorrect nominal-closing netting.
+The [expense-activity repair](FINANCE_BUDGET_ACTUAL_ACTIVITY.md) now preserves activity
+through closing and its reversal lineage, retaining excluded movements and source
+evidence. SQLite/native validation passes. Next verify explicit Accounting ownership
+before broader certified expenditure, capital-outlay coverage and local acceptance.
 
 [Quarterly planning](FINANCE_QUARTERLY_PLANNING.md) now has an operational versioned
 schedule and retained ARO comparison. Explicit allocations and explained timing

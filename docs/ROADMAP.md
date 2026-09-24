@@ -13,8 +13,10 @@ retrieval and retained statement routes. The [integrated audit](FINANCE_RETRIEVA
 reproduces My Work's former 100-task navigation ceiling. [Personal retrieval](FINANCE_MY_WORK_RETRIEVAL.md)
 now pages all six views while preserving the bounded CSV snapshot contract.
 Full baseline SQLite/native regression passes with explicitly recorded
-SQLite skips; the audit also reproduces a Budget-report closing defect. The broader
-gate remains open.
+SQLite skips. The subsequent [Budget expense-activity repair](FINANCE_BUDGET_ACTUAL_ACTIVITY.md)
+preserves activity through nominal closing and retains the ledger bridge and sources.
+Next verify explicit Accounting source ownership before certified-expenditure coverage.
+The broader gate remains open.
 
 User direction accepted and clarified 2026-09-10: finish concrete Finance functionality and source-to-ledger-to-output proof first, then the actual eGAPS inventory, ordinary office scenarios, exact outputs, clerk usability and operational acceptance. eGAPS is the parity floor, not the design ceiling. Preserve account-based web workflows, maintainable national/COA/DBM changes and authorized WFH. [Finance modernization priorities](FINANCE_MODERNIZATION_PRIORITIES.md) are authoritative over older sequencing. No further UX or surrounding infrastructure expansion before unresolved functionality unless required to complete or validate it. Existing financial, native-validation and production gates remain.
 
