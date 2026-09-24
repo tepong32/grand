@@ -101,6 +101,12 @@ now follows the same captured authorized schedule's fiscal-year owner, includes
 owner identity in classification keys and retains explicit owner/year evidence.
 Never guess a ledger from department names or combine another owner's years/codes.
 Certified expenditure and capital-outlay coverage remain open.
+The [actuals contract](docs/FINANCE_BUDGET_ACTUALS_CONTRACT.md) keeps original external
+certification separate from GRAND adoption, prevents overlapping source totals and
+pins exact authoritative versions in proposal context. Native preparation requires
+reviewed expenditure purpose and coherent source coverage; neither expense totals
+nor all asset debits are a certificate. Form 1 joint certification stays distinct
+from Form 2 office certification. This contract is designed, not implemented.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

@@ -46,6 +46,10 @@ Treasury working outputs, comparing source identities, covered dates and totals.
 Then resolve exact local fields/layouts against accepted evidence when available.
 Keep the 31-form candidate catalog separate from confirmed required outputs.
 No new report family is authorized merely by its presence in that catalog.
+The subsequent [actuals source audit](FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md) verifies
+FY2027 DBM LBM 94 Annex D/E and informs the [proposal-actuals contract](FINANCE_BUDGET_ACTUALS_CONTRACT.md).
+These references establish national form content and distinct certification roles;
+they do not establish LGU usage, printer fidelity or acceptance of a GRAND output.
 
 ## Report-run retrieval repair
 

@@ -34,13 +34,28 @@ inspection above uses that actual file, not search snippets.
 
 ## Current code and concrete gap
 
-Follow-up reference identified 2026-09-25: DBM's official
+Follow-up reference verified 2026-09-25: DBM's official
 [Local Budget Memorandum 94 page](https://www.dbm.gov.ph/index.php?catid=453&id=4049%3Alocal-budget-memorandum-no-94&view=article)
 identifies the June 10, 2026 memorandum for indicative FY2027 NTA and annual budget
-preparation. Its complete PDF has **not** yet been inspected: the web reader rejected
-the 19,442,172-byte resource, and the slow direct download was cancelled before a
-complete file was retained. Check the actual provisions before claiming this issuance
-confirms or changes the form requirements above; its title alone does not establish that.
+preparation. After the earlier incomplete urllib attempt, bounded curl retrieval of
+the official PDF succeeded: 19,442,172 bytes, 48 pages, SHA256
+`14c63daa682e695dde09e0ba68a9e844d029959111a50028318ed23c8720aaad`.
+Section 2.2.20 retains the 2023 manual reference and lists the municipal LBP forms.
+Annex E (PDF pages 23–24) retains capital-outlay rows, separate historical/semester/
+estimated/proposed columns and Local Accountant certification for first-semester
+actuals. Annex D instructions (PDF page 22) retain joint Treasurer–Accountant
+certification for the summary's actuals. Those three pages were rendered and visually
+checked. Section 2.2.26 also references subsequent COA chart/classification circulars;
+their full provisions are not newly audited here.
+
+Artifacts in the `grand-finance-my-work` worktree: `.tmp/dbm-lbm94-current.pdf`,
+`.tmp/dbm-lbm94-current.txt`, `.tmp/lbm94-page-22.png` through `-24.png`.
+The first local extraction hit a Windows stdout encoding error; rerunning the same
+file with UTF-8 succeeded. The complete PDF hash and visual evidence supersede the
+earlier title-only finding. This is scoped current-reference verification, not a full
+regulatory-refresh or local-form acceptance claim. The resulting
+[actuals implementation contract](FINANCE_BUDGET_ACTUALS_CONTRACT.md) distinguishes
+external certificate adoption, native preparation and joint summary certification.
 
 `budget/planning_context.py::build_context` selects posted `JournalLine` records
 only where the account type is `expense`, groups exact fund/office/account identities,

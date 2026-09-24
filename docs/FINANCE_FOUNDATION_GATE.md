@@ -55,6 +55,9 @@ Classification describes connected capability, not a model/menu's existence.
 The [Budget actuals source audit](FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md) verifies
 national Form 1/2 certification and object-coverage instructions; FG-03 remains
 partial until the corresponding source, certification and acceptance gaps are met.
+The [actuals contract](FINANCE_BUDGET_ACTUALS_CONTRACT.md) defines evidence adoption,
+native preparation, proposal pinning and separate summary certification from verified
+FY2027 references. This is design evidence; FG-03 implementation remains incomplete.
 All rows below concern the actual Finance workflow or a supporting dependency.
 Other eGAPS capabilities must be classified as in scope, supporting dependency,
 potential future integration, out of current scope, or unknown before work begins.
