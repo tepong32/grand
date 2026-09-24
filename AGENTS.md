@@ -79,8 +79,10 @@ records ledger/cash/remittance/shadow retrieval caps. The subsequent
 [ledger repair](docs/FINANCE_LEDGER_RETRIEVAL.md) preserves preceding posted balances
 across pages and rejects invalid account scope in both screen and export.
 [Treasury cash/remittance retrieval](docs/FINANCE_TREASURY_REGISTER_RETRIEVAL.md)
-now retains independent pages and full reservation calculations. Complete remaining
-shadow/history retrieval before further output breadth.
+now retains independent pages and full reservation calculations.
+[Shadow retrieval](docs/FINANCE_SHADOW_RETRIEVAL.md) retains scoped cycle and review
+history navigation. Complete remaining Budget/remittance/Accounting history access
+before further output breadth.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

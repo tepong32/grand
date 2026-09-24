@@ -37,8 +37,9 @@ not complete. The subsequent [ledger checkpoint](FINANCE_LEDGER_RETRIEVAL.md)
 repairs the 1,000-line cap with running-balance continuity and strict account scope.
 The [Treasury register checkpoint](FINANCE_TREASURY_REGISTER_RETRIEVAL.md) repairs
 cash/remittance pagination while retaining full cash reservation calculations.
-Continue shadow/history retrieval before further output or feature breadth;
-FG-11 remains partial.
+The [shadow retrieval checkpoint](FINANCE_SHADOW_RETRIEVAL.md) adds complete cycle
+and retained-review navigation. Continue Budget/remittance/Accounting history
+reachability before further output breadth; FG-11 remains partial.
 
 Classification describes connected capability, not a model/menu's existence.
 All rows below concern the actual Finance workflow or a supporting dependency.

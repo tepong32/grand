@@ -1401,6 +1401,61 @@ class FinanceShadowCutoverTests(TestCase):
             404,
         )
 
+    def test_shadow_register_pages_cover_every_match_and_full_export(self):
+        expected = {self._unlocked_cycle(code=f"volume-{index:03}").pk for index in range(111)}
+        hidden = self._unlocked_cycle(code="volume-foreign")
+        FinanceShadowCycle.objects.filter(pk=hidden.pk).update(department=self.requesting)
+        self.client.force_login(self.manager)
+        url = reverse("finance:shadow_workspace")
+        filters = {"q": "volume-", "fiscal_year": "2027", "status": FinanceShadowCycle.DRAFT}
+        first = self.client.get(url, filters)
+        self.assertEqual(len(first.context["cycles"]), 50)
+        seen = set()
+        for number in range(1, 4):
+            response = self.client.get(url, {**filters, "page": number})
+            ids = {cycle.pk for cycle in response.context["cycles"]}
+            self.assertFalse(seen & ids)
+            seen |= ids
+        self.assertEqual(seen, expected)
+        self.assertEqual(response.context["visible_count"], 111)
+        self.assertContains(response, "of 111 matching records")
+        self.assertContains(response, "q=volume-&amp;fiscal_year=2027&amp;status=draft&amp;page=2")
+        exported = self.client.get(reverse("finance:shadow_cycle_register_export"), filters)
+        records = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+        self.assertEqual(len(records), 111)
+        self.assertEqual({row["cycle_public_id"] for row in records},
+                         {str(value) for value in FinanceShadowCycle.objects.filter(pk__in=expected).values_list("public_id", flat=True)})
+
+    def test_shadow_review_history_pages_retain_older_evidence(self):
+        cycle = self._unlocked_cycle(code="history-volume")
+        plan_review = FinanceAuditEvent.objects.get(
+            department=self.accounting, target_type="financeshadowcycle", target_id=str(cycle.pk),
+            snapshot__integrity_check__isnull=False,
+        )
+        expected = {plan_review.pk}
+        for index in range(45):
+            event = FinanceAuditEvent.objects.create(
+                department=self.accounting, target_type="financeshadowcycle", target_id=str(cycle.pk),
+                action="cutover_qualification_evidence_corrected", actor=self.manager,
+                reason=f"Synthetic retained correction {index:03}", snapshot={},
+            )
+            expected.add(event.pk)
+        FinanceAuditEvent.objects.create(
+            department=self.accounting, target_type="financeshadowcycle", target_id="unrelated",
+            action="cutover_qualification_evidence_corrected", actor=self.manager, reason="Hidden unrelated event",
+        )
+        self.client.force_login(self.manager)
+        seen = set()
+        for number in range(1, 4):
+            response = self.client.get(reverse("finance:shadow_cycle_detail", args=(cycle.pk,)), {"review_page": number})
+            ids = {event.pk for event in response.context["review_history"]}
+            self.assertFalse(seen & ids)
+            seen |= ids
+            self.assertNotContains(response, "Hidden unrelated event")
+        self.assertEqual(seen, expected)
+        self.assertContains(response, "of 46 matching records")
+        self.assertContains(response, "review_page=2#evidence-reviews")
+
     def test_field_operation_triage_and_register_share_filters_scope_and_authority_boundary(self):
         candidate = self._cycle(code="fy-2027-register-candidate")
         FinanceShadowCycle.objects.filter(pk=candidate.pk).update(

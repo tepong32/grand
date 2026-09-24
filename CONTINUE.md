@@ -2,9 +2,31 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-09-22
+Last updated: 2026-09-24
 
-## Current checkpoint - Treasury cash/remittance retrieval
+## Current checkpoint - Shadow-cycle and evidence-review retrieval
+
+Branch `codex/finance-shadow-retrieval` begins at v0.7.140
+`16f74d6c4ce161108e59331b5ef733ac1e229aa5`, [draft PR #101](https://github.com/tepong32/grand/pull/101).
+Reproduced first-100 cycle truncation and first-20 review repetition. Cycles now
+have stable 50-row pages/full matching counts and unchanged complete CSV export;
+retained reviews have scoped 20-row pages. No approval, acceptance or financial
+service change. See [actual validation and remaining audit](docs/FINANCE_SHADOW_RETRIEVAL.md).
+
+Baseline: 2 expected failures, 16.852s. Full module: 53 passed, one new fixture
+expectation failed, 173.293s; fixture's existing plan review was correctly retained.
+Corrected test expectation only. Final two affected tests PASS, 12.120s; no skips,
+exit 0. Same application code passed the other 53 tests. Fresh stores destroyed,
+runners terminal; native/browser/full cross-module checks not run (scope rationale
+in report). Diff/local links pass; operator DB unchanged. No master merge/deployment.
+
+Next: ordinary Budget proposal/quarterly and remittance event-history navigation,
+Accounting reconciliation-history reachability, then assess disclosed opening-row
+limits and Reporting history navigation. FG-11 stays partial. Preserve Budget
+actuals coverage, earmark unknowns and exact output/human acceptance. Goal active;
+production NO-GO. eGAPS may remain closed.
+
+## Prior checkpoint - Treasury cash/remittance retrieval
 
 Branch `codex/finance-treasury-register-retrieval` begins at v0.7.139
 `cc152fada4ea0407fee03e8cdfe6cfeb308da331`, [draft PR #100](https://github.com/tepong32/grand/pull/100).
