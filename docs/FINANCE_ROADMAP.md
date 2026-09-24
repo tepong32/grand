@@ -15,9 +15,12 @@ and [Accounting history](FINANCE_ACCOUNTING_HISTORY.md) now provide complete sco
 event/run pages and opening-row corrections. [Bank/report retrieval](FINANCE_BANK_REPORT_RETRIEVAL.md)
 adds full match-candidate pages and scoped report-history navigation.
 [Reporting schedules](FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md) now have active/inactive
-retrieval and explicit retained-evidence navigation. Next reconcile full retrieval
-requirements and broaden integrated validation before further output breadth; local
-policy and acceptance remain separate.
+retrieval and explicit retained-evidence navigation. The [integrated audit](FINANCE_RETRIEVAL_INTEGRATED_AUDIT.md)
+reproduces My Work's 100-task navigation ceiling; Waiting page 2 repeats page 1.
+Complete personal retrieval while retaining permission/view/date filters and the
+bounded CSV snapshot contract. Full v0.7.145 baseline SQLite/native regression passes;
+its SQLite skips, the reproduced Budget-report defect, local policy and acceptance
+remain explicit before any foundation-complete claim.
 
 Output direction clarified 2026-09-21: the office largely avoids eGAPS reporting
 because it is not user-friendly. Derive the required-output map from actual office
@@ -31,6 +34,10 @@ posted expense activity, explicit second-half estimates and original authorized
 schedules to retained proposal review. Certified expenditure/coverage remains open;
 do not relabel this narrower projection as accepted actuals. Local reserved-column
 and earmark semantics still require evidence before extending those controls.
+The [actuals source audit](FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md) verifies DBM's
+Form 1/2 certification and object-coverage instructions for the next Budget checkpoint.
+It also reproduces the existing Budget report's incorrect nominal-closing netting;
+repair that calculation and reversal boundary after My Work, before broader actuals.
 
 [Quarterly planning](FINANCE_QUARTERLY_PLANNING.md) now has an operational versioned
 schedule and retained ARO comparison. Explicit allocations and explained timing

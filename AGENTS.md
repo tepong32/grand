@@ -87,8 +87,11 @@ adds complete event pages with explicit proposal/remittance audit permission.
 opening-row and opening-event pages using the existing correction route.
 [Bank candidates/report history](docs/FINANCE_BANK_REPORT_RETRIEVAL.md) now have complete
 candidate pages and scoped generation-history navigation. [Reporting schedules](docs/FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md)
-include active/inactive retrieval and retained statement navigation. Reassess the full
-retrieval requirements and broaden integrated validation before further output breadth.
+include active/inactive retrieval and retained statement navigation. The
+[integrated retrieval audit](docs/FINANCE_RETRIEVAL_INTEGRATED_AUDIT.md) reproduces
+My Work's remaining 100-task ceiling: Waiting page 2 repeats page 1, and its suggested
+exact-queue links are absent. Complete personal navigation while preserving source
+scope and the explicitly bounded, retained CSV snapshot contract. FG-11 stays partial.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;
@@ -106,6 +109,9 @@ ledger/fund/office/account, with separate dated estimates and original authority
 Submission retains the comparison for independent review. Never infer PPA attribution,
 backfill old approvals or label expense activity as certified expenditure. FG-03
 coverage remains partial; see [context scope](docs/FINANCE_BUDGET_PLANNING_CONTEXT.md).
+The [DBM actuals source audit](docs/FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md) records
+distinct Form 1/2 certification roles and capital-outlay coverage; proposal approval
+does not certify historical actuals.
 
 Foundation retrieval checkpoints v0.7.116–v0.7.117 add scoped OBR/collection search,
 pagination, truthful counts and complete matching exports. Collection source totals
