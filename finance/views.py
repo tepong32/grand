@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -483,6 +484,15 @@ def _shadow_cycle_for_user(user, pk):
     return cycle
 
 
+def _shadow_page(queryset, request, parameter, anchor, *, per_page=50):
+    page = Paginator(queryset, per_page).get_page(request.GET.get(parameter))
+    params = request.GET.copy()
+    for name, number in (("previous_url", page.number - 1), ("next_url", page.number + 1)):
+        params[parameter] = number
+        setattr(page, name, "?" + params.urlencode() + "#" + anchor)
+    return page
+
+
 @shadow_access_required
 def shadow_workspace(request):
     department = department_for_user(request.user)
@@ -499,16 +509,18 @@ def shadow_workspace(request):
         attention=request.GET.get("attention", "").strip(),
         search=request.GET.get("q", ""),
     )
-    visible_count = cycles.count()
-    cycles = list(cycles.select_related("cutover_decision").prefetch_related(
+    cycle_page = _shadow_page(cycles.select_related("cutover_decision").prefetch_related(
         "comparisons", "stakeholder_acceptances",
-    )[:100])
+    ).order_by("-fiscal_year", "-planned_start", "code", "pk"), request, "page", "shadow-cycles")
+    visible_count = cycle_page.paginator.count
+    cycles = list(cycle_page.object_list)
     for cycle in cycles:
         cycle.next_action_label = next_shadow_cycle_action(cycle)
     attention_choices = shadow_attention_choices_for_user(request.user, department)
     allowed_attention = {value for value, _label in attention_choices}
     return render(request, "finance/shadow_workspace.html", {
         "cycles": cycles,
+        "cycle_page": cycle_page,
         "department": department,
         "visible_count": visible_count,
         "status_choices": FinanceShadowCycle.STATUS_CHOICES,
@@ -619,11 +631,12 @@ def shadow_cycle_detail(request, pk):
     successor_candidates, _selected, _spec = shadow_action_queryset(
         request.user, "prepare_successor", queryset=visible_shadow_cycles(request.user),
     )
-    review_history = list(FinanceAuditEvent.objects.filter(
+    review_page = _shadow_page(FinanceAuditEvent.objects.filter(
         department=cycle.department, target_type="financeshadowcycle", target_id=str(cycle.pk),
     ).filter(
         Q(snapshot__integrity_check__isnull=False) | Q(action="cutover_qualification_evidence_corrected"),
-    ).select_related("actor").order_by("-created_at", "-pk")[:20])
+    ).select_related("actor").order_by("-created_at", "-pk"), request, "review_page", "evidence-reviews", per_page=20)
+    review_history = list(review_page.object_list)
     for event in review_history:
         event.display_action = event.action.replace("_", " ").capitalize()
     from .field_source_register import source_drift_review_records
@@ -636,6 +649,7 @@ def shadow_cycle_detail(request, pk):
     return render(request, "finance/shadow_cycle_detail.html", {
         "cycle": cycle,
         "review_history": review_history,
+        "review_page": review_page,
         "source_versions": source_versions,
         "reconciliation_plan": plan,
         "cutover_readiness_plan": readiness_plan,

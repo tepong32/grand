@@ -6,6 +6,12 @@ and retained checkpoint evidence. It is not master integration, a new full-suite
 result, or LGU acceptance. **Foundation incomplete; production NO-GO.**
 The [living gap register](FINANCE_FOUNDATION_GATE.md) remains canonical.
 
+Subsequent retrieval repairs and the remaining history audit are recorded in
+[ledger retrieval](FINANCE_LEDGER_RETRIEVAL.md),
+[Treasury registers](FINANCE_TREASURY_REGISTER_RETRIEVAL.md) and
+[shadow retrieval](FINANCE_SHADOW_RETRIEVAL.md). Classifications below retain this
+audit's v0.7.137 baseline rather than implying those later repairs are absent.
+
 ## A — Already implemented
 
 Scoped OBR and collection retrieval has pagination, matching exports and retained

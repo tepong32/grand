@@ -1,0 +1,8 @@
+<div class="card-footer d-flex flex-wrap align-items-center justify-content-between">
+  <span class="small text-muted">Showing {{ page.start_index }}–{{ page.end_index }} of {{ page.paginator.count }} matching records</span>
+  {% if page.has_other_pages %}<nav aria-label="{{ label }} pages">
+    {% if page.has_previous %}<a class="btn btn-sm btn-outline-primary" href="{{ page.previous_url }}">Previous</a>{% endif %}
+    <span class="small mx-2">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="btn btn-sm btn-outline-primary" href="{{ page.next_url }}">Next</a>{% endif %}
+  </nav>{% endif %}
+</div>

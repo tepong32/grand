@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.141] - 2026-09-24
+### Fixed
+- fix(finance): expose complete shadow cycles and review history
+
 ## [0.7.140] - 2026-09-22
 ### Fixed
 - fix(treasury): complete cash and remittance register pagination

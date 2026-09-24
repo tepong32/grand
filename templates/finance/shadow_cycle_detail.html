@@ -115,8 +115,8 @@
     {% elif can_manage and cycle.status == 'reconciled' and has_passed_recovery_rehearsal %}<a class="btn btn-primary" href="{% url 'finance:cutover_decision_create' cycle.pk %}">Prepare cutover decision record</a>{% elif can_manage and cycle.status == 'reconciled' %}<p class="text-muted mb-0">Complete and independently pass the structured two-store recovery rehearsal before preparing the cutover record.</p>{% else %}<p class="text-muted mb-0">The decision record opens only after independent reconciliation. It does not authorize itself.</p>{% endif %}
   </div></div>
 
-  <div class="card card-outline card-secondary"><div class="card-header"><h2 class="card-title font-weight-bold">Evidence reviews and corrections</h2></div><div class="card-body">
-    <p class="text-muted">The latest 20 reviews with retained integrity checks and reference corrections. Earlier events remain in Finance audit history.</p>
+  <div class="card card-outline card-secondary" id="evidence-reviews"><div class="card-header"><h2 class="card-title font-weight-bold">Evidence reviews and corrections</h2></div><div class="card-body">
+    <p class="text-muted">Retained integrity reviews and reference corrections for this cycle, including earlier pages.</p>
     {% for event in review_history %}<div class="border-top py-2">
       <div><strong>{{ event.display_action }}</strong> · {{ event.created_at|date:'M j, Y g:i a' }} · {{ event.actor.get_full_name|default:event.actor.username }}</div>
       <p class="mb-1">{{ event.reason }}</p>
@@ -128,7 +128,7 @@
         <details class="mt-1"><summary>Reference values before and after correction</summary><dl class="small mt-2"><dt>Previous execution reference</dt><dd>{{ event.snapshot.before_correction.field_execution_reference }}</dd><dt>Corrected execution reference</dt><dd>{{ event.snapshot.field_execution_reference }}</dd><dt>Previous rules/forms reference</dt><dd>{{ event.snapshot.before_correction.rules_forms_reference }}</dd><dt>Corrected rules/forms reference</dt><dd>{{ event.snapshot.rules_forms_reference }}</dd></dl></details>
       {% endif %}
     </div>{% empty %}<p class="mb-0 text-muted">No reviews or reference corrections in this view yet.</p>{% endfor %}
-  </div></div>
+  </div>{% include "finance/_shadow_pagination.html" with page=review_page label="Evidence reviews" %}</div>
 
   <div class="card card-outline card-secondary"><div class="card-header"><h2 class="card-title font-weight-bold">Cycle actions</h2></div><div class="card-body">
     {% if cycle.status == 'draft' and can_manage %}<form method="post" action="{% url 'finance:shadow_cycle_action' cycle.pk 'start' %}">{% csrf_token %}<button class="btn btn-primary">Start limited run</button></form>{% endif %}

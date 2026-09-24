@@ -9,7 +9,9 @@ The [ledger repair](FINANCE_LEDGER_RETRIEVAL.md) now preserves running balances
 across scoped pages and rejects invalid account selection.
 [Treasury register retrieval](FINANCE_TREASURY_REGISTER_RETRIEVAL.md) now pages all
 cash lists and remittance matches without limiting financial reservations.
-Next: shadow cycles and supporting history. These remaining defects take
+The [shadow retrieval checkpoint](FINANCE_SHADOW_RETRIEVAL.md) addresses cycle and
+evidence-review limits. Next: Budget/remittance/Accounting history reachability.
+These remaining defects take
 priority over further output breadth; local policy and acceptance remain separate.
 
 Output direction clarified 2026-09-21: the office largely avoids eGAPS reporting
