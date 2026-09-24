@@ -39,8 +39,9 @@ The [Treasury register checkpoint](FINANCE_TREASURY_REGISTER_RETRIEVAL.md) repai
 cash/remittance pagination while retaining full cash reservation calculations.
 The [shadow retrieval checkpoint](FINANCE_SHADOW_RETRIEVAL.md) adds complete cycle
 and retained-review navigation. [Budget/remittance history](FINANCE_BUDGET_REMITTANCE_HISTORY.md)
-adds complete scoped event pages. Continue Accounting history reachability and
-opening/Reporting assessment before further output breadth; FG-11 remains partial.
+adds complete scoped event pages. [Accounting history](FINANCE_ACCOUNTING_HISTORY.md)
+adds reconciliation and opening-row/event pages. Continue Reporting navigation
+and bank-candidate reachability; FG-11 remains partial.
 
 Classification describes connected capability, not a model/menu's existence.
 All rows below concern the actual Finance workflow or a supporting dependency.

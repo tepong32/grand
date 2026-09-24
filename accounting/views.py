@@ -922,12 +922,16 @@ def opening_detail(request, public_id):
         public_id=public_id,
         department_id=department.pk,
     )
+    row_page = _workspace_page(batch.rows.select_related("fund", "account", "responsibility_center")
+                               .order_by("row_number", "pk"), request, "rows_page", "opening-rows")
+    event_page = _workspace_page(batch.events.order_by("-created_at", "-pk"),
+                                 request, "events_page", "opening-events")
     return render(request, "accounting/opening_detail.html", {
         "batch": batch,
-        "rows": batch.rows.select_related("fund", "account", "responsibility_center")[:500],
-        "row_count": batch.rows.count(),
+        "rows": row_page.object_list, "row_page": row_page,
+        "row_count": row_page.paginator.count,
         "postings": batch.postings.select_related("fund", "entry"),
-        "events": batch.events.all()[:50],
+        "events": event_page.object_list, "event_page": event_page,
         "import_form": OpeningBalanceImportForm(),
         "can_prepare_opening": can_prepare_opening_balances(request.user),
         "can_approve_opening": can_approve_opening_balances(request.user) and request.user.pk not in {batch.created_by_id, batch.submitted_by_id},
@@ -2210,6 +2214,9 @@ def subsidiary_controls(request):
             "balance": sum((row["balance"] for row in rows), Decimal("0.00")),
         }
 
+    run_page = _workspace_page(ControlAccountReconciliation.objects.filter(department_id=department.pk)
+                               .order_by("-as_of_date", "-prepared_at", "-pk"),
+                               request, "runs_page", "reconciliation-history")
     return render(request, "accounting/subsidiary_controls.html", {
         "as_of_date": as_of_date,
         "payables": payables,
@@ -2223,7 +2230,7 @@ def subsidiary_controls(request):
         "payable_totals": totals(payables),
         "withholding_totals": totals(withholdings),
         "current_reconciliation": snapshot,
-        "runs": ControlAccountReconciliation.objects.filter(department_id=department.pk)[:25],
+        "runs": run_page.object_list, "run_page": run_page,
         "can_reconcile": can_reconcile_controls(request.user),
     })
 

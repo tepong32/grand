@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 import csv
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -237,6 +238,97 @@ class StandaloneAccountingTests(TestCase):
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.get(url, {"page": 3}).context["visible_count"], 0)
         self.assertEqual(BankStatementBatch.objects.filter(status=BankStatementBatch.DRAFT).count(), 111)
+
+    def test_control_reconciliation_history_reaches_all_scoped_runs(self):
+        from .models import ControlAccountReconciliation
+        for department in (self.accounting_department, self.other_department):
+            ControlAccountReconciliation.objects.bulk_create([
+                ControlAccountReconciliation(department_id=department.pk, department_label=department.name,
+                    as_of_date=date(2026, 9, 1), result_checksum=hashlib.sha256(b"{}").hexdigest(),
+                    prepared_by_id=self.poster.pk, prepared_by_label=self.poster.username)
+                for number in range(61)
+            ])
+        self.client.force_login(self.poster)
+        url = reverse("accounting:subsidiary_controls")
+        seen = set()
+        for number, count in ((1, 50), (2, 11)):
+            response = self.client.get(url, {"runs_page": number, "as_of": "2026-09-01"})
+            runs = list(response.context["runs"])
+            self.assertEqual(len(runs), count)
+            self.assertTrue(all(run.department_id == self.accounting_department.pk for run in runs))
+            ids = {run.pk for run in runs}
+            self.assertFalse(seen & ids)
+            seen |= ids
+            self.assertContains(response, "as_of=2026-09-01")
+        self.assertEqual(len(seen), 61)
+        self.assertContains(response, "Showing 51–61 of 61 matching records")
+        with tempfile.TemporaryDirectory() as export_root, self.settings(EXPORT_ROOT=export_root):
+            self.assertEqual(self.client.get(reverse("accounting:subsidiary_reconciliation_export",
+                args=(runs[-1].public_id,))).status_code, 200)
+        self.client.force_login(self.viewer)
+        self.assertEqual(self.client.get(url, {"runs_page": 2}).status_code, 403)
+        self.assertEqual(ControlAccountReconciliation.objects.count(), 122)
+
+    def test_opening_detail_reaches_all_rows_events_and_later_correction(self):
+        from .models import OpeningBalanceEvent
+        batch = self._opening_batch(self._fiscal_foundation())
+        OpeningBalanceRow.objects.bulk_create([
+            OpeningBalanceRow(batch=batch, row_number=number, raw_fund_code=self.fund.code,
+                raw_account_code=self.cash.code, raw_debit="1.00", raw_credit="0.00")
+            for number in range(1, 512)
+        ])
+        for number in range(61):
+            OpeningBalanceEvent.objects.create(batch=batch, department_id=batch.department_id,
+                department_label=batch.department_label, actor_id=self.preparer.pk,
+                actor_label=self.preparer.username, action="synthetic_history", reason=f"History {number:03}")
+        expected_events = set(batch.events.values_list("pk", flat=True))
+        self.client.force_login(self.preparer)
+        url = reverse("accounting:opening_detail", args=(batch.public_id,))
+        seen = set()
+        for number in range(1, 12):
+            response = self.client.get(url, {"rows_page": number, "events_page": 2})
+            ids = {row.pk for row in response.context["rows"]}
+            self.assertFalse(seen & ids)
+            seen |= ids
+            self.assertContains(response, "events_page=2")
+        self.assertEqual(seen, set(batch.rows.values_list("pk", flat=True)))
+        self.assertContains(response, "Showing 501–511 of 511 matching records")
+        later = batch.rows.get(row_number=511)
+        correction_url = reverse("accounting:opening_row_edit", args=(batch.public_id, later.pk))
+        self.assertContains(response, correction_url)
+        self.assertEqual(self.client.get(correction_url).status_code, 200)
+        events = set()
+        for number in (1, 2):
+            response = self.client.get(url, {"rows_page": 11, "events_page": number})
+            ids = {event.pk for event in response.context["events"]}
+            self.assertFalse(events & ids)
+            events |= ids
+            self.assertContains(response, "rows_page=11")
+        self.assertEqual(events, expected_events)
+        self.assertEqual(set(batch.events.values_list("pk", flat=True)), expected_events)
+        with tempfile.TemporaryDirectory() as export_root, self.settings(EXPORT_ROOT=export_root):
+            exported = self.client.get(reverse("accounting:opening_export", args=(batch.public_id,)))
+            exported_rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+            self.assertEqual({int(row["row_number"]) for row in exported_rows}, set(range(1, 512)))
+        export_event = batch.events.get(action="exported")
+        self.assertEqual(export_event.snapshot["sha256"], exported["X-GRAND-Export-SHA256"])
+        expected_events.add(export_event.pk)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"rows_page": 11}).status_code, 404)
+        self.assertEqual(self.client.get(correction_url).status_code, 403)
+        self.assertEqual(set(batch.events.values_list("pk", flat=True)), expected_events)
+        self.client.force_login(self.preparer)
+        corrected = self.client.post(correction_url, {
+            "raw_fund_code": self.fund.code, "raw_account_code": self.cash.code,
+            "raw_debit": "1.00", "raw_credit": "0.00", "memo": "Corrected later source row",
+            "change_reason": "Synthetic reviewed source row 511 correction",
+        })
+        self.assertEqual(corrected.status_code, 302)
+        later.refresh_from_db()
+        self.assertEqual(later.correction_version, 2)
+        self.assertEqual(later.memo, "Corrected later source row")
+        self.assertEqual(batch.events.get(action="row_corrected").snapshot["row_number"], 511)
+        self.assertTrue(expected_events <= set(batch.events.values_list("pk", flat=True)))
 
     def _fiscal_foundation(self, year=2027):
         fiscal_year = FiscalYear.objects.create(
