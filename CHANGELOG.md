@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.145] - 2026-09-24
+### Fixed
+- fix(finance): complete schedule retrieval and retained statement navigation
+
 ## [0.7.144] - 2026-09-24
 ### Fixed
 - fix(finance): complete bank candidate and report history navigation

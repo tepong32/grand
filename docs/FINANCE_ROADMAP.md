@@ -13,10 +13,11 @@ The [shadow retrieval checkpoint](FINANCE_SHADOW_RETRIEVAL.md) addresses cycle a
 evidence-review limits. [Budget/remittance history](FINANCE_BUDGET_REMITTANCE_HISTORY.md)
 and [Accounting history](FINANCE_ACCOUNTING_HISTORY.md) now provide complete scoped
 event/run pages and opening-row corrections. [Bank/report retrieval](FINANCE_BANK_REPORT_RETRIEVAL.md)
-adds full match-candidate pages and scoped report-history navigation. Next assess
-remaining Reporting schedule/statement-evidence previews.
-These remaining defects take
-priority over further output breadth; local policy and acceptance remain separate.
+adds full match-candidate pages and scoped report-history navigation.
+[Reporting schedules](FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md) now have active/inactive
+retrieval and explicit retained-evidence navigation. Next reconcile full retrieval
+requirements and broaden integrated validation before further output breadth; local
+policy and acceptance remain separate.
 
 Output direction clarified 2026-09-21: the office largely avoids eGAPS reporting
 because it is not user-friendly. Derive the required-output map from actual office

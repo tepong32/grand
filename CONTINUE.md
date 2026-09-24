@@ -4,7 +4,32 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-24
 
-## Current checkpoint - Bank candidate and report-history navigation
+## Current checkpoint - Reporting schedules and retained evidence navigation
+
+Branch `codex/finance-reporting-schedule-retrieval` begins at v0.7.144
+`a32a35c29aebcd8ee112591b2d9931ecf31406b7`, [draft PR #105](https://github.com/tepong32/grand/pull/105).
+Schedules now have complete ten-record pages and Active/Inactive/All selection,
+independent from report filters. Viewing does not execute or change schedules.
+Recent statement previews link to their complete existing routes; inactive statement
+definitions retain notes navigation. See [scope and evidence](docs/FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md).
+
+Baseline reproduced eight-schedule cap; a second new fixture incorrectly reused
+comparison version 1 and was corrected to distinct versions. Final Reporting,
+retrieval, notes and bundle regression PASS 55/55, 38.249s, no skips, exit 0.
+Both test stores destroyed; runner terminal. Desktop/narrow browser navigation
+passed on synthetic stores; browser/server stopped. Operator DB unchanged;
+diff/local links pass. Native/full-project suites out of scope for this read-only
+checkpoint, not implied by these scoped results.
+
+Next: reconcile FG-11/all retrieval requirements against current routes, retained
+proof and actual volume limits, including Finance My Work's declared export bound.
+Then broaden integrated regression. No further hard-coded record caps identified
+by the bounded source scan beyond documented recent previews; that alone does not
+prove whole-goal completion. Preserve Budget certified expenditure coverage,
+unconfirmed earmark rules, exact outputs and human acceptance. Goal active;
+production NO-GO; no master merge/deployment. eGAPS may remain closed.
+
+## Prior checkpoint - Bank candidate and report-history navigation
 
 Branch `codex/finance-bank-report-retrieval` begins at v0.7.143
 `e677ff9eea63bb571d7bd27c5003ad40040260ab`, [draft PR #104](https://github.com/tepong32/grand/pull/104).

@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from . import tests as fixtures
-from .models import ReportRun
+from .models import ReportRun, ReportSchedule
 
 
 class ReportRunRetrievalTests(TestCase):
@@ -79,3 +79,41 @@ class ReportRunRetrievalTests(TestCase):
         self.assertTrue(all(run.created_by_id==self.operator.pk for run in history.context['recent_runs']))
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.get(url).status_code,404)
+
+    def test_schedule_pages_reach_active_and_inactive_records_without_execution(self):
+        now = timezone.now()
+        ReportSchedule.objects.bulk_create([
+            ReportSchedule(definition=self.definition, template_version=self.template,
+                name=f'Synthetic schedule {number:03}', frequency='daily', output_format='csv',
+                next_run_at=now, is_active=number < 23, created_by=self.head)
+            for number in range(25)
+        ])
+        expected = set(ReportSchedule.objects.filter(is_active=True).values_list('pk',flat=True))
+        before = list(ReportSchedule.objects.values_list('pk','next_run_at','is_active'))
+        self.client.force_login(self.operator)
+        url = reverse('reporting:workspace')
+        seen = set()
+        for number,count in ((1,10),(2,10),(3,3)):
+            response = self.client.get(url,{'schedules_page':number,'schedules_state':'active','q':'retained search','page':2})
+            items = list(response.context['schedules'])
+            self.assertEqual(len(items),count)
+            ids = {item.pk for item in items}
+            self.assertFalse(ids & seen)
+            seen |= ids
+            self.assertContains(response,'q=retained+search')
+            self.assertContains(response,'page=2')
+        self.assertEqual(seen,expected)
+        self.assertContains(response,'Showing 21–23 of 23 matching records')
+        inactive = self.client.get(url,{'schedules_state':'inactive'})
+        self.assertEqual({item.pk for item in inactive.context['schedules']},set(ReportSchedule.objects.filter(is_active=False).values_list('pk',flat=True)))
+        all_items = self.client.get(url,{'schedules_state':'all'})
+        self.assertEqual(all_items.context['schedule_page'].paginator.count,25)
+        invalid = self.client.get(url,{'schedules_state':'unknown'})
+        self.assertEqual(list(invalid.context['schedules']),[])
+        self.assertContains(invalid,'Choose Active, Inactive or All schedules')
+        self.client.force_login(self.outsider)
+        other = self.client.get(url,{'schedules_state':'all','schedules_page':3})
+        self.assertEqual(other.context['schedule_page'].paginator.count,0)
+        self.assertNotContains(other,'Synthetic schedule')
+        self.assertEqual(list(ReportSchedule.objects.values_list('pk','next_run_at','is_active')),before)
+        self.assertEqual(ReportRun.objects.count(),0)
