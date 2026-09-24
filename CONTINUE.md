@@ -4,7 +4,33 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-25
 
-## Current checkpoint - Budget report explicit Accounting ownership (validated)
+## Current checkpoint - Authoritative Budget actuals contract (design verified)
+
+Branch `codex/finance-budget-actuals-contract` starts at v0.7.149,
+`aeb15e55af7e5429ed13f82a4732f4587db0399e`, [draft PR #110](https://github.com/tepong32/grand/pull/110).
+No application/schema changes. DBM LBM 94 for FY2027 is now fully downloaded and
+hashed; Annex D/E relevant form/instructions are text-checked and visually reviewed.
+The earlier incomplete download no longer blocks this source check. See the
+[updated source audit](docs/FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md) and
+[implementation contract](docs/FINANCE_BUDGET_ACTUALS_CONTRACT.md).
+
+The contract connects exact authoritative actuals to the existing proposal workflow.
+First implement retained external certification adoption end to end: Finance-store
+versioned scope/rows, evidence integrity, independent scoped review, complete retrieval,
+Budget selection/missing states, frozen submission and controlled export. Original
+signers/dates remain distinct from GRAND adoption. Then implement native source
+preparation/classification and source-change checks; neither expense totals nor
+all asset debits establish expenditure. Overlapping external/native scope cannot
+be added automatically. Form 1's joint certification remains distinct from Form 2.
+
+Validation PASS: official reference retrieval/hash/render inspection and existing
+source/permission/store/posting-lock trace. Application/native/browser tests NOT RUN —
+OUT OF SCOPE for this documentation-only checkpoint. All research processes ended;
+operator stores untouched. No new certification feature or acceptance is claimed.
+Goal active, production NO-GO; no master merge/deployment. Unknown local earmark
+rules and wider foundation requirements remain open.
+
+## Prior checkpoint - Budget report explicit Accounting ownership (validated)
 
 Branch `codex/finance-budget-actual-owner` starts at v0.7.148,
 `29be6b684849d64499fe4bdc8ada91d9bcbd0067`, [draft PR #109](https://github.com/tepong32/grand/pull/109).

@@ -43,7 +43,11 @@ evidence. The subsequent [owner repair](FINANCE_BUDGET_ACTUAL_OWNERSHIP.md) uses
 authorized fiscal-year owner and separate owner/year/classification keys with retained
 evidence. SQLite/native validation passes. Next complete certified-expenditure source
 coverage, including capital outlays and historical external certification, before
-calling the planning comparison complete. Local acceptance remains open.
+calling the planning comparison complete. The [actuals contract](FINANCE_BUDGET_ACTUALS_CONTRACT.md)
+now defines external certification adoption through Budget submission/export as the
+first source route, with native classification/preparation and distinct joint summary
+certification retained as subsequent requirements. It is grounded in verified FY2027
+DBM Annex D/E and does not itself deliver those capabilities. Local acceptance remains open.
 
 [Quarterly planning](FINANCE_QUARTERLY_PLANNING.md) now has an operational versioned
 schedule and retained ARO comparison. Explicit allocations and explained timing

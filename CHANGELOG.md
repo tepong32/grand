@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.150] - 2026-09-25
+### Documentation
+- docs(finance): define authoritative Budget actuals and certification contract
+
 ## [0.7.149] - 2026-09-25
 ### Fixed
 - fix(finance): derive Budget actuals from explicit Accounting ownership
