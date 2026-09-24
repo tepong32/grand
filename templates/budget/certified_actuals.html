@@ -1,0 +1,14 @@
+{% if planning %}
+<section class="card mb-3" aria-labelledby="certified-actuals-heading">
+  <div class="card-header"><h2 class="h5 mb-0" id="certified-actuals-heading">Certified external actuals</h2></div>
+  <div class="card-body"><p>Accounting independently adopts the retained source certificate. These amounts are separate from the posted-expense comparison and are never added to it. Missing rows remain missing; submitted proposals retain the exact versions captured.</p>
+  <a href="{% url 'accounting:budget_actual_register' %}">View retained certificates and adoption history</a></div>
+  <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fund / office / account</th><th>{{ planning.prior_year }} actual</th><th>Jan–Jun {{ planning.current_year }} actual</th><th>Certified actual + Jul–Dec estimate</th></tr></thead><tbody>
+  {% for row in planning.rows %}<tr><td>{{ row.fund }} / {{ row.office }} / {{ row.account }}</td>
+    <td>{% if row.prior_certified %}<strong>{{ row.prior_certified.amount|floatformat:2 }}</strong><br><a href="{{ row.prior_certified.url }}">{{ row.prior_certified.reference }} · v{{ row.prior_certified.version }}</a><br>Certified {{ row.prior_certified.certified_on }}{% else %}{{ row.prior_certification_state|default:'No retained certification' }}{% endif %}</td>
+    <td>{% if row.half_certified %}<strong>{{ row.half_certified.amount|floatformat:2 }}</strong><br><a href="{{ row.half_certified.url }}">{{ row.half_certified.reference }} · v{{ row.half_certified.version }}</a><br>Certified {{ row.half_certified.certified_on }}{% else %}{{ row.half_certification_state|default:'No retained certification' }}{% endif %}</td>
+    <td>{% if row.half_certified and row.certified_indicative_total != None %}{{ row.certified_indicative_total|floatformat:2 }}{% else %}Incomplete certified context{% endif %}</td>
+  </tr>{% empty %}<tr><td colspan="4">Add proposal classifications to locate matching evidence.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}

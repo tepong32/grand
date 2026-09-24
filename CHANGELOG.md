@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.151] - 2026-09-25
+### Added
+- feat(finance): retain independently adopted Budget actual certificates
+
 ## [0.7.150] - 2026-09-25
 ### Documentation
 - docs(finance): define authoritative Budget actuals and certification contract

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title_ext %} - Budget actual certificates{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <h1 class="h3">Budget actual certificates</h1>
+  <p>Retained external certificates and their independent adoption decisions. An adoption is not a new financial posting or a new signature by the original certifier.</p>
+  {% if can_prepare %}<a class="btn btn-primary mb-3" href="{% url 'accounting:budget_actual_create' %}">Submit a certificate</a>{% endif %}
+  <form method="get" class="card card-body mb-3"><div class="form-row">
+    <div class="col-md-6"><label for="certificate-search">Reference, fund or office</label><input class="form-control" id="certificate-search" name="q" value="{{ q }}"></div>
+    <div class="col-md-4"><label for="certificate-state">State</label><select class="form-control" name="status" id="certificate-state">
+      <option value="">All visible history</option><option value="submitted" {% if status == 'submitted' %}selected{% endif %}>For review</option><option value="approved" {% if status == 'approved' %}selected{% endif %}>Adopted</option><option value="returned" {% if status == 'returned' %}selected{% endif %}>Returned</option>
+    </select></div><div class="col-md-2 align-self-end"><button class="btn btn-outline-primary mt-2">Find</button></div>
+  </div></form>
+  {% if can_export %}<a href="{% url 'accounting:budget_actual_export' %}?{{ querystring }}" class="btn btn-outline-secondary mb-2">Export all matching certificates</a>{% endif %}
+  <p>{{ page.paginator.count }} matching certificate versions{% if page.paginator.count %} · showing {{ page.start_index }}–{{ page.end_index }}{% endif %}</p>
+  <div class="table-responsive"><table class="table"><thead><tr><th>Certificate</th><th>Scope</th><th>Period</th><th>State</th><th>Signed total</th></tr></thead><tbody>
+  {% for record in page %}<tr><td><a href="{% url 'accounting:budget_actual_detail' record.public_id %}">{{ record.payload.reference }}</a><br>Version {{ record.version }}</td><td>{{ record.payload.scope.fund_code }} · {{ record.payload.scope.center_code }}</td><td>{{ record.scope.period_start }} – {{ record.scope.period_end }}</td><td>{{ record.get_status_display }}{% if record.scope.current_version_id == record.pk %}<br><strong>Current for new proposals</strong>{% endif %}</td><td>{{ record.payload.signed_total|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="5">No matching certificate evidence.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <nav aria-label="Certificate pages">{% if page.has_previous %}<a class="btn btn-outline-secondary" href="?{{ querystring }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a class="btn btn-outline-secondary" href="?{{ querystring }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+</div>
+{% endblock %}

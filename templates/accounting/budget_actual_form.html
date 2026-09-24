@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title_ext %} - Adopt a Budget actual certificate{% endblock %}
+{% block content %}
+<div class="container pb-4">
+  <a href="{% url 'accounting:budget_actual_register' %}">Certificate register</a>
+  <h1 class="h3 mt-3">{% if previous %}Prepare a successor to version {{ previous.version }}{% else %}Submit an external actuals certificate{% endif %}</h1>
+  <p>Use a completed full-year or January–June office certificate. Keep its original Local Accountant, date and source references. A different Accounting reviewer must verify adoption before Budget can use these amounts.</p>
+  <form method="post" enctype="multipart/form-data" class="card card-body">{% csrf_token %}{{ form.as_p }}
+    <h2 class="h5">Certified account rows</h2><p>Enter the explicit source rows, including any certified zero. Use leaf amounts only; do not repeat subtotals. Their sum must equal the signed total. Missing accounts remain missing, not zero.</p>
+    {{ formset.management_form }}{{ formset.non_form_errors }}
+    <div id="actual-rows">{% for row in formset %}<div class="border rounded p-3 mb-3">{{ row.as_p }}</div>{% endfor %}</div>
+    <template id="actual-empty"><div class="border rounded p-3 mb-3">{{ formset.empty_form.as_p }}</div></template>
+    <button type="button" class="btn btn-outline-secondary mb-3" id="actual-add">Add account row</button>
+    <button type="submit" class="btn btn-primary">Submit for independent adoption review</button>
+  </form>
+</div>
+<script>
+document.getElementById('actual-add').addEventListener('click', function () {
+  const total = document.getElementById('id_form-TOTAL_FORMS');
+  if (Number(total.value) >= 1000) return;
+  document.getElementById('actual-rows').insertAdjacentHTML('beforeend', document.getElementById('actual-empty').innerHTML.replaceAll('__prefix__', total.value));
+  total.value = Number(total.value) + 1;
+});
+</script>
+{% endblock %}

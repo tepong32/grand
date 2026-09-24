@@ -47,7 +47,10 @@ calling the planning comparison complete. The [actuals contract](FINANCE_BUDGET_
 now defines external certification adoption through Budget submission/export as the
 first source route, with native classification/preparation and distinct joint summary
 certification retained as subsequent requirements. It is grounded in verified FY2027
-DBM Annex D/E and does not itself deliver those capabilities. Local acceptance remains open.
+DBM Annex D/E. The first [external-adoption checkpoint](FINANCE_BUDGET_ACTUAL_ADOPTION.md)
+connects retained source documents, independent Accounting review, complete retrieval,
+Budget comparison and frozen submission/export. Native preparation, joint summary
+certification and local acceptance remain open.
 
 [Quarterly planning](FINANCE_QUARTERLY_PLANNING.md) now has an operational versioned
 schedule and retained ARO comparison. Explicit allocations and explained timing

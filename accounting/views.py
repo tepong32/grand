@@ -124,6 +124,7 @@ def _workspace_page(queryset, request, parameter, anchor, *, page_size=50):
 @require_GET
 @accounting_access_required
 def workspace(request):
+    from .budget_actuals import permitted as can_use_actuals
     department = department_for_user(request.user)
     department_entries = JournalEntry.objects.filter(department_id=department.pk).select_related("fund", "period")
     (
@@ -190,6 +191,7 @@ def workspace(request):
         "can_manage_setup": can_manage_setup(request.user), "can_prepare": can_prepare_journals(request.user),
         "can_post": can_post_journals(request.user), "can_view_ledger": can_view_ledger(request.user),
         "can_view_advances": can_view_advances(request.user),
+        "can_view_budget_actuals": any(can_use_actuals(request.user, action) for action in ("view", "prepare", "review", "export")),
         "can_prepare_opening": can_prepare_opening_balances(request.user),
         "can_approve_opening": can_approve_opening_balances(request.user),
         "can_post_opening": can_post_opening_balances(request.user),

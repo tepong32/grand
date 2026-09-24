@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title_ext %} - Accounting{% endblock %}
 {% block content %}
+{% if can_view_budget_actuals %}<div class="container-fluid mb-2"><a class="btn btn-outline-primary" href="{% url 'accounting:budget_actual_register' %}">Budget actual certificates and adoption review</a></div>{% endif %}
 <div class="container-fluid pb-4">
   {% if can_view_advances %}<p><a class="btn btn-outline-primary" href="{% url 'accounting:advance_register' %}">Officer advances and liquidations</a></p>{% endif %}
   <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start mb-3">

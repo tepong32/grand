@@ -1765,3 +1765,84 @@ class AccountingAuditEvent(DepartmentOwnedModel):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Accounting audit events cannot be deleted.")
+
+
+class BudgetActualScope(DepartmentOwnedModel):
+    """One explicit office/fund/period; Finance-store parent for adoption versions."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    budget_department_id = models.PositiveBigIntegerField()
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT)
+    responsibility_center = models.ForeignKey(ResponsibilityCenter, on_delete=models.PROTECT)
+    period_start = models.DateField()
+    period_end = models.DateField()
+    current_version = models.OneToOneField("BudgetActualVersion", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="current_for_scope")
+
+    class Meta:
+        constraints = (models.UniqueConstraint(fields=("department_id", "fund", "responsibility_center",
+            "period_start", "period_end"), name="unique_budget_actual_scope"),)
+        permissions = (
+            ("view_budget_actuals", "Can read retained Budget actual certificates"),
+            ("prepare_budget_actuals", "Can submit external Budget actual certificates for adoption"),
+            ("review_budget_actuals", "Can independently review Budget actual certificate adoption"),
+            ("export_budget_actuals", "Can export retained Budget actual certificate evidence"),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            fields = ("department_id", "department_label", "budget_department_id", "fund_id",
+                "responsibility_center_id", "period_start", "period_end", "public_id")
+            if any(getattr(self, key) != getattr(prior, key) for key in fields):
+                raise ValidationError("Retained actuals scope is immutable.")
+            if self.current_version_id != prior.current_version_id and not getattr(self, "_decision_write", False):
+                raise ValidationError("Change the current actuals version through independent review.")
+        elif self.current_version_id:
+            raise ValidationError("A new actuals scope has no adopted version.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain actuals scopes and their decisions.")
+
+
+class BudgetActualVersion(DepartmentOwnedModel):
+    SUBMITTED, APPROVED, RETURNED = "submitted", "approved", "returned"
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    scope = models.ForeignKey(BudgetActualScope, on_delete=models.PROTECT, related_name="versions")
+    version = models.PositiveIntegerField()
+    base_version = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=12, default=SUBMITTED, choices=(
+        (SUBMITTED, "For adoption review"), (APPROVED, "Adopted external certificate"), (RETURNED, "Returned")))
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    evidence = models.BinaryField(editable=False)
+    evidence_name = models.CharField(max_length=180)
+    evidence_sha256 = models.CharField(max_length=64)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_by_label = models.CharField(max_length=160)
+    prepared_at = models.DateTimeField()
+    reviewed_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reviewed_by_label = models.CharField(max_length=160, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_authority = models.CharField(max_length=255, blank=True)
+    review_note = models.TextField(blank=True)
+    decision_checksum = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ("-version", "-pk")
+        constraints = (models.UniqueConstraint(fields=("scope", "version"), name="unique_budget_actual_version"),)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            decision = {"status", "reviewed_by_id", "reviewed_by_label", "reviewed_at",
+                "review_authority", "review_note", "decision_checksum"}
+            for field in self._meta.concrete_fields:
+                key = field.attname
+                if getattr(prior, key) != getattr(self, key) and (
+                        key not in decision or not getattr(self, "_decision_write", False)):
+                    raise ValidationError("Submitted actuals evidence is immutable; submit a successor version.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain actuals certificate versions and decisions.")
