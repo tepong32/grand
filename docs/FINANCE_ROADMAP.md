@@ -16,9 +16,9 @@ event/run pages and opening-row corrections. [Bank/report retrieval](FINANCE_BAN
 adds full match-candidate pages and scoped report-history navigation.
 [Reporting schedules](FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md) now have active/inactive
 retrieval and explicit retained-evidence navigation. The [integrated audit](FINANCE_RETRIEVAL_INTEGRATED_AUDIT.md)
-reproduces My Work's 100-task navigation ceiling; Waiting page 2 repeats page 1.
-Complete personal retrieval while retaining permission/view/date filters and the
-bounded CSV snapshot contract. Full v0.7.145 baseline SQLite/native regression passes;
+reproduced My Work's 100-task navigation ceiling. [Personal retrieval](FINANCE_MY_WORK_RETRIEVAL.md)
+now provides complete pages in all six views, retaining permission/view/date filters
+and the bounded CSV snapshot contract. Full v0.7.145 baseline SQLite/native regression passes;
 its SQLite skips, the reproduced Budget-report defect, local policy and acceptance
 remain explicit before any foundation-complete claim.
 

@@ -93,7 +93,7 @@
   {% endfor %}
 
   {% endif %}
-  <section class="card card-outline card-secondary">
+  <section class="card card-outline card-secondary" id="work-items">
     <div class="card-header">
       <h2 class="card-title font-weight-bold">Exact work items</h2>
     </div>
@@ -146,10 +146,10 @@
         </tbody>
       </table>
     </div>
-    {% if tasks_truncated %}<div class="card-footer small text-muted">Showing the first 100 items in a deterministic order. Use each exact source queue for the complete filtered register.</div>{% endif %}
     {% else %}
     <div class="card-body border-top"><p class="text-muted mb-0">No source record matches this view within your current access and the coverage listed above.</p></div>
     {% endif %}
+    {% include "finance/_shadow_pagination.html" with page=task_page label="Work items" %}
   </section>
 
   <div class="card bg-light">

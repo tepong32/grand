@@ -4,7 +4,34 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-24
 
-## Current checkpoint - Integrated retrieval and Budget actuals audit
+## Current checkpoint - Complete My Work page navigation
+
+Branch `codex/finance-my-work-pagination` is based on audit v0.7.146,
+`b05fde6f6cab0bc7d767af0ca1daaef2b354f3f8`, [draft PR #107](https://github.com/tepong32/grand/pull/107).
+All six personal views now have complete 50-item pages, truthful total/range counts
+and retained view/calendar parameters. Existing scope, ordering and source actions
+remain; the separately authorized CSV retains its explicit 100-row snapshot contract.
+See [repair and validation](docs/FINANCE_MY_WORK_RETRIEVAL.md).
+
+Task regression: 79 tests, 78 passed and one new permission expectation failed.
+Corrected the test to preserve separately granted read access; application permissions
+unchanged. Final affected/export rerun PASS 3/3, 12.058s; dependent entry/setup register
+PASS 16/16, 11.502s. No skips; final runners exit 0 and stores destroyed. The other
+78 task tests passed on the same application code. Desktop/narrow browser, Previous,
+last-source navigation, compilation, links and diff checks pass; browser/server stopped.
+Operator database unchanged. Separate full/native baseline results below do not
+establish a full-suite run of this later read-only navigation delta.
+
+Next: reproduce as a retained regression and repair Budget-versus-actual reporting's
+nominal-closing boundary, including reversal lineage and source evidence. The audit
+already proves 20,000 of actual expense becomes zero after a closing entry while
+the report remains reconciled. Then address certified expenditure coverage using
+the verified DBM reference. Known retrieval caps are repaired in their reviewed
+routes; whole-scope office acceptance remains unproven. Preserve unknown earmark
+rules, exact outputs and remaining ordinary-work gates. Goal active, production
+NO-GO; no master merge/deployment. eGAPS may remain closed.
+
+## Prior checkpoint - Integrated retrieval and Budget actuals audit
 
 Branch `codex/finance-retrieval-integrated-audit` begins at v0.7.145
 `9f55dbd48f3f97c5638af870a6be49cffe3848c8`, [draft PR #106](https://github.com/tepong32/grand/pull/106).
@@ -21,19 +48,9 @@ terminal. Owned MySQL stopped afterward; operator DB hash unchanged. These runs
 test unchanged v0.7.145 application/tests, not the later My Work repair. Baseline
 PR #106 verify/mysql/GitGuardian also succeeded. No universal acceptance is implied.
 
-A separate checkout at `C:/Users/Administrator/.codex/worktrees/grand-finance-my-work`
-on `codex/finance-my-work-pagination` prepares the My Work repair without changing
-the baseline under full regression. Its code/tests and feature report are uncommitted;
-finish and publish this audit first, then fast-forward that checkout to the audit
-commit before publishing its separate repair. Its own disposable SQLite run and
-browser evidence are distinct from these baseline full-suite results.
-
-Next: finish publishing this audit, then publish the separately validated My Work
-repair with complete pages and truthful counts. Preserve
-its independently tested 100-row retained CSV snapshot meaning. FG-11 stays partial;
-Budget certified expenditure coverage, unknown earmark rules, exact outputs and
-office acceptance remain open. Goal active, production NO-GO, no master merge or
-deployment. eGAPS may remain closed.
+The My Work repair was prepared in a separate checkout so this baseline remained
+unchanged throughout full regression, then fast-forwarded to the published audit.
+Its scoped tests/browser evidence remain separate from these baseline results.
 
 The [Budget actuals source audit](docs/FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md)
 now records direct retrieval and visual inspection of DBM's LBP Form 1/2 instructions,
