@@ -79,6 +79,11 @@ retain explanatory source evidence. Opening/direct-equity treatment and explicit
 Accounting-owner selection also need reconciliation with the established source
 contracts rather than assumptions based on department labels.
 
+The subsequent [expense-activity checkpoint](FINANCE_BUDGET_ACTUAL_ACTIVITY.md)
+repairs the reproduced closing, lineage and empty-activity defects with SQLite/native
+validation. The reproduction above describes the pre-repair revision. Explicit owner
+selection and certified-expenditure coverage remain open.
+
 ## Implementation requirements before changing the calculation
 
 1. Trace the existing source and reporting contracts for actual expenditure by

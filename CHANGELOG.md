@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.148] - 2026-09-25
+### Fixed
+- fix(finance): preserve Budget expense activity through nominal closing
+
 ## [0.7.147] - 2026-09-24
 ### Fixed
 - fix(finance): complete personal work retrieval without changing export scope

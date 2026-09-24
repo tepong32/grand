@@ -2,9 +2,34 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-09-24
+Last updated: 2026-09-25
 
-## Current checkpoint - Complete My Work page navigation
+## Current checkpoint - Budget report expense activity (validated)
+
+Branch `codex/finance-budget-actual-closing` starts at v0.7.147
+`ff3dbeb379a5c54bdbfbe59ffb18529199797ac6`, [draft PR #108](https://github.com/tepong32/grand/pull/108).
+The read-only dataset now excludes typed opening/closing/direct-equity movements and
+their reversal lineage from expense activity, while retaining every selected source
+and a signed activity-to-ledger bridge. Ordinary dated corrections remain included;
+empty activity no longer raises a missing-key error. See
+[scope and validation](docs/FINANCE_BUDGET_ACTUAL_ACTIVITY.md).
+
+Baseline four retained tests reproduced three failures and one error (1.395s).
+First repaired reporting/planning run PASS 51/51, 19.565s, no skips, exit 0; fresh
+stores destroyed. Additional workbook-value and cross-office lineage assertions
+were added. Final broader SQLite PASS: 228 discovered, 227 passed, one skipped,
+78.871s, exit 0 (`.tmp/budget-actual-regression.log`). Native MySQL 8.4.11 PASS:
+51/51, no skips, 29.459s, exit 0 (`.tmp/budget-actual-native.log`). Both runners
+terminated and destroyed both test stores. Owned MySQL stopped, port 33308 has no
+listener, and the canonical operator database hash is unchanged. No new whole-project
+or browser/layout acceptance claim; scope rationale is in the linked validation report.
+
+Next: replace the Budget actual report's department-name Accounting-owner inference
+with verified source ownership before certified-expenditure coverage. Capital
+outlays, certification, unknown earmark rules, exact forms and human acceptance
+remain open. Goal active, production NO-GO; no master merge or deployment.
+
+## Prior checkpoint - Complete My Work page navigation
 
 Branch `codex/finance-my-work-pagination` is based on audit v0.7.146,
 `b05fde6f6cab0bc7d767af0ca1daaef2b354f3f8`, [draft PR #107](https://github.com/tepong32/grand/pull/107).

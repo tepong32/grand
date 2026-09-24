@@ -900,9 +900,15 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
                     entry__status=JournalEntry.POSTED,
                     account__account_type="expense",
                 ).select_related(
-                    "entry", "entry__fund", "entry__period", "account", "responsibility_center",
+                    "entry", "entry__fund", "entry__period", "entry__reversal_of", "account", "responsibility_center",
                 ).order_by("entry__entry_date", "entry__reference", "sequence")
             )
+        entries = {line.entry_id: line.entry for line in actual_lines}
+        origins = {pk: entry.statement_origin for pk, entry in entries.items()}
+        excluded_entry_ids = {
+            pk for pk, origin in origins.items()
+            if origin.source_type in {JournalEntry.CLOSING, "opening", *JournalEntry.DIRECT_EQUITY_SOURCES}
+        }
         budget_key_counts = {}
         for row in budget_payload.rows:
             key = (
@@ -912,6 +918,8 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
             budget_key_counts[key] = budget_key_counts.get(key, 0) + 1
         actual_by_key = {}
         for line in actual_lines:
+            if line.entry_id in excluded_entry_ids:
+                continue
             key = (
                 line.entry.period.fiscal_year,
                 line.entry.fund.code,
@@ -929,15 +937,15 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
                 row["responsibility_center_code"], row["account_code"],
             )
             actual = Decimal("0.00")
-            if budget_key_counts[key] == 1:
-                actual = actual_by_key.get(key, Decimal("0.00"))
+            if key not in actual_by_key:
+                row["mapping_status"] = "No posted expense activity for this Budget line"
+            elif budget_key_counts[key] == 1:
+                actual = actual_by_key[key]
                 mapped_keys.add(key)
                 row["mapping_status"] = "Exact fund / responsibility center / account match"
-            elif key in actual_by_key:
+            else:
                 ambiguous_keys.add(key)
                 row["mapping_status"] = "Ambiguous: more than one Budget line shares the actual key"
-            else:
-                row["mapping_status"] = "No posted actual activity for this Budget line"
             row["posted_actual"] = actual
             row["balance_vs_actual"] = row["executable_allotment"] - actual
             row["actual_utilization_percent"] = (
@@ -949,11 +957,12 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
         entry_totals = {}
         for line in actual_lines:
             item = entry_totals.setdefault(line.entry_id, {
-                "entry": line.entry, "actual": Decimal("0.00"), "lines": [],
+                "entry": line.entry, "actual": Decimal("0.00"), "excluded": Decimal("0.00"), "lines": [],
             })
             amount = line.debit - line.credit
-            item["actual"] += amount
+            item["excluded" if line.entry_id in excluded_entry_ids else "actual"] += amount
             item["lines"].append({
+                "line": line.pk, "sequence": line.sequence,
                 "fund": line.entry.fund.code,
                 "fiscal_year": line.entry.period.fiscal_year,
                 "responsibility_center": line.responsibility_center.code if line.responsibility_center else "",
@@ -962,9 +971,14 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
         actual_sources = []
         for item in entry_totals.values():
             entry = item["entry"]
+            included = entry.pk not in excluded_entry_ids
             snapshot = {
                 "source_type": entry.source_type, "source_reference": entry.source_reference or "",
                 "description": entry.description, "posted_actual": str(item["actual"]),
+                "statement_source_type": origins[entry.pk].source_type,
+                "statement_origin_public_id": str(origins[entry.pk].public_id),
+                "expense_activity_included": included,
+                "excluded_expense_movement": str(item["excluded"]),
                 "posted_by": entry.posted_by_label, "posted_at": entry.posted_at,
                 "expense_lines": item["lines"],
             }
@@ -972,12 +986,14 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
                 "source_app": "accounting", "source_model": "JournalEntry",
                 "source_pk": str(entry.pk), "source_public_id": str(entry.public_id),
                 "source_reference": entry.reference, "source_date": entry.entry_date,
-                "control_group": "posted actual expense", "amount": item["actual"],
+                "control_group": "posted actual expense" if included else "excluded expense movement",
+                "amount": item["actual"],
                 "source_checksum": _snapshot_checksum(snapshot),
                 "source_url": reverse("accounting:entry_detail", kwargs={"public_id": entry.public_id}),
                 "snapshot": snapshot,
             })
         actual_total = sum(actual_by_key.values(), Decimal("0.00"))
+        excluded_total = sum((item["excluded"] for item in entry_totals.values()), Decimal("0.00"))
         mapped_total = sum((actual_by_key[key] for key in mapped_keys), Decimal("0.00"))
         ambiguous_total = sum((actual_by_key[key] for key in ambiguous_keys), Decimal("0.00"))
         unmapped_total = sum((actual_by_key[key] for key in unmapped_keys), Decimal("0.00"))
@@ -990,7 +1006,11 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
             "ambiguous_actual": ambiguous_total, "unmapped_actual": unmapped_total,
             "mapping_exception_count": mapping_exception_count,
             "accounting_department_count": len(accounting_departments),
-            "actual_basis": "fiscal-year-to-date posted expense through the selected period end",
+            "excluded_expense_entry_count": len(excluded_entry_ids),
+            "excluded_expense_movement": excluded_total,
+            "posted_expense_ledger_movement": actual_total + excluded_total,
+            "calculation_basis": "posted-expense-activity-excluding-opening-closing-direct-equity-v1",
+            "actual_basis": "fiscal-year-to-date posted expense activity through the selected period end, excluding opening, nominal closing and direct-equity movements and their reversals",
         })
         status = (
             "reconciled"
@@ -1004,7 +1024,10 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
         elif budget_payload.control_status != "reconciled":
             message = budget_payload.control_message
         else:
-            message = "Budget authority and posted actual expenses reconcile through exact fund, responsibility-center, and account keys."
+            message = (
+                "Budget authority and posted expense activity reconcile through exact fund, responsibility-center, and account keys. "
+                "Opening, nominal closing and direct-equity movements and their reversals remain source evidence but are excluded from actuals."
+            )
         freshness = _latest_datetime(
             [budget_payload.freshness_at]
             + [item["entry"].posted_at or item["entry"].updated_at for item in entry_totals.values()]
