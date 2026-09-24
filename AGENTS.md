@@ -111,6 +111,10 @@ retains original bytes in the Finance store with independent adoption and explic
 read/export scope. Fund-before-scope locks serialize versions; Budget captures one
 approved source version without adding it to native activity. Native preparation
 and joint summary certification remain open. See CONTINUE.md for actual validation.
+The [native source audit](docs/FINANCE_BUDGET_NATIVE_SOURCE_AUDIT.md) reproduces
+unattributed liquidation expenses missing from office-filtered context. Preserve
+posted lines; require explicit reviewed office/purpose attribution rather than
+borrowing an officer/DV office or treating every asset debit as expenditure.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

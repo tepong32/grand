@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.152] - 2026-09-25
+### Documentation
+- docs(finance): verify native Budget source attribution and coverage gaps
+
 ## [0.7.151] - 2026-09-25
 ### Added
 - feat(finance): retain independently adopted Budget actual certificates

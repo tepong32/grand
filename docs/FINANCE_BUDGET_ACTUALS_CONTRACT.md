@@ -101,6 +101,11 @@ retain their originals. Old proposals without such evidence are never backfilled
 
 ## Native source preparation and completeness
 
+The [source audit and executable observation](FINANCE_BUDGET_NATIVE_SOURCE_AUDIT.md)
+demonstrate unattributed liquidation expenses and invalid asset-debit inclusion.
+Use that evidence when implementing the requirements below; do not repair historical
+coverage by rewriting posted sources or inferring an office.
+
 Account type is a candidate filter, not an expenditure rule. Capital purchases,
 advance releases, deposits/transfers, liability settlements and non-cash movements
 can share account classes. Recognition and subsequent payment must not be counted
