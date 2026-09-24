@@ -96,8 +96,11 @@ in reviewed routes; whole-scope office acceptance remains unproven.
 The [Budget expense-activity repair](docs/FINANCE_BUDGET_ACTUAL_ACTIVITY.md) excludes
 explicit opening/closing/direct-equity movements and their retained reversal lineage,
 preserving all selected sources and a signed activity-to-ledger bridge. Empty activity
-is valid; it does not certify source completeness. Next replace department-name owner
-inference with explicit fiscal-year ownership before certified-actual expansion.
+is valid; it does not certify source completeness. [Actual-source ownership](docs/FINANCE_BUDGET_ACTUAL_OWNERSHIP.md)
+now follows the same captured authorized schedule's fiscal-year owner, includes
+owner identity in classification keys and retains explicit owner/year evidence.
+Never guess a ledger from department names or combine another owner's years/codes.
+Certified expenditure and capital-outlay coverage remain open.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

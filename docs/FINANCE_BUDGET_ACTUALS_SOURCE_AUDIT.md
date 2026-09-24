@@ -34,6 +34,14 @@ inspection above uses that actual file, not search snippets.
 
 ## Current code and concrete gap
 
+Follow-up reference identified 2026-09-25: DBM's official
+[Local Budget Memorandum 94 page](https://www.dbm.gov.ph/index.php?catid=453&id=4049%3Alocal-budget-memorandum-no-94&view=article)
+identifies the June 10, 2026 memorandum for indicative FY2027 NTA and annual budget
+preparation. Its complete PDF has **not** yet been inspected: the web reader rejected
+the 19,442,172-byte resource, and the slow direct download was cancelled before a
+complete file was retained. Check the actual provisions before claiming this issuance
+confirms or changes the form requirements above; its title alone does not establish that.
+
 `budget/planning_context.py::build_context` selects posted `JournalLine` records
 only where the account type is `expense`, groups exact fund/office/account identities,
 and excludes explicit opening/closing/direct-equity source purposes. It retains
@@ -81,8 +89,10 @@ contracts rather than assumptions based on department labels.
 
 The subsequent [expense-activity checkpoint](FINANCE_BUDGET_ACTUAL_ACTIVITY.md)
 repairs the reproduced closing, lineage and empty-activity defects with SQLite/native
-validation. The reproduction above describes the pre-repair revision. Explicit owner
-selection and certified-expenditure coverage remain open.
+validation. The reproduction above describes the pre-repair revision. The subsequent
+[owner checkpoint](FINANCE_BUDGET_ACTUAL_OWNERSHIP.md) replaces department-name guessing
+with captured authorized fiscal-year ownership and separate ledger keys. Certified
+expenditure and capital-outlay coverage remain open.
 
 ## Implementation requirements before changing the calculation
 

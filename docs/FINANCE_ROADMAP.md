@@ -39,8 +39,11 @@ Form 1/2 certification and object-coverage instructions for the next Budget chec
 It also reproduces the existing Budget report's incorrect nominal-closing netting.
 The [expense-activity repair](FINANCE_BUDGET_ACTUAL_ACTIVITY.md) now preserves activity
 through closing and its reversal lineage, retaining excluded movements and source
-evidence. SQLite/native validation passes. Next verify explicit Accounting ownership
-before broader certified expenditure, capital-outlay coverage and local acceptance.
+evidence. The subsequent [owner repair](FINANCE_BUDGET_ACTUAL_OWNERSHIP.md) uses the
+authorized fiscal-year owner and separate owner/year/classification keys with retained
+evidence. SQLite/native validation passes. Next complete certified-expenditure source
+coverage, including capital outlays and historical external certification, before
+calling the planning comparison complete. Local acceptance remains open.
 
 [Quarterly planning](FINANCE_QUARTERLY_PLANNING.md) now has an operational versioned
 schedule and retained ARO comparison. Explicit allocations and explained timing

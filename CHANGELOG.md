@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.149] - 2026-09-25
+### Fixed
+- fix(finance): derive Budget actuals from explicit Accounting ownership
+
 ## [0.7.148] - 2026-09-25
 ### Fixed
 - fix(finance): preserve Budget expense activity through nominal closing
