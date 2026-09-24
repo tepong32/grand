@@ -51,6 +51,10 @@ DBM Annex D/E. The first [external-adoption checkpoint](FINANCE_BUDGET_ACTUAL_AD
 connects retained source documents, independent Accounting review, complete retrieval,
 Budget comparison and frozen submission/export. Native preparation, joint summary
 certification and local acceptance remain open.
+The [native source audit](FINANCE_BUDGET_NATIVE_SOURCE_AUDIT.md) reproduces missing
+liquidation office attribution and an invalid expense-plus-asset total. Native
+preparation must include unresolved sources, independently reviewed purpose/office
+attribution and coherent source-change checks before certification is enabled.
 
 [Quarterly planning](FINANCE_QUARTERLY_PLANNING.md) now has an operational versioned
 schedule and retained ARO comparison. Explicit allocations and explained timing

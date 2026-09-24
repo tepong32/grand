@@ -61,6 +61,9 @@ FY2027 references. Its first [external-adoption route](FINANCE_BUDGET_ACTUAL_ADO
 connects original evidence and independent Accounting review to Budget context and
 retained exports. Native preparation, joint summary certification and acceptance
 remain open; FG-03 is still incomplete.
+The [native source audit](FINANCE_BUDGET_NATIVE_SOURCE_AUDIT.md) confirms that accepted
+liquidation expenses can lack office attribution. Their absence from the proposal
+comparison cannot be repaired by guessing an office or summing all asset debits.
 All rows below concern the actual Finance workflow or a supporting dependency.
 Other eGAPS capabilities must be classified as in scope, supporting dependency,
 potential future integration, out of current scope, or unknown before work begins.

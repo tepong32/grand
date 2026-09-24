@@ -4,7 +4,31 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-25
 
-## Current checkpoint - External Budget actuals adoption (validated)
+## Current checkpoint - Native Budget actuals source audit
+
+The v0.7.152 audit checkpoint on `codex/finance-budget-native-source-audit` starts at v0.7.151,
+`1d289b58b070a21e044c5249a2820131a1172c60`, [draft PR #112](https://github.com/tepong32/grand/pull/112).
+The [source audit](docs/FINANCE_BUDGET_NATIVE_SOURCE_AUDIT.md) reproduces a posted
+200.00 liquidation expense without office attribution, missing from the exact
+office-filtered proposal comparison. A naive expense-plus-asset-debit query yields
+1,900.00 by including advance/refund/deposit movements. Neither figure establishes
+certified expenditure. Original application and financial history are unchanged.
+Final archived fresh SQLite observation probe: one test, 3.193s, exit 0; both
+disposable stores destroyed. Retained synthetic JSON is linked from the audit.
+Three relevant official DBM manual pages were
+text-checked and visually inspected. Native/full/browser tests are out of scope
+for this audit. All 457 checked local documentation links and whitespace checks
+pass; the operator database SHA256 is unchanged. Production NO-GO; completion
+remains open. No master merge or deployment.
+
+Next implement coherent native source capture and explicit reviewed expenditure/
+office attribution, including unassigned liquidation sources. Preserve financial
+lines, use retained source links as evidence, and distinguish classification from
+authorized certification. Do not infer an office from the officer or original DV,
+add all asset debits, or count recognition and payment twice. The audit records
+the source/cohort, correction, stale-source and acceptance requirements.
+
+## Prior checkpoint - External Budget actuals adoption (validated)
 
 Branch `codex/finance-budget-actual-adoption` starts at v0.7.150,
 `6168a18ef9ce669bf7f1eec11abe6d15a6548ab1`, [draft PR #111](https://github.com/tepong32/grand/pull/111).
