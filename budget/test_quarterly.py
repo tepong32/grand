@@ -50,6 +50,40 @@ class QuarterlyPlanningTests(TestCase):
         self.add_allotment_line(order, amount)
         return order
 
+    def test_budget_proposal_and_quarterly_history_reach_all_retained_events(self):
+        plan = self.plan()
+        for target, route in ((self.authority.version, "budget:version_detail"), (plan, "budget:quarterly_detail")):
+            with self.subTest(route=route):
+                self.client.force_login(self.reviewer if route == "budget:version_detail" else self.preparer)
+                for index in range(45):
+                    BudgetAuditEvent.objects.create(
+                        department_id=target.department_id, department_label=target.department_label,
+                        target_type=target._meta.model_name, target_id=str(target.public_id),
+                        action="synthetic_history", actor_id=self.preparer.pk, actor_label="Synthetic preparer",
+                        reason=f"Retained decision {index:03}",
+                    )
+                expected = set(BudgetAuditEvent.objects.filter(target_id=str(target.public_id)).values_list("pk", flat=True))
+                event_count = BudgetAuditEvent.objects.count()
+                first = self.client.get(reverse(route, args=(target.public_id,)))
+                self.assertContains(first, "Retained decision 044")
+                self.assertFalse(first.context["event_page"].expanded)
+                seen = set()
+                for number in range(1, first.context["event_page"].paginator.num_pages + 1):
+                    response = self.client.get(reverse(route, args=(target.public_id,)), {"events_page": number})
+                    self.assertContains(response, '<details id="budget-history" class="card" open>')
+                    ids = {event.pk for event in response.context["events"]}
+                    self.assertFalse(seen & ids)
+                    seen |= ids
+                self.assertEqual(seen, expected)
+                self.assertContains(response, "events_page=1#budget-history")
+                self.assertEqual(BudgetAuditEvent.objects.count(), event_count)
+                self.client.force_login(self.outsider)
+                self.assertEqual(self.client.get(reverse(route, args=(target.public_id,)), {"events_page": 2}).status_code, 404)
+        self.client.force_login(self.preparer)
+        hidden = self.client.get(reverse("budget:version_detail", args=(self.authority.version.public_id,)), {"events_page": 2})
+        self.assertEqual(list(hidden.context["events"]), [])
+        self.assertNotContains(hidden, "Retained decision")
+
     def test_complete_explicit_allocations_and_approval_do_not_move_money(self):
         plan = self.plan()
         self.assertFalse(plan_context(plan)["rows"][0]["complete"])

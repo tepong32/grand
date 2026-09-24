@@ -1,0 +1,18 @@
+<details id="budget-history" class="card" {% if event_page.expanded %}open{% endif %}>
+  <summary class="card-header">Retained decisions and changes ({{ event_page.paginator.count }})</summary>
+  <ul class="list-group list-group-flush">
+    {% for event in events %}<li class="list-group-item">
+      <strong>{{ event.action }}</strong> · {{ event.actor_label }}
+      <div class="small text-muted">{{ event.created_at|date:"M j, Y g:i a" }}</div>
+      {% if event.reason %}<div>{{ event.reason|linebreaksbr }}</div>{% endif %}
+    </li>{% empty %}<li class="list-group-item text-muted">No retained events for this record.</li>{% endfor %}
+  </ul>
+  <div class="card-footer">
+    <span class="small text-muted">Showing {{ event_page.start_index }}–{{ event_page.end_index }} of {{ event_page.paginator.count }} matching records</span>
+    {% if event_page.has_other_pages %}<nav aria-label="Retained Budget history pages">
+      {% if event_page.has_previous %}<a class="btn btn-sm btn-outline-primary" href="{{ event_page.previous_url }}">Previous</a>{% endif %}
+      <span class="small mx-2">Page {{ event_page.number }} of {{ event_page.paginator.num_pages }}</span>
+      {% if event_page.has_next %}<a class="btn btn-sm btn-outline-primary" href="{{ event_page.next_url }}">Next</a>{% endif %}
+    </nav>{% endif %}
+  </div>
+</details>

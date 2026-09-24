@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.142] - 2026-09-24
+### Fixed
+- fix(finance): expose retained Budget and remittance history
+
 ## [0.7.141] - 2026-09-24
 ### Fixed
 - fix(finance): expose complete shadow cycles and review history

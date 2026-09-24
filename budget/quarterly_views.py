@@ -10,6 +10,7 @@ from .forms import QuarterlyPlanForm, QuarterlyPlanLineForm
 from .models import AppropriationAuthorization, QuarterlyFinancialPlan, BudgetAuditEvent
 from .quarterly import PREPARE, REVIEW, create_plan, edit_line, plan_context, transition_plan
 from .services import record_event
+from .history import history_page
 
 
 def owned_plan(request, public_id):
@@ -36,6 +37,7 @@ def create(request, public_id):
 @budget_access_required
 def detail(request, public_id):
     plan = owned_plan(request, public_id)
+    event_page = history_page(plan, request)
     context = plan_context(plan) if plan.status in (plan.DRAFT, plan.RETURNED) else plan.submitted_snapshot
     contributed = request.user.pk in (plan.created_by_id, plan.submitted_by_id) or BudgetAuditEvent.objects.filter(
         target_id=str(plan.public_id), actor_id=request.user.pk,
@@ -45,7 +47,7 @@ def detail(request, public_id):
         "can_export": has_budget_permission(request.user, "view_allotment_control"),
         "can_prepare": can_act_on_budget(request.user, PREPARE),
         "can_review": can_act_on_budget(request.user, REVIEW) and not contributed,
-        "events": BudgetAuditEvent.objects.filter(target_id=str(plan.public_id))[:30]})
+        "events": event_page.object_list, "event_page": event_page})
 
 
 @budget_permission_required(PREPARE)
