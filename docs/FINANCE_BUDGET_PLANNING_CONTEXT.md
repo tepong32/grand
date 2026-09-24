@@ -79,3 +79,9 @@ authorize treating the narrower ledger projection as certified expenditure.
 
 Next: finish authoritative expenditure coverage/acceptance mapping for FG-03, and
 trace existing quarterly-plan/earmark semantics before introducing domain objects.
+
+The [2026-09-24 actuals source audit](FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md)
+subsequently retrieved and visually verified the DBM manual's relevant pages.
+It distinguishes Form 2 actual certification from proposal approval and Form 1's
+joint certification, and records the still-missing capital-outlay/coverage boundary.
+The historical validation and narrower implementation above remain unchanged.

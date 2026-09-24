@@ -9,8 +9,12 @@ adds scoped retained-event navigation. [Accounting history](FINANCE_ACCOUNTING_H
 adds complete opening rows/events and reconciliation runs. [Bank/report retrieval](FINANCE_BANK_REPORT_RETRIEVAL.md)
 adds candidate pages and complete generation-history navigation.
 [Reporting schedules](FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md) include active/inactive
-retrieval and retained statement routes. Full retrieval reassessment, integrated
-validation and the broader gate remain open.
+retrieval and retained statement routes. The [integrated audit](FINANCE_RETRIEVAL_INTEGRATED_AUDIT.md)
+reproduces My Work's remaining 100-task navigation ceiling. Repair complete personal
+view navigation before further output breadth; preserve its bounded CSV snapshot
+contract. Full baseline SQLite/native regression passes with explicitly recorded
+SQLite skips; the audit also reproduces a Budget-report closing defect. The broader
+gate remains open.
 
 User direction accepted and clarified 2026-09-10: finish concrete Finance functionality and source-to-ledger-to-output proof first, then the actual eGAPS inventory, ordinary office scenarios, exact outputs, clerk usability and operational acceptance. eGAPS is the parity floor, not the design ceiling. Preserve account-based web workflows, maintainable national/COA/DBM changes and authorized WFH. [Finance modernization priorities](FINANCE_MODERNIZATION_PRIORITIES.md) are authoritative over older sequencing. No further UX or surrounding infrastructure expansion before unresolved functionality unless required to complete or validate it. Existing financial, native-validation and production gates remain.
 

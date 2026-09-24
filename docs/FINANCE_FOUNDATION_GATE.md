@@ -42,10 +42,17 @@ and retained-review navigation. [Budget/remittance history](FINANCE_BUDGET_REMIT
 adds complete scoped event pages. [Accounting history](FINANCE_ACCOUNTING_HISTORY.md)
 adds reconciliation and opening-row/event pages. [Bank/report retrieval](FINANCE_BANK_REPORT_RETRIEVAL.md)
 adds full candidate pages and report-history navigation. [Reporting schedules](FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md)
-now include inactive records and explicit retained-evidence routes. Reassess full
-retrieval requirements and broader regression; FG-11 remains partial pending that audit.
+now include inactive records and explicit retained-evidence routes. The
+[integrated audit](FINANCE_RETRIEVAL_INTEGRATED_AUDIT.md) reproduces My Work's remaining
+100-task ceiling: 105 eligible Waiting tasks show the same 100 on page 2, without
+the suggested exact-queue links. FG-11 stays partial. Complete personal navigation
+while preserving the explicit bounded CSV snapshot contract; broader regression
+and office acceptance remain separate evidence.
 
 Classification describes connected capability, not a model/menu's existence.
+The [Budget actuals source audit](FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md) verifies
+national Form 1/2 certification and object-coverage instructions; FG-03 remains
+partial until the corresponding source, certification and acceptance gaps are met.
 All rows below concern the actual Finance workflow or a supporting dependency.
 Other eGAPS capabilities must be classified as in scope, supporting dependency,
 potential future integration, out of current scope, or unknown before work begins.
@@ -54,7 +61,7 @@ potential future integration, out of current scope, or unknown before work begin
 |---|---|---|---|---|---|---|---|
 | FG-01 | Budget | OBR retrieval stops at 100; inadequate reference retrieval | IMPLEMENTED | Direct retrieval of older OBRs | Scope and full matching export preserved | Existing obligation selector/export | Automated, browser and synthetic volume checks passed; local acceptance open |
 | FG-02 | Treasury | Collection narrowing/counts/pagination | IMPLEMENTED | Locate and inspect matching sources | Availability retains excluded allocations; totals separate states | Collection register and source routes | SQLite/native/browser and synthetic volume checks passed; local acceptance open |
-| FG-03 | Budget | Historical proposal decision context | PARTIALLY IMPLEMENTED | Dated context now appears on proposals | Retained activity, explicit estimates and original authority stay distinct | Dated ledger and authority evidence | Checkpoint 2A validated locally; certified expenditure/coverage still open |
+| FG-03 | Budget | Historical proposal decision context and actuals consistency | PARTIALLY IMPLEMENTED | Dated context appears; existing Budget report wrongly nets nominal closure against actuals | Preserve period activity, certification, source purpose and authority distinctions | Dated ledger/authority and actuals evidence | Planning context retained; 20,000-to-zero Budget-report closing defect reproduced; certified expenditure/coverage still open |
 | FG-04 | Budget | Operational quarterly financial plan | PARTIALLY IMPLEMENTED | Versioned quarters now connect authority and AROs | Approval does not move money; ARO evidence remains pinned | Existing authorized schedule and ARO | Focused/native/browser and full SQLite regression pass; local reserved-column/form acceptance open |
 | FG-05 | Budget | Distinct earmark certificate lifecycle | MISSING | Certificate identity/consumption absent | Generic withholding is not procurement certification | Exact capacity, consumption and correction semantics | Initial municipal evidence located; local lifecycle rules unresolved |
 | FG-06 | Reporting | Exact required office outputs | PARTIALLY IMPLEMENTED | Generic output may not meet office need | Local acceptance remains unproven | [Working output map](FINANCE_REQUIRED_OUTPUT_MAP.md); accepted references remain required | Mapping and report retrieval checkpoint; exact acceptance open |
@@ -62,7 +69,7 @@ potential future integration, out of current scope, or unknown before work begin
 | FG-08 | Accounting | Remaining source/history adoption | PARTIALLY IMPLEMENTED | Historical sources not all connected | Preserve original financial evidence | Existing reviewed attribution routes | Open; no speculative expansion |
 | FG-09 | Finance | Broader routine scenarios | PARTIALLY IMPLEMENTED | Not all ordinary work demonstrated | Controls must survive corrections | Earlier foundation checkpoints | Deferred until foundation coherent |
 | FG-10 | Deployment | Live configured rendering/production verification | UNKNOWN | Actual deployment behavior unverified | No production readiness inference | Authorized environment and operational gates | Open |
-| FG-11 | Cross-office retrieval | Remaining register row caps | PARTIALLY IMPLEMENTED | Older journals/handoffs and other registers can be hidden | Preserve department scope and complete export meaning | Existing Accounting, voucher, Budget and bank registers | Accounting/voucher/Budget and close/bank retrieval validated; Reporting local-form/source pagination implemented, qualification remains partial |
+| FG-11 | Cross-office retrieval | Remaining personal-work ceiling | PARTIALLY IMPLEMENTED | Tasks after the first 100 cannot be reached in My Work | Preserve department scope and full register versus bounded snapshot export meaning | Existing source adapters and scoped registers | Register/history repairs retained; My Work Waiting 105/100 cap reproduced, page 2 repeats page 1; complete navigation still required |
 
 ## Checkpoint 1A — OBR retrieval
 

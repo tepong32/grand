@@ -4,7 +4,47 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-24
 
-## Current checkpoint - Reporting schedules and retained evidence navigation
+## Current checkpoint - Integrated retrieval and Budget actuals audit
+
+Branch `codex/finance-retrieval-integrated-audit` begins at v0.7.145
+`9f55dbd48f3f97c5638af870a6be49cffe3848c8`, [draft PR #106](https://github.com/tepong32/grand/pull/106).
+No application/test changes in this audit. My Work Waiting reproduction confirms
+105 eligible tasks, 100 displayed, page 2 repeating page 1, and no exact-queue links
+despite the common footer. See [audit and requirement trace](docs/FINANCE_RETRIEVAL_INTEGRATED_AUDIT.md).
+
+Full SQLite (`.tmp/foundation_full_sqlite.py`, log `.tmp/foundation-integrated-sqlite.log`)
+PASS: 1,557 discovered / 1,434 passed / 123 skipped, 1,156.574s, exit 0; both test
+stores destroyed and runner terminal. Skips are not passes. Native
+(`.tmp/retrieval_native.py .`, log `.tmp/foundation-integrated-native.log`) PASS:
+1,557/1,557, no skips, 1,945.744s, exit 0; fresh test schemas destroyed and runner
+terminal. Owned MySQL stopped afterward; operator DB hash unchanged. These runs
+test unchanged v0.7.145 application/tests, not the later My Work repair. Baseline
+PR #106 verify/mysql/GitGuardian also succeeded. No universal acceptance is implied.
+
+A separate checkout at `C:/Users/Administrator/.codex/worktrees/grand-finance-my-work`
+on `codex/finance-my-work-pagination` prepares the My Work repair without changing
+the baseline under full regression. Its code/tests and feature report are uncommitted;
+finish and publish this audit first, then fast-forward that checkout to the audit
+commit before publishing its separate repair. Its own disposable SQLite run and
+browser evidence are distinct from these baseline full-suite results.
+
+Next: finish publishing this audit, then publish the separately validated My Work
+repair with complete pages and truthful counts. Preserve
+its independently tested 100-row retained CSV snapshot meaning. FG-11 stays partial;
+Budget certified expenditure coverage, unknown earmark rules, exact outputs and
+office acceptance remain open. Goal active, production NO-GO, no master merge or
+deployment. eGAPS may remain closed.
+
+The [Budget actuals source audit](docs/FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md)
+now records direct retrieval and visual inspection of DBM's LBP Form 1/2 instructions,
+including distinct certification roles and capital-outlay coverage. No Budget code
+changed. A fresh isolated probe also confirms that the existing Budget-versus-actual
+report reduces 20,000 of expense to zero after nominal closing while still reconciled.
+One reproduction, 1.165s, exit 0; it verifies the defect rather than application
+correctness, with test stores destroyed. Repair this calculation/lineage boundary
+after My Work before expanding certified actuals; see the linked source audit.
+
+## Prior checkpoint - Reporting schedules and retained evidence navigation
 
 Branch `codex/finance-reporting-schedule-retrieval` begins at v0.7.144
 `a32a35c29aebcd8ee112591b2d9931ecf31406b7`, [draft PR #105](https://github.com/tepong32/grand/pull/105).
