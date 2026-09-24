@@ -112,8 +112,8 @@ def _form_for_setup(kind, *args, department, **kwargs):
     return form_class(*args, department=department, **kwargs)
 
 
-def _workspace_page(queryset, request, parameter, anchor):
-    page = Paginator(queryset, 50).get_page(request.GET.get(parameter))
+def _workspace_page(queryset, request, parameter, anchor, *, page_size=50):
+    page = Paginator(queryset, page_size).get_page(request.GET.get(parameter))
     params = request.GET.copy()
     for name, number in (("previous_url", page.number - 1), ("next_url", page.number + 1)):
         params[parameter] = number
@@ -1338,11 +1338,14 @@ def bank_reconciliation_detail(request, public_id):
     reserved_ids = set(BankStatementMatch.objects.filter(status=BankStatementMatch.ACTIVE).values_list("journal_line_id", flat=True))
     for row in rows:
         row.active_match = match_map.get(row.pk)
-        row.candidates = [
+        candidates = [
             line for line in unmatched_lines
             if line.pk not in reserved_ids
             and row.withdrawal == line.credit and row.deposit == line.debit
-        ][:30]
+        ]
+        row.candidate_page = _workspace_page(candidates, request, f"candidates_{row.pk}",
+                                             f"bank-row-{row.pk}", page_size=10)
+        row.candidates = row.candidate_page.object_list
     item_map = {item.journal_line_id: item for item in items}
     for line in unmatched_lines:
         line.active_outstanding_item = item_map.get(line.pk)

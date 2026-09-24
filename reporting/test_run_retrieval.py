@@ -62,3 +62,20 @@ class ReportRunRetrievalTests(TestCase):
         response=self.client.get(reverse('reporting:workspace'),{'page':3})
         self.assertEqual(response.context['visible_run_count'],0)
         self.assertNotContains(response,self.definition.name)
+
+    def test_definition_preview_links_to_complete_scoped_generation_history(self):
+        self.seed(); self.client.force_login(self.operator)
+        url = reverse('reporting:definition_detail', args=(self.definition.pk,))
+        response = self.client.get(url)
+        self.assertEqual(len(response.context['runs']),15)
+        self.assertContains(response,'Showing 15 of 111 visible runs')
+        history_url = reverse('reporting:workspace') + f'?definition={self.definition.pk}'
+        self.assertContains(response,f'href="{history_url}#report-runs"')
+        self.assertNotContains(response,self.colleague.get_absolute_url())
+        history = self.client.get(history_url + '&page=3')
+        self.assertEqual(history.context['visible_run_count'],111)
+        self.assertEqual(history.context['run_filters']['definition'],str(self.definition.pk))
+        self.assertEqual(len(history.context['recent_runs']),11)
+        self.assertTrue(all(run.created_by_id==self.operator.pk for run in history.context['recent_runs']))
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url).status_code,404)

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.144] - 2026-09-24
+### Fixed
+- fix(finance): complete bank candidate and report history navigation
+
 ## [0.7.143] - 2026-09-24
 ### Fixed
 - fix(finance): complete Accounting history and opening row retrieval
