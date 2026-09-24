@@ -106,7 +106,11 @@ certification separate from GRAND adoption, prevents overlapping source totals a
 pins exact authoritative versions in proposal context. Native preparation requires
 reviewed expenditure purpose and coherent source coverage; neither expense totals
 nor all asset debits are a certificate. Form 1 joint certification stays distinct
-from Form 2 office certification. This contract is designed, not implemented.
+from Form 2 office certification. The first [external-adoption route](docs/FINANCE_BUDGET_ACTUAL_ADOPTION.md)
+retains original bytes in the Finance store with independent adoption and explicit
+read/export scope. Fund-before-scope locks serialize versions; Budget captures one
+approved source version without adding it to native activity. Native preparation
+and joint summary certification remain open. See CONTINUE.md for actual validation.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

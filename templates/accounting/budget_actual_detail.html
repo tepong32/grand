@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title_ext %} - {{ record.payload.reference }}{% endblock %}
+{% block content %}
+<div class="container pb-4">
+  <a href="{% url 'accounting:budget_actual_register' %}">Certificate register</a>
+  <h1 class="h3 mt-3">{{ record.payload.reference }} · version {{ record.version }}</h1>
+  <p><strong>{{ record.get_status_display }}</strong>{% if is_current %} · current for new proposal context{% endif %}</p>
+  <div class="card card-body mb-3">
+    <h2 class="h5">Original external certification</h2>
+    <p>{{ record.payload.issuer }} · {{ record.payload.scope.fund_code }} · {{ record.payload.scope.center_code }}<br>{{ record.scope.period_start }} – {{ record.scope.period_end }}</p>
+    <p>Original Accountant / signatory: {{ record.payload.accountant_name }}<br>Certified {{ record.payload.certified_on }} · {{ record.payload.certification_authority }}</p>
+    <p>Coverage: {{ record.payload.coverage|linebreaksbr }}</p>
+    <p>Signed total: <strong>{{ record.payload.signed_total|floatformat:2 }}</strong></p>
+    {% if can_export %}<a class="btn btn-outline-primary" href="{% url 'accounting:budget_actual_evidence' record.public_id %}">Download retained original certificate</a>{% endif %}
+    <details class="mt-2"><summary>Retained evidence identity</summary><p class="text-break">{{ record.evidence_name }}<br>File SHA256: {{ record.evidence_sha256 }}<br>Version SHA256: {{ record.payload_checksum }}</p></details>
+  </div>
+  <div class="table-responsive"><table class="table"><thead><tr><th>Account</th><th>Class</th><th>Certified amount</th><th>Source page / row</th></tr></thead><tbody>{% for row in record.payload.rows %}<tr><td>{{ row.account_code }} · {{ row.account_title }}</td><td>{{ row.expense_class }}</td><td>{{ row.amount|floatformat:2 }}</td><td>{{ row.source_row }}</td></tr>{% endfor %}</tbody></table></div>
+  <div class="card card-body mb-3"><h2 class="h5">GRAND adoption record</h2><p>Prepared by {{ record.prepared_by_label }} · {{ record.prepared_at }}<br>{{ record.payload.reason|linebreaksbr }}</p>
+    {% if record.reviewed_at %}<p>Reviewed by {{ record.reviewed_by_label }} · {{ record.reviewed_at }}<br>{{ record.review_authority }}<br>{{ record.review_note|linebreaksbr }}</p>{% endif %}
+    <p class="text-muted">Adoption preserves the external certification; it does not make the GRAND reviewer its original signer, create a journal, or jointly certify the LGU summary.</p>
+    {% if can_review %}<form method="post" action="{% url 'accounting:budget_actual_decide' record.public_id %}">{% csrf_token %}<label for="review-authority">Your adoption-review authority / designation</label><input id="review-authority" name="authority" class="form-control mb-2" maxlength="255" required><label for="review-note">Review basis or required correction</label><textarea id="review-note" name="note" class="form-control mb-3" required></textarea><button name="decision" value="approve" class="btn btn-success">Adopt verified certificate</button> <button name="decision" value="return" class="btn btn-outline-warning">Return for correction</button></form>{% endif %}
+    {% if can_prepare %}<a class="btn btn-outline-primary mt-3" href="{% url 'accounting:budget_actual_successor' record.public_id %}">Prepare successor / correction</a>{% endif %}
+  </div>
+  <h2 class="h5">Retained versions</h2><ul>{% for item in history %}<li><a href="{% url 'accounting:budget_actual_detail' item.public_id %}">Version {{ item.version }} · {{ item.get_status_display }}</a></li>{% endfor %}</ul>
+  <nav aria-label="History pages">{% if history.has_previous %}<a href="?page={{ history.previous_page_number }}">Previous</a>{% endif %} {{ history.start_index }}–{{ history.end_index }} of {{ history.paginator.count }} {% if history.has_next %}<a href="?page={{ history.next_page_number }}">Next</a>{% endif %}</nav>
+</div>
+{% endblock %}

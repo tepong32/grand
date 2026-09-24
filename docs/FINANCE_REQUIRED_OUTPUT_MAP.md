@@ -12,7 +12,7 @@ explicit local confirmation of names, periods, recipients, signatures and layout
 
 | Office / work | Existing GRAND source and output | Boundary still requiring confirmation |
 | --- | --- | --- |
-| Budget proposal and historical comparison | Annual version and planning-context exports in `budget/urls.py`; authoritative original/adjusted amounts and explicit estimates | Local proposal form, treatment of expenditure categories, required columns and signatures. Posted expenses are not certified total expenditures. |
+| Budget proposal and historical comparison | Annual version and planning-context exports in `budget/urls.py`; authoritative original/adjusted amounts, explicit estimates and independently adopted external certificate versions | Local proposal form, native expenditure classification, complete coverage, required columns and signatures. Posted expenses are not certified total expenditures. |
 | Budget release planning and authority | Quarterly plan, appropriation authorization, allotment register and individual ARO exports | Exact quarterly/ARO presentation and local certification. A quarterly plan is not spending authority. Earmark capacity basis remains unconfirmed. |
 | Budget obligations and accountability | OBR registry/control register; Reporting Budget accountability and Budget versus Posted Actual datasets | Exact local accountability form and period; ambiguous PPA/account mappings require source resolution. The candidate schedule is not an accepted LBAc form. |
 | Accounting posting and ledger work | Journal control register, ledger and trial-balance exports; governed posted general-ledger/trial-balance report starters | Required journal/JEV presentation, grouping, signatures and full signed output reproduction. Source CSV alone does not establish form parity. |
@@ -50,6 +50,10 @@ The subsequent [actuals source audit](FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md) ve
 FY2027 DBM LBM 94 Annex D/E and informs the [proposal-actuals contract](FINANCE_BUDGET_ACTUALS_CONTRACT.md).
 These references establish national form content and distinct certification roles;
 they do not establish LGU usage, printer fidelity or acceptance of a GRAND output.
+The [external-adoption route](FINANCE_BUDGET_ACTUAL_ADOPTION.md) now supplies original
+source downloads, a complete matching certificate register CSV and retained certified
+rows/evidence in the Budget planning-context CSV. These are working evidence outputs,
+not a generated or locally accepted Form 1/2 certification.
 
 ## Report-run retrieval repair
 

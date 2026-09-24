@@ -49,6 +49,7 @@ def build_context(version, user):
         row["estimate_complete"] &= line.second_half_estimate is not None
         row["estimate"] += line.second_half_estimate or Decimal("0")
         row["lines"].append({"id": line.pk, "program": line.program.code if line.program else "",
+            "expense_class": line.expense_class,
             "particulars": line.particulars, "proposed": str(line.amount),
             "estimate": str(line.second_half_estimate) if line.second_half_estimate is not None else None,
             "estimate_as_of": line.estimate_as_of.isoformat() if line.estimate_as_of else "",
@@ -97,6 +98,8 @@ def build_context(version, user):
                 "date": authority.effectivity_date.isoformat(), "kind": authority.version.kind,
                 "successor": bool(authority.version.supersedes_id), "line": line.pk,
                 "amount": str(line.amount), "checksum": authority.snapshot_checksum})
+    from accounting.budget_actuals import planning_actuals
+    certified = planning_actuals(version, set(groups))
     rows = []
     for key, row in sorted(groups.items()):
         for prefix in ("prior", "half"):
@@ -112,8 +115,18 @@ def build_context(version, user):
         row["indicative_total"] = str(Decimal(row["half_amount"])+Decimal(row["estimate"])) if (
             row["half_amount"] is not None and row["estimate"] is not None and today >= date(year-1, 6, 30)
         ) else None
+        for prefix in ("prior", "half"):
+            evidence = certified.get((key, prefix))
+            classes = {item["expense_class"].strip().casefold() for item in row["lines"]}
+            matches = evidence and classes == {evidence["expense_class"].strip().casefold()}
+            row[prefix + "_certified"] = evidence if matches else None
+            row[prefix + "_certification_state"] = ("Adopted external certificate" if matches else
+                "Certificate object class differs from this proposal" if evidence else "No adopted certificate row")
+        row["certified_indicative_total"] = str(Decimal(row["half_certified"]["amount"]) + Decimal(row["estimate"])) if (
+            row["half_certified"] is not None and row["estimate"] is not None and today >= date(year-1, 6, 30)
+        ) else None
         rows.append(row)
-    return {"schema": 1, "as_of": today.isoformat(), "budget_year": year,
+    return {"schema": 2, "as_of": today.isoformat(), "budget_year": year,
         "prior_year": year-2, "current_year": year-1, "rows": rows,
         "prior_period_complete": today >= date(year-2, 12, 31),
         "half_period_complete": today >= date(year-1, 6, 30)}

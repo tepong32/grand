@@ -5,6 +5,8 @@ from django.core.exceptions import PermissionDenied
 
 
 ACCOUNTING_PERMISSIONS = (
+    "accounting.view_budget_actuals", "accounting.prepare_budget_actuals",
+    "accounting.review_budget_actuals", "accounting.export_budget_actuals",
     "accounting.view_accounting_workspace",
     "accounting.manage_accounting_setup",
     "accounting.approve_fiscal_readiness",

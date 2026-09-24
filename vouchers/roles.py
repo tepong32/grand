@@ -97,6 +97,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "vouchers.view_voucher_audit",
     ),
     "Accounting DV Preparer": (
+        "accounting.view_budget_actuals", "accounting.prepare_budget_actuals", "accounting.export_budget_actuals",
         "accounting.view_officer_advances",
         "accounting.export_officer_advances",
         "vouchers.view_collection_register",
@@ -138,6 +139,7 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.export_local_form_acceptance",
     ),
     "Accounting Reviewer": (
+        "accounting.view_budget_actuals", "accounting.review_budget_actuals", "accounting.export_budget_actuals",
         "vouchers.review_payment_presentations",
         "accounting.view_officer_advances",
         "accounting.export_officer_advances",

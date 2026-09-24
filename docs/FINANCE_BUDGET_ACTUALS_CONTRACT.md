@@ -2,8 +2,10 @@
 
 Design checkpoint on `codex/finance-budget-actuals-contract`, based on v0.7.149
 `aeb15e55af7e5429ed13f82a4732f4587db0399e`, [draft PR #110](https://github.com/tepong32/grand/pull/110).
-This is an implementation contract, not a delivered certification feature or an
-LGU-approved form. FG-03 remains partial. See the [source audit](FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md),
+This is an implementation contract, not an LGU-approved form. The first
+[external-adoption implementation](FINANCE_BUDGET_ACTUAL_ADOPTION.md) has a separate
+scope and validation record; native preparation and joint summary certification
+remain open. FG-03 remains partial. See the [source audit](FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md),
 [planning context](FINANCE_BUDGET_PLANNING_CONTEXT.md) and [foundation gate](FINANCE_FOUNDATION_GATE.md).
 
 ## Requirement and verified reference

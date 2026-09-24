@@ -4,7 +4,31 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-25
 
-## Current checkpoint - Authoritative Budget actuals contract (design verified)
+## Current checkpoint - External Budget actuals adoption (validated)
+
+Branch `codex/finance-budget-actual-adoption` starts at v0.7.150,
+`6168a18ef9ce669bf7f1eec11abe6d15a6548ab1`, [draft PR #111](https://github.com/tepong32/grand/pull/111).
+The v0.7.151 checkpoint uses the isolated `grand-finance-my-work` worktree.
+Finance-store original bytes and versioned scope,
+independent adoption review, complete register, Budget context and frozen exports
+are implemented. See [scope and validation](docs/FINANCE_BUDGET_ACTUAL_ADOPTION.md).
+Initial focused SQLite PASS: 14 tests, 14.406s. Final expanded SQLite PASS: 700
+discovered, 673 passed, 27 native-only skips, 362.730s. Fresh MySQL 8.4.11 PASS:
+88/88, no skips, 53.706s, including competing submission/review and coherent Budget
+capture. Both runners exited 0 and destroyed disposable test stores. System/migration
+checks passed. Browser capture, independent review, Budget submission/context CSV,
+register navigation and desktop/narrow layouts passed. Original PDF route returned
+matching bytes/SHA256 through authenticated HTTP; browser saving remains environmental:
+IDM intercepts the response (including the attempted isolated browser). No user
+browser settings were changed. Owned browser/server/MySQL processes stopped;
+operator database SHA256 remains unchanged. See the scope report for evidence.
+No operator-store migration, master merge, deployment or LGU acceptance is implied.
+Keep the goal active. Next trace reviewed expenditure classification and coherent
+native source preparation into this retained proposal route; do not add all asset
+debits or infer officer certification. Native preparation, distinct joint summary
+certification, unknown local earmark rules and exact-output acceptance remain open.
+
+## Prior checkpoint - Authoritative Budget actuals contract (design verified)
 
 Branch `codex/finance-budget-actuals-contract` starts at v0.7.149,
 `aeb15e55af7e5429ed13f82a4732f4587db0399e`, [draft PR #110](https://github.com/tepong32/grand/pull/110).

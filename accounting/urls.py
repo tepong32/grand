@@ -1,11 +1,18 @@
 from django.urls import path
 
-from . import views, cash_views, claim_views, shared_claim_views, advance_views
+from . import views, cash_views, claim_views, shared_claim_views, advance_views, budget_actual_views
 
 
 app_name = "accounting"
 
 urlpatterns = [
+    path("budget-actuals/", budget_actual_views.register, name="budget_actual_register"),
+    path("budget-actuals/new/", budget_actual_views.create, name="budget_actual_create"),
+    path("budget-actuals/export/", budget_actual_views.export, name="budget_actual_export"),
+    path("budget-actuals/<uuid:public_id>/", budget_actual_views.detail, name="budget_actual_detail"),
+    path("budget-actuals/<uuid:public_id>/successor/", budget_actual_views.create, name="budget_actual_successor"),
+    path("budget-actuals/<uuid:public_id>/decide/", budget_actual_views.decide, name="budget_actual_decide"),
+    path("budget-actuals/<uuid:public_id>/evidence/", budget_actual_views.export, name="budget_actual_evidence"),
     path('advance-liquidations/<uuid:public_id>/correct/', advance_views.correct, name='advance_liquidation_correct'),
     path('advances/<int:pk>/correct-recognition/', advance_views.correct_recognition, name='advance_recognition_correct'),
     path("advances/", advance_views.register, name="advance_register"),

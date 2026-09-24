@@ -1,4 +1,5 @@
 import csv
+import json
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -305,7 +306,9 @@ def planning_context_export(request, public_id):
     writer.writerow(("Capture date", "Budget year", "Prior year", "Current year", "Fund", "Office", "Account",
         "Prior posted expense activity (not certified actual)", "Jan-Jun posted expense activity (not certified actual)",
         "Jul-Dec estimate", "Indicative activity plus estimate", "Original appropriation", "Authority state", "Proposed",
-        "Prior sources", "First-half sources", "Estimate basis"))
+        "Prior sources", "First-half sources", "Estimate basis",
+        "Prior certified external actual", "First-half certified external actual", "Certified actual plus second-half estimate",
+        "Prior certificate evidence", "First-half certificate evidence"))
     for row in context["rows"]:
         writer.writerow(tuple(_csv_text(value) for value in (context["as_of"], context["budget_year"],
             context["prior_year"], context["current_year"], row["fund"], row["office"], row["account"],
@@ -318,6 +321,11 @@ def planning_context_export(request, public_id):
             "; ".join(f'{s["reference"]} / {s["date"]} / line {s["line"]}' for s in row["prior_sources"]),
             "; ".join(f'{s["reference"]} / {s["date"]} / line {s["line"]}' for s in row["half_sources"]),
             "; ".join(f'{s["particulars"]}: {s["estimate"]} as of {s["estimate_as_of"]}: {s["estimate_basis"]}' for s in row["lines"]),
+            (row.get("prior_certified") or {}).get("amount", "No retained certification"),
+            (row.get("half_certified") or {}).get("amount", "No retained certification"),
+            row.get("certified_indicative_total") or "Incomplete certified context",
+            json.dumps(row.get("prior_certified"), ensure_ascii=False),
+            json.dumps(row.get("half_certified"), ensure_ascii=False),
         )))
     filename = f"proposal-planning-context-{version.public_id}.csv"
     receipt = archive_export(content=response.content, department=department_for_user(request.user), user=request.user,

@@ -11,6 +11,7 @@
   {% if version.appropriation_authorization %}<p><a class="btn btn-outline-primary" href="{% url 'budget:authorization_detail' version.appropriation_authorization.public_id %}">Open appropriation authority evidence</a></p>{% elif version.status == 'approved' and perms.budget.prepare_budget_proposals and version.kind != 'department' and version.kind != 'executive' and version.kind != 'sanggunian' %}<p><a class="btn btn-primary" href="{% url 'budget:authorization_create' %}">Record ordinance and review evidence</a></p>{% endif %}
   {% if version.source_links.exists %}<div class="alert alert-info"><strong>Consolidated from:</strong> {% for link in version.source_links.all %}<a href="{% url 'budget:version_detail' link.source_version.public_id %}">{{ link.source_version.title }} v{{ link.source_version.version }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
   {% include 'budget/planning_context.html' %}
+  {% include 'budget/certified_actuals.html' %}
   <div class="row">
     <div class="col-lg-8">
       <div class="card">
