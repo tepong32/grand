@@ -4,7 +4,32 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-24
 
-## Current checkpoint - Budget and remittance retained history
+## Current checkpoint - Accounting history and opening-row retrieval
+
+Branch `codex/finance-accounting-history` begins at v0.7.142
+`659b4747dcce819012f4ccfb62fb8edb7a1967ed`, [draft PR #103](https://github.com/tepong32/grand/pull/103).
+Reconciliation runs and opening rows/events now have stable 50-record pages,
+full counts and retained independent page/date parameters. Later opening rows link
+to the existing governed correction. Financial comparisons and full exports remain
+complete. See [scope, actual validation and next checks](docs/FINANCE_ACCOUNTING_HISTORY.md).
+
+Baseline 2 failures, 11.473s. Full Accounting module: 58 passed, one new test
+expectation failed, 13.751s; the assertion wrongly counted export's required audit
+event as a retrieval write. Corrected the test only; final two affected tests PASS,
+16.229s, no skips, exit 0. Both test stores destroyed, runners terminal. The other
+58 tests passed on the same application code; no unresolved local failure.
+Desktop/narrow browser inspection passed, including opening row 511's correction
+form and reconciliation Previous navigation. Browser/server stopped. Operator DB
+unchanged. Native/full cross-module checks out of scope for this read-only repair.
+Prior PR #103 MySQL/verify remote checks pending at inspection; not counted as passes.
+
+Next: Reporting definition history navigation to its existing full scoped register;
+reproduce bank matching's 30-candidate limit and complete eligible-source access.
+Then reassess FG-11 against the full foundation scope. Budget certified actuals,
+unconfirmed earmark semantics, exact outputs and human acceptance remain open.
+Goal active, production NO-GO; no master merge/deployment. eGAPS may remain closed.
+
+## Prior checkpoint - Budget and remittance retained history
 
 Branch `codex/finance-budget-remittance-history` begins at v0.7.141
 `766fa809c30dd773f11a3d9753cbfa4b66b8ddd0`, [draft PR #102](https://github.com/tepong32/grand/pull/102).

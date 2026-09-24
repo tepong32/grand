@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.143] - 2026-09-24
+### Fixed
+- fix(finance): complete Accounting history and opening row retrieval
+
 ## [0.7.142] - 2026-09-24
 ### Fixed
 - fix(finance): expose retained Budget and remittance history

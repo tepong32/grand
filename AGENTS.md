@@ -83,7 +83,9 @@ now retains independent pages and full reservation calculations.
 [Shadow retrieval](docs/FINANCE_SHADOW_RETRIEVAL.md) retains scoped cycle and review
 history navigation. [Budget/remittance history](docs/FINANCE_BUDGET_REMITTANCE_HISTORY.md)
 adds complete event pages with explicit proposal/remittance audit permission.
-Complete remaining Accounting history access before further output breadth.
+[Accounting history](docs/FINANCE_ACCOUNTING_HISTORY.md) provides complete reconciliation,
+opening-row and opening-event pages using the existing correction route. Next assess
+Reporting navigation and bank candidate reachability before further output breadth.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

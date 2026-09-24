@@ -10,7 +10,10 @@ across scoped pages and rejects invalid account selection.
 [Treasury register retrieval](FINANCE_TREASURY_REGISTER_RETRIEVAL.md) now pages all
 cash lists and remittance matches without limiting financial reservations.
 The [shadow retrieval checkpoint](FINANCE_SHADOW_RETRIEVAL.md) addresses cycle and
-evidence-review limits. Next: Budget/remittance/Accounting history reachability.
+evidence-review limits. [Budget/remittance history](FINANCE_BUDGET_REMITTANCE_HISTORY.md)
+and [Accounting history](FINANCE_ACCOUNTING_HISTORY.md) now provide complete scoped
+event/run pages and opening-row corrections. Next: Reporting navigation and bank
+match-candidate reachability.
 These remaining defects take
 priority over further output breadth; local policy and acceptance remain separate.
 
