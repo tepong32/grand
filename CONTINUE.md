@@ -4,7 +4,35 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-25
 
-## Current checkpoint - Budget report expense activity (validated)
+## Current checkpoint - Budget report explicit Accounting ownership (validated)
+
+Branch `codex/finance-budget-actual-owner` starts at v0.7.148,
+`29be6b684849d64499fe4bdc8ada91d9bcbd0067`, [draft PR #109](https://github.com/tepong32/grand/pull/109).
+Six new regressions against unchanged application code failed as expected (3.298s,
+exit 1; fresh stores destroyed). Department-name guessing loses actuals after a
+rename, lets unrelated Accounting offices block retrieval, and does not validate
+inconsistent ownership. See [source contract and checkpoint](docs/FINANCE_BUDGET_ACTUAL_OWNERSHIP.md).
+
+The repair derives owner/year scopes from the same captured authorized Budget rows,
+includes the owner in classification keys, retains exact source scope and identifies
+each ledger in mapping status. No authority means no guessed Accounting source.
+Focused SQLite PASS: 57/57, 20.914s, no skips. Final expanded Reporting/Budget/Accounting
+SQLite PASS: 292 discovered, 288 passed, four skipped, 101.763s; native MySQL 8.4.11
+PASS: 60/60, no skips, 31.322s. All repaired runners exit 0; both disposable stores
+destroyed and owned MySQL stopped. Logs: `.tmp/budget-owner-focused.log`,
+`.tmp/budget-owner-regression.log`, `.tmp/budget-owner-native.log`.
+
+Next: complete the certified-expenditure source/coverage contract from the verified
+DBM reference, including capital outlays and historical external certified sources,
+distinct independent certification and retained proposal references. This report
+still supplies posted expense activity, not certified expenditure. Unknown local
+earmark rules, exact forms and human acceptance remain open. Goal active; no master
+merge/deployment or new whole-project/LGU acceptance claim.
+The source audit also identifies DBM LBM 94 for FY2027; full provisions remain
+uninspected. Its slow direct PDF fetch was cancelled with no complete file retained;
+do not infer amendments from its title. No research downloader remains running.
+
+## Prior checkpoint - Budget report expense activity (validated)
 
 Branch `codex/finance-budget-actual-closing` starts at v0.7.147
 `ff3dbeb379a5c54bdbfbe59ffb18529199797ac6`, [draft PR #108](https://github.com/tepong32/grand/pull/108).
