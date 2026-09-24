@@ -1592,9 +1592,11 @@ def definition_detail(request, pk):
                 scope = "official-layout candidate" if run.template_version.is_official_ready else "pilot comparison"
                 messages.success(request, f"Report generated as a {scope}. Review is required before further use.")
                 return redirect(run)
-    runs = _runs_visible_to(request.user).filter(definition=definition).select_related("created_by")[:15]
+    visible_runs = _runs_visible_to(request.user).filter(definition=definition)
+    runs = visible_runs.select_related("created_by").order_by("-created_at", "-pk")[:15]
     return render(request, "reporting/definition_detail.html", {
         "definition": definition, "form": form, "runs": runs,
+        "visible_run_count": visible_runs.count(),
         "templates": definition.template_versions.select_related(
             "created_by", "approved_by", "fidelity_validated_by",
         ).all(),

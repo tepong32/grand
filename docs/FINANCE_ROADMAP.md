@@ -12,8 +12,9 @@ cash lists and remittance matches without limiting financial reservations.
 The [shadow retrieval checkpoint](FINANCE_SHADOW_RETRIEVAL.md) addresses cycle and
 evidence-review limits. [Budget/remittance history](FINANCE_BUDGET_REMITTANCE_HISTORY.md)
 and [Accounting history](FINANCE_ACCOUNTING_HISTORY.md) now provide complete scoped
-event/run pages and opening-row corrections. Next: Reporting navigation and bank
-match-candidate reachability.
+event/run pages and opening-row corrections. [Bank/report retrieval](FINANCE_BANK_REPORT_RETRIEVAL.md)
+adds full match-candidate pages and scoped report-history navigation. Next assess
+remaining Reporting schedule/statement-evidence previews.
 These remaining defects take
 priority over further output breadth; local policy and acceptance remain separate.
 

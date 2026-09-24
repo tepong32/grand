@@ -40,8 +40,9 @@ cash/remittance pagination while retaining full cash reservation calculations.
 The [shadow retrieval checkpoint](FINANCE_SHADOW_RETRIEVAL.md) adds complete cycle
 and retained-review navigation. [Budget/remittance history](FINANCE_BUDGET_REMITTANCE_HISTORY.md)
 adds complete scoped event pages. [Accounting history](FINANCE_ACCOUNTING_HISTORY.md)
-adds reconciliation and opening-row/event pages. Continue Reporting navigation
-and bank-candidate reachability; FG-11 remains partial.
+adds reconciliation and opening-row/event pages. [Bank/report retrieval](FINANCE_BANK_REPORT_RETRIEVAL.md)
+adds full candidate pages and report-history navigation. Remaining Reporting
+schedule/statement-evidence previews need assessment; FG-11 remains partial.
 
 Classification describes connected capability, not a model/menu's existence.
 All rows below concern the actual Finance workflow or a supporting dependency.

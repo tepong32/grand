@@ -4,7 +4,30 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-24
 
-## Current checkpoint - Accounting history and opening-row retrieval
+## Current checkpoint - Bank candidate and report-history navigation
+
+Branch `codex/finance-bank-report-retrieval` begins at v0.7.143
+`e677ff9eea63bb571d7bd27c5003ad40040260ab`, [draft PR #104](https://github.com/tepong32/grand/pull/104).
+Bank rows now have independent ten-candidate pages and full counts; reserved-line
+exclusion and existing match service remain. Reporting's 15-run preview shows its
+full visible count and links directly to complete scoped history. See
+[scope, validation and remaining scan](docs/FINANCE_BANK_REPORT_RETRIEVAL.md).
+
+Baseline 2 expected failures, 19.763s. Final Accounting/Reporting regression PASS
+97/97, 48.767s, no skips, exit 0. Both test stores destroyed; runner terminal.
+Desktop/narrow Playwright navigation and actual later-candidate match passed on
+synthetic stores. Widened the cramped narrow match column within the existing
+scrollable table. Browser/server stopped; operator DB unchanged; diff/local links
+pass. Native/full cross-module suites out of scope for this read-only repair.
+
+Next: assess Reporting's eight-schedule and five-note/reference previews against
+complete routes. References are available from individual runs; older notes and
+schedules need verification. Then reassess FG-11 and broaden integrated validation.
+Retain Budget certified expenditure coverage, unknown earmark rules and exact
+outputs/human acceptance. Goal active; production NO-GO, no master merge/deployment.
+eGAPS may remain closed.
+
+## Prior checkpoint - Accounting history and opening-row retrieval
 
 Branch `codex/finance-accounting-history` begins at v0.7.142
 `659b4747dcce819012f4ccfb62fb8edb7a1967ed`, [draft PR #103](https://github.com/tepong32/grand/pull/103).

@@ -84,8 +84,10 @@ now retains independent pages and full reservation calculations.
 history navigation. [Budget/remittance history](docs/FINANCE_BUDGET_REMITTANCE_HISTORY.md)
 adds complete event pages with explicit proposal/remittance audit permission.
 [Accounting history](docs/FINANCE_ACCOUNTING_HISTORY.md) provides complete reconciliation,
-opening-row and opening-event pages using the existing correction route. Next assess
-Reporting navigation and bank candidate reachability before further output breadth.
+opening-row and opening-event pages using the existing correction route.
+[Bank candidates/report history](docs/FINANCE_BANK_REPORT_RETRIEVAL.md) now have complete
+candidate pages and scoped generation-history navigation. Assess remaining Reporting
+schedule/statement-evidence previews before further output breadth.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

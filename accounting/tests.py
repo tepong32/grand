@@ -2041,6 +2041,54 @@ class StandaloneAccountingTests(TestCase):
         self.assertEqual(snapshot["difference"], "0.00")
         self.assertTrue(snapshot["ready_for_review"])
 
+    def test_bank_candidates_reach_all_eligible_lines_and_match_later_choice(self):
+        PostingMapping.objects.create(department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name, category=PostingMapping.BANK,
+            source_code="SYN-CANDIDATES", label="Synthetic candidate bank", account=self.cash)
+        lines = []
+        for number in range(62):
+            entry = self._entry(reference=f"CANDIDATE-{number:03}")
+            JournalEntry.objects.filter(pk=entry.pk).update(status=JournalEntry.POSTED)
+            lines.append(entry.lines.get(account=self.cash))
+        batch = BankStatementBatch.objects.create(department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name, statement_reference="SYN-CANDIDATES",
+            bank_account_code="SYN-CANDIDATES", bank_name="Synthetic bank", fund=self.fund,
+            period_start=date(2027,1,1), period_end=date(2027,1,31), received_on=date(2027,2,1),
+            opening_balance=0, closing_balance=300, expected_row_count=3, expected_deposits=300,
+            created_by_id=self.preparer.pk, created_by_label=self.preparer.username)
+        content = "transaction_date,bank_reference,description,withdrawal,deposit,running_balance\n"
+        content += "".join(f"2027-01-15,STMT-{number},Synthetic deposit,,100.00,{number * 100}.00\n" for number in (1,2,3))
+        batch = stage_bank_statement_csv(batch, self.preparer,
+            SimpleUploadedFile("candidates.csv", content.encode(), content_type="text/csv"))
+        first, second, reserved = list(batch.rows.order_by("row_number"))
+        match_bank_statement_row(reserved, lines[0], self.preparer, reason="Synthetic reserved deposit")
+        events_before = batch.events.count()
+        self.client.force_login(self.preparer)
+        url = reverse("accounting:bank_reconciliation_detail", args=(batch.public_id,))
+        seen = set()
+        for number, count in [(number,10) for number in range(1,7)] + [(7,1)]:
+            response = self.client.get(url, {f"candidates_{first.pk}":number, f"candidates_{second.pk}":2})
+            rows = {row.pk:row for row in response.context["rows"]}
+            candidates = rows[first.pk].candidates
+            self.assertEqual(len(candidates), count)
+            ids = {line.pk for line in candidates}
+            self.assertFalse(seen & ids)
+            seen |= ids
+            self.assertEqual(len(rows[second.pk].candidates),10)
+            self.assertContains(response, f"candidates_{second.pk}=2")
+        self.assertEqual(seen,{line.pk for line in lines[1:]})
+        self.assertContains(response,'Showing 61–61 of 61 matching records')
+        self.assertContains(response, f'name="journal_line_id" value="{lines[-1].pk}"')
+        self.assertEqual(batch.events.count(), events_before)
+        self.assertEqual(BankStatementMatch.objects.filter(status=BankStatementMatch.ACTIVE).count(),1)
+        matched = self.client.post(reverse("accounting:bank_reconciliation_match",args=(batch.public_id,first.pk)),
+            {"journal_line_id":lines[-1].pk,"reason":"Synthetic reviewed later candidate source"})
+        self.assertEqual(matched.status_code,302)
+        self.assertEqual(BankStatementMatch.objects.get(statement_row=first,status=BankStatementMatch.ACTIVE).journal_line_id,lines[-1].pk)
+        self.client.force_login(self.outsider)
+        self._grant(self.outsider,"view_bank_reconciliation")
+        self.assertEqual(self.client.get(url,{f"candidates_{first.pk}":2}).status_code,404)
+
     def test_bank_statement_versions_match_outstanding_items_and_close_zero_difference_independently(self):
         PostingMapping.objects.create(
             department_id=self.accounting_department.pk,
