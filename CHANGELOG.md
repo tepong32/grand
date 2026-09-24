@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.147] - 2026-09-24
+### Fixed
+- fix(finance): complete personal work retrieval without changing export scope
+
 ## [0.7.146] - 2026-09-24
 ### Documentation
 - docs(finance): audit integrated retrieval and Budget actuals requirements

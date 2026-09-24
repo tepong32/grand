@@ -10,9 +10,9 @@ adds complete opening rows/events and reconciliation runs. [Bank/report retrieva
 adds candidate pages and complete generation-history navigation.
 [Reporting schedules](FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md) include active/inactive
 retrieval and retained statement routes. The [integrated audit](FINANCE_RETRIEVAL_INTEGRATED_AUDIT.md)
-reproduces My Work's remaining 100-task navigation ceiling. Repair complete personal
-view navigation before further output breadth; preserve its bounded CSV snapshot
-contract. Full baseline SQLite/native regression passes with explicitly recorded
+reproduces My Work's former 100-task navigation ceiling. [Personal retrieval](FINANCE_MY_WORK_RETRIEVAL.md)
+now pages all six views while preserving the bounded CSV snapshot contract.
+Full baseline SQLite/native regression passes with explicitly recorded
 SQLite skips; the audit also reproduces a Budget-report closing defect. The broader
 gate remains open.
 

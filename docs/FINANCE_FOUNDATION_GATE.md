@@ -45,9 +45,11 @@ adds full candidate pages and report-history navigation. [Reporting schedules](F
 now include inactive records and explicit retained-evidence routes. The
 [integrated audit](FINANCE_RETRIEVAL_INTEGRATED_AUDIT.md) reproduces My Work's remaining
 100-task ceiling: 105 eligible Waiting tasks show the same 100 on page 2, without
-the suggested exact-queue links. FG-11 stays partial. Complete personal navigation
-while preserving the explicit bounded CSV snapshot contract; broader regression
-and office acceptance remain separate evidence.
+the suggested exact-queue links. The subsequent [My Work repair](FINANCE_MY_WORK_RETRIEVAL.md)
+provides complete pages in every personal view while retaining the bounded CSV
+snapshot contract. Reviewed retrieval defects are repaired; whole-scope office
+acceptance remains unproven. Broader baseline regression and repair-specific
+validation remain separate evidence.
 
 Classification describes connected capability, not a model/menu's existence.
 The [Budget actuals source audit](FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md) verifies
@@ -69,7 +71,7 @@ potential future integration, out of current scope, or unknown before work begin
 | FG-08 | Accounting | Remaining source/history adoption | PARTIALLY IMPLEMENTED | Historical sources not all connected | Preserve original financial evidence | Existing reviewed attribution routes | Open; no speculative expansion |
 | FG-09 | Finance | Broader routine scenarios | PARTIALLY IMPLEMENTED | Not all ordinary work demonstrated | Controls must survive corrections | Earlier foundation checkpoints | Deferred until foundation coherent |
 | FG-10 | Deployment | Live configured rendering/production verification | UNKNOWN | Actual deployment behavior unverified | No production readiness inference | Authorized environment and operational gates | Open |
-| FG-11 | Cross-office retrieval | Remaining personal-work ceiling | PARTIALLY IMPLEMENTED | Tasks after the first 100 cannot be reached in My Work | Preserve department scope and full register versus bounded snapshot export meaning | Existing source adapters and scoped registers | Register/history repairs retained; My Work Waiting 105/100 cap reproduced, page 2 repeats page 1; complete navigation still required |
+| FG-11 | Cross-office retrieval | Complete retrieval across actual office work | PARTIALLY IMPLEMENTED | Reviewed register/history and personal-work caps are repaired | Preserve department scope and full register versus bounded snapshot export meaning | Existing source adapters and scoped registers | Known caps repaired and scoped validation retained; whole-scope office reachability/acceptance remains unproven |
 
 ## Checkpoint 1A — OBR retrieval
 

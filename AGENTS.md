@@ -89,9 +89,11 @@ opening-row and opening-event pages using the existing correction route.
 candidate pages and scoped generation-history navigation. [Reporting schedules](docs/FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md)
 include active/inactive retrieval and retained statement navigation. The
 [integrated retrieval audit](docs/FINANCE_RETRIEVAL_INTEGRATED_AUDIT.md) reproduces
-My Work's remaining 100-task ceiling: Waiting page 2 repeats page 1, and its suggested
-exact-queue links are absent. Complete personal navigation while preserving source
-scope and the explicitly bounded, retained CSV snapshot contract. FG-11 stays partial.
+My Work's former 100-task ceiling. [Personal retrieval](docs/FINANCE_MY_WORK_RETRIEVAL.md)
+now pages all six views after complete permission/view/date filtering. Preserve the
+separate bounded CSV snapshot contract and source ordering. Known caps are repaired
+in reviewed routes; whole-scope office acceptance remains unproven. Next repair the
+Budget report's reproduced nominal-closing netting before certified-actual expansion.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;
