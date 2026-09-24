@@ -13,6 +13,7 @@ from src.export_archive import archive_export
 
 from accounting.models import FiscalYear
 from .retrieval import ObligationRetrievalForm
+from .history import history_page
 from .planning_context import build_context, can_read_context, displayed_context, set_estimate
 from .forms import BudgetEstimateForm
 
@@ -248,7 +249,8 @@ def version_create(request):
 def version_detail(request, public_id):
     department = department_for_user(request.user)
     version = get_object_or_404(BudgetVersion.objects.select_related("budget_call", "fiscal_year", "supersedes").prefetch_related("lines__fund", "lines__responsibility_center", "lines__program", "lines__account", "resource_estimates__funding_source", "review_comments", "source_links__source_version"), public_id=public_id, department_id=department.pk)
-    events = BudgetAuditEvent.objects.filter(target_id=str(version.public_id))[:30]
+    can_audit = has_budget_permission(request.user, "view_budget_audit")
+    event_page = history_page(version, request) if can_audit else None
     planning = None
     planning_error = ""
     if can_read_context(request.user, version):
@@ -262,7 +264,8 @@ def version_detail(request, public_id):
             if planning is None:
                 planning_error = "This historical proposal has no retained planning context. No approval evidence has been backfilled."
     return render(request, "budget/version_detail.html", {
-        "version": version, "ceiling_rows": ceiling_differences(version), "events": events,
+        "version": version, "ceiling_rows": ceiling_differences(version),
+        "events": event_page.object_list if can_audit else (), "event_page": event_page, "can_audit": can_audit,
         "planning": planning, "planning_error": planning_error,
         "comment_form": BudgetReviewCommentForm(),
         "can_prepare": can_act_on_budget(request.user, "prepare_budget_proposals"),

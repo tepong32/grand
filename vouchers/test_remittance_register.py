@@ -182,6 +182,36 @@ class RemittanceWorkRegisterTests(TestCase):
         scoped = self.client.get(url)
         self.assertEqual([batch.pk for batch in scoped.context["batches"]], [foreign.pk])
 
+    def test_remittance_audit_history_pages_preserve_permission_and_batch_scope(self):
+        from .models import RemittanceEvent
+        batch = self._batch("HISTORY-REMIT")
+        foreign = self._batch("HISTORY-OTHER", owner=self.other)
+        for item in (batch, foreign):
+            RemittanceEvent.objects.bulk_create([
+                RemittanceEvent(batch=item, action="synthetic_history", actor=self.preparer,
+                                actor_department=self.treasury, state_version=1,
+                                reason=f"{item.reference_code} decision {index:03}")
+                for index in range(61)
+            ])
+        self.preparer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="view_remittance_audit"))
+        self.client.force_login(self.preparer)
+        seen = set()
+        for number in (1, 2):
+            response = self.client.get(batch.get_absolute_url(), {"events_page": number})
+            ids = {event.pk for event in response.context["events"]}
+            self.assertFalse(seen & ids)
+            seen |= ids
+            self.assertNotContains(response, "HISTORY-OTHER decision")
+        self.assertEqual(seen, set(batch.events.values_list("pk", flat=True)))
+        self.assertContains(response, "of 61 matching records")
+        self.assertContains(response, "events_page=1#remittance-events")
+        self.preparer.user_permissions.remove(Permission.objects.get(
+            content_type__app_label="vouchers", codename="view_remittance_audit"))
+        response = self.client.get(batch.get_absolute_url(), {"events_page": 2})
+        self.assertEqual(list(response.context["events"]), [])
+        self.assertNotContains(response, "HISTORY-REMIT decision")
+
     def test_personal_waiting_remittance_excludes_ready_release_and_other_preparers(self):
         waiting = self._batch("REM-WAIT", status=TreasuryRemittanceBatch.FOR_REVIEW)
         self._batch("REM-RELEASE", status=TreasuryRemittanceBatch.APPROVED)

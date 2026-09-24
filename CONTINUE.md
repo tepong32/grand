@@ -4,7 +4,28 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-09-24
 
-## Current checkpoint - Shadow-cycle and evidence-review retrieval
+## Current checkpoint - Budget and remittance retained history
+
+Branch `codex/finance-budget-remittance-history` begins at v0.7.141
+`766fa809c30dd773f11a3d9753cbfa4b66b8ddd0`, [draft PR #102](https://github.com/tepong32/grand/pull/102).
+Proposal audit history is now visible with explicit audit permission; proposal and
+quarterly histories have complete 30-event pages. Remittance audit has 50-event
+pages under its existing permission. Explicit navigation keeps Budget history open.
+See [scope, evidence and remaining gate](docs/FINANCE_BUDGET_REMITTANCE_HISTORY.md).
+
+Baseline reproduced all three gaps. Regression PASS 54/54, 50.322s; final affected
+Budget rerun after expansion adjustment PASS 8/8, 4.632s. No skips, both exit 0.
+Desktop/narrow browser inspection and Next/Previous passed on synthetic stores.
+Both test stores destroyed; runners terminal; browser/server stopped. Operator DB
+unchanged. Native/full cross-module suites not run (read-only scope; see report).
+No master merge or deployment; production NO-GO and overall goal active.
+
+Next: Accounting reconciliation-history reachability, opening-balance row/correction
+and event limits, then Reporting navigation. FG-11 stays partial. Preserve Budget
+actuals, unconfirmed earmark rules and exact output/human acceptance. eGAPS may
+remain closed.
+
+## Prior checkpoint - Shadow-cycle and evidence-review retrieval
 
 Branch `codex/finance-shadow-retrieval` begins at v0.7.140
 `16f74d6c4ce161108e59331b5ef733ac1e229aa5`, [draft PR #101](https://github.com/tepong32/grand/pull/101).

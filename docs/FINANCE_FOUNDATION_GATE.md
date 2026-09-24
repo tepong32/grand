@@ -38,8 +38,9 @@ repairs the 1,000-line cap with running-balance continuity and strict account sc
 The [Treasury register checkpoint](FINANCE_TREASURY_REGISTER_RETRIEVAL.md) repairs
 cash/remittance pagination while retaining full cash reservation calculations.
 The [shadow retrieval checkpoint](FINANCE_SHADOW_RETRIEVAL.md) adds complete cycle
-and retained-review navigation. Continue Budget/remittance/Accounting history
-reachability before further output breadth; FG-11 remains partial.
+and retained-review navigation. [Budget/remittance history](FINANCE_BUDGET_REMITTANCE_HISTORY.md)
+adds complete scoped event pages. Continue Accounting history reachability and
+opening/Reporting assessment before further output breadth; FG-11 remains partial.
 
 Classification describes connected capability, not a model/menu's existence.
 All rows below concern the actual Finance workflow or a supporting dependency.

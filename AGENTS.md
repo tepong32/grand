@@ -81,8 +81,9 @@ across pages and rejects invalid account scope in both screen and export.
 [Treasury cash/remittance retrieval](docs/FINANCE_TREASURY_REGISTER_RETRIEVAL.md)
 now retains independent pages and full reservation calculations.
 [Shadow retrieval](docs/FINANCE_SHADOW_RETRIEVAL.md) retains scoped cycle and review
-history navigation. Complete remaining Budget/remittance/Accounting history access
-before further output breadth.
+history navigation. [Budget/remittance history](docs/FINANCE_BUDGET_REMITTANCE_HISTORY.md)
+adds complete event pages with explicit proposal/remittance audit permission.
+Complete remaining Accounting history access before further output breadth.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

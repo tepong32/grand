@@ -30,5 +30,6 @@
       <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Review discussion</h2></div><div class="card-body">{% for comment in version.review_comments.all %}<div class="border-bottom pb-2 mb-2"><strong>{{ comment.author_label }}</strong><div class="small text-muted">{{ comment.created_at }}</div>{{ comment.comment|linebreaksbr }}</div>{% empty %}<p class="text-muted">No review comments.</p>{% endfor %}{% if can_review %}<form method="post" action="{% url 'budget:comment_create' version.public_id %}">{% csrf_token %}{{ comment_form.comment }}<button class="btn btn-sm btn-outline-primary mt-2">Add comment</button></form>{% endif %}</div></div>
     </div>
   </div>
+{% if can_audit %}{% include "budget/_history.html" %}{% endif %}
 </div>
 {% endblock %}
