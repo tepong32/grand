@@ -86,8 +86,9 @@ adds complete event pages with explicit proposal/remittance audit permission.
 [Accounting history](docs/FINANCE_ACCOUNTING_HISTORY.md) provides complete reconciliation,
 opening-row and opening-event pages using the existing correction route.
 [Bank candidates/report history](docs/FINANCE_BANK_REPORT_RETRIEVAL.md) now have complete
-candidate pages and scoped generation-history navigation. Assess remaining Reporting
-schedule/statement-evidence previews before further output breadth.
+candidate pages and scoped generation-history navigation. [Reporting schedules](docs/FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md)
+include active/inactive retrieval and retained statement navigation. Reassess the full
+retrieval requirements and broaden integrated validation before further output breadth.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

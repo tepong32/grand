@@ -182,13 +182,26 @@ def workspace(request):
     page_filters.pop("page", None)
     for run in runs:
         run.next_action_label = next_report_action(run)
-    schedules = ReportSchedule.objects.filter(definition__department=department, is_active=True).select_related("definition")[:8]
+    schedules = ReportSchedule.objects.filter(definition__department=department).select_related("definition")
+    schedule_state = request.GET.get("schedules_state", "active")
+    schedule_error = ""
+    if schedule_state in ("active", "inactive"):
+        schedules = schedules.filter(is_active=schedule_state == "active")
+    elif schedule_state != "all":
+        schedules = schedules.none()
+        schedule_error = "Choose Active, Inactive or All schedules."
+    schedule_page = _retrieval_page(schedules.order_by("next_run_at", "name", "pk"),
+        request, "schedules_page", "report-schedules", page_size=10)
+    schedule_filters = [(key, value) for key, values in request.GET.lists()
+        if key not in ("schedules_page", "schedules_state") for value in values]
     now = timezone.now()
-    statement_mappings_enabled = definitions.filter(
+    statement_mappings_enabled = ReportDefinition.objects.filter(department=department).filter(
         dataset_key__in=("finance_statement_position", "finance_statement_performance"),
     ).exists()
     return render(request, "reporting/workspace.html", {
-        "department": department, "definitions": definitions, "recent_runs": runs, "schedules": schedules,
+        "department": department, "definitions": definitions, "recent_runs": runs, "schedules": schedule_page.object_list,
+        "schedule_page": schedule_page, "schedule_state": schedule_state, "schedule_error": schedule_error,
+        "schedule_filters": schedule_filters,
         "visible_run_count": visible_run_count,
         "run_page": run_page, "run_page_filters": page_filters.urlencode(),
         "run_definition_choices": run_definitions, "run_period_year_choices": run_period_years,
@@ -253,8 +266,8 @@ def _local_form_validation(item):
     return validate_local_form(item)
 
 
-def _retrieval_page(queryset, request, parameter, anchor):
-    page = Paginator(queryset, 50).get_page(request.GET.get(parameter))
+def _retrieval_page(queryset, request, parameter, anchor, *, page_size=50):
+    page = Paginator(queryset, page_size).get_page(request.GET.get(parameter))
     params = request.GET.copy()
     for name, number in (("previous_url", page.number - 1), ("next_url", page.number + 1)):
         params[parameter] = number
