@@ -55,6 +55,9 @@ The [native source audit](FINANCE_BUDGET_NATIVE_SOURCE_AUDIT.md) reproduces miss
 liquidation office attribution and an invalid expense-plus-asset total. Native
 preparation must include unresolved sources, independently reviewed purpose/office
 attribution and coherent source-change checks before certification is enabled.
+The [native capture service](FINANCE_BUDGET_NATIVE_CAPTURE.md) begins that implementation
+with a coherent posted ledger read. Reviewed allocation, persistence, certification
+and Budget integration remain required; source capture alone does not close FG-03.
 
 [Quarterly planning](FINANCE_QUARTERLY_PLANNING.md) now has an operational versioned
 schedule and retained ARO comparison. Explicit allocations and explained timing
