@@ -2,9 +2,38 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-09-25
+Last updated: 2026-09-26
 
-## Current checkpoint - Native Budget actuals source audit
+## Current checkpoint - Native Budget ledger capture (validated)
+
+The v0.7.153 checkpoint on `codex/finance-budget-native-capture` starts at v0.7.152,
+`c38646fac6289b5a41be6e98cab750d2eda6bd54`, [draft PR #113](https://github.com/tepong32/grand/pull/113).
+That prior audit's remote verify, MySQL and GitGuardian checks now pass.
+The [capture service](docs/FINANCE_BUDGET_NATIVE_CAPTURE.md) implements one Finance
+read for posted financial/source/office/subsidiary evidence and reversal ancestry,
+with detached checksummed results and changed-source comparison. Initial SQLite
+PASS: 17 tests (six new source tests plus eleven existing adoption tests), 84.778s,
+exit 0; fresh stores destroyed. Final SQLite PASS: 24 discovered, 23 passed and one
+native-only skip, 78.140s, exit 0; fresh stores destroyed. Final fresh MySQL 8.4.11
+PASS: 24/24, no skips, 128.164s, exit 0; both stores destroyed. It does not yet persist a native worksheet,
+review office/purpose allocations or certify expenditures; the proposal gap remains.
+Next integrate shared reviewed allocation identities and retained native preparation,
+then distinct certification and Budget source-change checks. Production remains NO-GO.
+
+Both final commands use labels `accounting.test_budget_native_sources
+accounting.test_budget_native_capture_concurrency accounting.test_budget_actuals
+budget.test_planning_context`, through `.tmp/my_work_sqlite.py` and
+`.tmp/retrieval_native.py` respectively. Logs: `.tmp/native-capture-regression.log`
+and `.tmp/native-capture-mysql-final.log`. Initial native PASS: 7/7, no skips,
+42.870s, exit 0. The native interleaving proves one snapshot retains earlier rows
+and metadata while subsequent recapture detects a completed concurrent posting.
+Compilation, system checks, 462 local documentation links and whitespace checks
+pass. The canonical operator database hash is unchanged. Owned test-server shutdown
+and absence of its listener were verified after both test stores were destroyed. Full application/browser/form
+acceptance was not rerun for this isolated internal read service; it remains required
+for later integration and completion. No operator migration, master merge or deployment.
+
+## Prior checkpoint - Native Budget actuals source audit
 
 The v0.7.152 audit checkpoint on `codex/finance-budget-native-source-audit` starts at v0.7.151,
 `1d289b58b070a21e044c5249a2820131a1172c60`, [draft PR #112](https://github.com/tepong32/grand/pull/112).

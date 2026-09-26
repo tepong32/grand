@@ -115,6 +115,9 @@ The [native source audit](docs/FINANCE_BUDGET_NATIVE_SOURCE_AUDIT.md) reproduces
 unattributed liquidation expenses missing from office-filtered context. Preserve
 posted lines; require explicit reviewed office/purpose attribution rather than
 borrowing an officer/DV office or treating every asset debit as expenditure.
+The [native capture primitive](docs/FINANCE_BUDGET_NATIVE_CAPTURE.md) reads ledger
+evidence in one Finance statement. Preserve that coherent boundary when adding
+reviewed allocation heads; capture alone neither certifies nor attributes expenditure.
 
 
 Voucher action failures retain bound inputs and original state/idempotency tokens;

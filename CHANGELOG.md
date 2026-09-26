@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.153] - 2026-09-26
+### Added
+- feat(finance): capture coherent native Budget ledger evidence
+
 ## [0.7.152] - 2026-09-25
 ### Documentation
 - docs(finance): verify native Budget source attribution and coverage gaps
