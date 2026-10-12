@@ -6,7 +6,11 @@ classification, user/control impact and dependencies. Historical findings remain
 
 ## FIN-GAP-038 - Security and native regression release gate
 
-- Severity/status: **HIGH - OPEN RELEASE BLOCKER**. The original scheduled Actions
+- Severity/status: **CRITICAL - OPEN PRIMARY RELEASE BLOCKER**. GitHub's actual
+  default-branch alerts include Critical PyJWT GHSA-ffc3-869f-jxw9 in the old pin.
+  Candidate 2.15.1 is outside its affected range and all 24 returned alert ranges;
+  local audit passes, but actual candidate/master CI and integration are pending.
+  The original scheduled Actions
   failures and candidate regression defects are documented in the
   [incident record](FINANCE_CI_INCIDENT_2026-10-12.md); primary integration and dependent
   implementation are NO-GO until repaired checks and both resulting remote jobs pass.
@@ -31,8 +35,23 @@ classification, user/control impact and dependencies. Historical findings remain
   no skips, exit 0, both stores destroyed, every selected ID exactly once. Candidate
   publication is GO; both complete remote jobs remain required. No remote repair
   pass or completed primary integration is claimed.
-- Next action: establish the remaining native root cause, validate repair, actual
-  vm-commit/candidate CI/primary integration and verify both GitHub jobs. Resume
+- New High runtime blocker: actual v0.7.154 run 38294180301 verify CANCELLED at
+  its 20-minute limit; MySQL also CANCELLED at its 60-minute limit. Actual complete
+  job logs/annotations are retained. Audit/system/migration/service-start checks
+  passed, but neither suite has a terminal passing summary. Next CI now prints
+  exact test names at verbosity 2; every other workflow byte/limit is unchanged.
+  A scoped joint-actuals verification repair preserves exact financial/source
+  controls and reduces the measured same-package read from about 5.3s to 2.4s.
+  Focused SQLite PASS: 49 tests / 19.381s / no skips. Affected native PASS: all
+  108 IDs / 301.966s / no skips, both stores destroyed. Repaired full SQLite PASS:
+  2,466 tests / 3,983.312s, every ID once, unchanged 195 native-only skips and
+  both stores destroyed. Repaired full native PASS: 2,466 tests / 5,723.615s /
+  no skips, every ID once and both stores destroyed, including all five original
+  full-native failures. Complete local publication gate PASS, including separate
+  source-backed Telegram discovery and exact source/CI proof. Actual new-producer
+  CI remains pending; local measurements do not establish the remote timeout cause.
+- Next action: validate the runtime repair, inspect the terminal native result,
+  actual vm-commit/candidate CI/primary integration and verify both GitHub jobs. Resume
   guided whole Form 1 intake/review after that gate. Manual LGU requirements remain
   deferred tonight and open; production/full Finance remains NO-GO.
 

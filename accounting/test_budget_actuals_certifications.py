@@ -1,5 +1,5 @@
-from copy import deepcopy
-from datetime import date
+from copy import deepcopy, copy
+from datetime import date, datetime, timedelta
 from unittest import skipUnless
 from unittest.mock import patch
 from threading import Event
@@ -104,6 +104,40 @@ class NativeActualsCertificationTests(fixtures.NativeActualsReviewTests):
         with self.assertRaisesMessage(ValidationError,'latest'): self.decision(record,'treasurer')
         self.decision(record,'treasurer',certify=False,note='A newer complete preparation supersedes this one')
         self.assertEqual(service.snapshot(record,self.treasury_user)['payload']['status'],'returned')
+
+    def test_rehashed_each_officer_observation_keeps_independent_native_integrity_checks(self):
+        record=self.reviewed_preparation(); self.decision(record); self.decision(record,'treasurer')
+        captured=service.snapshot(record,self.validator)
+        for index in range(2):
+            altered=deepcopy(captured)
+            envelope=altered['payload']['decisions'][index]
+            # Keep the claimed source/trial controls unchanged while forging a
+            # different observed Fund. Rehashed wrappers cannot certify it.
+            envelope['payload']['observation']['actuals']['payload']['scope']['fund']['id']+=1
+            envelope['checksum']=checksum(envelope['payload'])
+            altered['checksum']=checksum(altered['payload'])
+            with self.assertNumQueries(0,using='default'),self.assertNumQueries(0,using='finance'):
+                with self.assertRaises(ValidationError):service.verify_snapshot(altered)
+        self.assertEqual(service.snapshot(record,self.validator),captured)
+
+    def test_valid_later_observation_cannot_replace_the_original_certified_cohort(self):
+        record=self.reviewed_preparation(); decision=self.decision(record)
+        self.post_source(self.new_receipt('JOINT-PROJECTION-LATER'))
+        observed=actuals.capture(actor=self.validator,fund_id=record.fund_id,
+            period_start=record.period_start,period_end=record.period_end)
+        from . import budget_actuals_trial_balance as trial_balance
+        projected=trial_balance.project(observed)
+        self.assertNotEqual(observed['source_checksum'],
+            record.payload['coverage']['payload']['actuals']['source_checksum'])
+        forged=copy(decision); forged.payload=deepcopy(decision.payload)
+        forged.decided_at=datetime.fromisoformat(observed['payload']['receipts']['captured_at'])+timedelta(seconds=1)
+        forged.payload['identity']['decided_at']=forged.decided_at.isoformat()
+        forged.payload['observation']=dict(actuals=observed,trial_balance=projected)
+        forged.payload_checksum=checksum(forged.payload)
+        with self.assertNumQueries(0,using='default'),self.assertNumQueries(0,using='finance'):
+            with self.assertRaisesMessage(ValidationError,'exact source cohort'):
+                service.verify_decision(record,forged)
+        self.assertEqual(Decision.objects.get(pk=decision.pk).payload,decision.payload)
 
     def test_trial_balance_prior_year_opening_and_later_period_post_are_separate_from_actuals(self):
         def posted(reference,day,amount):

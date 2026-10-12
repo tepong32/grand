@@ -234,6 +234,13 @@ Personal-handoff adapters are implemented; generic following, shared views and n
 
 ### Project validation
 
+Manually owned test source factories must register their `doCleanups()` before
+calling `setUp()`, including setup-failure paths. Keep inherited scenarios on
+their original fixture rather than precreating successor/review state. Native
+ordered regression exposed a leaked calendar mock and contaminated version
+fixtures; isolated passing races did not establish suite isolation. See
+[incident and repaired validation](docs/FINANCE_CI_INCIDENT_2026-10-12.md).
+
 Use the documented Python 3.11 environment. Start with `python manage.py test <affected_app_or_test_label>`; include dependent Finance/Accounting/Budget/voucher/reporting tests when their contracts change. Preserve both test-database aliases. Finance Completion Gate, cross-cycle changes and production readiness require substantially broader regression and operational validation.
 
 Finance persistence changes require native MySQL validation as well as SQLite: SQLite does not expose all field-capacity failures, and MySQL omits conditional unique constraints. Budget and active bank matches use generated nullable keys for their required conditional identities. Preserve migration duplicate preflights; investigate historical duplicates instead of silently rewriting financial evidence. Use the fresh two-store runner in [FINANCE_NATIVE_TESTING.md](docs/FINANCE_NATIVE_TESTING.md): a prior transaction-test flush removes migration-seeded data while retaining migration records. A passing sequential suite does not establish concurrency safety for other unsupported constraints. Bank-match conflicts are reported only after the owning transaction rolls back; never implicitly replay financial actions or continue inside an aborted automatic-match batch.

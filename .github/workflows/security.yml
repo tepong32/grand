@@ -48,7 +48,7 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
 
       - name: Run project tests
-        run: python manage.py test
+        run: python manage.py test --verbosity 2
 
       - name: Run Telegram bot tests
         run: python manage.py test telegram_bot
@@ -87,4 +87,4 @@ jobs:
       - name: Run fresh native two-store regression
         env:
           GRAND_TEST_MYSQL_PORT: ${{ job.services.mysql.ports['3306'] }}
-        run: python scripts/run_mysql_tests.py
+        run: python scripts/run_mysql_tests.py --verbosity 2

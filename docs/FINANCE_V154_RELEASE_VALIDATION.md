@@ -1,5 +1,15 @@
 # Finance v0.7.154 checkpoint validation
 
+October 13 remote update: the actual Version Manager released development commit
+`bc8e482bafa7da33550b1aad3380ad293638d3d0`, pushed the candidate branch and dispatched
+[run 38294180301](https://github.com/tepong32/grand/actions/runs/38294180301).
+Verify and MySQL both completed CANCELLED at their existing 20/60-minute limits;
+complete job logs/annotations are retained in the [incident record](FINANCE_CI_INCIDENT_2026-10-12.md).
+Neither suite has a terminal passing result. Primary integration/tag publication
+remain unperformed; preserve this candidate's original local proof below. The
+later working-tree [runtime repair](FINANCE_V155_RUNTIME_VALIDATION.md) has its
+own source/test evidence and does not rewrite v154's outcomes.
+
 Release candidate, 2026-10-12. The user requested the next vm-commitable checkpoint,
 actual Version Manager commit/master integration/push. Latest steering prioritizes
 the [Actions incident](FINANCE_CI_INCIDENT_2026-10-12.md) and then resumes the Finance

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.155] - 2026-10-13
+### Fixed
+- fix(finance): avoid repeated verification of joint actuals snapshots
+
 ## [0.7.154] - 2026-10-13
 ### Added
 - feat(finance): retain reviewed Budget actuals and source-bound Form 1 draft history

@@ -41,6 +41,15 @@ def _observe(record):
 
 def verify_decision(record, decision):
     original=preparations.verify(record)
+    return _verify_decision(record,decision,original)
+
+
+def _verify_decision(record,decision,original,original_trial=None):
+    """Same-operation original already verified by this record's caller.
+
+    Every officer's separate observation still reproduces its actuals and trial
+    balance. This is no authorization/currentness cache or public bypass flag.
+    """
     try:
         body=decision.payload
         identity=dict(public_id=str(decision.public_id),preparation=str(record.public_id),
@@ -59,10 +68,13 @@ def verify_decision(record, decision):
         text(body['authority'],'certification authority'); text(body['note'],'decision explanation',4000)
         observation=body['observation']
         if decision.outcome=='certified':
-            actuals.verify(observation['actuals'])
+            # project() itself verifies the complete observed native actuals.
+            observed_trial=trial_balance.project(observation['actuals'])
+            if original_trial is None:
+                original_trial=trial_balance.project(original['coverage']['payload']['actuals'])
             if (observation['actuals']['source_checksum']!=original['coverage']['payload']['actuals']['source_checksum']
-                or observation['trial_balance']!=trial_balance.project(observation['actuals'])
-                or observation['trial_balance']!=trial_balance.project(original['coverage']['payload']['actuals'])):
+                or observation['trial_balance']!=observed_trial
+                or observation['trial_balance']!=original_trial):
                 raise ValidationError('Role certification must reproduce its exact source cohort and Fund trial balance.')
             read_at=datetime.fromisoformat(observation['actuals']['payload']['receipts']['captured_at'])
             if timezone.is_naive(read_at) or read_at>decision.decided_at:
@@ -122,12 +134,13 @@ def decide(*, preparation_id, actor, role, certify, authority, note):
 
 def snapshot(record,actor,action='view'):
     _visible(record,actor,action)
-    return _snapshot(record,_decisions(record))
+    return _snapshot(record,list(record.joint_decisions.order_by('decided_at','pk')))
 
 
 def _snapshot(record,decisions):
     original=preparations.verify(record)
-    for d in decisions: verify_decision(record,d)
+    original_trial=trial_balance.project(original['coverage']['payload']['actuals'])
+    for d in decisions: _verify_decision(record,d,original,original_trial)
     if (len({d.role for d in decisions})!=len(decisions) or len({d.actor_id for d in decisions})!=len(decisions)
         or any(d.outcome=='returned' for d in decisions[:-1])):
         raise ValidationError('Retain independent actors and exact joint decision closure.')
@@ -140,7 +153,7 @@ def _snapshot(record,decisions):
     payload=dict(schema=1,kind='native_budget_joint_actuals_snapshot',preparation_id=record.pk,
         original_preparation=original,preparation_checksum=record.payload_checksum,
         review=preparations.decision(record),review_checksum=record.decision_checksum,status=status,
-        totals=totals,trial_balance=trial_balance.project(coverage['actuals']),
+        totals=totals,trial_balance=original_trial,
         decisions=[{'payload':d.payload,'checksum':d.payload_checksum} for d in decisions])
     return {'payload':payload,'checksum':checksum(payload)}
 
@@ -157,7 +170,7 @@ def verify_snapshot(captured):
         for key in ('period_start','period_end'): fields[key]=date.fromisoformat(fields[key])
         fields.update(pk=body['preparation_id'],payload=original,payload_checksum=body['preparation_checksum'],
             decision_checksum=body['review_checksum'])
-        record=SimpleNamespace(**fields); preparations.verify(record)
+        record=SimpleNamespace(**fields)
         decisions=[]
         for envelope in body['decisions']:
             data=envelope['payload']; values=dict(data['identity'])

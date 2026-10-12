@@ -6,7 +6,76 @@ Finance functionality/office acceptance remain separate required gates. See
 [handoff](../CONTINUE.md), [foundation gap register](FINANCE_FOUNDATION_GATE.md)
 and [candidate validation](FINANCE_V154_RELEASE_VALIDATION.md).
 
-## Original remote evidence
+## Current candidate runtime blocker (October 13)
+
+**High - OPEN, introduced on the expanded candidate, not the original email
+failure.** [Run 38294180301](https://github.com/tepong32/grand/actions/runs/38294180301)
+tests exact v0.7.154 SHA `bc8e482bafa7da33550b1aad3380ad293638d3d0`.
+Verify job `114961192633` completed CANCELLED; its actual annotation says the
+job exceeded 20m0s. Setup, pinned dependency installation, pip check, audit (no
+known vulnerabilities), Django system check and migration drift all passed.
+Project tests have no terminal passing summary; Telegram did not run. MySQL
+job `114961192443` also completed CANCELLED at 19:55:55 UTC; its actual annotation
+says the job exceeded 1h0m0s. Container initialization, checkout, Python setup and
+dependency installation succeeded; the fresh native test step was cancelled,
+with no terminal suite summary. The service reached MySQL 8.4.12 ready-for-connections.
+Complete verify log is retained in ignored `.tmp/actions-release-20261012/`
+`completed-jobs/38294180301-attempt1-verify-114961192633.log`, 1,638,985 bytes,
+SHA-256 `b1bd81f04a05ba95c7d523b5e4b21d877682a70f8a3d08e275424d988362c148`,
+with matching metadata and five annotations. PermissionDenied annotations alone
+do not establish failed tests: source export-denial scenarios intentionally
+exercise those guards. Log timestamps do not establish the exact active test.
+No timeout was raised or test/check skipped in this repair.
+Complete MySQL log is retained in the same directory as
+`38294180301-attempt1-mysql-114961192443.log`, 2,001,511 bytes, SHA-256
+`a4d0978db0706392ad254256f0399609155165630fe07d0fb15a44a399b05b0c`,
+with matching job metadata and seven annotations. Neither cancellation establishes
+a full passing or failing assertion inventory; the suite was interrupted before
+its terminal summary. This is a separate runtime blocker on the expanded candidate,
+not the original scheduled run's dependency/calendar defect or service-start failure.
+
+The candidate workflow now appends `--verbosity 2` to both full test commands to
+retain exact test identities next time. All other workflow bytes, checks, limits,
+selection and the two-store native runner remain unchanged. Running local full
+suites already use those flags; no application/test producer changed after they
+started. Their original fingerprint is retained separately from exact CI-only
+provenance for these two diagnostic suffixes.
+
+Profiling the same synthetic retained package establishes redundant joint-actuals
+reconstruction as one application bottleneck. A scoped working-tree repair
+verifies the original preparation/trial once per snapshot operation while fully
+verifying each officer's separate observed actuals/trial. Exact role, actor,
+office, source cohort, chronology and complete snapshot reproduction remain.
+No persistence, approval, permission, currentness or public bypass flag changed.
+Two new regression cases reject rehashed individual observation corruption and
+valid later-cohort substitution. Fresh focused SQLite PASS: 49 tests in 19.381s,
+no skips, both stores destroyed; the initial nonexistent class label executed
+no source tests. Affected native PASS: all 108 actual-discovery IDs exactly once,
+301.966s, no skips, exit 0, both stores destroyed. Full repaired SQLite PASS:
+2,466 tests in 3,983.312s, exit 0, every discovery ID exactly once, the same
+195 native-only skip IDs/reasons and both stores destroyed. Exact source/CI
+proof is unchanged. Full repaired native PASS: 2,466 tests in 5,723.615s,
+no skips, exit 0, every discovered ID once and both stores destroyed. Both
+actual remote jobs remain required. See the
+[current validation](FINANCE_V155_RUNTIME_VALIDATION.md) for commands and logs.
+All five original full-native failure/error IDs pass within this completed full
+suite, including the three officer-return races after the repaired factories.
+The exact source/CI and complete local publication gate passed. Its initial
+Telegram namespace/root-membership assumptions were corrected against actual
+scoped discovery and source; the separate five-test CI step passes unchanged.
+Candidate publication is GO; primary/dependent work awaits actual remote passes.
+
+Controlled fresh-actor reads fell from 5.313/5.379s to 2.420/2.440s; profile calls
+fell from 43,828,078 to 20,937,138 (13.764s to 6.591s). Exact original joint
+snapshot, package checksum and both synthetic store hashes remain unchanged.
+Private before/after logs and profiles are retained under `.tmp/ci-runtime-`
+`package-read-*`. This does not establish the entire timeout cause or CI success.
+The original v0.7.154 full-test/source evidence is historical; a new producer
+requires its own checks and exact-SHA remote run. Primary integration and dependent
+Finance implementation remain NO-GO. Next Finance milestone is unchanged: guided
+whole Form 1 preparation/intake/review after repaired verify/mysql pass.
+
+## Original remote evidence (retained)
 
 Authenticated GitHub REST reads retained complete run/job metadata, annotations
 and full ZIP job logs under ignored `.tmp/actions-incident-20261012`. Credentials
@@ -42,6 +111,32 @@ current 2,462-test candidate or the patched dependencies; its new fixture defect
 is classified separately below.
 
 ## Findings and repair state
+
+**Critical on existing master; remediated in candidate pins, remote confirmation
+pending.** The actual candidate push returned GitHub's default-branch alert
+summary. Authenticated Dependabot reads retain 24 open alerts (one Critical,
+15 High, eight Medium) under ignored `.tmp/actions-release-20261012`.
+Critical alert 341 is [PyJWT asymmetric-PEM guard bypass](https://github.com/advisories/GHSA-ffc3-869f-jxw9):
+affected <=2.13.0, first fixed 2.14.0; this existed in the old master pin.
+The candidate's 2.15.1 is outside that range.
+The [maintainer advisory](https://github.com/jpadilla/pyjwt/security/advisories/GHSA-ffc3-869f-jxw9)
+rates it Critical, CVSS 9.1: a deployment that mixes symmetric and asymmetric
+verification algorithms and supplies a public PEM key in a loader-accepted but
+guard-missed format can accept a forged token. This is configuration-dependent;
+the existing limited application search does not prove all authentication
+dependencies or deployments are unaffected. Retain the severity and patched pin.
+Exact candidate requirement pins were compared with all 24 returned affected
+ranges, with none still matching;
+GitHub's exact-version `=` notation was normalized only to PEP 440 `==` for that
+comparison. This is a range assessment and local audit evidence, not proof that
+master alerts closed or remote checks passed. Primary and affected feature work
+remain blocked pending both actual jobs.
+
+Installed Version Manager created v0.7.154 / `bc8e482bafa7da33550b1aad3380ad293638d3d0`;
+the exact candidate branch was pushed and explicitly dispatched. [Run 38294180301](https://github.com/tepong32/grand/actions/runs/38294180301)
+is in progress with both jobs, not a resolved incident. Primary integration/push
+and tag publication remain pending. This actual-results paragraph is a local
+documentation follow-up; it is not in the SHA already being tested.
 
 **High: dependency security gate.** Run 139 reports 25 advisories across PyJWT
 2.13.0, pypdf 6.16.1 and urllib3 2.7.0. These unchanged master pins predate the
