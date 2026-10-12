@@ -1,0 +1,13 @@
+{% extends 'base.html' %}{% load static %}{% block content %}<div class="container py-4">
+<a href="{% url 'budget:form1_accounts' %}">Account-review history</a><h1 class="h3">Select {{ forecast.fund.code }} reporting accounts</h1>
+<p>Each original amount needs an explicit account selection or an unresolved basis. Splits must preserve its signed total. Original cash and ledger accounts stay unchanged. Account dates must cover the source date or its whole undated period.</p>
+{% if not source_coverage %}<p class="alert alert-warning">Original source coverage is incomplete. Account selections cannot turn missing categories into zero or make this package ready for Form 1 issuance.</p>{% endif %}
+<noscript><p class="alert alert-warning">Enable JavaScript for the guided selection editor.</p></noscript>
+<form method="post" enctype="multipart/form-data" id="account-intake">{% csrf_token %}{{ form.non_field_errors }}{{ form.preview }}{{ form.allocation }}{{ form.allocation.errors }}
+<div id="account-editor"></div>
+<p>{{ form.coverage_reference.label_tag }}{{ form.coverage_reference }}{{ form.coverage_reference.errors }}</p>
+<p>{{ form.code_reference.label_tag }}{{ form.code_reference }}{{ form.code_reference.errors }}</p>
+<p>{{ form.evidence.label_tag }}{{ form.evidence }}{{ form.evidence.errors }}</p>{% if form.is_bound %}<p class="text-muted">Choose the authority attachment again after correcting a validation error.</p>{% endif %}
+<button class="btn btn-primary" type="submit">Retain selections for independent Accounting review</button></form>
+{{ editor|json_script:'account-editor-data' }}<script src="{% static 'accounting/form1-accounts.js' %}" defer></script>
+</div>{% endblock %}

@@ -97,6 +97,9 @@ class BudgetCeiling(BudgetOwnedModel):
 
 class BudgetVersion(BudgetOwnedModel):
     planning_context_snapshot = models.JSONField(default=dict, blank=True, editable=False)
+    actuals_source_selection = models.JSONField(default=dict, blank=True, editable=False)
+    actuals_source_origins = models.JSONField(default=dict, blank=True, editable=False)
+    historical_forecasts = models.JSONField(default=dict, blank=True, editable=False)
     DEPARTMENT, EXECUTIVE, SANGGUNIAN, FINAL, SUPPLEMENTAL, REENACTED = "department", "executive", "sanggunian", "final", "supplemental", "reenacted"
     KIND_CHOICES = ((DEPARTMENT, "Department proposal"), (EXECUTIVE, "Executive proposal"), (SANGGUNIAN, "Sanggunian version"), (FINAL, "Final approved budget"), (SUPPLEMENTAL, "Supplemental budget"), (REENACTED, "Reenacted budget"))
     DRAFT, FOR_REVIEW, RETURNED, APPROVED, AUTHORIZED = "draft", "for_review", "returned", "approved", "authorized"
@@ -110,6 +113,12 @@ class BudgetVersion(BudgetOwnedModel):
     title = models.CharField(max_length=180)
     requesting_department_id = models.PositiveBigIntegerField(null=True, blank=True)
     requesting_department_label = models.CharField(max_length=160, blank=True)
+    combined_version_number = models.GeneratedField(
+        expression=models.Case(
+            models.When(requesting_department_id__isnull=True, then=models.F('version')),
+            default=models.Value(None),
+        ), output_field=models.PositiveIntegerField(), db_persist=True, null=True,
+    )
     change_explanation = models.TextField()
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=DRAFT)
     supersedes = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="successors")
@@ -128,7 +137,10 @@ class BudgetVersion(BudgetOwnedModel):
 
     class Meta:
         ordering = ("-fiscal_year__year", "kind", "-version")
-        constraints = (models.UniqueConstraint(fields=("budget_call", "kind", "requesting_department_id", "version"), name="unique_budget_version_scope"),)
+        constraints = (
+            models.UniqueConstraint(fields=("budget_call", "kind", "requesting_department_id", "version"), name="unique_budget_version_scope"),
+            models.UniqueConstraint(fields=('budget_call', 'kind', 'combined_version_number'), name='unique_combined_budget_version'),
+        )
 
     @property
     def is_spendable_authority(self):
@@ -148,9 +160,337 @@ class BudgetVersion(BudgetOwnedModel):
             raise ValidationError({"supersedes": "A version may supersede only an earlier version in the same fiscal year."})
         if self.pk:
             prior = type(self).objects.filter(pk=self.pk).first()
-            governed = ("budget_call_id", "fiscal_year_id", "kind", "version", "title", "requesting_department_id", "requesting_department_label", "change_explanation", "supersedes_id", "planning_context_snapshot")
+            if prior and prior.actuals_source_origins != self.actuals_source_origins:
+                raise ValidationError('Consolidated actual-source origins are immutable.')
+            governed = ("budget_call_id", "fiscal_year_id", "kind", "version", "title", "requesting_department_id", "requesting_department_label", "change_explanation", "supersedes_id", "planning_context_snapshot", "actuals_source_selection", "historical_forecasts")
             if prior and prior.status in (self.APPROVED, self.AUTHORIZED) and any(getattr(prior, field) != getattr(self, field) for field in governed):
                 raise ValidationError("Approved budget versions are immutable. Create a successor version.")
+
+
+class BudgetSummaryReconciliation(BudgetOwnedModel):
+    """Immutable two-period cohort preparation; separate from Form 1 issuance."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    proposal = models.ForeignKey(BudgetVersion, on_delete=models.PROTECT, related_name='summary_reconciliations')
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT)
+    entity_key = models.CharField(max_length=80)
+    version = models.PositiveIntegerField()
+    status = models.CharField(max_length=12, default='prepared')
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_at = models.DateTimeField()
+    reviewed_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    review_authority = models.CharField(max_length=2000, blank=True)
+    decision_checksum = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=('proposal', 'fund', 'entity_key', 'version'), name='unique_budget_summary_reconciliation')]
+        ordering = ('-prepared_at', '-pk')
+
+    def save(self, *args, **kwargs):
+        try:
+            if self.pk:
+                prior = type(self).objects.get(pk=self.pk)
+                allowed = {'status', 'reviewed_by_id', 'reviewed_at', 'review_note', 'review_authority', 'decision_checksum'}
+                if any(getattr(self, f.attname) != getattr(prior, f.attname) and not
+                    (f.attname in allowed and getattr(self, '_decision_write', False)) for f in self._meta.concrete_fields):
+                    raise ValidationError('Retain reconciliation evidence; prepare a successor.')
+            return super().save(*args, **kwargs)
+        finally:
+            self._decision_write = False
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain reconciliation preparations and decisions.')
+
+
+class BudgetReceiptForecast(BudgetOwnedModel):
+    """Whole Fund/entity forecast review package; never joint actuals or issuance."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    proposal = models.ForeignKey(BudgetVersion, on_delete=models.PROTECT, related_name='receipt_forecasts')
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT)
+    version = models.PositiveIntegerField()
+    status = models.CharField(max_length=12, default='prepared',
+        choices=(('prepared', 'For Budget Officer review'), ('approved', 'Reviewed estimates'), ('returned', 'Returned')))
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_at = models.DateTimeField()
+    reviewed_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    review_authority = models.CharField(max_length=2000, blank=True)
+    decision_checksum = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ('-prepared_at', '-pk')
+        constraints = [models.UniqueConstraint(fields=('proposal', 'fund', 'version'), name='unique_budget_receipt_forecast')]
+        permissions = (
+            ('view_budget_receipt_forecasts', 'Can view retained Budget receipt forecasts'),
+            ('export_budget_receipt_forecasts', 'Can export retained Budget receipt forecasts'),
+            ('prepare_budget_receipt_forecasts', 'Can prepare complete Budget receipt forecast packages'),
+            ('review_budget_receipt_forecasts', 'Can independently review receipt forecasts as designated Budget Officer'),
+        )
+
+    def save(self, *args, **kwargs):
+        try:
+            if self.pk:
+                prior = type(self).objects.get(pk=self.pk)
+                allowed = {'status', 'reviewed_by_id', 'reviewed_at', 'review_note', 'review_authority', 'decision_checksum'}
+                if any(getattr(self, f.attname) != getattr(prior, f.attname) and not
+                    (f.attname in allowed and getattr(self, '_decision_write', False)) for f in self._meta.concrete_fields):
+                    raise ValidationError('Retain receipt forecast evidence; prepare a successor.')
+            return super().save(*args, **kwargs)
+        finally:
+            self._decision_write = False
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain forecast packages and independent decisions.')
+
+
+class Form1AccountReview(BudgetOwnedModel):
+    """Reporting-account review, independent of fiscal/form issuance authority."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    proposal = models.ForeignKey(BudgetVersion, on_delete=models.PROTECT)
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT)
+    forecast = models.ForeignKey(BudgetReceiptForecast, on_delete=models.PROTECT)
+    version = models.PositiveIntegerField()
+    status = models.CharField(max_length=12, default='prepared',
+        choices=(('prepared', 'For Accounting review'), ('approved', 'Reviewed selections'), ('returned', 'Returned')))
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    evidence = models.BinaryField(editable=False)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_at = models.DateTimeField()
+    reviewed_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    review_authority = models.CharField(max_length=2000, blank=True)
+    decision_checksum = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ('-prepared_at', '-pk')
+        constraints = [models.UniqueConstraint(fields=('proposal', 'fund', 'version'), name='unique_form1_account_review')]
+        permissions = (
+            ('view_form1_account_reviews', 'Can view reporting-account review packages'),
+            ('export_form1_account_reviews', 'Can export reporting-account review packages'),
+            ('prepare_form1_account_reviews', 'Can prepare reporting-account review packages in Budget'),
+            ('review_form1_account_reviews', 'Can independently review reporting accounts in Accounting'),
+        )
+
+    def save(self, *args, **kwargs):
+        try:
+            if self.pk:
+                prior = type(self).objects.get(pk=self.pk)
+                allowed = {'status', 'reviewed_by_id', 'reviewed_at', 'review_note', 'review_authority', 'decision_checksum'}
+                if any(getattr(self, f.attname) != getattr(prior, f.attname) and not
+                    (f.attname in allowed and getattr(self, '_decision_write', False)) for f in self._meta.concrete_fields):
+                    raise ValidationError('Retain original reporting-account evidence; prepare a successor.')
+            return super().save(*args, **kwargs)
+        finally:
+            self._decision_write = False
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain reporting-account preparations and decisions.')
+
+
+class Form1SPAReview(BudgetOwnedModel):
+    """Retained SPA treatment; not appropriation authorization or form issuance."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    proposal = models.ForeignKey(BudgetVersion, on_delete=models.PROTECT)
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT)
+    account_review = models.ForeignKey(Form1AccountReview, on_delete=models.PROTECT)
+    version = models.PositiveIntegerField()
+    status = models.CharField(max_length=20, default='prepared')
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    evidence = models.BinaryField(editable=False)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ('-prepared_at', '-pk')
+        constraints = [models.UniqueConstraint(fields=('proposal','fund','version'), name='unique_form1_spa_review')]
+        permissions = (
+            ('view_form1_spa_reviews', 'Can view original SPA subdivision reviews'),
+            ('export_form1_spa_reviews', 'Can export original SPA subdivision reviews'),
+            ('prepare_form1_spa_reviews', 'Can prepare SPA source subdivisions in Budget'),
+            ('review_form1_spa_budget', 'Can independently review Budget SPA subdivision treatment'),
+            ('review_form1_spa_accounting', 'Can independently review SPA actual-source treatment in Accounting'),
+        )
+
+    def save(self,*args,**kwargs):
+        try:
+            if self.pk:
+                prior=type(self).objects.get(pk=self.pk)
+                if any(getattr(self,f.attname)!=getattr(prior,f.attname)
+                    and not (f.attname=='status' and getattr(self,'_decision_write',False))
+                    for f in self._meta.concrete_fields):
+                    raise ValidationError('Retain original SPA preparations; prepare a successor.')
+            return super().save(*args,**kwargs)
+        finally: self._decision_write=False
+
+    def delete(self,*args,**kwargs):
+        raise ValidationError('Retain SPA preparation and independent decision history.')
+
+
+class Form1SPADecision(models.Model):
+    review = models.ForeignKey(Form1SPAReview,on_delete=models.PROTECT,related_name='decisions')
+    role = models.CharField(max_length=12)
+    approve = models.BooleanField()
+    actor_id = models.PositiveBigIntegerField()
+    actor_department_id = models.PositiveBigIntegerField()
+    treatment_verified = models.BooleanField(default=False)
+    decided_at = models.DateTimeField()
+    authority = models.CharField(max_length=2000)
+    note = models.CharField(max_length=2000)
+    decision_checksum = models.CharField(max_length=64)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=('review','role'),name='unique_form1_spa_role_decision')]
+        ordering = ('role',)
+
+    def save(self,*args,**kwargs):
+        if self.pk: raise ValidationError('Retain each original SPA role decision unchanged.')
+        return super().save(*args,**kwargs)
+
+    def delete(self,*args,**kwargs):
+        raise ValidationError('Retain original SPA role decisions.')
+
+
+class Form1Package(BudgetOwnedModel):
+    """Immutable whole-form preparation; independent review and issuance are separate."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    proposal = models.ForeignKey(BudgetVersion, on_delete=models.PROTECT)
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT)
+    spa_review = models.ForeignKey(Form1SPAReview, on_delete=models.PROTECT)
+    version = models.PositiveIntegerField()
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ('-prepared_at', '-pk')
+        constraints = [models.UniqueConstraint(fields=('proposal','fund','version'), name='unique_form1_package_version')]
+        permissions = (
+            ('prepare_form1_packages', 'Can retain complete Form 1 preparations in Budget'),
+            ('view_form1_packages', 'Can view original complete Form 1 packages'),
+            ('export_form1_packages', 'Can export original complete Form 1 packages'),
+        )
+
+    def save(self,*args,**kwargs):
+        if self.pk:
+            prior=type(self).objects.get(pk=self.pk)
+            if any(getattr(self,f.attname)!=getattr(prior,f.attname) for f in self._meta.concrete_fields):
+                raise ValidationError('Retain the whole Form 1 preparation; create a successor.')
+        return super().save(*args,**kwargs)
+
+    def delete(self,*args,**kwargs):
+        raise ValidationError('Retain original whole Form 1 preparations.')
+
+
+class Form1PackageOffice(models.Model):
+    """Candidate retrieval index only; original source checks still authorize access."""
+    package = models.ForeignKey(Form1Package, on_delete=models.PROTECT, related_name='office_index')
+    department_id = models.PositiveBigIntegerField(db_index=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=('package','department_id'), name='unique_form1_package_office')]
+
+    def save(self,*args,**kwargs):
+        if self.pk: raise ValidationError('Retain the original package office index.')
+        return super().save(*args,**kwargs)
+
+    def delete(self,*args,**kwargs):
+        raise ValidationError('Retain the original package office index.')
+
+
+class Form1PackageAttachment(models.Model):
+    package = models.ForeignKey(Form1Package, on_delete=models.PROTECT, related_name='attachments')
+    key = models.CharField(max_length=100)
+    data = models.BinaryField(editable=False)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=('package','key'), name='unique_form1_package_attachment')]
+        ordering = ('key',)
+
+    def save(self,*args,**kwargs):
+        if self.pk: raise ValidationError('Retain original whole Form 1 attachment bytes.')
+        return super().save(*args,**kwargs)
+
+    def delete(self,*args,**kwargs):
+        raise ValidationError('Retain original whole Form 1 attachments.')
+
+
+class Form1PackageDecision(models.Model):
+    """Independent internal review; statutory signatures and issuance are separate."""
+    package = models.ForeignKey(Form1Package, on_delete=models.PROTECT, related_name='decisions')
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    role = models.CharField(max_length=16)
+    actor_id = models.PositiveBigIntegerField()
+    actor_department_id = models.PositiveBigIntegerField()
+    approve = models.BooleanField()
+    decided_at = models.DateTimeField()
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+
+    class Meta:
+        ordering = ('decided_at','pk')
+        constraints = [
+            models.UniqueConstraint(fields=('package','role','actor_department_id'), name='unique_form1_package_office_review'),
+            models.UniqueConstraint(fields=('package','actor_id'), name='unique_form1_package_review_actor'),
+        ]
+        permissions = tuple((f'review_form1_package_{role}',f'Can independently review whole Form 1 in {role}')
+            for role in ('budget','accounting','treasury'))
+
+    def save(self,*args,**kwargs):
+        if self.pk: raise ValidationError('Retain each independent whole Form 1 decision unchanged.')
+        return super().save(*args,**kwargs)
+
+    def delete(self,*args,**kwargs):
+        raise ValidationError('Retain independent whole Form 1 decisions.')
+
+
+class BudgetOfficeForm(BudgetOwnedModel):
+    """Retained Form 2 preparation and independently issued unsigned bytes."""
+    PREPARED, ISSUED, RETURNED = 'prepared', 'issued', 'returned'
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    proposal = models.ForeignKey(BudgetVersion, on_delete=models.PROTECT, related_name='office_forms')
+    office_id = models.PositiveBigIntegerField()
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT)
+    version = models.PositiveIntegerField()
+    status = models.CharField(max_length=12, default=PREPARED,
+        choices=((PREPARED, 'For independent review'), (ISSUED, 'Issued unsigned copy'), (RETURNED, 'Returned')))
+    payload = models.JSONField(default=dict)
+    payload_checksum = models.CharField(max_length=64)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_by_label = models.CharField(max_length=160)
+    prepared_at = models.DateTimeField(auto_now_add=True)
+    decided_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    decided_by_label = models.CharField(max_length=160, blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_note = models.TextField(blank=True)
+    decision_checksum = models.CharField(max_length=64, blank=True)
+    document = models.BinaryField(default=bytes, editable=False)
+    document_checksum = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ('-prepared_at', '-pk')
+        constraints = (models.UniqueConstraint(fields=('proposal', 'office_id', 'fund', 'version'),
+            name='unique_budget_office_form_version'),)
+
+    def save(self, *args, **kwargs):
+        if self.pk and not getattr(self, '_decision_write', False):
+            raise ValidationError('Retained office forms are immutable; use an independent decision or a successor.')
+        try:
+            super().save(*args, **kwargs)
+        finally:
+            self._decision_write = False
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain office-form preparations, decisions and issued copies.')
 
 
 class BudgetProposalLine(BudgetOwnedModel):
@@ -207,6 +547,23 @@ class BudgetResourceEstimate(BudgetOwnedModel):
             raise ValidationError({"amount": "A resource estimate cannot be negative."})
         if self.version.status not in (BudgetVersion.DRAFT, BudgetVersion.RETURNED):
             raise ValidationError("Resource estimates are editable only while the version is draft or returned.")
+        if (self.department_id != self.version.department_id
+                or self.funding_source.department_id != self.version.fiscal_year.department_id
+                or self.funding_source.fiscal_year_id != self.version.fiscal_year_id
+                or (self.funding_source.fund_id and self.funding_source.fund.department_id != self.funding_source.department_id)):
+            raise ValidationError('Resource estimates must match the proposal owner, Finance ledger and fiscal year.')
+
+    def save(self, *args, **kwargs):
+        from django.db import transaction
+        with transaction.atomic(using='finance'):
+            if self.pk and type(self).objects.get(pk=self.pk).version_id != self.version_id:
+                raise ValidationError('Resource estimate ownership cannot be moved between proposals.')
+            self.version = BudgetVersion.objects.select_for_update().get(pk=self.version_id)
+            self.full_clean()
+            return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain resource-estimate history; revise a draft with an audited reason.')
 
 
 class BudgetVersionSource(BudgetOwnedModel):

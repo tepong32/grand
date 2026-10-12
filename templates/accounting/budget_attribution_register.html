@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title_ext %} - Budget expenditure reviews{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a href="{% url 'accounting:workspace' %}">Accounting workspace</a>
+  <h1 class="h3 mt-3">Budget expenditure reviews</h1>
+  {% if can_prepare %}<a class="btn btn-primary mb-3" href="{% url 'accounting:budget_preparation_select' %}">Prepare a review batch</a>{% endif %}
+  <p>Review how posted journal amounts are included, excluded or left unresolved for Budget expenditure. A recorded classification review is not a signed actuals certificate.</p>
+  <form method="get" class="card card-body mb-3">{{ form.as_p }}<p class="text-muted">Dates find batches overlapping the selected period. Journal searches retain the complete review batch.</p><button class="btn btn-outline-primary">Find batches</button></form>
+  <p>{{ page.paginator.count }} matching batch{{ page.paginator.count|pluralize:'es' }}{% if page.paginator.count %} · showing {{ page.start_index }}–{{ page.end_index }}{% endif %}</p>
+  <div class="table-responsive"><table class="table"><thead><tr><th>Batch</th><th>Fund and period</th><th>Prepared by</th><th>Decision</th></tr></thead><tbody>
+  {% for batch in page %}<tr><td><a href="{% url 'accounting:budget_attribution_detail' batch.batch_id %}">{{ batch.reference }}</a><br>{{ batch.journals }} journal{{ batch.journals|pluralize }}</td><td>{{ batch.entry__fund__code }}<br>{{ batch.period_start }} – {{ batch.period_end }}</td><td>{{ batch.prepared_by_label }}<br>{{ batch.prepared_at }}</td><td>{% if batch.stage != batch.last_stage %}Check retained group{% elif batch.stage == 'submitted' %}For independent review{% elif batch.stage == 'approved' %}Review recorded{% else %}Returned{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="4">No matching review batches.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <nav aria-label="Review batch pages">{% if page.has_previous %}<a class="btn btn-outline-secondary" href="?{{ querystring }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a class="btn btn-outline-secondary" href="?{{ querystring }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+</div>
+{% endblock %}

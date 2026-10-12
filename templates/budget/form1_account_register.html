@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% block content %}<div class="container py-4">
+<h1 class="h3">Form 1 reporting-account review</h1>
+<p>Budget selects accounts from a current approved forecast. Accounting independently reviews the original amounts, source dates and code-authority evidence. These decisions do not issue Form 1.</p>
+<form method="get" class="mb-3"><label for="account-search">Fund, fiscal year or package ID</label><input class="form-control mb-2" id="account-search" name="q" value="{{ query }}" maxlength="160">
+<label for="account-status">Status</label><select id="account-status" name="status" class="form-control mb-2"><option value="">All statuses</option><option value="prepared"{% if status == 'prepared' %} selected{% endif %}>For Accounting review</option><option value="approved"{% if status == 'approved' %} selected{% endif %}>Reviewed selections</option><option value="returned"{% if status == 'returned' %} selected{% endif %}>Returned</option></select><button class="btn btn-primary">Search</button></form>
+<p>{{ page.paginator.count }} accessible retained packages · page {{ page.number }} of {{ page.paginator.num_pages }}</p>
+{% for record in page %}<article class="card card-body mb-2"><a href="{% url 'budget:form1_account_detail' record.public_id %}">{{ record.fund.code }} · fiscal year {{ record.proposal.fiscal_year.year }} · version {{ record.version }}</a><span>{{ record.get_status_display }} · {{ record.prepared_at }}</span><small>{{ record.public_id }}</small></article>{% empty %}<p>No accessible package matches these filters.</p>{% endfor %}
+<nav aria-label="Package pages">{% if page.has_previous %}<a class="btn btn-outline-secondary" href="?{{ params }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}{% if page.has_next %}<a class="btn btn-outline-secondary" href="?{{ params }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+</div>{% endblock %}

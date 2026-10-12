@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.154] - 2026-10-13
+### Added
+- feat(finance): retain reviewed Budget actuals and source-bound Form 1 draft history
+
 ## [0.7.153] - 2026-09-26
 ### Added
 - feat(finance): capture coherent native Budget ledger evidence

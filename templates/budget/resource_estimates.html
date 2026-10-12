@@ -1,0 +1,9 @@
+<div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Proposed financing estimates</h2></div><div class="card-body">
+<p>These are proposed resources, not certified receipts or cash availability. Reconcile overlapping sources before using them in a summary.</p>
+{% if can_read_actuals and resources != None %}<p><a href="{% url 'budget:resource_export' version.public_id %}">Export retained proposed resources</a></p>{% endif %}
+{% if resource_error %}<p class="alert alert-warning">{{ resource_error }}</p>{% elif resources == None %}<p class="alert alert-warning">This historical proposal has no retained resource snapshot. Original approval evidence has not been backfilled.</p>{% else %}
+<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Funding source / fund</th><th>Description / basis</th><th>Proposed amount</th><th>Revision</th></tr></thead><tbody>
+{% for row in resources.rows %}<tr><td>{{ row.funding_source.code }} — {{ row.funding_source.name }}<br>{{ row.funding_source.fund_code|default_if_none:'Fund not assigned' }}</td><td>{{ row.description }}<div class="small text-muted">{{ row.basis }}</div></td><td>{{ row.amount }}</td><td>{% if can_prepare %}{% if version.status == 'draft' or version.status == 'returned' %}<a href="{% url 'budget:resource_edit' version.public_id row.id %}">Revise estimate</a>{% endif %}{% endif %}</td></tr>{% empty %}<tr><td colspan="4">No proposed resources recorded. This does not certify zero receipts.</td></tr>{% endfor %}
+</tbody></table></div>
+{% if resources.origins %}<details><summary>Retained consolidation origins</summary><ul>{% for origin in resources.origins %}<li>{{ origin.requesting_office_label }} / {{ origin.source_title }} v{{ origin.source_version }} / {{ origin.source_resource.funding_source.code }}: {{ origin.source_resource.amount }} — {{ origin.source_resource.basis }}</li>{% endfor %}</ul></details>{% endif %}
+{% endif %}</div></div>

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}{% block content %}<main class="container py-4" style="overflow-wrap:anywhere">
+<h1 class="h3">Whole Form 1 draft history</h1>
+<p>Find retained drafts for your office. Internal reviews are separate from statutory signing and issuance.</p>
+<form method="get" class="mb-3"><label for="whole-search">Fund, fiscal year or draft ID</label>
+<input class="form-control" id="whole-search" name="q" value="{{ query }}" maxlength="160">
+<label for="whole-status">Internal review</label><select class="form-select" id="whole-status" name="status"><option value="">All accessible versions</option>
+{% for key,label in statuses %}<option value="{{ key }}" {% if key == status %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+<button class="btn btn-primary mt-2">Search</button></form>
+<p>{{ page.paginator.count }} accessible versions</p>
+{% for item in page %}<article class="card card-body mb-3">
+<h2 class="h5"><a href="{% url 'budget:form1_package_detail' item.record.public_id %}">{{ item.record.fund.code }} · {{ item.record.proposal.fiscal_year.year }} · version {{ item.record.version }}</a></h2>
+<p>{{ item.status }}{% if not item.complete %} · Financial controls unresolved{% endif %}</p>
+<p>Prepared {{ item.record.prepared_at }} · {{ item.record.public_id }}</p></article>{% empty %}<p>No accessible drafts match these filters.</p>{% endfor %}
+<nav aria-label="Whole draft history pages">{% if page.has_previous %}<a href="?{{ params }}&page={{ page.previous_page_number }}">Previous</a>{% endif %}
+Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?{{ params }}&page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+</main>{% endblock %}

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title_ext %} - Prepare expenditure review{% endblock %}
+{% block content %}<div class="container pb-4">
+<a href="{% url 'accounting:budget_attribution_register' %}">Expenditure review register</a>
+<h1 class="h3 mt-3">Select posted expenditure sources</h1>
+<p>Choose a completed period and the posted journals to classify. Select up to 250 journals for one independent review. This does not post financial entries or certify Budget actuals.</p>
+{% if page == None %}<form method="get" class="card card-body mb-3">{{ scope.as_p }}<button class="btn btn-outline-primary">Find posted journals</button></form>{% else %}
+<p>{{ scope.cleaned_data.fund }} · {{ scope.cleaned_data.start }} – {{ scope.cleaned_data.end }} · <a href="{% url 'accounting:budget_preparation_select' %}">Start a new selection</a></p>
+{% if selection_error %}<p class="alert alert-danger">{{ selection_error }}</p>{% endif %}
+<form method="post" class="card card-body">{% csrf_token %}
+{{ scope.fund.as_hidden }}{{ scope.start.as_hidden }}{{ scope.end.as_hidden }}
+<input type="hidden" name="basket" value="{{ basket }}"><input type="hidden" name="page" value="{{ page.number }}">
+<p>{{ scope.q.label_tag }} {{ scope.q }}</p><button name="action" value="search" class="btn btn-outline-primary mb-3">Search and keep selection</button>
+<p>{{ page.paginator.count }} matching journals · page {{ page.number }} of {{ page.paginator.num_pages }}. Page changes retain your checked journals, including those outside the current search.</p>
+{{ sources.as_p }}
+<div class="mb-3">{% if page.has_previous %}<button name="action" value="page:{{ page.previous_page_number }}" class="btn btn-outline-secondary">Previous</button>{% endif %}
+{% if page.has_next %}<button name="action" value="page:{{ page.next_page_number }}" class="btn btn-outline-secondary">Next</button>{% endif %}
+<button name="action" value="save" class="btn btn-outline-secondary">Update selection</button></div>
+<details class="mb-3"><summary>{{ selected_rows|length }} journals retained for this batch</summary>
+<ul>{% for entry in selected_rows %}<li>{{ entry.entry_date }} · {{ entry.reference }} <button name="remove" value="{{ entry.pk }}" class="btn btn-sm btn-outline-secondary">Remove {{ entry.reference }}</button></li>{% empty %}<li>No retained journals yet. Checked journals are added when you change pages, search, update or prepare.</li>{% endfor %}</ul></details>
+<button name="action" value="prepare" class="btn btn-primary">Prepare selected journals</button></form>{% endif %}
+</div>{% endblock %}

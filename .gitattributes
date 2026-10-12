@@ -1,2 +1,8 @@
 # Preserve printable artifacts byte-for-byte across Windows checkouts.
 output/pdf/*.pdf binary
+
+# Keep captured export/validation bytes and their hashes across Windows checkouts.
+output/** -text
+output/**/*.pdf binary
+output/**/*.zip binary
+output/**/*.json whitespace=cr-at-eol

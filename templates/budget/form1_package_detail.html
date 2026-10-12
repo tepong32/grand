@@ -1,0 +1,25 @@
+{% extends 'base.html' %}{% block content %}<main class="container py-4" style="overflow-wrap:anywhere">
+<a href="{% url 'budget:form1_packages' %}">Whole draft history</a>
+<h1 class="h3">{{ record.fund.code }} · {{ record.proposal.fiscal_year.year }} · whole draft version {{ record.version }}</h1>
+<p>{{ status }} · Prepared {{ record.prepared_at }}</p>
+<p class="alert alert-info">Incomplete draft. This retained history does not certify current sources, authorize cash, supply statutory signatures or issue Form 1.</p>
+{% if not complete %}<p class="alert alert-warning">Resolve missing source coverage or policy evidence before internal approval. Unknown amounts remain unknown.</p>{% endif %}
+{% if state.status == 'returned' %}<p>Budget must prepare a successor that resolves the recorded return. This original version and its decisions stay retained.</p>
+{% elif state.status == 'reviewed' %}<p>Internal reviews are complete. Statutory certification, Chief Executive approval and issued delivery remain required.</p>
+{% else %}<h2 class="h5">Pending independent reviews</h2><ul>{% for item in pending %}<li>{{ item.role|title }} · designated office {{ item.department_id }}</li>{% endfor %}</ul>{% endif %}
+{% if can_export %}<p><a download class="btn btn-outline-primary" href="{% url 'budget:form1_package_export' record.public_id 'pdf' %}">Download complete draft PDF</a>
+<a download class="btn btn-outline-primary" href="{% url 'budget:form1_package_export' record.public_id 'zip' %}">Download original documents and complete evidence</a>
+<a download class="btn btn-outline-primary" href="{% url 'budget:form1_package_export' record.public_id 'json' %}">Download complete data</a></p>{% endif %}
+<h2 class="h5">Financial controls</h2><p>All financial columns are shown. Downloads contain every entity and row, regardless of this page.</p>
+<style>.whole-form-controls { min-width:1100px; overflow-wrap:normal; }.whole-form-controls th:first-child { min-width:300px; }.whole-form-controls thead th:not(:first-child) { min-width:128px; }.whole-form-controls td { white-space:nowrap; }</style>
+<div class="table-responsive"><table class="table whole-form-controls"><thead><tr><th>Entity / Particulars</th><th>Past year actual</th><th>Current H1 actual</th><th>Current H2 estimate</th><th>Current total</th><th>Proposed</th></tr></thead>
+<tbody>{% for row in page %}<tr><th>{{ row.entity }} · {{ row.label }}</th>{% for value in row.values %}<td>{% if value == None %}Unknown{% else %}{{ value }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+<nav aria-label="Financial control pages">{% if page.has_previous %}<a href="?{{ params }}&page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?{{ params }}&page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+<h2 class="h5">Retained internal decisions</h2>{% for decision in state.decisions %}<section class="card card-body mb-3">
+<h3 class="h6">{{ decision.payload.identity.role|title }} · office {{ decision.payload.identity.actor_department_id }} · {% if decision.payload.identity.approve %}Approved internally{% else %}Returned{% endif %}</h3>
+<p>{{ decision.payload.identity.decided_at }} · Officer {{ decision.payload.identity.actor_id }}</p>
+<p>Designation: {{ decision.payload.authority }}</p><p>{{ decision.payload.note }}</p>
+<ul>{% for name,check in decision.payload.checks.items %}<li>{{ name }}: {% if check.verified %}Verified{% else %}Not verified{% endif %} · {{ check.basis }}</li>{% endfor %}</ul>
+<small>Decision checksum {{ decision.checksum }}</small></section>{% empty %}<p>No independent internal decisions recorded.</p>{% endfor %}
+<details><summary>Original draft identity</summary><p>{{ record.public_id }} · checksum {{ record.payload_checksum }}</p></details>
+</main>{% endblock %}

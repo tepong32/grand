@@ -125,6 +125,12 @@ def _workspace_page(queryset, request, parameter, anchor, *, page_size=50):
 @accounting_access_required
 def workspace(request):
     from .budget_actuals import permitted as can_use_actuals
+    from .summary_actuals import permitted as can_use_summary
+    from .budget_attributions import permitted as can_use_attributions
+    from .budget_native_certifications import permitted as can_use_native
+    from .budget_cash_preparations import permitted as can_use_native_cash
+    from .budget_actuals_preparations import permitted as can_use_native_actuals
+    from .budget_receipt_attributions import permitted as can_use_receipt_classification
     department = department_for_user(request.user)
     department_entries = JournalEntry.objects.filter(department_id=department.pk).select_related("fund", "period")
     (
@@ -192,6 +198,12 @@ def workspace(request):
         "can_post": can_post_journals(request.user), "can_view_ledger": can_view_ledger(request.user),
         "can_view_advances": can_view_advances(request.user),
         "can_view_budget_actuals": any(can_use_actuals(request.user, action) for action in ("view", "prepare", "review", "export")),
+        'can_view_summary_actuals': any(can_use_summary(request.user, action) for action in ('view', 'prepare', 'review', 'export')),
+        'can_view_native_cash': any(can_use_native_cash(request.user, action) for action in ('view', 'prepare', 'export')),
+        'can_view_native_actuals': can_use_native_actuals(request.user, 'view'),
+        'can_view_receipt_classification': can_use_receipt_classification(request.user, 'view'),
+        "can_view_budget_attributions": any(can_use_attributions(request.user, action) for action in ("view", "prepare", "review", "export")),
+        "can_view_native_statements": any(can_use_native(request.user, action) for action in ('view', 'prepare', 'certify', 'export')),
         "can_prepare_opening": can_prepare_opening_balances(request.user),
         "can_approve_opening": can_approve_opening_balances(request.user),
         "can_post_opening": can_post_opening_balances(request.user),

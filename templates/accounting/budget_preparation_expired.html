@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+{% block content %}<div class="container"><h1 class="h3">Preparation could not be submitted</h1>
+{% for error in errors %}<p>{{ error }}</p>{% endfor %}
+<p>Your browser's Back action may retain the entered allocations. Keep a copy before starting a new selection.</p>
+<a href="{% url 'accounting:budget_preparation_select' %}">Start a new source selection</a></div>{% endblock %}

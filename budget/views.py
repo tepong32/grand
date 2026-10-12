@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.db import IntegrityError
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.text import slugify
@@ -33,6 +34,7 @@ from .services import (
     actor_label, allotment_line_balance, authorization_allotment_totals,
     authorization_obligation_totals, downstream_issuance_boundary, obligation_line_balance,
     ceiling_differences, compare_versions, consolidate_versions, record_event,
+    create_version_draft,
     transition_allotment_order, transition_authorization, transition_call, transition_version,
     transition_obligation_request,
 )
@@ -237,9 +239,11 @@ def version_create(request):
         item.department_id, item.department_label = department.pk, department.name
         item.created_by_id, item.created_by_label = request.user.pk, actor_label(request.user)
         try:
-            item.full_clean(); item.save(); record_event(item, "created", request.user, snapshot={"spendable": False})
+            create_version_draft(item, request.user)
         except ValidationError as exc:
             form.add_error(None, exc)
+        except IntegrityError:
+            form.add_error(None, 'This proposal identity conflicts with an existing version. Reload and review its version number.')
         else:
             messages.success(request, "Draft budget proposal version created. It is not spendable authority.")
             return redirect("budget:version_detail", public_id=item.public_id)
@@ -264,10 +268,19 @@ def version_detail(request, public_id):
             planning = version.planning_context_snapshot or None
             if planning is None:
                 planning_error = "This historical proposal has no retained planning context. No approval evidence has been backfilled."
+    from .resource_context import capture
+    resource_error = ''
+    try:
+        resources = capture(version) if version.status in (BudgetVersion.DRAFT, BudgetVersion.RETURNED) else (
+            version.planning_context_snapshot or {}).get('resources')
+    except ValidationError as exc:
+        resources, resource_error = None, ' '.join(exc.messages)
     return render(request, "budget/version_detail.html", {
         "version": version, "ceiling_rows": ceiling_differences(version),
         "events": event_page.object_list if can_audit else (), "event_page": event_page, "can_audit": can_audit,
         "planning": planning, "planning_error": planning_error,
+        "resources": resources, "resource_error": resource_error,
+        "can_read_actuals": can_read_context(request.user, version),
         "comment_form": BudgetReviewCommentForm(),
         "can_prepare": can_act_on_budget(request.user, "prepare_budget_proposals"),
         "can_review": can_act_on_budget(request.user, "review_budget_proposals"),
@@ -307,7 +320,8 @@ def planning_context_export(request, public_id):
         "Prior posted expense activity (not certified actual)", "Jan-Jun posted expense activity (not certified actual)",
         "Jul-Dec estimate", "Indicative activity plus estimate", "Original appropriation", "Authority state", "Proposed",
         "Prior sources", "First-half sources", "Estimate basis",
-        "Prior certified external actual", "First-half certified external actual", "Certified actual plus second-half estimate",
+        "Prior certified actual" if context.get('schema', 1) >= 3 else "Prior certified external actual",
+        "First-half certified actual" if context.get('schema', 1) >= 3 else "First-half certified external actual", "Certified actual plus second-half estimate",
         "Prior certificate evidence", "First-half certificate evidence"))
     for row in context["rows"]:
         writer.writerow(tuple(_csv_text(value) for value in (context["as_of"], context["budget_year"],
@@ -324,8 +338,8 @@ def planning_context_export(request, public_id):
             (row.get("prior_certified") or {}).get("amount", "No retained certification"),
             (row.get("half_certified") or {}).get("amount", "No retained certification"),
             row.get("certified_indicative_total") or "Incomplete certified context",
-            json.dumps(row.get("prior_certified"), ensure_ascii=False),
-            json.dumps(row.get("half_certified"), ensure_ascii=False),
+            json.dumps(row.get("prior_certified_evidence") if context.get('schema', 1) >= 4 else row.get("prior_certified"), ensure_ascii=False),
+            json.dumps(row.get("half_certified_evidence") if context.get('schema', 1) >= 4 else row.get("half_certified"), ensure_ascii=False),
         )))
     filename = f"proposal-planning-context-{version.public_id}.csv"
     receipt = archive_export(content=response.content, department=department_for_user(request.user), user=request.user,
@@ -358,21 +372,62 @@ def line_create(request, public_id):
 
 @budget_permission_required("prepare_budget_proposals")
 def resource_create(request, public_id):
+    return _resource_form(request, public_id)
+
+
+@budget_permission_required('prepare_budget_proposals')
+def resource_edit(request, public_id, item_id):
+    return _resource_form(request, public_id, item_id)
+
+
+@require_GET
+@budget_access_required
+def resource_export(request, public_id):
+    version = get_object_or_404(BudgetVersion, public_id=public_id, department_id=department_for_user(request.user).pk)
+    if not can_read_context(request.user, version):
+        raise PermissionDenied
+    from .resource_context import capture
+    try:
+        context = capture(version) if version.status in (BudgetVersion.DRAFT, BudgetVersion.RETURNED) else (
+            version.planning_context_snapshot or {}).get('resources')
+        if context is None:
+            raise ValidationError('No retained resource snapshot exists for this historical proposal.')
+    except ValidationError as exc:
+        return HttpResponse(' '.join(exc.messages), status=409)
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    writer = csv.writer(response)
+    writer.writerow(('Budget year', 'Resource ID', 'Funding source', 'Fund', 'Description', 'Proposed amount',
+        'Basis', 'Funding-source evidence', 'Consolidation origins', 'Boundary'))
+    for row in context['rows']:
+        writer.writerow(_csv_text(value) for value in (context['budget_year'], row['id'], row['funding_source']['code'],
+            row['funding_source']['fund_code'] if row['funding_source']['fund_code'] is not None else 'Fund not assigned',
+            row['description'], row['amount'], row['basis'], json.dumps(row['funding_source'], ensure_ascii=False),
+            json.dumps([origin for origin in context['origins'] if origin['target_resource_id'] == row['id']], ensure_ascii=False),
+            'Proposed estimate only; not certified receipts or cash; reconcile overlaps before aggregation'))
+    filename = f'proposed-resources-{version.public_id}.csv'
+    receipt = archive_export(content=response.content, department=department_for_user(request.user), user=request.user,
+        category='budget-proposed-resources', filename=filename, metadata={'version': str(version.public_id), 'resources': context})
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response['X-GRAND-Export-SHA256'] = receipt['sha256']
+    record_event(version, 'resource_context_exported', request.user, snapshot={'sha256': receipt['sha256'], 'relative_path': receipt['relative_path']})
+    return response
+
+
+def _resource_form(request, public_id, item_id=None):
     department = department_for_user(request.user)
     version = get_object_or_404(BudgetVersion, public_id=public_id, department_id=department.pk, status__in=(BudgetVersion.DRAFT, BudgetVersion.RETURNED))
-    form = BudgetResourceEstimateForm(request.POST or None, version=version)
+    item = get_object_or_404(version.resource_estimates, pk=item_id) if item_id is not None else None
+    form = BudgetResourceEstimateForm(request.POST or None, version=version, instance=item)
     if request.method == "POST" and form.is_valid():
-        item = form.save(False)
-        item.version = version
-        item.department_id, item.department_label = department.pk, department.name
         try:
-            item.full_clean(); item.save(); record_event(version, "resource_estimate_added", request.user, snapshot={"source": item.funding_source.code, "amount": str(item.amount)})
+            from .resource_context import save_estimate
+            save_estimate(version=version, actor=request.user, item_id=item_id, **form.cleaned_data)
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
-            messages.success(request, "Revenue/resource estimate added to this version.")
+            messages.success(request, "Proposed resource estimate retained with its basis and revision history.")
             return redirect("budget:version_detail", public_id=version.public_id)
-    return render(request, "budget/form.html", {"form": form, "title": "Add revenue/resource estimate", "guidance": "Record the reviewed estimate and its basis without treating it as cash availability."})
+    return render(request, "budget/form.html", {"form": form, "title": "Revise resource estimate" if item else "Add revenue/resource estimate", "guidance": "Record proposed financing and its basis. This is not certified actual receipts or cash availability; overlapping sources require reconciliation before a summary."})
 
 
 @budget_permission_required("review_budget_proposals")

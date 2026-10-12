@@ -1,0 +1,20 @@
+{% extends 'base.html' %}{% block content %}<div class="container pb-4">
+<a href="{% url 'accounting:budget_cash_register' %}">Cash evidence register</a>
+<h1 class="h3 mt-3">{% if previous %}Successor to cash version {{ previous.version }}{% else %}Submit historical cash evidence{% endif %}</h1>
+<p>Transcribe the original dated source, including gross cash, restrictions and net cash. GRAND’s independent reviewer is separate from the original signers. This evidence does not authorize spending or issue Form 1.</p>
+<form method="post" enctype="multipart/form-data" class="card card-body">{% csrf_token %}{{ form.as_p }}
+<h2 class="h5">Restriction items</h2><p>Enter each restriction once, with its unique source row, scope and overlap treatment. Do not repeat subtotals. The complete schedule must reproduce the signed restricted cash control.</p>
+<p>If the source explicitly certifies no restrictions, select that declaration above, give its source reference and leave this schedule empty. Missing evidence is not zero.</p>
+<p>Manual entry supports 100 items. Larger schedules use complete CSV replacement (10,000 items / 2 MiB); a successor can retain every preceding item. CSV replaces manual items rather than adding to them.</p>
+<details><summary>CSV guide</summary><p><a download href="{% url 'accounting:budget_cash_csv_template' %}">Download empty restriction template</a>. Use UTF-8 columns <code>key,reference,purpose,coverage,amount</code> in that order. Amounts use a decimal point without currency symbols or grouping commas. Quote text containing commas. Invalid or oversized files are rejected in full; the original signed documents are still required.</p></details>
+{% if previous %}<p>The predecessor retains {{ previous.payload.restrictions|length }} items. Leave document uploads blank to retain their exact bytes. If a newer version exists, open that version to prepare its successor.</p>{% endif %}
+<fieldset id="cash-manual">{{ formset.management_form }}{{ formset.non_form_errors }}<div id="cash-rows">{% for row in formset %}<div class="border rounded p-3 mb-3">{{ row.as_p }}</div>{% endfor %}</div>
+<template id="cash-empty"><div class="border rounded p-3 mb-3">{{ formset.empty_form.as_p }}</div></template>
+<button type="button" class="btn btn-outline-secondary mb-3" id="cash-add">Add restriction</button></fieldset>
+<button class="btn btn-primary">Submit for independent adoption</button></form></div>
+<script>
+const mode=document.getElementById('id_row_input'),manual=document.getElementById('cash-manual');
+function selectMode(){manual.disabled=mode.value!=='manual';manual.hidden=manual.disabled;}
+mode.addEventListener('change',selectMode);selectMode();
+document.getElementById('cash-add').addEventListener('click',function(){const total=document.getElementById('id_form-TOTAL_FORMS');if(Number(total.value)>=100)return;document.getElementById('cash-rows').insertAdjacentHTML('beforeend',document.getElementById('cash-empty').innerHTML.replaceAll('__prefix__',total.value));total.value=Number(total.value)+1;});
+</script>{% endblock %}

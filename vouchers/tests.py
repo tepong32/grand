@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone as datetime_timezone
 from decimal import Decimal
 import csv
 import hashlib
@@ -147,8 +147,16 @@ class VoucherWorkflowTests(TestCase):
             **owner, fiscal_year=2026, period_number=8, label="August",
             starts_on=date(2026, 8, 1), ends_on=date(2026, 8, 31),
         )
+        # Historical return/correction scenarios explicitly post in September;
+        # their period must exist even when CI runs in a later calendar month.
+        cls.september_accounting_period = AccountingPeriod.objects.create(
+            **owner, fiscal_year=2026, period_number=9, label="September",
+            starts_on=date(2026, 9, 1), ends_on=date(2026, 9, 30),
+        )
         today = timezone.localdate()
-        if not cls.accounting_period.starts_on <= today <= cls.accounting_period.ends_on:
+        if cls.september_accounting_period.starts_on <= today <= cls.september_accounting_period.ends_on:
+            cls.event_accounting_period = cls.september_accounting_period
+        elif not cls.accounting_period.starts_on <= today <= cls.accounting_period.ends_on:
             cls.event_accounting_period = AccountingPeriod.objects.create(
                 **owner, fiscal_year=today.year, period_number=today.month, label=today.strftime("%B"),
                 starts_on=today.replace(day=1),
@@ -4223,7 +4231,8 @@ class VoucherWorkflowTests(TestCase):
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.get(reverse("vouchers:advice_workspace")).status_code, 403)
 
-    def test_f83_cash_enforcement_reservation_ageing_and_portable_export(self):
+    @patch("django.utils.timezone.now", return_value=datetime(2026, 9, 15, 3, tzinfo=datetime_timezone.utc))
+    def test_f83_cash_enforcement_reservation_ageing_and_portable_export(self, scenario_clock):
         from copy import copy
         from django.contrib.auth.models import Group
         from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
@@ -4369,6 +4378,15 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(successor.status, TreasuryCashPosition.DRAFT)
 
         case = self.ready_for_treasury()
+        # Keep the age boundary explicit: the same approved August position
+        # must reject issuance after 35 days, even in this fixed-date scenario.
+        with patch("django.utils.timezone.now", return_value=datetime(2026, 10, 6, 3, tzinfo=datetime_timezone.utc)):
+            with self.assertRaisesMessage(ValidationError, "older than the locally accepted maximum age"):
+                issue_check(
+                    case=case, actor=self.treasury_user, bank_account_code="gf-lbp", fund_code="general-fund",
+                    check_number="F83-EXPIRED", amount=Decimal("900.00"), expected_version=case.state_version,
+                    idempotency_key="f83-expired-issue",
+                )
         instrument = issue_check(
             case=case, actor=self.treasury_user, bank_account_code="gf-lbp", fund_code="general-fund",
             check_number="F83-0001", amount=Decimal("900.00"), expected_version=case.state_version,

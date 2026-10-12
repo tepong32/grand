@@ -1,11 +1,65 @@
 from django.urls import path
 
 from . import views, cash_views, claim_views, shared_claim_views, advance_views, budget_actual_views
+from . import budget_attribution_views
+from . import budget_preparation_views
+from . import budget_claim_repair_views
+from . import budget_native_views
+from . import summary_views
+from . import budget_cash_views
+from . import budget_cash_preparation_views as native_cash_views
+from . import budget_actuals_views as native_actuals_views
+from . import budget_receipt_views
 
 
 app_name = "accounting"
 
 urlpatterns = [
+    path('budget-receipt-classification/', budget_receipt_views.register, name='receipt_classification_register'),
+    path('budget-receipt-classification/sources/', budget_receipt_views.sources, name='receipt_classification_sources'),
+    path('budget-receipt-classification/prepare/<int:entry_id>/', budget_receipt_views.prepare, name='receipt_classification_prepare'),
+    path('budget-receipt-classification/<uuid:batch_id>/', budget_receipt_views.detail, name='receipt_classification_detail'),
+    path('budget-receipt-classification/<uuid:batch_id>/review/', budget_receipt_views.review, name='receipt_classification_review'),
+    path('budget-receipt-classification/<uuid:batch_id>/export/', budget_receipt_views.export, name='receipt_classification_export'),
+    path('native-budget-actuals/', native_actuals_views.register, name='native_actuals_register'),
+    path('native-budget-actuals/new/', native_actuals_views.create, name='native_actuals_create'),
+    path('native-budget-actuals/<uuid:public_id>/', native_actuals_views.detail, name='native_actuals_detail'),
+    path('native-budget-actuals/<uuid:public_id>/successor/', native_actuals_views.create, name='native_actuals_successor'),
+    path('native-budget-actuals/<uuid:public_id>/review/', native_actuals_views.review, name='native_actuals_review'),
+    path('native-budget-actuals/<uuid:public_id>/decide/<str:role>/', native_actuals_views.decide, name='native_actuals_decide'),
+    path('native-budget-actuals/<uuid:public_id>/export/<str:kind>/', native_actuals_views.export, name='native_actuals_export'),
+    path('native-budget-cash/', native_cash_views.register, name='native_cash_register'),
+    path('native-budget-cash/new/', native_cash_views.create, name='native_cash_create'),
+    path('native-budget-cash/<uuid:public_id>/', native_cash_views.detail, name='native_cash_detail'),
+    path('native-budget-cash/<uuid:public_id>/successor/', native_cash_views.create, name='native_cash_successor'),
+    path('native-budget-cash/<uuid:public_id>/decide/<str:role>/', native_cash_views.decide, name='native_cash_decide'),
+    path('native-budget-cash/<uuid:public_id>/export/<str:kind>/', native_cash_views.export, name='native_cash_export'),
+    path('budget-cash/', budget_cash_views.register, name='budget_cash_register'),
+    path('budget-cash/new/', budget_cash_views.create, name='budget_cash_create'),
+    path('budget-cash/row-template/', budget_cash_views.csv_template, name='budget_cash_csv_template'),
+    path('budget-cash/<uuid:public_id>/', budget_cash_views.detail, name='budget_cash_detail'),
+    path('budget-cash/<uuid:public_id>/successor/', budget_cash_views.create, name='budget_cash_successor'),
+    path('budget-cash/<uuid:public_id>/decide/', budget_cash_views.decide, name='budget_cash_decide'),
+    path('budget-cash/<uuid:public_id>/export/<str:kind>/', budget_cash_views.export, name='budget_cash_export'),
+    path('summary-actuals/', summary_views.register, name='summary_register'),
+    path('summary-actuals/new/', summary_views.create, name='summary_create'),
+    path('summary-actuals/row-template/', summary_views.csv_template, name='summary_csv_template'),
+    path('summary-actuals/<uuid:public_id>/', summary_views.detail, name='summary_detail'),
+    path('summary-actuals/<uuid:public_id>/successor/', summary_views.create, name='summary_successor'),
+    path('summary-actuals/<uuid:public_id>/decide/', summary_views.decide, name='summary_decide'),
+    path('summary-actuals/<uuid:public_id>/export/<str:kind>/', summary_views.export, name='summary_export'),
+    path('native-budget-statements/', budget_native_views.register, name='budget_native_register'),
+    path('native-budget-statements/prepare/', budget_native_views.prepare, name='budget_native_prepare'),
+    path('native-budget-statements/<uuid:public_id>/', budget_native_views.detail, name='budget_native_detail'),
+    path('native-budget-statements/<uuid:public_id>/decide/', budget_native_views.decide, name='budget_native_decide'),
+    path('native-budget-statements/<uuid:public_id>/export/', budget_native_views.export, name='budget_native_export'),
+    path('budget-claim-sources/<int:line_id>/', budget_claim_repair_views.sources, name='budget_claim_sources'),
+    path('budget-expenditure-preparation/', budget_preparation_views.select, name='budget_preparation_select'),
+    path('budget-expenditure-preparation/submit/', budget_preparation_views.submit, name='budget_preparation_submit'),
+    path('budget-expenditure-reviews/', budget_attribution_views.register, name='budget_attribution_register'),
+    path('budget-expenditure-reviews/<uuid:batch_id>/', budget_attribution_views.detail, name='budget_attribution_detail'),
+    path('budget-expenditure-reviews/<uuid:batch_id>/decide/', budget_attribution_views.decide, name='budget_attribution_decide'),
+    path('budget-expenditure-reviews/<uuid:batch_id>/export/', budget_attribution_views.export, name='budget_attribution_export'),
     path("budget-actuals/", budget_actual_views.register, name="budget_actual_register"),
     path("budget-actuals/new/", budget_actual_views.create, name="budget_actual_create"),
     path("budget-actuals/export/", budget_actual_views.export, name="budget_actual_export"),

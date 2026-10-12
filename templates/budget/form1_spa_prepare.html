@@ -1,0 +1,15 @@
+{% extends 'base.html' %}{% load static %}{% block content %}<div class="container py-4" style="overflow-wrap:anywhere">
+<a href="{% url 'budget:form1_account_detail' source.public_id %}">Original approved account package</a> · <a href="{% url 'budget:form1_spas' %}">SPA review history</a>
+<h1 class="h3">Prepare {{ source.fund.code }} SPA subdivisions</h1>
+<p>Partition each original signed SPA share explicitly. A zero total can contain opposing activity. Missing source coverage stays unknown. This preparation does not authorize spending, establish statutory percentages or issue Form 1.</p>
+<noscript><p class="alert alert-warning">Enable JavaScript for the guided subdivision and coverage editor.</p></noscript>
+<form method="post" enctype="multipart/form-data" id="spa-intake">{% csrf_token %}{{ form.non_field_errors }}{{ form.preview }}{{ form.parts }}{{ form.coverage }}{{ form.parts.errors }}{{ form.coverage.errors }}
+<h2 class="h4">Original SPA shares</h2><div id="spa-parts"></div>
+<h2 class="h4 mt-4">Subdivision coverage</h2><p>Declare each entity, original source column and subdivision. Complete means source evidence covers that cell; no omitted cell becomes zero.</p><div id="spa-coverage"></div>
+<p>{{ form.coverage_reference.label_tag }}{{ form.coverage_reference }}{{ form.coverage_reference.errors }}</p>
+<p>{{ form.reference.label_tag }}{{ form.reference }}{{ form.reference.errors }}</p>
+<p>{{ form.evidence.label_tag }}{{ form.evidence }}{{ form.evidence.errors }}</p>
+{% if form.is_bound %}<p>Choose the original attachment again after correcting an error.</p>{% endif %}
+<button class="btn btn-primary" type="submit">Retain for separate Budget and Accounting review</button></form>
+{{ editor|json_script:'spa-editor-data' }}<script src="{% static 'accounting/form1-spa.js' %}" defer></script>
+</div>{% endblock %}

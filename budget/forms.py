@@ -102,6 +102,8 @@ class BudgetReviewCommentForm(forms.ModelForm):
 
 
 class BudgetResourceEstimateForm(forms.ModelForm):
+    expected_state_version = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
+    reason = forms.CharField(max_length=2000, widget=forms.Textarea(attrs={'rows': 2}), label='Reason for this estimate or revision')
     class Meta:
         model = BudgetResourceEstimate
         fields = ("funding_source", "description", "amount", "basis")
@@ -109,6 +111,9 @@ class BudgetResourceEstimateForm(forms.ModelForm):
 
     def __init__(self, *args, version=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.instance.version = version
+        self.instance.department_id, self.instance.department_label = version.department_id, version.department_label
+        self.fields['expected_state_version'].initial = version.state_version
         self.fields["funding_source"].queryset = self.fields["funding_source"].queryset.filter(
             department_id=version.fiscal_year.department_id,
             fiscal_year=version.fiscal_year,

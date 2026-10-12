@@ -1,0 +1,12 @@
+{% extends 'base.html' %}{% load static %}{% block content %}<div class="container py-4">
+<a href="{% url 'budget:receipt_forecasts' proposal.public_id %}">Forecast history</a><h1 class="h3">Prepare {{ fund.code }} receipt forecasts</h1>
+<p>Enter dated second-half worksheets, then classify every worksheet and proposed financing source for each entity. Splits must reproduce the full original amount. Choose an exact included counterpart for an overlap. The same funding coverage reference identifies the same claim, including across entities; matching source names alone do not prove overlap.</p>
+<p>All new rows start unresolved. No entered second-half worksheets means no sourced estimate; confirm every category explicitly. Forecasts require independent Budget Officer review and do not certify actual receipts or available cash.</p>
+<noscript><p class="alert alert-warning">Enable JavaScript to use the guided component editor. No preparation is retained until all source rows and category declarations pass server validation.</p></noscript>
+<form method="post" id="forecast-intake">{% csrf_token %}{{ form.non_field_errors }}{{ form.preview }}{{ form.allocation }}{{ form.allocation.errors }}
+<div id="forecast-editor"></div>
+<p>{{ form.coverage_reference.label_tag }}{{ form.coverage_reference }}{{ form.coverage_reference.errors }}</p>
+<p>{{ form.coverage_confirmed }} {{ form.coverage_confirmed.label_tag }}{{ form.coverage_confirmed.errors }}</p>
+<button class="btn btn-primary" type="submit">Retain complete package for independent review</button></form>
+{{ editor|json_script:'forecast-editor-data' }}<script src="{% static 'accounting/budget-receipt-forecasts.js' %}" defer></script>
+</div>{% endblock %}

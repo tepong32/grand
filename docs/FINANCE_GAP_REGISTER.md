@@ -4,6 +4,38 @@ Active foundation gaps FG-01–FG-10 are maintained in the [2026-09-18 foundatio
 gate](FINANCE_FOUNDATION_GATE.md#living-scope-and-gap-register), including scope,
 classification, user/control impact and dependencies. Historical findings remain below.
 
+## FIN-GAP-038 - Security and native regression release gate
+
+- Severity/status: **HIGH - OPEN RELEASE BLOCKER**. The original scheduled Actions
+  failures and candidate regression defects are documented in the
+  [incident record](FINANCE_CI_INCIDENT_2026-10-12.md); primary integration and dependent
+  implementation are NO-GO until repaired checks and both resulting remote jobs pass.
+- Original incident is pre-existing: failed runs 139/138 and passing run 136 use
+  the same master SHA. Dependency advisories and calendar-sensitive synthetic
+  fixtures are distinct causes; neither job failed from a timeout or service startup.
+- Remediation updates the three vulnerable pins and deterministic historical test
+  periods/clocks without changing production dates, guards, assertions or test IDs.
+  Candidate inherited actuals fixture defects are separately attributed to this work.
+- Actual validation: full SQLite PASS, 2,462 tests / 7,284.909s / 195 native-only
+  skips. Full native FAIL, 2,462 tests / 9,500.128s / one failure/four errors.
+  Fresh five-case native reproduction confirms two certification fixture defects;
+  three unchanged officer-return cases pass in isolation but fail again in the
+  ordered diagnostic. Two new native Form 1 factories omit their cleanups, leaking
+  a September-18 localdate mock into later dated capacity checks; actual releases
+  and empty holds confirm the inconsistent dates. This is a candidate fixture
+  defect, not a production capacity defect. Certification fixture repair validation
+  PASS: 138 affected native cases in 184.661s, no skips. Broader ordered native
+  diagnostic FAIL: 280 tests / 1,259.379s / three reproduced errors. Factory cleanup
+  repair PASS: 24 native cases / 435.131s / no skips; 31 SQLite cases / 21.143s /
+  seven native-only skips. Broader ordered native PASS: all 280 cases / 1,279.465s /
+  no skips, exit 0, both stores destroyed, every selected ID exactly once. Candidate
+  publication is GO; both complete remote jobs remain required. No remote repair
+  pass or completed primary integration is claimed.
+- Next action: establish the remaining native root cause, validate repair, actual
+  vm-commit/candidate CI/primary integration and verify both GitHub jobs. Resume
+  guided whole Form 1 intake/review after that gate. Manual LGU requirements remain
+  deferred tonight and open; production/full Finance remains NO-GO.
+
 ## FIN-GAP-037 - Contra balances increase statement totals
 
 - Severity/status: **HIGH - VERIFIED** in v0.7.74 on `codex/finance-statement-movements`; affected native and broad SQLite verification passed.

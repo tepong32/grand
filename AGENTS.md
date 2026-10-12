@@ -6,11 +6,26 @@ Department-aware Django platform for municipal public services and internal oper
 
 ### Durable boundaries
 
-Current direction (2026-09-18): the [Finance foundation gate](docs/FINANCE_FOUNDATION_GATE.md)
-supersedes the earlier breadth-first order. Complete register retrieval, Budget
-historical context and verified planning/certificate semantics, ordinary continuity,
-outputs and usability before broader features. eGAPS is a reference for purchased/used
-LGU Finance scope only. Preserve unknowns and controls; deliver resumable checkpoints.
+Budget source attribution, native/adopted joint actuals and cash, office schedules,
+receipt forecasts and Form 1 drafts follow the detailed
+[Budget control boundaries](docs/FINANCE_BUDGET_CONTROL_BOUNDARIES.md) and their
+cross-linked contracts. Preserve complete signed source partitions and exact
+office/Fund/period identities; never infer source purpose, certified zero,
+government account authority or settlement coverage from labels or totals.
+Retain original attachments, independent decision actors and correction/version
+lineage. Actor/source/version-bound previews and currentness checks are distinct
+from readable immutable history, separate export grants, statutory certification,
+Chief Executive approval, issuance and cash capacity. Missing controls remain
+unknown. Source freshness observations never establish a universal posting lock.
+Native default/Finance source locks and all stated owning lock orders remain
+mandatory. Whole Form 1 office rows are candidate indexes only: verify the original
+package, actual source access and exact office scope before counting/paging.
+Migration preflights refuse invalid retained root/office evidence rather than
+repairing history. Request-local reuse hashes the actual entire envelope and pins
+the same actor/source; it never creates authority or approval. See the
+[source contract](docs/FINANCE_FORM1_SOURCE_CONTRACT.md),
+[assembly design](docs/FINANCE_FORM1_ASSEMBLY_DESIGN.md) and
+[review/delivery contract](docs/FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md).
 
 Cheque exceptions (2026-09-15): user has no local procedures and authorizes public-source
 research, modular implementation and human resolution of rare cases. Missing local
@@ -74,96 +89,21 @@ reversals retain their own journal dates and missing releases stay pending. See
 
 ### Development state
 
-The [full foundation requirement audit](docs/FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md)
-records ledger/cash/remittance/shadow retrieval caps. The subsequent
-[ledger repair](docs/FINANCE_LEDGER_RETRIEVAL.md) preserves preceding posted balances
-across pages and rejects invalid account scope in both screen and export.
-[Treasury cash/remittance retrieval](docs/FINANCE_TREASURY_REGISTER_RETRIEVAL.md)
-now retains independent pages and full reservation calculations.
-[Shadow retrieval](docs/FINANCE_SHADOW_RETRIEVAL.md) retains scoped cycle and review
-history navigation. [Budget/remittance history](docs/FINANCE_BUDGET_REMITTANCE_HISTORY.md)
-adds complete event pages with explicit proposal/remittance audit permission.
-[Accounting history](docs/FINANCE_ACCOUNTING_HISTORY.md) provides complete reconciliation,
-opening-row and opening-event pages using the existing correction route.
-[Bank candidates/report history](docs/FINANCE_BANK_REPORT_RETRIEVAL.md) now have complete
-candidate pages and scoped generation-history navigation. [Reporting schedules](docs/FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md)
-include active/inactive retrieval and retained statement navigation. The
-[integrated retrieval audit](docs/FINANCE_RETRIEVAL_INTEGRATED_AUDIT.md) reproduces
-My Work's former 100-task ceiling. [Personal retrieval](docs/FINANCE_MY_WORK_RETRIEVAL.md)
-now pages all six views after complete permission/view/date filtering. Preserve the
-separate bounded CSV snapshot contract and source ordering. Known caps are repaired
-in reviewed routes; whole-scope office acceptance remains unproven.
-The [Budget expense-activity repair](docs/FINANCE_BUDGET_ACTUAL_ACTIVITY.md) excludes
-explicit opening/closing/direct-equity movements and their retained reversal lineage,
-preserving all selected sources and a signed activity-to-ledger bridge. Empty activity
-is valid; it does not certify source completeness. [Actual-source ownership](docs/FINANCE_BUDGET_ACTUAL_OWNERSHIP.md)
-now follows the same captured authorized schedule's fiscal-year owner, includes
-owner identity in classification keys and retains explicit owner/year evidence.
-Never guess a ledger from department names or combine another owner's years/codes.
-Certified expenditure and capital-outlay coverage remain open.
-The [actuals contract](docs/FINANCE_BUDGET_ACTUALS_CONTRACT.md) keeps original external
-certification separate from GRAND adoption, prevents overlapping source totals and
-pins exact authoritative versions in proposal context. Native preparation requires
-reviewed expenditure purpose and coherent source coverage; neither expense totals
-nor all asset debits are a certificate. Form 1 joint certification stays distinct
-from Form 2 office certification. The first [external-adoption route](docs/FINANCE_BUDGET_ACTUAL_ADOPTION.md)
-retains original bytes in the Finance store with independent adoption and explicit
-read/export scope. Fund-before-scope locks serialize versions; Budget captures one
-approved source version without adding it to native activity. Native preparation
-and joint summary certification remain open. See CONTINUE.md for actual validation.
-The [native source audit](docs/FINANCE_BUDGET_NATIVE_SOURCE_AUDIT.md) reproduces
-unattributed liquidation expenses missing from office-filtered context. Preserve
-posted lines; require explicit reviewed office/purpose attribution rather than
-borrowing an officer/DV office or treating every asset debit as expenditure.
-The [native capture primitive](docs/FINANCE_BUDGET_NATIVE_CAPTURE.md) reads ledger
-evidence in one Finance statement. Preserve that coherent boundary when adding
-reviewed allocation heads; capture alone neither certifies nor attributes expenditure.
-
-
-Voucher action failures retain bound inputs and original state/idempotency tokens;
-never silently rebase or replay a stale financial submission. See the
-[ordinary browser handoff and recovery proof](docs/FINANCE_ORDINARY_BROWSER_HANDOFF.md).
-
-Quarterly planning retains explicit Q1–Q4 schedules against immutable appropriation
-lines. Plan approval does not move money. Successors serialize on the authority;
-AROs pin their submitted plan and explained timing differences without weakening
-financial controls. Generic reserves are not certificates. See
-[scope and validation](docs/FINANCE_QUARTERLY_PLANNING.md).
-
-Budget proposal context groups dated posted expense activity by the explicit
-ledger/fund/office/account, with separate dated estimates and original authority.
-Submission retains the comparison for independent review. Never infer PPA attribution,
-backfill old approvals or label expense activity as certified expenditure. FG-03
-coverage remains partial; see [context scope](docs/FINANCE_BUDGET_PLANNING_CONTEXT.md).
-The [DBM actuals source audit](docs/FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md) records
-distinct Form 1/2 certification roles and capital-outlay coverage; proposal approval
-does not certify historical actuals.
-
-Foundation retrieval checkpoints v0.7.116–v0.7.117 add scoped OBR/collection search,
-pagination, truthful counts and complete matching exports. Collection source totals
-separate fund/kind/status; narrowed retrieval must never narrow deposit-availability
-controls. [Validation and next gaps](docs/FINANCE_FOUNDATION_GATE.md) distinguish
-automated/browser/synthetic load evidence from production and LGU acceptance.
-
-The v0.7.115 officer cheque bank-return checkpoint retains the original advance debit, officer subsidiary and
-bank purpose. Only a posted, reconciled return restores dated application capacity;
-its source-error correction reserves the amount again from proposal. Replacement
-principal receipts reuse the original officer and a specific return; a returned
-replacement never reopens the older redemption. Original-recognition correction still
-requires its existing refund/deposit correction evidence. See
-[return scope and validation](docs/FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md).
-
-The v0.7.114 officer cheque refund checkpoint reserves the amount from receipt through
-pending/confirmed clearing, retain the original officer subsidiary, and never release
-application capacity merely by withdrawing clearing evidence. Clearing changes follow
-case-before-Treasury locks. Actual bank returns still require the separate dated
-original-advance adapter. See [current scope](docs/FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md).
-
-Mixed-purpose cheque return/redemption has a validated v0.7.113 development checkpoint.
-Use exact original cash-purpose amounts and a complete reviewed instruction set. Keep
-one original bank for returns and one collection asset for redemption; do not infer
-residual categories or rewrite single-purpose historical evidence. See
-[component scope](docs/FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md).
+The v0.7.154 release candidate combines the intended Finance development chain
+after primary v0.7.109 with governed Budget actual/source attribution, joint source
+certification, historical schedules, forecast/account/SPA/stock/PhilHealth
+composition and immutable whole-draft internal reviews, register and complete
+PDF/ZIP/JSON delivery. Release validation/integration is recorded in
+[checkpoint evidence](docs/FINANCE_V154_RELEASE_VALIDATION.md) and CONTINUE.md;
+candidate capabilities are not master facts until integration. Latest user steering
+prioritizes the [Actions incident](docs/FINANCE_CI_INCIDENT_2026-10-12.md), then
+resumption of the Finance goal after actual verify/mysql passes. Do not expand
+dependent feature breadth while release/CI defects remain unresolved. Intake/review UI,
+representative retrieval performance, statutory signing/issuance and broader
+Finance/LGU/operational acceptance remain open. Production remains NO-GO.
+Detailed retrieval/source controls formerly listed here remain applicable in the
+[Budget control map](docs/FINANCE_BUDGET_CONTROL_BOUNDARIES.md); earlier checkpoint
+progress statements yield to current source contracts and validation.
 
 The v0.7.112 development principal-redemption checkpoint links a new receipt to the exact posted
 bank-return receivable and reserve that principal once. A replacement manager's/cashier's

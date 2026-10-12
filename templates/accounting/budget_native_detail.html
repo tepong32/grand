@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title_ext %} - Native Budget statement{% endblock %}
+{% block content %}<div class="container-fluid pb-4">
+<a href="{% url 'accounting:budget_native_register' %}">Statement history</a><h1 class="h3 mt-3">{{ record.fund.code }} · native statement version {{ record.version }}</h1>
+<p>{{ record.period_start }} – {{ record.period_end }} · {{ record.get_status_display }}</p>
+{% if record.status == 'certified' %}<div class="alert {% if current %}alert-info{% else %}alert-warning{% endif %}">{% if current %}Matches the current captured source and latest certification at this check.{% else %}This certification has been superseded or its source coverage has changed. Its original evidence remains available.{% endif %} This screen does not record a physical signature or Budget adoption.</div>{% endif %}
+{% if warning %}<p class="alert alert-warning">{{ warning }}</p>{% endif %}
+<p>Prepared by {{ record.prepared_by_label }} · {{ record.prepared_at }}<br>Supporting reference: {{ record.payload.evidence_reference }}</p>
+<h2 class="h5">Preparation basis</h2><p>{{ record.payload.reason|linebreaksbr }}</p><h2 class="h5">Complete coverage basis</h2><p>{{ record.payload.coverage|linebreaksbr }}</p>
+{% include 'accounting/budget_native_rows.html' %}
+{% if record.decided_at %}<h2 class="h5">Retained officer decision</h2><p>{{ record.decided_by_label }} · {{ record.decided_at }}<br>{{ record.authority }}</p><p>{{ record.decision_note|linebreaksbr }}</p>{% endif %}
+{% if can_decide %}<h2 class="h5">Independent officer decision</h2><p>Check full source coverage and office allocations. Recording certification requires your actual designation or authority. Return incomplete or changed preparation for correction.</p><form method="post" action="{% url 'accounting:budget_native_decide' record.public_id %}" class="card card-body mb-3">{% csrf_token %}{{ decision_form.as_p }}<button class="btn btn-primary">Record decision</button></form>{% endif %}
+{% if can_export %}<a class="btn btn-outline-primary" href="{% url 'accounting:budget_native_export' record.public_id %}">Download retained evidence (JSON)</a>{% endif %}
+<p class="mt-3">The evidence download retains source and decision details. It is not an accepted printed LBP form.</p>
+</div>{% endblock %}

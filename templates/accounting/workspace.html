@@ -1,7 +1,16 @@
 {% extends "base.html" %}
 {% block title_ext %} - Accounting{% endblock %}
 {% block content %}
+{% if perms.budget.view_form1_account_reviews %}<p class="container pt-3"><a href="{% url 'budget:form1_accounts' %}">Form 1 reporting-account review</a></p>{% endif %}
+{% if perms.budget.view_form1_spa_reviews %}<p class="container pt-3"><a href="{% url 'budget:form1_spas' %}">Form 1 SPA subdivision review</a></p>{% endif %}
+{% if perms.budget.view_form1_packages %}<p class="container pt-3"><a href="{% url 'budget:form1_packages' %}">Whole Form 1 draft history</a></p>{% endif %}
 {% if can_view_budget_actuals %}<div class="container-fluid mb-2"><a class="btn btn-outline-primary" href="{% url 'accounting:budget_actual_register' %}">Budget actual certificates and adoption review</a></div>{% endif %}
+{% if can_view_summary_actuals %}<div class="container-fluid mb-2"><a class="btn btn-outline-primary" href="{% url 'accounting:summary_register' %}">Historical joint receipts and expenditures</a></div>{% endif %}
+{% if can_view_native_cash %}<div class="container-fluid mb-2"><a class="btn btn-outline-primary" href="{% url 'accounting:native_cash_register' %}">Native cash preparations</a></div>{% endif %}
+{% if can_view_native_actuals %}<div class="container-fluid mb-2"><a class="btn btn-outline-primary" href="{% url 'accounting:native_actuals_register' %}">Receipt and expenditure actuals</a></div>{% endif %}
+{% if can_view_receipt_classification %}<div class="container-fluid mb-2"><a class="btn btn-outline-primary" href="{% url 'accounting:receipt_classification_register' %}">Receipt source classification</a></div>{% endif %}
+{% if can_view_budget_attributions %}<div class="container-fluid mb-2"><a class="btn btn-outline-primary" href="{% url 'accounting:budget_attribution_register' %}">Budget expenditure reviews</a></div>{% endif %}
+{% if can_view_native_statements %}<div class="container-fluid mb-2"><a class="btn btn-outline-primary" href="{% url 'accounting:budget_native_register' %}">Native Budget statements and certification</a></div>{% endif %}
 <div class="container-fluid pb-4">
   {% if can_view_advances %}<p><a class="btn btn-outline-primary" href="{% url 'accounting:advance_register' %}">Officer advances and liquidations</a></p>{% endif %}
   <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start mb-3">

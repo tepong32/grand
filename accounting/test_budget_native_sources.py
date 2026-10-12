@@ -135,3 +135,40 @@ class NativeBudgetSourceTests(TestCase):
         with self.assertRaises(ValidationError):
             sources.verify(result)
 
+    def test_retained_period_view_matches_capture_without_old_activity_or_new_reads(self):
+        from .budget_native_periods import reframe
+        original = self.journal('PERIOD-OLD', date(2025, 12, 31), Decimal('80'), JournalEntry.CLOSING)
+        inside = self.journal('PERIOD-CURRENT', date(2026, 6, 30), Decimal('20'))
+        self.journal('PERIOD-UNRELATED', date(2025, 12, 31), Decimal('900'))
+        reversal = create_reversal(original, self.maker, reference='PERIOD-REOPEN',
+            period=inside.period, entry_date=date(2026, 6, 30), reason='Synthetic period boundary')
+        submit_entry(reversal, self.maker)
+        post_entry(reversal, self.checker)
+        parent = self.capture(period_start=date.min)
+        frozen = deepcopy(parent)
+        with CaptureQueriesContext(connections['finance']) as finance, CaptureQueriesContext(connections['default']) as default:
+            derived = reframe(parent, period_start=date(2026, 1, 1), period_end=date(2026, 6, 30))
+        self.assertEqual((len(finance), len(default)), (0, 0))
+        self.assertEqual(derived['payload'], self.capture()['payload'])
+        self.assertEqual(derived['payload']['controls']['debit'], '100.00')
+        self.assertEqual([row['id'] for row in derived['payload']['lineage_sources']], [original.pk])
+        self.assertEqual(parent, frozen)
+        self.journal('PERIOD-LATER', date(2026, 6, 30), Decimal('7'))
+        self.assertFalse(sources.is_current(derived, self.maker))
+        self.assertEqual(reframe(parent, period_start=date(2026, 1, 1), period_end=date(2026, 6, 30)), derived)
+
+    def test_retained_period_view_rejects_expansion_and_preserves_empty_unknown(self):
+        from .budget_native_periods import reframe
+        from .budget_native_statements import project
+        parent = self.capture()
+        for start, end in ((date(2025, 12, 31), date(2026, 6, 30)),
+                (date(2026, 1, 1), date(2026, 7, 1)), (date(2026, 6, 30), date(2026, 1, 1)),
+                ('2026-01-01', date(2026, 6, 30))):
+            with self.assertRaises(ValidationError):
+                reframe(parent, period_start=start, period_end=end)
+        derived = reframe(parent, period_start=date(2026, 6, 1), period_end=date(2026, 6, 30))
+        statement = project(derived)['payload']
+        self.assertFalse(statement['classification_complete'])
+        self.assertFalse(statement['certificate'])
+        self.assertEqual(statement['issues'], [{'kind': 'empty_cohort_requires_evidence'}])
+

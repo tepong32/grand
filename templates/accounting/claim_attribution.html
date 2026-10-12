@@ -4,6 +4,8 @@
 <div class="container pb-4">
   <a href="{% url 'accounting:entry_detail' source.entry.public_id %}">Back to {{ source.entry.reference }}</a>
   <h1 class="h3 mt-3">Historical claim attribution</h1>
+  {% if budget_line %}<div class="alert alert-info">Budget source review started from {{ budget_line.entry.reference }} · line {{ budget_line.sequence }} · {{ budget_line.entry.entry_date }} (debit {{ budget_line.debit|floatformat:2 }} / credit {{ budget_line.credit|floatformat:2 }}). This movement has not been selected automatically. Verify the original credit and select its complete actual application/reversal history below.</div>
+  <p><a href="{% url 'accounting:budget_claim_sources' budget_line.pk %}">Compare original-credit candidates</a> · <a href="{% url 'accounting:budget_preparation_select' %}">Start fresh Budget source selection after independent approval</a></p>{% endif %}
   <p>When an earlier payment covered several original credits, <a href="{% url 'accounting:shared_claim_schedule' source.pk %}">prepare a shared invoice schedule</a>.</p>
   <p>{{ source.entry.reference }} · line {{ source.sequence }} · {{ source.entry.entry_date }} · {{ source.entry.fund }} · {{ source.account }} · original credit {{ source.credit|floatformat:2 }}.</p>
   <p>Identify the original claim and reconcile its earlier applications. A separate Accounting reviewer approves the links used in outstanding claims, new DV settlements and subsidiary reports. The original journal and older issued reports remain unchanged.</p>

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title_ext %} - Find original liability evidence{% endblock %}
+{% block content %}<div class="container pb-4">
+<a href="{% url 'accounting:budget_preparation_select' %}">Budget expenditure source selection</a>
+<h1 class="h3 mt-3">Find original liability evidence</h1>
+<p><a href="{% url 'accounting:entry_detail' line.entry.public_id %}">{{ line.entry.reference }}</a> · line {{ line.sequence }} · {{ line.entry.entry_date }} · {{ line.entry.fund }} · {{ line.account.code }}<br>Debit {{ line.debit|floatformat:2 }} / credit {{ line.credit|floatformat:2 }}</p>
+{% if blocked %}<p class="alert alert-warning text-dark">{{ blocked_reason }}</p>
+{% else %}
+{% if original %}<p>This is an original liability credit. Review its identity and complete application history using the existing claim workflow.</p>{% else %}<p>These are possible original credits for the same office, fund and account, dated no later than this movement. A matching amount or date does not prove the relationship. Check the original invoice and full payment/reversal schedule before choosing a source.</p><form method="get" class="card card-body mb-3">{{ form.as_p }}<button class="btn btn-outline-primary">Find original credits</button></form>{% endif %}
+<p>{{ page.paginator.count }} original credit{{ page.paginator.count|pluralize }} · page {{ page.number }} of {{ page.paginator.num_pages }}</p>
+<div class="table-responsive"><table class="table"><thead><tr><th>Original journal / line</th><th>Date</th><th>Original credit</th><th>Recorded claim</th><th>Review</th></tr></thead><tbody>
+{% for source in page %}<tr><td>{{ source.entry.reference }} · {{ source.sequence }}</td><td>{{ source.entry.entry_date }}</td><td>{{ source.credit|floatformat:2 }}</td><td>{{ source.payable_claim_reference|default:'Requires evidence' }}</td><td><a href="{% url 'accounting:claim_attribution' source.pk %}{% if not original %}?budget_line={{ line.pk }}{% endif %}">Open historical claim review</a></td></tr>{% empty %}<tr><td colspan="5">No matching original credit. Keep the Budget amount unresolved until its actual source is established.</td></tr>{% endfor %}
+</tbody></table></div>
+{% if page.has_previous %}<a href="?{{ querystring }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
+{% if page.has_next %}<a href="?{{ querystring }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
+<p>The claim workflow requires its own preparation permission and independent review. This finder does not select applications, assert completeness, change posted lines or certify expenditure. After approval, prepare a fresh Budget classification from the updated sources.</p>
+{% endif %}</div>{% endblock %}

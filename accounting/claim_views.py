@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods, require_POST
 from uuid import uuid4
@@ -100,6 +101,20 @@ def attribution_page(request, line_id):
         "expected_version": selected.version if selected else 0,
         "party_key": identity(source)[0], "claim_reference": identity(source)[1],
         "applications": seed.applications if seed else []})
+    budget_line = None
+    if request.GET.get('budget_line'):
+        try:
+            budget_line_id = forms.IntegerField(min_value=1).clean(request.GET['budget_line'])
+        except ValidationError as exc:
+            raise Http404 from exc
+        budget_line = get_object_or_404(form.fields['applications'].queryset,
+            pk=budget_line_id, payable_allocation={})
+        try:
+            generated = budget_line.entry.statement_origin.source_type in ('voucher', 'remittance')
+        except ValidationError as exc:
+            raise Http404 from exc
+        if generated:
+            raise Http404
     invoices = None
     if split_mode:
         parties = list(form.fields["party_key"].choices)
@@ -151,6 +166,7 @@ def attribution_page(request, line_id):
             and record.status == PayableClaimAttribution.SUBMITTED and record.proposed_by_id != request.user.pk,
             "lines": lines, "allocations": rows})
     return render(request, "accounting/claim_attribution.html", {"source": source, "current": selected,
+        "budget_line": budget_line,
         "form": form, "invoices": invoices, "split_mode": split_mode,
         "can_prepare": can_prepare, "records": records})
 

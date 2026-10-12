@@ -12,6 +12,7 @@ BUDGET_ACTION_PERMISSIONS = frozenset((
     "prepare_budget_calls", "approve_budget_calls", "prepare_budget_proposals",
     "review_budget_proposals", "authorize_appropriations", "prepare_allotment_releases",
     "approve_allotment_releases", "initiate_obligation_requests", "certify_obligations",
+    "prepare_budget_receipt_forecasts", "review_budget_receipt_forecasts",
 ))
 
 

@@ -1,0 +1,7 @@
+{% extends 'base.html' %}{% block content %}<div class="container py-4">
+<a href="{% url 'budget:version_detail' proposal.public_id %}">Budget proposal</a><h1 class="h3">Receipt forecast history</h1>
+<p>{{ proposal.title }} · FY {{ proposal.fiscal_year.year }}. Reviewed forecasts remain separate from actual receipts, cash availability and issued Form 1.</p>
+{% if can_prepare %}<h2 class="h5">Prepare from accepted office reconciliation</h2>{% for fund in funds %}<p><a class="btn btn-primary" href="{% url 'budget:receipt_forecast_prepare' proposal.public_id fund.pk %}">Prepare {{ fund.code }} forecasts</a></p>{% empty %}<p>Complete and independently accept office reconciliation before preparing forecasts.</p>{% endfor %}{% endif %}
+<p>{{ page.paginator.count }} retained packages</p><div class="table-responsive"><table class="table"><thead><tr><th>Fund</th><th>Version</th><th>Status</th><th>Prepared</th></tr></thead><tbody>{% for record in page %}<tr><td>{{ record.fund.code }}</td><td><a href="{% url 'budget:receipt_forecast_detail' record.public_id %}">{{ record.version }}</a></td><td>{{ record.get_status_display }}</td><td>{{ record.prepared_at }}</td></tr>{% empty %}<tr><td colspan="4">No retained forecasts.</td></tr>{% endfor %}</tbody></table></div>
+{% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}
+</div>{% endblock %}

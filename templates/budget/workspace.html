@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block title_ext %} - Annual Budget{% endblock %}
 {% block content %}
+{% if perms.budget.view_form1_account_reviews %}<p class="container pt-3"><a href="{% url 'budget:form1_accounts' %}">Form 1 reporting-account review</a></p>{% endif %}
+{% if perms.budget.view_form1_spa_reviews %}<p class="container pt-3"><a href="{% url 'budget:form1_spas' %}">Form 1 SPA subdivision review</a></p>{% endif %}
+{% if perms.budget.view_form1_packages %}<p class="container pt-3"><a href="{% url 'budget:form1_packages' %}">Whole Form 1 draft history</a></p>{% endif %}
 <div class="container-fluid pb-4">
   <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start mb-3">
     <div><p class="text-uppercase text-muted small font-weight-bold mb-1">GRAND Finance · Budget</p><h1 class="mb-1">Annual budget workspace</h1><p class="text-muted">Prepare calls, ceilings, classified proposals, reviews, and explicit versions before authorization.</p></div>

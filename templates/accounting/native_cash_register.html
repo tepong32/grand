@@ -1,0 +1,8 @@
+{% extends 'base.html' %}{% block content %}<div class="container pb-4">
+<h1 class="h3">Native cash preparations</h1>
+<p>Retained ledger cash sources. These preparations are uncertified and do not authorize available cash or issue Form 1.</p>
+{% if can_prepare %}<p><a class="btn btn-primary" href="{% url 'accounting:native_cash_create' %}">Prepare native cash</a></p>{% endif %}
+<form method="get"><label>Find fund, entity, preparer or preparation ID <input class="form-control" name="q" value="{{ q }}"></label><button class="btn btn-secondary">Search</button></form>
+<p>{{ page.paginator.count }} matching versions. Open a preparation to inspect verified cash amounts.</p><div class="table-responsive"><table class="table"><thead><tr><th>Preparation / version</th><th>Retained fund / entity</th><th>Balance boundary</th><th>Restriction source</th></tr></thead><tbody>
+{% for item in page %}<tr><td><a href="{% url 'accounting:native_cash_detail' item.public_id %}">{{ item.public_id }} · {{ item.version }}</a></td><td>{{ item.payload.native.payload.scope.fund.code }} / {{ item.entity_key }}</td><td>{{ item.balance_date }} / {% if item.boundary == 'start_of_day' %}Start of day{% else %}End of day{% endif %}</td><td>{% if item.restriction_source_id %}Linked original evidence{% else %}Not supplied{% endif %}</td></tr>{% empty %}<tr><td colspan="4">No preparations match this scope.</td></tr>{% endfor %}</tbody></table></div>
+<p>{% if page.has_previous %}<a href="?{{ querystring }}&page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?{{ querystring }}&page={{ page.next_page_number }}">Next</a>{% endif %}</p></div>{% endblock %}

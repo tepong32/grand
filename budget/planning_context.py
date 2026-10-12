@@ -30,6 +30,10 @@ def displayed_context(version, user):
 def build_context(version, user):
     if not can_read_context(user, version):
         raise PermissionDenied
+    from .actuals_consolidation import require_source_choices
+    require_source_choices(version)
+    from .resource_context import capture
+    resources = capture(version)
     today = timezone.localdate()
     year = version.fiscal_year.year
     if year < 3:
@@ -41,6 +45,7 @@ def build_context(version, user):
             raise ValidationError("Proposal classifications no longer belong to the selected Finance ledger.")
         key = (line.fund_id, line.responsibility_center_id, line.account_id)
         row = groups.setdefault(key, {"fund": line.fund.code, "office": line.responsibility_center.code,
+            "office_id": line.responsibility_center.office_id,
             "account": line.account.code, "account_title": line.account.title,
             "supports_expense_activity": line.account.account_type == "expense", "lines": [],
             "proposed": Decimal("0"), "estimate": Decimal("0"), "estimate_complete": True,
@@ -54,8 +59,8 @@ def build_context(version, user):
             "estimate": str(line.second_half_estimate) if line.second_half_estimate is not None else None,
             "estimate_as_of": line.estimate_as_of.isoformat() if line.estimate_as_of else "",
             "estimate_basis": line.estimate_basis})
-    if not groups:
-        return {"schema": 1, "as_of": today.isoformat(), "budget_year": year,
+    if not groups and not version.actuals_source_selection and not version.historical_forecasts:
+        return {"schema": 1, "resources": resources, "as_of": today.isoformat(), "budget_year": year,
                 "prior_year": year-2, "current_year": year-1, "rows": [],
                 "prior_period_complete": today >= date(year-2, 12, 31),
                 "half_period_complete": today >= date(year-1, 6, 30)}
@@ -100,6 +105,9 @@ def build_context(version, user):
                 "amount": str(line.amount), "checksum": authority.snapshot_checksum})
     from accounting.budget_actuals import planning_actuals
     certified = planning_actuals(version, set(groups))
+    if version.actuals_source_selection:
+        from .actuals_selection import resolve
+        certified = resolve(version, user, set(groups), certified)
     rows = []
     for key, row in sorted(groups.items()):
         for prefix in ("prior", "half"):
@@ -118,18 +126,37 @@ def build_context(version, user):
         for prefix in ("prior", "half"):
             evidence = certified.get((key, prefix))
             classes = {item["expense_class"].strip().casefold() for item in row["lines"]}
-            matches = evidence and classes == {evidence["expense_class"].strip().casefold()}
+            matches = evidence and classes == {item.strip().casefold() for item in
+                evidence.get('expense_classes', [evidence['expense_class']])}
             row[prefix + "_certified"] = evidence if matches else None
-            row[prefix + "_certification_state"] = ("Adopted external certificate" if matches else
+            if version.actuals_source_selection:
+                row[prefix + '_certified_evidence'] = {**evidence, 'matches_proposal_classes': bool(matches)} if evidence else None
+            row[prefix + "_certification_state"] = (("Selected native certification" if evidence.get('source_kind') == 'native'
+                else "Adopted external certificate") if matches else
                 "Certificate object class differs from this proposal" if evidence else "No adopted certificate row")
         row["certified_indicative_total"] = str(Decimal(row["half_certified"]["amount"]) + Decimal(row["estimate"])) if (
             row["half_certified"] is not None and row["estimate"] is not None and today >= date(year-1, 6, 30)
         ) else None
         rows.append(row)
-    return {"schema": 2, "as_of": today.isoformat(), "budget_year": year,
+    context = {"schema": 4 if version.actuals_source_selection else 2, "resources": resources, "as_of": today.isoformat(), "budget_year": year,
         "prior_year": year-2, "current_year": year-1, "rows": rows,
         "prior_period_complete": today >= date(year-2, 12, 31),
         "half_period_complete": today >= date(year-1, 6, 30)}
+    if version.historical_forecasts or any(choice.get('coverage_mode') == 'complete_scope' for choice in version.actuals_source_selection.values()):
+        from copy import deepcopy
+        from .actuals_schedule import project
+        from accounting.models import Fund, ResponsibilityCenter
+        from departments.models import Department
+        centers = list(ResponsibilityCenter.objects.filter(department_id=ledger).values_list('pk', 'code', 'office_id'))
+        labels = {'funds': dict(Fund.objects.filter(department_id=ledger).values_list('pk', 'code')),
+                  'centers': {pk: code for pk, code, office in centers},
+                  'office_ids': {pk: office for pk, code, office in centers},
+                  'office_names': dict(Department.objects.filter(pk__in={office for pk, code, office in centers if office}).values_list('pk', 'name'))}
+        from .historical_forecasts import overlay
+        schedule, issues = overlay(project(groups, version.actuals_source_selection, labels), version.historical_forecasts)
+        context.update(schema=7, selected_actual_scopes=deepcopy(version.actuals_source_selection),
+            certified_schedule=schedule, historical_forecasts=deepcopy(version.historical_forecasts), forecast_issues=issues)
+    return context
 
 
 @transaction.atomic(using="finance")

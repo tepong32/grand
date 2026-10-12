@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title_ext %} - Expenditure batch review{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a href="{% url 'accounting:budget_attribution_register' %}">Expenditure review register</a>
+  <h1 class="h3 mt-3">Expenditure batch review</h1>
+  <p>{{ first.period_start }} – {{ first.period_end }} · {{ items|length }} journal{{ items|length|pluralize }} · {% if first.status == 'submitted' %}For independent review{% elif first.status == 'approved' %}Review recorded{% else %}Returned{% endif %}</p>
+  <p>Prepared by {{ first.prepared_by_label }} on {{ first.prepared_at }}<br>Review every journal and allocation in this batch. Approval rechecks current sources and dated component capacity.</p>
+  <div class="alert alert-info">This is classification evidence. It does not post a journal or issue a signed Budget actuals certificate.{% if unresolved %} <strong>{{ unresolved }} unresolved allocation{{ unresolved|pluralize }} remain{{ unresolved|pluralize:'s,' }} and cannot establish complete coverage.</strong>{% endif %}</div>
+  {% if can_export %}<a class="btn btn-outline-secondary mb-3" href="{% url 'accounting:budget_attribution_export' first.batch_id %}">Download retained review evidence</a>{% endif %}
+  {% for item in items %}<section class="card card-body mb-3">
+    <h2 class="h5">{{ item.source.reference }} · Version {{ item.record.version }}</h2>
+    <p>{{ item.source.entry_date }} · {{ item.source.description }}<br>Evidence: {{ item.record.evidence_reference }}<br>Preparation basis: {{ item.record.reason }}</p>
+    <p>Included signed amount: <strong>{{ item.included|floatformat:2 }}</strong> · <a href="{% url 'accounting:budget_attribution_register' %}?entry={{ item.record.entry_id }}">All versions for this journal</a></p>
+    {% if item.record.dependencies %}<p>This journal inherits from an explicit predecessor proposal in this review group. The whole group must be decided together.</p>{% endif %}
+    <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Source line</th><th>Treatment</th><th>Signed amount</th><th>Office / object</th><th>Evidence basis</th></tr></thead><tbody>
+    {% for row in item.rows %}<tr><td>{{ row.line.sequence }} · {{ row.line.account.code }}<br>{{ row.line.account.title }}<br>Debit {{ row.line.debit|floatformat:2 }} / credit {{ row.line.credit|floatformat:2 }}</td><td>{{ row.allocation.disposition|capfirst }}<br>{{ row.purpose }}{% if row.source_basis %}<br>Source basis: {{ row.source_basis }}{% endif %}{% if row.original %}<br>Original: {{ row.original }}{% endif %}{% if row.reversal_original %}<br>Reverses: {{ row.reversal_original }}{% endif %}</td><td>{{ row.allocation.signed_amount|floatformat:2 }}</td><td>{% if row.allocation.center %}{{ row.allocation.center.code }} · {{ row.allocation.center.name }}<br>{{ row.allocation.expense_class }}{% else %}—{% endif %}</td><td>{{ row.allocation.basis }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>{% endfor %}
+  {% if first.status != 'submitted' %}<section class="card card-body mb-3"><h2 class="h5">Retained decision</h2><p>{{ first.reviewed_by_label }} · {{ first.reviewed_at }}</p><p>{{ first.review_note|linebreaksbr }}</p></section>{% endif %}
+  {% if can_review or decision_form.is_bound %}<form method="post" action="{% url 'accounting:budget_attribution_decide' first.batch_id %}" class="card card-body">{% csrf_token %}
+    {{ decision_form.non_field_errors }}{{ decision_form.decision.errors }}{{ decision_form.note.errors }}
+    <label for="{{ decision_form.note.id_for_label }}">{{ decision_form.note.label }}</label>{{ decision_form.note }}
+    {% if can_review %}<div class="mt-3"><button name="decision" value="approve" class="btn btn-primary">Record review for all {{ items|length }} journal{{ items|length|pluralize }}</button> <button name="decision" value="return" class="btn btn-outline-secondary">Return whole batch</button></div>{% else %}<p>This batch is not awaiting your independent review.</p>{% endif %}
+  </form>{% endif %}
+</div>
+{% endblock %}

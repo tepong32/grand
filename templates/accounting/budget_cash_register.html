@@ -1,0 +1,10 @@
+{% extends 'base.html' %}{% block content %}<div class="container pb-4">
+<h1 class="h3">Historical cash evidence</h1>
+<p>Dated cash certificates, restrictions and original reconciliation evidence. Adoption does not authorize spending or issue Form 1.</p>
+{% if can_prepare %}<p><a class="btn btn-primary" href="{% url 'accounting:budget_cash_create' %}">Submit historical cash evidence</a></p>{% endif %}
+<form method="get" class="my-3"><label>Search reference, fund or entity <input class="form-control" name="q" value="{{ q }}"></label>
+<label>State <select class="form-control" name="status"><option value="">All</option><option value="submitted" {% if status == 'submitted' %}selected{% endif %}>For adoption</option><option value="adopted" {% if status == 'adopted' %}selected{% endif %}>Adopted</option><option value="returned" {% if status == 'returned' %}selected{% endif %}>Returned</option></select></label><button class="btn btn-secondary">Search</button></form>
+<p>{{ page.paginator.count }} matching versions</p>
+<div class="table-responsive"><table class="table"><thead><tr><th>Reference / version</th><th>Entity / fund</th><th>Balance boundary</th><th>State</th></tr></thead><tbody>
+{% for item in page %}<tr><td><a href="{% url 'accounting:budget_cash_detail' item.public_id %}">{{ item.payload.reference }} · {{ item.version }}</a></td><td>{{ item.payload.scope.entity_label }} / {{ item.payload.scope.fund_code }}</td><td>{{ item.balance_date }} / {% if item.boundary == 'start_of_day' %}Start of day{% else %}End of day{% endif %}</td><td>{{ item.status|title }}</td></tr>{% empty %}<tr><td colspan="4">No cash evidence matches this scope.</td></tr>{% endfor %}</tbody></table></div>
+<p>{% if page.has_previous %}<a href="?{{ querystring }}&page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?{{ querystring }}&page={{ page.next_page_number }}">Next</a>{% endif %}</p></div>{% endblock %}

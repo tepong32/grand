@@ -75,6 +75,20 @@ def transition_call(call, action, user, reason=""):
 
 
 def ceiling_differences(version):
+    if version.kind != BudgetVersion.DEPARTMENT and version.requesting_department_id is None:
+        proposed, labels = defaultdict(lambda: Decimal('0')), {}
+        for line in version.lines.select_related('responsibility_center'):
+            office = line.responsibility_center.office_id
+            key = (office, line.fund_id, line.expense_class)
+            proposed[key] += line.amount
+            labels[office] = line.responsibility_center.name
+        ceilings = {(row.requesting_department_id, row.fund_id, row.expense_class): row.amount
+                    for row in version.budget_call.ceilings.all()}
+        return [{'office_id': key[0], 'office': labels[key[0]], 'fund_id': key[1],
+                 'expense_class': key[2], 'proposed': amount,
+                 'ceiling': ceilings.get(key, Decimal('0')),
+                 'difference': ceilings.get(key, Decimal('0')) - amount}
+                for key, amount in sorted(proposed.items(), key=lambda item: (item[0][0] or 0, item[0][1], item[0][2]))]
     proposed = defaultdict(lambda: Decimal("0"))
     for line in version.lines.all():
         proposed[(line.fund_id, line.expense_class)] += line.amount
@@ -102,15 +116,20 @@ def validate_version_for_submission(version):
 
 @transaction.atomic(using="finance")
 def transition_version(version, action, user, reason=""):
-    version = BudgetVersion.objects.select_for_update().select_related("budget_call").get(pk=version.pk)
+    version = BudgetVersion.objects.select_for_update().get(pk=version.pk)
     _require_action(user, version, "review_budget_proposals" if action in ("approve", "return") else "prepare_budget_proposals")
+    version.budget_call = BudgetCall.objects.select_for_update().get(pk=version.budget_call_id)
     now, label = timezone.now(), actor_label(user)
     if action == "submit" and version.status in (BudgetVersion.DRAFT, BudgetVersion.RETURNED):
         validate_version_for_submission(version)
         from .planning_context import build_context
         version.planning_context_snapshot = build_context(version, user)
+        if version.planning_context_snapshot.get('forecast_issues'):
+            raise ValidationError(version.planning_context_snapshot['forecast_issues'])
         version.status, version.submitted_by_id, version.submitted_by_label, version.submitted_at = BudgetVersion.FOR_REVIEW, user.pk, label, now
     elif action == "approve" and version.status == BudgetVersion.FOR_REVIEW:
+        from .resource_context import require_retained
+        require_retained(version)
         submitted = BudgetAuditEvent.objects.filter(target_id=str(version.public_id), action="submit").order_by("-pk").first()
         retained = submitted.snapshot.get("planning_context") if submitted else None
         if (retained is not None or version.planning_context_snapshot) and retained != version.planning_context_snapshot:
@@ -152,7 +171,9 @@ def compare_versions(left, right):
 @transaction.atomic(using="finance")
 def consolidate_versions(*, sources, user, title, change_explanation):
     source_ids = [item.pk for item in sources]
-    sources = list(BudgetVersion.objects.select_for_update().filter(pk__in=source_ids).select_related("budget_call", "fiscal_year"))
+    # Lock all source versions before the shared call. Do not lock joined call
+    # rows while the source set is only partly locked (overlapping-set inversion).
+    sources = list(BudgetVersion.objects.select_for_update().filter(pk__in=source_ids).order_by('pk'))
     if not sources:
         raise ValidationError("Choose at least one independently approved department proposal.")
     if len(sources) != len(set(source_ids)):
@@ -160,10 +181,18 @@ def consolidate_versions(*, sources, user, title, change_explanation):
     for source in sources:
         _require_action(user, source, "review_budget_proposals")
     first = sources[0]
+    call = BudgetCall.objects.select_for_update().get(pk=first.budget_call_id)
     if any(item.status != BudgetVersion.APPROVED or item.kind != BudgetVersion.DEPARTMENT for item in sources):
         raise ValidationError("Only approved department proposal versions may be consolidated.")
-    if any(item.budget_call_id != first.budget_call_id for item in sources):
+    if any(item.budget_call_id != call.pk for item in sources):
         raise ValidationError("All consolidation sources must use the same annual budget call.")
+    offices = [item.requesting_department_id for item in sources]
+    if any(office is None for office in offices) or len(offices) != len(set(offices)):
+        raise ValidationError('Choose exactly one approved proposal version per requesting office.')
+    from .actuals_consolidation import capture_origins
+    actuals_origins = capture_origins(sources)
+    from .historical_forecasts import consolidate_forecasts
+    historical_forecasts = consolidate_forecasts(sources)
     next_version = (BudgetVersion.objects.filter(
         budget_call=first.budget_call, kind=BudgetVersion.EXECUTIVE,
     ).aggregate(value=models.Max("version"))["value"] or 0) + 1
@@ -172,6 +201,8 @@ def consolidate_versions(*, sources, user, title, change_explanation):
         budget_call=first.budget_call, fiscal_year=first.fiscal_year, kind=BudgetVersion.EXECUTIVE,
         version=next_version, title=title, change_explanation=change_explanation,
         created_by_id=user.pk, created_by_label=actor_label(user),
+        actuals_source_origins=actuals_origins,
+        historical_forecasts=historical_forecasts,
     )
     BudgetVersionSource.objects.bulk_create([
         BudgetVersionSource(
@@ -179,7 +210,7 @@ def consolidate_versions(*, sources, user, title, change_explanation):
             target_version=target, source_version=source,
         ) for source in sources
     ])
-    line_copies, estimate_copies = [], []
+    line_copies = []
     for source in sources:
         for line in source.lines.all():
             line_copies.append(BudgetProposalLine(
@@ -191,21 +222,40 @@ def consolidate_versions(*, sources, user, title, change_explanation):
                 amount=line.amount, change_explanation=f"Consolidated from {source.title} v{source.version}. {line.change_explanation}".strip(),
                 second_half_estimate=line.second_half_estimate, estimate_as_of=line.estimate_as_of, estimate_basis=line.estimate_basis,
             ))
-        for estimate in source.resource_estimates.all():
-            estimate_copies.append(BudgetResourceEstimate(
-                department_id=target.department_id, department_label=target.department_label,
-                version=target, funding_source=estimate.funding_source,
-                description=f"{source.requesting_department_label}: {estimate.description}",
-                amount=estimate.amount, basis=estimate.basis,
-            ))
     BudgetProposalLine.objects.bulk_create(line_copies)
-    BudgetResourceEstimate.objects.bulk_create(estimate_copies)
+    from .resource_context import copy_resources
+    resource_origins = copy_resources(sources, target)
     record_event(target, "consolidated", user, change_explanation, {
         "source_version_ids": [str(item.public_id) for item in sources],
         "source_count": len(sources), "line_count": len(line_copies),
         "total": str(target.total_amount), "spendable": False,
+        "actuals_source_origins": actuals_origins,
+        "historical_forecasts": historical_forecasts,
+        "resource_origins": resource_origins,
     })
     return target
+
+
+@transaction.atomic(using='finance')
+def create_version_draft(version, user):
+    """Manual identities share the annual-call creation boundary with consolidation."""
+    if version.pk:
+        raise ValidationError('Create a new proposal identity; do not overwrite an existing version.')
+    if version.supersedes_id:
+        predecessor = BudgetVersion.objects.select_for_update().filter(
+            pk=version.supersedes_id, department_id=version.department_id).first()
+        if predecessor is None:
+            raise ValidationError('Select a predecessor in this Budget office.')
+        version.supersedes = predecessor
+    call = BudgetCall.objects.select_for_update().get(pk=version.budget_call_id)
+    _require_action(user, call, 'prepare_budget_proposals')
+    if call.status != BudgetCall.PUBLISHED:
+        raise ValidationError('Create proposal drafts only under a published budget call.')
+    version.budget_call = call
+    version.full_clean()
+    version.save()
+    record_event(version, 'created', user, snapshot={'spendable': False})
+    return version
 
 
 @transaction.atomic(using="finance")

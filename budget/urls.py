@@ -2,10 +2,48 @@ from django.urls import path
 
 from . import views
 from . import quarterly_views
+from . import actuals_views
+from . import historical_forecast_views
+from . import office_form_views
+from . import summary_comparison_views
+from . import summary_reconciliation_views
+from . import receipt_forecast_views
+from . import form1_account_views
+from . import form1_spa_views
+from . import form1_package_views
 
 app_name = "budget"
 
 urlpatterns = [
+    path('form1-packages/', form1_package_views.register, name='form1_packages'),
+    path('form1-packages/<uuid:public_id>/', form1_package_views.detail, name='form1_package_detail'),
+    path('form1-packages/<uuid:public_id>/export/<str:kind>/', form1_package_views.export, name='form1_package_export'),
+    path('spa-reviews/', form1_spa_views.register, name='form1_spas'),
+    path('spa-reviews/prepare/<uuid:public_id>/', form1_spa_views.prepare, name='form1_spa_prepare'),
+    path('spa-reviews/<uuid:public_id>/', form1_spa_views.detail, name='form1_spa_detail'),
+    path('spa-reviews/<uuid:public_id>/review/<str:role>/', form1_spa_views.review, name='form1_spa_review'),
+    path('spa-reviews/<uuid:public_id>/export/<str:kind>/', form1_spa_views.export, name='form1_spa_export'),
+    path('account-reviews/', form1_account_views.register, name='form1_accounts'),
+    path('account-reviews/prepare/<uuid:public_id>/', form1_account_views.prepare, name='form1_account_prepare'),
+    path('account-reviews/<uuid:public_id>/', form1_account_views.detail, name='form1_account_detail'),
+    path('account-reviews/<uuid:public_id>/review/', form1_account_views.review, name='form1_account_review'),
+    path('account-reviews/<uuid:public_id>/export/<str:kind>/', form1_account_views.export, name='form1_account_export'),
+    path('versions/<uuid:public_id>/receipt-forecasts/', receipt_forecast_views.register, name='receipt_forecasts'),
+    path('versions/<uuid:public_id>/receipt-forecasts/<int:fund_id>/prepare/', receipt_forecast_views.prepare, name='receipt_forecast_prepare'),
+    path('receipt-forecasts/<uuid:public_id>/', receipt_forecast_views.detail, name='receipt_forecast_detail'),
+    path('receipt-forecasts/<uuid:public_id>/review/', receipt_forecast_views.review, name='receipt_forecast_review'),
+    path('receipt-forecasts/<uuid:public_id>/export/', receipt_forecast_views.export, name='receipt_forecast_export'),
+    path('versions/<uuid:public_id>/summary-reconciliations/', summary_reconciliation_views.register, name='summary_reconciliations'),
+    path('versions/<uuid:public_id>/summary-reconciliations/prepare/', summary_reconciliation_views.prepare, name='summary_reconciliation_prepare'),
+    path('summary-reconciliations/<uuid:public_id>/', summary_reconciliation_views.detail, name='summary_reconciliation_detail'),
+    path('summary-reconciliations/<uuid:public_id>/review/', summary_reconciliation_views.review, name='summary_reconciliation_review'),
+    path('summary-reconciliations/<uuid:public_id>/export/', summary_reconciliation_views.export, name='summary_reconciliation_export'),
+    path('office-forms/<uuid:public_id>/compare-joint-actuals/', summary_comparison_views.diagnostic, name='summary_comparison'),
+    path('versions/<uuid:public_id>/office-forms/', office_form_views.register, name='office_forms'),
+    path('versions/<uuid:public_id>/office-forms/<int:office_id>/<int:fund_id>/prepare/', office_form_views.prepare, name='office_form_prepare'),
+    path('office-forms/<uuid:public_id>/', office_form_views.detail, name='office_form_detail'),
+    path('office-forms/<uuid:public_id>/decision/', office_form_views.action, name='office_form_action'),
+    path('office-forms/<uuid:public_id>/download/', office_form_views.download, name='office_form_download'),
     path("appropriations/<uuid:public_id>/quarterly/new/", quarterly_views.create, name="quarterly_create"),
     path("quarterly/<uuid:public_id>/", quarterly_views.detail, name="quarterly_detail"),
     path("quarterly/<uuid:public_id>/edit/", quarterly_views.edit, name="quarterly_edit"),
@@ -21,10 +59,15 @@ urlpatterns = [
     path("versions/new/", views.version_create, name="version_create"),
     path("versions/consolidate/", views.consolidate, name="consolidate"),
     path("versions/<uuid:public_id>/", views.version_detail, name="version_detail"),
+    path("versions/<uuid:public_id>/actuals-sources/", actuals_views.sources, name="actuals_sources"),
+    path("versions/<uuid:public_id>/object-schedule/export/", actuals_views.schedule_export, name="object_schedule_export"),
+    path("versions/<uuid:public_id>/historical-forecasts/<str:key>/", historical_forecast_views.edit, name="historical_forecast_edit"),
     path("versions/<uuid:public_id>/lines/new/", views.line_create, name="line_create"),
     path("versions/<uuid:public_id>/lines/<int:line_id>/planning-estimate/", views.planning_estimate, name="planning_estimate"),
     path("versions/<uuid:public_id>/planning-context/export/", views.planning_context_export, name="planning_context_export"),
     path("versions/<uuid:public_id>/resources/new/", views.resource_create, name="resource_create"),
+    path('versions/<uuid:public_id>/resources/<int:item_id>/edit/', views.resource_edit, name='resource_edit'),
+    path('versions/<uuid:public_id>/resources/export/', views.resource_export, name='resource_export'),
     path("versions/<uuid:public_id>/comments/new/", views.comment_create, name="comment_create"),
     path("versions/<uuid:public_id>/export/", views.version_export, name="version_export"),
     path("versions/<uuid:public_id>/compare/", views.version_compare, name="version_compare"),

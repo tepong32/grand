@@ -1,5 +1,6 @@
-from datetime import date
+from datetime import date, datetime, timezone as datetime_timezone
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth.models import Permission
 from django.urls import reverse
@@ -15,7 +16,8 @@ from .services import prepare_voucher, validate_accounting
 
 
 class ReturnedRemittanceSettlementTests(fixtures.RemittanceReturnTests):
-    def test_actual_return_corrected_dv_payment_and_retained_outputs(self):
+    @patch("django.utils.timezone.now", return_value=datetime(2026, 9, 15, 3, tzinfo=datetime_timezone.utc))
+    def test_actual_return_corrected_dv_payment_and_retained_outputs(self, scenario_clock):
         self.remitted = self.posted_remittance()
         self.batch = self.remitted_source_batch()
         original = list(self.remitted.lines.values('account_id', 'debit', 'credit'))
@@ -40,6 +42,8 @@ class ReturnedRemittanceSettlementTests(fixtures.RemittanceReturnTests):
             idempotency_key='returned-remittance-corrected-validation')
         self.post_request(self.case.posting_requests.get(kind=Rule.ADJUSTMENT, version=2))
         self.pay(self.case)
+        # A later payment must not erase the original earlier dated liability.
+        self.assertEqual(claim_rows(self.accounting.pk, date(2026, 9, 14))[0]['outstanding'], Decimal('1450'))
         rows = withholding_availability(finance_department_id=self.accounting.pk,
             transaction_type=self.transaction_variant.code, as_of_date=date(2026, 9, 30), include_nonpositive=True)
         self.assertEqual(rows[0]['ledger_balance'], Decimal('50'))

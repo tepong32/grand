@@ -5,9 +5,110 @@ from copy import deepcopy
 
 FINANCE_UAT_VIEWER_GROUP = "Finance UAT Viewer"
 
+FORM1_PACKAGE_READ_PERMISSIONS = tuple(
+    f'{app}.{action}_{source}'
+    for app,sources in (
+        ('budget',('form1_packages','form1_spa_reviews','form1_account_reviews','budget_receipt_forecasts')),
+        ('accounting',('native_budget_actuals','budget_summary_actuals','budget_cash_evidence','native_budget_cash')),
+    ) for source in sources for action in ('view','export')
+)
+
 
 FINANCE_ROLE_PERMISSIONS = {
+    'Budget Form 1 Package Preparer': (*FORM1_PACKAGE_READ_PERMISSIONS,
+        'budget.view_budget_audit','budget.prepare_form1_packages'),
+    'Accounting Form 1 Package Viewer': FORM1_PACKAGE_READ_PERMISSIONS,
+    'Treasury Form 1 Package Viewer': FORM1_PACKAGE_READ_PERMISSIONS,
+    'Budget Form 1 Package Reviewer': (*FORM1_PACKAGE_READ_PERMISSIONS,
+        'budget.view_budget_audit','budget.review_form1_package_budget'),
+    'Accounting Form 1 Package Reviewer': (*FORM1_PACKAGE_READ_PERMISSIONS,
+        'budget.review_form1_package_accounting'),
+    'Treasury Form 1 Package Reviewer': (*FORM1_PACKAGE_READ_PERMISSIONS,
+        'budget.review_form1_package_treasury'),
+    'Budget Form 1 SPA Preparer': (
+        'budget.view_budget_workspace', 'budget.view_form1_spa_reviews', 'budget.export_form1_spa_reviews',
+        'budget.prepare_form1_spa_reviews', 'budget.view_form1_account_reviews', 'budget.export_form1_account_reviews',
+        'accounting.view_native_budget_actuals', 'accounting.export_native_budget_actuals',
+        'accounting.view_budget_summary_actuals', 'accounting.export_budget_summary_actuals',
+    ),
+    'Budget Form 1 SPA Reviewer': (
+        'budget.view_budget_workspace', 'budget.view_form1_spa_reviews', 'budget.export_form1_spa_reviews',
+        'budget.review_form1_spa_budget', 'budget.view_form1_account_reviews', 'budget.export_form1_account_reviews',
+        'accounting.view_native_budget_actuals', 'accounting.export_native_budget_actuals',
+        'accounting.view_budget_summary_actuals', 'accounting.export_budget_summary_actuals',
+    ),
+    'Accounting Form 1 SPA Reviewer': (
+        'accounting.view_accounting_workspace', 'budget.view_form1_spa_reviews', 'budget.export_form1_spa_reviews',
+        'budget.review_form1_spa_accounting', 'budget.view_form1_account_reviews', 'budget.export_form1_account_reviews',
+        'accounting.view_native_budget_actuals', 'accounting.export_native_budget_actuals',
+        'accounting.view_budget_summary_actuals', 'accounting.export_budget_summary_actuals',
+    ),
+    'Budget Form 1 Account Preparer': (
+        'budget.view_budget_workspace', 'budget.view_budget_audit',
+        'budget.view_budget_receipt_forecasts',
+        'budget.view_form1_account_reviews', 'budget.export_form1_account_reviews',
+        'budget.prepare_form1_account_reviews',
+        'accounting.view_native_budget_actuals', 'accounting.export_native_budget_actuals',
+        'accounting.view_budget_summary_actuals', 'accounting.export_budget_summary_actuals',
+    ),
+    'Accounting Form 1 Account Reviewer': (
+        'accounting.view_accounting_workspace',
+        'budget.view_form1_account_reviews', 'budget.export_form1_account_reviews',
+        'budget.review_form1_account_reviews',
+        'accounting.view_native_budget_actuals', 'accounting.export_native_budget_actuals',
+        'accounting.view_budget_summary_actuals', 'accounting.export_budget_summary_actuals',
+    ),
+    'Budget Receipt Forecast Preparer': (
+        'budget.view_budget_workspace', 'budget.view_budget_audit',
+        'budget.view_budget_receipt_forecasts', 'budget.export_budget_receipt_forecasts',
+        'budget.prepare_budget_receipt_forecasts',
+        'accounting.view_native_budget_actuals', 'accounting.export_native_budget_actuals',
+    ),
+    'Budget Receipt Forecast Officer Reviewer': (
+        'budget.view_budget_workspace', 'budget.view_budget_audit',
+        'budget.view_budget_receipt_forecasts', 'budget.export_budget_receipt_forecasts',
+        'budget.review_budget_receipt_forecasts',
+        'accounting.view_native_budget_actuals', 'accounting.export_native_budget_actuals',
+    ),
+    'Budget Receipt Classifier': (
+        'accounting.view_accounting_workspace', 'accounting.view_budget_receipt_attributions',
+        'accounting.prepare_budget_receipt_attributions', 'accounting.export_budget_receipt_attributions',
+    ),
+    'Budget Receipt Reviewer': (
+        'accounting.view_accounting_workspace', 'accounting.view_budget_receipt_attributions',
+        'accounting.review_budget_receipt_attributions', 'accounting.export_budget_receipt_attributions',
+    ),
+    'Budget Actuals Preparer': (
+        'accounting.view_accounting_workspace', 'accounting.view_native_budget_actuals',
+        'accounting.prepare_native_budget_actuals', 'accounting.export_native_budget_actuals',
+        'accounting.view_budget_receipt_attributions', 'accounting.view_native_budget_statements',
+    ),
+    'Budget Actuals Reviewer': (
+        'accounting.view_accounting_workspace', 'accounting.view_native_budget_actuals',
+        'accounting.review_native_budget_actuals', 'accounting.export_native_budget_actuals',
+        'accounting.view_budget_receipt_attributions', 'accounting.view_native_budget_statements',
+    ),
+    'Budget Actuals Accountant Certifier': (
+        'accounting.view_accounting_workspace', 'accounting.view_native_budget_actuals',
+        'accounting.export_native_budget_actuals', 'accounting.certify_accountant_native_budget_actuals',
+    ),
+    'Budget Actuals Treasurer Certifier': (
+        'accounting.view_accounting_workspace', 'accounting.view_native_budget_actuals',
+        'accounting.export_native_budget_actuals', 'accounting.certify_treasurer_native_budget_actuals',
+    ),
+    'Budget Cash Accountant Certifier': (
+        'accounting.view_accounting_workspace', 'accounting.view_native_budget_cash',
+        'accounting.export_native_budget_cash', 'accounting.view_budget_cash_evidence',
+        'accounting.export_budget_cash_evidence', 'accounting.certify_accountant_native_budget_cash',
+    ),
+    'Budget Cash Treasurer Certifier': (
+        'accounting.view_accounting_workspace', 'accounting.view_native_budget_cash',
+        'accounting.export_native_budget_cash', 'accounting.view_budget_cash_evidence',
+        'accounting.export_budget_cash_evidence', 'accounting.certify_treasurer_native_budget_cash',
+    ),
     "Treasury Collection Officer": (
+        'accounting.view_native_budget_cash', 'accounting.export_native_budget_cash',
+        'accounting.view_budget_cash_evidence', 'accounting.export_budget_cash_evidence',
         "vouchers.link_collection_custody",
         "tracepoint.view_tracepoint_workspace",
         "tracepoint.prepare_tracked_packets",
@@ -97,7 +198,11 @@ FINANCE_ROLE_PERMISSIONS = {
         "vouchers.view_voucher_audit",
     ),
     "Accounting DV Preparer": (
+        'accounting.view_native_budget_cash', 'accounting.prepare_native_budget_cash', 'accounting.export_native_budget_cash',
+        "accounting.view_budget_attributions", "accounting.prepare_budget_attributions", "accounting.export_budget_attributions",
         "accounting.view_budget_actuals", "accounting.prepare_budget_actuals", "accounting.export_budget_actuals",
+        'accounting.view_budget_summary_actuals', 'accounting.prepare_budget_summary_actuals', 'accounting.export_budget_summary_actuals',
+        'accounting.view_budget_cash_evidence', 'accounting.prepare_budget_cash_evidence', 'accounting.export_budget_cash_evidence',
         "accounting.view_officer_advances",
         "accounting.export_officer_advances",
         "vouchers.view_collection_register",
@@ -139,7 +244,11 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.export_local_form_acceptance",
     ),
     "Accounting Reviewer": (
+        'accounting.view_native_budget_cash', 'accounting.export_native_budget_cash',
+        "accounting.view_budget_attributions", "accounting.review_budget_attributions", "accounting.export_budget_attributions",
         "accounting.view_budget_actuals", "accounting.review_budget_actuals", "accounting.export_budget_actuals",
+        'accounting.view_budget_summary_actuals', 'accounting.review_budget_summary_actuals', 'accounting.export_budget_summary_actuals',
+        'accounting.view_budget_cash_evidence', 'accounting.review_budget_cash_evidence', 'accounting.export_budget_cash_evidence',
         "vouchers.review_payment_presentations",
         "accounting.view_officer_advances",
         "accounting.export_officer_advances",
@@ -189,6 +298,8 @@ FINANCE_ROLE_PERMISSIONS = {
         "reporting.export_local_form_acceptance",
     ),
     "Treasury Disbursement Officer": (
+        'accounting.view_native_budget_cash', 'accounting.export_native_budget_cash',
+        'accounting.view_budget_cash_evidence', 'accounting.export_budget_cash_evidence',
         "vouchers.record_payment_presentations",
         "vouchers.view_voucher_workbench",
         "vouchers.issue_payment_instruments",

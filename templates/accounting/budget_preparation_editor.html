@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title_ext %} - Prepare expenditure allocations{% endblock %}
+{% block content %}<div class="container pb-4">
+<a href="{% url 'accounting:budget_preparation_select' %}">Start a new source selection</a>
+<h1 class="h3 mt-3">Prepare expenditure allocations</h1>
+<p>{{ context.fund_label }} · {{ context.period_start }} – {{ context.period_end }}</p>
+<div class="alert alert-info">Partition every line exactly once. Add rows to split an amount across offices or purposes. Leave uncertain amounts unresolved and explain what evidence is missing. Preparation requires separate independent review and is not certification.</div>
+{% for warning in context.warnings %}<div class="alert alert-warning text-dark">{% for message in warning.messages %}{{ message }} {% endfor %}</div>{% endfor %}
+{% if context.unlinked_liability_lines %}<p class="alert alert-warning text-dark">Some liability lines are not linked applications. Inclusion requires reviewed original-source evidence. An original credit may instead be explicitly classified as a source component.</p>{% endif %}
+{% if context.unlinked_liability_lines %}<details class="mb-3"><summary>Review missing original-liability evidence</summary>
+<p>Open the source finder in a separate tab to keep these entered allocations. After independent claim review, return and start a new source selection; this editor retains the earlier evidence.</p>
+<ul>{% for line in context.unlinked_liability_lines %}<li><a target="_blank" rel="noopener" href="{% url 'accounting:budget_claim_sources' line.line_id %}">{{ line.entry_reference }} · line {{ line.sequence }} · {{ line.account_code }}</a></li>{% endfor %}</ul></details>{% endif %}
+<form id="preparation-form" method="post" action="{% url 'accounting:budget_preparation_submit' %}">{% csrf_token %}
+<input type="hidden" name="context" value="{{ token }}">
+<section class="card card-body mb-3">{{ basis.as_p }}</section>
+{% for group in groups %}<section class="card card-body mb-3 journal-editor">
+<h2 class="h5">{{ group.entry.reference }} · {{ group.entry.entry_date }}</h2>
+<p>{{ group.entry.description }} · Previous proposal version {{ group.entry.latest }}</p>
+{{ group.treatment.as_p }}
+{% if group.pairing %}<fieldset class="reversal-pairing"><legend class="h6">Pair identical financial lines explicitly</legend>
+<p>Choose each original line once. Its reviewed allocation—or its explicit proposal in this batch—will be mirrored without changing its purpose, office or amount.</p>{{ group.pairing.as_p }}</fieldset>{% endif %}
+<fieldset class="allocations">{{ group.rows.management_form }}{{ group.rows.non_form_errors }}
+<div class="allocation-list">{% for row in group.rows %}<div class="border rounded p-3 mb-3">{{ row.as_p }}</div>{% endfor %}</div>
+<button type="button" class="btn btn-outline-secondary add-allocation">Add allocation row</button>
+<template class="allocation-template"><div class="border rounded p-3 mb-3">{{ group.rows.empty_form.as_p }}</div></template>
+</fieldset><p class="inheritance-note" hidden>The server will copy the exact mirrored predecessor allocations. No independent allocations will be submitted for this reversal.</p>
+</section>{% endfor %}
+<button class="btn btn-primary">Submit complete batch for independent review</button>
+</form></div>
+<script>
+document.querySelectorAll('.journal-editor').forEach(section => {
+  const mode = section.querySelector('select[name$="-mode"]');
+  const rows = section.querySelector('.allocations');
+  const update = () => {
+    const inherited = mode.value !== 'manual';
+    rows.disabled = inherited; rows.hidden = inherited;
+    const pairing = section.querySelector('.reversal-pairing');
+    if (pairing) { pairing.disabled = !inherited; pairing.hidden = !inherited; }
+    section.querySelector('.inheritance-note').hidden = !inherited;
+  };
+  mode.addEventListener('change', update); update();
+  section.querySelector('.add-allocation').addEventListener('click', () => {
+    const total = rows.querySelector('input[name$="-TOTAL_FORMS"]');
+    const index = Number(total.value);
+    section.querySelector('.allocation-list').insertAdjacentHTML('beforeend',
+      section.querySelector('.allocation-template').innerHTML.replaceAll('__prefix__', String(index)));
+    total.value = String(index + 1);
+  });
+});
+// Send a single structured field so large complete batches do not exceed the
+// framework's field-count limit. The server still validates every ordinary form.
+document.getElementById('preparation-form').addEventListener('submit', event => {
+  const form = event.currentTarget;
+  const pairs = [...new FormData(form).entries()].filter(([key]) =>
+    key !== 'context' && key !== 'csrfmiddlewaretoken');
+  form.querySelectorAll('input, select, textarea').forEach(field => {
+    if (field.name !== 'context' && field.name !== 'csrfmiddlewaretoken') field.disabled = true;
+  });
+  const packed = document.createElement('input');
+  packed.type = 'hidden'; packed.name = 'allocations_payload'; packed.value = JSON.stringify(pairs);
+  form.appendChild(packed);
+});
+window.addEventListener('pageshow', event => {
+  if (!event.persisted) return;
+  const form = document.getElementById('preparation-form');
+  form.querySelectorAll('input[name="allocations_payload"]').forEach(field => field.remove());
+  form.querySelectorAll('input, select, textarea').forEach(field => { field.disabled = false; });
+  form.querySelectorAll('select[name$="-mode"]').forEach(field => field.dispatchEvent(new Event('change')));
+});
+</script>{% endblock %}

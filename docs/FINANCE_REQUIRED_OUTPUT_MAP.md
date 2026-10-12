@@ -1,6 +1,6 @@
 # Required office outputs: source map and unresolved acceptance
 
-Status: development checkpoint, 2026-09-21. This is a source-to-output map for the
+Status: development checkpoint, updated 2026-10-12. This is a source-to-output map for the
 Finance foundation gate, not an accepted inventory of mandatory LGU forms.
 
 The user reports that the office scarcely uses eGAPS reports because they are not
@@ -8,11 +8,36 @@ user-friendly. Actual usage therefore cannot establish the required output set.
 Keep eGAPS closed and untouched. Begin with the work being performed and retain
 explicit local confirmation of names, periods, recipients, signatures and layouts.
 
+Current Form 1 source work connects retained account review and separate Budget/
+Accounting SPA decisions to combined incomplete PDF/whole JSON drafts. Original
+flow-only bytes remain reproducible; eleven synthetic combined pages and actual
+desktop/mobile downloads were inspected. The source-composition checkpoint passed
+eight cases on SQLite and MySQL; later thirteen-case delivery regression passed
+on both backends without skips. Exact results are in the [Form 1 source contract](FINANCE_FORM1_SOURCE_CONTRACT.md)
+and current handoff. These drafts preserve source state and unknown coverage;
+cash-stock/forecast bridges, PhilHealth overlap, shared-entity allocation, final
+certification/issuance and LGU output acceptance remain open. This is not a newly
+confirmed mandatory local output or completion of FG-06.
+
+The [PhilHealth treatment evidence checkpoint](FINANCE_FORM1_PHILHEALTH_SOURCE_AUDIT.md#treatment-evidence-checkpoint---2026-10-12)
+confirms original Form 1 gross ending/deduction/net ordering. Full newer SHF
+instruments, local applicability and any numeric overlap recipe remain unverified;
+source classifications or internal review cannot establish that output acceptance.
+
+Whole-package draft JSON/ZIP export is locally validated: every original financial
+row/source and internal decision is retained, with original package and account/SPA
+documents in the ZIP. Currentness, statutory signatures and issuance remain separate.
+Whole-package PDF drafts now print complete controls and original flow/SPA evidence.
+Focused SQLite/native tests and all 22 reviewed/unknown fixture page inspections pass;
+raw evidence notation and separate appendix numbering remain clerk presentation gaps.
+Accepted printable, clerk register/intake and local output acceptance are still required;
+see [the delivery contract](FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md) and CONTINUE.md.
+
 ## Working map
 
 | Office / work | Existing GRAND source and output | Boundary still requiring confirmation |
 | --- | --- | --- |
-| Budget proposal and historical comparison | Annual version and planning-context exports in `budget/urls.py`; authoritative original/adjusted amounts, explicit estimates and independently adopted external certificate versions | Local proposal form, native expenditure classification, complete coverage, required columns and signatures. Posted expenses are not certified total expenditures. |
+| Budget proposal and historical comparison | Annual/planning-context exports, reviewed native/external actuals and dated forecasts; independently reviewed office/fund Form 2 preparations with retained unsigned PDF copies | Form 1 reconciliation/joint certification, physical signing and signed-copy receipt, current local layouts and printer acceptance. Coverage declarations require actual supporting records; posted expenses alone are not certified total expenditures. |
 | Budget release planning and authority | Quarterly plan, appropriation authorization, allotment register and individual ARO exports | Exact quarterly/ARO presentation and local certification. A quarterly plan is not spending authority. Earmark capacity basis remains unconfirmed. |
 | Budget obligations and accountability | OBR registry/control register; Reporting Budget accountability and Budget versus Posted Actual datasets | Exact local accountability form and period; ambiguous PPA/account mappings require source resolution. The candidate schedule is not an accepted LBAc form. |
 | Accounting posting and ledger work | Journal control register, ledger and trial-balance exports; governed posted general-ledger/trial-balance report starters | Required journal/JEV presentation, grouping, signatures and full signed output reproduction. Source CSV alone does not establish form parity. |
@@ -53,7 +78,10 @@ they do not establish LGU usage, printer fidelity or acceptance of a GRAND outpu
 The [external-adoption route](FINANCE_BUDGET_ACTUAL_ADOPTION.md) now supplies original
 source downloads, a complete matching certificate register CSV and retained certified
 rows/evidence in the Budget planning-context CSV. These are working evidence outputs,
-not a generated or locally accepted Form 1/2 certification.
+not a locally accepted Form 1/2 certification. The subsequent
+[office Form 2 checkpoint](FINANCE_BUDGET_ATTRIBUTIONS_IN_PROGRESS.md) now generates
+and retains unsigned office/fund copies with separate coverage/designation review.
+It does not establish physical signatures or joint Form 1 certification.
 
 ## Report-run retrieval repair
 

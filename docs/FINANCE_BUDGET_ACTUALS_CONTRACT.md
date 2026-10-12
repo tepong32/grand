@@ -135,6 +135,50 @@ separate financial states throughout.
 
 ## Required acceptance cases
 
+### Form 2 issuance boundary (implementation direction, 2026-10-11)
+
+Use the seven Annex E columns and preserve the distinction between past-year
+actuals, current first-half actuals, current second-half estimates, their total,
+and proposed amounts. The [local issuance checkpoint](FINANCE_BUDGET_ATTRIBUTIONS_IN_PROGRESS.md)
+now retains independently issued unsigned copies. A selected-source schedule or a
+successful Budget approval alone is not an issued or physically signed form.
+
+New office-form preparation must use captured office identities for every row,
+including proposed objects without historical evidence. Schema-7 planning schedules
+now retain office ID/name; submitted schedules must never be grouped using today's
+responsibility-center mapping. Missing identities remain missing. Earlier snapshots
+remain valid historical records but cannot acquire new office evidence by backfill.
+An unmapped row or contradictory source identity cannot enter an issued office form.
+
+Retain explicit fund scope alongside each office package. Annex D identifies the
+General Fund; do not infer that legal scope from an arbitrary fund code, add other
+funds silently, or claim Form 1 reconciliation from an office subtotal alone.
+Before issuance, require reviewed coverage of the intended office/fund/period and
+all applicable objects, with both historical periods and dated forecasts supported.
+Discovery and selection of some sources do not establish complete office coverage.
+Missing amounts must not become zero. Retain explicit certified zero evidence when
+needed; do not create a fabricated ledger transaction to provide it. Category and
+special-purpose presentation must avoid counting the same financial row twice.
+
+The prepared/reviewed/approved blocks represent Department Head, Local Budget
+Officer and Local Chief Executive respectively. Record actual designation/authority
+evidence rather than deriving an official capacity from an account username or
+application permission. First-half Local Accountant certification remains a separate
+source requirement. An unsigned copy for physical signing must say it is unsigned;
+no application approval supplies a physical signature or receipt of a signed copy.
+Form 1's joint Treasurer/Accountant certification remains a separate reconciled step.
+
+Retain output bytes, their checksum, exact source/proposal snapshot, scope, coverage
+decision and signatory evidence with an independently reviewed issuance version.
+Downloads must recheck current access and return the retained bytes. Subsequent
+source or setup changes require a successor rather than rewriting issued history.
+Validate cross-office/fund isolation, missing/zero cases, category totals, stale
+preparation, independent decisions and rendering before claiming this implemented.
+
+The retained LBM 94 PDF hash was rechecked on 2026-10-11 against the source-audit
+record. A fresh web fetch exceeded the tool's document-size limit; this inspection
+does not claim a new amendment search or current LGU form acceptance.
+
 | Scenario | Evidence required |
 |---|---|
 | Historical external actual, including capital | Exact document/row/hash and scope retained; independent adoption; usable Budget comparison |
@@ -154,7 +198,18 @@ Reporting regressions and ordinary browser/source-to-output proof. Exact printer
 LGU acceptance remain separate gates. The local earmark capacity rule is unrelated
 and still unconfirmed.
 
-## Validation of this design checkpoint
+## Proposed financing prerequisite implemented locally
+
+New submissions retain resource amount, description, basis and funding-source/fund
+identity separately from certified expenditure actuals. Revisions use the proposal
+lock/state token and before/after audit evidence. Consolidation retains each exact
+source resource and its origin without assuming sources represent distinct receipts.
+Submitted displays and exports use retained evidence; historical missing snapshots
+are not backfilled. See [implementation and validation](FINANCE_BUDGET_ATTRIBUTIONS_IN_PROGRESS.md).
+This does not implement Form 1 receipt categories, cash-balance certification or
+joint officer sign-off, and does not establish earmark capacity semantics.
+
+## Validation of the original design checkpoint
 
 PASS — current official PDF retrieval, SHA256, text inspection and visual review of
 Annex D instructions and Annex E form/instructions; repository source/ownership and

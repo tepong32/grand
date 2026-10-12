@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block title_ext %} · {{ workspace_profile.title }}{% endblock %}
 {% block content %}
+{% if perms.budget.view_form1_packages %}<p class="container pt-3"><a href="{% url 'budget:form1_packages' %}">Whole Form 1 draft history</a></p>{% endif %}
 <div class="container-fluid pb-4">
   <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
     <div>

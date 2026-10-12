@@ -1,0 +1,8 @@
+{% extends 'base.html' %}{% block content %}<div class="container pb-4">
+<h1 class="h3">Receipt and expenditure actuals</h1>
+<p>Review complete Fund sources and category coverage before separate Accountant and Treasurer certification. This register does not issue Form 1.</p>
+{% if can_prepare %}<p><a class="btn btn-primary" href="{% url 'accounting:native_actuals_create' %}">Prepare actuals</a></p>{% endif %}
+<form method="get"><label for="actuals-search">Find entity, fund, preparer or preparation ID</label><input id="actuals-search" class="form-control" name="q" value="{{ q }}"><button class="btn btn-secondary mt-2">Search</button></form>
+<p>{{ page.paginator.count }} matching versions.</p><div class="table-responsive"><table class="table"><thead><tr><th>Entity / version</th><th>Period</th><th>Category review</th><th>Preparer</th></tr></thead><tbody>
+{% for item in page %}<tr><td><a href="{% url 'accounting:native_actuals_detail' item.public_id %}">{{ item.entity_label }} · {{ item.version }}</a></td><td>{{ item.period_start }}–{{ item.period_end }}</td><td>{{ item.status|capfirst }}</td><td>{{ item.prepared_by_label }}</td></tr>{% empty %}<tr><td colspan="4">No preparations match.</td></tr>{% endfor %}</tbody></table></div>
+<p>{% if page.has_previous %}<a href="?{{ params }}&page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?{{ params }}&page={{ page.next_page_number }}">Next</a>{% endif %}</p></div>{% endblock %}
