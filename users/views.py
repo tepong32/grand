@@ -6,7 +6,8 @@ from django.http import HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext_lazy as _
 
-from .forms import UserRegisterForm
+from .forms import EmployeeRegisterForm
+from .access import can_manage_employee_accounts
 from .services.export_service import (
     export_all_employees as export_all_employees_response,
     export_department_users as export_department_users_response,
@@ -23,32 +24,23 @@ logger = logging.getLogger(__name__)
 
 
 def register(request):
-    if request.method == "POST":
-        form = UserRegisterForm(request.POST)
-        if form.is_valid():
-            form.save()
-            username = form.cleaned_data.get("username")
-            messages.success(request, f"Account created for {username}! You can now log in.")
-            return redirect("login")
-    else:
-        form = UserRegisterForm()
-    return render(request, "auth/register.html", {"form": form})
+    # One public signup implementation, including mandatory email verification.
+    return redirect("account_signup")
 
 
 @login_required
 def employeeRegister(request):
-    if not can_access_users_directory(request.user):
-        messages.error(request, "Access Denied.")
-        return redirect("home")
+    if not can_manage_employee_accounts(request.user):
+        raise PermissionDenied
     if request.method == "POST":
-        form = UserRegisterForm(request.POST)
+        form = EmployeeRegisterForm(request.POST)
         if form.is_valid():
             form.save()
             username = form.cleaned_data.get("username")
             messages.success(request, f"Account created for {username}! You can now log in.")
-            return redirect("login")
+            return redirect("users-list")
     else:
-        form = UserRegisterForm()
+        form = EmployeeRegisterForm()
     return render(request, "auth/employee_register.html", {"form": form})
 
 
@@ -117,12 +109,8 @@ class CustomPasswordResetView(PasswordResetView):
     def form_valid(self, form):
         try:
             response = super().form_valid(form)
-            logger.info("Password reset email sent to: %s", form.cleaned_data["email"])
             return response
         except Exception as e:
-            logger.error("Failed to send password reset email to %s: %s", form.cleaned_data["email"], str(e))
-            form.add_error(
-                None,
-                _("There was an error sending the password reset email. Please try again later.")
-            )
-            return self.form_invalid(form)
+            logger.error("Password reset delivery failed")
+            # Delivery outages must not turn this endpoint into an account probe.
+            return redirect(self.success_url)

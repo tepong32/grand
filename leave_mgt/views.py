@@ -1,5 +1,6 @@
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import UserPassesTestMixin
+from users.access import EmployeeRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -47,7 +48,7 @@ class RoleBasedTemplateMixin(UserPassesTestMixin):
         return ['leave_mgt/leave_summary.html']            # template for normal users #########################not used atm
 
 
-class MyLeaveView(LoginRequiredMixin, ListView):
+class MyLeaveView(EmployeeRequiredMixin, ListView):
     """
     View for displaying the logged-in user's leave requests and related stats.
     """
@@ -55,6 +56,9 @@ class MyLeaveView(LoginRequiredMixin, ListView):
     template_name = 'leave_mgt/leave_summary.html'
     ordering = ['-date_filed']
     context_object_name = 'leave_requests'  # optional: so you can just use {{ leave_requests }}
+
+    def get_queryset(self):
+        return super().get_queryset().filter(employee__employee__user=self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -87,7 +91,7 @@ class MyLeaveView(LoginRequiredMixin, ListView):
 
 
 
-class HRLeaveDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+class HRLeaveDashboardView(EmployeeRequiredMixin, UserPassesTestMixin, TemplateView):
     template_name = 'leave_mgt/hr_dashboard.html'
 
     def test_func(self):
@@ -116,7 +120,7 @@ class LeaveDashboardContextMixin:
         return context
 
 
-class LeaveApplicationCreateView(LoginRequiredMixin, LeaveDashboardContextMixin, CreateView):
+class LeaveApplicationCreateView(EmployeeRequiredMixin, LeaveDashboardContextMixin, CreateView):
     model = LeaveRequest
     form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application.html'
@@ -162,7 +166,7 @@ class OwnedLeaveRequestMixin:
         )
 
 
-class LeaveApplicationUpdateView(LoginRequiredMixin, OwnedLeaveRequestMixin, LeaveDashboardContextMixin, UpdateView):
+class LeaveApplicationUpdateView(EmployeeRequiredMixin, OwnedLeaveRequestMixin, LeaveDashboardContextMixin, UpdateView):
     model = LeaveRequest
     form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application.html'
@@ -201,13 +205,13 @@ class LeaveApplicationUpdateView(LoginRequiredMixin, OwnedLeaveRequestMixin, Lea
         return redirect('leave_list')  # Redirect to a success page
 
 
-class LeaveApplicationDetailView(LoginRequiredMixin, OwnedLeaveRequestMixin, LeaveDashboardContextMixin, DetailView):
+class LeaveApplicationDetailView(EmployeeRequiredMixin, OwnedLeaveRequestMixin, LeaveDashboardContextMixin, DetailView):
     model = LeaveRequest
     form_class = LeaveApplicationForm
     template_name = 'leave_mgt/leave_application_detail.html'
 
 
-class LeaveApplicationDeleteView(LoginRequiredMixin, OwnedLeaveRequestMixin, LeaveDashboardContextMixin, DeleteView):
+class LeaveApplicationDeleteView(EmployeeRequiredMixin, OwnedLeaveRequestMixin, LeaveDashboardContextMixin, DeleteView):
     model = LeaveRequest
     template_name = 'leave_mgt/leave_application_delete.html'
     success_url = reverse_lazy('leave_list')  # Redirect to leave_mgt/ (MyLeaveView) view after deletion
@@ -224,7 +228,7 @@ class LeaveApplicationDeleteView(LoginRequiredMixin, OwnedLeaveRequestMixin, Lea
         return response
 
 
-class LeaveManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+class LeaveManagementView(EmployeeRequiredMixin, UserPassesTestMixin, TemplateView):
     template_name = 'leave_mgt/leave_management.html'
     raise_exception = True
 

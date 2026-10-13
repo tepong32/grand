@@ -79,6 +79,10 @@ The reporting seed command is idempotent: it creates or preserves the five MSWD 
 
 ## Verification
 
+See [authentication and account provisioning](docs/AUTH_SECURITY.md) for citizen
+signup, authorized employee creation, dashboard routing, URL access boundaries,
+attempt-counter deployment and the read-only legacy identity review.
+
 Install the development-only audit tool when performing security maintenance:
 
 ```powershell

@@ -10,6 +10,7 @@ from users.views import (
 
 from django.contrib import messages
 from src.health import health
+from users.authentication import PortalAuthenticationForm
 
 class LoginView(auth_views.LoginView):
     def form_valid(self, form):
@@ -53,7 +54,7 @@ urlpatterns = [
     # path("upload/", custom_upload_function, name="custom_upload_file"), # prolly will not need this until feature for user file uploads are implemented
 
     ### these views/html templates are inside the "users" app
-    path('login/', LoginView.as_view(template_name='auth/login.html'), name='login' ), # customized LoginView to display prompts on the page
+    path('login/', LoginView.as_view(template_name='auth/login.html', authentication_form=PortalAuthenticationForm), name='login' ),
     path('logout/', auth_views.LogoutView.as_view(template_name='auth/logout.html'), name='logout' ),
     path('register/', register, name='register' ), # for external users to sign-up only using Google accounts
     

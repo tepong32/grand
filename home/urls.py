@@ -11,6 +11,7 @@ from .views import (
     DeleteAnnouncement,
     OrgChartView,
     unauthorized_access_view,
+    citizen_dashboard,
 )
 
 
@@ -32,6 +33,7 @@ urlpatterns = [
     # this is where we handle the dynamic dashboard logic depending on the user's department
     # if the user has no custom dashboard, they will be redirected to the default home view (/home)
     path('dashboard/', department_dashboard_dynamic, name='department_dashboard'),
+    path('citizen/dashboard/', citizen_dashboard, name='citizen_dashboard'),
     path('home/', AuthedHomeView.as_view(), name='home'),
 
     # ❌ Unauthorized

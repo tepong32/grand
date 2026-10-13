@@ -10,6 +10,16 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+- **AUTH-001 (2026-10-14):** public registration is a verified citizen identity;
+  employee provisioning is an HR/admin action with explicit office assignment
+  and separate permissions. Self-selected employment/department fields would
+  grant organizational authority from public input, so they are excluded.
+  Existing mixed identities are quarantined for human reconciliation rather
+  than deleted or guessed from email domains. Atomic default-store counters
+  protect all password entry points across workers without requiring a new
+  cache service. Trusted proxy/client-IP capacity and legacy employee-roster
+  reconciliation remain deployment responsibilities. See [auth security](AUTH_SECURITY.md).
+
 - **D-083:** Correct an incorrectly posted receipt through a separately reviewed exact reversal, preserve its original history and protect every downstream withholding boundary.
 
 - **D-082:** Record actual remittance receipts as independently reviewed explicit original-liability allocations; preserve the outward batch and filing history.

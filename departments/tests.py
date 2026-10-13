@@ -222,7 +222,7 @@ class DynamicDepartmentDashboardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "home/authed/dashboards/generic.html")
 
-    def test_employee_without_department_is_sent_to_internal_home(self):
+    def test_employee_without_department_sees_assignment_pending(self):
         user = self.users["planning"]
         user.employeeprofile.assigned_department = None
         user.employeeprofile.save()
@@ -230,7 +230,8 @@ class DynamicDepartmentDashboardTests(TestCase):
 
         response = self.client.get(reverse("department_dashboard"))
 
-        self.assertRedirects(response, reverse("home"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "home/authed/unassigned.html")
 
 
 class InternalHowToTests(TestCase):

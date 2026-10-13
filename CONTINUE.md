@@ -2,7 +2,51 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-09-14
+Last updated: 2026-10-14
+
+## Authentication review and dashboard pass — 2026-10-14
+
+The user explicitly requested a separate security branch, employee/public signup
+redesign, then dashboard polish and department starting pages. This scoped pass
+is based on primary v0.7.109, whose auth files match the current Finance checkout;
+it does not merge unfinished Finance development. See
+[identity/access design and rollout requirements](docs/AUTH_SECURITY.md), AUTH-001
+in [the decision log](docs/IMPLEMENTATION_DECISIONS.md).
+
+Public email/Google signup creates only a citizen identity. Employee creation
+requires HR directory authority plus `users.add_user`, with explicit department
+assignment and separately granted module roles. Unassigned employees get a
+pending page; citizens get their own dashboard. Conflicting legacy identities
+are quarantined pending read-only audit and human reconciliation. Guessing URLs
+does not confer access. Shared default-store authentication counters require
+`users.0002_authattemptbucket` before rollout; configure trusted edge capacity
+and daily counter pruning. No operator migrations or role changes were applied.
+
+PASS: initial existing boundary suite 113 tests; new pre-fix checks reproduced
+12 failed boundaries and one broken citizen URL in 19 tests. Focused SQLite
+147 passed / 2 native skips; final native identity, dashboard, profile, leave and
+counter checks 132/132 passed (48.849s), including two concurrent-counter races.
+Dependency consistency and updated audit pass with no known vulnerabilities.
+
+FAIL - PRE-EXISTING: full SQLite first run 1,230 tests, 9 failures / 42 errors /
+86 skips (650.599s). All 51 failures reproduce on untouched master c5bd920 with
+its original dependencies (51 tests, 9 failures / 42 errors, 47.454s). Finance
+fixtures combined fixed August/September 2026 scenarios with today's date.
+The shared voucher test fixture now owns a deterministic September 15 business
+clock; production financial date/capacity checks are unchanged. An initial
+September 12 clock left two September 13 corrections in the future; corrected.
+PASS: all 51 repaired scenarios on fresh native stores (87.206s). Final full
+SQLite regression passed 1,231 discovered / 1,145 passed / 86 native/environmental
+skips; skipped checks are not passes. The successful runner exited 0. Version
+Manager security checkpoint and dashboard presentation follow; integration is
+subject to the final full CI checks.
+
+Tests use disposable SQLite stores and dedicated fresh MySQL schemas
+`test_grand_auth_ci_default` / `test_grand_auth_ci_finance`. The pre-existing
+owned MySQL server is preserved. The original checkout's modified SQLite DB and
+unrelated work remain untouched. External Google callback, live email delivery,
+trusted proxy operation and LGU acceptance are NOT RUN - ENVIRONMENTAL; they
+require the configured deployment. Finance production remains NO-GO.
 
 Turning-point decisions are recorded separately in [the implementation decision log](docs/IMPLEMENTATION_DECISIONS.md), as requested by the user. Keep each choice tied to the canonical product goal, alternatives, tradeoffs, evidence and revisit conditions.
 

@@ -1,10 +1,8 @@
 ﻿from django.db.models.signals import post_save
 from django.dispatch import receiver
-from allauth.socialaccount.models import SocialAccount
 
 from .models import User
 from profiles.models import CitizenProfile, EmployeeProfile
-from departments.models import Department
 from leave_mgt.models import LeaveCredit
 
 import logging
@@ -15,38 +13,23 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     """
-    Create CitizenProfile for social-auth users, otherwise create EmployeeProfile.
+    Public adapters mark the unsaved user before its first save. Internal
+    provisioning retains an employee profile; assignment is a separate decision.
     """
     if not created:
         return
 
     try:
-        if SocialAccount.objects.filter(user=instance).exists():
-            CitizenProfile.objects.create(user=instance)
+        if getattr(instance, '_public_signup', False):
+            CitizenProfile.objects.create(user=instance, social_auth=getattr(instance, '_social_signup', False))
             logger.info("CitizenProfile created for user: %s", instance.username)
             return
 
-        default_department, _ = Department.objects.get_or_create(name="Mayor's Office")
-        EmployeeProfile.objects.create(
-            user=instance,
-            assigned_department=default_department,
-        )
+        EmployeeProfile.objects.create(user=instance)
         logger.info("EmployeeProfile created for user: %s", instance.username)
-    except Exception as e:
-        logger.error("Error creating profile for user %s: %s", instance.username, e)
-
-
-@receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
-    """Save related profile whenever user is updated."""
-    try:
-        if hasattr(instance, 'employeeprofile'):
-            instance.employeeprofile.save()
-        elif hasattr(instance, 'citizenprofile'):
-            instance.citizenprofile.save()
-        logger.info("Profile saved for user: %s", instance.username)
-    except Exception as e:
-        logger.error("Error saving profile for user %s: %s", instance.username, e)
+    except Exception:
+        logger.exception("Identity profile provisioning failed")
+        raise
 
 
 @receiver(post_save, sender=EmployeeProfile)

@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone as datetime_timezone
 from decimal import Decimal
 import csv
 import io
@@ -112,6 +112,13 @@ class VoucherWorkflowTests(TestCase):
 
     @classmethod
     def setUpTestData(cls):
+        # These fixtures model August/September 2026 transactions, including
+        # current-date releases. Keep their business clock inside that scenario
+        # so month rollover cannot remove its period or age its cash evidence.
+        cls.enterClassContext(patch(
+            "django.utils.timezone.now",
+            return_value=datetime(2026, 9, 15, 12, tzinfo=datetime_timezone.utc),
+        ))
         cls.budget = Department.objects.create(name="Municipal Budget Office", slug="voucher-budget")
         cls.accounting = Department.objects.create(name="Municipal Accounting Office", slug="voucher-accounting")
         cls.treasury = Department.objects.create(name="Municipal Treasury Office", slug="voucher-treasury")

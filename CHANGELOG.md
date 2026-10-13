@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.158] - 2026-10-14
+### Fixed
+- fix(auth): separate citizen signup and employee authority
+
 ## [0.7.109] - 2026-09-15
 ### Documentation
 - docs(finance): design modular cheque exceptions with human resolution

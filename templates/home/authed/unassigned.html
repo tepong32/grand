@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title_ext %} · Employee account{% endblock %}
+{% block content %}
+<div class="container py-4"><p class="text-uppercase text-muted small">Employee account</p><h1>Your office assignment is pending</h1><p>Contact Human Resources or your administrator to confirm your department and work permissions.</p><a class="btn btn-primary" href="{% url 'profile' request.user.username %}">View your profile</a></div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title_ext %} · Citizen dashboard{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <p class="text-uppercase text-muted small">Public services</p>
+  <h1>Your citizen dashboard</h1>
+  <p class="text-muted">Welcome, {{ request.user.get_full_name|default:request.user.username }}. Choose a service to get started.</p>
+  <div class="row">
+    <div class="col-md-6 mb-3"><div class="card h-100"><div class="card-body"><h2 class="h4">Assistance and request tracking</h2><p>Apply for assistance or track an existing request with the codes you received.</p><a class="btn btn-primary" href="{% url 'assistance:assistance_landing' %}">Open assistance services</a></div></div></div>
+    <div class="col-md-6 mb-3"><div class="card h-100"><div class="card-body"><h2 class="h4">Your profile</h2><p>Keep your contact details current.</p><a class="btn btn-outline-primary" href="{% url 'profile' request.user.username %}">View your profile</a></div></div></div>
+  </div>
+  <a href="{% url 'announcements-list' %}" class="btn btn-outline-primary">Public announcements</a>
+  <a href="{% url 'unauthedhome' %}" class="btn btn-outline-primary">Services and office contacts</a>
+</div>
+{% endblock %}

@@ -25,6 +25,16 @@ logger = logging.getLogger(__name__)
 
 ### for reference, follow-along: https://www.youtube.com/watch?v=mndLkCEiflg
 
+class AuthAttemptBucket(models.Model):
+    """Atomic, cross-worker attempt counters in the default identity store.
+
+    Only keyed digests are retained; never usernames, emails, IPs or passwords.
+    """
+    digest = models.CharField(max_length=64, primary_key=True)
+    expires_at = models.DateTimeField(db_index=True)
+    attempts = models.PositiveIntegerField(default=0)
+
+
 class CustomUserManager(UserManager):
     '''
         Our own UserManager that we will use when using the manage.py file

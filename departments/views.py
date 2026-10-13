@@ -31,7 +31,7 @@ def department_detail(request, slug: str):
         raise PermissionDenied("Department not found.")
 
     context = {"department": department}
-    return render(request, "home/authed/dashboards/generic.html", context)
+    return render(request, "departments/public_detail.html", context)
 
 
 @require_POST

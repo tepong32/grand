@@ -14,6 +14,13 @@ Finance execution update (2026-09-09, development branch): the personal-handoff 
 
 ## Completed - Professional, configurable civic UI
 
+2026-10-14 scoped user request: audit authentication, separate public citizen
+signup from authorized employee provisioning, verify department routing and
+guessed-URL boundaries, then polish dashboards and add department starting
+pages. This is an explicit bounded exception to the earlier Finance-first UI
+sequence, not a new Finance functionality or production-completion claim.
+See [security scope and validation](AUTH_SECURITY.md).
+
 - Use plain-language, task-oriented public and employee navigation.
 - Preserve GRAND's institutional identity while keeping branding neutral across changes in administration.
 - Let authorized administrators configure the institution name, portal labels, colors, logo, hero image, optional official media, footer text, service-card labels, icons, links, and ordering.

@@ -24,7 +24,8 @@ def site_ui(request):
         "employee_service_shortcuts": ServiceShortcut.objects.filter(
             audience=ServiceShortcut.EMPLOYEE,
             is_active=True,
-        ) if request.user.is_authenticated else ServiceShortcut.objects.none(),
+        ) if profile else ServiceShortcut.objects.none(),
+        "is_employee_account": bool(profile),
         "employee_department": department,
         "can_view_user_directory": bool(request.user.is_authenticated and (request.user.is_superuser or is_hr)),
         "can_access_citizen_reviews": can_access_citizen_reviews(request.user),

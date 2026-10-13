@@ -9,6 +9,8 @@ from django.contrib.auth.decorators import login_required
 from django.utils.timezone import now
 
 from .models import Announcement, OrgPersonnel, DepartmentContact
+from users.access import is_employee
+from django.core.exceptions import PermissionDenied
 
 
 from django.views.generic import (
@@ -86,26 +88,9 @@ class OrgChartView(ListView):
 
 
 ####################### VIEWS THAT NEED AUTHENTICATION (INTERNAL VIEWS)
-class AuthedHomeView(LoginRequiredMixin, ListView):
-    model = Announcement
-    template_name = 'home/authed/home.html'
-    context_object_name = 'announcements'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # user = User # not being used atm
-
-        internal = Announcement.objects.filter(announcement_type=Announcement.INTERNAL).order_by('-created_at')
-
-        # Optionally, if you need published and draft announcements for admin posting purposes
-        published = Announcement.objects.filter(published=True)
-        draft = Announcement.objects.filter(published=False)
-        context.update({
-            'internal': internal,
-            'published': published,
-            'draft': draft,
-        })
-        return context
+class AuthedHomeView(LoginRequiredMixin, TemplateView):
+    def get(self, request, *args, **kwargs):
+        return department_dashboard_dynamic(request)
 
 class AnnouncementList(ListView):
     model = Announcement
@@ -116,7 +101,7 @@ class AnnouncementList(ListView):
 
     def get_queryset(self):
         queryset = Announcement.objects.filter(published=True)
-        if not self.request.user.is_authenticated:
+        if not is_employee(self.request.user):
             queryset = queryset.filter(announcement_type=Announcement.PUBLIC)
         return queryset.order_by('-is_pinned', '-created_at')
 
@@ -131,6 +116,11 @@ class CreateAnnouncement(LoginRequiredMixin, CreateView):
     template_name = 'home/authed/announcement_create.html'
     success_message = "Announcement successfully posted"
     success_url = '/'
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and not (is_employee(request.user) and request.user.has_perm('home.add_announcement')):
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
         form.instance.user = self.request.user    # to automatically get the id of the current logged-in user
@@ -148,11 +138,11 @@ class AnnouncementDetail(DetailView):
         announcement = get_object_or_404(Announcement, slug=self.kwargs['slug'])
         if (
             announcement.announcement_type == Announcement.INTERNAL
-            and not self.request.user.is_authenticated
+            and not is_employee(self.request.user)
         ):
             raise Http404("This announcement is available to employees only.")
         # Optionally, check if the announcement is published
-        if not announcement.published and not self.request.user.is_staff:
+        if not announcement.published and not (is_employee(self.request.user) and self.request.user.has_perm('home.view_announcement')):
             # If the announcement is unpublished and the user is not staff, raise a 404
             raise Http404("You do not have permission to view this announcement.")
         return announcement
@@ -171,7 +161,7 @@ class UpdateAnnouncement(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def test_func(self):
         announcement = self.get_object()
-        if self.request.user == announcement.user:
+        if is_employee(self.request.user) and self.request.user == announcement.user and self.request.user.has_perm('home.change_announcement'):
             return True
         return False
 
@@ -189,7 +179,7 @@ class DeleteAnnouncement(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     def test_func(self):
         announcement = self.get_object()
 
-        if self.request.user == announcement.user:
+        if is_employee(self.request.user) and self.request.user == announcement.user and self.request.user.has_perm('home.delete_announcement'):
             return True
         return False      
 
@@ -237,11 +227,11 @@ def department_dashboard_dynamic(request):
     """
     profile = getattr(request.user, "employeeprofile", None)
     if not profile:
-        return redirect('home')
+        return redirect('citizen_dashboard')
 
     department = get_department_for_user(request.user)
     if not department:
-        return redirect('home')
+        return render(request, 'home/authed/unassigned.html')
 
     template_path = get_dashboard_template(department, DEFAULT_DASHBOARD_TEMPLATE)
     try:
@@ -251,6 +241,13 @@ def department_dashboard_dynamic(request):
 
     context = get_department_home_context(department, request.user)
     return render(request, template_path, context)
+
+
+@login_required
+def citizen_dashboard(request):
+    if is_employee(request.user):
+        return redirect('department_dashboard')
+    return render(request, 'home/authed/citizen.html')
 
 
 def unauthorized_access_view(request):
