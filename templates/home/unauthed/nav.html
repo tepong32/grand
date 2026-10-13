@@ -20,6 +20,7 @@
       {% if request.user.is_authenticated %}
         <li class="nav-item"><a href="{% url 'department_dashboard' %}" class="btn btn-primary gov-nav-action"><i class="fas fa-columns mr-1"></i> My workspace</a></li>
       {% else %}
+        <li class="nav-item"><a href="{% url 'account_login' %}" class="btn btn-primary gov-nav-action">Citizen sign in</a></li>
         <li class="nav-item"><a href="{% url 'login' %}" class="btn btn-outline-primary gov-nav-action"><i class="fas fa-lock mr-1"></i> Employee sign in</a></li>
       {% endif %}
     </ul>

@@ -79,10 +79,16 @@ The reporting seed command is idempotent: it creates or preserves the five MSWD 
 
 ## Verification
 
+See [department starting pages](docs/DEPARTMENT_DASHBOARDS.md) and
+[authentication/account provisioning](docs/AUTH_SECURITY.md) for citizen signup,
+authorized employee creation, dashboard routing, URL/credential boundaries and
+legacy identity reconciliation. PR #115 supplies the exact final auth coverage
+and integration evidence.
+
 CI repair checkpoint, October 14: v0.7.157 / `739e3657` is integrated and pushed to
 master with its tag. Finance retrieval and retained Form 1 sources, internal
 review services, register and draft outputs are included. Guided whole-package
-intake/review, statutory issuance and LGU acceptance remain open. See
+intake, statutory issuance and LGU acceptance remain open. See
 [handoff](CONTINUE.md) and [Finance roadmap](docs/FINANCE_ROADMAP.md).
 
 The [candidate GitHub run](https://github.com/tepong32/grand/actions/runs/38431327925)
@@ -103,6 +109,8 @@ without skips; SQLite 2,278 PASS / 195 unchanged native-only skips. Local
 dependent tests, native races and real three-office browser decisions retain
 original evidence and financial controls. Preparation intake, statutory
 signatures/issuance and LGU acceptance remain open.
+
+The combined auth/Budget tree requires PR #115's final exact coverage gates.
 
 Install the development-only audit tool when performing security maintenance:
 

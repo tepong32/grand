@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title_ext %} · Office directory{% endblock %}
+{% block content %}
+{% include "home/authed/dashboard_styles.html" %}
+<main class="grand-dashboard" aria-labelledby="offices-title">
+<header class="workspace-hero">
+<div>
+<p class="workspace-eyebrow">Municipal offices</p>
+<h1 id="offices-title">Office directory</h1>
+<p>Find the office that can help with your inquiry.</p>
+</div>
+</header>
+<div class="workspace-grid">
+{% for department in department_rows %}
+<article class="workspace-module">
+<h2 class="h5">{{ department.name }}</h2>
+<p>{{ department.description }}</p>
+<a class="workspace-action" href="{% url 'departments:detail' department.slug %}">View office information <i class="fas fa-arrow-right" aria-hidden="true">
+</i>
+</a>
+</article>
+{% empty %}
+<p>No offices have been listed yet.</p>
+{% endfor %}
+</div>
+</main>
+{% endblock %}

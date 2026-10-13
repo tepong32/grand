@@ -202,14 +202,14 @@ class DynamicDepartmentDashboardTests(TestCase):
         self.assertContains(dashboard, "Human Resources")
         self.assertContains(dashboard, "Employee records")
 
-    def test_new_department_automatically_gets_extendable_default_dashboard(self):
+    def test_planning_department_automatically_gets_its_workspace_preset(self):
         response = self._dashboard_for("planning")
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "home/authed/dashboards/generic.html")
         self.assertContains(response, "Municipal Planning and Development Office")
-        self.assertContains(response, "Office work queue")
-        self.assertContains(response, "Reports and performance")
+        self.assertContains(response, "Development plans")
+        self.assertContains(response, "Project monitoring")
         self.assertContains(response, "PLANNING Employee")
 
     def test_missing_custom_template_falls_back_without_breaking_login(self):
@@ -222,7 +222,7 @@ class DynamicDepartmentDashboardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "home/authed/dashboards/generic.html")
 
-    def test_employee_without_department_is_sent_to_internal_home(self):
+    def test_employee_without_department_sees_assignment_pending(self):
         user = self.users["planning"]
         user.employeeprofile.assigned_department = None
         user.employeeprofile.save()
@@ -230,7 +230,8 @@ class DynamicDepartmentDashboardTests(TestCase):
 
         response = self.client.get(reverse("department_dashboard"))
 
-        self.assertRedirects(response, reverse("home"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "home/authed/unassigned.html")
 
 
 class InternalHowToTests(TestCase):

@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title_ext %} · {{ department.name }}{% endblock %}
+{% block content %}
+<div class="container py-4"><p class="text-uppercase text-muted small">Office information</p><h1>{{ department.name }}</h1><p>{{ department.description }}</p>{% if department.email %}<p><a href="mailto:{{ department.email }}">{{ department.email }}</a></p>{% endif %}{% if department.phone %}<p>{{ department.phone }}</p>{% endif %}<a class="btn btn-outline-primary" href="{% url 'unauthedhome' %}">Public services</a></div>
+{% endblock %}

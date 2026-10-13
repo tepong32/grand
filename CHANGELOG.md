@@ -1,12 +1,36 @@
 # Changelog
 
+## [0.7.165] - 2026-10-14
+### Fixed
+- fix(integration): preserve primary acceptance docs alongside auth review
+
 ## [0.7.164] - 2026-10-14
 ### Documentation
 - docs(finance): record accepted whole Form 1 review checkpoint
 
+## [0.7.163] - 2026-10-14
+### Fixed
+- fix(integration): reconcile auth with published Budget review checkpoint
+
+## [0.7.162] - 2026-10-14
+### Fixed
+- fix(auth): protect recovery email from profile editors
+
+## [0.7.161] - 2026-10-14
+### Fixed
+- fix(auth): bind attempt limits to accounts and reconcile current primary
+
 ## [0.7.160] - 2026-10-14
 ### Feat
 - feat(budget): expose independent whole Form 1 reviews
+
+## [0.7.159] - 2026-10-14
+### Added
+- feat(ui): polish citizen and department starting pages
+
+## [0.7.158] - 2026-10-14
+### Fixed
+- fix(auth): separate citizen signup and employee authority
 
 ## [0.7.157] - 2026-10-14
 ### Fixed

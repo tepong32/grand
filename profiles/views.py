@@ -7,11 +7,17 @@ from .models import EmployeeProfile, CitizenProfile
 from .forms import ProfileUpdateForm, EmploymentProfileUpdateForm, CitizenProfileUpdateForm
 from users.forms import UserUpdateForm  # still pulling from users app
 from .services.profile_service import can_edit_profile, profile_edit_context, profile_view_context, log_edit
+from .services.profile_service import can_view_profile
+from users.access import can_manage_employee_profiles
+from django.core.exceptions import PermissionDenied
+from django.http import Http404
 
 
 @login_required
 def profileView(request, username=None):
     user = get_object_or_404(User, username=username)
+    if not can_view_profile(request.user, user):
+        raise Http404
     leave_credits = None
     if hasattr(user, "employeeprofile"):
         try:
@@ -31,14 +37,14 @@ def profileView(request, username=None):
 def profileEditView(request, username=None):
     user = get_object_or_404(User, username=username)
     is_owner = request.user == user
-    is_admin = request.user.is_staff or request.user.is_superuser
+    is_admin = can_manage_employee_profiles(request.user)
 
     # Detect profile type
     is_employee = hasattr(user, "employeeprofile")
     is_citizen = hasattr(user, "citizenprofile")
 
     if not can_edit_profile(request.user, user):
-        return render(request, "profiles/error.html", {"error": "You do not have permission to edit this profile."})
+        raise PermissionDenied
 
     u_form = UserUpdateForm(request.POST or None, request.FILES or None, instance=user, prefix='user')
 

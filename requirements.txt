@@ -12,9 +12,9 @@ click-repl==0.3.0
 colorama==0.4.6
 crispy-bootstrap4==2024.1
 cryptography==50.0.0
-Django==5.2.17
+Django==5.2.18
 django-adminlte4==0.1.1
-django-allauth==65.19.0
+django-allauth==65.19.7
 django-ckeditor==6.7.2
 django-ckeditor-5==0.2.17
 django-crispy-forms==2.3

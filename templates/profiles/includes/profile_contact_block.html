@@ -1,4 +1,5 @@
 <div class="card-body">
+  {% if can_view_sensitive_profile %}
   <div class="row">
     <div class="col-6">
       <strong><i class="fas fa-phone-alt mr-1"></i> Phone</strong>
@@ -61,5 +62,8 @@
         Never logged in
       {% endif %}
     </p>
+  {% endif %}
+  {% else %}
+  <p class="text-muted mb-0">Contact details and leave balances are visible only to the account owner and authorized HR staff.</p>
   {% endif %}
 </div>

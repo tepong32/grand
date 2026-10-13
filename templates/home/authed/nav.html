@@ -7,8 +7,8 @@
     </span>
   </a>
   <ul class="navbar-nav ml-md-4">
-    <li class="nav-item"><a href="{% url 'department_dashboard' %}" class="nav-link"><i class="fas fa-columns mr-1"></i><span class="d-none d-md-inline"> Workspace</span></a></li>
-    <li class="nav-item"><a href="{% url 'announcements-list' %}" class="nav-link"><i class="fas fa-bullhorn mr-1"></i><span class="d-none d-md-inline"> Announcements</span></a></li>
+    <li class="nav-item">{% if is_employee_account %}<a href="{% url 'department_dashboard' %}" class="nav-link" aria-label="Department workspace"><i class="fas fa-columns mr-1" aria-hidden="true"></i><span class="d-none d-md-inline"> Workspace</span></a>{% else %}<a href="{% url 'citizen_dashboard' %}" class="nav-link" aria-label="My services"><i class="fas fa-th-large mr-1" aria-hidden="true"></i><span class="d-none d-md-inline"> My services</span></a>{% endif %}</li>
+    <li class="nav-item"><a href="{% url 'announcements-list' %}" class="nav-link" aria-label="Announcements"><i class="fas fa-bullhorn mr-1"></i><span class="d-none d-md-inline"> Announcements</span></a></li>
     {% if can_view_user_directory %}<li class="nav-item"><a href="/users/" class="nav-link"><i class="fas fa-users mr-1"></i><span class="d-none d-md-inline"> Employees</span></a></li>{% endif %}
     {% if employee_department.slug == 'mswd' %}<li class="nav-item"><a href="{% url 'social_welfare:program_list' %}" class="nav-link"><i class="fas fa-people-carry mr-1"></i><span class="d-none d-lg-inline"> Programs</span></a></li>{% endif %}
     {% if can_access_citizen_reviews %}<li class="nav-item"><a href="{% url 'assistance:citizen_profile_list' %}" class="nav-link"><i class="fas fa-address-card mr-1"></i><span class="d-none d-xl-inline"> Citizens</span></a></li>{% endif %}
@@ -37,9 +37,9 @@
     </div>
     <div class="p-3">
       <div class="gov-sidebar-section">
-        <h6 class="gov-sidebar-section-title">Your work</h6>
+        <h6 class="gov-sidebar-section-title">{% if is_employee_account %}Your work{% else %}Your services{% endif %}</h6>
         <ul class="gov-sidebar-list gov-no-bullets">
-          <li><a href="{% url 'department_dashboard' %}" class="gov-sidebar-link"><i class="fas fa-columns gov-sidebar-icon"></i><span>Department workspace</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
+          <li><a href="{% url 'department_dashboard' %}" class="gov-sidebar-link"><i class="fas fa-columns gov-sidebar-icon"></i><span>{% if is_employee_account %}Department workspace{% else %}Citizen dashboard{% endif %}</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
           <li><a href="{% url 'profile' request.user %}" class="gov-sidebar-link"><i class="fas fa-id-card gov-sidebar-icon"></i><span>Profile and account</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
           <li><a href="{% url 'announcements-list' %}" class="gov-sidebar-link"><i class="fas fa-bullhorn gov-sidebar-icon"></i><span>Official announcements</span><i class="fas fa-chevron-right gov-sidebar-link-arrow"></i></a></li>
           {% if employee_department.slug == 'mswd' %}

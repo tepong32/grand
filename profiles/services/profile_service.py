@@ -12,15 +12,22 @@ def get_viewed_user(username):
 
 
 def can_view_profile(actor_user, target_user):
-    return bool(actor_user.is_authenticated)
+    from users.access import is_employee
+    from users.services.query_service import can_access_users_directory
+
+    return bool(actor_user.is_authenticated and (
+        actor_user == target_user
+        or can_access_users_directory(actor_user)
+        or (is_employee(actor_user) and is_employee(target_user))
+    ))
 
 
 def can_edit_profile(actor_user, target_user):
     if not actor_user.is_authenticated:
         return False
     is_owner = actor_user == target_user
-    is_admin = actor_user.is_staff or actor_user.is_superuser
-    return is_owner or is_admin
+    from users.access import can_manage_employee_profiles
+    return is_owner or (can_manage_employee_profiles(actor_user) and hasattr(target_user, "employeeprofile"))
 
 
 def profile_view_context(viewed_user, actor_user, leave_credit):
@@ -32,8 +39,9 @@ def profile_view_context(viewed_user, actor_user, leave_credit):
             'can_view_sensitive_profile': False,
         }
 
-    can_view_sensitive_profile = bool(actor_user == viewed_user or actor_user.is_staff or actor_user.is_superuser)
-    if actor_user.is_staff:
+    from users.access import can_manage_employee_profiles
+    can_view_sensitive_profile = bool(actor_user == viewed_user or can_manage_employee_profiles(actor_user))
+    if can_manage_employee_profiles(actor_user):
         edit_logs = ProfileEditLog.objects.filter(user=viewed_user).order_by('-timestamp')
     elif actor_user == viewed_user:
         edit_logs = ProfileEditLog.objects.filter(user=viewed_user).order_by('-timestamp')[:5]
@@ -42,13 +50,15 @@ def profile_view_context(viewed_user, actor_user, leave_credit):
 
     return {
         'viewed_user': viewed_user,
-        'leave_credits': leave_credit,
+        'leave_credits': leave_credit if can_view_sensitive_profile else None,
         'edit_logs': edit_logs,
         'can_view_sensitive_profile': can_view_sensitive_profile,
     }
 
 
 def profile_edit_context(viewed_user, actor_user):
+    from users.access import can_manage_employee_profiles
+
     if not can_edit_profile(actor_user, viewed_user):
         return None
 
@@ -57,7 +67,7 @@ def profile_edit_context(viewed_user, actor_user):
         'is_employee': hasattr(viewed_user, 'employeeprofile'),
         'is_citizen': hasattr(viewed_user, 'citizenprofile'),
         'is_owner': actor_user == viewed_user,
-        'is_admin': actor_user.is_staff or actor_user.is_superuser,
+        'is_admin': can_manage_employee_profiles(actor_user),
     }
 
 

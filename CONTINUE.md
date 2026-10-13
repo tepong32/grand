@@ -1,10 +1,141 @@
-# GRAND Finance continuation handoff
+# GRAND continuation handoff
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
 Last updated: 2026-10-14
 
-## Current checkpoint - Finance foundation release
+## Authentication review and dashboard pass — 2026-10-14
+
+The user explicitly requested a separate security branch, employee/public signup
+redesign, then dashboard polish and department starting pages. This scoped pass
+began on primary v0.7.109, whose auth files match the current Finance checkout.
+Primary advanced to v0.7.157 (`739e365`), then v0.7.160 (`15b079c`) and its
+documentation checkpoint v0.7.164 (`1f9a5c0`) during this pass. Integration preserves
+that already-published primary work without importing unfinished development
+branches. Primary already supplies targeted repairs for the same Finance test
+calendar issues; those replace the earlier broad fixture clock. See
+[identity/access design and rollout requirements](docs/AUTH_SECURITY.md), AUTH-001
+in [the decision log](docs/IMPLEMENTATION_DECISIONS.md).
+
+Public email/Google signup creates only a citizen identity. Employee creation
+requires HR directory authority plus `users.add_user`, with explicit department
+assignment and separately granted module roles. Unassigned employees get a
+pending page; citizens get their own dashboard. Conflicting legacy identities
+are quarantined pending read-only audit and human reconciliation. Guessing URLs
+does not confer access. Shared default-store authentication counters require
+`users.0002_authattemptbucket` before rollout; configure trusted edge capacity
+and daily counter pruning. No operator migrations or role changes were applied.
+
+PASS: initial existing boundary suite 113 tests; new pre-fix checks reproduced
+12 failed boundaries and one broken citizen URL in 19 tests. Focused SQLite
+147 passed / 2 native skips; final native identity, dashboard, profile, leave and
+counter checks 132/132 passed (48.849s), including two concurrent-counter races.
+Dependency consistency and updated audit pass with no known vulnerabilities.
+
+FAIL - PRE-EXISTING: full SQLite first run 1,230 tests, 9 failures / 42 errors /
+86 skips (650.599s). All 51 failures reproduce on untouched master c5bd920 with
+its original dependencies (51 tests, 9 failures / 42 errors, 47.454s). Finance
+fixtures combined fixed August/September 2026 scenarios with today's date.
+The v0.7.158 voucher test fixture used a deterministic September 15 business
+clock; production financial date/capacity checks are unchanged. An initial
+September 12 clock left two September 13 corrections in the future; corrected.
+PASS: all 51 repaired scenarios on fresh native stores (87.206s). Final full
+SQLite regression passed 1,231 discovered / 1,145 passed / 86 native/environmental
+skips (619.814s); skipped checks are not passes. The successful runner exited 0.
+Version Manager security checkpoint v0.7.158 is published. The security and
+subsequent presentation releases use
+[PR #115](https://github.com/tepong32/grand/pull/115); its merge state and final
+`verify` / `mysql` results are the authoritative primary integration evidence.
+
+Dashboard presentation now shares the configured GRAND theme across citizen,
+employee, signup/sign-in and assignment-pending pages. Twenty office presets
+provide relevant next steps; aliases select descriptions without granting roles,
+unknown offices retain the generic fallback, and unavailable cards are
+nonclickable. Existing module helpers govern available links. See
+[dashboard scope](docs/DEPARTMENT_DASHBOARDS.md).
+
+PASS: affected UI/auth/integration SQLite 384 discovered / 381 passed / 3 skips
+(118.549s), covering departments/users/profiles/home/leave, assistance, social
+welfare, reporting, records, TracePoint and `finance.test_operations`. An initial
+run used a nonexistent namespace as a test label and a stale generic-Planning
+expectation; both were corrected, with a separate unknown-office fallback check.
+Desktop/mobile browser checks of citizen and Planning dashboards show no
+horizontal overflow at 390px. HR provisioning/leave links and invalid login
+errors were checked with synthetic accounts. The old broken password-reset link,
+a Windows UTF-8 copy issue and new public-button contrast were repaired. No
+external OAuth/email flow is claimed as tested. Native UI/auth checks passed
+52/52 (29.298s); a final display-state check distinguishes implemented Finance
+cards requiring permissions from unfinished work passed 6/6 on fresh native
+stores (1.012s). System checks, migration drift and whitespace checks pass.
+Final full SQLite/MySQL CI is required before PR integration; consult PR #115
+for the completed run and publishing state. No deployment approval is implied.
+
+Tests use disposable SQLite stores and dedicated fresh MySQL schemas
+`test_grand_auth_ci_default` / `test_grand_auth_ci_finance`. The pre-existing
+owned MySQL server is preserved. The original checkout's modified SQLite DB and
+unrelated work remain untouched. External Google callback, live email delivery,
+trusted proxy operation and LGU acceptance are NOT RUN - ENVIRONMENTAL; they
+require the configured deployment. Finance production remains NO-GO.
+
+Final primary reconciliation also found a counter-selection bypass in v0.7.159:
+ignored `login`/`email` fields and username/email/Unicode aliases could split the
+same target's attempt count. Isolated probes against that committed middleware
+reproduced all four cases. The fix reads each route's actual form field, resolves
+known aliases through the authentication store's collation to account IDs, and
+binds reset confirmations to URL UIDs. The native collation regression also
+checks accent/case aliases. A full SQLite run was interrupted and restarted
+after this source change; it is not passing evidence. Combined pre-fix native
+affected tests passed 409/409 (365.995s). Final focused auth tests passed 40/40
+(113.103s): `python .tmp/sqlite_run.py users.test_auth_security`. Final native
+affected regression passed 414/414 with zero skips (380.616s), including account
+aliases, MySQL collation and concurrent counters: `python .tmp/native_auth.py
+users profiles departments home leave_mgt assistance social_welfare reporting
+records tracepoint finance.test_operations`. These isolated local wrappers use
+the same Django labels/native runner with dedicated disposable runtime roots and
+schema names. The committed CI equivalents are `python manage.py test
+--testrunner scripts.ci_test_runner.ShardedDiscoverRunner` and
+`python scripts/run_mysql_tests.py --ci-shard`; the PR's final `verify` / `mysql`
+jobs enforce exact complete coverage and zero native skips before integration.
+
+The final credential review found that ordinary profile forms could change
+another employee's recovery email under HR profile authority. The committed
+v0.7.161 form reproduced the overwrite on an isolated unsaved user. Profile
+forms now contain names only; owners use allauth email management with recent
+authentication, and trusted account administrators retain separate account
+tools. Current-password guesses across Django/admin password change and allauth
+password change/reauthentication use the same persisted login account counter.
+The obsolete v161 CI run 38442355330 and incomplete local full run were cancelled
+after this finding; neither establishes complete passing coverage. PASS: final
+SQLite identity/profile/home/department/leave regression, 145/145 (73.212s),
+`python .tmp/sqlite_run.py users.test_auth_security profiles users.tests home
+departments leave_mgt`. An initial new citizen fixture omitted its required
+contact/address and failed; valid synthetic fields fixed that fixture without
+relaxing production validation. PASS: native affected regression 419/419 with
+zero skips (196.750s), using the same department/user/profile/home/leave,
+assistance/social-welfare/reporting/records/TracePoint/Finance-operation labels
+in `python .tmp/native_auth.py`. System checks and migration drift pass on the
+final settings. The PR's final complete backend gates remain authoritative for
+integration; obsolete runs are not substitutes for those gates.
+
+The v0.7.162 auth tree passed complete CI run [38444989661](https://github.com/tepong32/grand/actions/runs/38444989661): 2,522 discovered, SQLite 2,324 passed / 198 native-only skips, MySQL all 2,522 passed with zero skips. Retained artifacts verify the exact release tree and all eight shards per backend. Primary advanced to Budget v0.7.160 during the final remote verification; that result covers the previous primary tree. The branch now preserves the published whole-package review UI unchanged and requires fresh combined-source gates in PR #115. No unfinished branch history is imported.
+
+PASS: final auth/Budget integration check on v160's unchanged Budget source:
+68 discovered, SQLite 64 passed / four native-only skips (891.036s); native
+all 68 passed with zero skips (1028.442s), including reviewed original evidence
+and race checks. Commands used the same isolated `.tmp/sqlite_run.py` and
+`.tmp/native_auth.py` wrappers with `users.test_auth_security`,
+`users.test_auth_concurrency` and Budget Form 1 package views, reviews, packages,
+register, exports, print and review-concurrency labels. Broader final CI remains
+the exact-source integration gate; primary's Budget code is retained unchanged.
+
+## Finance validation retained from current primary
+
+The following Finance evidence retains the candidate state supplied by primary
+`739e365` and later `15b079c`, which were published during this auth pass. Its candidate-promotion
+wording records that earlier run. The combined integration now requires the
+complete final SQLite/native CI coverage gates in PR #115; Finance production
+acceptance remains NO-GO. Preserve its source/runtime/operational boundaries.
+
 
 Installed Version Manager v0.7.160 / `15b079c1d78a9bc63edbd8197242ba2f15d11644` is integrated into master,
 with its tag and both exact remote refs verified. The bounded

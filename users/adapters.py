@@ -1,23 +1,31 @@
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from allauth.socialaccount.providers.google.provider import GoogleProvider
-from profiles.models import CitizenProfile
-from django.utils.text import slugify
-from django.contrib.auth import get_user_model
+from django.db import transaction
 import logging
 
 logger = logging.getLogger(__name__)
-User = get_user_model()
 
 from allauth.account.adapter import DefaultAccountAdapter
 
 class CustomAccountAdapter(DefaultAccountAdapter):
-    # Optional: you can customize normal email-based signup behavior here
-    pass
+    def new_user(self, request):
+        user = super().new_user(request)
+        user._public_signup = True
+        return user
+
+    @transaction.atomic
+    def save_user(self, request, user, form, commit=True):
+        user._public_signup = True
+        user.is_staff = False
+        user.is_superuser = False
+        return super().save_user(request, user, form, commit=commit)
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
 
     def new_user(self, request, sociallogin):
-        return super().new_user(request, sociallogin)
+        user = super().new_user(request, sociallogin)
+        user._social_signup = True
+        return user
 
     def populate_user(self, request, sociallogin, data=None):
         user = super().populate_user(request, sociallogin, data)
@@ -28,34 +36,22 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
             user.last_name = extra_data.get('family_name', '')
             
             # Use email from extra_data or common_fields
-            user.email = extra_data.get('email', '') or data.get('email', '') if data else ''
+            user.email = extra_data.get('email', '') or (data or {}).get('email', '')
         
         return user
 
 
+    @transaction.atomic
     def save_user(self, request, sociallogin, form=None):
         try:
+            sociallogin.user._public_signup = True
+            sociallogin.user._social_signup = True
             logger.info("Attempting to save user from social login...")
             user = super().save_user(request, sociallogin, form)
-            logger.info(f"User saved: {user.username} | Email: {user.email}")
 
             user.is_staff = False
             user.save()
 
-            if not hasattr(user, 'citizenprofile'):
-                base_slug = slugify(user.username)
-                slug = base_slug
-                counter = 1
-                while CitizenProfile.objects.filter(slug=slug).exists():
-                    slug = f"{base_slug}-{counter}"
-                    counter += 1
-
-                CitizenProfile.objects.create(
-                    user=user,
-                    slug=slug,
-                    social_auth=True
-                )
-                logger.info(f"CitizenProfile auto-created for user: {user.username}")
             return user
 
         except Exception as e:
