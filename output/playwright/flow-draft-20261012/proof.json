@@ -1,0 +1,14 @@
+{
+  "package": "c9ab71cd-5841-4777-b243-6328b567a6b9",
+  "components": 34,
+  "shares": 35,
+  "journals": 2,
+  "pdf_sha256": "bdf14e14c2b4f4aa4be22cd8b79a890663895b762917df4d0c8f9fd32b42263e",
+  "json_sha256": "374cc83e4d5cf8848bf10802e6e17248bdf97152fed6fe373701976725058ae4",
+  "original_payload_checksum": "a20a13e2441b56eb79dd9f2f2ae3b214a724cab137654dafe5c0aef9f254d93c",
+  "source_current": true,
+  "form_issued": false,
+  "mobile_width": 390,
+  "document_width": 390,
+  "human_acceptance": false
+}

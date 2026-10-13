@@ -1,5 +1,30 @@
 # GRAND product roadmap
 
+The user's 2026-09-18 [Finance foundation gate](FINANCE_FOUNDATION_GATE.md) supersedes
+the older sequence below: retrieval, Budget context, verified planning/certificate
+semantics, ordinary continuity, outputs and usability before broader scenarios.
+Parity is limited to purchased/used LGU Finance scope; preserve all control gates.
+The development [Budget/remittance history checkpoint](FINANCE_BUDGET_REMITTANCE_HISTORY.md)
+adds scoped retained-event navigation. [Accounting history](FINANCE_ACCOUNTING_HISTORY.md)
+adds complete opening rows/events and reconciliation runs. [Bank/report retrieval](FINANCE_BANK_REPORT_RETRIEVAL.md)
+adds candidate pages and complete generation-history navigation.
+[Reporting schedules](FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md) include active/inactive
+retrieval and retained statement routes. The [integrated audit](FINANCE_RETRIEVAL_INTEGRATED_AUDIT.md)
+reproduces My Work's former 100-task navigation ceiling. [Personal retrieval](FINANCE_MY_WORK_RETRIEVAL.md)
+now pages all six views while preserving the bounded CSV snapshot contract.
+Full baseline SQLite/native regression passes with explicitly recorded
+SQLite skips. The subsequent [Budget expense-activity repair](FINANCE_BUDGET_ACTUAL_ACTIVITY.md)
+preserves activity through nominal closing and retains the ledger bridge and sources.
+The [source-ownership repair](FINANCE_BUDGET_ACTUAL_OWNERSHIP.md) now uses explicit
+authorized owner/year pairs, preserving separate ledgers with identical codes.
+The [authoritative-actuals contract](FINANCE_BUDGET_ACTUALS_CONTRACT.md), checked
+against FY2027 DBM Annex D/E, defines retained external certification adoption,
+followed by native preparation and distinct joint summary certification. The first
+[external-adoption route](FINANCE_BUDGET_ACTUAL_ADOPTION.md) now connects Accounting
+capture/review to Budget context, retained submission and exports; see its validation
+record. Native preparation and joint summary certification remain unimplemented.
+The broader gate remains open.
+
 User direction accepted and clarified 2026-09-10: finish concrete Finance functionality and source-to-ledger-to-output proof first, then the actual eGAPS inventory, ordinary office scenarios, exact outputs, clerk usability and operational acceptance. eGAPS is the parity floor, not the design ceiling. Preserve account-based web workflows, maintainable national/COA/DBM changes and authorized WFH. [Finance modernization priorities](FINANCE_MODERNIZATION_PRIORITIES.md) are authoritative over older sequencing. No further UX or surrounding infrastructure expansion before unresolved functionality unless required to complete or validate it. Existing financial, native-validation and production gates remain.
 
 Development v0.7.71 records the [native identity audit](FINANCE_NATIVE_INVARIANT_AUDIT_2026-09-09.md): 21 first-party declarations, 15 Finance-related, with service-boundary evidence and next native reproduction cases. This is an audit checkpoint, not a schema repair or completed concurrency gate.

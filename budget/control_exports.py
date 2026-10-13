@@ -69,7 +69,7 @@ def obligation_scope_for_user(user):
 
 
 def apply_allotment_filters(
-    queryset, *, fiscal_year=None, kind="", status="", attention="", actor=None,
+    queryset, *, fiscal_year=None, kind="", status="", attention="", actor=None, search="",
 ):
     if fiscal_year is not None:
         queryset = queryset.filter(fiscal_year=fiscal_year)
@@ -99,6 +99,9 @@ def apply_allotment_filters(
         queryset = queryset.none()
     else:
         attention = ""
+    search = (search or "").strip()[:160]
+    if search:
+        queryset = queryset.filter(Q(order_number__icontains=search) | Q(purpose__icontains=search) | Q(authorization__ordinance_number__icontains=search))
     return queryset, kind, status, attention
 
 
@@ -174,7 +177,7 @@ def _assert_actor_department(department, actor):
 
 
 def build_allotment_register(
-    department, actor, queryset, *, fiscal_year=None, kind="", status="", attention="",
+    department, actor, queryset, *, fiscal_year=None, kind="", status="", attention="", search="",
 ):
     _assert_actor_department(department, actor)
     if not has_budget_permission(actor, "view_allotment_control"):
@@ -207,7 +210,7 @@ def build_allotment_register(
         "fiscal_year_public_id": str(fiscal_year.public_id) if fiscal_year is not None else "",
         "fiscal_year": fiscal_year.year if fiscal_year is not None else "all",
         "order_kind_filter": kind or "all", "status_filter": status or "all",
-        "attention_filter": attention or "all", "order_count": len(orders),
+        "attention_filter": attention or "all", "search": (search or "").strip()[:160], "order_count": len(orders),
         "authority_boundary": (
             "Oversight evidence only; only posted movements affect balances and exact local/DBM/COA form "
             "acceptance remains separately required."
@@ -228,6 +231,7 @@ def build_allotment_register(
 
 def build_obligation_register(
     department, actor, queryset, *, fiscal_year=None, kind="", form_type="", status="", attention="",
+    retrieval_filters=None,
 ):
     _assert_actor_department(department, actor)
     if not any(has_budget_permission(actor, codename) for codename in (
@@ -265,6 +269,7 @@ def build_obligation_register(
         "obligation_kind_filter": kind or "all", "form_type_filter": form_type or "all",
         "status_filter": status or "all", "attention_filter": attention or "all",
         "request_count": len(items),
+        "retrieval_filters": retrieval_filters or {},
         "role_scope": "current user's Budget-registry and/or requesting-office visibility",
         "authority_boundary": (
             "Queue oversight evidence only; only certified movements affect balances and exact local/DBM/COA "

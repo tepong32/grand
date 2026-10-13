@@ -13,7 +13,8 @@ from .remittances import _digest
 
 
 def evidence(source):
-    return source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction')
+    from .advance_cheque_returns import evidence as return_evidence
+    return source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction') or return_evidence(source)
 
 
 def visible_originals(actor):
@@ -66,12 +67,14 @@ def movements(detail, *, exclude=None):
             if source.pk not in corrected_sources(source.treasury_department_id, correction.source_date):
                 raise ValidationError('Reconcile the exact refund correction before releasing its reservation.')
             rows.append((correction.source_date, -source.amount))
-    return rows
+    from .advance_cheque_returns import movements as return_movements
+    return rows + return_movements(detail)
 
 
 @transaction.atomic
 def record(*, actor, detail, variant, received_on, fund_code, receipt_book,
-           receipt_number, payer_reference, received_amount, evidence_reference):
+           receipt_number, payer_reference, received_amount, evidence_reference,
+           receiving_bank_id=None, bank_transaction_reference="", cheque=None):
     from .collections import require, context, amount, account, financial_row, new_source
     from .advance_applications import capacity
     treasury = require(actor, 'vouchers.prepare_collections')
@@ -88,9 +91,13 @@ def record(*, actor, detail, variant, received_on, fund_code, receipt_book,
         raise ValidationError('The refund must retain the original advance Accounting office and fund.')
     if not str(evidence_reference or '').strip():
         raise ValidationError('Retain the actual returned-money receipt evidence.')
+    from .bank_collections import capture as capture_bank, debit_account
+    bank_data = capture_bank(variant.department_id, received_on, receiving_bank_id, bank_transaction_reference)
+    from .collection_cheques import capture as capture_cheque
+    instrument = capture_cheque(treasury, received_on, cheque, bank=bank_data)
     instructions = snapshot['lines']
     cash = [row for row in instructions if row['side'] == Line.DEBIT
-            and row['account_source'] == Line.FIXED_ACCOUNT and row['amount_source'] == Line.EVENT_AMOUNT]
+            and row['account_source'] == (Line.BANK_MAPPING if bank_data else Line.FIXED_ACCOUNT) and row['amount_source'] == Line.EVENT_AMOUNT]
     advance = [row for row in instructions if row['side'] == Line.CREDIT
                and row['account_source'] == Line.PRIOR_ADVANCE and row['amount_source'] == Line.EVENT_AMOUNT]
     if (len(instructions) != 2 or len(cash) != 1 or len(advance) != 1
@@ -98,7 +105,7 @@ def record(*, actor, detail, variant, received_on, fund_code, receipt_book,
             or advance[0].get('cash_flow_category') or advance[0].get('mapping_code')
             or advance[0].get('ledger_account_code')):
         raise ValidationError('Use a reviewed received-cash debit and selected-original-advance credit for this refund.')
-    cash_account = account(variant.department_id, cash[0]['ledger_account_code'])
+    cash_account = debit_account(variant.department_id, cash[0], bank_data.get('receiving_bank'))
     if cash_account.account_type != 'asset' or cash_account.pk == detail.journal_line.account_id:
         raise ValidationError('Select the actual cash-receipt asset, distinct from the original advance.')
     proof = capacity(detail, received_on, total)
@@ -116,11 +123,16 @@ def record(*, actor, detail, variant, received_on, fund_code, receipt_book,
         'posting_rule': str(rule.public_id), 'posting_rule_snapshot': snapshot,
         'posting_rule_checksum': checksum, 'fund_id': fund.pk, 'financial_rows': rows,
         'cash_account_id': cash_account.pk}
+    proposal.update(bank_data)
+    if instrument:
+        proposal['cheque'] = instrument
     return new_source(actor=actor, treasury=treasury, variant=variant, fund=fund, kind=Source.RECEIPT,
         book=receipt_book, reference=receipt_number, day=received_on, total=total, proposal=proposal)
 
 
 def validate_source(source, *, check_capacity=True):
+    from .advance_cheque_returns import validate_source as validate_return
+    validate_return(source,check_capacity=check_capacity)
     from .advance_applications import capacity
     data = source.proposal.get('advance_refund')
     if not data:
@@ -146,6 +158,8 @@ def validate_source(source, *, check_capacity=True):
 
 
 def attach(entry, source, request):
+    from .advance_cheque_returns import attach as attach_return
+    attach_return(entry,source,request)
     data = source.proposal.get('advance_refund')
     if data:
         detail = JournalSubsidiaryLine.objects.get(pk=data['original_detail'])
@@ -170,6 +184,8 @@ def attach(entry, source, request):
 
 
 def validate_journal(entry):
+    from .advance_cheque_returns import validate_journal as validate_return
+    validate_return(entry)
     from .models import CollectionPostingRequest
     retained = entry.source_snapshot.get('collection_payload', {})
     proposal = retained.get('proposal', {})

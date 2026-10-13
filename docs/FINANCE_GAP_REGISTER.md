@@ -1,5 +1,124 @@
 # Finance gap register
 
+Active foundation gaps FG-01–FG-10 are maintained in the [2026-09-18 foundation
+gate](FINANCE_FOUNDATION_GATE.md#living-scope-and-gap-register), including scope,
+classification, user/control impact and dependencies. Historical findings remain below.
+
+## FIN-GAP-038 - Security and native regression release gate
+
+- October 13 user direction: after the current full native validation and bounded
+  remote repair attempt, an unaccepted verify result must be documented rather
+  than consume further speculative optimization. Independently validated Finance
+  development may continue; required primary checks and unresolved critical
+  dependency/production findings remain explicit blockers to promotion/acceptance.
+- Latest bounded repair: [complete CI workload distribution](FINANCE_V157_CI_VALIDATION.md),
+  complete local validation PASS; actual remote validation pending. All 2,468 original application
+  IDs remain; six explicit coverage-runner checks pass. No assertion, native
+  constraint, security check or existing timeout is weakened. CRITICAL primary
+  dependency and HIGH runtime findings remain OPEN; dependent implementation
+  and primary promotion remain NO-GO.
+- Complete MySQL rehearsal PASS: all 2,468 tests without skips, including all
+  195 SQLite-skipped identities. Complete SQLite and security/system/migration
+  preflight PASS; exact coverage, source/log hashes and two-store cleanup verified.
+  Candidate publication GO only; this does not close the remote release blocker.
+- Actual v156 MySQL outcome is now terminal CANCELLED at its unchanged 60-minute
+  limit, completed 14:59:30 UTC October 13. Complete log/all nine annotations
+  retained: 1,108 distinct expected named starts, no suite summary or unittest
+  failure markers. Six permission annotations map to five completed passing
+  negative cases. Both v156 jobs are unaccepted; the CI workload repair requires
+  full local shard proof and actual new-candidate verify/mysql passes.
+
+- Severity/status: **CRITICAL - OPEN PRIMARY RELEASE BLOCKER**. GitHub's actual
+  default-branch alerts include Critical PyJWT GHSA-ffc3-869f-jxw9 in the old pin.
+  Candidate 2.15.1 is outside its affected range and all 24 returned alert ranges;
+  local audit passes, but actual candidate/master CI and integration are pending.
+  The original scheduled Actions
+  failures and candidate regression defects are documented in the
+  [incident record](FINANCE_CI_INCIDENT_2026-10-12.md); primary integration and dependent
+  implementation are NO-GO until repaired checks and both resulting remote jobs pass.
+- Original incident is pre-existing: failed runs 139/138 and passing run 136 use
+  the same master SHA. Dependency advisories and calendar-sensitive synthetic
+  fixtures are distinct causes; neither job failed from a timeout or service startup.
+- Remediation updates the three vulnerable pins and deterministic historical test
+  periods/clocks without changing production dates, guards, assertions or test IDs.
+  Candidate inherited actuals fixture defects are separately attributed to this work.
+- Actual validation: full SQLite PASS, 2,462 tests / 7,284.909s / 195 native-only
+  skips. Full native FAIL, 2,462 tests / 9,500.128s / one failure/four errors.
+  Fresh five-case native reproduction confirms two certification fixture defects;
+  three unchanged officer-return cases pass in isolation but fail again in the
+  ordered diagnostic. Two new native Form 1 factories omit their cleanups, leaking
+  a September-18 localdate mock into later dated capacity checks; actual releases
+  and empty holds confirm the inconsistent dates. This is a candidate fixture
+  defect, not a production capacity defect. Certification fixture repair validation
+  PASS: 138 affected native cases in 184.661s, no skips. Broader ordered native
+  diagnostic FAIL: 280 tests / 1,259.379s / three reproduced errors. Factory cleanup
+  repair PASS: 24 native cases / 435.131s / no skips; 31 SQLite cases / 21.143s /
+  seven native-only skips. Broader ordered native PASS: all 280 cases / 1,279.465s /
+  no skips, exit 0, both stores destroyed, every selected ID exactly once. Candidate
+  publication is GO; both complete remote jobs remain required. No remote repair
+  pass or completed primary integration is claimed.
+- New High runtime blocker: actual v0.7.154 run 38294180301 verify CANCELLED at
+  its 20-minute limit; MySQL also CANCELLED at its 60-minute limit. Actual complete
+  job logs/annotations are retained. Audit/system/migration/service-start checks
+  passed, but neither suite has a terminal passing summary. Next CI now prints
+  exact test names at verbosity 2; every other workflow byte/limit is unchanged.
+  A scoped joint-actuals verification repair preserves exact financial/source
+  controls and reduces the measured same-package read from about 5.3s to 2.4s.
+  Focused SQLite PASS: 49 tests / 19.381s / no skips. Affected native PASS: all
+  108 IDs / 301.966s / no skips, both stores destroyed. Repaired full SQLite PASS:
+  2,466 tests / 3,983.312s, every ID once, unchanged 195 native-only skips and
+  both stores destroyed. Repaired full native PASS: 2,466 tests / 5,723.615s /
+  no skips, every ID once and both stores destroyed, including all five original
+  full-native failures. Complete local publication gate PASS, including separate
+  source-backed Telegram discovery and exact source/CI proof. Actual new-producer
+  CI remains pending; local measurements do not establish the remote timeout cause.
+  Installed Version Manager executed/pushed development v0.7.155 / `e6e1cb8e`;
+  [exact-SHA run 38311451830](https://github.com/tepong32/grand/actions/runs/38311451830)
+  has verify CANCELLED at its unchanged 20-minute limit and MySQL CANCELLED at its
+  unchanged 60-minute limit. Complete native log/annotations are retained: 809
+  distinct original headers, no terminal summary, service/dependency steps passed.
+  Four denied-access annotations map to completed passing permission cases.
+  Complete verify logs/annotations are retained: 797 distinct named headers,
+  no terminal suite summary; two denied-export annotations are passing negative
+  cases. Runtime remains High/OPEN; measured optimization is insufficient for CI.
+  Genuine export profiling completed: one case PASS / 191.746s under cProfile,
+  1,840 joint snapshot reconstructions. Subsequent exact operation-local reuse
+  measures same-package reads at 0.915/0.862s without changing retained sources or
+  store bytes. First four-file focus PASS: 13 SQLite / 16 native cases, no skips.
+  Fresh scoped-reuse/full/remote validation remains pending; see
+  [subsequent repair evidence](FINANCE_V156_RUNTIME_VALIDATION.md). Runtime remains
+  High/OPEN; no timeout or assertion is relaxed and no remote pass is inferred.
+  Master and remote tag remain pending. Resume check October 13, 20:25 local
+  found the previous full runs interrupted with no terminal summary; their
+  complete logs were preserved. No application failure/pass is inferred from
+  partial output. Full fresh reruns began 12:26:37 UTC on the unchanged frozen
+  producer, with separately retained actual process exit/log-hash metadata;
+  see the v156 validation record for new handles and interruption limitations.
+  The new full SQLite rerun completed PASS: 2,468 discovered / 2,273 passed /
+  195 unchanged native-only skips, 3,465.705s, exit 0, both stores destroyed,
+  every expected ID once and all 1,133 source hashes unchanged. Native subsequently
+  completed PASS: all 2,468 IDs exactly once, 5,084.954s, zero skips, exit 0 and
+  both stores destroyed. Combined local publication gate PASS; candidate
+  publication is GO, primary/dependent implementation NO-GO pending actual CI.
+  Raw binary log decoding was corrected to its verified CP1252 encoding;
+  original bytes/result hashes remain. No remote pass or primary promotion is claimed.
+  Installed Version Manager subsequently executed/pushed development v0.7.156 /
+  `d666f3a` (18 intended paths); exact-SHA
+  [run 38409417032](https://github.com/tepong32/grand/actions/runs/38409417032)
+  has both full verify/mysql suites IN_PROGRESS. Prerequisites passed, neither job
+  is yet PASS. Default-branch warning still has 24 alerts, including one Critical;
+  master/tag publication and the complete vm-commit workflow remain pending.
+  Later v156 verify completed CANCELLED at its unchanged 20m0s limit; complete
+  log/all five annotations retained, 796 expected headers ending in whole-package
+  export and no terminal summary or assertion-failure markers. Security/system/
+  drift passed. MySQL remains live. Runtime remains HIGH/OPEN; measured repair
+  is insufficient for CI, so primary/dependent work remains NO-GO.
+- Next action: validate the measured remaining runtime repair, inspect MySQL outcome,
+  obtain a passing repaired candidate, integrate primary after both passes
+  and verify the resulting primary jobs to finish the vm-commit workflow. Resume
+  guided whole Form 1 intake/review after that gate. Manual LGU requirements remain
+  deferred tonight and open; production/full Finance remains NO-GO.
+
 ## FIN-GAP-037 - Contra balances increase statement totals
 
 - Severity/status: **HIGH - VERIFIED** in v0.7.74 on `codex/finance-statement-movements`; affected native and broad SQLite verification passed.

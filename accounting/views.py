@@ -6,6 +6,7 @@ from pathlib import Path
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Max, Q, Sum
 from django.http import Http404, HttpResponse
@@ -111,9 +112,25 @@ def _form_for_setup(kind, *args, department, **kwargs):
     return form_class(*args, department=department, **kwargs)
 
 
+def _workspace_page(queryset, request, parameter, anchor, *, page_size=50):
+    page = Paginator(queryset, page_size).get_page(request.GET.get(parameter))
+    params = request.GET.copy()
+    for name, number in (("previous_url", page.number - 1), ("next_url", page.number + 1)):
+        params[parameter] = number
+        setattr(page, name, "?" + params.urlencode() + "#" + anchor)
+    return page
+
+
 @require_GET
 @accounting_access_required
 def workspace(request):
+    from .budget_actuals import permitted as can_use_actuals
+    from .summary_actuals import permitted as can_use_summary
+    from .budget_attributions import permitted as can_use_attributions
+    from .budget_native_certifications import permitted as can_use_native
+    from .budget_cash_preparations import permitted as can_use_native_cash
+    from .budget_actuals_preparations import permitted as can_use_native_actuals
+    from .budget_receipt_attributions import permitted as can_use_receipt_classification
     department = department_for_user(request.user)
     department_entries = JournalEntry.objects.filter(department_id=department.pk).select_related("fund", "period")
     (
@@ -140,13 +157,29 @@ def workspace(request):
     source_requests = VoucherPostingRequest.objects.filter(
         finance_department_id=department.pk,
         status__in=(VoucherPostingRequest.PENDING, VoucherPostingRequest.FAILED, VoucherPostingRequest.MATERIALIZED),
-    ).select_related("case")[:50]
+    ).select_related("case")
     remittance_requests = RemittancePostingRequest.objects.filter(
         finance_department_id=department.pk,
         status__in=(RemittancePostingRequest.PENDING, RemittancePostingRequest.FAILED, RemittancePostingRequest.MATERIALIZED),
-    ).select_related("batch", "batch__recipient_party")[:50]
-    visible_count = entries.count()
-    display_entries = list(entries[:100])
+    ).select_related("batch", "batch__recipient_party")
+    handoff_query = request.GET.get("handoff_q", "").strip()[:160]
+    if handoff_query:
+        source_requests = source_requests.filter(
+            Q(jev_number__icontains=handoff_query) | Q(case__reference_code__icontains=handoff_query)
+            | Q(case__payee_name__icontains=handoff_query),
+        )
+        remittance_requests = remittance_requests.filter(
+            Q(jev_number__icontains=handoff_query) | Q(batch__reference_code__icontains=handoff_query)
+            | Q(batch__recipient_party__display_name__icontains=handoff_query),
+        )
+    source_requests = _workspace_page(source_requests.order_by("-requested_at", "-pk"), request, "voucher_page", "voucher-handoffs")
+    remittance_requests = _workspace_page(remittance_requests.order_by("-requested_at", "-pk"), request, "remittance_page", "remittance-handoffs")
+    journal_page = _workspace_page(entries.order_by("-entry_date", "-pk"), request, "page", "journal-register")
+    visible_count = journal_page.paginator.count
+    display_entries = list(journal_page)
+    # Each search resets its own pagination and retains the other register's filters.
+    handoff_preserved = [(key, value) for key, value in request.GET.items()
+                         if key not in ("handoff_q", "voucher_page", "remittance_page")]
     for entry in display_entries:
         entry.next_action_label = next_journal_action(entry)
     return render(request, "accounting/workspace.html", {
@@ -159,10 +192,18 @@ def workspace(request):
             "status": selected_status, "source_type": selected_source_type, "period": selected_period,
             "fund": selected_fund, "attention": selected_attention, "q": query,
         },
-        "visible_count": visible_count,
+        "visible_count": visible_count, "journal_page": journal_page,
+        "handoff_query": handoff_query, "handoff_preserved": handoff_preserved,
         "can_manage_setup": can_manage_setup(request.user), "can_prepare": can_prepare_journals(request.user),
         "can_post": can_post_journals(request.user), "can_view_ledger": can_view_ledger(request.user),
         "can_view_advances": can_view_advances(request.user),
+        "can_view_budget_actuals": any(can_use_actuals(request.user, action) for action in ("view", "prepare", "review", "export")),
+        'can_view_summary_actuals': any(can_use_summary(request.user, action) for action in ('view', 'prepare', 'review', 'export')),
+        'can_view_native_cash': any(can_use_native_cash(request.user, action) for action in ('view', 'prepare', 'export')),
+        'can_view_native_actuals': can_use_native_actuals(request.user, 'view'),
+        'can_view_receipt_classification': can_use_receipt_classification(request.user, 'view'),
+        "can_view_budget_attributions": any(can_use_attributions(request.user, action) for action in ("view", "prepare", "review", "export")),
+        "can_view_native_statements": any(can_use_native(request.user, action) for action in ('view', 'prepare', 'certify', 'export')),
         "can_prepare_opening": can_prepare_opening_balances(request.user),
         "can_approve_opening": can_approve_opening_balances(request.user),
         "can_post_opening": can_post_opening_balances(request.user),
@@ -442,8 +483,9 @@ def period_close_workspace(request):
         "-fiscal_year", "-period_number",
     )
     policies = PeriodClosePolicy.objects.filter(department_id=department.pk)
+    page = _workspace_page(runs.order_by(*PeriodCloseRun._meta.ordering, "-pk"), request, "page", "close-register")
     return render(request, "accounting/period_close_workspace.html", {
-        "runs": runs[:100], "periods": periods, "policies": policies,
+        "runs": page.object_list, "page_obj": page, "periods": periods, "policies": policies,
         "current_policy": current_period_close_policy(department.pk),
         "can_prepare_close": can_prepare_period_close(request.user),
         "can_approve_close": can_approve_period_close(request.user),
@@ -455,7 +497,7 @@ def period_close_workspace(request):
         "attention_choices": period_close_action_choices_for_user(request.user),
         "selected_status": selected_status,
         "selected_attention": selected_attention,
-        "visible_count": runs.count(),
+        "visible_count": page.paginator.count,
     })
 
 
@@ -894,12 +936,16 @@ def opening_detail(request, public_id):
         public_id=public_id,
         department_id=department.pk,
     )
+    row_page = _workspace_page(batch.rows.select_related("fund", "account", "responsibility_center")
+                               .order_by("row_number", "pk"), request, "rows_page", "opening-rows")
+    event_page = _workspace_page(batch.events.order_by("-created_at", "-pk"),
+                                 request, "events_page", "opening-events")
     return render(request, "accounting/opening_detail.html", {
         "batch": batch,
-        "rows": batch.rows.select_related("fund", "account", "responsibility_center")[:500],
-        "row_count": batch.rows.count(),
+        "rows": row_page.object_list, "row_page": row_page,
+        "row_count": row_page.paginator.count,
         "postings": batch.postings.select_related("fund", "entry"),
-        "events": batch.events.all()[:50],
+        "events": event_page.object_list, "event_page": event_page,
         "import_form": OpeningBalanceImportForm(),
         "can_prepare_opening": can_prepare_opening_balances(request.user),
         "can_approve_opening": can_approve_opening_balances(request.user) and request.user.pk not in {batch.created_by_id, batch.submitted_by_id},
@@ -1167,12 +1213,13 @@ def bank_reconciliation_workspace(request):
         attention=request.GET.get("attention", "").strip(), search=request.GET.get("q", ""),
         actor=request.user,
     )
-    visible_count = batches.count()
-    display_batches = list(batches[:100])
+    page = _workspace_page(batches.order_by(*BankStatementBatch._meta.ordering), request, "page", "bank-register")
+    visible_count = page.paginator.count
+    display_batches = list(page)
     for batch in display_batches:
         batch.next_action_label = next_bank_action(batch)
     return render(request, "accounting/bank_reconciliation_workspace.html", {
-        "batches": display_batches, "metrics": metrics, "visible_count": visible_count,
+        "batches": display_batches, "page_obj": page, "metrics": metrics, "visible_count": visible_count,
         "status_choices": BankStatementBatch.STATUS_CHOICES,
         "attention_choices": bank_reconciliation_attention_choices_for_user(request.user),
         "fund_choices": Fund.objects.filter(department_id=department.pk).order_by("code"),
@@ -1305,11 +1352,14 @@ def bank_reconciliation_detail(request, public_id):
     reserved_ids = set(BankStatementMatch.objects.filter(status=BankStatementMatch.ACTIVE).values_list("journal_line_id", flat=True))
     for row in rows:
         row.active_match = match_map.get(row.pk)
-        row.candidates = [
+        candidates = [
             line for line in unmatched_lines
             if line.pk not in reserved_ids
             and row.withdrawal == line.credit and row.deposit == line.debit
-        ][:30]
+        ]
+        row.candidate_page = _workspace_page(candidates, request, f"candidates_{row.pk}",
+                                             f"bank-row-{row.pk}", page_size=10)
+        row.candidates = row.candidate_page.object_list
     item_map = {item.journal_line_id: item for item in items}
     for line in unmatched_lines:
         line.active_outstanding_item = item_map.get(line.pk)
@@ -1750,12 +1800,12 @@ def entry_post(request, public_id):
         messages.error(request, " ".join(exc.messages))
     else:
         messages.success(request, "Journal posted to the general ledger.")
-        if posted.source_type in {"voucher", "remittance", "collection", "deposit", "collection_fix"}:
+        if posted.source_type in {"voucher", "remittance", "collection", "deposit", "collection_fix", "cheque_return"}:
             try:
                 if posted.source_type == "voucher":
                     from vouchers.posting import reconcile_posted_voucher_entry
                     reconcile_posted_voucher_entry(posted, request.user)
-                elif posted.source_type in {"collection", "deposit", "collection_fix"}:
+                elif posted.source_type in {"collection", "deposit", "collection_fix", "cheque_return"}:
                     from vouchers.collection_posting import reconcile
                     reconcile(posted, request.user)
                 else:
@@ -1956,29 +2006,61 @@ def remittance_source_reconcile(request, public_id):
     return redirect("accounting:entry_detail", public_id=entry.public_id)
 
 
+def _ledger_scope(department, selected_account):
+    """Share the posted scope and strict account selection with the full export."""
+    accounts = LedgerAccount.objects.filter(department_id=department.pk)
+    lines = JournalLine.objects.filter(
+        entry__department_id=department.pk, entry__status=JournalEntry.POSTED,
+    ).select_related("entry", "entry__fund", "account", "responsibility_center").order_by(
+        "entry__entry_date", "entry_id", "sequence", "pk",
+    )
+    account = None
+    error = ""
+    if selected_account:
+        # Reject malformed/oversized input before converting or sending it to SQL.
+        if (selected_account.isascii() and selected_account.isdecimal()
+                and len(selected_account) <= 19 and int(selected_account) <= 2**63 - 1):
+            account = accounts.filter(pk=int(selected_account)).first()
+        if account is None:
+            error = "Choose an account from this department, or select All posting accounts."
+            lines = lines.none()
+        else:
+            lines = lines.filter(account=account)
+    return accounts, lines, account, error
+
+
 @require_GET
 @accounting_permission_required(can_view_ledger)
 def ledger(request):
-    department = department_for_user(request.user)
-    accounts = LedgerAccount.objects.filter(department_id=department.pk)
-    selected_account = request.GET.get("account", "").strip()
-    lines = JournalLine.objects.filter(
-        entry__department_id=department.pk, entry__status=JournalEntry.POSTED,
-    ).select_related("entry", "entry__fund", "account", "responsibility_center").order_by("entry__entry_date", "entry_id", "sequence")
-    account = None
-    if selected_account.isdigit():
-        account = accounts.filter(pk=int(selected_account)).first()
-        if account:
-            lines = lines.filter(account=account)
+    accounts, lines, account, error = _ledger_scope(
+        department_for_user(request.user), request.GET.get("account", "").strip(),
+    )
+    page = _workspace_page(lines, request, "page", "ledger-lines")
+    page_lines = list(page.object_list)
     balances = {}
+    if page.has_previous() and page_lines:
+        first = page_lines[0]
+        # Aggregate preceding lines in SQL, never load the entire ledger into a page.
+        # This boundary exactly matches the stable display/export ordering above.
+        preceding = (
+            Q(entry__entry_date__lt=first.entry.entry_date)
+            | Q(entry__entry_date=first.entry.entry_date, entry_id__lt=first.entry_id)
+            | Q(entry_id=first.entry_id, sequence__lt=first.sequence)
+            | Q(entry_id=first.entry_id, sequence=first.sequence, pk__lt=first.pk)
+        )
+        totals = lines.filter(preceding, account_id__in={line.account_id for line in page_lines}).order_by().values(
+            "account_id",
+        ).annotate(debit=Sum("debit"), credit=Sum("credit"))
+        balances = {row["account_id"]: row["debit"] - row["credit"] for row in totals}
     rows = []
-    for line in lines[:1000]:
-        delta = line.debit - line.credit
-        if line.account.normal_balance == "credit":
-            delta = -delta
-        balances[line.account_id] = balances.get(line.account_id, Decimal("0.00")) + delta
-        rows.append((line, balances[line.account_id]))
-    return render(request, "accounting/ledger.html", {"rows": rows, "accounts": accounts, "selected_account": account})
+    for line in page_lines:
+        balance = balances.get(line.account_id, Decimal("0.00")) + line.debit - line.credit
+        balances[line.account_id] = balance
+        rows.append((line, -balance if line.account.normal_balance == "credit" else balance))
+    return render(request, "accounting/ledger.html", {
+        "rows": rows, "accounts": accounts, "selected_account": account,
+        "ledger_page": page, "filter_error": error,
+    }, status=400 if error else 200)
 
 
 @require_GET
@@ -2030,15 +2112,11 @@ def _archived_csv_response(*, response, request, department, category, filename,
 @accounting_permission_required(can_view_ledger)
 def ledger_export(request):
     department = department_for_user(request.user)
-    account_id = request.GET.get("account", "").strip()
-    account = LedgerAccount.objects.filter(department_id=department.pk, pk=account_id).first() if account_id.isdigit() else None
-    lines = JournalLine.objects.filter(
-        entry__department_id=department.pk, entry__status=JournalEntry.POSTED,
-    ).select_related("entry", "entry__fund", "account", "responsibility_center").order_by(
-        "entry__entry_date", "entry_id", "sequence",
+    _accounts, lines, account, error = _ledger_scope(
+        department, request.GET.get("account", "").strip(),
     )
-    if account:
-        lines = lines.filter(account=account)
+    if error:
+        return HttpResponse(error, status=400, content_type="text/plain; charset=utf-8")
     filename = f"general-ledger-{slugify(account.code) if account else 'all-accounts'}.csv"
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
@@ -2153,6 +2231,9 @@ def subsidiary_controls(request):
             "balance": sum((row["balance"] for row in rows), Decimal("0.00")),
         }
 
+    run_page = _workspace_page(ControlAccountReconciliation.objects.filter(department_id=department.pk)
+                               .order_by("-as_of_date", "-prepared_at", "-pk"),
+                               request, "runs_page", "reconciliation-history")
     return render(request, "accounting/subsidiary_controls.html", {
         "as_of_date": as_of_date,
         "payables": payables,
@@ -2166,7 +2247,7 @@ def subsidiary_controls(request):
         "payable_totals": totals(payables),
         "withholding_totals": totals(withholdings),
         "current_reconciliation": snapshot,
-        "runs": ControlAccountReconciliation.objects.filter(department_id=department.pk)[:25],
+        "runs": run_page.object_list, "run_page": run_page,
         "can_reconcile": can_reconcile_controls(request.user),
     })
 

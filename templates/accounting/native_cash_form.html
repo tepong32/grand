@@ -1,0 +1,5 @@
+{% extends 'base.html' %}{% block content %}<div class="container pb-4">
+<a href="{% url 'accounting:native_cash_register' %}">Native cash register</a>
+<h1 class="h3 mt-3">{% if previous %}Successor to native cash version {{ previous.version }}{% else %}Prepare native cash{% endif %}</h1>
+<p>This retains a ledger snapshot and optional exact restriction reconciliation. It does not certify cash or authorize payment. Later postings can make the snapshot stale.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Retain preparation</button></form></div>{% endblock %}

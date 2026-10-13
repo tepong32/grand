@@ -26,7 +26,7 @@ def permitted_source(user, source_id):
 
 
 @transaction.atomic
-def generate(*, source, actor):
+def generate(*, source, actor, include_custody=False):
     permitted_source(actor,source.pk)
     Department.objects.select_for_update().get(pk=source.treasury_department_id)
     source=Source.objects.select_for_update().get(pk=source.pk)
@@ -37,7 +37,7 @@ def generate(*, source, actor):
         raise ValidationError('Retain one posted source JEV before generating the printable copy.')
     posting=postings[0]
     entry=JournalEntry.objects.get(public_id=posting.accounting_entry_public_id)
-    source_type={Source.RECEIPT:'collection',Source.DEPOSIT:'deposit',Source.CORRECTION:'collection_fix'}[source.kind]
+    source_type={Source.RECEIPT:'collection',Source.DEPOSIT:'deposit',Source.CORRECTION:'collection_fix',Source.CHEQUE_RETURN:'cheque_return'}[source.kind]
     verify_source_link(posting,entry,source_type=source_type)
     from .collection_posting import validate_collection_journal
     validate_collection_journal(entry)
@@ -64,9 +64,42 @@ def generate(*, source, actor):
             for c in source.corrections.order_by('pk')],
         'source_checksum':source.proposal_checksum,'posting_checksum':posting.payload_checksum,
         'output_version':version,'generated_at':timezone.now().isoformat(),'generated_by':actor.get_username()}
+    if source.proposal.get('bank_transaction_reference'):
+        snapshot['bank_transaction_reference'] = source.proposal['bank_transaction_reference']
+    if source.proposal.get('charges'):
+        snapshot['charges'] = source.proposal['charges']
+    if source.proposal.get('cheque'):
+        snapshot['cheque'] = source.proposal['cheque']
+        from .cheque_clearing import output_evidence
+        snapshot['cheque_clearances'] = output_evidence(source)
+    from .cheque_returns import history
+    snapshot['cheque_returns'] = history(source)
+    if source.kind == Source.CHEQUE_RETURN:
+        snapshot['original_cheque'] = source.proposal['original_cheque']
+        snapshot['applicability_reference'] = source.proposal['applicability_reference']
+        from .cheque_redemptions import history
+        snapshot['redemption_receipts'] = history(source)
+        if include_custody:
+            from .cheque_custody import evidence
+            snapshot['cheque_custody'] = evidence(source,actor)
+    if source.proposal.get('redemption'):
+        from .cheque_redemptions import settlement, OR_DISPOSITIONS
+        snapshot['redemption'] = source.proposal['redemption']
+        snapshot['redemption_settlement'] = settlement(source)
+        snapshot['old_receipt_disposition'] = OR_DISPOSITIONS[source.proposal['old_receipt_disposition']]
+        snapshot['old_receipt_evidence'] = source.proposal['old_receipt_evidence']
     refund = source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction')
     if refund:
         snapshot['advance_refund'] = refund
+    from .advance_cheque_returns import evidence as return_evidence
+    officer_return = return_evidence(source)
+    if officer_return:
+        snapshot['officer_return'] = officer_return
+        snapshot['officer_return_correction'] = source.kind == Source.CORRECTION
+    from .advance_cheques import settlement
+    officer_cheque = settlement(source)
+    if officer_cheque:
+        snapshot['advance_cheque_settlement'] = officer_cheque
     content=render_to_string('vouchers/collections/print.html',{'record':snapshot})
     return CollectionOutput.objects.create(source=source,version=version,snapshot=snapshot,
         snapshot_checksum=_digest(snapshot),html=content,checksum=hashlib.sha256(content.encode('utf-8')).hexdigest(),generated_by=actor)
@@ -77,4 +110,6 @@ def content(output, actor):
     if (_digest(output.snapshot) != output.snapshot_checksum
             or hashlib.sha256(output.html.encode('utf-8')).hexdigest() != output.checksum):
         raise ValidationError('The retained printable copy failed its integrity check.')
+    from .cheque_custody import require_output_access
+    require_output_access(output.snapshot,actor)
     return output.html.encode('utf-8')

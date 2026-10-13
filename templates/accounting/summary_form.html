@@ -1,0 +1,17 @@
+{% extends 'base.html' %}{% block content %}<div class="container pb-4"><a href="{% url 'accounting:summary_register' %}">Joint actuals register</a><h1 class="h3 mt-3">{% if previous %}Successor to version {{ previous.version }}{% else %}Retain historical joint actuals{% endif %}</h1>
+<p>Enter what the original source certifies. GRAND's independent adoption reviewer is not its original signer. Do not include forecasts or treat these amounts as cash availability.</p>
+<form method="post" enctype="multipart/form-data" class="card card-body">{% csrf_token %}{{ form.as_p }}
+<h2 class="h5">Itemized source rows</h2><p>Enter leaf rows once, without subtotal rows. Retain both receipts and expenditures; explicit certified zero requires its source reference. Each side must reproduce its signed control total.</p>
+<p>Manual entry supports up to 100 rows. For larger schedules, choose CSV replacement and upload the complete schedule; CSV replaces manual rows rather than adding to them. A successor can retain every preceding row without re-entry.</p>
+<details><summary>CSV columns and category guide</summary><p><a download href="{% url 'accounting:summary_csv_template' %}">Download empty CSV template</a>. Use UTF-8 with columns <code>kind,category,account_code,amount,source_row</code>. Kind is <code>receipt</code> or <code>expenditure</code>. Use the exact ledger account code; blank is permitted only for an explicit certified zero. Amounts use a decimal point without currency symbols or grouping commas. Quote descriptions containing commas. Maximum 10,000 rows and 2 MiB; an invalid or oversized file is rejected in full.</p>
+<h3 class="h6">Receipt category codes</h3><ul>{% for code,label in receipt_categories.items %}<li><code>{{ code }}</code> — {{ label }}</li>{% endfor %}</ul><h3 class="h6">Expenditure class codes</h3><ul>{% for code,label in expenditure_categories.items %}<li><code>{{ code }}</code> — {{ label }}</li>{% endfor %}</ul></details>
+{% if previous %}<p>The preceding version retains {{ previous.payload.rows|length }} rows. CSV replacement must include every row required by the new source; it does not merge with the preceding schedule.</p>{% endif %}
+<fieldset id="summary-manual">
+{{ formset.management_form }}{{ formset.non_form_errors }}<div id="summary-rows">{% for row in formset %}<div class="border rounded p-3 mb-3">{{ row.as_p }}</div>{% endfor %}</div>
+<template id="summary-empty"><div class="border rounded p-3 mb-3">{{ formset.empty_form.as_p }}</div></template>
+<button type="button" class="btn btn-outline-secondary mb-3" id="summary-add">Add source row</button></fieldset><button class="btn btn-primary">Submit for independent adoption</button></form></div>
+<script>
+const mode=document.getElementById('id_row_input'), manual=document.getElementById('summary-manual');
+function selectMode(){manual.disabled=mode.value!=='manual';manual.hidden=manual.disabled;}
+mode.addEventListener('change',selectMode);selectMode();
+document.getElementById('summary-add').addEventListener('click',function(){const total=document.getElementById('id_form-TOTAL_FORMS');if(Number(total.value)>=100)return;document.getElementById('summary-rows').insertAdjacentHTML('beforeend',document.getElementById('summary-empty').innerHTML.replaceAll('__prefix__',total.value));total.value=Number(total.value)+1;});</script>{% endblock %}

@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block content %}<div class="container py-4">
+<a href="{% url 'budget:office_forms' item.proposal.public_id %}">Back to office forms</a><h1 class="mt-3">Office Form 2 · v{{ item.version }}</h1>
+<p>{{ data.schedule.office_label }} / {{ data.schedule.fund_code }} · {{ item.get_status_display }}</p>
+<p class="alert alert-info">Unsigned copy for physical signing. System review does not establish physical signatures, a signed-form receipt, appropriation authority or Form 1 certification.</p>
+{% include 'budget/office_form_schedule.html' with schedule=data.schedule %}
+<h2 class="h5">Coverage and designation evidence</h2><p><strong>LGU:</strong> {{ data.lgu }}</p><p><strong>Fund scope:</strong> {{ data.fund_scope }}</p><p><strong>Coverage:</strong> {{ data.coverage }}</p>
+<dl><dt>Department Head</dt><dd>{{ data.signatories.department_head.name }} — {{ data.signatories.department_head.authority }}</dd><dt>Local Budget Officer</dt><dd>{{ data.signatories.budget_officer.name }} — {{ data.signatories.budget_officer.authority }}</dd><dt>Local Chief Executive</dt><dd>{{ data.signatories.chief_executive.name }} — {{ data.signatories.chief_executive.authority }}</dd></dl>
+<p>Prepared by {{ item.prepared_by_label }} at {{ item.prepared_at }}.</p>
+{% if item.status == 'prepared' and can_review %}<form method="post" action="{% url 'budget:office_form_action' item.public_id %}">{% csrf_token %}<label for="review-note">Independent coverage and designation review</label><textarea class="form-control mb-2" id="review-note" name="note" rows="3" maxlength="2000" required></textarea><button class="btn btn-primary" name="action" value="issue">Issue unsigned copy</button> <button class="btn btn-outline-secondary" name="action" value="return">Return preparation</button></form>{% endif %}
+{% if item.decided_at %}<p>Decision by {{ item.decided_by_label }} at {{ item.decided_at }}: {{ item.decision_note }}</p>{% endif %}
+{% if item.status == 'issued' %}<p><a class="btn btn-primary" href="{% url 'budget:office_form_download' item.public_id %}">Download retained unsigned PDF</a></p>{% endif %}
+<details class="mt-3"><summary>Exact retained source evidence</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{ evidence }}</pre></details>
+{% if item.status == 'issued' %}<p><a href="{% url 'budget:summary_comparison' item.public_id %}">Compare this office with adopted joint actuals</a></p>{% endif %}
+</div>{% endblock %}

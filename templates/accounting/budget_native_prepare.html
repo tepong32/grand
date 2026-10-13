@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title_ext %} - Prepare native Budget statement{% endblock %}
+{% block content %}<div class="container pb-4">
+<a href="{% url 'accounting:budget_native_register' %}">Statement history</a><h1 class="h3 mt-3">Prepare a native Budget statement</h1>
+<p>Select a completed January–June or calendar-year period. All offices and financial lines in the fund are reviewed together; no office filter removes unresolved sources.</p>
+<form method="get" class="card card-body mb-3">{{ scope.as_p }}<button class="btn btn-outline-primary">Load source preview</button></form>
+{% if preview %}{% include 'accounting/budget_native_rows.html' with statement=preview %}{% if not preview.classification_complete %}<div class="alert alert-warning">Source classification is incomplete. Resolve the outstanding evidence before preparing certification.</div>{% endif %}{% endif %}
+<p><a href="{% url 'accounting:budget_attribution_register' %}">Open expenditure classification reviews</a></p>
+{% if preparation %}<h2 class="h5">Retain this preparation for independent certification</h2><p>The deciding officer must be separately authorized and different from the preparer. Explain how the complete ledger and supporting records were reconciled.</p><form method="post" class="card card-body">{% csrf_token %}{{ preparation.as_p }}<button class="btn btn-primary">Submit for independent certification</button></form>{% endif %}
+</div>{% endblock %}

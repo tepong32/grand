@@ -6,6 +6,7 @@ from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -15,6 +16,7 @@ from finance.models import FinanceConfigurationItem, FinanceTransactionVariant, 
 from .access import department_for_user, has_explicit_permission
 from .models import TreasuryCollectionSource as Source
 from .collections import record_receipt, record_deposit, remaining_receipts, require
+from .collection_retrieval import CollectionRegisterForm, source_totals
 from .roles import is_finance_uat_viewer
 from accounting.models import JournalSubsidiaryLine
 
@@ -27,9 +29,19 @@ def visible_sources(user):
 
 
 class ReceiptForm(forms.Form):
+    cheque_bank = forms.CharField(max_length=160, required=False, label='Cheque drawee bank (cheque only)')
+    cheque_drawer_account = forms.CharField(max_length=160, required=False, label='Cheque drawer account reference')
+    cheque_number = forms.CharField(max_length=160, required=False, label='Cheque number')
+    cheque_drawer = forms.CharField(max_length=160, required=False, label='Cheque drawer')
+    cheque_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type':'date'}), label='Cheque date')
+    receiving_bank_id = forms.ModelChoiceField(queryset=FinanceConfigurationItem.objects.none(),
+        to_field_name='public_id', required=False, label='Receiving bank (bank transfer only)',
+        help_text='Choose only after the incoming bank credit is confirmed. Leave blank for cash.')
+    bank_transaction_reference = forms.CharField(max_length=160, required=False,
+        label='Bank credit reference (bank transfer only)')
     advance_detail = forms.ModelChoiceField(queryset=JournalSubsidiaryLine.objects.none(), required=False,
         label='Original officer advance (returned advance money only)',
-        help_text='Choose the original advance and a reviewed refund collection type. The officer identity is retained automatically.')
+        help_text='Choose the original advance and a reviewed refund collection type. The officer identity is retained automatically. The cheque amount is reserved against this advance. Receipt posting alone is not bank clearing; clearing needs independent bank evidence.')
     variant = forms.ModelChoiceField(queryset=FinanceTransactionVariant.objects.none(), label='Collection type')
     received_on = forms.DateField(widget=forms.DateInput(attrs={'type':'date'}), label='Date received')
     fund_code = forms.ChoiceField(label='Fund')
@@ -42,16 +54,33 @@ class ReceiptForm(forms.Form):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        self.fields['receiving_bank_id'].queryset = FinanceConfigurationItem.objects.filter(
+            category='bank_account',status='active',release__status='active').select_related('release')
         if user:
             from .advance_refunds import visible_originals
             self.fields['advance_detail'].queryset = visible_originals(user).select_related('entry', 'entry__fund')
             self.fields['advance_detail'].label_from_instance = lambda row: f'{row.reference_label} · {row.entry.reference} · {row.entry.fund.code} · original {row.debit}'
         self.fields['variant'].queryset = FinanceTransactionVariant.objects.filter(
-            status='active', release__status='active', posting_rules__event_kind=FinancePostingRule.COLLECTION).distinct()
+            status='active', release__status='active', posting_rules__event_kind=FinancePostingRule.COLLECTION
+        ).exclude(posting_rules__lines__account_source='return_receivable').distinct()
         self.fields['fund_code'].choices = [('', 'Choose a fund'), *FinanceConfigurationItem.objects.filter(
             category='fund',status='active',release__status='active').order_by('code','label').values_list('code','label').distinct()]
         for field in self.fields.values():
             field.widget.attrs['class'] = 'form-control'
+
+
+class CollectionChargeForm(forms.Form):
+    variant = forms.ModelChoiceField(queryset=FinanceTransactionVariant.objects.none(), to_field_name='public_id', label='Charge type')
+    amount = forms.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal('.01'), label='Charge amount')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['variant'].queryset = ReceiptForm().fields['variant'].queryset
+        for field in self.fields.values():
+            field.widget.attrs['class'] = 'form-control'
+
+
+CollectionCharges = forms.formset_factory(CollectionChargeForm, extra=2)
 
 
 class DepositForm(forms.Form):
@@ -86,7 +115,7 @@ class DepositShareForm(forms.Form):
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['receipt'].queryset = visible_sources(user).filter(
-            treasury_department=department_for_user(user),kind=Source.RECEIPT,status=Source.POSTED)
+            treasury_department=department_for_user(user),kind=Source.RECEIPT,status=Source.POSTED).exclude(proposal__has_key="receiving_bank")
         for field in self.fields.values():
             field.widget.attrs['class'] = 'form-control'
 
@@ -122,6 +151,7 @@ def receipt_create(request):
     require(request.user, 'vouchers.prepare_collections')
     visible_sources(request.user)
     initial = {}
+    charge_initial = []
     if request.method == 'GET' and request.GET.get('supersedes'):
         prior = get_object_or_404(visible_sources(request.user).filter(
             Q(status__in=(Source.REJECTED,Source.WITHDRAWN)) | Q(corrections__status=Source.POSTED)).distinct(),
@@ -129,20 +159,38 @@ def receipt_create(request):
         initial = {'variant':prior.transaction_variant_id,'received_on':prior.source_date,'fund_code':prior.fund_code,
             'receipt_book':prior.book_reference,'receipt_number':prior.document_reference,'received_amount':prior.amount,
             'payer_reference':prior.proposal['payer_reference'],'evidence_reference':prior.proposal['evidence_reference']}
+        initial['receiving_bank_id'] = prior.proposal.get('receiving_bank', {}).get('configuration_item')
+        initial['bank_transaction_reference'] = prior.proposal.get('bank_transaction_reference', '')
+        for key, value in prior.proposal.get('cheque', {}).items():
+            if key != 'identity':
+                initial['cheque_' + key] = value
         initial['advance_detail'] = prior.proposal.get('advance_refund', {}).get('original_detail')
+        charge_initial = [{'variant':row['variant'],'amount':row['amount']} for row in prior.proposal.get('charges',[])]
     form = ReceiptForm(request.POST or None,initial=initial,user=request.user)
-    if request.method == 'POST' and form.is_valid():
+    charge_data = request.POST if request.method == 'POST' and any(key.startswith('charges-') for key in request.POST) else None
+    charges = CollectionCharges(charge_data, prefix='charges', initial=charge_initial)
+    if request.method == 'POST' and form.is_valid() and (not charges.is_bound or charges.is_valid()):
+        values = dict(form.cleaned_data)
+        if values.get('receiving_bank_id'):
+            values['receiving_bank_id'] = values['receiving_bank_id'].public_id
+        cheque = {key: values.pop('cheque_' + key) for key in ('bank','drawer_account','number','drawer','date')}
+        if any(cheque.values()):
+            values['cheque'] = cheque
+        if charges.is_bound:
+            values['charges'] = [{'variant':str(row.cleaned_data['variant'].public_id),'amount':row.cleaned_data['amount']}
+                for row in charges if row.cleaned_data]
         try:
-            source = record_receipt(actor=request.user, **form.cleaned_data)
+            source = record_receipt(actor=request.user, **values)
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
             return redirect('vouchers:collection_detail', public_id=source.public_id)
-    return render(request, 'vouchers/collections/form.html', {'form':form, 'title':'Record collection receipt'})
+    return render(request, 'vouchers/collections/form.html', {'form':form, 'charges':charges, 'has_charges':bool(charge_initial), 'title':'Record collection receipt'})
 
 
-def register_rows(user):
-    sources = list(visible_sources(user).select_related('prepared_by', 'reviewed_by').prefetch_related('posting_requests'))
+def _register_rows(sources):
+    """Enrich an already scoped, optionally paginated register queryset."""
+    sources = list(sources.select_related('prepared_by', 'reviewed_by', 'withdrawn_by').prefetch_related('posting_requests'))
     balances = {}
     for treasury_id in {source.treasury_department_id for source in sources}:
         balances.update(remaining_receipts(treasury_id))
@@ -153,7 +201,15 @@ def register_rows(user):
 @login_required
 @require_GET
 def register(request):
-    return render(request, 'vouchers/collections/register.html', {'rows':register_rows(request.user),
+    scope = visible_sources(request.user)
+    filters = CollectionRegisterForm(request.GET, scope=scope)
+    sources = filters.apply(scope)
+    page = Paginator(sources, 50).get_page(request.GET.get('page'))
+    query = request.GET.copy()
+    query.pop('page', None)
+    return render(request, 'vouchers/collections/register.html', {
+        'rows':_register_rows(page.object_list),
+        'filters':filters, 'page_obj':page, 'page_query':query.urlencode(), 'totals':source_totals(sources),
         'can_export':has_explicit_permission(request.user,'finance.export_finance_work'),
         'can_deposit':not is_finance_uat_viewer(request.user) and has_explicit_permission(request.user,'vouchers.prepare_collection_deposits'),
         'can_prepare':not is_finance_uat_viewer(request.user) and has_explicit_permission(request.user,'vouchers.prepare_collections')})
@@ -163,8 +219,47 @@ def register(request):
 @require_GET
 def detail(request, public_id):
     from accounting.access import can_prepare_journals, can_post_journals
+    from finance.cash_flows import CASH_FLOW_CHOICES
     source = get_object_or_404(visible_sources(request.user), public_id=public_id)
+    from .cheque_redemptions import settlement, OR_DISPOSITIONS
+    from .advance_cheques import settlement as advance_cheque_settlement
+    from .cheque_custody import evidence as custody_evidence
+    from tracepoint.access import can_resolve_exceptions, packet_is_visible
+    custody = None
+    custody_links = []
+    if source.kind == Source.CHEQUE_RETURN:
+        try:
+            custody = custody_evidence(source,request.user)
+        except PermissionDenied:
+            custody = {'restricted':True}
+        custody_links = [link for link in source.custody_links.select_related('item__current_packet','linked_by')
+            if packet_is_visible(request.user,link.item.current_packet)]
+    link_permission = (not is_finance_uat_viewer(request.user)
+        and source.treasury_department_id == department_for_user(request.user).pk
+        and has_explicit_permission(request.user,'vouchers.link_collection_custody'))
     return render(request, 'vouchers/collections/detail.html', {'source':source,
+        'custody':custody, 'custody_links':custody_links,
+        'can_link_custody':link_permission and source.kind == Source.CHEQUE_RETURN
+            and source.status in (Source.PROPOSED,Source.APPROVED,Source.POSTED),
+        'can_withdraw_custody':link_permission and can_resolve_exceptions(request.user,source.treasury_department),
+        'old_receipt_label':OR_DISPOSITIONS.get(source.proposal.get('old_receipt_disposition'),''),
+        'redemption_receipts':[{'source':row, 'settlement':settlement(row)} for row in source.redemption_receipts.all()],
+        'redemption_settlement':settlement(source) if source.redemption_return_id else None,
+        'advance_cheque_settlement':advance_cheque_settlement(source),
+        'can_redeem':source.kind == Source.CHEQUE_RETURN and source.status == Source.POSTED
+            and not is_finance_uat_viewer(request.user) and source.treasury_department_id == department_for_user(request.user).pk
+            and has_explicit_permission(request.user,'vouchers.prepare_collections'),
+        'return_financial_rows':[{**row, 'purpose_label':dict(CASH_FLOW_CHOICES).get(row.get('cash_flow_category',''), '')}
+            for row in source.proposal.get('financial_rows', [])] if source.kind == Source.CHEQUE_RETURN or source.redemption_return_id else [],
+        'clearances':source.cheque_clearances.all(),
+        'cheque_returns':source.cheque_returns.all(),
+        'can_clear_cheque':source.status == Source.POSTED and bool(source.proposal.get('cheque'))
+            and not is_finance_uat_viewer(request.user)
+            and source.treasury_department_id == department_for_user(request.user).pk
+            and has_explicit_permission(request.user,'vouchers.prepare_collections'),
+        'can_review_clearing':not is_finance_uat_viewer(request.user)
+            and source.finance_department_id == department_for_user(request.user).pk
+            and has_explicit_permission(request.user,'vouchers.review_collections'),
         'journals':source.posting_requests.all(),
         'outputs':source.issued_outputs.all(),
         'can_output':has_explicit_permission(request.user,'finance.export_finance_work'),
@@ -176,11 +271,11 @@ def detail(request, public_id):
             and department_for_user(request.user).pk == source.finance_department_id
             and source.prepared_by_id != request.user.pk
             and has_explicit_permission(request.user,'vouchers.review_collections'),
-        'can_correct':source.status == Source.POSTED and source.kind in (Source.RECEIPT,Source.DEPOSIT)
+        'can_correct':source.status == Source.POSTED and source.kind in (Source.RECEIPT,Source.DEPOSIT,Source.CHEQUE_RETURN)
             and not source.corrections.filter(status__in=(Source.PROPOSED,Source.APPROVED,Source.POSTED)).exists()
             and not is_finance_uat_viewer(request.user) and source.treasury_department_id == department_for_user(request.user).pk
             and has_explicit_permission(request.user,'vouchers.prepare_collections' if source.kind == Source.RECEIPT else 'vouchers.prepare_collection_deposits'),
-        'can_replace':source.kind in (Source.RECEIPT,Source.DEPOSIT)
+        'can_replace':source.kind in (Source.RECEIPT,Source.DEPOSIT) and not source.redemption_return_id
             and (source.status in (Source.REJECTED,Source.WITHDRAWN) or source.corrections.filter(status=Source.POSTED).exists())
             and not is_finance_uat_viewer(request.user)
             and source.treasury_department_id == department_for_user(request.user).pk
@@ -217,7 +312,7 @@ def review(request, public_id):
 @require_http_methods(['GET','POST'])
 def correction_create(request, public_id):
     from .collection_corrections import propose
-    original=get_object_or_404(visible_sources(request.user),public_id=public_id,kind__in=(Source.RECEIPT,Source.DEPOSIT))
+    original=get_object_or_404(visible_sources(request.user),public_id=public_id,kind__in=(Source.RECEIPT,Source.DEPOSIT,Source.CHEQUE_RETURN))
     office=require(request.user,'vouchers.prepare_collections' if original.kind == Source.RECEIPT else 'vouchers.prepare_collection_deposits')
     if office.pk != original.treasury_department_id:
         raise PermissionDenied
@@ -260,23 +355,45 @@ def export(request):
     # Download authority is separate from read access, including for UAT viewers.
     if not has_explicit_permission(request.user, 'finance.export_finance_work'):
         raise PermissionDenied
+    scope = visible_sources(request.user)
+    filters = CollectionRegisterForm(request.GET, scope=scope)
+    sources = filters.apply(scope)
+    if not filters.is_valid():
+        return HttpResponse('Invalid register filters. Correct the filters in the collection register.', status=400)
     from .views import _safe_writerow
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="collection-deposit-register.csv"'
     writer = csv.writer(response)
     _safe_writerow(writer, ['Kind','Date','Book','Reference','Version','Fund','Amount','Status',
         'Available for deposit (after pending allocations)','Prepared by','Reviewed by','JEVs',
-        'Withdrawal reason','Withdrawn by','Withdrawn at','Original advance JEV','Officer advance identity'])
-    for row in register_rows(request.user):
+        'Withdrawal reason','Withdrawn by','Withdrawn at','Original advance JEV','Officer advance identity',
+        'Receiving bank','Bank credit reference','Cheque bank','Cheque number','Cheque date','Cheque drawer',
+        'Cheque clearing history','Original returned receipt','Original returned deposit','Return applicability','Bank return history'])
+    for row in _register_rows(sources):
         source = row['source']
-        refund = source.proposal.get('advance_refund') or source.proposal.get('advance_refund_correction') or {}
+        from .cheque_clearing import output_evidence
+        clearing_history = output_evidence(source) if source.proposal.get('cheque') else []
+        from .cheque_returns import history
+        return_history = history(source)
+        from .advance_refunds import evidence as officer_evidence
+        refund = officer_evidence(source) or {}
         _safe_writerow(writer, [source.get_kind_display(),source.source_date,source.book_reference,
             source.document_reference,source.version,source.fund_code,source.amount,source.get_status_display(),
             row['available'],source.prepared_by.get_username(),
             source.reviewed_by.get_username() if source.reviewed_by else '',
             '; '.join(r.jev_number for r in row['journals']),source.withdrawal_reason,
             source.withdrawn_by.get_username() if source.withdrawn_by else '',source.withdrawn_at,
-            refund.get('original_jev_number',''),refund.get('officer_key','')])
+            refund.get('original_jev_number',''),refund.get('officer_key',''),
+            source.proposal.get('receiving_bank',{}).get('bank_label',''),
+            source.proposal.get('bank_transaction_reference',''),
+            source.proposal.get('cheque',{}).get('bank',''),source.proposal.get('cheque',{}).get('number',''),
+            source.proposal.get('cheque',{}).get('date',''),source.proposal.get('cheque',{}).get('drawer',''),
+            '; '.join(f"v{item['version']} {item['status']} {item['date']} {item['bank_reference']} [{item['checksum']}]"
+                for item in clearing_history),
+            source.proposal.get('original_cheque',{}).get('receipt',''),
+            source.proposal.get('original_cheque',{}).get('deposit',''),
+            source.proposal.get('applicability_reference',''),
+            '; '.join(f"{item['reference']} {item['date']} {item['amount']} {item['status']} [{item['checksum']}]" for item in return_history)])
     return response
 
 
@@ -286,7 +403,7 @@ def output_generate(request, public_id):
     from .collection_outputs import generate
     source=get_object_or_404(visible_sources(request.user),public_id=public_id)
     try:
-        output=generate(source=source,actor=request.user)
+        output=generate(source=source,actor=request.user,include_custody=request.POST.get('include_custody') == 'on')
     except ValidationError as exc:
         messages.error(request,' '.join(exc.messages))
         return redirect('vouchers:collection_detail',public_id=source.public_id)

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}{% load static %}{% block content %}<div class="container pb-4"><h1 class="h3">Classify original receipt source</h1>
+<p><a href="{% url 'accounting:receipt_classification_sources' %}">Source journals</a></p>
+{% if scope_form.errors %}<div class="alert alert-danger">{{ scope_form.errors }}</div>{% endif %}
+{% if entry %}<h2 class="h4">{{ entry.reference }} · {{ entry.entry_date }}</h2><p>{{ entry.source_type }} / {{ entry.source_reference }}</p>
+<p>{{ entry.description }}</p>
+{% if entry.lineage.issue %}<p class="alert alert-warning">Source lineage requires reconciliation: {{ entry.lineage.issue }}. Retain every component unresolved until its source evidence is resolved.</p>{% endif %}
+<div class="table-responsive"><table class="table"><thead><tr><th>Original line</th><th>Account</th><th>Debit</th><th>Credit</th><th>Retained cash-flow purpose</th></tr></thead><tbody>{% for line in entry.lines %}<tr><td>{{ line.sequence }}</td><td>{{ line.account.code }} {{ line.account.title }}</td><td>{{ line.debit }}</td><td>{{ line.credit }}</td><td>{{ line.cash_flow_category }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+{% if form %}<p>Cover every financial line exactly in total. Split amounts into explicit components where needed. Choose receipt categories from actual evidence; keep uncertain treatment unresolved. Exclude transfers and counterparts explicitly.</p>
+<form method="post" id="receipt-components-form">{% csrf_token %}{% for key,value in scope_fields %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}{{ form.as_p }}
+{% if pairing %}<h2 class="h4">Exact reversal inheritance</h2><p>Original approved version {{ parent.version }}. Pair every reversal line with its exact original. The complete original components and signs are inherited; they cannot be reclassified here.</p>
+<div class="table-responsive"><table class="table"><thead><tr><th>Original line identity</th><th>Amount</th><th>Disposition / purpose</th><th>Receipt category</th><th>Basis</th></tr></thead><tbody>{% for row in parent.partition.payload.allocations %}<tr><td>{{ row.line_id }}</td><td>{{ row.amount }}</td><td>{{ row.disposition }} / {{ row.purpose }}</td><td>{{ row.category }}</td><td>{{ row.basis }}</td></tr>{% endfor %}</tbody></table></div>{{ pairing.as_p }}
+<button class="btn btn-primary">Submit exact inherited classification</button>
+{% else %}<noscript><p class="alert alert-warning">Enable JavaScript to use the guided component editor. No classification is submitted automatically.</p></noscript>
+<div id="receipt-components">{% for component in components %}<fieldset class="receipt-component border rounded p-3 mb-3"><legend class="h5">Component {{ forloop.counter }}</legend>{{ component.as_p }}<button type="button" class="btn btn-outline-danger" data-remove-component>Remove component</button></fieldset>{% endfor %}</div>
+<template id="receipt-component-template"><fieldset class="receipt-component border rounded p-3 mb-3"><legend class="h5">Additional component</legend>{{ blank.as_p }}<button type="button" class="btn btn-outline-danger" data-remove-component>Remove component</button></fieldset></template>
+<p><button id="receipt-add-component" type="button" class="btn btn-secondary">Add component</button></p><button id="receipt-submit" disabled class="btn btn-primary">Submit complete journal classification</button>
+<script src="{% static 'accounting/budget-receipt-components.js' %}" defer></script>{% endif %}</form>{% endif %}</div>{% endblock %}

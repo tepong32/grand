@@ -1,4 +1,4 @@
-# GRAND Finance continuation handoff
+# GRAND continuation handoff
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
@@ -8,8 +8,11 @@ Last updated: 2026-10-14
 
 The user explicitly requested a separate security branch, employee/public signup
 redesign, then dashboard polish and department starting pages. This scoped pass
-is based on primary v0.7.109, whose auth files match the current Finance checkout;
-it does not merge unfinished Finance development. See
+began on primary v0.7.109, whose auth files match the current Finance checkout.
+Primary advanced to v0.7.157 (`739e365`) during this pass. Integration preserves
+that already-published primary work without importing unfinished development
+branches. Primary already supplies targeted repairs for the same Finance test
+calendar issues; those replace the earlier broad fixture clock. See
 [identity/access design and rollout requirements](docs/AUTH_SECURITY.md), AUTH-001
 in [the decision log](docs/IMPLEMENTATION_DECISIONS.md).
 
@@ -32,7 +35,7 @@ FAIL - PRE-EXISTING: full SQLite first run 1,230 tests, 9 failures / 42 errors /
 86 skips (650.599s). All 51 failures reproduce on untouched master c5bd920 with
 its original dependencies (51 tests, 9 failures / 42 errors, 47.454s). Finance
 fixtures combined fixed August/September 2026 scenarios with today's date.
-The shared voucher test fixture now owns a deterministic September 15 business
+The v0.7.158 voucher test fixture used a deterministic September 15 business
 clock; production financial date/capacity checks are unchanged. An initial
 September 12 clock left two September 13 corrections in the future; corrected.
 PASS: all 51 repaired scenarios on fresh native stores (87.206s). Final full
@@ -73,299 +76,597 @@ unrelated work remain untouched. External Google callback, live email delivery,
 trusted proxy operation and LGU acceptance are NOT RUN - ENVIRONMENTAL; they
 require the configured deployment. Finance production remains NO-GO.
 
-Turning-point decisions are recorded separately in [the implementation decision log](docs/IMPLEMENTATION_DECISIONS.md), as requested by the user. Keep each choice tied to the canonical product goal, alternatives, tradeoffs, evidence and revisit conditions.
-
-Personal handoff coverage and the next source adapter are summarized in [the coverage table](docs/FINANCE_WORK_VIEW_COVERAGE.md).
-
-## How to resume
-
-The next task can begin with: **“continue”**
-
-Before changing code, inspect the current branch, status, recent commits, this file, `docs/FINANCE_ROADMAP_COMPLETION_AUDIT.md`, and `docs/FINANCE_MY_WORK.md`. Preserve user changes and never stage `db.sqlite3`. If this branch is already checked out in another worktree, continue in that owning worktree or create the next `codex/finance-*` branch from the pushed checkpoint; do not force-checkout or discard another worktree.
-
-## Active direction — eGAPS-informed web modernization
-
-### Cheque exception design — 2026-09-15
-
-The user has no local procedures and authorizes researched modular development and
-human resolution of rare cases. See [the design](docs/FINANCE_CHEQUE_EXCEPTION_DESIGN.md)
-for outgoing presentation reports, incoming returns, redemption/custody and the dependent
-officer refund extension. These new modules are planned, not implemented. No user
-procedure request is pending; reviewed applicable rules still govern specific postings.
-Preserve ordinary Finance priorities and the later local/production acceptance gates.
-
-This documentation-only checkpoint does not integrate development v0.7.108 or PR #70.
-PASS: documentation link/whitespace and destination-scope checks. Runtime, native and
-browser tests NOT RUN - OUT OF SCOPE for this design-only change. No runtime files,
-operator data, migrations or historical release evidence changed.
-
-The v0.7.106 development checkpoint was published on
-`codex/finance-returned-advance-corrections`, based on v0.7.105. See
-[implementation, validation and remaining scope](docs/FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md), D-091.
-
-Returned advances now retain the exact payment reversal and independent bank-return
-review through corrected Budget/DV/recognition/payment under both payment policies.
-Corrected liquidation/refund/deposit histories preserve dated source, fund and department
-evidence. Posted reconciliation retires the old reissue authorization; independent
-withdrawal preserves it. Outstanding applications still block original correction.
-
-PASS: final full SQLite 1,195 discovered / 1,109 passed / 86 skipped, 647.082s,
-runner 7356 exit 0. Focused fixture regression passed 3/3, 15.718s, runner 50804.
-Native issuance/withdrawal/three races passed 6/6, 29.099s, runner 70192; final
-fund/history checks passed 3/3, 17.364s, runner 29584. Native results predate only
-a test-fixture binding repair; production code was unchanged. The initial full run's
-fixture error and its repair remain documented. System/migration-drift/diff checks pass.
-All runners ended; owned MySQL is stopped. No schema migration; operator DB unchanged.
-
-Version Manager uses the reviewed adapter with 20 explicit files plus VERSION/CHANGELOG,
-preserving unrelated work and historical release references. Both v0.7.106 remote refs
-were verified at 6b3f0a7417a2d95b5600601b46999916a5c89190.
-
-The user resumed implementation and requested a patch vm-commit with primary integration
-on 2026-09-14. v0.7.107 prepares that integration of the accumulated Finance checkpoints;
-verify the master remote and CI result before treating integration as complete. This
-release changes continuity/version metadata only relative to v0.7.106. No deployment
-or Finance production approval is implied. Continue the next functional checkpoint
-following the modernization priorities after integration.
-
-Remaining functional work includes paid-unreturned/close-without-reissue and wider
-instrument chains, generated-history adoption and other collection/remittance functions.
-Follow the modernization priorities: finish functionality before actual inventory,
-ordinary-office scenarios, exact outputs, UX and operational/LGU acceptance. Full
-Finance remains NO-GO; eGAPS remains untouched.
-
-The v0.7.105 development checkpoint on `codex/finance-cancelled-advance-corrections`
-adds [original advance correction after unreleased check cancellation](docs/FINANCE_CANCELLED_ADVANCES_IN_PROGRESS.md), D-090.
-Both payment-at-release and payment-at-issuance reach retained cancellation, original
-advance reversal, revised Budget/allocation/claim, fresh DV/signatures/recognition and
-actual payment. New issuance cancellations pin exact original payment reversal lineage.
-Old checks retire from replacement choices only after posted correction reconciliation.
-The corrected signing-copy queue/workbook, packet and payment cycle are demonstrated.
-
-PASS: full SQLite 1,158 discovered / 1,079 passed / 79 skipped, 1387.707s, runner
-41031 exit 0; expanded native 67/67, 130.895s, runner 12187 exit 0; final signing-copy
-native 1/1, 8.202s, runner 79369 exit 0. Earlier two-policy native replay passed 2/2,
-10.029s. See the feature record for commands, baseline failure and scope. Runtime was
-unchanged after the broad runs started; the later print test is covered separately.
-System/migration-drift/diff checks pass. All runners ended; owned MySQL is stopped and
-port 33308 closed. Protected operator DB unchanged; eGAPS untouched; no schema migration.
-
-Version Manager uses the reviewed explicit file list plus VERSION/CHANGELOG, preserving
-unrelated work and historical release references. Verify remote branch/tag after push.
-Next functional work includes released/returned advance corrections and other missing
-M03/M01/M02 scenarios. Exact local outputs, actual inventory, ordinary-office/WFH and
-operational/LGU acceptance remain open. No master integration, deployment or full
-Finance completion is established.
-
-Previous v0.7.104 development checkpoint on `codex/finance-advance-recognition-corrections`
-connects [unpaid original advance corrections](docs/FINANCE_ADVANCE_RECOGNITION_CORRECTIONS_IN_PROGRESS.md),
-D-089. Exact independent reversal and reconciliation reopen existing Budget/payable/DV
-work; replacement recognition and actual payment retain the predecessor evidence.
-Budget approval and replacement DV preparation share the default fiscal issuance/case
-boundary before Finance locks. Any payment instrument excludes this original-correction
-route. The later user `continue` supersedes the earlier nightly pause.
-
-PASS: final full-project SQLite 1,133 discovered / 1,059 passed / 74 skipped, 699.061s, runner 50416 exit 0;
-final native workflow/concurrency 25/25, 60.830s, runner 68429 exit 0; existing native
-Budget 32/32, 17.967s, runner 91070 exit 0. See the feature record for commands,
-earlier failures, initial full-run scope and synthetic browser evidence. System,
-migration-drift and diff checks pass. Owned native/preview services and browsers are
-closed; operator DB unchanged; eGAPS untouched. No schema migration or deployment.
-
-The checkpoint uses Version Manager with an explicit file list, preserving unrelated
-work and historical release references. Verify remote branch/tag before further work.
-Next functional work remains original advance corrections involving issued/cancelled/
-released instruments and other missing Finance scenarios. Actual inventory, ordinary
-office/output parity, usability/WFH and operational/LGU gates remain open. No master
-integration or full Finance completion is established.
-
-Previous v0.7.103 development checkpoint on `codex/finance-liquidation-corrections`
-adds [posted expense-liquidation corrections](docs/FINANCE_LIQUIDATION_CORRECTIONS_2026-09-13.md), D-088. Exact independent reversal,
-dated capacity restoration, corrected replacement or actual cash refund, interrupted
-handoff recovery, independent draft withdrawal and retained original/export history
-are connected. No schema or operator-store migration. See the feature record for
-actual validation, scope and remaining limitations.
-
-PASS: full-project SQLite 1,107 discovered / 1,041 passed / 66 skipped, 610.806s
-(runner 7618 exit 0); native 40/40, 71.096s (31823 exit 0); final native workflow/UI
-checks 2/2, 9.297s (79483 exit 0). The feature record distinguishes the later additions
-from the earlier full-suite discovery. System/drift/diff checks and synthetic desktop/
-narrow template inspection pass. All runners ended; owned preview/MySQL services and
-browser closed, ports closed. Protected DB unchanged; eGAPS untouched.
-
-The v0.7.103 checkpoint completed the earlier commit/push request; implementation has resumed.
-The next implementation work remains original advance-recognition corrections and
-other missing Finance scenarios, followed by inventory, ordinary office/output,
-usability/WFH and operational/LGU gates. Do not treat this checkpoint as full Finance
-completion, master integration or deployment. Preserve the modified operator DB and
-unrelated draft/screenshots. Remote branch/tag verification is required after publication.
-
-Previous v0.7.102 development checkpoint on `codex/finance-advance-refunds` follows v0.7.101:
-[actual officer refunds](docs/FINANCE_ADVANCE_REFUNDS_IN_PROGRESS.md), D-087. Receipt
-entry, shared dated refund/expense holds, independent Accounting, original advance
-subsidiary, deposit, exact receipt/deposit corrections and retained print/CSV source
-identity are connected. Refund corrections restore capacity only from the actual date;
-later corrections cannot fund earlier shortfalls. Treasury source selection preserves
-the original office and officer. The rule editor permits the deposit service's exact
-internal allocated-cash credit, retaining other cash-purpose restrictions.
-
-PASS — full-project SQLite 1,084 discovered / 1,025 passed / 59 skipped, 550.802s,
-runner 95480 exit 0; expanded native 41/41, 52.119s, runner 1503 exit 0; system/drift/diff
-checks and synthetic printable-template inspection. The feature record preserves the
-initial setup failures, commands, scope and limits. All runners ended; native/preview
-services stopped; protected DB unchanged; no operator migration; eGAPS untouched.
-Version Manager publishes only the explicit checkpoint and VERSION/CHANGELOG, preserving
-unrelated work and historical release references. Verify the development branch/tag.
-Next: governed posted expense-liquidation/original-advance corrections, other advance
-scenarios and remaining M03/M01/M02 coverage, then inventory, ordinary office/output,
-usability/WFH and operational/LGU gates. Full Finance and production acceptance remain NO-GO.
-
-Previous v0.7.101 checkpoint on `codex/finance-advance-issuance`, based on published v0.7.100:
-[issuance-time advance payment](docs/FINANCE_ADVANCE_ISSUANCE_2026-09-13.md).
-The actual issuance/release source now supplies liquidation evidence while actual
-officer receipt still controls availability. Voucher reconciliation now locks the case
-before its posting request, resolving the native payment-recovery deadlock. PASS:
-dependent voucher SQLite 360 discovered / 332 passed / 28 skipped (244.196s, runner
-90431 exit 0), native 32/32 (48.970s, runner 67415 exit 0), and system/migration-drift
-checks. The feature record preserves the corrected failures and interrupted first
-dependent run. All runners ended, native/preview ports are closed, and the protected
-database remains unchanged. Version Manager preserves unrelated work and historical
-references; verify the development branch/tag after publication. Continue
-with linked actual cash refunds and governed posted corrections after this checkpoint;
-the wider Finance inventory, office/output and acceptance gates remain incomplete.
-
-Previous v0.7.100 development checkpoint on `codex/finance-advance-applications`, based on pushed v0.7.99: [source/ledger/output evidence](docs/FINANCE_ADVANCE_LIQUIDATIONS_2026-09-12.md), D-086. Original advance selection, actual release proof, dated expense reservations, independent JEV posting, recovery, unposted withdrawal and retained exports are connected. Standard Accounting roles have specific advance read/export access and a searchable workspace entry point; the page shows applied/reserved and remaining amounts. Reservation locks are scoped to liquidation requests. Native workflow/role/source and four race scenarios passed 16/16; final full-project SQLite passed 1,007 tests with 53 skipped (1,060 discovered, 543.265s, runner 97271 exit 0). The later native payment-recovery deadlock and its case-first fix are recorded in v0.7.101 above. Actual cash refunds, governed posted corrections and other advance scenarios remain next, before the remaining M01/M02/inventory/output/office/operational/LGU gates.
-
-All runners ended; owned native and browser-preview services stopped. The protected DB hash remains unchanged and eGAPS was untouched. Migrations ran only in disposable stores. Version Manager publishes only the explicit checkpoint and VERSION/CHANGELOG, preserving unrelated work and historical releases. Verify the remote development branch/tag; no master merge or deployment. This checkpoint does not establish full Finance completion or acceptance.
-
-Previous v0.7.99 development checkpoint on `codex/finance-advance-liquidation`, based on pushed v0.7.98: [advance recognition](docs/FINANCE_ADVANCES_IN_PROGRESS.md), D-085. An explicit reviewed gross advance-asset/payable recipe retains governed employee identity; existing payment discharges the payable against the bank. Accounting displays/exports recognized debit balances and detects unexplained GL movements, including other funds. Detached advance reversal is refused pending the governed source correction route. This was recognition-only evidence; the expense-liquidation extension is recorded above.
-
-PASS — final dependent SQLite 210/210 (81.374s, runner 4525 exit 0), native advance/Accounting 55/55 (21.314s, runner 56422 exit 0), system/migration-drift/diff checks. No skips. The feature record gives exact commands, the corrected initial permission-fixture failure and unperformed broader gates. Migrations accounting/0029 and finance/0024 ran only in disposable stores. All runners ended, owned MySQL stopped/port closed, protected DB unchanged and eGAPS untouched. Version Manager stages only the explicit checkpoint, preserves historical references and excludes the user DB/unrelated draft/images. Verify the remote branch/tag; no master merge or deployment is authorized. Finance and production acceptance remain unfinished.
-
-Previous v0.7.98 development checkpoint on `codex/finance-collection-deposit`: [M03 collection/deposit scope and evidence](docs/FINANCE_COLLECTIONS_IN_PROGRESS.md), D-084. Receipt/deposit entry, explicit partial shares, independent Accounting posting/reconciliation, unposted and exact posted corrections, dated allocation controls, curated roles/navigation and immutable printable copies are connected. Original sources and issued bytes remain unchanged. Native tests cover competing deposits, correction versus deposit and duplicate materialization; recovery and current numbering over an original historical recipe are verified.
-
-PASS — full-project SQLite: 1044 discovered / 995 passed / 49 skipped, 600.072s, runner 58579 exit 0. Native workflow 20 passed (13.274s), selected native races three passed (10.462s). Earlier mixed-module import errors were resolved by fresh runs; exact scope/commands are in the feature record. The A4 synthetic print and dynamic receipt-row control were inspected in Chromium. All runners ended; owned MySQL and preview services stopped; protected DB unchanged; eGAPS untouched. Migrations finance/0023, accounting/0027–0028 and vouchers/0029–0032 ran only in disposable stores. Version Manager preserves historical references and unrelated files; verify the remote development branch/tag, with no master merge/deployment.
-
-Next prioritize actual advance/liquidation source and subsidiary gaps within M03, then the remaining M01/M02 work, actual inventory, office/output/usability/WFH and operational/LGU gates. Cash/check/direct-bank breadth, actual refunds/returned deposits and exact official collection forms still need their own evidence; this checkpoint is the reviewed cash-collection/deposit scenario, not complete M03 or Finance parity. Fees/netting, agency dispositions and generated-history adoption remain unfinished. Do not let further collection/remittance edge cases indefinitely displace another observed missing domain. Production remains NO-GO.
-
-Previous v0.7.97 development checkpoint on `codex/finance-receipt-bank-routing`: [actual receiving-bank routing](docs/FINANCE_RECEIPT_BANKS_2026-09-12.md) lets Treasury choose another authorized account while retaining original fund/liability evidence. Review pins the setup item/release and mapped ledger account; later mapping edits cannot redirect approved receipts. Incoming posting, exact correction and exports retain the actual bank. Legacy/default proposals retain their prior shape.
-
-PASS — focused SQLite 16 discovered / 16 passed / 0 skipped, 17.152 seconds; native MySQL 16 discovered / 16 passed / 0 skipped, 29.536 seconds; dependent voucher/My Work 396 discovered / 375 passed / 21 skipped, 395.040 seconds. The initial release-UUID reference error was caused by this work and corrected; the feature record preserves that failure and final evidence. System/drift/syntax/diff/link checks pass. All runners ended; native server stopped/port closed, protected DB unchanged, eGAPS untouched. No schema migration, master merge or deployment. Version Manager preserves historical references and unrelated files; verify remote branch/tag. Continue with fees/netted receipts, actual agency repayments and non-cash agency credit/offset dispositions, then generated-history adoption, remaining M01/M03 and the full inventory/office/output/usability/WFH/operational/LGU gates.
-
-Previous v0.7.96 development checkpoint on `codex/finance-posted-receipt-corrections`: [incorrectly posted receipt correction](docs/FINANCE_POSTED_RECEIPT_CORRECTIONS_2026-09-12.md), D-083, now connects Treasury proposal, independent review, exact reversal, dated withholding reservations, recovery/reconciliation, corrected replacement and retained exports. Unposted withdrawal preserves the original approval and requires every retained journal to be discarded. Original receipt/payment/filing history remains unchanged; correction releases receipt allocations only from its correction date. This is posting-error correction, not an actual outgoing agency repayment.
-
-PASS — focused SQLite 18 discovered / 18 passed / 0 skipped, 16.421 seconds; native MySQL 24 discovered / 24 passed / 0 skipped, 51.936 seconds; full-project SQLite 1005 discovered / 959 passed / 46 skipped, 626.922 seconds. See the feature evidence for commands, scope and races. System/drift/syntax/diff/link checks pass. All runners ended; native server stopped/port closed, protected DB unchanged, eGAPS untouched. Migration vouchers/0028 ran only in disposable stores. Version Manager preserves historical references and unrelated work; verify remote branch/tag, with no master integration or deployment. Continue the full Finance objective with other receiving accounts, fees/netted receipts and actual agency payment/credit/offset dispositions, then generated-history adoption and remaining M01/M03, inventory, office/output/usability/WFH and operational/LGU gates. This is not full Finance parity or production acceptance.
-
-Previous v0.7.95 validation checkpoint on `codex/finance-returned-remittance-settlement`: [returned-remittance settlement evidence](docs/FINANCE_RETURNED_REMITTANCE_SETTLEMENT_2026-09-12.md) now proves actual refund → deduction correction → fresh signed/validated DV → payment → corrected remittance, with claim and separate remittance exports. The earlier refund CSV remains unchanged. One complete scenario passed on disposable SQLite (4.245s, runner 91246 exit 0) and native MySQL (4.398s, runner 96894 exit 0). Test and documentation only; no new production functionality. All runners ended, native server stopped/port closed, protected DB unchanged and eGAPS untouched. Version Manager preserves historical references and unrelated files; verify remote branch/tag, with no master integration or deployment. Next implement governed correction of incorrectly posted receipts, accounting for downstream restored-withholding usage; remaining bank/fee/disposition and full Finance/office/output/acceptance gates stay open.
-
-Previous v0.7.94 development checkpoint on `codex/finance-remittance-return-withdrawal`: [unposted approval withdrawal](docs/FINANCE_RETURN_WITHDRAWAL_2026-09-12.md), extending D-082. Independent Accounting withdrawal preserves the original proposal/approval and every discarded JEV, cancels the pending source and frees the allocation for a corrected receipt. Live drafts must be discarded first; posted receipts cannot use this route. The web page and return CSV retain the separate withdrawal reason/actor/date.
-
-PASS — Dependent SQLite: 343 discovered / 328 passed / 15 skipped, 242.387 seconds. Native MySQL: 20 passed, 32.556 seconds. Focused SQLite 15 tests passed in 8.249 seconds. See the feature record for commands, native races and proportional scope rationale. System/drift/compile/diff/link checks pass. All runners ended; owned MySQL stopped/port closed, user DB unchanged, eGAPS untouched. Migration vouchers/0027 ran only in disposable stores.
-
-Version Manager preserves historical releases and unrelated files; verify actual remote branch/tag. No master merge/deployment. Continue the active Finance goal with posted-return corrections and downstream withholding usage, other receiving accounts/fees and agency credit/offset dispositions; then generated-history adoption and remaining M01/M03, inventory, office/output/usability/WFH and operational/LGU gates. This is not complete remitted-tax correction, full Finance parity or production acceptance.
-
-Previous v0.7.93 development checkpoint on `codex/finance-remittance-returns`: [actual allocated receipts](docs/FINANCE_REMITTANCE_RETURNS_IN_PROGRESS.md), D-082. Treasury can record explicit partial/full receipts into the original bank account, Accounting independently reviews the source, receipt and filing evidence, and a separate immutable incoming JEV restores only the allocated liabilities. The original completed batch/JEV and verified filing bytes remain retained; a filing amendment still requires its own independent review. Return-specific exports retain both original/incoming JEVs. Recovery holds posted incoming money until operational reconciliation, and discarded drafts retain exact approval in a successor.
-
-PASS — Full-project SQLite: 948 discovered / 913 passed / 35 skipped, 448.639 seconds. Native: 15 scenario/concurrency tests, 26.190 seconds; final two filing/successor tests, 7.515 seconds. See the feature record for commands, scope and limitations. System/drift/compile/diff/link checks pass. Migration vouchers/0026 ran only in disposable stores. All runners ended, owned MySQL stopped/port closed, user DB unchanged and eGAPS untouched.
-
-Version Manager uses an explicit checkpoint manifest, preserves unrelated work and historical versions, and updates VERSION/CHANGELOG only. Verify remote branch/tag; no master merge/deployment. Continue the active goal with withdrawal/correction after return approval/posting, other receiving accounts or fees/netted receipts and documented agency credit/offset dispositions; then generated-history adoption and remaining M01/M03, actual inventory, ordinary-office/output/usability/WFH and operational/LGU gates. This is not complete remitted-withholding correction, full Finance parity or production acceptance.
-
-Previous v0.7.92 development checkpoint on `codex/finance-dated-withholding-corrections`: [dated withholding capacity](docs/FINANCE_DATED_WITHHOLDING_CORRECTIONS_2026-09-12.md). Correction requests preserve every later posted withholding balance, so an earlier correction cannot consume an already posted remittance and a later credit cannot conceal an intermediate shortfall. New generic reversals retain an existing transaction type so restored withholding remains visible; posted history is unchanged.
-
-PASS — Full-project SQLite: 932 discovered / 900 passed / 32 skipped, 534.072 seconds; native MySQL: 9 passed, 16.507 seconds. See the feature record for exact commands, reproduced defects, fixture failures and boundaries. System/drift/compile/diff/link checks pass. No schema change. All runners ended, owned MySQL stopped/port closed, protected DB unchanged.
-
-This is a remitted-correction prerequisite. Next implement the actual returned/refunded-remittance handoff with retained bank/recipient evidence, independent posting and batch/tax-filing reconciliation; do not treat a manual journal reversal as completed operational recovery. Then continue generated-history adoption and remaining M01/M03, actual inventory, office/output/usability/WFH and operational/LGU gates. User resume remains active. Version Manager preserves unrelated files and historical releases; verify remote branch/tag. No master merge/deployment, no eGAPS access; full Finance parity and production remain NO-GO.
-
-Previous v0.7.91 development checkpoint on `codex/finance-returned-check-corrections`: [reviewed bank-return deduction correction](docs/FINANCE_RETURNED_CHECK_CORRECTIONS_2026-09-12.md), extending D-081. An independently reviewed and exactly reversed bank return now permits the existing deduction correction, fresh DV printing/signatures/validation and new payment. Posting the correction retires the old replacement authorization and recoverably closes its review/exception without rewriting the original outcome or journals. The old check no longer strands completion of the corrected payment.
-
-PASS: full-project SQLite 924 discovered / 892 passed / 32 skipped, 461.505 seconds (`.tmp/returned-correction-project.log`, runner 2824 exited 0). Focused SQLite 23 tests passed in 18.340 seconds; native MySQL 18 tests passed in 32.987 seconds, including recovery and competing actions. System/migration-drift checks pass. No schema change. Skips and synthetic scenarios do not establish operational/LGU acceptance. See the feature record for commands, reproduced failures and bounds. All runners ended, disposable stores destroyed, owned MySQL stopped/port closed, user DB unchanged; eGAPS untouched.
-
-Version Manager stages only this checkpoint and preserves historical versions and unrelated work. Verify actual remote branch/tag; no master merge or deployment. The user resume remains active. Next: remitted-withholding corrections, safe generated-history adoption and remaining M01/M03, followed by the preserved inventory, office/output/usability/WFH and operational/LGU gates. Close-without-reissue and unresolved/paid instruments remain outside this correction route; full Finance parity and production remain NO-GO.
-
-Previous v0.7.90 development checkpoint on `codex/finance-issuance-bank-returns`: [issuance-time bank returns](docs/FINANCE_ISSUANCE_BANK_RETURNS_2026-09-12.md). A released check posted at issuance previously could not open bank-return review because intake required a release request. The bounded lookup repair selects the actual posted issuance/replacement request, verifies its retained check/journal identity and preserves existing release-time behavior. An actual payment-return-replacement-return-close cycle retains original lines and reconciles claim CSV to 1,500 original / 100 retained deductions / 1,400 outstanding.
-
-PASS: native 15 tests, 15.522 seconds (`.tmp/issuance-return-native.log`, runner 59860 exited 0); dependent SQLite 283 discovered / 279 passed / 4 skipped, 222.201 seconds (`.tmp/issuance-return-dependent.log`, runner 52393 exited 0). The latter includes all vouchers and Finance work-task regressions; see the feature record for actual commands and the proportional scope rationale. Wrong/unreconciled source links roll back bank-return intake. Full-project repeat is NOT RUN - OUT OF SCOPE for this isolated source lookup; v0.7.89 remains the full-project baseline. System/migration-drift/compile/diff/link checks pass. No schema change or runtime edits after final launches. Both runners ended and destroyed stores; owned MySQL is stopped, port closed. User DB hash unchanged; eGAPS untouched.
-
-Version Manager uses explicit v0.7.90 staging and preserves historical release references, user DB, unrelated policy draft and screenshots. Verify actual remote branch/tag on resume. No master merge or deployment. Continue the active Finance goal: deduction/DV correction after released bank returns remains unfinished, as do remitted-withholding correction, generated-history adoption, remaining M01/M03 and the preserved inventory, office/output/usability/WFH and operational/LGU gates. This prerequisite does not establish Finance completeness.
-
-The user explicitly resumed on 2026-09-12. Previous v0.7.89 development checkpoint on `codex/finance-cancelled-check-corrections` advances [deduction correction after cancelled checks](docs/FINANCE_CANCELLED_CHECK_CORRECTIONS_2026-09-12.md), D-081. Reconciled release-time no-entry cancellation and issuance-time exact posted cancellation lead through HTTP deduction correction, corrected DV/signing-copy generation, print/packet/signature recording, fresh validation, new check/advice/release and claim CSV. Old checks remain retained and unavailable for replacement after the correction posts. No schema change.
-
-PASS: final full project 893 discovered / 864 passed / 29 skipped, 453.210 seconds (`.tmp/cancelled-corrections-project.log`, runner 22119 exited 0). Final native printing/payment scenarios: 10 tests, 13.566 seconds; earlier native 12-test run includes replacement-versus-correction and existing remittance/materialization/withdrawal races. Dependent SQLite: 493 discovered / 464 passed / 29 native-only skips, 289.409 seconds. Feature record retains exact commands, sequence and limits. System/migration-drift/compile/diff checks pass; all runners ended, owned MySQL is stopped and port 33308 is closed. No runtime edits followed the full launch. User DB hash is unchanged; unrelated policy draft/screenshots remain excluded. eGAPS was not accessed and no user-store migration occurred.
-
-Version Manager uses a reviewed explicit v0.7.89 checkpoint and limits managed file updates to VERSION/CHANGELOG. Verify actual Git/remote branch/tag on resume; no master merge or deployment. The earlier pause is lifted. Continue remaining Finance functionality: generated-history adoption, released/bank-returned payment and remitted-withholding corrections, then preserved M01/M03, actual inventory, ordinary-office, exact-output, usability/WFH and operational/LGU gates. Production remains NO-GO.
-
-Previous v0.7.88 development checkpoint on `codex/finance-shared-historical-applications`, based on v0.7.87 (`f81f422`): [shared historical applications](docs/FINANCE_SHARED_APPLICATIONS_IN_PROGRESS.md), D-080. Ordinary web entry and independent atomic group review now connect invoices across distinct original credits to exact shared-payment reversals, DV selection/deductions/payment/reissue, partial closing returns, recovery and retained claim CSV. Every original financial line and pinned invoice/source share remains intact. Migrations accounting/0025–0026 ran only in disposable stores.
-
-PASS — final full-project `.venv/Scripts/python.exe .tmp/earlier_sqlite.py`: 881 discovered / 854 passed / 27 skipped, 412.012 seconds; `.tmp/shared-release-project-regression.log`, runner 95818 exited 0. Focused MySQL: 21 tests, 106.464 seconds, including actual shared HTTP-to-DV and selected review/attribution races. Final entry tests: six passed, 49.550 seconds; dependent SQLite: 180 discovered / 175 passed / five native-only skips. Earlier 31-test native review/concurrency evidence remains in the feature record. Browser checks at 1440px/390px cover one-cent rejection, retained input, corrected submission, separate-account approval and independently scrolling tables. Skips are not passes; operational/LGU and exact local print acceptance remain open.
-
-All runners exited; owned native/browser servers and browser are stopped. System/migration-drift/diff checks pass. No runtime changes followed the full-project launch. Protected user DB SHA256 remains `C8255385F64732838F7D07A84C5587B5CE5BA2F708A566F96AFFF80D94E7374C`; unrelated policy-test draft and unused screenshots are excluded. No eGAPS access or user-store migration. Version Manager uses a reviewed plan restricted to VERSION/CHANGELOG plus explicit checkpoint staging; historical release references are preserved. Verify actual branch/tag remote state on resume; no master merge is authorized.
-
-**Historical pause instruction, lifted by explicit resume on 2026-09-12:** commit and push this checkpoint, then pause implementation for tonight. Do not start another phase until the user resumes. The Finance goal remains unfinished. On resumption, continue safe generated-history adoption and remaining post-instrument/remitted-withholding corrections, then preserved M01/M03, actual inventory, ordinary-office, exact-output, usability/WFH and operational/LGU gates. Production remains NO-GO.
-
-Previous v0.7.87 development checkpoint on `codex/finance-historical-claim-splits`, based on v0.7.86 (`38a1b79`): [reviewed historical invoice allocations](docs/FINANCE_HISTORICAL_SPLITS_IN_PROGRESS.md), D-079. Ordinary proposal entry and independent review retain exact invoice/application shares over one original credit. Native applications/reversals, invoice DV reservations, deductions, partial checks, returns/replacements, closing-return retirement, deduction corrections and claim/subsidiary/report outputs preserve the original journal and pinned approval evidence. Parent-credit and invoice capacity are checked separately, including dated recovery. Migrations accounting/0022–0024 ran only in disposable stores.
-
-Final full-project SQLite PASS: 842 discovered / 819 passed / 23 skipped, 853.109 seconds; `.tmp/invoice-release-project-regression.log`. Earlier focused native evidence: 56 settlement/concurrency tests and 31 proposal/concurrency tests passed. Browser checks at 1440px/390px cover a rejected one-cent mismatch, retained entry, corrected submission, separate-account approval and adding rows without submission; readable fields scroll horizontally at narrow widths. See the feature record for exact commands, chronology and scope. The full runner exited successfully; test stores were destroyed, owned MySQL/browser/server are stopped, and user DB SHA256 remains `C8255385F64732838F7D07A84C5587B5CE5BA2F708A566F96AFFF80D94E7374C`. The unrelated policy-test draft is preserved. No eGAPS access or user-store migration.
-
-Versioning uses the installed Version Manager release service with a reviewed plan limited to VERSION and CHANGELOG updates; prior version references remain unchanged. The checkpoint explicitly includes the feature files and final browser evidence, excluding the user DB and unrelated draft. Verify the actual Git/remote commit when resuming; do not merge into master without a request.
-
-Next financial work: historical applications shared across distinct original credits, safe generated-history adoption and remaining post-instrument/remitted-withholding corrections; then the preserved M01/M03, actual eGAPS inventory, ordinary-office, exact-output, usability/WFH and operational/LGU gates. This checkpoint covers invoices within one original credit, not complete Finance parity. Real operator acceptance and production remain NO-GO. This is historical next-step context; the current resume instruction above takes precedence.
-
-Previous v0.7.86 on `codex/finance-claim-recovery-date`, based on pushed and verified v0.7.85 (`e6607dc`): [dated claim recovery](docs/FINANCE_CLAIM_RECOVERY_DATE_2026-09-10.md), a D-076 follow-up. A recovered single-claim hold must fit the requested date and later movements, with its existing amount counted once. The earlier-date bypass reproduced before repair (one failed denial test, 0.130 seconds). PASS: 39 affected SQLite tests (24.122 seconds), 39 native tests including five selected races (33.655 seconds). Actual interrupted DV validation, rejected earlier retry, unchanged hold/stage, valid later recovery/payment and archived claim CSV are covered. System/drift/compile/diff and local document links pass. No migration. Both runners ended; owned MySQL is stopped/port closed; user DB hash unchanged. Check Git/remote state for publication status. Preserve the user DB and unrelated policy-test draft; do not merge into master. This prerequisite does not implement historical source-line splitting; continue that work and the preserved corrections/Finance gates next.
-
-Previous v0.7.85 on `codex/finance-consolidated-dv`, based on remotely verified v0.7.84 (`245a7d2`): [consolidated settlement](docs/FINANCE_CONSOLIDATED_DV_2026-09-10.md), D-078. Accounting allocates gross/deductions/net across original claims for one payee/fund; Finance creates all reservations atomically. Partial checks retain explicit shares, exact payment/return/replacement lineage and recoverable handoffs. Closing one returned check frees only its posted shares on the actual date; other checks remain usable. Posted deduction correction retires the group atomically. Invalid allocation/check forms retain input. PASS: seven focused SQLite scenarios (7.321 seconds), 31 native tests including four selected races (29.817 seconds), final full project 805 discovered / 788 passed / 17 native-only skips, 313.148 seconds. The report records earlier new-fixture errors and the older Budget scenario reproduced on clean v0.7.84, then repaired without relaxing the actual-date guard. System/drift/compile/diff and local document links pass. Migrations accounting/0020-0021 and vouchers/0025 generated/tested only in disposable stores; no user-store migration or eGAPS access. All runners ended, owned MySQL is stopped/port closed and temporary baseline worktree removed. User DB hash unchanged. Check Git/remote state for publication status. Preserve the user DB and unrelated policy-test draft; do not merge into master.
-
-Next after this checkpoint: consolidated historical source-line allocations, safe generated-history adoption and remaining post-instrument/remitted-withholding corrections; then the preserved M01/M03, inventory, ordinary-office, exact-output, usability/WFH and operational/LGU gates. The full Finance goal remains active.
-
-Earlier v0.7.70–v0.7.84 checkpoint details, superseded next steps and historical Docker attempts are retained in [checkpoint history](docs/FINANCE_CHECKPOINT_HISTORY.md). They do not override the current checkpoint.
-
-The [printable seven-page comparison](output/pdf/GRAND-eGAPS-Assessment-2026-09-10.pdf) remains the frozen v0.7.71 assessment delivered for colleague review. No eGAPS connection is needed for current implementation.
-
-Native runtime: owned MySQL 8.4.11 at `C:/xxx/_INSTALLS/_HERE/_xxx/mysql-8.4.11-winx64`, fixture `.tmp/portable-mysql-20260910`, loopback 33308, strict mode and named time zones. It is stopped. `.tmp/portable_mysql.py start|stop` verifies the owned directory; `.tmp/prior_native_authority.py <labels>` invokes the committed fresh two-store runner with isolated logs and private fixture credentials. Never print/commit private files or run concurrent native suites. No user-store migration, service, PATH or firewall changes.
-
-## Active instructions and repository continuity
-
-- The latest instruction explicitly resumes implementation on 2026-09-12. Continue the saved modernization priorities and preserve all operational gates.
-- Make meaningful versioned checkpoints: bump VERSION, commit as `v0.7.x — feat/fix(finance): ...`, and push stacked `codex/finance-*` branches to the explicitly authorized `https://github.com/tepong32/grand.git`. Do not merge feature work into master without a request.
-- Keep turning-point decisions in [IMPLEMENTATION_DECISIONS.md](docs/IMPLEMENTATION_DECISIONS.md).
-- Waiting means work the signed-in user prepared/submitted, with current source access. Administrators explicitly assign the separate My Work export permission to selected users/groups.
-- The requested master guidance pull is complete: master `42fd662` was integrated by merge `9ac683f`, preserving local Finance work. Current feature development continues from the pushed checkpoint, not old master.
-- Never stage or alter the existing user `db.sqlite3` change. Use explicit staging paths. Its retained SHA-256 is `C8255385F64732838F7D07A84C5587B5CE5BA2F708A566F96AFFF80D94E7374C`.
-- Legacy opening evidence without its required digest needs revalidation/controlled investigation; do not backfill historical approvals. No live database migration or role grant has been performed in these checkpoints.
-- Older checkpoint details are preserved in [FINANCE_CHECKPOINT_HISTORY.md](docs/FINANCE_CHECKPOINT_HISTORY.md); their next-step/test/pause text is historical.
-
-## Remaining implementation order
-
-1. Finish M01–M03 concrete financial gaps and prove source-to-ledger-to-output behavior, starting with missing statements and earlier-payable linkage. Reproduce before repair; preserve source offices, independent decisions and immutable evidence. Use native testing when required by the financial change.
-2. Complete the actual eGAPS inventory when a safe session is available; identify locally used unmatched functions/reports. Demonstrate ordinary Budget, Accounting and Treasury chains with corrections, then match DV/OBR/JEV/advice/RCI/RD/tax/statement layouts, signatories, copies and printing.
-3. After functional coverage, validate familiar clerk workflows, next actions, My Work/status visibility, reduced duplicate encoding, audit transparency and authorized WFH. Retain the completed [personal-adapter baseline](docs/FINANCE_WORK_VIEW_COVERAGE.md); generic following/shared views/notifications stay deferred.
-4. Complete [operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md), open [critical findings](docs/FINANCE_GAP_REGISTER.md), concurrency/recovery/access/change reproduction and real LGU gates. Do not expand qualification/discovery/acceptance machinery before financial gaps unless required to complete or validate the current priority. Synthetic checks never satisfy real LGU acceptance.
-
-## Non-negotiable financial controls
-
-- Never use floating-point arithmetic for money; retain exact decimal/centavo calculations and explicit rounding rules only where a locally accepted rule requires them.
-- A required Budget, Accounting, Treasury, subsidiary, bank, remittance, or report control difference must equal exactly zero before the governed next step. A warning is not enough.
-- Recompute controls at the service boundary under a transaction/row lock. Do not trust totals, permissions, office scope, or state supplied by a page or client.
-- Preserve maker-checker separation, assigned-department/object scope, current-office custody, UAT exclusion, and attribution. Never let the creator/submitting actor perform an independent decision where separation is required.
-- Never overwrite issued, posted, released, remitted, reviewed, approved, or otherwise retained evidence. Use an explicit returned correction before issuance, or a linked reversal, adjustment, cancellation/replacement, or successor after the governing point.
-- Every report/export total must be reproducible from retained source identities, counts, snapshots, control equations, and checksums. Screen, task, and export scopes must select the same records.
-- Keep COA/DBM/BIR and local-form claims honest: starters remain candidates until the implementing LGU records current local authority, exact forms, signatories, routes, copies, and independent acceptance.
-- Do not claim production readiness from automated tests alone. Actual master data, opening balances, redacted replay, named-user acceptance, printer/device checks, backup/restore evidence, and LGU authority remain external gates.
-
-## External acceptance gates
-
-These steps require implementing-LGU evidence and must stay visibly blocked until supplied; code must not fabricate them:
-
-1. Close F0/F1 discovery for the intended first deployment scope, including named owners/reviewers/signatories/support contacts, enabled transactions, actual systems/interfaces, unresolved decisions, and an independently accepted whole-scope decision.
-2. Accept the exact F10 blank/redacted completed forms, resolve every candidate mapping, perform all required layout/print/accessibility tests, and retain independent acceptance.
-3. Open F2 with actual approved configuration and opening balances; independently approve/post and reconcile every fund to signed controls.
-4. Replay one complete redacted F3–F9 chain: authorized budget → allotment → obligation → payable → DV → JEV → payment/advice/release → bank reconciliation → accountability package. Resolve all differences by governed correction/reversal/successor.
-5. Execute F11 field qualification with named roles, approved curricula/support/cadence, nonfunctional exercises, a production-compatible off-host two-store restore, and uninterrupted qualifying shadow/parallel cycles using the accepted form set.
-6. Collect separate Requesting Office, Budget, Accounting, Treasury, IT, management, and audit decisions. Record go/no-go, date, signed authority reference/checksum/custody, and rollback criteria only after those gates pass.
-
-## Checkpoint completion and verification
-
-Follow [AGENTS.md](AGENTS.md) for proportional testing. Start with affected contracts; add relevant dependent integrations. Run the full project suite for security/shared-service/cross-module changes, major milestones and release/production gates. Isolated read-only adapter or low-impact changes do not automatically require a full suite; document their dependency scope and rationale.
-
-Use `.venv\Scripts\python.exe manage.py test <labels> --noinput` (omit labels for the full suite), preserving both test database aliases. Capture routine output in ignored `.tmp` logs. Record PASS, FAIL with cause/evidence, or NOT RUN with scope/environment rationale. After final executable changes run relevant tests, `manage.py check`, `makemigrations --check --dry-run`, touched-file compilation and `git diff --check`. Documentation-only edits after passing tests do not invalidate that run.
-
-Review the complete diff, update VERSION/CHANGELOG, this current handoff and relevant specialized docs with actual evidence, stage explicit files, commit and push the checkpoint. Verify push success. Continue the next authorized phase unless the user requested a pause or a real blocker remains. Keep this handoff current; retain historical evidence in the linked audit/changelog/archive rather than copying old instructions forward.
+Final primary reconciliation also found a counter-selection bypass in v0.7.159:
+ignored `login`/`email` fields and username/email/Unicode aliases could split the
+same target's attempt count. Isolated probes against that committed middleware
+reproduced all four cases. The fix reads each route's actual form field, resolves
+known aliases through the authentication store's collation to account IDs, and
+binds reset confirmations to URL UIDs. The native collation regression also
+checks accent/case aliases. A full SQLite run was interrupted and restarted
+after this source change; it is not passing evidence. Combined pre-fix native
+affected tests passed 409/409 (365.995s). Final focused auth tests passed 40/40
+(113.103s): `python .tmp/sqlite_run.py users.test_auth_security`. Final native
+affected regression passed 414/414 with zero skips (380.616s), including account
+aliases, MySQL collation and concurrent counters: `python .tmp/native_auth.py
+users profiles departments home leave_mgt assistance social_welfare reporting
+records tracepoint finance.test_operations`. These isolated local wrappers use
+the same Django labels/native runner with dedicated disposable runtime roots and
+schema names. The committed CI equivalents are `python manage.py test
+--testrunner scripts.ci_test_runner.ShardedDiscoverRunner` and
+`python scripts/run_mysql_tests.py --ci-shard`; the PR's final `verify` / `mysql`
+jobs enforce exact complete coverage and zero native skips before integration.
+
+## Finance foundation validation retained from v0.7.157
+
+The following Finance evidence retains the candidate state supplied by primary
+`739e365`, which was published during this auth pass. Its candidate-promotion
+wording records that earlier run. The combined integration now requires the
+complete final SQLite/native CI coverage gates in PR #115; Finance production
+acceptance remains NO-GO. Preserve its source/runtime/operational boundaries.
+
+
+Current v157 CI repair checkpoint, October 14: all local publication gates PASS.
+SQLite: 2,468 tests, 2,273 passed / 195 unchanged native-only skips. MySQL:
+all 2,468 passed with zero skips, including every one of those 195 identities.
+Launcher 26124 completed exit 0; do not poll/restart it. All eight shards on
+each backend have exact complete coverage, verified raw logs/hashes and two-store
+cleanup. Preflight and all 1,136 source hashes pass. Publication is GO for the
+development candidate only; actual release/ref and GitHub outcomes must be
+verified before primary promotion. Remote/primary/production acceptance remains
+NO-GO. See [complete validation](docs/FINANCE_V157_CI_VALIDATION.md).
+
+Prior candidate, October 13: v0.7.156 / `d666f3ab` is published to the
+development branch; primary/tag promotion remains NO-GO. Its actual
+[run 38409417032](https://github.com/tepong32/grand/actions/runs/38409417032)
+verify job exceeded the existing 20-minute limit. MySQL also completed CANCELLED
+at its unchanged 60-minute limit, October 13 14:59:30 UTC. Complete raw logs and
+all nine annotations are retained. Its 1,108 distinct named starts are not a
+passing count; no terminal summary or unittest failure markers. Six source/role
+permission annotations map to five completed passing negative tests. Watcher
+10156 completed exit 1; do not poll it again or repeat this candidate dispatch.
+Two verify source-export annotations map to completed passing
+negative-permission cases. Fresh current-producer export profiling PASS:
+one case / 96.329s under cProfile, both stores destroyed; source proof remained
+unchanged before the subsequent CI-only edits. Full-profile time includes
+156.405s fresh migration setup and 56.386s overlapping deepcopy cost; these are
+diagnostics, not an ordinary retrieval SLA.
+
+The next bounded repair distributes complete discovery across isolated CI
+workers; it changes no application validator, ledger, lock, permission or
+assertion. See [candidate v157 CI validation](docs/FINANCE_V157_CI_VALIDATION.md).
+Six CI-runner regression checks PASS. Discovery-only partition proof retains all
+2,468 original IDs exactly once, whole classes and original within-shard order.
+The complete corrected SQLite shard rehearsal is PASS: launcher 21064 completed
+exit 0; all 2,468 IDs exactly once, 2,273 passed / 195 unchanged native-only
+skips, eight fresh two-store cleanups and all source/result/log hashes verified.
+Do not poll/restart completed 21064. The corrected native rehearsal subsequently
+completed PASS at launcher 26124; do not poll/restart that completed handle.
+Local native shards are
+sequential because that server uses fixed disposable test names; CI workers
+each have their own MySQL service. Local evidence does not establish a remote pass.
+Complete all local proof before Version Manager execution and exact-SHA
+candidate dispatch. Both actual aggregate verify/mysql gates must pass before
+primary integration and the held guided whole Form 1 intake/review milestone.
+Manual acceptance remains OPEN/deferred tonight under the user's instruction.
+
+Latest user direction, October 13: complete the native checks and one verified
+remote attempt for this bounded CI repair. If verify remains unaccepted, retain
+the actual failure evidence and resume independently validated Finance work up
+to the next vm-commitable checkpoint. Avoid further speculative optimization;
+do not bypass mandatory primary checks or report critical findings as resolved.
+Keep README, handoff, roadmap and gap documentation current with actual changes.
+
+Latest local evidence: all eight SQLite shards passed, including unchanged
+195 skip identities/reasons verified against the previous full producer.
+All eight native indices passed 206/205/369/204/413/392/354/325 tests
+with no skips; each destroyed both test stores. These 2,468 completed native
+tests include all 195 exact identities skipped on SQLite. Native launcher
+26124 is terminal exit 0. Complete independent publication proof PASS is retained
+in `.tmp/ci-shards-v157-local-publication-gate.log`.
+Preflight 13291 completed exit 0: runner/YAML, system/drift, pip/audit and five
+explicit Telegram checks all passed with actual exit/log-hash records. Installed
+Version Manager preview confirms v157 without changing files/Git. Publication
+requires `.tmp/verify_ci_shards_candidate_gate.py` to pass every completed shard,
+exact actual log IDs, all original skip identities/reasons, exit/log hashes,
+both-store cleanup, preflight evidence and all 1,136 frozen source hashes.
+Initial read-only `.tmp/execute_ci_shard_release.py` scope inspection PASS: 12
+intended paths, empty index, expected parent/branch, absent v157 tag, installed
+preview and frozen-source proof. It made no staging/commit/push. Its `--execute`
+and the installed-tool adapter both require the complete local publication gate;
+use them only after all native results are terminal PASS. Installed Version
+Manager manages the two VERSION/CHANGELOG additions; expected release scope is
+14 paths at that inspection. The subsequent user-requested README and roadmap
+updates expand the intended scope to 14 paths plus VERSION/CHANGELOG, 16 total.
+Fresh read-only scope inspection passes this exact expanded set with an empty
+index and unchanged source proof. Preserve failed v154/v155/v156 tags and do
+not publish them in bulk.
+
+Worktree: `C:/Users/Administrator/.codex/worktrees/grand-finance-my-work`, branch
+`codex/finance-budget-attribution`, based on v0.7.153 / `61e690e4`.
+This handoff covers the released development v0.7.154 candidate and the later
+published development v0.7.155 runtime repair. Master integration,
+resulting remote checks and deployment are not yet confirmed here; inspect the
+actual branch/tag/run evidence before continuing dependent implementation.
+
+Actual release update, October 13: installed Version Manager executed v0.7.154,
+commit `bc8e482bafa7da33550b1aad3380ad293638d3d0`, with exactly the 400 reviewed
+paths plus VERSION/CHANGELOG. The candidate was clean, all 91 staged artifact
+bytes matched their original files, and the branch was pushed. Local v0.7.154
+tag points to that SHA; master/tag publication and primary integration remain
+pending. Explicit dispatch created [candidate run 38294180301](https://github.com/tepong32/grand/actions/runs/38294180301)
+on that exact SHA. Verify completed CANCELLED at its 20-minute limit; MySQL also
+completed CANCELLED at its 60-minute limit (actual annotation: 1h0m0s). Neither is
+PASS. Complete job logs and actual timeout annotations are retained; the security, system
+and migration checks passed, but project tests have no terminal passing summary.
+Master remains `c5bd920a`. See the current runtime repair below.
+Completion of the vm-commit workflow now requires both repaired-candidate jobs
+to pass, clean primary integration/push/tag verification and the resulting primary
+run. Preserve the failed v154 candidate commit/tag/logs; a later producer's pass
+does not rewrite that candidate's result.
+
+Actual runtime release update, October 13: installed Version Manager executed
+v0.7.155 / `e6e1cb8e1a65121dcd392271a23f9cf618da3d23`, exactly the ten reviewed
+repair paths plus VERSION/CHANGELOG. Clean HEAD, parent, local tag and unchanged
+source proof were verified; the development branch push matches that SHA.
+The guarded dispatch returned HTTP 204 at 21:34:15 UTC on October 12 and created
+[repaired candidate run 38311451830](https://github.com/tepong32/grand/actions/runs/38311451830)
+on the exact SHA. Verify job `115017911166` completed CANCELLED at the unchanged
+20-minute limit; MySQL job `115017911366` also completed CANCELLED at its unchanged
+60-minute limit (actual annotation 1h0m0s), ending 22:34:36 UTC on October 12.
+The full native log has 809 distinct original test headers, no terminal summary,
+and ends in the package permission/UAT case. Its service/dependency steps passed.
+All four denial annotations map to completed passing permission cases; the other
+annotations are the timeout, cancellation and runner notice. Complete native log
+is 2,234,354 bytes, SHA-256
+`e193b85977e95c172e4d7b8c7bfc4417a71cbadb2ea0c2eec80994f26bb01622`.
+Complete verify logs/annotations show 797 distinct named test headers, ending
+in whole-package export, and no terminal suite summary. Its security/system/drift
+checks passed. The two denied-export annotations belong to completed passing
+negative-permission cases, not failed assertions. The runtime repair is therefore
+insufficient for the CI budget; do not promote it or raise limits merely for green.
+The actual export profile completed PASS (handle 89995, exit 0): one genuine
+scenario / 191.746s under cProfile. Its 873,287,954 calls include fresh migrations;
+overlapping function times must not be summed. It recorded 1,840 joint snapshot
+reconstructions, including a duplicate in native summary projection. A subsequent
+bounded repair removes that duplicate and an ignored/repeated SPA flow construction.
+The subsequent scoped-reuse focus passed 13 SQLite / 16 native cases with no skips,
+exit 0 and both stores destroyed; separate Telegram passed five cases. System,
+drift, dependency consistency and audit checks pass. These changes are not the
+released v155 producer and require their own full regression and remote proof. See
+[subsequent runtime work](docs/FINANCE_V156_RUNTIME_VALIDATION.md).
+Earlier full fresh scoped-reuse runs used SQLite handle 18438, native handle 15756;
+logs `.tmp/ci-summary-reuse-full-sqlite.log` and `full-native.log`. Frozen producer
+has 1,133 source hashes / 2,468 discovered root IDs, all prior IDs preserved.
+Use `.tmp/ci_summary_reuse_source_gate.py` for this producer. Do not overlap native
+runners or substitute earlier producer passes. Version Manager preview for v156
+updates only VERSION/CHANGELOG; actual execution has not occurred. Manual overnight
+deferrals and next guided whole Form 1 intake/review milestone remain unchanged.
+Earlier bounded observation: full SQLite had started 799 distinct original/new
+cases and full native 783, without failure headers or terminal summaries. Both
+handles were then reconfirmed live and all 1,133 source hashes remained exact. These were
+started-case counts, not passes or percentages. The integration checkout is clean
+at `c5bd920a`; operator checkout remains `ce0c724` with its pre-existing dirty
+database, untracked policy test and historical output evidence preserved.
+The guarded actual-release helper is `.tmp/execute_ci_summary_release.py`; it
+requires `.tmp/verify_ci_summary_candidate_gate.py` to prove both complete suites,
+exact 2,468 IDs, unchanged 195 SQLite native-only skips, zero native skips, focused/
+Telegram/system/security results and the producer fingerprint. Do not execute
+until complete actual local results exist. After actual release, push only the
+development branch, verify its SHA, preview then execute guarded
+`.tmp/dispatch_ci_summary_candidate.py <actual-SHA>` once and inspect both actual
+jobs. Primary integration/tag publication requires those passes and a fresh remote/
+policy check; do not publish old failed v154/v155 tags or force-push.
+Resume verified October 13, 20:25 local: the app goal is ACTIVE. Both previously
+reported test handles are gone; no matching Python test process or disposable
+MySQL listener remained. The logs stopped at 06:59 local with 817 SQLite / 803
+native started cases and no terminal summary. These runs are INTERRUPTED,
+not PASS or demonstrated application failures. Their complete bytes were preserved
+as `.tmp/ci-summary-reuse-full-*-interrupted-20261013-0659.log`; the cause of the
+process interruption is not established. No source change followed the frozen capture.
+The owned MySQL fixture was restarted and its loopback port/data directory/strict
+mode verified. Full fresh runs restarted at 12:26:37 UTC: SQLite handle 98606 /
+worker PID 33156; native handle 84146 / worker PID 28224. Follow these new handles,
+not 18438/15756. `.tmp/rerun_full_reuse.py` retains separate start/result JSON with
+actual exit codes and log hashes; a missing result is never a pass. Native schemas
+remain exclusively owned by that runner. Release and dependent implementation
+remain gated on complete current-producer local validation and both actual remote
+jobs passing. Manual overnight deferrals remain unchanged.
+Full new-producer SQLite completed PASS: 2,468 discovered / 2,273 passed /
+195 unchanged native-only skips, 3,465.705s, handle 98606 exit 0; both test
+stores destroyed. Exact unique IDs and all prior skip IDs/reasons match; all
+1,133 source hashes remain unchanged. Complete raw log SHA-256 is
+`59c906aa4b124ea71f862b36cd883835ccbd0ffb2b7a28041da4b41b62e81354`;
+proof `.tmp/ci-summary-reuse-sqlite-completion-proof.json`. Native handle 84146
+was still live at that SQLite proof; it subsequently completed as recorded below.
+Do not poll the completed SQLite handle again. New binary captures
+use the verified Windows Python pipe encoding CP1252; the initial strict-UTF8
+proof reader failed on an expected permission-message apostrophe. Only the
+reader was corrected; original bytes/hashes and passing process result remain.
+Full new-producer native completed PASS: all 2,468 expected IDs exactly once,
+5,084.954s, zero skips, handle 84146 exit 0 at 13:54:51 UTC; both test stores
+destroyed. Raw log SHA-256:
+`172794e6c1418e4971202328624d3cd5e1def3f888b5b2786384dcafa2f11fef`.
+Do not poll either completed full handle. Combined local publication gate PASS,
+exit 0, including actual result/log hashes, exact full/focus/Telegram IDs, unchanged
+195 SQLite skips, zero native skips, cleanup, system/drift/audit/consistency and
+all 1,133 frozen source hashes. Candidate publication is GO. This checkpoint's
+report records validation before publication: inspect actual Git/tag/execution
+evidence for v156 rather than inferring execution from its refreshed preview.
+Exact-SHA remote verify/mysql remain required before primary integration/tag
+publication or dependent implementation. Production/full Finance remains NO-GO.
+Actual publication update: installed Version Manager executed v0.7.156,
+`d666f3abd8d7c382582dc0a76dfb1aae0fdfc92a`, parent `e6e1cb8e`, exactly 18
+intended paths (16 repair/evidence plus VERSION/CHANGELOG), uniform commit
+subject and local tag verified. The development branch push matches that SHA;
+master remains `c5bd920a` and remote v156 tag is not published. Guarded preview
+passed, then the single dispatch returned HTTP 204 at 13:58:40 UTC, October 13.
+[Candidate run 38409417032](https://github.com/tepong32/grand/actions/runs/38409417032)
+tests that exact SHA. Verify `115337497255` and MySQL `115337496904` are both
+IN_PROGRESS in their complete project/native regression steps. Verify dependency,
+audit, system and migration prerequisites passed; MySQL initialization/setup passed.
+Neither complete job is yet PASS. Read-only watcher handle 10156 is live; follow
+that handle and actual API evidence, never repeat release/push/dispatch. Publication
+proof `.tmp/ci-summary-reuse-v156-release.json`, dispatch marker in
+`.tmp/actions-release-20261012/dispatch-d666f3abd8d7c382582dc0a76dfb1aae0fdfc92a.json`.
+These outcome observations postdate the released candidate; source is unchanged,
+but this handoff update is not part of that commit. The vm-commit workflow still
+requires both remote passes, primary integration/push/tag and resulting checks.
+Later terminal verify result: job 115337497255 completed CANCELLED at the
+unchanged 20-minute limit (actual annotation 20m0s), October 13 14:19:15 UTC.
+Complete raw log: 2,095,630 bytes, SHA-256
+`263ea7a5af3c6d1acc05590fc050adb726cd08385f42d70eb171c97a1f61f399`.
+All five annotations are retained. There are 796 distinct expected test headers,
+ending in complete reviewed whole-package export, no terminal passing summary,
+no failure-detail headers or unittest failure markers. Telegram was not reached.
+Security/system/drift passed. Runtime repair remains insufficient for CI and
+HIGH/OPEN; do not promote, repeat dispatch or raise limits merely for green.
+MySQL job remains IN_PROGRESS; watcher 10156 is still live. Inspect its actual
+result independently. Further diagnosis must use the retained complete log and
+measured current-producer scenario; dependent Finance implementation remains held.
+Current-producer genuine export cProfile is now live, handle 14855, isolated
+SQLite via `.tmp/my_work_sqlite.py`, exact complete-reviewed-three-office export
+case. New files `.tmp/ci-runtime-v156-package-export.prof` and
+`ci-runtime-v156-package-export-profile.log` preserve earlier profiles. Follow
+that handle; source remains unchanged and no passing profile result is yet claimed.
+The old GitHub watcher (49890) completed exit 1; do not poll or repeat it.
+Do not repeat release/dispatch. Master integration, remote tag publication and
+resulting primary checks remain pending. These post-publication documentation
+updates are later than the released candidate; retain its original evidence.
+
+GitHub's push notification also exposed one Critical default-branch alert:
+PyJWT [GHSA-ffc3-869f-jxw9](https://github.com/advisories/GHSA-ffc3-869f-jxw9),
+affected <=2.13.0, fixed 2.14.0. Candidate 2.15.1 is outside that range.
+Authenticated alert reads show 24 open old-master alerts: one Critical, 15 High,
+eight Medium. Exact candidate pins are outside every returned affected range;
+local pip-audit also passes. This does not close default-branch alerts or replace
+actual CI. Keep dependent implementation NO-GO while those checks are pending.
+The application/test runtime repair belongs to v155, not the older v154 producer.
+These post-publication outcome updates are later than the v155 release; do not
+misrepresent them as part of the candidate under test.
+
+Current runtime repair: repeated pure joint-actuals reconstruction is a measured
+application bottleneck, not yet proof of the entire CI timeout's cause. Reuse the
+same freshly verified original preparation/trial within one snapshot operation;
+each officer observation still undergoes independent full actuals/trial checks.
+Public verification, role/actor/office/cohort/time/checksum checks and complete
+snapshot equality remain; there is no global cache, new authority or database
+mutation. Two new regressions reject separately forged observations and a valid
+but different later cohort. Focused fresh SQLite PASS: 49 tests / 19.381s / no
+skips, both stores destroyed. An earlier nonexistent class-label attempt ran no
+source tests and is not a pass. Affected fresh MySQL PASS: 108 tests / 301.966s /
+no skips, exit 0, exact actual-discovery IDs once and both stores destroyed.
+Separate Telegram PASS: five tests / 0.703s, no database setup. Fresh dependency
+consistency and audit PASS: no broken requirements, no known vulnerabilities;
+verified Python 3.11, Django 5.2.17 and exact isolated patched imports/metadata.
+Full fresh SQLite PASS (handle 33886, exit 0): 2,466 tests / 3,983.312s,
+all discovered IDs exactly once, the same 195 native-only skip IDs/reasons,
+both stores destroyed and exact source/CI proof unchanged. Full fresh native
+PASS (handle 9694, exit 0): 2,466 tests / 5,723.615s / no skips, every discovered
+ID exactly once and both stores destroyed. Native started only after affected
+handle 33042 exited. All five original full-native failures pass within this
+complete run. Original failed logs and the earlier case-level proof remain retained.
+On the identical guarded synthetic Form 1 package, two fresh-actor reads improved
+from 5.313/5.379s to 2.420/2.440s; profiled reconstruction fell from 43,828,078 to
+20,937,138 calls and 13.764s to 6.591s. Original joint snapshot, package checksum
+and synthetic store hashes stayed exact. Logs are `.tmp/ci-runtime-package-read-`
+`before.log` and `after.log`; this is scoped evidence, not an operational SLA or
+complete CI result. The v0.7.154 source fingerprint remains historical and must
+not validate the new application/test producer. No timeout or coverage was relaxed.
+The [runtime repair validation](docs/FINANCE_V155_RUNTIME_VALIDATION.md) records
+the new 2,466-ID discovery, independent source fingerprint, actual focused/system
+results and completed full SQLite/native handles. Version Manager preview
+and actual execution are complete; new-producer CI remains pending as recorded above.
+The workflow now appends `--verbosity 2` to its two full test commands, matching
+the local suites already running. This prints exact test identities for future
+timeout diagnosis; every other workflow byte, timeout and test selection is
+unchanged. Original 1,132-source hashes remain retained; the new CI provenance
+check proves all 1,131 non-workflow source hashes unchanged and permits only
+those two exact suffixes. Use `.tmp/ci_runtime_source_gate.py --check-ci-observability`
+for this producer, not the original no-change mode or v154's gate.
+The new `.tmp/verify_ci_runtime_candidate_gate.py` completed PASS: every
+original/new root-suite ID exactly once, exact existing 195 SQLite native-only
+skips, native zero skips, affected/Telegram PASS and precise source/CI proof.
+Its initial assumed Telegram namespace and root-suite membership were incorrect:
+the explicit CI label discovers five `tests.TelegramBotHandlerTests` IDs from the
+actual Telegram source, while root discovery does not recurse into that plain
+directory. The verifier now checks exact source-backed scoped discovery; no
+application/test, assertion, coverage or passing log changed. Initial verifier
+failures remain retained. Log: `.tmp/ci-runtime-complete-candidate-gate.log`.
+Candidate publication is GO; primary integration/dependent work still requires
+both actual remote jobs. Do not substitute v154's historical publication gate.
+
+User steering 2026-10-12: finish the next vm-commitable checkpoint, then perform
+the actual version-manager commit, integrate intended work into master and push,
+verify the remote result. Later steering prioritizes the failed Actions incident
+and explicitly requests resuming the Finance goal after both remote jobs pass.
+This authorizes release after its real review/regression/integration gates; it
+does not waive those gates or require whole Finance completion before releasing
+this bounded checkpoint.
+Do not add dependent features while the release/CI defects remain unresolved.
+Preserve unrelated work; inspect accumulated dependent scope,
+version-manager adapter/preview and current remote/PR/check policy before release.
+
+Overnight steering, 2026-10-13: after the current actual vm-commit and CI repair,
+continue the existing Finance completion plan autonomously and vm-commit subsequent
+validated work as well. Defer items requiring manual intervention tonight; retain
+them in the gap register rather than guessing an LGU answer or marking acceptance
+complete. This includes earmark-before-ARO confirmation, office-specific form/
+printer acceptance, named signatory/Chief Executive decisions and physical custody
+or witnessed operational acceptance. A software route may preserve explicit
+unknown/pending states, but must not fabricate the missing decision or evidence.
+Stay within purchased Budget–Accounting–Treasury scope and the existing roadmap;
+the next implementation remains guided whole-package intake/review after the CI
+gate. Overnight deferral does not waive financial controls, release tests, actual
+remote CI, statutory approval or the production NO-GO boundary.
+
+CI priority: complete authenticated run metadata, annotations and log archives
+were retrieved for failed scheduled runs 139/138 and passing run 136. All use
+master `c5bd920a650e5ade538cafd259de1f730fa81eea`; see
+[incident evidence and repair gate](docs/FINANCE_CI_INCIDENT_2026-10-12.md).
+Candidate publication is GO after the bounded repair checks below; primary
+integration and dependent implementation remain NO-GO until both complete remote
+jobs pass. The full local runs
+already reproduced 24 failure and six error markers in inherited Accounting
+fixtures. A narrow unchanged assertion reproduced the extra-journal defect;
+the actuals-review setup now keeps earlier inherited scenarios on their original
+fixture. Five focused and 147 broad cases passed (seven existing native-only
+SQLite skips); full SQLite passed and full native found five further failing cases.
+Repair validation now passes the focused and ordered native follow-ups. No assertions or tests
+were removed.
+
+Current bounded checkpoint: whole Form 1 draft register/detail and indexed office
+candidate retrieval, with complete draft PDF/ZIP/JSON delivery. Original package,
+source, attachment and decision verification remains mandatory. Candidate offices
+are not authorization. Counts/status filtering precede 50-row paging only after
+actual original-source access; malformed retained roots fail closed. Request-local
+arithmetic reuse hashes the entire actual envelope; source reuse pins its actual
+SPA FK and envelope hash for this actor/request, including permission denial.
+Neither cache supplies currentness, review or capacity. Migration 0022 preflights
+root checksums and original office identities before native DDL/backfill; original
+financial evidence is unchanged. No operator migration or grants were performed.
+
+Focused history validation: SQLite one case PASS in 642.272s; MySQL one case PASS
+in 684.450s, both stores destroyed. Logs `.tmp/form1-package-register-final-sqlite.log`
+and `.tmp/form1-package-register-final2-native.log`. These prove 105-version history
+for all three offices, page 3, search/status, source revocation, separate export
+grants, forged-index denial, retained-root corruption and migration backfill.
+They predate the final request-local denial-cache refinement. Latest producer code is
+frozen for full fresh-store release regressions, which include this focused case
+and dependent package/review/export/print/assembly/native concurrency cases:
+
+- SQLite PASS: `python .tmp/my_work_sqlite.py --verbosity 2`, handle 9656, exit 0;
+  2,462 tests in 7,284.909s, 195 existing native-only skips. All discovered IDs
+  appear exactly once, terminal count/OK confirmed and 1,132 source hashes unchanged.
+  `.tmp/foundation-release-final-full-sqlite.log`, runtime `.tmp/foundation-sqlite-jdctzpxe`.
+- Native: `python .tmp/retrieval_native.py --verbosity 2`, handle 64111,
+  `.tmp/foundation-release-final-full-native.log`, runtime `.tmp/mysql-regression-bm7v9w0f`.
+
+The full native run completed FAIL: 2,462 tests in 9,500.128s, one failure/four
+errors, exit 1; both disposable stores destroyed. Every discovered ID appears
+exactly once. Complete tracebacks are retained in
+`.tmp/native-release-failure-traces.txt`. Two failures are confirmed candidate
+certification fixture contamination: setup already prepares version 1 before
+inherited preparation races expect an empty history. Fresh five-case reproduction
+FAIL: 22.762s, one failure/one error, exit 1; the same stale-version guard rejects
+both cases. Certification setup now creates its reviewed record only for scenarios
+defined on the certification fixture chain; inherited preparation assertions and
+all test IDs remain intact. This was the first source change after the original
+1,132-file snapshot; the later cleanup repair adds four test-only changes below.
+Preserve the original snapshot rather than overwriting it.
+The other three full-native errors occur before officer-return races begin:
+September-12 receipt capacity is rejected. Their unchanged existing test file
+dates to v0.7.115. All three PASS in the fresh five-case reproduction; this does
+not explain their full-suite failures or establish a repair. A fresh diagnostic
+run performs complete suite discovery before selecting the two actuals modules
+and officer-return module, with read-only capacity evidence printed only on
+failure: `.tmp/diagnose_native_release_tail.py`, handle 40242,
+`.tmp/native-release-fixture-and-return-discovery.log`. It completed PASS: 138
+tests in 184.661s, no skips, exit 0; both formerly failing preparation races,
+own certification races and all officer-return module cases pass. Fresh follow-up
+diagnostic now selects all 280 non-atomic/simple cases in full discovery order,
+including the other native classes and intervening setup/cleanup. Handle 53639,
+`.tmp/native-release-all-non-atomic-diagnostic.log` completed FAIL: 280 tests in
+1,259.379s, three errors, exit 1; both stores destroyed. The three
+original full-suite officer-return errors have now reproduced in this ordered run.
+Diagnostics show the exact September-11 release of 1,000, no holds and zero computed
+September-12 capacity. Earlier diagnostics show real October releases labeled
+September 18. Two manual native Form 1 factories fail to run their fixture's
+cleanups, leaking the inherited PlanningContext September-18 localdate mock.
+This is introduced by current candidate tests, not an officer capacity defect;
+the production guard correctly rejects the inconsistent dates. All four manual
+factory owners now register their cleanups before setup, including failure paths;
+the two native owners also assert the exact original localdate callable is restored.
+Five fixture files differ functionally from the original full-run producer
+(including certification setup); one additional test file has only an extra EOF
+newline removed, with its Python AST proven identical; all other 1,126 byte hashes are unchanged. A separate
+`.tmp/cleanup-repair-source-fingerprint.json` preserves the new producer; original
+full-run hashes/results remain intact. Check it with
+`python .tmp/final_release_source_fingerprint.py --check-cleanup-repair`.
+Fresh focused validation PASS: 24 native cases in 435.131s, no skips, exit 0,
+both stores destroyed (handle 40526,
+`.tmp/native-release-cleanup-focused.log`, runtime `.tmp/mysql-regression-24v551vy`)
+and 31 SQLite cases in 21.143s, seven native-only skips, exit 0, both stores
+destroyed (handle 84602, `.tmp/sqlite-release-cleanup-focused.log`, runtime
+`.tmp/foundation-sqlite-pidhppcz`). Native runs both leaking providers before the
+unchanged officer consumers; also checks certification races and both manual cash
+factories. SQLite adds dependent planning/adoption scenarios and preserves native
+skips. All five former native failures pass in the affected follow-ups; the two
+providers' new cleanup assertions pass before the unchanged officer consumers.
+The broad fresh follow-up PASS: all 280 non-atomic/simple cases in 1,279.465s,
+no skips, exit 0, both stores destroyed, in original complete discovery order
+with no application instrumentation. Command:
+`python .tmp/diagnose_native_release_tail.py --verify-non-atomic`, handle 77434,
+`.tmp/native-release-cleanup-broad-ordered.log`. The separate retained selected-ID
+manifest matches all 280 log IDs exactly once and the original full discovery.
+The publication gate verifies all five former failures pass in the affected and
+ordered follow-ups, and all other 1,126 byte hashes remain unchanged.
+
+Release validation scope: preserve the complete local native FAIL rather than
+calling it PASS after focused repairs. Only five test fixtures changed behavior afterward; one additional test file
+has a byte-exact EOF newline cleanup with identical AST;
+application/template/dependency/workflow hashes are unchanged. Full SQLite plus
+focused SQLite/native and the broad ordered native follow-up support publishing
+a reviewable candidate for the mandatory fresh complete GitHub checks. This is
+not approval to integrate primary: actual candidate verify/mysql must both pass
+on the released SHA, then primary integration/push must be verified separately.
+Do not mechanically repeat unchanged full SQLite or claim the complete native
+gate already passed. If the broad follow-up fails, diagnose and repair first.
+Do not weaken controls. Operator database hashes remain
+unchanged; the master integration checkout remains clean (October 13 recheck).
+Old diagnostic 21690/75479 were
+deliberately stopped after confirmed fixture defects and verified process/schema
+ownership; exit 1, not passes. Accounting repair PASS: five focused/147 broad cases
+(seven existing native-only SQLite skips); calendar repair PASS: six focused cases.
+Broad voucher SQLite 89418 completed: 796 tests, 646.353s, two remaining fixed-
+September settlement failures and 97 existing native-only skips. The cash-expiry
+assertion passed. The shared settlement scenario now fixes its payment clock and
+also checks the earlier liability before payment; all 43 affected settlement/fee
+module cases PASS in 31.107s. Intermediate full handles 53469/54155 were stopped
+after this last fixture repair, exit 1, not passes. Final runs above include it.
+Do not modify producer/tests during
+them or run another native runner. Owned MySQL is on loopback 33308. Browser
+rehearsal uses separate seeded stores in `.tmp/package-register-browser-20261012`.
+It found a template-only compressed mobile table; the corrected minimum width
+retains all columns in the horizontal container (page width 390, table 1100,
+container 326 headless; headed viewport 390/document 375/table 1100/container 311).
+All 11 pages of the current authenticated PDF response were inspected after hash/
+parser verification; the final desktop/mobile control screenshots are readable.
+JSON native browser download passed. PDF and ZIP saving canceled in the browser;
+an independent 1,458-byte control PDF also failed, so native saving remains an
+environmental limitation, not a claimed pass. Authenticated ZIP HTTP bytes match
+the browser JSON exactly and all six original document hashes. Budget, Accounting
+and Treasury register/detail browser reads and final mobile columns are verified.
+The isolated official Playwright CLI 0.1.22 still fails the independent tiny PDF;
+the user's global CLI/profile/settings were preserved. System check,
+migration drift and patched dependency audit PASS. The first audit found 25
+advisories in baseline pins; requirements now pin PyJWT 2.15.1, pypdf 6.19.0 and
+urllib3 2.8.0. Full runs use verified isolated patched imports under the user's
+installation directory, preserving the shared virtual environment. Old full
+handles 1191/21898 were deliberately stopped/cleaned, not passes. See the
+[current release validation record](docs/FINANCE_V154_RELEASE_VALIDATION.md).
+Representative varied-source retrieval
+latency, full intake/review actions and LGU/form/operational acceptance remain open.
+
+Resolved focused-fixture failures remain evidence, not passes: omitted copied
+attachments (SQLite 180.089s); unbounded full-root bulk inserts lost native
+connection (159.200s and 160.259s); MySQL bulk-created instances lacked PKs for
+attachment insertion (184.240s). All failed runs destroyed both test stores.
+Fixtures now retain full attachments, bound root inserts and fetch saved PKs.
+Obsolete SQLite 15443/85139 and native 20071 were deliberately stopped after
+verified process ownership/producer replacement; none is an assertion pass.
+Stopped native disposable schemas alone were cleaned on the verified owned server.
+Logs retain exact outcomes under `.tmp/form1-package-register-*`; operator data
+was not touched. Final register removes redundant assembly reproduction, streams
+root candidates and retains only visible card metadata.
+
+Release scope: origin/master is v0.7.109, with 47 earlier intended dependent Finance
+commits before this worktree HEAD. Inspect combined scope and broad regression.
+REST reports master unprotected/no rulesets. Draft PR 114 is historical native
+capture versus its audit baseline; do not retarget it. GraphQL quota exhaustion and
+the Code Review connector's missing GitHub connection are not passing CI/review.
+No commit/merge/push yet. Installed Version Manager README/core and preservation
+adapter inspected; `.tmp/release_finance_foundation_checkpoint.py` preview proposes
+v0.7.154, updating VERSION/CHANGELOG only to preserve historical references.
+Explicitly stage reviewed intended files after real release gates, execute the
+actual ReleaseService, integrate master in an isolated worktree, verify remote
+primary/tag and both actual verify/mysql jobs before resuming dependent Finance
+implementation. Latest user steering replaces the earlier post-release pause.
+
+Earlier native/source/forecast/account/SPA/whole-package validation and the prior
+Finance dependency history are retained in
+[checkpoint history](docs/FINANCE_FOUNDATION_CHECKPOINT_HISTORY_2026-10-12.md),
+with authoritative contracts linked from AGENTS.md and the roadmap. The root
+handoff is the current entry point; archived live-status labels are historical.
+
+The complete printable draft previously passed genuine-source SQLite/native tests
+and all 22 reviewed/unknown PDF pages were inspected. Fresh three-office browser
+reads, JSON saving and authenticated PDF/ZIP response validation confirm the final
+register/template; native PDF/ZIP saving remains limited as recorded above. Final
+full regressions must confirm the patched dependency environment and complete
+dependent suite. Never reuse an earlier producer's pass as latest proof.
+
+## Next actions and release/incident boundary
+
+1. Preserve the complete terminal evidence from [candidate run 38294180301](https://github.com/tepong32/grand/actions/runs/38294180301)
+   on `bc8e482bafa7da33550b1aad3380ad293638d3d0`. Verify is CANCELLED at 20 minutes;
+   its dependency consistency, security audit, Django system check and migration
+   steps passed but the project suite did not finish. MySQL is also CANCELLED at
+   60 minutes. Both complete job logs/annotations are retained. Their interrupted
+   suites have no terminal summary/full passing count; do not repeat an old
+   dispatch or infer assertion outcomes from denial annotations or fixture users.
+   Repaired full local runs are now PASS as recorded above. Inspect the live
+   exact-SHA repaired run 38311451830, not the old cancelled run. Investigate
+   every actionable failure before dependent implementation; no duplicate dispatch.
+2. The actual Version Manager commit/local tag, exact 402-file release and candidate
+   branch push/dispatch are DONE. Do not repeat that release. The dispatch helper
+   used the documented proportional local publication gate: retained full SQLite
+   PASS/native FAIL, five fixture repairs, AST-identical EOF cleanup, focused and
+   all 280 ordered native PASS, exact source/branch/tag provenance. This permits
+   candidate publication, never primary integration without both actual CI passes.
+   The later local follow-up now includes the scoped runtime service repair and
+   two added regression methods. Fresh discovery preserves all 2,462 original
+   IDs and adds four IDs (two inherited), total 2,466. Full fresh SQLite/native
+   and the complete local publication gate PASS are recorded above. Preserve
+   original v154 evidence. Installed Version Manager actually released v0.7.155,
+   development push and guarded exact-SHA dispatch are DONE as recorded above.
+   Installed `GitService.commit` stages only its managed VERSION/CHANGELOG files
+   and commits the existing index. This release explicitly staged and verified
+   exactly the intended repair scope; no blanket staging or metadata-only release.
+   Executed scope
+   is the two Accounting files, two-line CI diagnostic change, AGENTS/CONTINUE,
+   incident/gap/native-testing documents and v154/v155 validation records (ten
+   paths), plus the tool's two metadata updates. `.tmp/execute_ci_runtime_release.py`
+   verified parent/tag, clean state, exact twelve committed paths and source proof.
+   `.tmp/dispatch_ci_runtime_candidate.py` passed its dry-run guard and then
+   dispatched once against clean HEAD/local tag/remote equality and complete local
+   proof. Saved dispatch evidence forbids a duplicate; inspect run 38311451830.
+   Original v154 helper, failed run and evidence remain unchanged.
+3. Diagnose the remaining verify runtime from run 38311451830's complete log and
+   exact named cases. The current export profile is running; its measured call
+   graph, not the last header alone, must guide any further repair. Preserve
+   v155 local PASS/release/failed CI evidence and await MySQL's actual outcome.
+   Obtain a further validated exact-SHA repaired candidate CI gate. After
+   both repaired candidate jobs pass, integrate intended dependencies into clean
+   master, push primary/tag and verify the remote SHA/tag and resulting primary
+   run. Record actual run URLs, outcomes and remaining limitations, then resume
+   the existing Finance roadmap as requested by the latest steering. Do not
+   declare incident resolution from local checks alone or treat CI green as
+   production/LGU acceptance.
+
+The clean integration checkout is synchronized to remote master `c5bd920a`;
+candidate `e6e1cb8e` contains that intended history plus the runtime repair.
+No candidate merge, primary push, remote v0.7.154/v0.7.155 tag or operator migration has
+occurred. Recheck remote primary and worktree cleanliness immediately before
+integration; preserve the operator checkout and historical PR 114.
+
+The Finance goal is not complete. Whole-package intake/review UI, representative
+varied-source retrieval latency, statutory certifiers/Chief Executive approval/
+issuance, exact local form acceptance and all remaining foundation/Finance/
+operational gates remain governed by [foundation gate](docs/FINANCE_FOUNDATION_GATE.md),
+[Finance roadmap](docs/FINANCE_ROADMAP.md),
+[required outputs](docs/FINANCE_REQUIRED_OUTPUT_MAP.md) and
+[operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md).
+eGAPS is closed and untouched. Earmark-before-ARO semantics remain unconfirmed;
+limited office use of eGAPS reports does not waive output/parity requirements.
+Keep separate databases, independent maker/checker and immutable financial/custody
+history. Production remains NO-GO pending the preserved gates and LGU acceptance.

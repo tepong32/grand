@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.shortcuts import render
 from django.http import Http404, HttpResponse
 from django.views.decorators.http import require_GET
@@ -31,7 +32,16 @@ def my_work(request):
         raise PermissionDenied
     selected_view, planned_days = _work_view_parameters(request)
     attention = finance_work_attention(request.user)
-    attention.update(finance_work_tasks(request.user, view=selected_view, planned_days=planned_days))
+    attention.update(finance_work_tasks(
+        request.user, display_limit=None, view=selected_view, planned_days=planned_days,
+    ))
+    page = Paginator(attention["tasks"], 50).get_page(request.GET.get("page"))
+    params = request.GET.copy()
+    for name, number in (("previous_url", page.number - 1), ("next_url", page.number + 1)):
+        params["page"] = number
+        setattr(page, name, "?" + params.urlencode() + "#work-items")
+    attention["task_page"] = page
+    attention["tasks"] = page.object_list
     attention["can_export_work"] = can_export_work(request.user)
     attention["export_row_limit"] = WORK_EXPORT_LIMIT
     attention["planned_days"] = planned_days

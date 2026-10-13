@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid py-3" style="max-width:980px">
+<p><a href="{% url 'vouchers:case_detail' report.instrument.case.public_id %}">← Voucher case</a> · <a href="{% url 'vouchers:advice_workspace' %}">Bank advice</a></p>
+<h1 class="h4">Presentation report — cheque {{ report.instrument.check_number }}</h1>
+{% if can_export %}<p><a href="{% url 'vouchers:presentation_export' report.public_id %}">Export retained evidence</a></p>{% endif %}
+<div class="card mb-3"><div class="card-body text-break">
+<p><strong>{% if report.is_open %}Open — Accounting follow-up{% else %}Resolved{% endif %}</strong> · {{ report.observed_on }}</p>
+<p>{{ report.reason }}</p><p>Evidence: {{ report.evidence_reference }}</p>
+<p>Recorded by {{ report.reported_by }} at {{ report.reported_at }}.</p>
+<p class="small">Original advice status: {{ report.snapshot.advice_status|default:'No advice recorded' }}. Reports do not approve advice or post journals.</p>
+</div></div>
+{% for decision in report.decisions.all %}<div class="card mb-3"><div class="card-body text-break">
+<h2 class="h6">{{ decision.get_outcome_display }} · v{{ decision.version }}</h2>
+<p>{{ decision.effective_on }} · {{ decision.reason }}</p><p>Evidence: {{ decision.evidence_reference }}</p>
+{% if decision.next_action %}<p><strong>Next action:</strong> {{ decision.next_action }}</p>{% endif %}
+{% if decision.snapshot.resolution %}<p>Completed Accounting source: {{ decision.snapshot.resolution.number|default:'Reviewed no-entry decision' }}</p>{% endif %}
+<p class="small">Reviewed by {{ decision.reviewed_by }} at {{ decision.reviewed_at }}</p>
+</div></div>{% endfor %}
+{% if can_review %}<div class="card"><div class="card-body">
+<h2 class="h5">Record independent bank finding</h2>
+<form method="post" class="presentation-form">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">Record finding</button></form>
+</div></div>{% endif %}
+</div>
+<style>.presentation-form input:not([type=hidden]),.presentation-form select,.presentation-form textarea{display:block;width:100%;max-width:100%;padding:.375rem .75rem;border:1px solid #ced4da;border-radius:.375rem}.presentation-form label{display:block}</style>
+{% endblock %}

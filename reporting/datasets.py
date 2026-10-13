@@ -7,9 +7,11 @@ from datetime import date
 from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_HALF_UP, ROUND_UP
 
 from django.core.serializers.json import DjangoJSONEncoder
+from django.core.exceptions import ValidationError
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
 from django.urls import reverse
+from django.utils import timezone
 
 from assistance.models import AssistanceRequest
 from departments.models import Department
@@ -193,7 +195,7 @@ class BudgetAccountabilityDataset(ApprovedDataset):
                 authorization__effectivity_date__lte=period_end,
                 authorization__version__fiscal_year__starts_on__lte=period_end,
                 authorization__version__fiscal_year__ends_on__gte=period_start,
-            ).select_related("authorization", "authorization__version__fiscal_year")
+            ).select_related("authorization", "authorization__version__fiscal_year", "authorization__version__budget_call")
         )
         line_ids = [line.pk for line in lines]
         allotments = list(
@@ -225,6 +227,17 @@ class BudgetAccountabilityDataset(ApprovedDataset):
         }
         exception_rows = 0
         for line in lines:
+            version = line.authorization.version
+            year = version.fiscal_year
+            if (line.authorization.department_id != department.pk or version.department_id != department.pk
+                    or version.budget_call.department_id != department.pk
+                    or version.budget_call.fiscal_year_id != year.pk):
+                raise ValidationError("Budget authority ownership or fiscal-year lineage is inconsistent.")
+            accounting_scope = {
+                "department_id": year.department_id, "department_label": year.department_label,
+                "fiscal_year_id": year.pk, "fiscal_year": year.year,
+                "starts_on": year.starts_on.isoformat(), "ends_on": year.ends_on.isoformat(),
+            }
             line_allotments = movements_by_line.get(line.pk, [])
             released = sum((item.release_effect for item in line_allotments), Decimal("0.00"))
             reserve = sum((item.hold_effect for item in line_allotments if item.movement_type in (
@@ -236,7 +249,9 @@ class BudgetAccountabilityDataset(ApprovedDataset):
             obligated = sum((item.obligation_effect for item in obligations_by_line.get(line.pk, [])), Decimal("0.00"))
             executable = released - reserve - deferral
             row = {
-                "fiscal_year": line.authorization.version.fiscal_year.year,
+                "fiscal_year": year.year,
+                "accounting_department_id": year.department_id,
+                "accounting_scope": accounting_scope,
                 "authority_reference": line.authorization.ordinance_number,
                 "fund_code": line.fund_code,
                 "responsibility_center_code": line.responsibility_center_code,
@@ -269,6 +284,7 @@ class BudgetAccountabilityDataset(ApprovedDataset):
                 "amount": line.amount, "source_checksum": line.authorization.snapshot_checksum,
                 "source_url": reverse("budget:authorization_detail", kwargs={"public_id": line.authorization.public_id}),
                 "snapshot": {
+                    "accounting_scope": accounting_scope,
                     "fund": line.fund_code, "responsibility_center": line.responsibility_center_code,
                     "program": line.program_code, "account": line.account_code,
                     "particulars": line.particulars, "authority_type": line.authorization.authority_type,
@@ -667,7 +683,7 @@ def _governed_tax_payload(department, period_start, period_end):
             case__public_id__in=case_ids, released_at__isnull=False,
         ).order_by("released_at", "pk"):
             key = str(instrument.case.public_id)
-            releases.setdefault(key, instrument.released_at.date())
+            releases.setdefault(key, _report_activity_date(instrument.released_at))
 
     rows, sources = [], []
     formula_difference = Decimal("0.00")
@@ -872,46 +888,62 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
         budget_payload = BudgetAccountabilityDataset().payload(
             department, period_start, period_end, parameters,
         )
-        accounting_departments = [
-            item for item in Department.objects.all()
-            if (
-                any(term in _department_identity(item) for term in ("accounting", "acctg"))
-                or (
-                    "finance" in _department_identity(item)
-                    and "budget" not in _department_identity(item)
-                    and "treasury" not in _department_identity(item)
-                )
-            )
-        ]
-        accounting_department = accounting_departments[0] if len(accounting_departments) == 1 else None
-        budget_years = sorted({row["fiscal_year"] for row in budget_payload.rows})
+        # Capture ownership from these same authorized rows, never from department labels.
+        scopes = {
+            (row["accounting_department_id"], row["fiscal_year"]): row["accounting_scope"]
+            for row in budget_payload.rows
+        }
+        accounting_department_ids = {key[0] for key in scopes}
+        if set(Department.objects.filter(pk__in=accounting_department_ids).values_list("pk", flat=True)) != accounting_department_ids:
+            raise ValidationError("Budget authority Accounting owner no longer resolves to an office.")
         actual_lines = []
-        if accounting_department:
-            actual_period_filter = (
-                Q(entry__period__fiscal_year__in=budget_years, entry__entry_date__lte=period_end)
-                if budget_years
-                else Q(entry__entry_date__range=(period_start, period_end))
-            )
+        if scopes:
+            actual_scope_filter = Q(pk__in=[])
+            for (owner_id, year), scope in scopes.items():
+                actual_scope_filter |= Q(
+                    entry__department_id=owner_id, entry__period__fiscal_year=year,
+                    entry__entry_date__range=(date.fromisoformat(scope["starts_on"]),
+                        min(period_end, date.fromisoformat(scope["ends_on"]))),
+                )
             actual_lines = list(
                 JournalLine.objects.filter(
-                    actual_period_filter,
-                    entry__department_id=accounting_department.pk,
+                    actual_scope_filter,
                     entry__status=JournalEntry.POSTED,
                     account__account_type="expense",
                 ).select_related(
-                    "entry", "entry__fund", "entry__period", "account", "responsibility_center",
+                    "entry", "entry__fund", "entry__period", "entry__reversal_of", "account", "responsibility_center",
                 ).order_by("entry__entry_date", "entry__reference", "sequence")
             )
+        for line in actual_lines:
+            entry = line.entry
+            scope = scopes[(entry.department_id, entry.period.fiscal_year)]
+            classifications = (entry.period, entry.fund, line.account)
+            if line.responsibility_center_id:
+                classifications += (line.responsibility_center,)
+            if (any(item.department_id != entry.department_id for item in classifications)
+                    or (entry.period.fiscal_year_record_id is not None
+                        and entry.period.fiscal_year_record_id != scope["fiscal_year_id"])):
+                raise ValidationError("Accounting source classifications or typed fiscal year cross the authorized ledger scope.")
+        entries = {line.entry_id: line.entry for line in actual_lines}
+        origins = {pk: entry.statement_origin for pk, entry in entries.items()}
+        excluded_entry_ids = {
+            pk for pk, origin in origins.items()
+            if origin.source_type in {JournalEntry.CLOSING, "opening", *JournalEntry.DIRECT_EQUITY_SOURCES}
+        }
         budget_key_counts = {}
         for row in budget_payload.rows:
             key = (
+                row["accounting_department_id"],
                 row["fiscal_year"], row["fund_code"],
                 row["responsibility_center_code"], row["account_code"],
             )
             budget_key_counts[key] = budget_key_counts.get(key, 0) + 1
         actual_by_key = {}
         for line in actual_lines:
+            if line.entry_id in excluded_entry_ids:
+                continue
             key = (
+                line.entry.department_id,
                 line.entry.period.fiscal_year,
                 line.entry.fund.code,
                 line.responsibility_center.code if line.responsibility_center else "",
@@ -924,19 +956,22 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
         for source_row in budget_payload.rows:
             row = dict(source_row)
             key = (
+                row["accounting_department_id"],
                 row["fiscal_year"], row["fund_code"],
                 row["responsibility_center_code"], row["account_code"],
             )
             actual = Decimal("0.00")
-            if budget_key_counts[key] == 1:
-                actual = actual_by_key.get(key, Decimal("0.00"))
+            if key not in actual_by_key:
+                row["mapping_status"] = "No posted expense activity for this Budget line"
+            elif budget_key_counts[key] == 1:
+                actual = actual_by_key[key]
                 mapped_keys.add(key)
                 row["mapping_status"] = "Exact fund / responsibility center / account match"
-            elif key in actual_by_key:
+            else:
                 ambiguous_keys.add(key)
                 row["mapping_status"] = "Ambiguous: more than one Budget line shares the actual key"
-            else:
-                row["mapping_status"] = "No posted actual activity for this Budget line"
+            scope = row["accounting_scope"]
+            row["mapping_status"] += f" — {scope['department_label']} (ledger {scope['department_id']})"
             row["posted_actual"] = actual
             row["balance_vs_actual"] = row["executable_allotment"] - actual
             row["actual_utilization_percent"] = (
@@ -948,11 +983,12 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
         entry_totals = {}
         for line in actual_lines:
             item = entry_totals.setdefault(line.entry_id, {
-                "entry": line.entry, "actual": Decimal("0.00"), "lines": [],
+                "entry": line.entry, "actual": Decimal("0.00"), "excluded": Decimal("0.00"), "lines": [],
             })
             amount = line.debit - line.credit
-            item["actual"] += amount
+            item["excluded" if line.entry_id in excluded_entry_ids else "actual"] += amount
             item["lines"].append({
+                "line": line.pk, "sequence": line.sequence,
                 "fund": line.entry.fund.code,
                 "fiscal_year": line.entry.period.fiscal_year,
                 "responsibility_center": line.responsibility_center.code if line.responsibility_center else "",
@@ -961,9 +997,15 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
         actual_sources = []
         for item in entry_totals.values():
             entry = item["entry"]
+            included = entry.pk not in excluded_entry_ids
             snapshot = {
+                "accounting_scope": scopes[(entry.department_id, entry.period.fiscal_year)],
                 "source_type": entry.source_type, "source_reference": entry.source_reference or "",
                 "description": entry.description, "posted_actual": str(item["actual"]),
+                "statement_source_type": origins[entry.pk].source_type,
+                "statement_origin_public_id": str(origins[entry.pk].public_id),
+                "expense_activity_included": included,
+                "excluded_expense_movement": str(item["excluded"]),
                 "posted_by": entry.posted_by_label, "posted_at": entry.posted_at,
                 "expense_lines": item["lines"],
             }
@@ -971,39 +1013,50 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
                 "source_app": "accounting", "source_model": "JournalEntry",
                 "source_pk": str(entry.pk), "source_public_id": str(entry.public_id),
                 "source_reference": entry.reference, "source_date": entry.entry_date,
-                "control_group": "posted actual expense", "amount": item["actual"],
+                "control_group": "posted actual expense" if included else "excluded expense movement",
+                "amount": item["actual"],
                 "source_checksum": _snapshot_checksum(snapshot),
                 "source_url": reverse("accounting:entry_detail", kwargs={"public_id": entry.public_id}),
                 "snapshot": snapshot,
             })
         actual_total = sum(actual_by_key.values(), Decimal("0.00"))
+        excluded_total = sum((item["excluded"] for item in entry_totals.values()), Decimal("0.00"))
         mapped_total = sum((actual_by_key[key] for key in mapped_keys), Decimal("0.00"))
         ambiguous_total = sum((actual_by_key[key] for key in ambiguous_keys), Decimal("0.00"))
         unmapped_total = sum((actual_by_key[key] for key in unmapped_keys), Decimal("0.00"))
         mapping_exception_count = len(ambiguous_keys) + len(unmapped_keys)
-        if not accounting_department:
+        if not scopes:
             mapping_exception_count += 1
         controls = dict(budget_payload.control_totals)
         controls.update({
             "posted_actual": actual_total, "mapped_actual": mapped_total,
             "ambiguous_actual": ambiguous_total, "unmapped_actual": unmapped_total,
             "mapping_exception_count": mapping_exception_count,
-            "accounting_department_count": len(accounting_departments),
-            "actual_basis": "fiscal-year-to-date posted expense through the selected period end",
+            "accounting_department_count": len(accounting_department_ids),
+            "accounting_scopes": [scopes[key] for key in sorted(scopes)],
+            "accounting_scope_basis": "authorized-budget-version-fiscal-year-owner-v1",
+            "excluded_expense_entry_count": len(excluded_entry_ids),
+            "excluded_expense_movement": excluded_total,
+            "posted_expense_ledger_movement": actual_total + excluded_total,
+            "calculation_basis": "posted-expense-activity-excluding-opening-closing-direct-equity-v1",
+            "actual_basis": "fiscal-year-to-date posted expense activity through the selected period end, excluding opening, nominal closing and direct-equity movements and their reversals",
         })
         status = (
             "reconciled"
             if budget_payload.control_status == "reconciled" and mapping_exception_count == 0
             else "exception"
         )
-        if not accounting_department:
-            message = "Exactly one Accounting department is required before posted actuals can be mapped."
+        if not scopes:
+            message = "No authorized Budget schedule establishes an Accounting ledger and fiscal-year scope for posted actuals."
         elif mapping_exception_count:
             message = "One or more posted expense keys are unmatched or ambiguous; no amount was silently allocated."
         elif budget_payload.control_status != "reconciled":
             message = budget_payload.control_message
         else:
-            message = "Budget authority and posted actual expenses reconcile through exact fund, responsibility-center, and account keys."
+            message = (
+                "Budget authority and posted expense activity reconcile through exact ledger, fiscal-year, fund, responsibility-center, and account keys. "
+                "Opening, nominal closing and direct-equity movements and their reversals remain source evidence but are excluded from actuals."
+            )
         freshness = _latest_datetime(
             [budget_payload.freshness_at]
             + [item["entry"].posted_at or item["entry"].updated_at for item in entry_totals.values()]
@@ -1013,6 +1066,13 @@ class BudgetVersusPostedActualDataset(ApprovedDataset):
             control_totals=controls, control_status=status, control_message=message,
             control_gate_required=True, freshness_at=freshness,
         )
+
+
+def _report_activity_date(value):
+    """Match DateTimeField __date filtering in the active report timezone."""
+    if value is None:
+        return None
+    return timezone.localdate(value) if timezone.is_aware(value) else value.date()
 
 
 class PaymentInstrumentRegisterDataset(ApprovedDataset):
@@ -1089,11 +1149,14 @@ class PaymentInstrumentRegisterDataset(ApprovedDataset):
             ):
                 row_exceptions.append("current advice is not bank-acknowledged")
             exception_count += len(row_exceptions)
-            if instrument.issued_at and period_start <= instrument.issued_at.date() <= period_end:
+            issued_date = _report_activity_date(instrument.issued_at)
+            released_date = _report_activity_date(instrument.released_at)
+            cancelled_date = _report_activity_date(instrument.cancelled_at)
+            if issued_date and period_start <= issued_date <= period_end:
                 issued_amount += instrument.amount
-            if instrument.released_at and period_start <= instrument.released_at.date() <= period_end:
+            if released_date and period_start <= released_date <= period_end:
                 released_amount += instrument.amount
-            if instrument.cancelled_at and period_start <= instrument.cancelled_at.date() <= period_end:
+            if cancelled_date and period_start <= cancelled_date <= period_end:
                 cancelled_amount += instrument.amount
             row = {
                 "case_reference": instrument.case.reference_code,
@@ -1125,7 +1188,7 @@ class PaymentInstrumentRegisterDataset(ApprovedDataset):
                 "source_app": "vouchers", "source_model": "PaymentInstrument",
                 "source_pk": str(instrument.pk), "source_public_id": str(instrument.public_id),
                 "source_reference": instrument.check_number,
-                "source_date": instrument.issued_at.date() if instrument.issued_at else None,
+                "source_date": issued_date,
                 "control_group": "payment instrument", "amount": instrument.amount,
                 "source_checksum": _snapshot_checksum(snapshot),
                 "source_url": reverse("vouchers:case_detail", kwargs={"public_id": instrument.case.public_id}),

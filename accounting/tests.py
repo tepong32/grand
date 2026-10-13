@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 import csv
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -129,6 +130,205 @@ class StandaloneAccountingTests(TestCase):
             debit=Decimal("0.00"), credit=Decimal("100.00" if balanced else "90.00"),
         )
         return entry
+
+    def test_workspace_retrieves_all_journals_and_preserves_filtered_export(self):
+        JournalEntry.objects.bulk_create([
+            JournalEntry(department_id=self.accounting_department.pk,
+                         department_label=self.accounting_department.name,
+                         reference=f"PAGE-JEV-{index:03}", entry_date=date(2027, 1, 15),
+                         period=self.period, fund=self.fund, description="Volume retrieval",
+                         created_by_id=self.preparer.pk, created_by_label="Synthetic")
+            for index in range(111)
+        ])
+        self.client.force_login(self.poster)
+        url = reverse("accounting:workspace")
+        seen = []
+        for number, expected in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(url, {"q": "PAGE-JEV-", "page": number, "handoff_q": "A&B"})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["visible_count"], 111)
+            rows = response.context["entries"]
+            self.assertEqual(len(rows), expected)
+            seen.extend(row.pk for row in rows)
+            if number < 3:
+                self.assertIn("handoff_q=A%26B", response.context["journal_page"].next_url)
+                self.assertContains(response, "Next")
+        self.assertEqual(len(set(seen)), 111)
+        self.assertContains(response, "Showing 101–111 of 111 matching records")
+        exact = self.client.get(url, {"q": "PAGE-JEV-000", "page": "invalid"})
+        self.assertEqual([row.reference for row in exact.context["entries"]], ["PAGE-JEV-000"])
+        export = self.client.get(reverse("accounting:journal_register_export"), {"q": "PAGE-JEV-", "page": 3})
+        self.assertEqual(export.status_code, 200)
+        body = b"".join(export.streaming_content) if export.streaming else export.content
+        for index in range(111):
+            self.assertIn(f"PAGE-JEV-{index:03}".encode(), body)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url).context["visible_count"], 0)
+
+    def test_workspace_retrieves_old_handoffs_and_scopes_search(self):
+        from vouchers.models import VoucherPostingRequest
+        case = VoucherCase.objects.create(
+            reference_code="QUEUE-CASE", requesting_department=self.accounting_department,
+            current_department=self.accounting_department, payee_name="Synthetic queue payee",
+            particulars="Retrieval fixture only", created_by=self.preparer,
+        )
+        for index in range(61):
+            VoucherPostingRequest.objects.create(
+                case=case, version=index + 1, jev_number=f"QUEUE-JEV-{index:03}",
+                jev_date=date(2027, 1, 15), finance_department_id=self.accounting_department.pk,
+                finance_department_label=self.accounting_department.name,
+                payload={}, payload_checksum="a" * 64, requested_by=self.preparer,
+            )
+        VoucherPostingRequest.objects.create(
+            case=case, version=62, jev_number="QUEUE-POSTED", jev_date=date(2027, 1, 15),
+            finance_department_id=self.accounting_department.pk, status=VoucherPostingRequest.POSTED,
+            payload={}, payload_checksum="b" * 64, requested_by=self.preparer,
+        )
+        self.client.force_login(self.viewer)
+        url = reverse("accounting:workspace")
+        first = self.client.get(url, {"handoff_q": "QUEUE", "q": "journal filter"})
+        page = first.context["source_requests"]
+        self.assertEqual(page.paginator.count, 61)
+        self.assertEqual(len(page), 50)
+        self.assertIn("q=journal+filter", page.next_url)
+        second = self.client.get(url, {"voucher_page": 2, "handoff_q": "QUEUE"})
+        self.assertEqual(len(second.context["source_requests"]), 11)
+        self.assertContains(second, "QUEUE-JEV-000")
+        self.assertNotContains(second, "Create GRAND JEV")
+        exact = self.client.get(url, {"handoff_q": "QUEUE-JEV-000"})
+        self.assertEqual(exact.context["source_requests"].paginator.count, 1)
+        empty = self.client.get(url, {"handoff_q": "does-not-exist"})
+        self.assertContains(empty, "Showing 0–0 of 0 matching records")
+        self.assertContains(empty, 'value="does-not-exist"')
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"handoff_q": "QUEUE"}).context["source_requests"].paginator.count, 0)
+        self.assertEqual(VoucherPostingRequest.objects.filter(status=VoucherPostingRequest.PENDING).count(), 61)
+
+    def test_bank_register_retrieves_every_statement_and_exports_all_matches(self):
+        BankStatementBatch.objects.bulk_create([
+            BankStatementBatch(department_id=self.accounting_department.pk,
+                               department_label=self.accounting_department.name, fund=self.fund,
+                               bank_account_code="VOLUME-BANK", bank_name="Synthetic bank",
+                               statement_reference=f"VOLUME-STMT-{number:03}", received_on=date(2027, 1, 31),
+                               period_start=date(2027, 1, 1), period_end=date(2027, 1, 31),
+                               opening_balance=0, closing_balance=0, expected_row_count=0,
+                               created_by_id=self.preparer.pk, created_by_label=self.preparer.username)
+            for number in range(111)
+        ])
+        self.client.force_login(self.preparer)
+        url = reverse("accounting:bank_reconciliation_workspace")
+        seen = []
+        for number, count in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(url, {"q": "VOLUME", "page": number, "status": "draft"})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["visible_count"], 111)
+            self.assertEqual(len(response.context["batches"]), count)
+            seen.extend(row.pk for row in response.context["batches"])
+            self.assertIn("q=VOLUME", response.context["page_obj"].next_url)
+        self.assertEqual(len(set(seen)), 111)
+        self.assertContains(response, "VOLUME-STMT-000")
+        self.assertContains(response, "Showing 101–111 of 111 matching records")
+        export = self.client.get(reverse("accounting:bank_reconciliation_register_export"), {"q": "VOLUME", "page": 3})
+        self.assertEqual(export.status_code, 200)
+        rows = list(csv.DictReader(io.StringIO(export.content.decode("utf-8-sig"))))
+        self.assertEqual(len(rows), 111)
+        exact = self.client.get(url, {"q": "VOLUME-STMT-000", "page": "bad"})
+        self.assertEqual(exact.context["visible_count"], 1)
+        self._grant(self.outsider, "view_bank_reconciliation")
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"page": 3}).context["visible_count"], 0)
+        self.assertEqual(BankStatementBatch.objects.filter(status=BankStatementBatch.DRAFT).count(), 111)
+
+    def test_control_reconciliation_history_reaches_all_scoped_runs(self):
+        from .models import ControlAccountReconciliation
+        for department in (self.accounting_department, self.other_department):
+            ControlAccountReconciliation.objects.bulk_create([
+                ControlAccountReconciliation(department_id=department.pk, department_label=department.name,
+                    as_of_date=date(2026, 9, 1), result_checksum=hashlib.sha256(b"{}").hexdigest(),
+                    prepared_by_id=self.poster.pk, prepared_by_label=self.poster.username)
+                for number in range(61)
+            ])
+        self.client.force_login(self.poster)
+        url = reverse("accounting:subsidiary_controls")
+        seen = set()
+        for number, count in ((1, 50), (2, 11)):
+            response = self.client.get(url, {"runs_page": number, "as_of": "2026-09-01"})
+            runs = list(response.context["runs"])
+            self.assertEqual(len(runs), count)
+            self.assertTrue(all(run.department_id == self.accounting_department.pk for run in runs))
+            ids = {run.pk for run in runs}
+            self.assertFalse(seen & ids)
+            seen |= ids
+            self.assertContains(response, "as_of=2026-09-01")
+        self.assertEqual(len(seen), 61)
+        self.assertContains(response, "Showing 51–61 of 61 matching records")
+        with tempfile.TemporaryDirectory() as export_root, self.settings(EXPORT_ROOT=export_root):
+            self.assertEqual(self.client.get(reverse("accounting:subsidiary_reconciliation_export",
+                args=(runs[-1].public_id,))).status_code, 200)
+        self.client.force_login(self.viewer)
+        self.assertEqual(self.client.get(url, {"runs_page": 2}).status_code, 403)
+        self.assertEqual(ControlAccountReconciliation.objects.count(), 122)
+
+    def test_opening_detail_reaches_all_rows_events_and_later_correction(self):
+        from .models import OpeningBalanceEvent
+        batch = self._opening_batch(self._fiscal_foundation())
+        OpeningBalanceRow.objects.bulk_create([
+            OpeningBalanceRow(batch=batch, row_number=number, raw_fund_code=self.fund.code,
+                raw_account_code=self.cash.code, raw_debit="1.00", raw_credit="0.00")
+            for number in range(1, 512)
+        ])
+        for number in range(61):
+            OpeningBalanceEvent.objects.create(batch=batch, department_id=batch.department_id,
+                department_label=batch.department_label, actor_id=self.preparer.pk,
+                actor_label=self.preparer.username, action="synthetic_history", reason=f"History {number:03}")
+        expected_events = set(batch.events.values_list("pk", flat=True))
+        self.client.force_login(self.preparer)
+        url = reverse("accounting:opening_detail", args=(batch.public_id,))
+        seen = set()
+        for number in range(1, 12):
+            response = self.client.get(url, {"rows_page": number, "events_page": 2})
+            ids = {row.pk for row in response.context["rows"]}
+            self.assertFalse(seen & ids)
+            seen |= ids
+            self.assertContains(response, "events_page=2")
+        self.assertEqual(seen, set(batch.rows.values_list("pk", flat=True)))
+        self.assertContains(response, "Showing 501–511 of 511 matching records")
+        later = batch.rows.get(row_number=511)
+        correction_url = reverse("accounting:opening_row_edit", args=(batch.public_id, later.pk))
+        self.assertContains(response, correction_url)
+        self.assertEqual(self.client.get(correction_url).status_code, 200)
+        events = set()
+        for number in (1, 2):
+            response = self.client.get(url, {"rows_page": 11, "events_page": number})
+            ids = {event.pk for event in response.context["events"]}
+            self.assertFalse(events & ids)
+            events |= ids
+            self.assertContains(response, "rows_page=11")
+        self.assertEqual(events, expected_events)
+        self.assertEqual(set(batch.events.values_list("pk", flat=True)), expected_events)
+        with tempfile.TemporaryDirectory() as export_root, self.settings(EXPORT_ROOT=export_root):
+            exported = self.client.get(reverse("accounting:opening_export", args=(batch.public_id,)))
+            exported_rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+            self.assertEqual({int(row["row_number"]) for row in exported_rows}, set(range(1, 512)))
+        export_event = batch.events.get(action="exported")
+        self.assertEqual(export_event.snapshot["sha256"], exported["X-GRAND-Export-SHA256"])
+        expected_events.add(export_event.pk)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"rows_page": 11}).status_code, 404)
+        self.assertEqual(self.client.get(correction_url).status_code, 403)
+        self.assertEqual(set(batch.events.values_list("pk", flat=True)), expected_events)
+        self.client.force_login(self.preparer)
+        corrected = self.client.post(correction_url, {
+            "raw_fund_code": self.fund.code, "raw_account_code": self.cash.code,
+            "raw_debit": "1.00", "raw_credit": "0.00", "memo": "Corrected later source row",
+            "change_reason": "Synthetic reviewed source row 511 correction",
+        })
+        self.assertEqual(corrected.status_code, 302)
+        later.refresh_from_db()
+        self.assertEqual(later.correction_version, 2)
+        self.assertEqual(later.memo, "Corrected later source row")
+        self.assertEqual(batch.events.get(action="row_corrected").snapshot["row_number"], 511)
+        self.assertTrue(expected_events <= set(batch.events.values_list("pk", flat=True)))
 
     def _fiscal_foundation(self, year=2027):
         fiscal_year = FiscalYear.objects.create(
@@ -1522,6 +1722,102 @@ class StandaloneAccountingTests(TestCase):
         self.assertEqual(self.period.status, AccountingPeriod.OPEN)
         self.assertContains(response, "unposted journal")
 
+    def test_ledger_retrieves_beyond_one_thousand_with_continuous_balances(self):
+        # Synthetic posted projection fixture; ordinary posting is covered below.
+        entry = self._entry(reference="SYN-LEDGER-VOLUME")
+        JournalLine.objects.filter(entry=entry).delete()
+        JournalLine.objects.bulk_create([
+            JournalLine(entry=entry, sequence=index + 1,
+                        account=self.cash if index % 2 == 0 else self.revenue,
+                        debit=Decimal("2.00") if index % 2 == 0 else Decimal("0.00"),
+                        credit=Decimal("0.00") if index % 2 == 0 else Decimal("2.00"))
+            for index in range(1002)
+        ])
+        JournalEntry.objects.filter(pk=entry.pk).update(status=JournalEntry.POSTED)
+        self._entry(reference="SYN-LEDGER-EXCLUDED-DRAFT")
+        self.client.force_login(self.poster)
+        first = self.client.get(reverse("accounting:ledger"))
+        self.assertEqual(len(first.context["rows"]), 50)
+        self.assertContains(first, "of 1002 matching records")
+        last = self.client.get(reverse("accounting:ledger"), {"page": 21})
+        self.assertEqual([(line.sequence, balance) for line, balance in last.context["rows"]],
+                         [(1001, Decimal("1002.00")), (1002, Decimal("1002.00"))])
+        self.assertNotContains(last, "SYN-LEDGER-EXCLUDED-DRAFT")
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            exported = self.client.get(reverse("accounting:ledger_export"))
+            records = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8"))))
+        self.assertEqual(len(records), 1002)
+        self.assertEqual([Decimal(row["running_normal_balance"]) for row in records[-2:]],
+                         [balance for line, balance in last.context["rows"]])
+        for account in (self.cash, self.revenue):
+            page = self.client.get(reverse("accounting:ledger"), {"account": account.pk, "page": 2})
+            self.assertEqual(page.context["rows"][0][1], Decimal("102.00"))
+            self.assertEqual(page.context["rows"][-1][1], Decimal("200.00"))
+            self.assertContains(page, f"account={account.pk}&amp;page=3")
+            self.assertTrue(all(line.account_id == account.pk for line, _ in page.context["rows"]))
+
+    def test_ledger_invalid_account_never_widens_view_or_export(self):
+        entry = self._entry(reference="SYN-LEDGER-PRIVATE")
+        JournalEntry.objects.filter(pk=entry.pk).update(status=JournalEntry.POSTED)
+        foreign = LedgerAccount.objects.create(
+            department_id=self.other_department.pk, department_label=self.other_department.name,
+            code="FOREIGN", title="Foreign account", account_type="asset", normal_balance="debit",
+        )
+        self.client.force_login(self.poster)
+        for value in (str(foreign.pk), "999999999", "invalid", "-1", "²", "9" * 100):
+            for route in ("accounting:ledger", "accounting:ledger_export"):
+                with self.subTest(account=value, route=route):
+                    response = self.client.get(reverse(route), {"account": value})
+                    self.assertEqual(response.status_code, 400)
+                    self.assertContains(response, "Choose an account from this department", status_code=400)
+                    self.assertNotContains(response, entry.reference, status_code=400)
+        self.assertFalse(AccountingAuditEvent.objects.filter(action="report_exported").exists())
+
+    def test_ledger_date_order_reductions_and_department_boundaries(self):
+        # A page boundary inside a same-date journal must include prior dates and
+        # earlier same-date journals, but never a future date or another office.
+        entries = []
+        for index in range(27):
+            entry = self._entry(reference=f"SYN-ORDER-{index:03}")
+            entries.append(entry)
+        JournalEntry.objects.filter(pk=entries[0].pk).update(entry_date=date(2027, 1, 20))
+        JournalEntry.objects.filter(pk=entries[-1].pk).update(entry_date=date(2027, 1, 1))
+        # Reverse the direction of the two lines in one journal before posting.
+        JournalLine.objects.filter(entry=entries[1], account=self.cash).update(debit=0, credit=25)
+        JournalLine.objects.filter(entry=entries[1], account=self.revenue).update(debit=25, credit=0)
+        JournalEntry.objects.filter(pk__in=[entry.pk for entry in entries]).update(status=JournalEntry.POSTED)
+        foreign = self._entry(reference="SYN-FOREIGN-LEDGER")
+        JournalEntry.objects.filter(pk=foreign.pk).update(
+            department_id=self.other_department.pk, status=JournalEntry.POSTED,
+        )
+        self.client.force_login(self.poster)
+        second = self.client.get(reverse("accounting:ledger"), {"page": 2})
+        self.assertContains(second, "of 54 matching records")
+        rows = second.context["rows"]
+        self.assertEqual([line.entry_id for line, _ in rows],
+                         [entries[25].pk, entries[25].pk, entries[0].pk, entries[0].pk])
+        self.assertEqual([balance for _, balance in rows],
+                         [Decimal("2475.00"), Decimal("2475.00"), Decimal("2575.00"), Decimal("2575.00")])
+        self.assertNotContains(second, foreign.reference)
+        for value, expected in (("nonsense", 1), ("999", 2), ("0", 2)):
+            response = self.client.get(reverse("accounting:ledger"), {"page": value})
+            self.assertEqual(response.context["ledger_page"].number, expected)
+        with tempfile.TemporaryDirectory() as export_root, self.settings(GRAND_EXPORT_ROOT=export_root):
+            response = self.client.get(reverse("accounting:ledger_export"))
+            records = list(csv.DictReader(io.StringIO(response.content.decode("utf-8"))))
+        self.assertEqual(len(records), 54)
+        self.assertEqual([Decimal(row["running_normal_balance"]) for row in records[-4:]],
+                         [balance for _, balance in rows])
+
+    def test_ledger_empty_selection_and_read_permission(self):
+        self.client.force_login(self.poster)
+        empty = self.client.get(reverse("accounting:ledger"), {"account": self.cash.pk, "page": 20})
+        self.assertEqual(empty.context["rows"], [])
+        self.assertContains(empty, "of 0 matching records")
+        self.client.force_login(self.viewer)
+        for route in ("accounting:ledger", "accounting:ledger_export"):
+            self.assertEqual(self.client.get(reverse(route)).status_code, 403)
+
     def test_ledger_shows_posted_entries_only(self):
         posted = self._entry(reference="SYN-JEV-POSTED")
         draft = self._entry(reference="SYN-JEV-DRAFT")
@@ -1744,6 +2040,54 @@ class StandaloneAccountingTests(TestCase):
         self.assertEqual(snapshot["unclassified_ledger_line_count"], 0)
         self.assertEqual(snapshot["difference"], "0.00")
         self.assertTrue(snapshot["ready_for_review"])
+
+    def test_bank_candidates_reach_all_eligible_lines_and_match_later_choice(self):
+        PostingMapping.objects.create(department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name, category=PostingMapping.BANK,
+            source_code="SYN-CANDIDATES", label="Synthetic candidate bank", account=self.cash)
+        lines = []
+        for number in range(62):
+            entry = self._entry(reference=f"CANDIDATE-{number:03}")
+            JournalEntry.objects.filter(pk=entry.pk).update(status=JournalEntry.POSTED)
+            lines.append(entry.lines.get(account=self.cash))
+        batch = BankStatementBatch.objects.create(department_id=self.accounting_department.pk,
+            department_label=self.accounting_department.name, statement_reference="SYN-CANDIDATES",
+            bank_account_code="SYN-CANDIDATES", bank_name="Synthetic bank", fund=self.fund,
+            period_start=date(2027,1,1), period_end=date(2027,1,31), received_on=date(2027,2,1),
+            opening_balance=0, closing_balance=300, expected_row_count=3, expected_deposits=300,
+            created_by_id=self.preparer.pk, created_by_label=self.preparer.username)
+        content = "transaction_date,bank_reference,description,withdrawal,deposit,running_balance\n"
+        content += "".join(f"2027-01-15,STMT-{number},Synthetic deposit,,100.00,{number * 100}.00\n" for number in (1,2,3))
+        batch = stage_bank_statement_csv(batch, self.preparer,
+            SimpleUploadedFile("candidates.csv", content.encode(), content_type="text/csv"))
+        first, second, reserved = list(batch.rows.order_by("row_number"))
+        match_bank_statement_row(reserved, lines[0], self.preparer, reason="Synthetic reserved deposit")
+        events_before = batch.events.count()
+        self.client.force_login(self.preparer)
+        url = reverse("accounting:bank_reconciliation_detail", args=(batch.public_id,))
+        seen = set()
+        for number, count in [(number,10) for number in range(1,7)] + [(7,1)]:
+            response = self.client.get(url, {f"candidates_{first.pk}":number, f"candidates_{second.pk}":2})
+            rows = {row.pk:row for row in response.context["rows"]}
+            candidates = rows[first.pk].candidates
+            self.assertEqual(len(candidates), count)
+            ids = {line.pk for line in candidates}
+            self.assertFalse(seen & ids)
+            seen |= ids
+            self.assertEqual(len(rows[second.pk].candidates),10)
+            self.assertContains(response, f"candidates_{second.pk}=2")
+        self.assertEqual(seen,{line.pk for line in lines[1:]})
+        self.assertContains(response,'Showing 61–61 of 61 matching records')
+        self.assertContains(response, f'name="journal_line_id" value="{lines[-1].pk}"')
+        self.assertEqual(batch.events.count(), events_before)
+        self.assertEqual(BankStatementMatch.objects.filter(status=BankStatementMatch.ACTIVE).count(),1)
+        matched = self.client.post(reverse("accounting:bank_reconciliation_match",args=(batch.public_id,first.pk)),
+            {"journal_line_id":lines[-1].pk,"reason":"Synthetic reviewed later candidate source"})
+        self.assertEqual(matched.status_code,302)
+        self.assertEqual(BankStatementMatch.objects.get(statement_row=first,status=BankStatementMatch.ACTIVE).journal_line_id,lines[-1].pk)
+        self.client.force_login(self.outsider)
+        self._grant(self.outsider,"view_bank_reconciliation")
+        self.assertEqual(self.client.get(url,{f"candidates_{first.pk}":2}).status_code,404)
 
     def test_bank_statement_versions_match_outstanding_items_and_close_zero_difference_independently(self):
         PostingMapping.objects.create(

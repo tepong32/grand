@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title_ext %} - Native Budget statements{% endblock %}
+{% block content %}<div class="container-fluid pb-4">
+<a href="{% url 'accounting:workspace' %}">Accounting workspace</a>
+<h1 class="h3 mt-3">Native Budget statements and certification</h1>
+<p>Retained statements from reviewed GRAND sources. Each version keeps its original evidence and independent officer decision.</p>
+{% if can_prepare %}<a class="btn btn-primary mb-3" href="{% url 'accounting:budget_native_prepare' %}">Prepare a statement</a>{% endif %}
+<form method="get" class="card card-body mb-3"><label for="native-search">Preparer, authority or supporting reference</label><input id="native-search" class="form-control mb-2" name="q" value="{{ q }}" maxlength="255">
+<label for="native-status">Decision</label><select id="native-status" class="form-control mb-2" name="status"><option value="">All versions</option value="submitted" {% if stage == 'submitted' %}selected{% endif %}>For certification</option><option value="certified" {% if stage == 'certified' %}selected{% endif %}>Certification recorded</option><option value="returned" {% if stage == 'returned' %}selected{% endif %}>Returned</option></select><button class="btn btn-outline-primary">Find statements</button></form>
+<p>{{ page.paginator.count }} matching version{{ page.paginator.count|pluralize }}</p>
+<div class="table-responsive"><table class="table"><thead><tr><th>Statement</th><th>Period</th><th>Prepared by</th><th>Decision</th></tr></thead><tbody>
+{% for item in page %}<tr><td><a href="{% url 'accounting:budget_native_detail' item.public_id %}">{{ item.fund.code }} · version {{ item.version }}</a><br>{{ item.payload.evidence_reference }}</td><td>{{ item.period_start }} – {{ item.period_end }}</td><td>{{ item.prepared_by_label }}<br>{{ item.prepared_at }}</td><td>{{ item.get_status_display }}</td></tr>{% empty %}<tr><td colspan="4">No matching statements.</td></tr>{% endfor %}
+</tbody></table></div><nav aria-label="Statement history pages">{% if page.has_previous %}<a href="?{{ querystring }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?{{ querystring }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+</div>{% endblock %}

@@ -1,8 +1,11 @@
 import csv
+import json
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Q
+from django.db import IntegrityError
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.text import slugify
@@ -11,6 +14,10 @@ from django.views.decorators.http import require_GET, require_POST
 from src.export_archive import archive_export
 
 from accounting.models import FiscalYear
+from .retrieval import ObligationRetrievalForm
+from .history import history_page
+from .planning_context import build_context, can_read_context, displayed_context, set_estimate
+from .forms import BudgetEstimateForm
 
 from .access import budget_access_required, budget_permission_required, department_for_user, has_budget_permission, can_act_on_budget
 from .forms import (
@@ -27,6 +34,7 @@ from .services import (
     actor_label, allotment_line_balance, authorization_allotment_totals,
     authorization_obligation_totals, downstream_issuance_boundary, obligation_line_balance,
     ceiling_differences, compare_versions, consolidate_versions, record_event,
+    create_version_draft,
     transition_allotment_order, transition_authorization, transition_call, transition_version,
     transition_obligation_request,
 )
@@ -64,9 +72,20 @@ def _require_obligation_permission(user, *codenames):
         raise PermissionDenied
 
 
+def _budget_register_page(queryset, request):
+    ordering = tuple(queryset.query.order_by or queryset.model._meta.ordering)
+    page = Paginator(queryset.order_by(*ordering, "-pk"), 50).get_page(request.GET.get("page"))
+    params = request.GET.copy()
+    for name, number in (("previous_url", page.number - 1), ("next_url", page.number + 1)):
+        params["page"] = number
+        setattr(page, name, "?" + params.urlencode() + "#budget-register")
+    return page
+
+
 @budget_access_required
 def workspace(request):
     department = department_for_user(request.user)
+    search = request.GET.get("q", "").strip()[:160]
     calls = BudgetCall.objects.filter(department_id=department.pk).prefetch_related("ceilings", "versions")
     fiscal_year_id = request.GET.get("fiscal_year", "").strip()
     fiscal_year = None
@@ -81,11 +100,12 @@ def workspace(request):
         kind=request.GET.get("kind", "").strip(),
         status=request.GET.get("status", "").strip(),
         attention=request.GET.get("attention", "").strip(),
-        actor=request.user,
+        actor=request.user, search=search,
     )
-    versions = list(versions.select_related(
+    page = _budget_register_page(versions.select_related(
         "fiscal_year", "budget_call", "appropriation_authorization",
-    ).prefetch_related("lines")[:100])
+    ).prefetch_related("lines"), request)
+    versions = list(page)
     for version in versions:
         version.next_action_label = next_annual_action(version)
     return render(request, "budget/workspace.html", {
@@ -94,7 +114,7 @@ def workspace(request):
         "selected_fiscal_year": fiscal_year_id,
         "selected_kind": selected_kind,
         "selected_status": selected_status,
-        "selected_attention": selected_attention,
+        "selected_attention": selected_attention, "search": search, "page_obj": page,
         "kind_choices": BudgetVersion.KIND_CHOICES,
         "status_choices": BudgetVersion.STATUS_CHOICES,
         "attention_choices": ANNUAL_ATTENTION_CHOICES,
@@ -111,6 +131,7 @@ def workspace(request):
 @budget_access_required
 def annual_register_export(request):
     department = department_for_user(request.user)
+    search = request.GET.get("q", "").strip()[:160]
     fiscal_year_id = request.GET.get("fiscal_year", "").strip()
     fiscal_year = None
     if fiscal_year_id:
@@ -124,7 +145,7 @@ def annual_register_export(request):
         kind=request.GET.get("kind", "").strip(),
         status=request.GET.get("status", "").strip(),
         attention=request.GET.get("attention", "").strip(),
-        actor=request.user,
+        actor=request.user, search=search,
     )
     content, filename, receipt = build_annual_register(
         department,
@@ -133,7 +154,7 @@ def annual_register_export(request):
         fiscal_year=fiscal_year,
         kind=selected_kind,
         status=selected_status,
-        attention=selected_attention,
+        attention=selected_attention, search=search,
     )
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
@@ -218,9 +239,11 @@ def version_create(request):
         item.department_id, item.department_label = department.pk, department.name
         item.created_by_id, item.created_by_label = request.user.pk, actor_label(request.user)
         try:
-            item.full_clean(); item.save(); record_event(item, "created", request.user, snapshot={"spendable": False})
+            create_version_draft(item, request.user)
         except ValidationError as exc:
             form.add_error(None, exc)
+        except IntegrityError:
+            form.add_error(None, 'This proposal identity conflicts with an existing version. Reload and review its version number.')
         else:
             messages.success(request, "Draft budget proposal version created. It is not spendable authority.")
             return redirect("budget:version_detail", public_id=item.public_id)
@@ -231,13 +254,101 @@ def version_create(request):
 def version_detail(request, public_id):
     department = department_for_user(request.user)
     version = get_object_or_404(BudgetVersion.objects.select_related("budget_call", "fiscal_year", "supersedes").prefetch_related("lines__fund", "lines__responsibility_center", "lines__program", "lines__account", "resource_estimates__funding_source", "review_comments", "source_links__source_version"), public_id=public_id, department_id=department.pk)
-    events = BudgetAuditEvent.objects.filter(target_id=str(version.public_id))[:30]
+    can_audit = has_budget_permission(request.user, "view_budget_audit")
+    event_page = history_page(version, request) if can_audit else None
+    planning = None
+    planning_error = ""
+    if can_read_context(request.user, version):
+        if version.status in (BudgetVersion.DRAFT, BudgetVersion.RETURNED):
+            try:
+                planning = build_context(version, request.user)
+            except ValidationError as exc:
+                planning_error = " ".join(exc.messages)
+        else:
+            planning = version.planning_context_snapshot or None
+            if planning is None:
+                planning_error = "This historical proposal has no retained planning context. No approval evidence has been backfilled."
+    from .resource_context import capture
+    resource_error = ''
+    try:
+        resources = capture(version) if version.status in (BudgetVersion.DRAFT, BudgetVersion.RETURNED) else (
+            version.planning_context_snapshot or {}).get('resources')
+    except ValidationError as exc:
+        resources, resource_error = None, ' '.join(exc.messages)
     return render(request, "budget/version_detail.html", {
-        "version": version, "ceiling_rows": ceiling_differences(version), "events": events,
+        "version": version, "ceiling_rows": ceiling_differences(version),
+        "events": event_page.object_list if can_audit else (), "event_page": event_page, "can_audit": can_audit,
+        "planning": planning, "planning_error": planning_error,
+        "resources": resources, "resource_error": resource_error,
+        "can_read_actuals": can_read_context(request.user, version),
         "comment_form": BudgetReviewCommentForm(),
         "can_prepare": can_act_on_budget(request.user, "prepare_budget_proposals"),
         "can_review": can_act_on_budget(request.user, "review_budget_proposals"),
     })
+
+
+@budget_permission_required("prepare_budget_proposals")
+def planning_estimate(request, public_id, line_id):
+    version = get_object_or_404(BudgetVersion, public_id=public_id, department_id=department_for_user(request.user).pk)
+    line = get_object_or_404(version.lines, pk=line_id)
+    form = BudgetEstimateForm(request.POST if request.method == "POST" else None,
+        initial={"amount": line.second_half_estimate, "as_of": line.estimate_as_of, "basis": line.estimate_basis})
+    if request.method == "POST" and form.is_valid():
+        try:
+            set_estimate(version=version, line_id=line.pk, actor=request.user, **form.cleaned_data)
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            return redirect("budget:version_detail", public_id=version.public_id)
+    return render(request, "budget/form.html", {"form": form, "title": "Second-half planning estimate",
+        "guidance": f"{line.particulars}: July–December {version.fiscal_year.year-1}. An estimate is not actual expenditure or spending authority."})
+
+
+@require_GET
+@budget_access_required
+def planning_context_export(request, public_id):
+    version = get_object_or_404(BudgetVersion, public_id=public_id, department_id=department_for_user(request.user).pk)
+    try:
+        context = displayed_context(version, request.user)
+    except ValidationError as exc:
+        return HttpResponse(" ".join(exc.messages), status=400)
+    if context is None:
+        return HttpResponse("No retained planning context exists for this historical proposal.", status=409)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    writer = csv.writer(response)
+    writer.writerow(("Capture date", "Budget year", "Prior year", "Current year", "Fund", "Office", "Account",
+        "Prior posted expense activity (not certified actual)", "Jan-Jun posted expense activity (not certified actual)",
+        "Jul-Dec estimate", "Indicative activity plus estimate", "Original appropriation", "Authority state", "Proposed",
+        "Prior sources", "First-half sources", "Estimate basis",
+        "Prior certified actual" if context.get('schema', 1) >= 3 else "Prior certified external actual",
+        "First-half certified actual" if context.get('schema', 1) >= 3 else "First-half certified external actual", "Certified actual plus second-half estimate",
+        "Prior certificate evidence", "First-half certificate evidence"))
+    for row in context["rows"]:
+        writer.writerow(tuple(_csv_text(value) for value in (context["as_of"], context["budget_year"],
+            context["prior_year"], context["current_year"], row["fund"], row["office"], row["account"],
+            row["prior_amount"] if row["prior_amount"] is not None else "Missing evidence",
+            row["half_amount"] if row["half_amount"] is not None else "Missing evidence",
+            row["estimate"] if row["estimate"] is not None else "Missing evidence",
+            row["indicative_total"] if row["indicative_total"] is not None else "Incomplete context",
+            row["original_authority"] if row["original_authority"] is not None else "Missing or ambiguous",
+            row["authority_state"], row["proposed"],
+            "; ".join(f'{s["reference"]} / {s["date"]} / line {s["line"]}' for s in row["prior_sources"]),
+            "; ".join(f'{s["reference"]} / {s["date"]} / line {s["line"]}' for s in row["half_sources"]),
+            "; ".join(f'{s["particulars"]}: {s["estimate"]} as of {s["estimate_as_of"]}: {s["estimate_basis"]}' for s in row["lines"]),
+            (row.get("prior_certified") or {}).get("amount", "No retained certification"),
+            (row.get("half_certified") or {}).get("amount", "No retained certification"),
+            row.get("certified_indicative_total") or "Incomplete certified context",
+            json.dumps(row.get("prior_certified_evidence") if context.get('schema', 1) >= 4 else row.get("prior_certified"), ensure_ascii=False),
+            json.dumps(row.get("half_certified_evidence") if context.get('schema', 1) >= 4 else row.get("half_certified"), ensure_ascii=False),
+        )))
+    filename = f"proposal-planning-context-{version.public_id}.csv"
+    receipt = archive_export(content=response.content, department=department_for_user(request.user), user=request.user,
+        category="budget-planning-context", filename=filename,
+        metadata={"version": str(version.public_id), "planning_context": context, "certified_expenditure": False})
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-GRAND-Export-SHA256"] = receipt["sha256"]
+    record_event(version, "planning_context_exported", request.user, snapshot={"sha256": receipt["sha256"], "relative_path": receipt["relative_path"]})
+    return response
 
 
 @budget_permission_required("prepare_budget_proposals")
@@ -261,21 +372,62 @@ def line_create(request, public_id):
 
 @budget_permission_required("prepare_budget_proposals")
 def resource_create(request, public_id):
+    return _resource_form(request, public_id)
+
+
+@budget_permission_required('prepare_budget_proposals')
+def resource_edit(request, public_id, item_id):
+    return _resource_form(request, public_id, item_id)
+
+
+@require_GET
+@budget_access_required
+def resource_export(request, public_id):
+    version = get_object_or_404(BudgetVersion, public_id=public_id, department_id=department_for_user(request.user).pk)
+    if not can_read_context(request.user, version):
+        raise PermissionDenied
+    from .resource_context import capture
+    try:
+        context = capture(version) if version.status in (BudgetVersion.DRAFT, BudgetVersion.RETURNED) else (
+            version.planning_context_snapshot or {}).get('resources')
+        if context is None:
+            raise ValidationError('No retained resource snapshot exists for this historical proposal.')
+    except ValidationError as exc:
+        return HttpResponse(' '.join(exc.messages), status=409)
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    writer = csv.writer(response)
+    writer.writerow(('Budget year', 'Resource ID', 'Funding source', 'Fund', 'Description', 'Proposed amount',
+        'Basis', 'Funding-source evidence', 'Consolidation origins', 'Boundary'))
+    for row in context['rows']:
+        writer.writerow(_csv_text(value) for value in (context['budget_year'], row['id'], row['funding_source']['code'],
+            row['funding_source']['fund_code'] if row['funding_source']['fund_code'] is not None else 'Fund not assigned',
+            row['description'], row['amount'], row['basis'], json.dumps(row['funding_source'], ensure_ascii=False),
+            json.dumps([origin for origin in context['origins'] if origin['target_resource_id'] == row['id']], ensure_ascii=False),
+            'Proposed estimate only; not certified receipts or cash; reconcile overlaps before aggregation'))
+    filename = f'proposed-resources-{version.public_id}.csv'
+    receipt = archive_export(content=response.content, department=department_for_user(request.user), user=request.user,
+        category='budget-proposed-resources', filename=filename, metadata={'version': str(version.public_id), 'resources': context})
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response['X-GRAND-Export-SHA256'] = receipt['sha256']
+    record_event(version, 'resource_context_exported', request.user, snapshot={'sha256': receipt['sha256'], 'relative_path': receipt['relative_path']})
+    return response
+
+
+def _resource_form(request, public_id, item_id=None):
     department = department_for_user(request.user)
     version = get_object_or_404(BudgetVersion, public_id=public_id, department_id=department.pk, status__in=(BudgetVersion.DRAFT, BudgetVersion.RETURNED))
-    form = BudgetResourceEstimateForm(request.POST or None, version=version)
+    item = get_object_or_404(version.resource_estimates, pk=item_id) if item_id is not None else None
+    form = BudgetResourceEstimateForm(request.POST or None, version=version, instance=item)
     if request.method == "POST" and form.is_valid():
-        item = form.save(False)
-        item.version = version
-        item.department_id, item.department_label = department.pk, department.name
         try:
-            item.full_clean(); item.save(); record_event(version, "resource_estimate_added", request.user, snapshot={"source": item.funding_source.code, "amount": str(item.amount)})
+            from .resource_context import save_estimate
+            save_estimate(version=version, actor=request.user, item_id=item_id, **form.cleaned_data)
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
-            messages.success(request, "Revenue/resource estimate added to this version.")
+            messages.success(request, "Proposed resource estimate retained with its basis and revision history.")
             return redirect("budget:version_detail", public_id=version.public_id)
-    return render(request, "budget/form.html", {"form": form, "title": "Add revenue/resource estimate", "guidance": "Record the reviewed estimate and its basis without treating it as cash availability."})
+    return render(request, "budget/form.html", {"form": form, "title": "Revise resource estimate" if item else "Add revenue/resource estimate", "guidance": "Record proposed financing and its basis. This is not certified actual receipts or cash availability; overlapping sources require reconciliation before a summary."})
 
 
 @budget_permission_required("review_budget_proposals")
@@ -386,6 +538,7 @@ def authorization_detail(request, public_id):
         "authorization": item,
         "can_prepare": can_act_on_budget(request.user, "prepare_budget_proposals"),
         "can_authorize": can_act_on_budget(request.user, "authorize_appropriations"),
+        "can_plan": can_act_on_budget(request.user, "prepare_allotment_releases"),
     })
 
 
@@ -428,6 +581,7 @@ def authorization_export(request, public_id):
 @budget_permission_required("view_allotment_control")
 def allotment_workspace(request):
     department = department_for_user(request.user)
+    search = request.GET.get("q", "").strip()[:160]
     authorizations = list(AppropriationAuthorization.objects.filter(
         department_id=department.pk, status=AppropriationAuthorization.AUTHORIZED,
     ).select_related("version", "version__fiscal_year").prefetch_related("schedule_lines"))
@@ -445,9 +599,10 @@ def allotment_workspace(request):
     orders, selected_kind, selected_status, selected_attention = apply_allotment_filters(
         base_orders, fiscal_year=fiscal_year, kind=request.GET.get("kind", "").strip(),
         status=request.GET.get("status", "").strip(), attention=request.GET.get("attention", "").strip(),
-        actor=request.user,
+        actor=request.user, search=search,
     )
-    orders = list(orders.select_related("fiscal_year", "authorization", "corrects")[:100])
+    page = _budget_register_page(orders.select_related("fiscal_year", "authorization", "corrects"), request)
+    orders = list(page)
     for order in orders:
         order.next_action_label = next_allotment_action(order)
     return render(request, "budget/allotment_workspace.html", {
@@ -456,7 +611,7 @@ def allotment_workspace(request):
             allotment_release_orders__department_id=department.pk,
         ).distinct().order_by("-year", "pk"),
         "selected_fiscal_year": fiscal_year_id, "selected_kind": selected_kind,
-        "selected_status": selected_status, "selected_attention": selected_attention,
+        "selected_status": selected_status, "selected_attention": selected_attention, "search": search, "page_obj": page,
         "kind_choices": AllotmentReleaseOrder.KIND_CHOICES,
         "status_choices": AllotmentReleaseOrder.STATUS_CHOICES,
         "attention_choices": ALLOTMENT_ATTENTION_CHOICES,
@@ -468,6 +623,7 @@ def allotment_workspace(request):
 @budget_permission_required("view_allotment_control")
 def allotment_register_export(request):
     department = department_for_user(request.user)
+    search = request.GET.get("q", "").strip()[:160]
     base_orders = AllotmentReleaseOrder.objects.filter(department_id=department.pk)
     fiscal_year_id = request.GET.get("fiscal_year", "").strip()
     fiscal_year = None
@@ -479,11 +635,11 @@ def allotment_register_export(request):
     orders, selected_kind, selected_status, selected_attention = apply_allotment_filters(
         base_orders, fiscal_year=fiscal_year, kind=request.GET.get("kind", "").strip(),
         status=request.GET.get("status", "").strip(), attention=request.GET.get("attention", "").strip(),
-        actor=request.user,
+        actor=request.user, search=search,
     )
     content, filename, receipt = build_allotment_register(
         department, request.user, orders, fiscal_year=fiscal_year, kind=selected_kind,
-        status=selected_status, attention=selected_attention,
+        status=selected_status, attention=selected_attention, search=search,
     )
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
@@ -549,8 +705,17 @@ def allotment_detail(request, public_id):
     line_rows = [
         {"line": line, "balance": allotment_line_balance(line.appropriation_line)} for line in item.lines.all()
     ]
+    from .quarterly import allotment_planning_context
+    planning = item.planning_context_snapshot
+    planning_error = ""
+    if item.status in (item.DRAFT, item.RETURNED):
+        try:
+            planning = allotment_planning_context(item)
+        except ValidationError as exc:
+            planning_error = " ".join(exc.messages)
     return render(request, "budget/allotment_detail.html", {
         "order": item, "line_rows": line_rows,
+        "planning": planning, "planning_error": planning_error,
         "can_prepare": can_act_on_budget(request.user, "prepare_allotment_releases"),
         "can_post": can_act_on_budget(request.user, "approve_allotment_releases"),
     })
@@ -667,6 +832,7 @@ def allotment_export(request, public_id):
         "ppa", "funding_source", "account", "expense_class", "movement_type", "movement_amount",
         "release_effect", "hold_effect", "authorized_amount", "released_to_date", "reserved_to_date", "deferred_to_date", "held_to_date",
         "unreleased_balance", "executable_balance", "remarks",
+        "quarterly_plan_reference", "quarterly_plan_version", "quarterly_plan_checksum", "planning_quarter", "planning_deviation_basis",
     ))
     for movement in item.movements.all():
         line, balance = movement.appropriation_line, allotment_line_balance(movement.appropriation_line)
@@ -677,6 +843,9 @@ def allotment_export(request, public_id):
             line.funding_source_code, line.account_code, line.expense_class, movement.movement_type,
             movement.amount, movement.release_effect, movement.hold_effect, balance["authorized"],
             balance["released"], balance["reserved"], balance["deferred"], balance["held"], balance["unreleased"], balance["executable"], movement.remarks,
+            item.planning_context_snapshot.get("reference", "No retained plan"), item.planning_context_snapshot.get("version", ""),
+            item.planning_context_snapshot.get("checksum", ""), item.planning_context_snapshot.get("quarter", ""),
+            item.planning_context_snapshot.get("deviation_basis", ""),
         )))
     filename = f"allotment-{slugify(item.order_number)}.csv"
     archived = archive_export(
@@ -685,6 +854,7 @@ def allotment_export(request, public_id):
         metadata={
             "kind": "posted_allotment_schedule", "allotment_public_id": str(item.public_id),
             "appropriation_public_id": str(item.authorization.public_id), "snapshot_checksum": item.snapshot_checksum,
+            "planning_context": item.planning_context_snapshot,
             "official_status": "controlled schedule export; exact local/DBM/COA form acceptance remains required",
         },
     )
@@ -708,6 +878,8 @@ def obligation_workspace(request):
     fiscal_year_id = request.GET.get("fiscal_year", "").strip()
     fiscal_year = None
     if fiscal_year_id:
+        if not fiscal_year_id.isascii() or not fiscal_year_id.isdecimal() or len(fiscal_year_id) > 18:
+            raise Http404("Unknown fiscal year")
         fiscal_year = get_object_or_404(
             FiscalYear.objects.filter(pk__in=base_items.values("fiscal_year_id")).distinct(),
             pk=fiscal_year_id,
@@ -718,11 +890,19 @@ def obligation_workspace(request):
         attention=request.GET.get("attention", "").strip(),
         actor=request.user,
     )
-    items = list(items.select_related("fiscal_year", "authorization", "corrects")[:100])
+    retrieval = ObligationRetrievalForm(request.GET, scope=base_items)
+    items = retrieval.apply(items).select_related("fiscal_year", "authorization", "corrects").order_by(
+        "-fiscal_year__year", "-obligation_date", "-created_at", "-pk",
+    )
+    page = Paginator(items, 50).get_page(request.GET.get("page"))
+    items = list(page.object_list)
+    query = request.GET.copy()
+    query.pop("page", None)
     for item in items:
         item.next_action_label = next_obligation_action(item)
     return render(request, "budget/obligation_workspace.html", {
         "department": department, "authority_rows": authority_rows, "requests": items,
+        "retrieval_form": retrieval, "page_obj": page, "page_query": query.urlencode(),
         "fiscal_years": FiscalYear.objects.filter(
             pk__in=base_items.values("fiscal_year_id"),
         ).distinct().order_by("-year", "pk"),
@@ -748,6 +928,8 @@ def obligation_register_export(request):
     fiscal_year_id = request.GET.get("fiscal_year", "").strip()
     fiscal_year = None
     if fiscal_year_id:
+        if not fiscal_year_id.isascii() or not fiscal_year_id.isdecimal() or len(fiscal_year_id) > 18:
+            raise Http404("Unknown fiscal year")
         fiscal_year = get_object_or_404(
             FiscalYear.objects.filter(pk__in=base_items.values("fiscal_year_id")).distinct(),
             pk=fiscal_year_id,
@@ -758,9 +940,14 @@ def obligation_register_export(request):
         attention=request.GET.get("attention", "").strip(),
         actor=request.user,
     )
+    retrieval = ObligationRetrievalForm(request.GET, scope=base_items)
+    items = retrieval.apply(items)
+    if not retrieval.is_valid():
+        return HttpResponse("Invalid register filters. Correct the filters in the obligation register.", status=400)
     content, filename, receipt = build_obligation_register(
         department, request.user, items, fiscal_year=fiscal_year, kind=selected_kind,
         form_type=selected_form_type, status=selected_status, attention=selected_attention,
+        retrieval_filters=retrieval.evidence(),
     )
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
@@ -824,6 +1011,7 @@ def obligation_edit(request, public_id):
 
 @budget_access_required
 def obligation_detail(request, public_id):
+    from .payable_handoff import payable_handoff
     _require_obligation_permission(
         request.user, "view_obligation_registry", "initiate_obligation_requests", "certify_obligations"
     )
@@ -837,6 +1025,7 @@ def obligation_detail(request, public_id):
         "can_edit": can_act_on_budget(request.user, "initiate_obligation_requests") and item.requesting_department_id == department.pk,
         "can_certify": can_act_on_budget(request.user, "certify_obligations") and item.department_id == department.pk,
         "downstream_boundary": downstream_issuance_boundary(item),
+        "payable_handoff": payable_handoff(item, request.user, request.GET.get("payable_page")),
     })
 
 

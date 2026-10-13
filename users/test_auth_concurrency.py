@@ -3,10 +3,24 @@ from threading import Barrier
 from unittest import skipUnless
 
 from django.db import close_old_connections, connection
-from django.test import TransactionTestCase
+from django.test import TestCase, TransactionTestCase
 
 from users.auth_throttle import consume_attempt
 from users.models import AuthAttemptBucket
+
+
+@skipUnless(connection.vendor == "mysql", "Authentication aliases require native MySQL collation")
+class AuthThrottleCollationTests(TestCase):
+    def test_collation_aliases_resolve_to_same_account(self):
+        from django.contrib.auth import get_user_model
+        from users.auth_throttle import attempt_identities
+
+        user = get_user_model().objects.create_user(username="collation-employee", email="collation@example.com")
+        # The native fixture uses an accent-insensitive collation, as ordinary
+        # MySQL deployments do. Match the database's actual authentication key.
+        self.assertTrue(get_user_model().objects.filter(username__iexact="collation-émployee").exists())
+        for value in (user.username, "collation-émployee", "COLLATION-EMPLOYEE"):
+            self.assertEqual(attempt_identities("login", {"username": value}, {}), [f"account:{user.pk}"])
 
 
 @skipUnless(connection.vendor == "mysql", "Concurrent row updates require native MySQL")

@@ -1,13 +1,16 @@
 """Bound password guessing across Django, allauth and admin entry points."""
 import logging
+import unicodedata
 from datetime import timedelta
 from ipaddress import ip_address, ip_network
 
 from django.db import DatabaseError
+from django.contrib.auth import get_user_model
 from django.db.models import F
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
+from django.utils.http import base36_to_int, urlsafe_base64_decode
 
 from .models import AuthAttemptBucket
 
@@ -36,6 +39,40 @@ def network_identity(request):
         return "unknown"
 
 
+def attempt_identities(route, post, kwargs):
+    """Use the actual form field, then bind aliases to the persisted account.
+
+    Database matching deliberately uses the authentication store's collation:
+    case/accent aliases that authenticate as one user must share its counter.
+    Ambiguous email/username matches consume every candidate's counter.
+    """
+    if route in {"password_reset_confirm", "account_reset_password_from_key"}:
+        raw = kwargs.get("uidb64", "") if route == "password_reset_confirm" else kwargs.get("uidb36", "")
+        try:
+            uid = int(urlsafe_base64_decode(raw)) if route == "password_reset_confirm" else base36_to_int(raw)
+            if not 0 < uid < 2**63:
+                raise ValueError
+        except (ValueError, OverflowError, UnicodeError):
+            return [f"invalid-uid:{raw}"]
+        return [f"account:{uid}"]
+    field = "login" if route == "account_login" else "username" if route in {"login", "admin:login"} else "email"
+    raw = post.get(field, "").strip()
+    if not raw:
+        return []
+    normalized = unicodedata.normalize("NFKC", raw).casefold()
+    users = get_user_model().objects
+    ids = set()
+    for value in {raw, normalized}:
+        if field in {"username", "login"}:
+            ids.update(users.filter(username__iexact=value).values_list("pk", flat=True))
+        if field in {"email", "login"}:
+            from allauth.account.models import EmailAddress
+
+            ids.update(users.filter(email__iexact=value).values_list("pk", flat=True))
+            ids.update(EmailAddress.objects.filter(email__iexact=value).values_list("user_id", flat=True))
+    return [f"account:{uid}" for uid in sorted(ids)] if ids else [f"submitted:{normalized}"]
+
+
 class AuthAttemptMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -56,19 +93,19 @@ class AuthAttemptMiddleware:
         route = request.resolver_match.view_name
         if route in {"login", "account_login", "admin:login"}:
             family, ip_limit, key_limit = "login", 30, 10
-            key = request.POST.get("login") or request.POST.get("username") or request.POST.get("email")
         elif route in {"password_reset", "password_reset_confirm", "account_reset_password", "account_reset_password_from_key"}:
             family, ip_limit, key_limit = "reset", 10, 5
-            key = request.POST.get("email") or view_kwargs.get("uidb36") or view_kwargs.get("uidb64")
         elif route in {"register", "account_signup", "socialaccount_signup"}:
             family, ip_limit, key_limit = "signup", 10, 5
-            key = request.POST.get("email")
         else:
             return None
         try:
             allowed = consume_attempt(f"{family}:network", network_identity(request), limit=ip_limit)
-            if allowed and key:
-                allowed = consume_attempt(f"{family}:identity", key.strip().casefold(), limit=key_limit)
+            if allowed:
+                for identity in attempt_identities(route, request.POST, view_kwargs):
+                    if not consume_attempt(f"{family}:identity", identity, limit=key_limit):
+                        allowed = False
+                        break
         except DatabaseError:
             logger.error("Authentication attempt storage unavailable")
             response = HttpResponse("Sign-in is temporarily unavailable. Please try again later.", status=503)

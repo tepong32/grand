@@ -29,7 +29,7 @@
             {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
           </div>
         {% endfor %}
-        <button class="btn btn-primary" type="submit">Save governed draft</button>
+        <button class="btn btn-primary" type="submit">{{ button_label|default:'Save governed draft' }}</button>
       </form>
     </div>
   </div>

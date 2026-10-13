@@ -207,7 +207,7 @@ class FinanceAccountabilityReportingTests(TestCase):
             date(2027, 1, 1), date(2027, 3, 31), {}, actor or self.accounting_preparer,
         )
 
-    def test_governed_tax_detail_and_summary_reconcile_rule_formula_ledger_and_reversal(self):
+    def _governed_tax_fixture(self, reporting_basis="accounting_posting"):
         release = FinanceConfigurationRelease.objects.create(
             department=self.accounting, code="f9-tax", version=1,
             title="Synthetic governed tax setup", fiscal_year=2027,
@@ -222,7 +222,7 @@ class FinanceAccountabilityReportingTests(TestCase):
                 "reporting_enabled": True, "tax_family": "expanded_income", "atc": "WI158",
                 "rate_percent": "1", "tax_base_label": "Reviewed gross income payment",
                 "return_form_code": "1601-EQ", "certificate_form_code": "2307",
-                "reporting_basis": "accounting_posting", "rounding_mode": "half_up",
+                "reporting_basis": reporting_basis, "rounding_mode": "half_up",
                 "requires_tax_identifier": True,
                 "authority_reference": "Synthetic locally reviewed BIR rule",
                 "applicability_status": "locally_confirmed",
@@ -273,6 +273,10 @@ class FinanceAccountabilityReportingTests(TestCase):
         tax_entry.refresh_from_db()
         self.assertEqual(debit.debit, Decimal("10.00"))
 
+        return tax_entry, tax_detail, tax_snapshot, withholding
+
+    def test_governed_tax_detail_and_summary_reconcile_rule_formula_ledger_and_reversal(self):
+        tax_entry, tax_detail, tax_snapshot, withholding = self._governed_tax_fixture()
         detail_definition = ReportDefinition.objects.get(
             department=self.accounting, dataset_key="finance_governed_tax_withholding_detail",
         )
@@ -348,6 +352,98 @@ class FinanceAccountabilityReportingTests(TestCase):
         )
         self.assertEqual(broken_evidence["control_status"], ReportRun.CONTROL_EXCEPTION)
         self.assertGreater(broken_evidence["control_totals"]["invalid_rule_or_amount_count"], 0)
+
+    @override_settings(TIME_ZONE="Asia/Manila")
+    def test_payment_release_tax_uses_local_day_and_preserves_reversal_dates(self):
+        from zoneinfo import ZoneInfo
+        tax_entry, tax_detail, tax_snapshot, withholding = self._governed_tax_fixture("payment_release")
+        case = VoucherCase.objects.create(
+            public_id=tax_snapshot["case_public_id"], reference_code="CASE-TAX-001",
+            transaction_type="ordinary-supplier-claim", requesting_department=self.requesting,
+            current_department=self.accounting, payee_name="Synthetic Supplier",
+            particulars="Synthetic release-basis date test", authoritative_obligation_amount=Decimal("1000"),
+            current_stage=VoucherCase.COMPLETED, created_by=self.accounting_preparer,
+        )
+        definition = ReportDefinition.objects.get(department=self.accounting,
+            dataset_key="finance_governed_tax_withholding_detail")
+        _, pending_rows, _, pending_evidence = build_dataset_with_evidence(
+            definition, date(2027, 2, 1), date(2027, 3, 31), {})
+        self.assertEqual(pending_rows, [])
+        self.assertEqual(pending_evidence["control_totals"]["awaiting_payment_release_count"], 1)
+        release_at = datetime(2027, 3, 1, 0, 30, tzinfo=ZoneInfo("Asia/Manila"))
+        # Synthetic retained release, not a claim of actual custody or approval.
+        instrument = PaymentInstrument.objects.create(
+            case=case, bank_account_code="GF-CHECKING", fund_code="GF", check_number="TAX-DATE-1",
+            amount=Decimal("990"), status=PaymentInstrument.RELEASED,
+            issued_by=self.accounting_preparer, issued_at=release_at,
+            released_by=self.accounting_preparer, released_at=release_at,
+            released_to="Synthetic claimant", receipt_reference="TAX-DATE-RECEIPT",
+        )
+        _, february, _, _ = build_dataset_with_evidence(definition, date(2027, 2, 1), date(2027, 2, 28), {})
+        self.assertEqual(february, [])
+        _, march, totals, evidence = build_dataset_with_evidence(definition, date(2027, 3, 1), date(2027, 3, 1), {})
+        self.assertEqual(len(march), 1)
+        self.assertEqual(march[0]["reporting_date"], date(2027, 3, 1))
+        self.assertEqual(totals["tax_withheld"], Decimal("10.00"))
+        self.assertEqual(evidence["control_status"], ReportRun.CONTROL_RECONCILED)
+        run = create_manual_run(definition, definition.current_template, "xlsx",
+            date(2027, 3, 1), date(2027, 3, 1), {}, self.accounting_preparer)
+        self.assertEqual(run.dataset_snapshot["rows"][0]["reporting_date"], "2027-03-01")
+        before_bytes = Path(run.output_file.path).read_bytes()
+        before_checksum = run.dataset_checksum
+        reversal = JournalEntry.objects.create(
+            department_id=self.accounting.pk, department_label=self.accounting.name,
+            reference="JEV-TAX-DATE-REV", entry_date=date(2027, 3, 2), period=self.period,
+            fund=self.fund, reversal_of=tax_entry, reversal_reason="Synthetic correction",
+            status=JournalEntry.DRAFT, created_by_id=self.accounting_preparer.pk,
+            created_by_label=self.accounting_preparer.username,
+        )
+        line = JournalLine.objects.create(entry=reversal, sequence=1, account=withholding, debit=Decimal("10"))
+        JournalLine.objects.create(entry=reversal, sequence=2, account=self.cash, credit=Decimal("10"))
+        JournalSubsidiaryLine.objects.create(entry=reversal, journal_line=line,
+            category=JournalSubsidiaryLine.WITHHOLDING, reference_key="ewt-1", debit=Decimal("10"),
+            source_snapshot={"reversal_of_subsidiary_line": tax_detail.pk, "tax_reporting": tax_snapshot})
+        JournalEntry.objects.filter(pk=reversal.pk).update(status=JournalEntry.POSTED)
+        _, reversed_rows, reversed_totals, reversed_evidence = build_dataset_with_evidence(
+            definition, date(2027, 3, 2), date(2027, 3, 2), {})
+        self.assertEqual(len(reversed_rows), 1)
+        self.assertEqual(reversed_rows[0]["reporting_date"], date(2027, 3, 2))
+        self.assertEqual(reversed_totals["tax_withheld"], Decimal("-10"))
+        self.assertEqual(reversed_evidence["control_status"], ReportRun.CONTROL_RECONCILED)
+        instrument.refresh_from_db(); tax_detail.refresh_from_db(); run.refresh_from_db()
+        self.assertEqual(instrument.released_at, release_at)
+        self.assertEqual(tax_detail.source_snapshot["tax_reporting"], tax_snapshot)
+        self.assertEqual(run.dataset_checksum, before_checksum)
+        self.assertEqual(Path(run.output_file.path).read_bytes(), before_bytes)
+
+    def test_source_drillthrough_retrieves_all_posted_journals_without_changing_output(self):
+        for number in range(110):
+            self._post_statement_adjustment(f"RETRIEVAL-JEV-{number:03}", self.cash, self.revenue, Decimal("1.00"))
+        run = self.generate_accounting()
+        self.assertEqual(run.source_records.count(), 111)
+        original = (run.dataset_checksum, run.control_checksum, run.checksum, run.source_record_count)
+        output_bytes = Path(run.output_file.path).read_bytes()
+        self.client.force_login(self.accounting_preparer)
+        seen = []
+        for number, count in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(run.get_absolute_url(), {"source_page": number})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["source_page"].paginator.count, 111)
+            sources = list(response.context["source_records"])
+            self.assertEqual(len(sources), count)
+            seen.extend(source.pk for source in sources)
+            for source in sources:
+                self.assertContains(response, source.source_url)
+        self.assertEqual(len(set(seen)), 111)
+        self.assertContains(response, "Showing 101–111 of 111 matching records")
+        self.assertEqual(self.client.get(sources[-1].source_url).status_code, 200)
+        invalid = self.client.get(run.get_absolute_url(), {"source_page": "invalid"})
+        self.assertEqual(invalid.context["source_page"].number, 1)
+        run.refresh_from_db()
+        self.assertEqual((run.dataset_checksum, run.control_checksum, run.checksum, run.source_record_count), original)
+        self.assertEqual(Path(run.output_file.path).read_bytes(), output_bytes)
+        self.client.force_login(self.budget_preparer)
+        self.assertEqual(self.client.get(run.get_absolute_url(), {"source_page": 3}).status_code, 404)
 
     def test_trial_balance_run_pins_reconciled_controls_and_source_drillthrough(self):
         run = self.generate_accounting()

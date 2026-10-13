@@ -284,6 +284,37 @@ class FinanceLocalFormAcceptanceTests(TestCase):
         self.assertTrue(any("compare this candidate starter row" in message for message in errors))
         self.assertTrue(any("record and independently witness" in message for message in errors))
 
+    def test_local_form_register_retrieves_all_candidates_and_exports_all_matches(self):
+        FinanceLocalFormAcceptance.objects.bulk_create([
+            FinanceLocalFormAcceptance(department=self.department, code=f"retrieval-{number:03}",
+                                       name=f"Retrieval candidate {number:03}", purpose="Synthetic draft retrieval",
+                                       created_by=self.preparer)
+            for number in range(111)
+        ])
+        self.client.force_login(self.preparer)
+        url = reverse("reporting:local_form_workspace")
+        seen = []
+        for number, count in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(url, {"q": "Retrieval", "page": number})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["visible_count"], 111)
+            records = response.context["records"]
+            self.assertEqual(len(records), count)
+            seen.extend(record.pk for record in records)
+            self.assertIn("q=Retrieval", response.context["page_obj"].next_url)
+        self.assertEqual(len(set(seen)), 111)
+        self.assertContains(response, "Retrieval candidate 110")
+        self.assertContains(response, "Showing 101–111 of 111 matching records")
+        export = self.client.get(reverse("reporting:local_form_register_export"), {"q": "Retrieval", "page": 3})
+        self.assertEqual(export.status_code, 200)
+        rows = list(csv.DictReader(io.StringIO(export.content.decode("utf-8-sig"))))
+        self.assertEqual(len(rows), 111)
+        empty = self.client.get(url, {"q": "no-match", "page": "invalid"})
+        self.assertContains(empty, "Showing 0–0 of 0 matching records")
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"q": "Retrieval", "page": 3}).context["visible_count"], 0)
+        self.assertEqual(FinanceLocalFormAcceptance.objects.filter(status=FinanceLocalFormAcceptance.DRAFT).count(), 111)
+
     def test_local_form_triage_and_register_are_synchronized_and_department_scoped(self):
         candidate = create_local_form_from_starter(
             self.department, self.preparer, starter_key="lbp-form-4",

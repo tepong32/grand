@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block title_ext %} · {{ workspace_profile.title }}{% endblock %}
 {% block content %}
+{% if perms.budget.view_form1_packages %}<p class="container pt-3"><a href="{% url 'budget:form1_packages' %}">Whole Form 1 draft history</a></p>{% endif %}
 <div class="container-fluid pb-4">
   <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
     <div>
@@ -58,7 +59,7 @@
       <span class="small text-muted float-right">{{ visible_count }} case{{ visible_count|pluralize }} visible</span>
     </div>
     <div class="card-body">
-      <form method="get" class="row align-items-end">
+      <form method="get" action="{% url 'vouchers:workspace' %}#case-queue" class="row align-items-end">
         {% if filters.office %}<input type="hidden" name="office" value="{{ filters.office }}">{% endif %}
         <div class="form-group col-lg-3 col-md-6">
           <label for="case-search">Case, OBR, DV, JEV, check, advice, receipt, claimant, or exact ID</label>
@@ -157,20 +158,22 @@
     </div>
   </div>
 
-  <div class="card card-outline card-primary">
+  <div class="card card-outline card-primary" id="case-queue">
     <div class="card-header">
       <h2 class="card-title font-weight-bold">{{ workspace_profile.queue_title }}</h2>
       {% if workspace_profile.is_preview %}<span class="badge badge-info float-right">UAT preview</span>{% endif %}
     </div>
     {% include 'vouchers/_case_table.html' with case_rows=queue_cases empty_message=workspace_profile.empty_message %}
+    {% include 'vouchers/_case_pagination.html' with page=queue_page label=workspace_profile.queue_title %}
   </div>
 
-  <div class="card">
+  <div class="card" id="case-history">
     <div class="card-header">
       <h2 class="card-title font-weight-bold">Shared case history</h2>
       <span class="small text-muted float-right">Forwarded, completed, or currently owned by another office</span>
     </div>
     {% include 'vouchers/_case_table.html' with case_rows=cases empty_message='No additional voucher cases to show.' %}
+    {% include 'vouchers/_case_pagination.html' with page=history_page label='Shared case history' %}
   </div>
 </div>
 {% endblock %}

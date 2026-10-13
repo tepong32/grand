@@ -45,6 +45,7 @@ def _batch(public_id, user):
 
 @voucher_access_required
 def workspace(request):
+    from .payment_presentations import visible_reports
     if not has_explicit_permission(request.user, "vouchers.view_bank_advice"):
         raise PermissionDenied
     batches, selected_status, _ignored_attention = apply_bank_advice_filters(
@@ -69,6 +70,7 @@ def workspace(request):
     reviews = reviews.order_by("-prepared_at")
     return render(request, "vouchers/advice/workspace.html", {
         "batches": batches,
+        "presentation_reports": visible_reports(request.user).filter(is_open=True),
         "returned_reviews": reviews,
         "profile": finance_workspace_profile(request.user),
         "can_prepare": can_act_on_advice(request.user, "vouchers.prepare_bank_advice"),

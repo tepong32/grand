@@ -1219,6 +1219,82 @@ class TreasuryCashReservation(models.Model):
         raise ValidationError("Cash reservations cannot be deleted.")
 
 
+class PaymentPresentationReport(models.Model):
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    instrument = models.ForeignKey(PaymentInstrument, on_delete=models.PROTECT, related_name="presentation_reports")
+    treasury_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="presentation_reports")
+    accounting_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="presentation_reviews")
+    observed_on = models.DateField()
+    reason = models.TextField()
+    evidence_reference = models.TextField()
+    snapshot = models.JSONField()
+    checksum = models.CharField(max_length=64)
+    reported_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="payment_presentations")
+    reported_at = models.DateTimeField(auto_now_add=True)
+    is_open = models.BooleanField(default=True)
+    state_version = models.PositiveIntegerField(default=1)
+    active_instrument = models.GeneratedField(
+        expression=models.Case(models.When(is_open=True, then=models.F("instrument_id")), default=None),
+        output_field=models.BigIntegerField(), db_persist=True, unique=True, null=True,
+    )
+
+    class Meta:
+        ordering = ("-reported_at", "-pk")
+        permissions = (("record_payment_presentations", "Can record cheque presentation reports"),
+                       ("review_payment_presentations", "Can independently review cheque presentation reports"))
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            immutable = ("public_id", "instrument_id", "treasury_department_id", "accounting_department_id",
+                         "observed_on", "reason", "evidence_reference", "snapshot", "checksum", "reported_by_id", "reported_at")
+            if not prior.is_open or any(getattr(prior, f) != getattr(self, f) for f in immutable):
+                raise ValidationError("Presentation reports retain their original evidence and closed history.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Presentation report history cannot be deleted.")
+
+
+class PaymentPresentationDecision(models.Model):
+    PENDING = "pending"
+    PAID = "paid"
+    RETURNED = "returned"
+    NOT_PAID = "not_paid"
+    MISTAKEN = "mistaken"
+    PAID_RECONCILED = "paid_reconciled"
+    RETURN_LINKED = "return_linked"
+    CLOSED_OUTCOMES = (NOT_PAID, MISTAKEN, PAID_RECONCILED, RETURN_LINKED)
+    OUTCOMES = ((PENDING, "Awaiting bank evidence"), (PAID, "Bank confirms payment — reconcile"),
+                (RETURNED, "Bank confirms return — reconcile"), (NOT_PAID, "Bank confirms not paid — resolve"),
+                (MISTAKEN, "Mistaken report — resolve"),
+                (PAID_RECONCILED, "Payment reconciled to original source"),
+                (RETURN_LINKED, "Return resolved through Accounting"))
+    report = models.ForeignKey(PaymentPresentationReport, on_delete=models.PROTECT, related_name="decisions")
+    version = models.PositiveIntegerField()
+    outcome = models.CharField(max_length=16, choices=OUTCOMES)
+    effective_on = models.DateField()
+    evidence_reference = models.TextField()
+    reason = models.TextField()
+    next_action = models.TextField(blank=True)
+    snapshot = models.JSONField()
+    checksum = models.CharField(max_length=64)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="presentation_decisions")
+    reviewed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("version",)
+        constraints = (models.UniqueConstraint(fields=("report", "version"), name="unique_presentation_decision_version"),)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Presentation decisions are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Presentation decisions cannot be deleted.")
+
+
 class PaymentInstrumentException(models.Model):
     UNCLAIMED = "unclaimed"
     STALE = "stale"
@@ -1842,10 +1918,11 @@ class RemittanceReturnCorrection(models.Model):
 class TreasuryCollectionSource(models.Model):
     """Actual receipt/deposit facts and their independently reviewed source version."""
     RECEIPT, DEPOSIT, CORRECTION = 'receipt', 'deposit', 'correction'
-    KIND_CHOICES = ((RECEIPT, 'Collection receipt'), (DEPOSIT, 'Deposit of collections'), (CORRECTION, 'Posted source correction'))
+    CHEQUE_RETURN, CORRECTED = 'cheque_return', 'corrected'
+    KIND_CHOICES = ((RECEIPT, 'Collection receipt'), (DEPOSIT, 'Deposit of collections'), (CORRECTION, 'Posted source correction'), (CHEQUE_RETURN, 'Incoming cheque bank return'))
     PROPOSED, APPROVED, REJECTED, POSTED, WITHDRAWN = 'proposed', 'approved', 'rejected', 'posted', 'withdrawn'
     STATUS_CHOICES = ((PROPOSED, 'For independent review'), (APPROVED, 'Approved; Accounting posting'),
-        (REJECTED, 'Returned for correction'), (POSTED, 'Posted'), (WITHDRAWN, 'Withdrawn before posting'))
+        (REJECTED, 'Returned for correction'), (POSTED, 'Posted'), (WITHDRAWN, 'Withdrawn before posting'), (CORRECTED, 'Retired by posted exact correction'))
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     treasury_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name='collection_sources')
     configuration_release = models.ForeignKey(FinanceConfigurationRelease, on_delete=models.PROTECT, related_name='collection_sources')
@@ -1858,6 +1935,19 @@ class TreasuryCollectionSource(models.Model):
     version = models.PositiveIntegerField(default=1)
     supersedes = models.OneToOneField('self', on_delete=models.PROTECT, null=True, blank=True, related_name='successor')
     correction_of = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='corrections')
+    return_receipt = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='cheque_returns')
+    return_deposit = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='deposit_returns')
+    redemption_return = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='redemption_receipts')
+    redemption_active = models.BooleanField(default=False)
+    active_redemption_return = models.GeneratedField(
+        expression=models.Case(models.When(kind='receipt', redemption_active=True,
+            status__in=('proposed','approved','posted'), then=models.F('redemption_return_id')), default=models.Value(None)),
+        output_field=models.BigIntegerField(), db_persist=True, unique=True, null=True)
+    active_return_receipt = models.GeneratedField(
+        expression=models.Case(models.When(kind='cheque_return', status__in=('proposed','approved','posted'),
+            then=models.F('return_receipt_id')), default=models.Value(None)),
+        output_field=models.BigIntegerField(), db_persist=True, unique=True, null=True)
+
     source_date = models.DateField()
     fund_code = models.CharField(max_length=80)
     amount = models.DecimalField(max_digits=18, decimal_places=2)
@@ -1893,7 +1983,7 @@ class TreasuryCollectionSource(models.Model):
             prior = type(self).objects.get(pk=self.pk)
             immutable = ('treasury_department_id', 'configuration_release_id', 'transaction_variant_id',
                 'finance_department_id', 'finance_department_label', 'kind', 'book_reference', 'document_reference',
-                'version', 'supersedes_id', 'correction_of_id', 'source_date', 'fund_code', 'amount', 'proposal', 'proposal_checksum',
+                'version', 'supersedes_id', 'correction_of_id', 'return_receipt_id', 'return_deposit_id', 'redemption_return_id', 'source_date', 'fund_code', 'amount', 'proposal', 'proposal_checksum',
                 'prepared_by_id', 'prepared_at')
             if any(getattr(prior, field) != getattr(self, field) for field in immutable):
                 raise ValidationError('Collection and deposit source versions are immutable. Retain a reasoned successor.')
@@ -1907,6 +1997,85 @@ class TreasuryCollectionSource(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError('Collection and deposit source evidence cannot be deleted.')
+
+
+class CollectionChequeCustodyLink(models.Model):
+    source = models.ForeignKey(TreasuryCollectionSource,on_delete=models.PROTECT,related_name='custody_links')
+    item = models.ForeignKey('tracepoint.PacketItem',on_delete=models.PROTECT,related_name='cheque_custody_links')
+    version = models.PositiveIntegerField()
+    snapshot = models.JSONField()
+    checksum = models.CharField(max_length=64)
+    linked_by = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,related_name='linked_cheque_custody')
+    linked_at = models.DateTimeField(auto_now_add=True)
+    withdrawn_by = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,null=True,blank=True,related_name='withdrawn_cheque_custody')
+    withdrawn_at = models.DateTimeField(null=True,blank=True)
+    withdrawal_reason = models.TextField(blank=True)
+    active_source = models.GeneratedField(expression=models.Case(models.When(withdrawn_at__isnull=True,
+        then=models.F('source_id')),default=models.Value(None)),output_field=models.BigIntegerField(),db_persist=True,unique=True,null=True)
+    active_item = models.GeneratedField(expression=models.Case(models.When(withdrawn_at__isnull=True,
+        then=models.F('item_id')),default=models.Value(None)),output_field=models.BigIntegerField(),db_persist=True,unique=True,null=True)
+
+    class Meta:
+        ordering = ('version',)
+        constraints = (models.UniqueConstraint(fields=('source','version'),name='unique_cheque_custody_version'),)
+        permissions = (('link_collection_custody','Can link incoming cheque sources to TracePoint custody'),)
+
+    def save(self,*args,**kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            fields = ('source_id','item_id','version','snapshot','checksum','linked_by_id','linked_at')
+            if any(getattr(prior,key) != getattr(self,key) for key in fields) or prior.withdrawn_at:
+                raise ValidationError('Retain immutable cheque custody links and their withdrawal history.')
+        return super().save(*args,**kwargs)
+
+    def delete(self,*args,**kwargs):
+        raise ValidationError('Cheque custody association history cannot be deleted.')
+
+
+class CollectionChequeClearance(models.Model):
+    """Reviewed bank clearing evidence; receipt and deposit journals stay unchanged."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    receipt = models.ForeignKey(TreasuryCollectionSource, on_delete=models.PROTECT, related_name='cheque_clearances')
+    deposit = models.ForeignKey(TreasuryCollectionSource, on_delete=models.PROTECT, related_name='deposit_clearances')
+    version = models.PositiveIntegerField()
+    cleared_on = models.DateField()
+    snapshot = models.JSONField(default=dict)
+    checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=16, default='proposed', choices=(
+        ('proposed', 'For independent review'), ('approved', 'Bank clearing confirmed'),
+        ('rejected', 'Returned for correction'), ('withdrawn', 'Clearing evidence withdrawn')))
+    prepared_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    prepared_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+', null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_reason = models.TextField(blank=True)
+    withdrawn_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+', null=True, blank=True)
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+    withdrawal_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ('-version',)
+        constraints = (models.UniqueConstraint(fields=('receipt', 'version'), name='unique_cheque_clearance_version'),)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            fields = ('public_id', 'receipt_id', 'deposit_id', 'version', 'cleared_on', 'snapshot', 'checksum', 'prepared_by_id', 'prepared_at')
+            if any(getattr(prior, field) != getattr(self, field) for field in fields):
+                raise ValidationError('Retain the original clearing proposal; prepare a new version for corrections.')
+            allowed = {'proposed': ('approved', 'rejected'), 'approved': ('withdrawn',)}
+            if self.status != prior.status and self.status not in allowed.get(prior.status, ()):
+                raise ValidationError('Retain the clearing decision and withdrawal history.')
+            if prior.status != 'proposed' and any(getattr(prior, field) != getattr(self, field)
+                    for field in ('reviewed_by_id', 'reviewed_at', 'review_reason')):
+                raise ValidationError('Retain the independent clearing decision.')
+            if prior.withdrawn_at and any(getattr(prior, field) != getattr(self, field)
+                    for field in ('withdrawn_by_id', 'withdrawn_at', 'withdrawal_reason')):
+                raise ValidationError('Retain the clearing withdrawal evidence.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Clearing evidence cannot be deleted.')
 
 
 class CollectionOutput(models.Model):

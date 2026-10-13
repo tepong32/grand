@@ -13,7 +13,10 @@ from django.utils import timezone
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.workbook.defined_name import DefinedName
+from openpyxl.utils.cell import range_boundaries
 from openpyxl.worksheet.page import PageMargins
+from openpyxl.worksheet.cell_range import CellRange
+from openpyxl.worksheet.print_settings import PrintArea
 
 from .access import can_approve_finance_configuration, can_manage_finance_configuration, can_manage_finance_templates
 from .models import (
@@ -60,7 +63,7 @@ def build_finance_starter_workbook(values):
     sheet["A4"].font = Font(name="Arial", size=9, italic=True)
     sheet["E4"], sheet["F4"] = "DV No.", ""
     sheet["E5"], sheet["F5"] = "DV Date", ""
-    sheet["A5"], sheet["B5"] = "Fund", ""
+    sheet["A5"], sheet["B5"] = "Fund code(s)", ""
     sheet.merge_cells("B5:D5")
     sheet["A6"], sheet["B6"] = "Payee", ""
     sheet.merge_cells("B6:F6")
@@ -70,14 +73,21 @@ def build_finance_starter_workbook(values):
     sheet["A8"], sheet["B8"] = "OBR / ORS / ALOBS reference", ""
     sheet.merge_cells("B8:D8")
     sheet["E8"], sheet["F8"] = "Claim reference", ""
-    sheet["A9"], sheet["B9"], sheet["C9"] = "Particulars", "Account code", "Amount"
-    sheet.merge_cells("C9:F9")
+    sheet.merge_cells("A9:A10")
+    sheet["A9"] = "Particulars"
+    sheet.merge_cells("B9:F10")
+    sheet.row_dimensions[9].height = 22
+    sheet.row_dimensions[10].height = 22
+    table_header_row = 11
+    sheet["A11"], sheet["B11"], sheet["C11"] = "Description", "Account code", "Amount"
+    sheet.merge_cells("C11:F11")
 
-    detail_start = 10
+    detail_start = 12
     detail_end = detail_start + int(values["particulars_rows"]) - 1
     for row in range(detail_start, detail_end + 1):
         sheet.merge_cells(start_row=row, start_column=3, end_row=row, end_column=6)
         sheet.row_dimensions[row].height = 22
+        sheet.cell(row, 3).number_format = "#,##0.00"
     totals_row = detail_end + 1
     for offset, (label, name) in enumerate((
         ("Gross amount", "GRAND_GROSS_AMOUNT"),
@@ -126,7 +136,12 @@ def build_finance_starter_workbook(values):
         "GRAND_DV_NUMBER": "$F$4",
         "GRAND_DV_DATE": "$F$5",
         "GRAND_PAYEE": "$B$6",
-        "GRAND_PARTICULARS": "$A$10",
+        "GRAND_FUND_CODES": "$B$5",
+        "GRAND_PAYEE_ADDRESS": "$B$7",
+        "GRAND_PAYEE_TIN": "$F$7",
+        "GRAND_OBLIGATION_REFERENCES": "$B$8",
+        "GRAND_CLAIM_REFERENCE": "$F$8",
+        "GRAND_PARTICULARS": "$B$9",
         "GRAND_LINE_ITEMS": f"$A${detail_start}:$C${detail_end}",
     }
     for name, coordinate in fixed_names.items():
@@ -137,11 +152,11 @@ def build_finance_starter_workbook(values):
             cell.border = plain_border
             cell.font = cell.font.copy(name="Arial", size=cell.font.sz or 9)
             cell.alignment = cell.alignment.copy(vertical=cell.alignment.vertical or "center", wrap_text=True)
-    for cell in sheet[9]:
+    for cell in sheet[table_header_row]:
         cell.fill = header_fill
         cell.font = Font(name="Arial", size=9, bold=True)
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    sheet.row_dimensions[9].height = 28
+    sheet.row_dimensions[table_header_row].height = 28
     sheet.column_dimensions["A"].width = 42
     sheet.column_dimensions["B"].width = 18
     sheet.column_dimensions["C"].width = 8
@@ -149,9 +164,9 @@ def build_finance_starter_workbook(values):
     sheet.column_dimensions["E"].width = 12
     sheet.column_dimensions["F"].width = 18
     sheet.sheet_view.showGridLines = False
-    sheet.freeze_panes = "A9"
+    sheet.freeze_panes = f"A{detail_start}"
     sheet.print_area = f"A1:F{footer_row}"
-    sheet.print_title_rows = "1:9"
+    sheet.print_title_rows = f"1:{table_header_row}"
     sheet.page_setup.paperSize = {"a4": "9", "letter": "1", "legal": "5"}[values["paper_size"]]
     sheet.page_setup.orientation = values["orientation"]
     sheet.page_setup.fitToWidth = 1
@@ -264,12 +279,13 @@ def posting_rule_snapshot(rule):
 def collection_event_policy_error(rules):
     """Return collection-only policy validity, or None for the payable cycle."""
     events = {rule.event_kind for rule in rules}
-    collection_events = {FinancePostingRule.COLLECTION, FinancePostingRule.DEPOSIT}
+    collection_events = {FinancePostingRule.COLLECTION, FinancePostingRule.DEPOSIT, FinancePostingRule.CHEQUE_RETURN}
     if not events or not events.issubset(collection_events):
         return None
     points = {
         FinancePostingRule.COLLECTION: FinancePostingRule.COLLECTION_RECEIPT,
         FinancePostingRule.DEPOSIT: FinancePostingRule.COLLECTION_DEPOSIT,
+        FinancePostingRule.CHEQUE_RETURN: FinancePostingRule.COLLECTION_RETURN,
     }
     for rule in rules:
         if (rule.accounting_effect != FinancePostingRule.JOURNAL_ENTRY
@@ -761,7 +777,50 @@ def _destination(workbook, name):
     return workbook[sheet_name], coordinate
 
 
-def inspect_finance_workbook(payload, document_type="disbursement-voucher"):
+def _print_region_groups(sheet):
+    """Include repeat-title strips and their corner for each actual print area."""
+    areas = list(PrintArea.from_string(sheet.print_area).ranges)
+    groups = []
+    title_rows = range_boundaries(sheet.print_title_rows) if sheet.print_title_rows else None
+    title_cols = range_boundaries(sheet.print_title_cols) if sheet.print_title_cols else None
+    for area in areas:
+        regions = [area]
+        if title_rows:
+            regions.append(CellRange(min_col=area.min_col, max_col=area.max_col,
+                                     min_row=title_rows[1], max_row=title_rows[3]))
+        if title_cols:
+            regions.append(CellRange(min_col=title_cols[0], max_col=title_cols[2],
+                                     min_row=area.min_row, max_row=area.max_row))
+        if title_rows and title_cols:
+            regions.append(CellRange(min_col=title_cols[0], max_col=title_cols[2],
+                                     min_row=title_rows[1], max_row=title_rows[3]))
+        groups.append(regions)
+    return groups
+
+
+def _print_areas_cover(required, areas):
+    """Check rectangular coverage without expanding potentially large cell ranges."""
+    intersecting = [area for area in areas if not area.isdisjoint(required)]
+    row_edges = {required.min_row, required.max_row + 1}
+    for area in intersecting:
+        row_edges.update((max(required.min_row, area.min_row),
+                          min(required.max_row + 1, area.max_row + 1)))
+    for row_start in sorted(row_edges)[:-1]:
+        spans = sorted(
+            (max(required.min_col, area.min_col), min(required.max_col, area.max_col))
+            for area in intersecting if area.min_row <= row_start <= area.max_row
+        )
+        next_column = required.min_col
+        for first, last in spans:
+            if first > next_column:
+                return False
+            next_column = max(next_column, last + 1)
+        if next_column <= required.max_col:
+            return False
+    return True
+
+
+def inspect_finance_workbook(payload, document_type="disbursement-voucher", *, approved_optional_names=None):
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:
             members = archive.infolist()
@@ -791,7 +850,11 @@ def inspect_finance_workbook(payload, document_type="disbursement-voucher"):
         raise FinanceTemplateError("That finance document type does not have an approved controlled-range schema.")
     mapping = {}
     table_name = schema["table"]
-    for name in schema["required"]:
+    optional_names = tuple(
+        name for name in schema.get("optional", ())
+        if name in (workbook.defined_names if approved_optional_names is None else approved_optional_names)
+    )
+    for name in (*schema["required"], *optional_names):
         sheet, coordinate = _destination(workbook, name)
         if name != table_name:
             area = sheet[coordinate]
@@ -800,6 +863,24 @@ def inspect_finance_workbook(payload, document_type="disbursement-voucher"):
                 if len(flattened) != 1:
                     raise FinanceTemplateError(f"{name} must point to exactly one cell.")
         mapping[name] = {"worksheet": sheet.title, "range": coordinate}
+    # Every controlled scalar needs its own writable destination. Otherwise
+    # generation silently replaces source evidence with another field or row.
+    for name in mapping:
+        if name == table_name:
+            continue
+        destination = mapping[name]
+        sheet = workbook[destination["worksheet"]]
+        region = CellRange(destination["range"])
+        for merged in sheet.merged_cells.ranges:
+            if not merged.isdisjoint(region):
+                if (region.min_col, region.min_row) != (merged.min_col, merged.min_row):
+                    raise FinanceTemplateError(f"{name} must use the top-left cell of its merged field.")
+                region = merged
+                break
+        for other, target in mapping.items():
+            if other != name and target["worksheet"] == sheet.title:
+                if not region.isdisjoint(CellRange(target["range"])):
+                    raise FinanceTemplateError(f"{name} overlaps controlled field {other}.")
     row_capacity = 0
     if table_name:
         line_sheet, line_coordinate = _destination(workbook, table_name)
@@ -817,6 +898,22 @@ def inspect_finance_workbook(payload, document_type="disbursement-voucher"):
     mapped_sheets = {value["worksheet"] for value in mapping.values()}
     if mapped_sheets - set(print_sheets):
         raise FinanceTemplateError("Every worksheet receiving a controlled GRAND field must define a print area.")
+    for name, destination in mapping.items():
+        sheet = workbook[destination["worksheet"]]
+        groups = _print_region_groups(sheet)
+        areas = [area for group in groups for area in group]
+        required = CellRange(destination["range"])
+        # A merged field must fit in one print-area group, not clipped fragments
+        # across separately printed areas. Ordinary detail rows may span areas.
+        merged_fields = [merged for merged in sheet.merged_cells.ranges
+                         if not merged.isdisjoint(required)]
+        if (not _print_areas_cover(required, areas)
+                or any(not any(_print_areas_cover(merged, group) for group in groups)
+                       for merged in merged_fields)):
+            raise FinanceTemplateError(
+                f"{name} and any merged cells it occupies must be fully included in "
+                f"the print area or repeated print titles on {sheet.title}."
+            )
     return workbook, mapping, {
         "passed": True, "worksheets": len(workbook.sheetnames), "required_names": len(mapping),
         "line_item_row_capacity": row_capacity, "print_area_sheets": print_sheets,
@@ -893,7 +990,9 @@ def verify_template_evidence(template):
     payload = _workbook_bytes(template)
     if hashlib.sha256(payload).hexdigest() != template.workbook_checksum:
         raise FinanceTemplateError(f"{template} no longer matches its preflighted workbook checksum.")
-    _workbook, mapping, _result = inspect_finance_workbook(payload, template.document_type)
+    _workbook, mapping, _result = inspect_finance_workbook(
+        payload, template.document_type, approved_optional_names=template.mapping,
+    )
     mapping_checksum = hashlib.sha256(json.dumps(mapping, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     if mapping_checksum != template.mapping_checksum:
         raise FinanceTemplateError(f"{template} no longer matches its preflighted named-range mapping.")
@@ -907,7 +1006,9 @@ def synthetic_preview(template, actor):
     checksum = hashlib.sha256(payload).hexdigest()
     if not template.preflight_passed or checksum != template.workbook_checksum:
         raise FinanceTemplateError("Preview requires the exact workbook version that passed preflight.")
-    workbook, _mapping, _result = inspect_finance_workbook(payload, template.document_type)
+    workbook, mapping, _result = inspect_finance_workbook(
+        payload, template.document_type, approved_optional_names=template.mapping,
+    )
     special_values = {
         "GRAND_DV_NUMBER": "SYNTHETIC-DV-000001", "GRAND_DV_DATE": timezone.localdate(),
         "GRAND_OBR_NUMBER": "SYNTHETIC-OBR-000001", "GRAND_OBR_DATE": timezone.localdate(),
@@ -920,10 +1021,13 @@ def synthetic_preview(template, actor):
         "GRAND_RESPONSIBILITY_CENTER": "Synthetic Office", "GRAND_ACCOUNT_CODE": "SYNTHETIC-ACCOUNT",
         "GRAND_PREPARED_BY": "Sample Preparer", "GRAND_CERTIFIED_BY": "Sample Certifier", "GRAND_APPROVED_BY": "Sample Approver",
         "GRAND_RELEASED_BY": "Sample Releasing Officer", "GRAND_ACKNOWLEDGED_BY": "Sample Claimant",
+        "GRAND_FUND_CODES": "SYNTHETIC-FUND", "GRAND_OBLIGATION_REFERENCES": "SYNTHETIC-OBR-000001",
+        "GRAND_CLAIM_REFERENCE": "SYNTHETIC-CLAIM-000001",
+        "GRAND_PAYEE_ADDRESS": "Synthetic demonstration address", "GRAND_PAYEE_TIN": "SYNTHETIC-TIN",
     }
     schema = FinanceTemplateVersion.schema_for(template.document_type)
     table_name = schema["table"]
-    values = {name: special_values.get(name, "SYNTHETIC PREVIEW") for name in schema["required"] if name != table_name}
+    values = {name: special_values.get(name, "SYNTHETIC PREVIEW") for name in mapping if name != table_name}
     for name, value in values.items():
         sheet, coordinate = _destination(workbook, name)
         cells = sheet[coordinate]

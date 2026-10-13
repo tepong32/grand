@@ -7,7 +7,7 @@
     <div class="mt-2"><a class="btn btn-outline-primary" href="{% url 'finance:field_acceptance_board' %}"><i class="fas fa-clipboard-check mr-1"></i> Field Acceptance Board</a>{% if can_manage %} <a class="btn btn-primary" href="{% url 'finance:shadow_cycle_create' %}"><i class="fas fa-plus mr-1"></i> Plan a cycle</a>{% endif %}</div>
   </div>
   <div class="alert alert-warning"><strong>GRAND remains in shadow/UAT mode by default.</strong> A reconciled pilot is evidence, not authority. Only an authorized cutover record applies, and only to its exact scope and date.</div>
-  <div class="card"><div class="card-header"><h2 class="card-title font-weight-bold">Cycles visible to you</h2></div>
+  <div class="card" id="shadow-cycles"><div class="card-header"><h2 class="card-title font-weight-bold">Cycles visible to you</h2></div>
     <div class="card-body border-bottom"><form method="get" class="row align-items-end">
       <div class="col-lg-4 col-md-6 mb-2"><label for="cycle-search">Search</label><input id="cycle-search" name="q" value="{{ filters.q }}" class="form-control" placeholder="Cycle, scope, source, or reference"></div>
       <div class="col-lg-2 col-md-3 mb-2"><label for="cycle-status">Status</label><select id="cycle-status" name="status" class="form-control"><option value="">All statuses</option>{% for value, label in status_choices %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
@@ -26,7 +26,7 @@
       <td><span class="badge badge-{% if cycle.cutover_decision.status == 'authorized' %}success{% elif cycle.status == 'returned' %}danger{% elif cycle.status == 'reconciliation_review' %}info{% else %}secondary{% endif %}">{{ cycle.get_status_display }}</span>{% if cycle.cutover_decision.status == 'authorized' %} <span class="badge badge-success">Exact scope authorized</span>{% endif %}<div class="small mt-1">{{ cycle.next_action_label }}</div></td>
     </tr>{% empty %}<tr><td colspan="5" class="text-center text-muted py-5">No shadow or parallel cycle matches this visible view.</td></tr>{% endfor %}
     </tbody></table>
-  </div></div></div>
+  </div></div>{% include "finance/_shadow_pagination.html" with page=cycle_page label="Shadow cycles" %}</div>
   <p class="small text-muted mt-3"><i class="fas fa-folder-open mr-1"></i> Exported evidence is also retained under the single TraceSync-ready GRAND export root with its checksum manifest.</p>
 </div>
 {% endblock %}

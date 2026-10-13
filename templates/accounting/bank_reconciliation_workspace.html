@@ -13,10 +13,10 @@
     <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-warning"><i class="fas fa-user-check"></i></span><div><span>For review</span><strong>{{ metrics.review }}</strong></div></div></div>
     <div class="col-6 col-xl-3"><div class="gov-metric-card"><span class="gov-metric-icon gov-metric-success"><i class="fas fa-balance-scale"></i></span><div><span>Reconciled</span><strong>{{ metrics.reconciled }}</strong></div></div></div>
   </div>
-  <div class="card card-outline card-primary">
+  <div class="card card-outline card-primary" id="bank-register">
     <div class="card-header"><h2 class="card-title font-weight-bold">Monthly reconciliation register</h2></div>
     <div class="card-body border-bottom">
-      <form method="get" class="row align-items-end">
+      <form method="get" action="{% url 'accounting:bank_reconciliation_workspace' %}#bank-register" class="row align-items-end">
         <div class="col-lg-4 col-md-6 mb-2"><label for="bank-search">Search</label><input id="bank-search" name="q" value="{{ filters.q }}" class="form-control" placeholder="Statement, bank, or masked account"></div>
         <div class="col-lg-2 col-md-3 mb-2"><label for="bank-status">Status</label><select id="bank-status" name="status" class="form-control"><option value="">All statuses</option>{% for value, label in status_choices %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
         <div class="col-lg-3 col-md-3 mb-2"><label for="bank-attention">What needs attention?</label><select id="bank-attention" name="attention" class="form-control"><option value="">All next actions</option>{% for value, label in attention_choices %}<option value="{{ value }}" {% if filters.attention == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
@@ -32,6 +32,7 @@
       <p class="small text-muted mb-0">This summary CSV mirrors the exact Accounting-department scope and filters. Use each statement's detail export for row-by-row match and timing-item evidence. Neither export is an approved or signed BRS by itself.</p>
     </div>
     <div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Bank / statement</th><th>Fund / period</th><th>Declared controls</th><th>Status / next action</th><th>Updated</th></tr></thead><tbody>{% for batch in batches %}<tr><td><a class="font-weight-bold" href="{% url 'accounting:bank_reconciliation_detail' batch.public_id %}">{{ batch.statement_reference }}</a><div class="small text-muted">{{ batch.bank_name }} · {{ batch.bank_account_code }}{% if batch.account_number_masked %} · {{ batch.account_number_masked }}{% endif %}</div></td><td>{{ batch.fund.code }}<div class="small text-muted">{{ batch.period_start }} to {{ batch.period_end }}</div></td><td>{{ batch.expected_row_count }} rows<div class="small text-muted">{{ batch.expected_deposits }} deposits / {{ batch.expected_withdrawals }} withdrawals</div></td><td><span class="badge {% if batch.status == 'reconciled' %}badge-success{% elif batch.status == 'returned' %}badge-danger{% elif batch.status == 'for_review' %}badge-warning{% elif batch.status == 'validated' %}badge-info{% else %}badge-secondary{% endif %}">{{ batch.get_status_display }}</span><div class="small mt-1">{{ batch.next_action_label }}</div></td><td>{{ batch.updated_at|date:"M j, Y g:i A" }}</td></tr>{% empty %}<tr><td colspan="5" class="text-center text-muted py-5">No bank reconciliations match this view.</td></tr>{% endfor %}</tbody></table></div>
+    {% include "accounting/workspace_pagination.html" with page=page_obj label="Bank reconciliation register" %}
   </div>
 </div>
 {% endblock %}

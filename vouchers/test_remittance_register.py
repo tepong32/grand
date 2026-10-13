@@ -100,6 +100,39 @@ class RemittanceWorkRegisterTests(TestCase):
         ))
         return get_user_model().objects.get(pk=user.pk)
 
+    def test_accounting_handoff_retrieval_reaches_every_remittance(self):
+        from .models import RemittancePostingRequest
+        self.reviewer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="accounting", codename="view_accounting_workspace",
+        ))
+        batch = self._batch("QUEUE-REMIT", status=TreasuryRemittanceBatch.ACCOUNTING_POSTING)
+        for index in range(61):
+            RemittancePostingRequest.objects.create(
+                batch=batch, version=index + 1, jev_number=f"REMIT-JEV-{index:03}",
+                jev_date=date(2026, 9, 3), finance_department_id=self.accounting.pk,
+                finance_department_label=self.accounting.name, posting_rule=self.rule,
+                posting_rule_snapshot={}, posting_rule_checksum="a" * 64,
+                payload={}, payload_checksum="b" * 64, requested_by=self.preparer,
+            )
+        self.client.force_login(self.reviewer)
+        url = reverse("accounting:workspace")
+        first = self.client.get(url, {"handoff_q": "Synthetic Revenue Agency", "voucher_page": 2})
+        page = first.context["remittance_requests"]
+        self.assertEqual(page.paginator.count, 61)
+        self.assertEqual(len(page), 50)
+        self.assertIn("voucher_page=2", page.next_url)
+        second = self.client.get(url, {"remittance_page": 2})
+        self.assertEqual(len(second.context["remittance_requests"]), 11)
+        self.assertContains(second, "REMIT-JEV-000")
+        exact = self.client.get(url, {"handoff_q": "REMIT-JEV-000"})
+        self.assertEqual(exact.context["remittance_requests"].paginator.count, 1)
+        self.assertNotContains(exact, "Create remittance JEV")
+        self.outsider.user_permissions.add(Permission.objects.get(
+            content_type__app_label="accounting", codename="view_accounting_workspace",
+        ))
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url).context["remittance_requests"].paginator.count, 0)
+
     def _batch(self, reference, *, owner=None, status=TreasuryRemittanceBatch.DRAFT):
         owner = owner or self.treasury
         return TreasuryRemittanceBatch.objects.create(
@@ -122,6 +155,62 @@ class RemittanceWorkRegisterTests(TestCase):
                 TreasuryRemittanceBatch.FOR_REVIEW, TreasuryRemittanceBatch.APPROVED,
             ) else "",
         )
+
+    def test_remittance_register_retrieves_every_match_with_scoped_navigation(self):
+        expected = {self._batch(f"VOLUME-{index:03}").pk for index in range(111)}
+        foreign = self._batch("FOREIGN-REMIT", owner=self.other)
+        returned = self._batch("RETURNED-REMIT", status=TreasuryRemittanceBatch.RETURNED)
+        self.client.force_login(self.preparer)
+        url = reverse("vouchers:remittance_workspace")
+        first = self.client.get(url, {"attention": "preparation"})
+        self.assertEqual(len(first.context["batches"]), 50)
+        seen = set()
+        for number in range(1, 4):
+            response = self.client.get(url, {"attention": "preparation", "page": number})
+            ids = {batch.pk for batch in response.context["batches"]}
+            self.assertFalse(seen & ids)
+            seen |= ids
+        self.assertEqual(seen, expected)
+        self.assertNotIn(foreign.pk, seen)
+        self.assertNotIn(returned.pk, seen)
+        self.assertContains(response, "of 111 matching records")
+        self.assertContains(response, "attention=preparation&amp;page=2")
+        status = self.client.get(url, {"status": TreasuryRemittanceBatch.RETURNED, "page": 9})
+        self.assertEqual([batch.pk for batch in status.context["batches"]], [returned.pk])
+        self.assertEqual(status.context["batch_page"].number, 1)
+        self.client.force_login(self.outsider)
+        scoped = self.client.get(url)
+        self.assertEqual([batch.pk for batch in scoped.context["batches"]], [foreign.pk])
+
+    def test_remittance_audit_history_pages_preserve_permission_and_batch_scope(self):
+        from .models import RemittanceEvent
+        batch = self._batch("HISTORY-REMIT")
+        foreign = self._batch("HISTORY-OTHER", owner=self.other)
+        for item in (batch, foreign):
+            RemittanceEvent.objects.bulk_create([
+                RemittanceEvent(batch=item, action="synthetic_history", actor=self.preparer,
+                                actor_department=self.treasury, state_version=1,
+                                reason=f"{item.reference_code} decision {index:03}")
+                for index in range(61)
+            ])
+        self.preparer.user_permissions.add(Permission.objects.get(
+            content_type__app_label="vouchers", codename="view_remittance_audit"))
+        self.client.force_login(self.preparer)
+        seen = set()
+        for number in (1, 2):
+            response = self.client.get(batch.get_absolute_url(), {"events_page": number})
+            ids = {event.pk for event in response.context["events"]}
+            self.assertFalse(seen & ids)
+            seen |= ids
+            self.assertNotContains(response, "HISTORY-OTHER decision")
+        self.assertEqual(seen, set(batch.events.values_list("pk", flat=True)))
+        self.assertContains(response, "of 61 matching records")
+        self.assertContains(response, "events_page=1#remittance-events")
+        self.preparer.user_permissions.remove(Permission.objects.get(
+            content_type__app_label="vouchers", codename="view_remittance_audit"))
+        response = self.client.get(batch.get_absolute_url(), {"events_page": 2})
+        self.assertEqual(list(response.context["events"]), [])
+        self.assertNotContains(response, "HISTORY-REMIT decision")
 
     def test_personal_waiting_remittance_excludes_ready_release_and_other_preparers(self):
         waiting = self._batch("REM-WAIT", status=TreasuryRemittanceBatch.FOR_REVIEW)

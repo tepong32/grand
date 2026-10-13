@@ -1,6 +1,14 @@
 # Cheque exceptions: modular implementation design
 
-Date: 2026-09-15. Status: **design, not implemented functionality or LGU acceptance**.
+Date: 2026-09-15. Status: reference design. The outgoing presentation module has a
+[validated v0.7.110 development checkpoint](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md).
+Incoming dishonour has a [validated v0.7.111 receivable-treatment checkpoint](FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md).
+Later checkpoints cover [principal redemption/internal custody](FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md),
+[mixed cash-purpose components](FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md),
+[officer cheque reservations/clearing](FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md) and
+[officer bank returns/corrections/replacement](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md).
+Combined fees/penalties and external physical delivery remain separate boundaries.
+This does not establish LGU acceptance.
 
 The user has no local procedure to supply and authorizes research-led development.
 Rare cases may be resolved by people. Missing local paperwork does not block ordinary
@@ -104,6 +112,12 @@ remains visible and cannot authorize a second posting.
 
 ## C. Redemption and instrument custody
 
+The [principal and internal-custody implementation](FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md)
+now connects new receipts and versioned TracePoint item associations. Its validation
+record distinguishes supported principal/internal handovers from still-open combined
+penalties, mixed purposes, external delivery and officer timing. The design below remains
+the intended complete boundary, not a claim that every adapter is implemented.
+
 Add `vouchers/cheque_redemptions.py` as an adapter over receipt capture, charges and bank
 routing, linked to an independently posted/reconciled return. Retain original OR, new OR,
 return approval and remaining principal. Reserve the obligation once across concurrent
@@ -123,10 +137,11 @@ Financial settlement and physical handover have separate statuses. A court-direc
 transfer retains authority and receiving evidence. Electronic approval never asserts a
 physical act occurred. Source read/export permissions also apply to linked evidence.
 
-Officer cheque refunds remain a separate dependent checkpoint: capacity is released
-only at the supported effective settlement/clearing boundary and restored by actual
-return/correction lineage, under existing case-first dated capacity checks. Ordinary
-cheque functionality must not wait for this specialized extension.
+Officer cheque refunds retain one dated reservation while clearing is pending or
+confirmed. Clearing withdrawal does not free the amount. An actual bank return restores
+capacity only from its posted/reconciled date; correcting that return reserves the amount
+again from proposal under the original case lock. See the implemented boundaries and
+actual tests in the officer records linked above.
 
 ## Checkpoints and acceptance examples
 

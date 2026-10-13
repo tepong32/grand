@@ -12,6 +12,7 @@ from .forms import (
     TaxFilingEvidenceForm, TaxFilingEvidenceReviewForm,
 )
 from .models import TaxFilingEvidence, TreasuryRemittanceBatch, TreasuryRemittanceLine
+from .register_pagination import register_page
 from .remittance_register import (
     remittance_action_choices_for_user, remittance_action_queryset,
     visible_remittance_batches,
@@ -58,7 +59,7 @@ def workspace(request):
         raise PermissionDenied
     batches = visible_remittance_batches(
         request.user,
-        TreasuryRemittanceBatch.objects.select_related("recipient_party", "treasury_department"),
+        TreasuryRemittanceBatch.objects.select_related("recipient_party", "treasury_department", "transaction_variant", "created_by"),
     )
     attention = request.GET.get("attention", "")
     work_items, selected_attention, work_spec = remittance_action_queryset(
@@ -72,8 +73,9 @@ def workspace(request):
         batches = batches.filter(status=selected)
     else:
         selected = ""
+    page = register_page(batches.order_by("-remittance_date", "-pk"), request, "page", "remittance-register")
     return render(request, "vouchers/remittances/workspace.html", {
-        "batches": batches[:100], "status_choices": TreasuryRemittanceBatch.STATUS_CHOICES,
+        "batches": page.object_list, "batch_page": page, "status_choices": TreasuryRemittanceBatch.STATUS_CHOICES,
         "selected_status": selected,
         "selected_attention": selected_attention,
         "work_spec": work_spec,
@@ -111,6 +113,8 @@ def detail(request, public_id):
     active_lines = batch.lines.filter(status=TreasuryRemittanceLine.ACTIVE)
     available = withholding_availability(finance_department_id=batch.finance_department_id, transaction_type=batch.transaction_variant.code, as_of_date=batch.remittance_date)
     can_audit = has_explicit_permission(request.user, "vouchers.view_remittance_audit")
+    event_page = register_page(batch.events.select_related("actor", "actor_department").order_by("-created_at", "-pk"),
+                              request, "events_page", "remittance-events") if can_audit else None
     filing_history = batch.tax_filing_evidence.select_related("created_by", "reviewed_by").order_by("-version")
     current_filing = filing_history.exclude(status=TaxFilingEvidence.SUPERSEDED).first()
     receipt_returns = list(batch.returns.select_related("prepared_by", "reviewed_by", "posting_request"))
@@ -136,7 +140,7 @@ def detail(request, public_id):
         "can_review_returns": can_act_on_remittances(request.user, "vouchers.approve_remittances")
             and batch.finance_department_id == getattr(department_for_user(request.user), "pk", None),
         "line_history": batch.lines.exclude(status=TreasuryRemittanceLine.ACTIVE),
-        "events": batch.events.select_related("actor", "actor_department")[:50] if can_audit else (),
+        "events": event_page.object_list if can_audit else (), "event_page": event_page,
         "posting_requests": batch.posting_requests.order_by("-version"),
         "available_count": len([row for row in available if row["fund_code"] == batch.fund_code]),
         "line_form": RemittanceLineForm(batch=batch),

@@ -1,0 +1,26 @@
+{
+  "case": "CASE-2026-17D43BAFF2",
+  "stage": "accounting_validation",
+  "jobs": [
+    {
+      "version": 1,
+      "status": "superseded",
+      "signature_round": 1,
+      "checksum": "c050a6a9c7d4832cd139f9a546b5abad97526b71d71562efa8fac4d1e2e89458",
+      "download_matches_archive": true,
+      "copy_count": 2
+    },
+    {
+      "version": 2,
+      "status": "signed_packet_returned",
+      "signature_round": 2,
+      "checksum": "6a6a60f0352d1c9539f0ee9521de3a4fe497c53e0e72c121a4bfaf75dd0e18df",
+      "download_matches_archive": true,
+      "copy_count": 2
+    }
+  ],
+  "packet_count": 1,
+  "signature_steps_returned": 2,
+  "financial_posting_performed_in_browser": false,
+  "physical_print_or_handover_proven": false
+}

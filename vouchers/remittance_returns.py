@@ -78,7 +78,8 @@ def pending_receipt_holds(department_id, transaction_type, as_of_date):
 
 
 @transaction.atomic
-def propose_return(*, batch, actor, returned_on, receipt_reference, reason, filing_basis, allocations, expected_version, receiving_bank_id=None):
+def propose_return(*, batch, actor, returned_on, receipt_reference, reason, filing_basis, allocations, expected_version, receiving_bank_id=None,
+        fee_amount=None, fee_account_id=None, fee_reference=""):
     _require(actor, 'vouchers.prepare_remittances')
     batch = TreasuryRemittanceBatch.objects.select_for_update().get(pk=batch.pk)
     _require_treasury_scope(actor, batch)
@@ -112,6 +113,10 @@ def propose_return(*, batch, actor, returned_on, receipt_reference, reason, fili
         'filing_evidence': [{**r, 'public_id': str(r['public_id'])} for r in filing_snapshot(batch)],
         'allocations': sorted(rows, key=lambda r: int(r['source_detail'])),
         'amount': str(sum((Decimal(r['amount']) for r in rows), Decimal('0')))}
+    from .receipt_fees import snapshot as fee_snapshot
+    fee = fee_snapshot(batch, fee_amount, fee_account_id, fee_reference, Decimal(proposal['amount']))
+    if fee:
+        proposal['deducted_fee'] = fee
     if receiving_bank_id:
         from .receipt_banks import bank_snapshot
         proposal['receiving_bank'] = bank_snapshot(batch, receiving_bank_id, returned_on)
@@ -169,7 +174,7 @@ def materialize_return(request, actor):
             entry.full_clean(); entry.save()
             from .receipt_banks import receiving_account
             account = receiving_account(batch, retained.get('receiving_bank'), bank)
-            cash = JournalLine(entry=entry, sequence=1, account=account, debit=Decimal(retained['amount']),
+            cash = JournalLine(entry=entry, sequence=1, account=account, debit=Decimal(retained.get('deducted_fee', {}).get('net_received', retained['amount'])),
                 credit=0, cash_flow_category=bank.cash_flow_category, memo=f'Return of remittance {batch.reference_code}')
             cash.full_clean(); cash.save()
             originals = {str(d.pk): d for d in details}
@@ -184,10 +189,19 @@ def materialize_return(request, actor):
                     source_snapshot={**detail.source_snapshot, 'return_of_subsidiary_line': detail.pk,
                         'remittance_return': str(item.public_id)})
                 restored.full_clean(); restored.save()
+            if retained.get('deducted_fee'):
+                from .receipt_fees import account as fee_account
+                fee = retained['deducted_fee']
+                line = JournalLine(entry=entry, sequence=len(retained['allocations'])+2,
+                    account=fee_account(batch,fee), debit=Decimal(fee['amount']), credit=0,
+                    memo=fee['evidence_reference'])
+                line.full_clean(); line.save()
             from accounting.services import record_event
             record_event(entry, 'remittance_return_materialized', actor,
                 snapshot={'original_entry': str(original.public_id), 'proposal_checksum': item.proposal_checksum})
             created = True
+    from .receipt_fees import validate as validate_fee
+    validate_fee(entry)
     request.status, request.accounting_entry_public_id = request.MATERIALIZED, entry.public_id
     request.materialized_at, request.failure_reason = timezone.now(), ''
     request.save()
@@ -203,6 +217,8 @@ def reconcile_return(entry, actor):
     source = RemittancePostingRequest.objects.select_for_update().get(pk=source.pk)
     item = RemittanceReturn.objects.select_for_update().get(posting_request=source)
     verify_source_link(source, entry, source_type='remittance')
+    from .receipt_fees import validate as validate_fee
+    validate_fee(entry)
     if source.status == source.POSTED and item.status in (item.POSTED, item.CORRECTED):
         return source
     if item.status != item.APPROVED or entry.source_snapshot.get('remittance_return') != source.payload['remittance_return']:
@@ -228,7 +244,7 @@ def export_returns(batch, actor):
     writer.writerow(('original_remittance', 'return_version', 'status', 'receipt_date', 'receipt_reference',
         'liability_account', 'reference', 'deduction_code', 'allocated_receipt', 'posted_receipt',
         'original_jev', 'return_jev', 'return_jev_status', 'filing_disposition_basis', 'review_reason',
-        'withdrawal_reason', 'withdrawn_by', 'withdrawn_at', 'original_bank_ledger', 'receiving_bank', 'receiving_bank_ledger'))
+        'withdrawal_reason', 'withdrawn_by', 'withdrawn_at', 'original_bank_ledger', 'receiving_bank', 'receiving_bank_ledger', 'gross_refund', 'deducted_bank_fee', 'net_bank_credit', 'fee_expense_account', 'fee_evidence'))
     withdrawals = {event.metadata.get('return'): event for event in
         batch.events.filter(action='remittance_return_withdrawn').select_related('actor')}
     for item in batch.returns.select_related('posting_request').order_by('version'):
@@ -249,7 +265,11 @@ def export_returns(batch, actor):
                 withdrawal.reason if withdrawal else '', withdrawal.actor_id if withdrawal else '',
                 withdrawal.created_at.isoformat() if withdrawal else '', original_bank.account.code,
                 receiving_bank.get('bank_code', batch.bank_account_code),
-                receiving_bank.get('ledger_account_code', original_bank.account.code)))
+                receiving_bank.get('ledger_account_code', original_bank.account.code),
+                item.proposal['amount'], item.proposal.get('deducted_fee', {}).get('amount','0.00'),
+                item.proposal.get('deducted_fee', {}).get('net_received',item.proposal['amount']),
+                item.proposal.get('deducted_fee', {}).get('account_code',''),
+                item.proposal.get('deducted_fee', {}).get('evidence_reference','')))
     content = output.getvalue().encode('utf-8-sig')
     return content, archive_export(content=content, department=batch.treasury_department, user=actor,
         category='finance-remittance-returns', filename=f'{batch.reference_code}-returns.csv',
@@ -268,6 +288,11 @@ def review_return(*, item, actor, approve, reason):
         raise ValidationError('The immutable return proposal no longer reproduces.')
     if approve:
         source, entry, details, bank = original_payment(batch)
+        if item.proposal.get('deducted_fee'):
+            from .receipt_fees import snapshot as fee_snapshot
+            fee=item.proposal['deducted_fee']
+            if fee_snapshot(batch,fee['amount'],fee['account_id'],fee['evidence_reference'],Decimal(item.proposal['amount']))!=fee:
+                raise ValidationError('The fee account changed. Reject this proposal and prepare a current successor.')
         if item.proposal.get('receiving_bank'):
             from .receipt_banks import bank_snapshot
             retained_bank = item.proposal['receiving_bank']

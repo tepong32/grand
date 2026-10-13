@@ -19,6 +19,8 @@
     <div class="card-header"><h2 class="card-title font-weight-bold">Find the work that needs attention</h2></div>
     <div class="card-body">
       <form method="get" class="row align-items-end">
+        {% if retrieval_form.non_field_errors %}<div class="col-12 alert alert-danger">{{ retrieval_form.non_field_errors }}</div>{% endif %}
+        {% for field in retrieval_form %}<div class="form-group col-md-4"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}</div>{% endfor %}
         <div class="form-group col-md-2"><label for="obligation-fiscal-year">Fiscal year</label><select id="obligation-fiscal-year" class="form-control" name="fiscal_year"><option value="">All visible years</option>{% for year in fiscal_years %}<option value="{{ year.pk }}" {% if selected_fiscal_year == year.pk|stringformat:'s' %}selected{% endif %}>FY {{ year.year }}</option>{% endfor %}</select></div>
         <div class="form-group col-md-2"><label for="obligation-kind">Request type</label><select id="obligation-kind" class="form-control" name="kind"><option value="">All request types</option>{% for value, label in kind_choices %}<option value="{{ value }}" {% if selected_kind == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
         <div class="form-group col-md-2"><label for="obligation-form">Form</label><select id="obligation-form" class="form-control" name="form_type"><option value="">All forms</option>{% for value, label in form_choices %}<option value="{{ value }}" {% if selected_form_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
@@ -27,11 +29,11 @@
         <div class="col-12 d-flex flex-wrap align-items-center">
           <button class="btn btn-primary mr-2 mb-2" type="submit">Apply filters</button>
           <a class="btn btn-outline-secondary mr-2 mb-2" href="{% url 'budget:obligation_workspace' %}">Clear</a>
-          <button class="btn btn-outline-primary mb-2" type="submit" formaction="{% url 'budget:obligation_register_export' %}">Export visible control register</button>
-          <span class="ml-auto text-muted small mb-2">{{ requests|length }} request{{ requests|length|pluralize }} shown</span>
+          <button class="btn btn-outline-primary mb-2" type="submit" formaction="{% url 'budget:obligation_register_export' %}">Export all matching requests</button>
+          <span class="ml-auto text-muted small mb-2">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }} matching requests</span>
         </div>
       </form>
-      <p class="small text-muted mb-0">The visible register follows these exact filters and your current role scope. The full certified RAAO detail remains a separate Budget-only reconciliation export.</p>
+      <p class="small text-muted mb-0">Search matches OBR numbers, request references or payees. Dates include both endpoints. A fund match selects the whole request, including its other fund lines. Export includes every match across all pages in your current role scope. The full certified RAAO detail remains a separate Budget-only reconciliation export.</p>
     </div>
   </div>
   {% if can_registry %}<div class="card card-outline card-success mb-3">
@@ -54,5 +56,10 @@
       </tr>{% empty %}<tr><td colspan="8" class="text-center text-muted py-4">No obligation request matches these filters in your department scope.</td></tr>{% endfor %}</tbody>
     </table></div>
   </div>
+  <nav class="mt-3 d-flex align-items-center" aria-label="Obligation register pages">
+    {% if page_obj.has_previous %}<a class="btn btn-outline-primary mr-2" href="?{{ page_query }}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="btn btn-outline-primary ml-2" href="?{{ page_query }}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+  </nav>
 </div>
 {% endblock %}

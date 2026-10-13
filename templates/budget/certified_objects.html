@@ -1,0 +1,3 @@
+{% if evidence.object_rows %}<details class="mt-2"><summary>Reviewed object-class breakdown</summary>
+{% if not evidence.matches_proposal_classes %}<p>The source and proposal class sets differ. These reviewed amounts are retained as source evidence; the comparison total is not matched and missing classes are not zero.</p>{% endif %}
+<table class="table table-sm"><thead><tr><th>Reviewed object class</th><th>Actual amount</th></tr></thead><tbody>{% for object in evidence.object_rows %}<tr><td>{{ object.expense_class }}</td><td>{{ object.amount|floatformat:2 }}</td></tr>{% endfor %}</tbody></table></details>{% endif %}

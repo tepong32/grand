@@ -20,9 +20,34 @@ Fresh databases matter: Django transaction tests flush data while retaining migr
 
 ## CI
 
+The uncommitted v157 candidate distributes complete discovery over isolated
+class-preserving CI workers and requires complete successful coverage at the
+existing verify/mysql gates. Each CI native worker has its own service and
+both fresh stores; **do not run local shards concurrently against the same
+fixed test schemas**. Ordinary unsharded execution remains unchanged. Candidate
+local/remote validation is still pending; this is not current primary-branch
+acceptance. See [candidate evidence](FINANCE_V157_CI_VALIDATION.md).
+
+Test lifecycle isolation is part of native proof. A manually instantiated source
+factory does not receive the outer test's cleanup automatically: register its
+`doCleanups()` before calling `setUp()` and propagate cleanup failures. Restore
+the original clock/settings even when setup fails. Derived fixtures must also
+preserve inherited empty-history/version scenarios. The October 12 candidate's
+isolated officer races passed but failed after Form 1 fixtures leaked a calendar
+mock; the repaired ordered 280-case follow-up passed. Preserve failed full-suite
+evidence and validate the interacting providers before consumers; a partial
+follow-up does not establish a complete remote CI pass. See the
+[incident record](FINANCE_CI_INCIDENT_2026-10-12.md).
+
 The `mysql` job in [the regression workflow](../.github/workflows/security.yml) uses Python 3.11 and the pinned official MySQL Community image used in the local engineering rehearsal. It starts an isolated service with CI-only credentials and a random host port, then executes the same committed runner. The existing SQLite/security job remains independent.
 
 Workflow triggers remain pull requests, pushes to master, the scheduled run and manual dispatch. A development-branch push alone is not a CI run. Record actual remote results separately; local execution of the same command is not a remote CI pass.
+
+Both full CI commands now use verbosity 2 to retain exact test identities for
+runtime diagnosis. This does not alter discovery, assertions, test stores or
+timeouts. A cancellation without a terminal suite summary is never PASS; retain
+complete job logs/annotations, and do not infer the active case from fixture-user
+timestamps. See the [current runtime repair](FINANCE_V155_RUNTIME_VALIDATION.md).
 
 Primary configuration references: [GitHub service-container ports](https://docs.github.com/en/actions/tutorials/use-containerized-services/use-docker-service-containers) and [MySQL 8.4 container initialization](https://dev.mysql.com/doc/refman/8.4/en/docker-mysql-more-topics.html). The service's root access is confined to that disposable CI container. It does not establish a deployment credential policy.
 

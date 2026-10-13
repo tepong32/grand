@@ -1,6 +1,8 @@
 from datetime import date, datetime, timedelta, timezone as datetime_timezone
 from decimal import Decimal
 import csv
+import hashlib
+import json
 import io
 from calendar import monthrange
 from pathlib import Path
@@ -41,8 +43,8 @@ from finance.models import (
     FinanceDocumentRule, FinanceParty, FinancePartyClaimant, FinancePostingRule, FinancePostingRuleLine,
     FinanceAuditEvent, FinanceSignatory, FinanceTemplateVersion, FinanceTransactionVariant, FinanceWorkflowExemption,
 )
-from finance.services import preflight_finance_template
-from openpyxl import Workbook
+from finance.services import preflight_finance_template, inspect_finance_workbook, build_finance_starter_workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.workbook.defined_name import DefinedName
 from records.services import RecordWorkflowError, source_department
 from reporting.models import ReportDefinition, ReportRun, ReportTemplateVersion
@@ -112,13 +114,6 @@ class VoucherWorkflowTests(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        # These fixtures model August/September 2026 transactions, including
-        # current-date releases. Keep their business clock inside that scenario
-        # so month rollover cannot remove its period or age its cash evidence.
-        cls.enterClassContext(patch(
-            "django.utils.timezone.now",
-            return_value=datetime(2026, 9, 15, 12, tzinfo=datetime_timezone.utc),
-        ))
         cls.budget = Department.objects.create(name="Municipal Budget Office", slug="voucher-budget")
         cls.accounting = Department.objects.create(name="Municipal Accounting Office", slug="voucher-accounting")
         cls.treasury = Department.objects.create(name="Municipal Treasury Office", slug="voucher-treasury")
@@ -152,8 +147,16 @@ class VoucherWorkflowTests(TestCase):
             **owner, fiscal_year=2026, period_number=8, label="August",
             starts_on=date(2026, 8, 1), ends_on=date(2026, 8, 31),
         )
+        # Historical return/correction scenarios explicitly post in September;
+        # their period must exist even when CI runs in a later calendar month.
+        cls.september_accounting_period = AccountingPeriod.objects.create(
+            **owner, fiscal_year=2026, period_number=9, label="September",
+            starts_on=date(2026, 9, 1), ends_on=date(2026, 9, 30),
+        )
         today = timezone.localdate()
-        if not cls.accounting_period.starts_on <= today <= cls.accounting_period.ends_on:
+        if cls.september_accounting_period.starts_on <= today <= cls.september_accounting_period.ends_on:
+            cls.event_accounting_period = cls.september_accounting_period
+        elif not cls.accounting_period.starts_on <= today <= cls.accounting_period.ends_on:
             cls.event_accounting_period = AccountingPeriod.objects.create(
                 **owner, fiscal_year=today.year, period_number=today.month, label=today.strftime("%B"),
                 starts_on=today.replace(day=1),
@@ -1434,7 +1437,7 @@ class VoucherWorkflowTests(TestCase):
         request.refresh_from_db()
         self.assertEqual(request.status, VoucherPostingRequest.POSTED)
 
-    def authoritative_payable_for_review(self):
+    def authoritative_payable_for_review(self, *, authority_amount=Decimal("1000.00")):
         """Build and submit one payable through real Budget and intake services."""
         self.budget_user.user_permissions.add(*Permission.objects.filter(
             content_type__app_label="budget",
@@ -1604,7 +1607,7 @@ class VoucherWorkflowTests(TestCase):
             requesting_department_label=self.requesting.name,
             fund=self.accounting_fund,
             expense_class="MOOE",
-            amount=Decimal("1000.00"),
+            amount=authority_amount,
             basis="Synthetic reviewed ceiling schedule.",
         )
         budget_version = BudgetVersion.objects.create(
@@ -1629,7 +1632,7 @@ class VoucherWorkflowTests(TestCase):
             expense_class="MOOE",
             particulars="Synthetic office supplies for the governed replay",
             performance_target="Complete one controlled finance cycle",
-            amount=Decimal("1000.00"),
+            amount=authority_amount,
             change_explanation="Supported by the synthetic work plan.",
         )
         authorization = AppropriationAuthorization.objects.create(
@@ -1643,7 +1646,7 @@ class VoucherWorkflowTests(TestCase):
             review_reference="Synthetic favorable review for full-cycle replay",
             review_date=date(2025, 12, 28),
             evidence_reference="Synthetic retained ordinance, review, and signed schedule references.",
-            signed_control_total=Decimal("1000.00"),
+            signed_control_total=authority_amount,
             created_by_id=self.budget_user.pk,
             created_by_label=self.budget_user.username,
         )
@@ -1665,7 +1668,7 @@ class VoucherWorkflowTests(TestCase):
             authority_reference="Synthetic reviewed allotment authority.",
             evidence_reference="Synthetic retained signed allotment schedule.",
             purpose="Release the one-case full-cycle operating allotment.",
-            signed_control_total=Decimal("1000.00"),
+            signed_control_total=authority_amount,
             created_by_id=self.budget_user.pk,
             created_by_label=self.budget_user.username,
         )
@@ -1674,7 +1677,7 @@ class VoucherWorkflowTests(TestCase):
             order=allotment,
             appropriation_line=authorization.schedule_lines.get(),
             movement_type=AllotmentOrderLine.RELEASE,
-            amount=Decimal("1000.00"),
+            amount=authority_amount,
             remarks="Synthetic reviewed release schedule line.",
         )
         transition_allotment_order(allotment, "submit", self.budget_user)
@@ -1768,9 +1771,106 @@ class VoucherWorkflowTests(TestCase):
         case.refresh_from_db()
         return case, payment_rule, obligation, accounting_owner
 
+    def test_payable_review_retains_invalid_fields_and_allows_corrected_submission(self):
+        case, *_ = self.authoritative_payable_for_review()
+        self.client.force_login(self.validator)
+        form = self.client.get(case.get_absolute_url()).context["payable_review_form"]
+        data = {**form.initial, "decision": PayableIntake.READY,
+                "reason": "Retain this independently reviewed invoice explanation",
+                "recognition_decision": form.fields["recognition_decision"].choices[0][0],
+                "recognition_basis": "Actual synthetic supplier evidence",
+                "obligation_adjustment_decision": form.fields["obligation_adjustment_decision"].choices[0][0]}
+        before = (case.state_version, case.events.count())
+        url = reverse("vouchers:case_action", args=[case.public_id, "review-payable"])
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+        bound = response.context["payable_review_form"]
+        self.assertTrue(bound.is_bound)
+        self.assertIn("obligation_adjustment_basis", bound.errors)
+        self.assertEqual(bound["reason"].value(), data["reason"])
+        self.assertEqual(bound["idempotency_key"].value(), data["idempotency_key"])
+        self.assertContains(response, data["reason"])
+        case.refresh_from_db()
+        self.assertEqual((case.state_version, case.events.count()), before)
+        data["obligation_adjustment_basis"] = "The certified amount exactly covers the reviewed claim."
+        self.assertEqual(self.client.post(url, data).status_code, 302)
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.ACCOUNTING_PREPARATION)
+
+    def test_dv_retains_deductions_for_field_and_service_errors_then_creates_once(self):
+        case = self.create_case("retained-dv")
+        self.budget_certify(case, "retained-dv-budget")
+        self.client.force_login(self.preparer)
+        form = self.client.get(case.get_absolute_url()).context["voucher_form"]
+        data = {**form.initial, "voucher_date": "2026-08-25", "gross_amount": "1000.00",
+                "line_description": "Retain these reviewed office supplies", "line_account_code": "5-02-03",
+                "document_codes": ["invoice"], "deductions-TOTAL_FORMS": "1",
+                "deductions-INITIAL_FORMS": "0", "deductions-MIN_NUM_FORMS": "0",
+                "deductions-MAX_NUM_FORMS": "20", "deductions-0-tax_rule": str(self.tax_rule_item.pk),
+                "deductions-0-tax_base": "1000.00", "deductions-0-amount": ""}
+        url = reverse("vouchers:case_action", args=[case.public_id, "prepare-dv"])
+        case.refresh_from_db()
+        before = (case.state_version, case.events.count())
+        for amount in ("", "99.00"):
+            data["deductions-0-amount"] = amount
+            response = self.client.post(url, data)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["voucher_form"]["line_description"].value(), data["line_description"])
+            rows = response.context["voucher_deduction_formset"]
+            self.assertTrue(rows.is_bound)
+            self.assertEqual(rows.forms[0]["amount"].value(), amount)
+            self.assertEqual(rows.forms[0]["tax_base"].value(), "1000.00")
+            if amount:
+                self.assertTrue(response.context["voucher_form"].non_field_errors())
+            else:
+                self.assertTrue(rows.forms[0].errors)
+            case.refresh_from_db()
+            self.assertEqual((case.state_version, case.events.count()), before)
+            self.assertFalse(hasattr(case, "disbursement_voucher"))
+        data["deductions-0-amount"] = "10.00"
+        self.assertEqual(self.client.post(url, data).status_code, 302)
+        case.refresh_from_db()
+        self.assertEqual(case.disbursement_voucher.net_amount, Decimal("990.00"))
+        self.assertEqual(case.disbursement_voucher.deductions.count(), 1)
+
+    def test_treasury_invalid_form_retains_values_without_instrument_or_events(self):
+        case = self.ready_for_treasury("-retained-form")
+        self.client.force_login(self.treasury_user)
+        form = self.client.get(case.get_absolute_url()).context["check_form"]
+        data = {**form.initial, "bank_account_code": "gf-lbp", "check_number": "", "amount": "900.00"}
+        before = (case.state_version, case.events.count(), case.payment_instruments.count())
+        response = self.client.post(reverse("vouchers:case_action", args=[case.public_id, "issue-check"]), data)
+        self.assertEqual(response.status_code, 200)
+        bound = response.context["check_form"]
+        self.assertIn("check_number", bound.errors)
+        self.assertEqual(bound["amount"].value(), "900.00")
+        self.assertEqual(bound["bank_account_code"].value(), "gf-lbp")
+        case.refresh_from_db()
+        self.assertEqual((case.state_version, case.events.count(), case.payment_instruments.count()), before)
+
     def test_authoritative_budget_to_reconciled_treasury_report_replay(self):
         case, payment_rule, obligation, accounting_owner = self.authoritative_payable_for_review()
         from finance.work_tasks import finance_work_tasks
+
+        # Generate outputs from the actual service-created sources, not fabricated report rows.
+        from openpyxl import load_workbook
+
+        for actor in (self.budget_user, self.preparer):
+            actor.user_permissions.add(*Permission.objects.filter(
+                content_type__app_label="reporting",
+                codename__in=("view_reporting_workspace", "generate_reports", "download_reports"),
+            ))
+            for cache in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
+                actor.__dict__.pop(cache, None)
+        seed_finance_presets()
+
+        def working_report(department, key, actor, end=date(2026, 12, 31)):
+            definition = ReportDefinition.objects.get(department=department, dataset_key=key)
+            run = create_manual_run(definition, definition.current_template, "xlsx",
+                                    date(2026, 1, 1), end, {}, actor)
+            self.assertEqual(run.control_status, ReportRun.CONTROL_RECONCILED, run.control_message)
+            self.assertFalse(run.is_official_output)
+            return run
 
         work_case_id = f"voucher-case:{case.public_id}"
         self.assertTrue(any(task["case_id"] == work_case_id for task in finance_work_tasks(self.requesting_user, view="waiting")["tasks"]))
@@ -1841,6 +1941,11 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(len(waiting_for_case(self.requesting_user)), 1)
         self.assertFalse(waiting_for_case(self.treasury_user))  # Authorized check preparation.
 
+        unpaid = working_report(self.accounting, "finance_posted_payable_schedule", self.preparer)
+        self.assertEqual(Decimal(unpaid.control_totals["subsidiary_balance"]), Decimal("900.00"))
+        unpaid_bytes = Path(unpaid.output_file.path).read_bytes()
+        unpaid_checksum = unpaid.checksum
+
         case.refresh_from_db()
         instrument = issue_check(
             case=case,
@@ -1874,10 +1979,48 @@ class VoucherWorkflowTests(TestCase):
         )
         self.assertFalse(waiting_for_case(self.validator))  # Independent batch-review action.
         self.assertEqual(len(waiting_for_case(self.treasury_user)), 1)
+        from django.conf import settings
+        retained_exports = []
+        def treasury_exports():
+            self.client.force_login(self.treasury_user)
+            exported = {}
+            for kind, route, public_id in (
+                ("payment", "vouchers:payment_register_export", case.public_id),
+                ("advice", "vouchers:advice_batch_export", advice.public_id),
+            ):
+                response = self.client.get(reverse(route, args=[public_id]))
+                self.assertEqual(response.status_code, 200)
+                payload = response.content
+                checksum = hashlib.sha256(payload).hexdigest()
+                self.assertEqual(checksum, response["X-GRAND-Export-SHA256"])
+                archive = Path(settings.GRAND_EXPORT_ROOT) / response["X-GRAND-Export-Relative-Path"]
+                self.assertEqual(archive.read_bytes(), payload)
+                manifest = json.loads(archive.with_name(archive.name + ".manifest.json").read_text())
+                self.assertEqual(manifest["sha256"], checksum)
+                self.assertEqual(manifest["exported_by"]["id"], self.treasury_user.pk)
+                retained_exports.append((archive, payload))
+                rows = list(csv.DictReader(io.StringIO(payload.decode("utf-8-sig"))))
+                if kind == "advice":
+                    rows = [row for row in rows if row["record_type"] == "instrument"]
+                    self.assertEqual(rows[0]["instrument_id"], str(instrument.public_id))
+                    self.assertEqual(rows[0]["snapshot_checksum"], advice.snapshot_checksum)
+                    self.assertEqual(rows[0]["acknowledgement_reference"], "BANK-ACK-2026-CYCLE-001")
+                else:
+                    self.assertEqual(rows[0]["case_public_id"], str(case.public_id))
+                    self.assertEqual(rows[0]["instrument_public_id"], str(instrument.public_id))
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0]["amount"], "900.00")
+                exported[kind] = rows[0]
+            return exported
+
         self.acknowledge_advice(advice, reference="BANK-ACK-2026-CYCLE-001")
         case.refresh_from_db()
         self.assertEqual(len(waiting_for_case(self.requesting_user)), 1)
         self.assertFalse(waiting_for_case(self.treasury_user))  # Authorized claimant/check release.
+        acknowledged_exports = treasury_exports()
+        self.assertEqual(acknowledged_exports["payment"]["released_at"], "")
+        self.assertEqual(acknowledged_exports["payment"]["receipt_reference"], "")
+        self.assertEqual(acknowledged_exports["payment"]["payment_jev_number"], "")
         instrument.refresh_from_db()
         release_check(
             case=case,
@@ -1894,6 +2037,11 @@ class VoucherWorkflowTests(TestCase):
         self.assertFalse(waiting_for_case(self.preparer))  # Authorized payment source creation.
         payment_request = case.posting_requests.get(kind=VoucherPostingRequest.PAYMENT)
         self.assertEqual(payment_request.posting_rule, payment_rule)
+        released_exports = treasury_exports()
+        self.assertTrue(released_exports["payment"]["released_at"])
+        self.assertEqual(released_exports["payment"]["receipt_reference"], "RCPT-2026-CYCLE-001")
+        self.assertEqual(released_exports["payment"]["payment_jev_number"], payment_request.jev_number)
+        self.assertEqual(released_exports["payment"]["payment_posting_status"], "Waiting for JEV creation")
         payment_entry, created = materialize_voucher_journal(payment_request, self.preparer)
         self.assertTrue(created)
         submit_entry(payment_entry, self.preparer)
@@ -1903,6 +2051,14 @@ class VoucherWorkflowTests(TestCase):
         case.refresh_from_db()
         self.assertFalse(waiting_for_case(self.requesting_user))
         self.assertFalse(waiting_for_case(self.treasury_user))
+        posted_exports = treasury_exports()
+        self.assertEqual(posted_exports["payment"]["payment_posting_status"], "JEV posted")
+        self.assertEqual(posted_exports["payment"]["payment_jev_number"], payment_request.jev_number)
+        self.assertEqual(posted_exports["payment"]["released_at"], released_exports["payment"]["released_at"])
+        self.assertEqual(acknowledged_exports["advice"], released_exports["advice"])
+        self.assertEqual(released_exports["advice"], posted_exports["advice"])
+        for archive, payload in retained_exports:
+            self.assertEqual(archive.read_bytes(), payload)
         self.assertEqual(case.current_stage, VoucherCase.COMPLETED)
         self.assertEqual(case.authoritative_obligation_public_id, obligation.public_id)
         self.assertEqual(case.disbursement_voucher.net_amount, instrument.amount)
@@ -1995,6 +2151,85 @@ class VoucherWorkflowTests(TestCase):
         report_row = report_run.dataset_snapshot["rows"][0]
         self.assertEqual(report_row["case_reference"], case.reference_code)
         self.assertEqual(report_row["receipt_reference"], "RCPT-2026-CYCLE-001")
+
+        budget = working_report(self.budget, "finance_budget_accountability", self.budget_user)
+        for key in ("appropriation", "released_allotment", "obligation"):
+            self.assertEqual(Decimal(budget.control_totals[key]), Decimal("1000.00"))
+        self.assertEqual(Decimal(budget.control_totals["unobligated_allotment"]), Decimal("0.00"))
+        budget_source = budget.source_records.get(source_model="ObligationMovement")
+        self.assertEqual(budget_source.source_public_id, str(obligation.public_id))
+        self.assertEqual(budget_source.source_date, obligation.obligation_date)
+        before_obligation = working_report(self.budget, "finance_budget_accountability",
+                                           self.budget_user, date(2026, 8, 19))
+        self.assertEqual(Decimal(before_obligation.control_totals["obligation"]), Decimal("0.00"))
+
+        actual = working_report(self.budget, "finance_budget_vs_posted_actual", self.budget_user)
+        self.assertEqual(Decimal(actual.control_totals["posted_actual"]), Decimal("1000.00"))
+        self.assertEqual(Decimal(actual.control_totals["mapped_actual"]), Decimal("1000.00"))
+        self.assertEqual(actual.control_totals["mapping_exception_count"], 0)
+        expense_source = actual.source_records.get(source_model="JournalEntry")
+        self.assertEqual(expense_source.source_public_id, str(recognition_entry.public_id))
+        self.assertEqual(expense_source.source_date, recognition_entry.entry_date)
+
+        trial = working_report(self.accounting, "finance_posted_trial_balance", self.preparer)
+        ledger = working_report(self.accounting, "finance_posted_general_ledger", self.preparer)
+        for run in (trial, ledger):
+            self.assertEqual(Decimal(run.control_totals["debit"]), Decimal("3900.00"))
+            self.assertEqual(Decimal(run.control_totals["credit"]), Decimal("3900.00"))
+            self.assertEqual(run.source_record_count, 3)  # Opening, recognition, payment.
+            self.assertTrue(run.source_records.filter(source_public_id=str(payment_entry.public_id),
+                                                       source_date=payment_entry.entry_date).exists())
+        trial_rows = {row["account_code"]: row for row in trial.dataset_snapshot["rows"]}
+        self.assertEqual(Decimal(trial_rows["1-01-02"]["net_debit"]), Decimal("1100.00"))
+        self.assertEqual(Decimal(trial_rows[self.expense_account.code]["net_debit"]), Decimal("1000.00"))
+        self.assertEqual(bank_snapshot["book_balance"], trial_rows["1-01-02"]["net_debit"])
+
+        paid = working_report(self.accounting, "finance_posted_payable_schedule", self.preparer)
+        withheld = working_report(self.accounting, "finance_posted_withholding_schedule", self.preparer)
+        self.assertEqual(Decimal(paid.control_totals["subsidiary_balance"]), Decimal("0.00"))
+        self.assertEqual(Decimal(withheld.control_totals["subsidiary_balance"]), Decimal("100.00"))
+        self.assertEqual(Decimal(report_run.control_totals["released_amount"]) +
+                         Decimal(withheld.control_totals["subsidiary_balance"]),
+                         Decimal(actual.control_totals["posted_actual"]))
+        unpaid.refresh_from_db()
+        self.assertEqual(unpaid.checksum, unpaid_checksum)
+        self.assertEqual(Path(unpaid.output_file.path).read_bytes(), unpaid_bytes)
+        self.assertEqual(Decimal(unpaid.control_totals["subsidiary_balance"]), Decimal("900.00"))
+
+        workbook_totals = {
+            budget.pk: {"Authorized appropriation": "1000", "Obligation": "1000"},
+            actual.pk: {"Posted actual expense": "1000"},
+            trial.pk: {"Debit": "3900", "Credit": "3900"},
+            ledger.pk: {"Debit": "3900", "Credit": "3900"},
+            unpaid.pk: {"Credit balance": "900"},
+            paid.pk: {"Credit balance": "0"},
+            withheld.pk: {"Credit balance": "100"},
+            report_run.pk: {"Amount": "900"},
+        }
+        # Download the retained workbook through each office's real permission-checked route.
+        for run, actor in ((budget, self.budget_user), (actual, self.budget_user),
+                           (trial, self.preparer), (ledger, self.preparer),
+                           (unpaid, self.preparer), (paid, self.preparer),
+                           (withheld, self.preparer), (report_run, self.treasury_user)):
+            self.client.force_login(actor)
+            response = self.client.get(reverse("reporting:run_download", args=[run.public_id]))
+            self.assertEqual(response.status_code, 200)
+            # The test client closes a consumed stream with connection cleanup suppressed.
+            payload = b"".join(response.streaming_content) if response.streaming else response.content
+            self.assertEqual(payload, Path(run.output_file.path).read_bytes())
+            workbook = load_workbook(io.BytesIO(payload), data_only=True)
+            sheet = workbook["Official Report"]
+            self.assertEqual(sheet["A2"].value, run.template_version.title)
+            self.assertGreaterEqual(sheet.max_row, 7)
+            headers = [cell.value for cell in sheet[6]]
+            for header, expected in workbook_totals[run.pk].items():
+                column = headers.index(header) + 1
+                amount = sum((Decimal(str(sheet.cell(index, column).value or 0))
+                              for index in range(7, 7 + len(run.dataset_snapshot["rows"]))), Decimal("0"))
+                self.assertEqual(amount, Decimal(expected), (run.definition.name, header))
+            workbook.close()
+        self.client.force_login(self.budget_user)
+        self.assertEqual(self.client.get(reverse("reporting:run_download", args=[trial.public_id])).status_code, 404)
 
     def test_cancellation_and_replacement_record_explicit_no_entry_decisions(self):
         self.enable_payment_event_rules()
@@ -2573,6 +2808,76 @@ class VoucherWorkflowTests(TestCase):
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.get(reverse("vouchers:workspace")).status_code, 403)
 
+    def test_workspace_pages_keep_actionable_cases_out_of_shared_history(self):
+        for stage, prefix in ((VoucherCase.ACCOUNTING_PREPARATION, "QUEUE"), (VoucherCase.COMPLETED, "HISTORY")):
+            VoucherCase.objects.bulk_create([
+                VoucherCase(reference_code=f"VOLUME-{prefix}-{index:03}",
+                            requesting_department=self.requesting, current_department=self.accounting,
+                            current_stage=stage, payee_name="Synthetic volume payee",
+                            particulars="Read-only retrieval fixture", created_by=self.requesting_user)
+                for index in range(111)
+            ])
+        self.client.force_login(self.preparer)
+        url = reverse("vouchers:workspace")
+        queue_ids, history_ids = [], []
+        for number, count in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(url, {"q": "VOLUME", "queue_page": number, "history_page": number})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["visible_count"], 222)
+            self.assertEqual(response.context["queue_count"], 111)
+            self.assertEqual(response.context["history_page"].paginator.count, 111)
+            queue = response.context["queue_cases"]
+            history = response.context["cases"]
+            self.assertEqual(len(queue), count)
+            self.assertEqual(len(history), count)
+            self.assertTrue(all(row.current_stage == VoucherCase.ACCOUNTING_PREPARATION for row in queue))
+            self.assertTrue(all(row.current_stage == VoucherCase.COMPLETED for row in history))
+            queue_ids.extend(row.pk for row in queue)
+            history_ids.extend(row.pk for row in history)
+            self.assertIn("q=VOLUME", response.context["queue_page"].next_url)
+            self.assertIn(f"history_page={number}", response.context["queue_page"].next_url)
+        self.assertEqual(len(set(queue_ids)), 111)
+        self.assertEqual(len(set(history_ids)), 111)
+        self.assertFalse(set(queue_ids) & set(history_ids))
+        self.assertContains(response, "VOLUME-QUEUE-000")
+        self.assertContains(response, "VOLUME-HISTORY-000")
+        self.assertContains(response, "Showing 101–111 of 111 matching records", count=2)
+        export = self.client.get(reverse("vouchers:case_control_register_export"), {"q": "VOLUME", "queue_page": 3})
+        self.assertEqual(export.status_code, 200)
+        rows = list(csv.DictReader(io.StringIO(export.content.decode("utf-8-sig"))))
+        self.assertEqual(len(rows), 222)
+        exact = self.client.get(url, {"q": "VOLUME-QUEUE-000", "queue_page": "invalid"})
+        self.assertEqual(len(exact.context["queue_cases"]), 1)
+        self.assertEqual(exact.context["history_page"].paginator.count, 0)
+
+    def test_saved_case_view_pagination_retains_scope_and_owner(self):
+        VoucherCase.objects.bulk_create([
+            VoucherCase(reference_code=f"SAVED-PAGE-{index:03}",
+                        requesting_department=self.requesting, current_department=self.accounting,
+                        current_stage=VoucherCase.ACCOUNTING_PREPARATION,
+                        payee_name="Synthetic", particulars="Read-only saved retrieval", created_by=self.preparer)
+            for index in range(61)
+        ])
+        saved = VoucherCaseSavedView.objects.create(owner=self.preparer, name="Paged queue", filters={"q": "SAVED-PAGE"})
+        self.client.force_login(self.preparer)
+        url = reverse("vouchers:workspace")
+        response = self.client.get(url, {"saved": str(saved.public_id), "queue_page": 2})
+        self.assertEqual(len(response.context["queue_cases"]), 11)
+        self.assertContains(response, "SAVED-PAGE-000")
+        self.assertIn(f"saved={saved.public_id}", response.context["queue_page"].previous_url)
+        self.client.force_login(self.validator)
+        self.assertEqual(self.client.get(url, {"saved": str(saved.public_id), "queue_page": 2}).status_code, 404)
+        other_department = Department.objects.create(name="Other retrieval office", slug="retrieval-other-office")
+        VoucherCase.objects.create(reference_code="SAVED-PAGE-FOREIGN", requesting_department=other_department,
+                                   current_department=self.accounting, payee_name="Foreign office",
+                                   particulars="Must stay outside requesting-office scope", created_by=self.preparer)
+        self.client.force_login(self.requesting_user)
+        response = self.client.get(url, {"q": "SAVED-PAGE", "history_page": 2})
+        self.assertEqual(response.context["visible_count"], 61)
+        self.assertEqual(response.context["queue_count"], 0)
+        self.assertEqual(len(response.context["cases"]), 11)
+        self.assertNotContains(response, "SAVED-PAGE-FOREIGN")
+
     def test_workspace_presentation_follows_the_assigned_finance_department(self):
         for user, title in (
             (self.budget_user, "Budget voucher workspace"),
@@ -2907,6 +3212,144 @@ class VoucherWorkflowTests(TestCase):
             finance_models,
             {"financeconfigurationrelease", "financeworkflowexemption", "financeauditevent"},
         )
+
+    def _context_template_fixture(self, *, legacy=False, starter_payload=None):
+        workbook = load_workbook(io.BytesIO(starter_payload) if starter_payload else self.template.workbook.path)
+        if starter_payload is None:
+            for row, name in enumerate(FinanceTemplateVersion.DV_CONTEXT_NAMES, 5):
+                workbook.defined_names.add(DefinedName(name, attr_text=f"'Voucher'!$E${row}"))
+                workbook["Voucher"].cell(row, 5).value = "LEGACY MANUAL CONTEXT"
+        buffer = io.BytesIO(); workbook.save(buffer); payload = buffer.getvalue()
+        _, mapping, result = inspect_finance_workbook(payload, approved_optional_names=() if legacy else None)
+        # Approved synthetic setup, like setUpTestData; no workflow approval is claimed.
+        return FinanceTemplateVersion.objects.create(
+            department=self.accounting, release=self.release, document_type="disbursement-voucher",
+            version=2, title="Synthetic optional-context template", status="active",
+            workbook=SimpleUploadedFile("context-dv.xlsx", payload),
+            workbook_checksum=hashlib.sha256(payload).hexdigest(), mapping=mapping,
+            mapping_checksum=hashlib.sha256(json.dumps(mapping, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+            preflight_result=result, preflighted_by=self.preparer, preflighted_at=timezone.now(),
+            effective_from=date(2026, 1, 1), created_by=self.preparer,
+        )
+
+    def test_actual_starter_retains_case_particulars_and_separate_line_description(self):
+        from finance.forms import FinanceStarterTemplateForm
+        values = {name: field.initial for name, field in FinanceStarterTemplateForm.base_fields.items()}
+        values["lgu_name"] = "Synthetic municipality"
+        template = self._context_template_fixture(starter_payload=build_finance_starter_workbook(values))
+        case = self.create_case("starter-case")
+        self.budget_certify(case, "starter-budget")
+        self.accounting_prepare(case, "starter-prepare")
+        output = generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="starter-output")
+        workbook = load_workbook(output.file.path)
+        location = template.mapping["GRAND_PARTICULARS"]
+        self.assertEqual(workbook[location["worksheet"]][location["range"]].value, case.particulars)
+        table = template.mapping["GRAND_LINE_ITEMS"]
+        first_row = workbook[table["worksheet"]][table["range"]][0]
+        line = case.disbursement_voucher.line_items.get()
+        self.assertNotEqual(line.description, case.particulars)
+        self.assertEqual(first_row[0].value, line.description)
+        self.assertEqual(first_row[1].value, line.account_code)
+        self.assertEqual(first_row[2].value, line.amount)
+        self.assertEqual(first_row[2].number_format, "#,##0.00")
+
+    def test_dv_context_uses_pinned_sources_and_retains_output_evidence(self):
+        template = self._context_template_fixture()
+        self.party = FinanceParty.objects.create(
+            department=self.accounting, release=self.release, code="context-payee", version=1,
+            display_name="Synthetic context payee", address="=1+1", tax_identifier="000-123-456",
+            status="active", effective_from=date(2026, 1, 1), created_by=self.preparer,
+        )
+        case = self.create_case("context-create")
+        self.budget_certify(case, "context-budget")
+        self.accounting_prepare(case, "context-prepare")
+        case.refresh_from_db()
+        self.assertEqual(case.voucher_template_id, template.pk)
+        FinanceParty.objects.create(
+            department=self.accounting, release=self.release, code=self.party.code, version=2,
+            display_name="Successor party", address="Successor address", tax_identifier="SUCCESSOR-TIN",
+            status="active", effective_from=date(2026, 8, 25), created_by=self.preparer, supersedes=self.party,
+        )
+        output = generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="context-output")
+        workbook = load_workbook(output.file.path)
+        context = output.input_snapshot["template_context"]
+        self.assertEqual(context["GRAND_FUND_CODES"], "general-fund")
+        self.assertEqual(context["GRAND_OBLIGATION_REFERENCES"], case.obligation.obr_number)
+        self.assertEqual(context["GRAND_CLAIM_REFERENCE"], "")
+        self.assertEqual(context["GRAND_PAYEE_ADDRESS"], self.party.address)
+        self.assertEqual(context["GRAND_PAYEE_TIN"], self.party.tax_identifier)
+        self.assertEqual(output.input_snapshot["payee_version_id"], self.party.pk)
+        for name, expected in context.items():
+            location = template.mapping[name]
+            self.assertEqual(workbook[location["worksheet"]][location["range"]].value or "", expected)
+        address = template.mapping["GRAND_PAYEE_ADDRESS"]
+        self.assertEqual(workbook[address["worksheet"]][address["range"]].data_type, "s")
+        before = Path(output.file.path).read_bytes()
+        replay = generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="context-output")
+        self.assertEqual(replay.pk, output.pk)
+        self.assertEqual(Path(output.file.path).read_bytes(), before)
+
+    def test_dv_context_does_not_fill_unapproved_legacy_names(self):
+        template = self._context_template_fixture(legacy=True)
+        case = self.create_case("legacy-context-create")
+        self.budget_certify(case, "legacy-context-budget")
+        self.accounting_prepare(case, "legacy-context-prepare")
+        output = generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="legacy-context-output")
+        workbook = load_workbook(output.file.path)
+        self.assertNotIn("template_context", output.input_snapshot)
+        self.assertFalse(set(template.mapping).intersection(FinanceTemplateVersion.DV_CONTEXT_NAMES))
+        for row in range(5, 10):
+            self.assertEqual(workbook["Voucher"].cell(row, 5).value, "LEGACY MANUAL CONTEXT")
+
+    def test_dv_context_lists_actual_multiple_obligations_and_claim_reference(self):
+        from budget.models import PayableObligationAllocation
+        from .services import add_payable_obligation_allocation, revise_payable_obligation_allocation
+        self._context_template_fixture()
+        case, _, original, _ = self.authoritative_payable_for_review(authority_amount=Decimal("1500.00"))
+        review_payable_intake(case=case, actor=self.validator, decision=PayableIntake.RETURNED,
+            reason="Synthetic source allocation refinement", expected_version=case.state_version,
+            idempotency_key="context-return")
+        case.refresh_from_db()
+        first = PayableObligationAllocation.objects.get(voucher_case_public_id=case.public_id, status="active")
+        revise_payable_obligation_allocation(case=case, allocation_public_id=first.public_id,
+            revised_amount=Decimal("500.00"), relationship_type="partial", reason="Split source allocation",
+            actor=self.requesting_user, expected_version=case.state_version, idempotency_key="context-revise")
+        owner = {"department_id": original.department_id, "department_label": original.department_label}
+        second = ObligationRequest.objects.create(**owner, authorization=original.authorization,
+            fiscal_year=original.fiscal_year, requesting_department_id=self.requesting.pk,
+            requesting_department_label=self.requesting.name, kind=ObligationRequest.ORIGINAL,
+            form_type=ObligationRequest.OBR, request_reference="CONTEXT-SECOND", obligation_date=original.obligation_date,
+            claimant_payee=self.party.display_name, particulars="Second source", evidence_reference="Synthetic second source",
+            signed_control_total=Decimal("500.00"), created_by_id=self.requesting_user.pk,
+            created_by_label=self.requesting_user.username)
+        ObligationRequestLine.objects.create(**owner, request=second,
+            appropriation_line=original.lines.get().appropriation_line, movement_type=ObligationRequestLine.OBLIGATE,
+            amount=Decimal("500.00"), remarks="Synthetic second source")
+        transition_obligation_request(second, "submit", self.requesting_user)
+        second = transition_obligation_request(second, "certify", self.budget_user, "Reviewed second source", "OBR-2026-CYCLE-002")
+        case.refresh_from_db()
+        add_payable_obligation_allocation(case=case, obligation=second, allocation_amount=Decimal("500.00"),
+            relationship_type="full", reason="Complete claim across two sources", actor=self.requesting_user,
+            expected_version=case.state_version, idempotency_key="context-add")
+        case.refresh_from_db()
+        submit_payable_intake(case=case, actor=self.requesting_user, expected_version=case.state_version,
+            idempotency_key="context-submit")
+        case.refresh_from_db()
+        review_payable_intake(case=case, actor=self.validator, decision=PayableIntake.READY,
+            reason="Independent two-source review", expected_version=case.state_version, idempotency_key="context-review")
+        case.refresh_from_db()
+        prepare_voucher(case=case, actor=self.preparer, voucher_date=date(2026, 8, 25), gross_amount=Decimal("1000.00"),
+            deductions=[{"tax_rule_item":self.tax_rule_item,"code":self.tax_rule_item.code,
+                         "description":self.tax_rule_item.label,"tax_base":Decimal("1000.00"),"amount":Decimal("10.00")}],
+            line_description="Synthetic office supplies", line_account_code="5-02-03", document_codes=["invoice"],
+            expected_version=case.state_version, idempotency_key="context-dv")
+        output = generate_shadow_dv(case=case, actor=self.preparer, idempotency_key="multi-context-output")
+        context = output.input_snapshot["template_context"]
+        self.assertEqual(context["GRAND_OBLIGATION_REFERENCES"], "; ".join(sorted((original.obligation_number, second.obligation_number))))
+        self.assertNotIn("MULTI/", context["GRAND_OBLIGATION_REFERENCES"])
+        self.assertEqual(context["GRAND_CLAIM_REFERENCE"], "CLAIM-2026-CYCLE-001")
+        self.assertEqual(len(output.input_snapshot["template_context_sources"]["obligations"]), 2)
+        self.assertEqual(output.input_snapshot["gross_amount"], "1000.00")
 
     def test_shadow_dv_output_pins_template_snapshot_and_checksum(self):
         case = self.create_case("output-create")
@@ -3788,7 +4231,8 @@ class VoucherWorkflowTests(TestCase):
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.get(reverse("vouchers:advice_workspace")).status_code, 403)
 
-    def test_f83_cash_enforcement_reservation_ageing_and_portable_export(self):
+    @patch("django.utils.timezone.now", return_value=datetime(2026, 9, 15, 3, tzinfo=datetime_timezone.utc))
+    def test_f83_cash_enforcement_reservation_ageing_and_portable_export(self, scenario_clock):
         from copy import copy
         from django.contrib.auth.models import Group
         from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
@@ -3934,6 +4378,15 @@ class VoucherWorkflowTests(TestCase):
         self.assertEqual(successor.status, TreasuryCashPosition.DRAFT)
 
         case = self.ready_for_treasury()
+        # Keep the age boundary explicit: the same approved August position
+        # must reject issuance after 35 days, even in this fixed-date scenario.
+        with patch("django.utils.timezone.now", return_value=datetime(2026, 10, 6, 3, tzinfo=datetime_timezone.utc)):
+            with self.assertRaisesMessage(ValidationError, "older than the locally accepted maximum age"):
+                issue_check(
+                    case=case, actor=self.treasury_user, bank_account_code="gf-lbp", fund_code="general-fund",
+                    check_number="F83-EXPIRED", amount=Decimal("900.00"), expected_version=case.state_version,
+                    idempotency_key="f83-expired-issue",
+                )
         instrument = issue_check(
             case=case, actor=self.treasury_user, bank_account_code="gf-lbp", fund_code="general-fund",
             check_number="F83-0001", amount=Decimal("900.00"), expected_version=case.state_version,
@@ -4701,7 +5154,10 @@ class VoucherWorkflowTests(TestCase):
             "task": tasks[1].pk, "note": "An altered form cannot skip the source order.",
             "state_version": original_version, "idempotency_key": "out-of-order-form",
         })
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("task", response.context["signature_form"].errors)
+        self.assertEqual(response.context["signature_form"]["note"].value(),
+                         "An altered form cannot skip the source order.")
         case.refresh_from_db(); tasks[1].refresh_from_db()
         self.assertEqual(case.state_version, original_version)
         self.assertEqual(tasks[1].status, WetSignatureTask.PENDING)

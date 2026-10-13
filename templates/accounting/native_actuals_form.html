@@ -1,0 +1,18 @@
+{% extends 'base.html' %}{% block content %}<div class="container pb-4">
+<h1 class="h3">Prepare receipt and expenditure actuals</h1>
+<p><a href="{% url 'accounting:native_actuals_register' %}">Actuals register</a></p>
+{% if previous %}<p>Successor of version {{ previous.version }}. Retain its original entity, period and designated offices.</p>{% endif %}
+<form method="get">{{ scope_form.as_p }}<button class="btn btn-secondary">Load complete Fund sources</button></form>
+{% if captured %}
+<h2 class="h4 mt-4">Category coverage</h2>
+{% if not captured.payload.classification_complete %}<p class="alert alert-warning">Source classification is incomplete. Resolve and independently review receipt and expenditure movements before preparing actuals. No totals or zero declarations can be certified yet.</p>
+<p>Receipt classification: {{ captured.payload.receipts.payload.classification_complete|yesno:'Complete,Incomplete' }}. Expenditure classification: {{ captured.payload.expenditures.payload.classification_complete|yesno:'Complete,Incomplete' }}.</p>
+<p><a href="{% url 'accounting:receipt_classification_sources' %}?fund={{ captured.payload.scope.fund.id }}&start={{ captured.payload.scope.period_start }}&end={{ captured.payload.scope.period_end }}">Inspect receipt source classifications for this Fund and period</a></p>
+{% else %}
+<p>All source movements have reviewed classifications. Check every category below. Map each retained expenditure class explicitly; unresolved mappings have no amount.</p>
+<div class="table-responsive"><table class="table"><thead><tr><th>Category</th><th>Signed actual amount</th><th>Coverage</th></tr></thead><tbody>
+{% for row in receipt_rows %}<tr><td>{{ row.label }}</td><td>{{ row.amount }}</td><td>{{ row.coverage }}</td></tr>{% endfor %}
+{% for row in expenditure_rows %}<tr><td>{{ row.label }}</td><td>{{ row.amount|default_if_none:'Mapping required' }}</td><td>{{ row.coverage }}</td></tr>{% endfor %}
+</tbody></table></div>
+<form method="post">{% csrf_token %}{% for name,value in scope_fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}{{ form.as_p }}<button class="btn btn-primary">Submit for independent category review</button></form>
+{% endif %}{% endif %}</div>{% endblock %}

@@ -1,5 +1,365 @@
 # GRAND Finance complete-cycle roadmap
 
+Current execution follows the [2026-09-18 foundation gate](FINANCE_FOUNDATION_GATE.md):
+complete existing retrieval and Budget context before broader Finance features.
+
+October 13 execution direction: finish the current zero-skip native regression
+and validate the bounded [CI distribution repair](FINANCE_V157_CI_VALIDATION.md)
+on GitHub. If verify remains unaccepted, document the exact result and continue
+independently validated Finance development toward guided whole Form 1 intake
+and independent review; avoid further speculative CI optimization. This user
+direction does not turn failing checks into passes, authorize primary promotion
+through required gates, or close critical dependency/production findings.
+Update README, handoff and gap records with each actual checkpoint.
+
+The local 2026-10-12 printable flow checkpoint connects source-authorized PDF and
+whole JSON drafts to retained account review. It preserves original approvals,
+signed shares and unknown coverage without asserting freshness or issuance.
+The [source contract](FINANCE_FORM1_SOURCE_CONTRACT.md) records validation; remaining
+stock/PhilHealth, SPA subdivisions, shared-source allocation and final signing
+gates keep full Form 1 and Finance production incomplete.
+The subsequent SPA calculation retains explicit signed source partitions and full
+subdivision coverage without inferring classification from labels or certifying
+net-zero totals as no activity. Separate governed Budget/Accounting review and
+clerk delivery remain required before this meaning enters a final Form 1 package.
+Retained SPA preparation now pins the original account approval and source authority;
+separate Budget and Accounting decisions preserve actors/verification/history under
+proposal/Fund locks. Affected/dependent SQLite and native MySQL validation passed,
+including four native version/decision/successor races; the source contract/handoff
+record exact scope and remaining gates. Guided SPA intake, separate role decisions,
+paged history and complete evidence exports are locally validated by corrected
+SQLite/native HTTP regressions, including actual signed-history source retention.
+Exact-source flow/SPA composition passed its eight-case SQLite/native checkpoint;
+combined PDF/whole JSON delivery passed thirteen affected/dependent cases on each
+backend, with exact browser downloads and eleven-page visual verification.
+The source contract/handoff retain actual native/browser outcomes; final Form 1
+stock, PhilHealth, shared-source, certification and office acceptance remain open.
+The cash-stock adapter now selects exact authorized actual anchors; the subsequent
+ephemeral forecast bridge retains explicit cash timing and dated restriction
+movements with missing/zero coverage kept separate. Neither supplies a reviewed
+stock-column package, planning-source reconciliation, cash capacity or issuance.
+The source contract/handoff record their actual validation and remaining work.
+Opening-stock integration now connects these sources to all five original flow
+columns under an explicit draft annual-boundary convention: annual opening
+references H1 January stock; missing boundaries remain unknown. Resource-ending
+arithmetic stays separate from certified closing cash. Independent whole-form
+retention/review, planning links, PhilHealth and issuance/office acceptance remain
+required; this draft does not change those gates.
+The PhilHealth draft now retains whole original signed receipts, restrictions and
+expenses with explicit funding treatments and coverage. Overlap claims share exact
+source caps and stay unresolved; missing evidence keeps controls unknown. This
+calculation does not complete independent policy/overlap review, clerk delivery or
+issued Form 1. Actual validation and remaining whole-package work are in CONTINUE.md.
+Whole-form assembly now joins the complete original account/SPA and stock/PhilHealth
+flows by exact source equality before retention. It keeps every row, scope and all
+five financial columns; calculation coverage does not grant review or issuance.
+CONTINUE.md records actual tests. Whole-package retained versions, source-scoped
+cross-office access, independent policy/overlap review and clerk/issued delivery
+remain the next checkpoint rather than another isolated calculation schedule.
+Whole package preparation now retains immutable versions and source-bound cash/
+PhilHealth attachments under proposal/Fund locks, with separately scoped package
+and original-source read/export access for the designated offices. Affected and
+dependent SQLite/native validation passed, including two native version/successor
+races; independent policy/overlap decisions, clerk delivery and final signatory/
+issued evidence remain open. This does not close FG-03, FG-06 or the Finance gate.
+Next follow the [whole-package review/delivery contract](FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md):
+source-currentness observation, independent policy/overlap decisions and complete
+clerk delivery precede statutory certification/Chief Executive approval and issuance.
+Internal whole-package role/office decisions are locally validated: immutable
+checks, designation/actor/source bindings and return history under proposal/Fund/
+package locks. The original preparation is unchanged. Pending overlap or missing
+controls cannot be internally approved; the evidenced overlap-recipe route and
+complete clerk/statutory/issued delivery remain required, not waived by these tests.
+
+Whole-package draft JSON/ZIP delivery now has two genuine-source cases passing
+on SQLite/native MySQL without skips. It preserves complete source/root/decision
+checksums and original package/account/SPA bytes, with current export authority.
+Historical output remains a draft without currentness/signature/issuance claims.
+Whole-package PDF draft delivery also passes a focused genuine-source case on each
+backend and a fresh SQLite artifact-retention rerun. All 22 reviewed/unknown fixture
+pages were inspected; complete financial controls and source itemization are retained.
+Raw evidence notation and separate appendix numbering remain usability gaps.
+The actual clerk/register/intake/accepted printable route, evidenced overlap treatments
+and statutory/issued delivery remain open; CONTINUE.md records exact validation.
+
+Form 1 now has a [source/reconciliation contract](FINANCE_FORM1_SOURCE_CONTRACT.md):
+retain historical joint evidence, then native receipt/cash preparation, complete
+office reconciliation and governed issuance. No Form 1 acceptance is established.
+
+The native source bridge now connects jointly certified actuals to this same
+retained office reconciliation. Each exact period chooses one native or historical
+route; schema 3 retains complete native evidence and rechecks source and office
+versions before new acceptance. Separate native read/export authority applies.
+Receipt forecast proposal arithmetic now retains explicit leaf/account mappings,
+complete source partitions and exact overlap anchors, including original resource
+identity caps. Retained independent Budget Officer review now covers the complete
+declared reconciliation entity inventory, shared source caps and explicit funding
+identities; current source/version checks and separate view/export authority apply.
+Guided clerk intake, independent review/history and complete retained JSON exports
+now pass local SQLite/native regressions and a synthetic browser rehearsal.
+Full Form 1 source assembly and issuance remain next;
+the [assembly audit/design](FINANCE_FORM1_ASSEMBLY_DESIGN.md) requires explicit
+historical leaf coverage, original itemization, cross-entity office/source allocation,
+future-stock forecast bridges and PhilHealth overlap controls before issuance.
+Local period-flow composition now retains full source envelopes, unknown historical
+leaves and cross-entity whole-source checks. It leaves stock/account itemization,
+PhilHealth deductions, reviewed shared-source allocations and issuance incomplete;
+validation is recorded in the source contract.
+Original flow-component inventory now retains exact source/partition evidence and
+checks known leaf controls without inferring a reporting account from a cash account.
+It is input closure for account itemization. Explicit reporting-account draft
+partitions now preserve original ledger accounts, signed source caps and captured
+account dates. Retained independent Accounting review now has a scoped service,
+code-authority attachment and separate decision; local SQLite/native/race validation
+is recorded in the handoff. Guided account review/retrieval and exact original/full
+package exports are connected locally; complete issued itemization remains open.
+See the source contract for checkpoint validation and limits.
+The 2026-10-12 itemization source audit reproduces all real clerk shares/controls
+and defines original-account grouping and unique receipt subtotals before rendering.
+Named Annex D SPA subdivisions require explicit reviewed source treatment; a class
+total or program label does not establish them. The assembly design records this
+remaining output boundary alongside shared entities, stocks/PhilHealth and issuance.
+The detached itemized-flow calculation now retains all account shares/five columns
+and unique-leaf receipt hierarchy totals. Real clerk-audit reproduction and affected/
+dependent SQLite/native 12-case suites pass; genuine signed-history follow-up is
+recorded in the handoff. Printable delivery and whole-package issuance remain open.
+
+Local retained reconciliation now pins both adopted periods and exact issued office
+versions, with explicit entity/office coverage, class differences and independent
+review. Preparation, paginated history and verified JSON export are connected.
+Acceptance requires the latest version and all class differences resolved. Synthetic
+reconciliation browser preparation/review/JSON proof passes; cash/receipt preparation
+and governed Form 1 issuance remain required. See the source contract for actual validation.
+Named reconciliation creation/review/successor races pass on native MySQL; this
+does not establish all Finance concurrency or operational acceptance.
+
+Local historical cash service/migration 0037 now retains dated gross/restricted/net
+controls, original joint evidence and independent adoption/return. Local paginated
+register/history, review and controlled original/JSON/ZIP exports are connected.
+Submission/successor forms now support bounded full CSV replacement and complete
+predecessor/document reuse; local role definitions preserve independent review and
+Treasury adopted-only read/export. Named cash races pass on MySQL; synthetic browser
+submission/adoption/full successor/JSON and mobile views pass. Browser ZIP delivery
+still fails and is not acceptance. Local native gross-cash capture now reads an
+explicit reviewed cash scope and reconciled opening lineage at a dated start/end
+boundary. New schema-2 captures retain full mapping/opening decisions and reproduce
+cash controls from retained evidence. Named native payment/capture and mapping
+activation overlaps now pass; a coherent capture can already be stale when returned.
+Local migration 0038/service retain immutable native preparations and exact historical
+restriction reconciliation; affected/related SQLite and MySQL validation passes,
+including the native competing-preparation race. Local native register/forms/source
+history and controlled full exports are connected; affected SQLite/MySQL and synthetic
+browser submission/full-schedule/successor/JSON checks pass. Browser ZIP remains
+unresolved, despite valid authenticated HTTP bytes. Native joint decisions,
+certification freshness/decision races,
+restriction reconciliation and joint certification remain required. This
+historical route does not supply spendable capacity or issued Form 1; see the
+[cash checkpoint](FINANCE_FORM1_SOURCE_CONTRACT.md#historical-cash-service-checkpoint--2026-10-11).
+
+The [historical joint-evidence route](FINANCE_SUMMARY_ACTUALS_IN_PROGRESS.md) now has
+dedicated scope/version persistence, independent adoption, register/history and
+controlled source exports. Native receipt/cash preparation and complete Form 1 remain open.
+
+The local resource-history prerequisite now freezes proposed financing at submission
+and retains audited revisions/consolidation origins. It does not establish Form 1
+receipt categories, cash balances, joint certification or accepted output parity;
+continue those boundaries using the [implementation report](FINANCE_BUDGET_ATTRIBUTIONS_IN_PROGRESS.md).
+
+The [full requirement audit](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md) identifies
+remaining ledger (1,000), cash/remittance (100) and shadow-cycle (100) row caps.
+The [ledger repair](FINANCE_LEDGER_RETRIEVAL.md) now preserves running balances
+across scoped pages and rejects invalid account selection.
+[Treasury register retrieval](FINANCE_TREASURY_REGISTER_RETRIEVAL.md) now pages all
+cash lists and remittance matches without limiting financial reservations.
+The [shadow retrieval checkpoint](FINANCE_SHADOW_RETRIEVAL.md) addresses cycle and
+evidence-review limits. [Budget/remittance history](FINANCE_BUDGET_REMITTANCE_HISTORY.md)
+and [Accounting history](FINANCE_ACCOUNTING_HISTORY.md) now provide complete scoped
+event/run pages and opening-row corrections. [Bank/report retrieval](FINANCE_BANK_REPORT_RETRIEVAL.md)
+adds full match-candidate pages and scoped report-history navigation.
+[Reporting schedules](FINANCE_REPORTING_SCHEDULE_RETRIEVAL.md) now have active/inactive
+retrieval and explicit retained-evidence navigation. The [integrated audit](FINANCE_RETRIEVAL_INTEGRATED_AUDIT.md)
+reproduced My Work's 100-task navigation ceiling. [Personal retrieval](FINANCE_MY_WORK_RETRIEVAL.md)
+now provides complete pages in all six views, retaining permission/view/date filters
+and the bounded CSV snapshot contract. Full v0.7.145 baseline SQLite/native regression passes;
+its SQLite skips, the reproduced Budget-report defect, local policy and acceptance
+remain explicit before any foundation-complete claim.
+
+Output direction clarified 2026-09-21: the office largely avoids eGAPS reporting
+because it is not user-friendly. Derive the required-output map from actual office
+work and applicable authoritative requirements, with local acceptance still explicit.
+Do not equate low eGAPS usage with no reporting need, or its available menu with the
+LGU's required inventory. Reuse GRAND's governed reporting framework and make the
+ordinary generation path understandable. See the [working output map](FINANCE_REQUIRED_OUTPUT_MAP.md).
+
+[Budget historical context](FINANCE_BUDGET_PLANNING_CONTEXT.md) now connects dated
+posted expense activity, explicit second-half estimates and original authorized
+schedules to retained proposal review. Certified expenditure/coverage remains open;
+do not relabel this narrower projection as accepted actuals. Local reserved-column
+and earmark semantics still require evidence before extending those controls.
+The [actuals source audit](FINANCE_BUDGET_ACTUALS_SOURCE_AUDIT.md) verifies DBM's
+Form 1/2 certification and object-coverage instructions for the next Budget checkpoint.
+It also reproduces the existing Budget report's incorrect nominal-closing netting.
+The [expense-activity repair](FINANCE_BUDGET_ACTUAL_ACTIVITY.md) now preserves activity
+through closing and its reversal lineage, retaining excluded movements and source
+evidence. The subsequent [owner repair](FINANCE_BUDGET_ACTUAL_OWNERSHIP.md) uses the
+authorized fiscal-year owner and separate owner/year/classification keys with retained
+evidence. SQLite/native validation passes. Next complete certified-expenditure source
+coverage, including capital outlays and historical external certification, before
+calling the planning comparison complete. The [actuals contract](FINANCE_BUDGET_ACTUALS_CONTRACT.md)
+now defines external certification adoption through Budget submission/export as the
+first source route, with native classification/preparation and distinct joint summary
+certification retained as subsequent requirements. It is grounded in verified FY2027
+DBM Annex D/E. The first [external-adoption checkpoint](FINANCE_BUDGET_ACTUAL_ADOPTION.md)
+connects retained source documents, independent Accounting review, complete retrieval,
+Budget comparison and frozen submission/export. Native preparation, joint summary
+certification and local acceptance remain open.
+The [native source audit](FINANCE_BUDGET_NATIVE_SOURCE_AUDIT.md) reproduces missing
+liquidation office attribution and an invalid expense-plus-asset total. Native
+preparation must include unresolved sources, independently reviewed purpose/office
+attribution and coherent source-change checks before certification is enabled.
+The [native capture service](FINANCE_BUDGET_NATIVE_CAPTURE.md) begins that implementation
+with a coherent posted ledger read. Reviewed allocation, persistence, certification
+and Budget integration remain required; source capture alone does not close FG-03.
+The [attribution implementation in progress](FINANCE_BUDGET_ATTRIBUTIONS_IN_PROGRESS.md)
+adds shared journal partitions, independent batch decisions and exact reviewed reversal
+lineage. Reviewed source components and connected dated application usage pass focused
+SQLite/native checks. Explicit joint reversal repair now also passes focused
+SQLite/native checks, including competing reviews. Governed opening liabilities can
+retain explicit reviewed components for later principal repayment while opening and
+previously recognized amounts remain excluded; focused SQLite/native checks pass.
+Unlinked liability inclusion now requires exact source proof, with existing
+historical-claim recovery and legacy capture compatibility passing focused checks.
+The review register, complete-group decisions and retained evidence export now pass
+focused SQLite/native and synthetic browser checks. Guided preparation/repair
+now has a tested signed submission context retaining source, proposal and office
+choices; complete guided repair and certification are still required before native actuals
+can be used as authoritative proposal evidence.
+The initial guided editor now connects explicit split allocations, current component
+choices and predecessor inheritance to independent review/export. Explicit duplicate-line
+pairing now preserves the chosen original office and evidence through review.
+Paged source selection now retains choices across pages/searches without a retrieval
+cap. Historical-source navigation now connects unlinked warnings to scoped original
+credits and the existing independent claim review without selecting applications.
+Native certification and Budget adoption remain open; see the implementation report for actual
+SQLite/native and synthetic browser evidence.
+Native statement calculation now retains a full line/allocation bridge and gross
+coverage controls across all offices, with unresolved/empty coverage explicit.
+Focused SQLite/native checks pass; saved native issuance and distinct certification
+remain required before Budget can use these amounts as certified actuals.
+The retained native service now stores immutable versions and independently authorized
+certification decisions with stale-source/version checks; focused SQLite/native and
+competing-action tests pass. Clerk-facing certification, issued office outputs and
+controlled native/external Budget selection remain unfinished.
+Native preparation/certification screens and retained JSON evidence now pass focused
+SQLite/native HTTP tests and a synthetic browser flow. History pages all versions;
+source changes preserve earlier certified downloads. Office-form issuance and Form 1 reconciliation remain open; controlled selection
+is covered by the subsequent checkpoint below.
+The Budget selection service now pins one native/external route per office/period,
+rechecks source currency at new submission and freezes submitted evidence/CSV.
+Focused SQLite/native and selection/submission-race checks pass. A source-selection
+screen now exposes office/account-scoped evidence and signed previews; consolidation
+now retains source origins and requires explicit selection before submission. Combined
+version identity/preflight and creation races are now validated; complete office forms
+remain open. This does not establish completed
+adoption or Form 1 reconciliation.
+New explicit source choices now preserve historical accounts without proposal lines
+within the selected fund/center and retain legacy selection hashes. Complete office
+coverage declarations and retained unsigned Form 2 issuance are covered below.
+The populated SQLite upgrade path is now covered separately from fresh migrations.
+Historical source discovery now covers additional funds/centers of represented
+offices. A retained object schedule and CSV show historical-only rows separately
+from proposed amounts, with missing forecasts explicit. Full forecast entry for
+those rows is now implemented with dated basis, source review and conflict guards;
+Schema-7 schedules now pin office identities, including historical and proposed
+objects, without reassigning old submitted rows after setup changes. Complete
+coverage/designation preparation and independent unsigned Form 2 issuance now retain
+source snapshots and exact PDF bytes, with missing-data and stale-source guards.
+Form 1 office-total reconciliation and joint Treasurer/Accountant certification are
+next; physical signing/receipt and LGU/printer acceptance remain open under the
+[issuance contract](FINANCE_BUDGET_ACTUALS_CONTRACT.md).
+Multi-object account comparisons now retain all reviewed rows and total only matching
+class sets; focused SQLite/native checks pass, including frozen CSVs and net-zero reversals.
+
+[Quarterly planning](FINANCE_QUARTERLY_PLANNING.md) now has an operational versioned
+schedule and retained ARO comparison. Explicit allocations and explained timing
+deviations do not create financial authority. Local reserved-column meaning, form
+acceptance and the distinct earmark lifecycle remain open.
+
+[OBR-to-payable continuity](FINANCE_OBR_PAYABLE_HANDOFF.md) connects certified source
+context, visible linked cases and eligible requesting-office intake. Whole ordinary
+workflow and exact output acceptance remain open; do not equate one connected handoff
+or the service replay with LGU acceptance.
+
+The [officer cheque return adapter](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md),
+D-102, has a validated v0.7.115 development checkpoint connecting actual bank debit, dated advance restoration, reserved exact correction
+and replacement principal to the original officer. Native and dependent regression
+pass; final output validation passes and is recorded in the feature report. Work is
+paused after this checkpoint at the user's 2026-09-15 request. Combined fees, external
+delivery and the wider functional/acceptance gates remain open.
+
+The [officer cheque refund module](FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md) has a
+validated v0.7.114 development checkpoint: pending receipt reservations and independent clearing remain separate.
+Actual officer bank-return adjustments/redemption are still a dependent adapter.
+
+The next [mixed-purpose cheque adapter](FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md), D-100,
+has a validated v0.7.113 development checkpoint. It preserves each original cash-purpose amount through
+return, redemption and exact correction. Combined penalties, external delivery and
+officer cheque refunds remain separate work.
+
+Principal redemption and internal TracePoint cheque custody have a validated v0.7.112
+development checkpoint; actual validation is recorded in [the feature record](FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md),
+D-099. This closes neither combined principal/penalty treatment nor external payee/court
+delivery. Mixed-purpose return allocations and officer cheque-refund timing remain next
+functional adapters; ordinary Finance breadth and acceptance gates remain open.
+
+v0.7.111 development validates incoming cheque return posting with explicit original sources,
+whole-principal bank effects and reviewed receivable treatment. See the
+[active return scope](FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md); redemption/custody,
+mixed-purpose return allocations and officer cheque-refund timing remain open.
+
+v0.7.110 development adds [outgoing presentation reports](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md),
+independent findings and closure against completed original payment/return sources.
+Incoming dishonour and redemption/custody are next; ordinary Finance and acceptance gaps remain.
+
+v0.7.108 development checkpoint includes netted fees, multi-charge receipts, bank credits
+and incoming cheque capture with independently reviewed bank clearing. Full SQLite passes
+1,266 with 96 native-only skips; combined native 50/50, including eight races, and final
+source native 2/2 pass. A later database-independent fee-bound check passes separately.
+The [cheque record](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md) gives scope and evidence.
+The [modular exception design](FINANCE_CHEQUE_EXCEPTION_DESIGN.md) now guides researched
+development with human resolution for rare cases; no user procedure is pending. Officer cheque
+refund timing and other Finance/acceptance work remain incomplete. This is not master
+integration, deployment or full collection parity. Older checkpoint summaries below
+retain their original validation scope.
+
+Incoming cheque lifecycle is the active functional gap. [Capture and whole-cheque
+deposit controls](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md) passed the preceding
+43-test native gate. Independent bank clearing, withdrawal and retained output are
+now under validation (three focused SQLite tests passed). Dishonour, redemption and
+officer cheque refund timing remain required work; do not count clearing evidence as
+complete lifecycle coverage.
+
+Current required collection breadth: [direct-bank receipts](FINANCE_BANK_COLLECTIONS_IN_PROGRESS.md),
+D-094, are implemented locally for ordinary/multi-charge receipts and officer refunds.
+Bank references/routing are retained and credits bypass cash deposit availability.
+Focused SQLite passes four scenarios; dependent SQLite passes 34 with five native-only
+skips, and native passes all 39 including seven bank scenarios and five races.
+Cheque receipt, clearing and return remain
+next required work following the user's confirmation of all three payment methods.
+
+Active M03 breadth: [multi-charge collection receipts](FINANCE_COLLECTION_CHARGES_IN_PROGRESS.md),
+D-093, combine explicit charge amounts from reviewed types and preserve mixed cash
+purposes, one receipt total, partial deposits, exact corrections and printable breakdown.
+Focused SQLite/native tests pass 5/5 each; dependent SQLite passes 27 with five
+native-only skips, and native passes all 32. This remains an uncommitted checkpoint,
+not a completed Finance parity gate.
+
+Current next checkpoint: [netted remittance receipts](FINANCE_RECEIPT_FEES_IN_PROGRESS.md)
+retains explicit gross refund, fee expense/evidence and net cash through existing review,
+posting, correction and output. Focused SQLite/native tests pass; dependent SQLite passes 23 with seven native-only
+skips, and native passes all 30 including those races. The feature remains local and uncommitted. This follows the completed v0.7.107 master integration and does not close
+other collection/remittance, output or acceptance gaps.
+
 Active work: [bank-returned advances](FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md) demonstrate original-payment reversal, reviewed-return retirement and the corrected Budget/DV/recognition/payment cycle, including retained corrected liquidation and refund/deposit history with dated and fund-identity checks. Both payment policies, independent withdrawal and three native correction/replacement/reconciliation races pass. The v0.7.106 checkpoint passes full SQLite regression (1,109 passed, 86 skipped), focused native tests and the three selected native races. This development checkpoint does not establish full Finance completion or deployment.
 
 v0.7.105 development checkpoint: [original advance correction after unreleased check cancellation](FINANCE_CANCELLED_ADVANCES_IN_PROGRESS.md), D-090, connects retained cancellation, revised Budget/DV and actual new payment under both payment policies. Exact issuance cancellation lineage, old-check retirement, corrected signing-copy/packet flow and independent posting are tested. Full SQLite and affected native regression pass. Released/returned advances, other missing Finance scenarios and local/operational acceptance remain open.

@@ -14,6 +14,7 @@ def main():
     parser.add_argument("labels", nargs="*", help="Optional Django test labels; omission runs the full suite.")
     parser.add_argument("--verbosity", type=int, choices=(0, 1, 2, 3), default=1)
     parser.add_argument("--failfast", action="store_true")
+    parser.add_argument("--ci-shard", action="store_true", help="Use complete class-preserving CI discovery; requires GRAND_CI_SHARD_* settings.")
     args = parser.parse_args()
     password = os.environ.get("GRAND_TEST_MYSQL_PASSWORD")
     try:
@@ -63,6 +64,8 @@ def main():
     settings.GRAND_EXPORT_ROOT = str(runtime / "exports")
     settings.GRAND_BACKUP_ROOT = str(runtime / "backups")
     settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    if args.ci_shard:
+        settings.TEST_RUNNER = 'scripts.ci_test_runner.ShardedDiscoverRunner'
     import django
     django.setup()
     from django.core.management import call_command

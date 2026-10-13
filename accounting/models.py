@@ -653,6 +653,7 @@ class JournalEntry(DepartmentOwnedModel):
     SOURCE_CHOICES = (
         ("collection", "Treasury collection receipt"), ("deposit", "Deposit of Treasury collections"),
         ("collection_fix", "Collection/deposit correction"),
+        ("cheque_return", "Incoming cheque bank return"),
         ("manual", "Manual journal"), ("voucher", "Voucher"),
         ("remittance", "Deduction / withholding remittance"),
         ("adjustment", "Adjusting entry"), ("reversal", "Reversing entry"),
@@ -1764,3 +1765,211 @@ class AccountingAuditEvent(DepartmentOwnedModel):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Accounting audit events cannot be deleted.")
+
+
+class BudgetExpenditureAttribution(DepartmentOwnedModel):
+    """One immutable journal partition; a batch is reviewed atomically."""
+    SUBMITTED, APPROVED, RETURNED = "submitted", "approved", "returned"
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    batch_id = models.UUIDField(db_index=True, editable=False)
+    entry = models.ForeignKey(JournalEntry, on_delete=models.PROTECT, related_name="budget_attributions")
+    version = models.PositiveIntegerField()
+    base_version = models.PositiveIntegerField(default=0)
+    period_start = models.DateField()
+    period_end = models.DateField()
+    source_snapshot = models.JSONField()
+    source_checksum = models.CharField(max_length=64)
+    allocations = models.JSONField()
+    dependencies = models.JSONField(default=dict, blank=True)
+    reason = models.TextField()
+    evidence_reference = models.CharField(max_length=255)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_by_label = models.CharField(max_length=160)
+    prepared_at = models.DateTimeField()
+    proposal_checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=12, default=SUBMITTED, choices=(
+        (SUBMITTED, "For independent attribution review"), (APPROVED, "Reviewed attribution"), (RETURNED, "Returned")))
+    reviewed_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reviewed_by_label = models.CharField(max_length=160, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    decision_checksum = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ("entry_id", "-version")
+        constraints = (
+            models.UniqueConstraint(fields=("entry", "version"), name="unique_budget_attribution_version"),
+            models.UniqueConstraint(fields=("batch_id", "entry"), name="unique_budget_attribution_member"),
+        )
+        permissions = (
+            ("view_budget_attributions", "Can read Budget expenditure attribution"),
+            ("prepare_budget_attributions", "Can propose Budget expenditure attribution"),
+            ("review_budget_attributions", "Can independently review Budget expenditure attribution"),
+            ("export_budget_attributions", "Can export Budget expenditure attribution evidence"),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            decision = {"status", "reviewed_by_id", "reviewed_by_label", "reviewed_at", "review_note", "decision_checksum"}
+            if not getattr(self, "_decision_write", False) or prior.status != self.SUBMITTED:
+                raise ValidationError("Retain attribution versions; prepare a successor instead.")
+            if any(getattr(prior, field.attname) != getattr(self, field.attname)
+                   for field in self._meta.concrete_fields if field.attname not in decision):
+                raise ValidationError("Attribution source and proposed allocations are immutable.")
+            if self.status not in (self.APPROVED, self.RETURNED) or self.reviewed_by_id == self.prepared_by_id:
+                raise ValidationError("A different authorized reviewer must decide the attribution.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain attribution versions and decisions.")
+
+
+class BudgetExpenditureAttributionHead(models.Model):
+    entry = models.OneToOneField(JournalEntry, on_delete=models.PROTECT, related_name="budget_attribution_head")
+    attribution = models.OneToOneField(BudgetExpenditureAttribution, on_delete=models.PROTECT, related_name="current_head")
+
+    def clean(self):
+        if self.attribution_id and (self.attribution.entry_id != self.entry_id
+                or self.attribution.status != BudgetExpenditureAttribution.APPROVED):
+            raise ValidationError("Select an approved attribution for this exact journal.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class BudgetActualScope(DepartmentOwnedModel):
+    """One explicit office/fund/period; Finance-store parent for adoption versions."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    budget_department_id = models.PositiveBigIntegerField()
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT)
+    responsibility_center = models.ForeignKey(ResponsibilityCenter, on_delete=models.PROTECT)
+    period_start = models.DateField()
+    period_end = models.DateField()
+    current_version = models.OneToOneField("BudgetActualVersion", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="current_for_scope")
+
+    class Meta:
+        constraints = (models.UniqueConstraint(fields=("department_id", "fund", "responsibility_center",
+            "period_start", "period_end"), name="unique_budget_actual_scope"),)
+        permissions = (
+            ("view_budget_actuals", "Can read retained Budget actual certificates"),
+            ("prepare_budget_actuals", "Can submit external Budget actual certificates for adoption"),
+            ("review_budget_actuals", "Can independently review Budget actual certificate adoption"),
+            ("export_budget_actuals", "Can export retained Budget actual certificate evidence"),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            fields = ("department_id", "department_label", "budget_department_id", "fund_id",
+                "responsibility_center_id", "period_start", "period_end", "public_id")
+            if any(getattr(self, key) != getattr(prior, key) for key in fields):
+                raise ValidationError("Retained actuals scope is immutable.")
+            if self.current_version_id != prior.current_version_id and not getattr(self, "_decision_write", False):
+                raise ValidationError("Change the current actuals version through independent review.")
+        elif self.current_version_id:
+            raise ValidationError("A new actuals scope has no adopted version.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain actuals scopes and their decisions.")
+
+
+class BudgetActualVersion(DepartmentOwnedModel):
+    SUBMITTED, APPROVED, RETURNED = "submitted", "approved", "returned"
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    scope = models.ForeignKey(BudgetActualScope, on_delete=models.PROTECT, related_name="versions")
+    version = models.PositiveIntegerField()
+    base_version = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=12, default=SUBMITTED, choices=(
+        (SUBMITTED, "For adoption review"), (APPROVED, "Adopted external certificate"), (RETURNED, "Returned")))
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    evidence = models.BinaryField(editable=False)
+    evidence_name = models.CharField(max_length=180)
+    evidence_sha256 = models.CharField(max_length=64)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_by_label = models.CharField(max_length=160)
+    prepared_at = models.DateTimeField()
+    reviewed_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    reviewed_by_label = models.CharField(max_length=160, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_authority = models.CharField(max_length=255, blank=True)
+    review_note = models.TextField(blank=True)
+    decision_checksum = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ("-version", "-pk")
+        constraints = (models.UniqueConstraint(fields=("scope", "version"), name="unique_budget_actual_version"),)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            decision = {"status", "reviewed_by_id", "reviewed_by_label", "reviewed_at",
+                "review_authority", "review_note", "decision_checksum"}
+            for field in self._meta.concrete_fields:
+                key = field.attname
+                if getattr(prior, key) != getattr(self, key) and (
+                        key not in decision or not getattr(self, "_decision_write", False)):
+                    raise ValidationError("Submitted actuals evidence is immutable; submit a successor version.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Retain actuals certificate versions and decisions.")
+
+
+class NativeBudgetStatement(DepartmentOwnedModel):
+    """Retained full-cohort preparation and distinct officer decision, not an upload."""
+    SUBMITTED, CERTIFIED, RETURNED = 'submitted', 'certified', 'returned'
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT)
+    period_start = models.DateField()
+    period_end = models.DateField()
+    version = models.PositiveIntegerField()
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_by_label = models.CharField(max_length=160)
+    prepared_at = models.DateTimeField()
+    status = models.CharField(max_length=12, default=SUBMITTED, choices=(
+        (SUBMITTED, 'For native certification'), (CERTIFIED, 'Native certification recorded'), (RETURNED, 'Returned')))
+    decided_by_id = models.PositiveBigIntegerField(null=True, blank=True)
+    decided_by_label = models.CharField(max_length=160, blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    authority = models.CharField(max_length=255, blank=True)
+    decision_note = models.TextField(blank=True)
+    decision_checksum = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        constraints = (models.UniqueConstraint(fields=('fund', 'period_start', 'period_end', 'version'),
+            name='unique_native_budget_statement'),)
+        permissions = (
+            ('view_native_budget_statements', 'Can read retained native Budget statements'),
+            ('prepare_native_budget_statements', 'Can prepare native Budget statements'),
+            ('certify_native_budget_statements', 'Can independently certify native Budget statements'),
+            ('export_native_budget_statements', 'Can export retained native Budget statements'),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            decision = {'status', 'decided_by_id', 'decided_by_label', 'decided_at',
+                        'authority', 'decision_note', 'decision_checksum'}
+            for field in self._meta.concrete_fields:
+                key = field.attname
+                if getattr(self, key) != getattr(prior, key) and (
+                    key not in decision or not getattr(self, '_decision_write', False)):
+                    raise ValidationError('Retain native statement evidence; prepare a successor version.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain native statement versions and decisions.')
+
+
+# Registered here so Django discovers the dedicated historical summary models.
+from .summary_models import BudgetSummaryScope, BudgetSummaryActual  # noqa: E402,F401
+from .budget_cash_models import BudgetCashEvidence, NativeBudgetCashPreparation, NativeBudgetCashDecision  # noqa: E402,F401
+from .budget_receipt_models import BudgetReceiptAttributionBatch, BudgetReceiptAttribution, BudgetReceiptAttributionHead  # noqa: E402,F401
+from .budget_actuals_models import NativeBudgetActualsPreparation, NativeBudgetActualsDecision  # noqa: E402,F401

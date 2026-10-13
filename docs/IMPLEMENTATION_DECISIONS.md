@@ -1089,3 +1089,301 @@ or approval engine. The tradeoff is larger explicit retained evidence and an add
 reversal/review cycle. Paid-unreturned advances, close-without-reissue outcomes and wider
 instrument chains remain separate functional work; exact local outputs and operational
 acceptance remain open. See [implementation, validation and scope](FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md).
+
+
+## D-092 - Record deducted receipt fees without overstating bank cash
+
+Date: 2026-09-14. Locally validated, uncommitted checkpoint after v0.7.107 master
+integration. Focused tests pass on both backends; dependent SQLite 23 passed / seven
+native-only skips and native 30/30 passed, including seven concurrency cases.
+
+Keep original-liability allocations gross, capture the documented deducted bank fee and
+actual net bank credit separately, and post the fee to an explicit active expense account
+reviewed by independent Accounting. Reuse the existing immutable receipt proposal and
+journal/correction route. A 100 gross refund with a 5 fee produces cash 95, expense 5 and
+withholding credit 100; a correction reverses the exact three amounts without changing
+the original remittance or filing evidence.
+
+Inferring the fee from a cash difference could restore the wrong withholding amount.
+A new generic fee framework or separate ledger is unnecessary for this documented
+receipt scenario. Retained account identity and evidence support review and reproduction;
+no hard-coded statutory account is selected. Positive net cash remains required; all-fee
+or non-cash agency dispositions remain separate functional work. Actual cash-flow lines
+record actual net money, with statutory/local presentation still requiring its later gate.
+See [validation and boundaries](FINANCE_RECEIPT_FEES_IN_PROGRESS.md).
+
+
+D-092 follow-up (2026-09-15): the full netted receipt → deduction correction → revised
+DV/payment → corrected remittance scenario now passes SQLite and MySQL, retaining fee,
+net cash, final zero withholding and prior exports. The isolated-fixture regression also
+preserves ordinary partial returns. This is functional-cycle evidence, not broader local
+form or production acceptance; see the receipt-fee record for actual commands/results.
+
+
+## D-093 - One collection receipt with explicit reviewed charge amounts
+
+Date: 2026-09-15. Locally validated, uncommitted checkpoint. Focused SQLite/native
+5/5 each; dependent SQLite 27 passed / five native-only skips and native all 32 passed,
+including five concurrency cases.
+
+Use existing reviewed collection variants to classify explicit component amounts rather
+than choosing arbitrary ledger accounts or recognizing the entire receipt against one
+revenue account. Retain each recipe and reconcile the charge sum to the actual receipt.
+The common fund, release and cash account preserve one accountable receipt; different
+cash purposes retain their own source debit amounts. Deposits combine the same actual
+cash once and do not recognize the revenues again. Correction reverses every original
+financial row after affected deposits are corrected. Prior printable copies are retained.
+
+Independent review compares current setup to the captured proposals; posting uses pinned
+approved recipes. This adds immutable breakdown evidence inside the existing source,
+not a new ledger, approval system or configurable allocation engine. Mixed funds/cash
+accounts and collection instrument breadth remain separate work. See
+[implementation and actual validation](FINANCE_COLLECTION_CHARGES_IN_PROGRESS.md).
+
+## D-094 - Explicit bank credits reuse collection sources and reviewed bank routing
+
+Date: 2026-09-15. User-confirmed required methods are cash, cheques and bank transfers.
+Direct-bank implementation is locally validated: SQLite 34 passed/five native-only skips;
+native all 39 passed including five races. It is uncommitted; cheque lifecycle remains open.
+
+Require an actual bank-credit reference and a reviewed BANK_MAPPING debit recipe.
+Independent source review checks captured setup; posting retains the approved account
+identity rather than rereading a later mapping. Ordinary and multi-charge collections
+use the same source/review/posting/correction path. Officer refunds retain the original
+advance, case-before-Finance locks, dated capacity and subsidiary evidence.
+
+Exclude direct bank receipts from cash deposit availability and selection because the
+money is already in the bank. Reusing a fixed cash receipt followed by an invented
+deposit would misstate custody and duplicate source evidence. Inferring method from an
+account code would relabel history. No parallel ledger or new approval framework is
+needed. Retain bank details in detail/CSV/issued source copies; exact source corrections
+do not rewrite earlier output. See [implementation and validation](FINANCE_BANK_COLLECTIONS_IN_PROGRESS.md).
+
+## D-095 - Confirm incoming cheque clearing over retained collection and deposit evidence
+
+Date: 2026-09-15. Locally validated in development v0.7.108; not LGU/production acceptance.
+
+Use a separate versioned clearing proposal with an independent Accounting decision
+over the original cheque receipt, whole posted deposit, pinned bank mapping and actual
+bank confirmation. Clearing supplies evidence without posting the bank credit twice.
+Treasury proposals and receipt/deposit corrections use the same department lock;
+active clearing evidence must be returned or independently withdrawn before correcting
+its sources. Withdrawal retains the original decision and issued copies; a new proposal
+gets a new version. Do not rewrite the cheque, receipt, deposit or prior output.
+
+Officer cheque refunds stay blocked until dated release/restoration controls consume
+valid clearing and dishonour evidence. Actual dishonour, notice/custody and redemption
+require their own source-linked financial treatment and applicable reviewed authority;
+source-error reversal is not a substitute. No inferred settlement deadline or statutory
+account code is introduced. See [scope and tests](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md).
+
+## D-096 - Research-led cheque exceptions with human resolution
+
+Date: 2026-09-15. Design complete; new exception modules are not implemented.
+
+The user has no local procedures and accepts human intervention for rare scenarios.
+Do not make supplying those procedures a prerequisite for further Finance development.
+Use the [researched modular design](FINANCE_CHEQUE_EXCEPTION_DESIGN.md): outgoing early
+presentation reports, incoming bank returns, redemption/custody and the dependent officer
+refund extension. Actual bank evidence, independent decisions and reviewed posting recipes
+remain necessary for the affected financial action. A complaint is not proof of payment;
+late evidence cannot manufacture timely approval. Preserve ordinary Finance priorities.
+
+This replaces the blanket input blocker recorded at v0.7.108, not the separate local
+form/production acceptance gates. Public LGU and bank references support the design;
+NGA MDS examples do not establish this LGU's bank contract or statutory account mapping.
+Implementation reuses existing source posting, advice, reconciliation and TracePoint
+boundaries instead of adding a second ledger or general incident framework.
+
+## D-097 — Source-linked outgoing presentation reports (2026-09-15)
+
+Implement the bounded outgoing module from D-096 before incoming dishonour. Retain
+attempts separately from independently verified bank findings, pin office ownership to
+original issue/release evidence and preserve each decision/export. Default-case locks
+and a generated nullable active key serialize reports and conflicting financial actions;
+a late verified finding also protects an already-issued replacement in the same case.
+
+Verified payment/return closes only against its original completed payment or return
+source. A release request takes precedence over issuance, including when unfinished;
+no-entry replacement issuance cannot hide an unposted release. Missing actual release
+evidence stays open for human reconciliation. Never manufacture acknowledgement or
+automatic retrospective release. See [implementation and validation](FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md).
+Incoming dishonour and redemption remain the next modules; this does not complete Finance.
+
+## D-098 — Incoming cheque returns reuse governed collection posting (2026-09-15)
+
+Use a new collection-source kind and explicit original receipt/deposit links instead
+of a parallel approval ledger. A generated active receipt key and Treasury-first locking
+prevent duplicate returns and incompatible clearing/source correction. Return only the
+whole cheque share, preserving the rest of a combined deposit and prior clearing history.
+
+The first adapter uses an explicitly reviewed receivable debit and the original bank
+credit, with unchanged cash-flow purpose and retained authority/applicability. Original
+multi-charge components remain evidence; mixed purposes need explicit component treatments.
+No NGA account code, fee or penalty is inferred. Exact source-error correction retires the
+return only after independent posting/reconciliation and cannot fund an earlier replacement.
+
+See [scope and actual validation](FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md). Redemption
+must link its new receipt to the completed return, reserve principal once, retain correction
+lineage and distinguish received replacement cheques from actual clearing. TracePoint remains
+the physical-custody authority. Other treatments and officer capacity remain subsequent adapters.
+
+## D-099 — Principal redemption and separate internal custody (2026-09-15)
+
+Reuse ordinary reviewed collection receipts with a selected-original-return receivable
+instruction. Reserve the whole principal under Treasury/source locks and a generated
+active identity. A replacement cheque retains its explicit manager/cashier subtype and
+requires reviewed clearing; a later dishonour creates a new linked obligation. Exact
+receipt correction retires the reservation only after reconciliation and from its actual
+date, including when authorizing a subsequent original-return correction.
+
+Versioned cheque/item associations reuse TracePoint's existing internal handover history.
+Linking an item does not assert physical receipt or alter financial settlement. Keep
+packet-before-item locks without accidentally locking joined historical packets. A mistaken
+association requires independent reasoned withdrawal. Finance-only copies retain existing
+access; explicitly included custody evidence additionally requires current TracePoint access,
+including on later downloads. Source-page association history follows the same visibility boundary.
+
+The [feature record](FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md) records actual validation.
+Principal plus fees/penalties, mixed original purposes, external payee/court delivery and
+officer cheque-refund timing remain separate adapters. Do not infer rates, physical acts
+or a universal locally accepted accounting recipe from the researched baseline.
+
+## D-100 — Preserve original cash-purpose amounts across cheque settlement (2026-09-15)
+
+Extend the governed recipe with an explicit original-purpose amount instruction rather
+than treating a multi-charge cheque as one arbitrary cash category. Original posted
+receipt evidence supplies the exact amounts. Require a complete purpose set, one return
+receivable debit, original-bank credits, and one redemption collection asset with the
+selected-return receivable credit. Receipt, return, redemption and exact corrections
+retain their own sources; no revenue is recognized a second time.
+
+Single-purpose historical proof and recipe semantics remain unchanged. New mixed-purpose
+returns retain their component evidence explicitly, and later review rederives it from
+the original immutable receipt. This closes a reporting-treatment limitation, not combined
+penalties, external delivery or officer refund timing. See [scope and actual results](FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md).
+
+## D-101 — Keep officer cheque reservations separate from clearing (2026-09-15)
+
+Extend the existing original-advance refund route to explicitly identified incoming
+cheques. Pending receipt/deposit posting retains the reviewed advance credit and exact
+officer subsidiary, while the full dated amount remains reserved against the original
+release. Independent clearing confirmation changes the settlement evidence only; an
+independent withdrawal returns it to pending and does not release application capacity.
+Neither operation creates another bank credit or rewrites an earlier issued copy.
+
+Use the existing original-case-before-Treasury lock order for clearing mutations as well
+as refunds. Reuse current exact receipt/deposit corrections and witnessed unposted
+withdrawal rather than inventing another adjustment ledger. Actual dishonour is not an
+entry mistake: retain its explicit guard until a dated original-advance return and
+redemption adapter is implemented. This is a phased module, not a completed officer
+cheque lifecycle. See [scope and actual validation](FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md).
+
+## D-102 — Restore officer cheque returns through the original advance (2026-09-15)
+
+An actual bank debit for an officer refund cheque is a new source event: debit the
+selected original advance, credit its original deposit bank and retain the exact
+officer subsidiary and cash purpose. Restore application capacity only from the actual
+return date after independent posting and source reconciliation. A later restoration
+cannot fund an earlier shortfall.
+
+A source-error reversal of that return consumes capacity again. Reserve it from its
+proposed correction date under the same original-case lock used by expense/refund
+applications; recheck later commitments. Independent rejection or withdrawal releases
+an unposted hold only after its journals are discarded. Posted correction mirrors the
+original return and retains dated history.
+
+Replacement principal uses the original officer refund identity and a specific return.
+A returned replacement creates its own dated restoration while the earlier redemption
+remains occupied. Original-recognition correction does not silently adopt actual
+bank-return history as exact receipt/deposit correction evidence. Native races and
+dependent output validation are recorded in [the feature report](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md).
+
+## D-103 — Finance foundation before further breadth (2026-09-18)
+
+The attached user goal supersedes earlier breadth-first sequencing. eGAPS is the
+reference for the LGU's purchased/used Budget–Accounting–Treasury work; disabled
+menus do not authorize new modules. Start with complete scoped retrieval, then
+historical Budget context, verified quarterly-plan/certificate semantics, ordinary
+continuity, required outputs and usability. Preserve unknowns, controls, separate
+stores, original history and operational acceptance gates.
+
+The first bounded repair replaces OBR's silent 100-row slice with 50-row pagination,
+reference/payee search, scoped office/fund and inclusive date filters shared with
+its full matching export. Fund filtering selects whole requests, avoiding duplicate
+rows without misrepresenting multi-fund amounts. Invalid filters do not broaden
+results. Retain filter evidence in archived exports. Increasing the old cap alone
+would leave the functional defect unresolved.
+
+See [the living gap register and checkpoint evidence](FINANCE_FOUNDATION_GATE.md).
+
+## D-104 — Collection retrieval keeps source states and availability distinct (2026-09-18)
+
+Use one scoped, validated filter for collection pages and complete matching exports.
+Paginate before source/JEV enrichment. Search source references, books and payer;
+filter inclusive source dates, source fund, kind and status. Invalid filters cannot
+silently broaden the result. Keep read and export authority separate.
+
+Group recorded face amounts by fund, kind and status over all matching pages.
+These totals are not cash balances: receipts, later deposits and corrections may
+refer to the same money. Keep deposit availability on the existing full-office
+allocation calculation even when the selected register excludes those deposits.
+Do not weaken a financial check to make a narrow search look self-contained.
+
+See checkpoint 1B in [the foundation gate](FINANCE_FOUNDATION_GATE.md) for SQLite,
+native, browser and synthetic volume evidence, and their operational limitations.
+
+## D-105 — Retain Budget comparison evidence without inventing actuals (2026-09-18)
+
+Reuse the proposal FiscalYear's explicit Accounting ledger and exact fund/office/account
+keys. Do not match departments by name or apportion one ledger amount across multiple
+PPAs without evidence. Present posted expense activity separately from certified
+expenditure, because capital outlay and completeness cannot be inferred from expense
+accounts alone. Missing activity/authority is not zero.
+
+Retain dated second-half estimates and their basis on proposal lines. Serialize edits
+and submission on the same version lock; retain a submission snapshot and compare it
+with the audit event before independent approval. Return/resubmit preserves prior
+snapshots. Existing historical approvals receive no invented comparison snapshot.
+Original final authority is distinct from supplemental/successor evidence and an
+adjusted balance. Revisit the narrower projection when accepted expenditure coverage
+and classification evidence become available. See [scope and validation](FINANCE_BUDGET_PLANNING_CONTEXT.md).
+
+## D-106 — Quarterly plans explain timing without creating authority (2026-09-18)
+
+The domain/source investigation distinguishes approved quarterly allocations from
+ARO release and obligation certification. Reuse immutable appropriation lines,
+existing Budget prepare/review permissions and financial controls. Require explicit
+four-quarter allocations and a basis; missing is not zero, and unplanned authority
+is not a withholding reserve or cash balance. Keep physical targets separate by unit.
+
+Retain submission evidence, deny review by preparation contributors, and serialize
+competing successor approvals on the existing authority parent. An ARO pins the plan
+it used; above-plan positive releases need an explained timing basis, with intervening
+releases rechecked under the existing source locks. The explanation does not bypass
+annual financial controls. Historical AROs receive no invented planning context.
+
+This removes separate plan reconstruction during release review without inventing a
+mandatory legal quarter cap. The distinct procurement earmark lifecycle is not aliased
+to generic withholding. See [implementation and validation](FINANCE_QUARTERLY_PLANNING.md).
+
+## D-107 — Continue from the OBR through the existing payable route (2026-09-18)
+
+Use the existing eligibility, capacity, case visibility and intake services rather
+than introducing a second creation or financial handoff. Show primary, non-primary
+and historical allocation links with pending-binding recovery, paginated without a
+silent record ceiling. GET source selection remains read-only and office-scoped;
+claim/payee/invoice values require actual evidence rather than copying OBR totals.
+UAT read access cannot confer preparation. This removes source reselection and
+unclear next-office navigation while preserving cross-store recovery and financial
+control. See [scope and verification](FINANCE_OBR_PAYABLE_HANDOFF.md).
+
+## D-108 — Expose retained recovery after interrupted payable intake (2026-09-21)
+
+A pending initial link is a recoverable source state, not a reason to create another
+claim. The case page now exposes its existing reconciliation action for both pending
+and failed links, scoped to requesting-office preparation, UAT denial and the existing
+pre-DV/corrected-advance boundary. Prioritize recovery in next-action and empty-row
+guidance. Reuse the same case/allocation across either cross-store interruption point;
+never infer that the first store's success completed the second. See
+[scope and verification](FINANCE_PENDING_PAYABLE_RECOVERY.md).

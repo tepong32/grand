@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}<div class="container py-4"><p><a href="{% url 'budget:summary_reconciliations' version.public_id %}">Reconcile joint actuals with issued office forms</a></p>
+<a href="{% url 'budget:version_detail' version.public_id %}">Back to proposal</a>
+<h1 class="mt-3">Office Form 2</h1><p>{{ version.title }} · v{{ version.version }}</p>
+<p>Prepare a complete office/fund copy from approved, retained proposal evidence. A different reviewer checks coverage and designations before issuing an unsigned PDF for physical signing. Form 1 reconciliation remains separate.</p>
+{% for error in errors %}<p class="alert alert-warning">{{ error }}</p>{% endfor %}
+{% if can_prepare %}<h2 class="h5">Captured office scopes</h2><ul>{% for scope in scopes %}<li><a href="{% url 'budget:office_form_prepare' version.public_id scope.office_id scope.fund_id %}">{{ scope.office_label }} / {{ scope.fund_code }} — check coverage and prepare</a></li>{% empty %}<li>No eligible captured office scope.</li>{% endfor %}</ul>{% endif %}
+<h2 class="h5 mt-4">Retained preparations and copies</h2><div class="table-responsive"><table class="table"><thead><tr><th>Office / fund</th><th>Version</th><th>Status</th><th>Prepared</th></tr></thead><tbody>
+{% for item in records %}<tr><td><a href="{% url 'budget:office_form_detail' item.public_id %}">{{ item.payload.schedule.office_label }} / {{ item.payload.schedule.fund_code }}</a></td><td>{{ item.version }}</td><td>{{ item.get_status_display }}</td><td>{{ item.prepared_at }} · {{ item.prepared_by_label }}</td></tr>{% empty %}<tr><td colspan="4">No retained preparation yet.</td></tr>{% endfor %}
+</tbody></table></div><p>{% if records.has_previous %}<a href="?page={{ records.previous_page_number }}">Previous</a>{% endif %} Page {{ records.number }} of {{ records.paginator.num_pages }} {% if records.has_next %}<a href="?page={{ records.next_page_number }}">Next</a>{% endif %}</p></div>{% endblock %}

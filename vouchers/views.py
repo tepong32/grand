@@ -4,6 +4,7 @@ from uuid import UUID
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Count, Sum
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -159,17 +160,24 @@ def workspace(request):
         search=filter_values.get("q", ""), actor=request.user,
     )
     queue_query = cases.filter(current_stage__in=queue_stages)
-    queue_ids = list(queue_query.values_list("pk", flat=True)[:100])
-    queue_cases = _decorate_cases(
-        cases.filter(pk__in=queue_ids).order_by("-updated_at", "-pk"),
-        actionable_stages,
-    )
-    other_cases = _decorate_cases(cases.exclude(pk__in=queue_ids)[:100], actionable_stages)
+    history_query = cases.exclude(current_stage__in=queue_stages)
+    queue_page = Paginator(queue_query.order_by("-updated_at", "-pk"), 50).get_page(request.GET.get("queue_page"))
+    history_page = Paginator(history_query.order_by("-updated_at", "-pk"), 50).get_page(request.GET.get("history_page"))
+    for page, parameter, anchor in (
+        (queue_page, "queue_page", "case-queue"), (history_page, "history_page", "case-history"),
+    ):
+        params = request.GET.copy()
+        for name, number in (("previous_url", page.number - 1), ("next_url", page.number + 1)):
+            params[parameter] = number
+            setattr(page, name, "?" + params.urlencode() + "#" + anchor)
+    queue_cases = _decorate_cases(queue_page, actionable_stages)
+    other_cases = _decorate_cases(history_page, actionable_stages)
     stage_counts = {stage: cases.filter(current_stage=stage).count() for stage, _label in VoucherCase.STAGE_CHOICES}
     return render(request, "vouchers/workspace.html", {
         "cases": other_cases, "queue_cases": queue_cases, "workspace_profile": profile,
         "stage_counts": stage_counts, "permissions": permissions,
-        "queue_count": queue_query.count(),
+        "queue_count": queue_page.paginator.count, "queue_page": queue_page,
+        "history_page": history_page,
         "open_count": cases.exclude(current_stage__in=(VoucherCase.COMPLETED, VoucherCase.CANCELLED)).count(),
         "completed_count": stage_counts[VoucherCase.COMPLETED],
         "visible_count": cases.count(), "stage_choices": VoucherCase.STAGE_CHOICES,
@@ -285,7 +293,7 @@ def dv_custody_register_export(request):
 
 @voucher_access_required
 def case_create(request):
-    if not has_explicit_permission(request.user, "vouchers.initiate_payable_case"):
+    if is_finance_uat_viewer(request.user) or not has_explicit_permission(request.user, "vouchers.initiate_payable_case"):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     try:
@@ -295,6 +303,14 @@ def case_create(request):
         return redirect("vouchers:workspace")
     department = department_for_user(request.user)
     form = PayableIntakeForm(request.POST or None, release=release, department=department)
+    source_obligation = None
+    if request.method == "GET" and "obligation" in request.GET:
+        try:
+            source_id = UUID(request.GET["obligation"])
+        except (ValueError, TypeError, AttributeError):
+            raise Http404("Certified obligation is unavailable for payable preparation.")
+        source_obligation = get_object_or_404(form.fields["authoritative_obligation"].queryset, public_id=source_id)
+        form.initial["authoritative_obligation"] = source_obligation.pk
     if request.method == "POST" and form.is_valid():
         try:
             case = create_payable_case_from_obligation(actor=request.user, **form.cleaned_data)
@@ -311,6 +327,7 @@ def case_create(request):
             return redirect(case)
     return render(request, "vouchers/form.html", {
         "form": form, "title": "Open payable from certified obligation",
+        "source_obligation": source_obligation,
         "guidance": "Select the requesting office's certified F4.2 obligation and reference, rather than duplicate, procurement, delivery, inspection/acceptance, invoice, and claim evidence. Use synthetic UAT evidence until local forms and procedures are accepted.",
     })
 
@@ -405,22 +422,29 @@ def case_detail(request, public_id, *, form_overrides=None):
     }
     relationship_summary = payable_relationship_summary(case) if hasattr(case, "payable_intake") else None
     current_print_job = case.print_jobs.order_by("-version").first()
+    can_recover_obligation = bool(permissions["initiate_payable"]
+        and case.obligation_binding_status in (VoucherCase.BINDING_PENDING, VoucherCase.BINDING_FAILED)
+        and (not hasattr(case, "disbursement_voucher") or advance_correction_window(case)))
+    from .payment_presentations import can_act as presentation_action, visible_reports
     return render(request, "vouchers/case_detail.html", {
+        "can_record_presentation": presentation_action(request.user, 'record_payment_presentations'),
+        "presentation_reports": visible_reports(request.user).filter(instrument__case=case),
+        "can_recover_obligation": can_recover_obligation,
         "case": case, "permissions": permissions, "workspace_profile": profile,
-        "next_action_label": STAGE_NEXT_ACTION.get(case.current_stage, case.get_current_stage_display()),
+        "next_action_label": "Reconcile the retained obligation link before submitting this payable" if can_recover_obligation else STAGE_NEXT_ACTION.get(case.current_stage, case.get_current_stage_display()),
         "case_ready_for_user": ready_cases.exists(),
-        "budget_form": BudgetCertificationForm(case=case),
-        "voucher_form": VoucherPreparationForm(case=case),
-        "voucher_deduction_formset": _voucher_deduction_formset(case),
-        "signature_form": SignatureReturnForm(case=case, user=request.user),
+        "budget_form": (form_overrides or {}).get("budget_form") or BudgetCertificationForm(case=case),
+        "voucher_form": (form_overrides or {}).get("voucher_form") or VoucherPreparationForm(case=case),
+        "voucher_deduction_formset": (form_overrides or {}).get("voucher_deduction_formset", _voucher_deduction_formset(case)),
+        "signature_form": (form_overrides or {}).get("signature_form") or SignatureReturnForm(case=case, user=request.user),
         "validation_form": (form_overrides or {}).get("validation_form") or AccountingValidationForm(case=case),
         "check_form": (form_overrides or {}).get("check_form") or CheckIssueForm(case=case),
-        "submit_checks_form": SubmitChecksForm(case=case),
-        "advice_form": BankAdviceForm(case=case),
-        "release_form": CheckReleaseForm(case=case),
-        "return_form": ReturnCaseForm(case=case),
-        "deduction_correction_form": DeductionCorrectionForm(case=case),
-        "deduction_withdrawal_form": DeductionCorrectionWithdrawalForm(case=case),
+        "submit_checks_form": (form_overrides or {}).get("submit_checks_form") or SubmitChecksForm(case=case),
+        "advice_form": (form_overrides or {}).get("advice_form") or BankAdviceForm(case=case),
+        "release_form": (form_overrides or {}).get("release_form") or CheckReleaseForm(case=case),
+        "return_form": (form_overrides or {}).get("return_form") or ReturnCaseForm(case=case),
+        "deduction_correction_form": (form_overrides or {}).get("deduction_correction_form") or DeductionCorrectionForm(case=case),
+        "deduction_withdrawal_form": (form_overrides or {}).get("deduction_withdrawal_form") or DeductionCorrectionWithdrawalForm(case=case),
         "can_withdraw_deduction_correction": bool(case.current_stage == VoucherCase.ACCOUNTING_EVENT_POSTING
             and can_manage_owned_case_artifact(request.user, case, "vouchers.return_voucher_case")
             and any(r.payload.get("deduction_correction") for r in case.posting_requests.filter(status__in=("pending", "failed", "materialized")))),
@@ -428,18 +452,18 @@ def case_detail(request, public_id, *, form_overrides=None):
             and can_manage_owned_case_artifact(request.user, case, "vouchers.return_voucher_case")
             and not case.payment_instruments.exclude(status__in=("cancelled", "bank_returned")).exists()
             and case.posting_requests.filter(kind="adjustment", status="posted").exists()),
-        "cancel_form": CancelCheckForm(case=case),
-        "tracepoint_form": TracePointLinkForm(case=case),
-        "controlled_print_form": ControlledPrintPrepareForm(case=case),
-        "print_evidence_form": PrintEvidenceForm(case=case),
-        "packet_assembly_form": FinancePacketAssemblyForm(case=case),
-        "amendment_form": NonFinancialAmendmentForm(case=case),
-        "payable_evidence_form": PayableEvidenceForm(case=case),
-        "payable_submit_form": PayableSubmitForm(case=case),
-        "payable_review_form": PayableReviewForm(case=case),
-        "payable_allocation_add_form": PayableAllocationAddForm(case=case),
-        "payable_allocation_revision_form": PayableAllocationRevisionForm(case=case),
-        "payable_claim_control_form": PayableClaimControlForm(case=case),
+        "cancel_form": (form_overrides or {}).get("cancel_form") or CancelCheckForm(case=case),
+        "tracepoint_form": (form_overrides or {}).get("tracepoint_form") or TracePointLinkForm(case=case),
+        "controlled_print_form": (form_overrides or {}).get("controlled_print_form") or ControlledPrintPrepareForm(case=case),
+        "print_evidence_form": (form_overrides or {}).get("print_evidence_form") or PrintEvidenceForm(case=case),
+        "packet_assembly_form": (form_overrides or {}).get("packet_assembly_form") or FinancePacketAssemblyForm(case=case),
+        "amendment_form": (form_overrides or {}).get("amendment_form") or NonFinancialAmendmentForm(case=case),
+        "payable_evidence_form": (form_overrides or {}).get("payable_evidence_form") or PayableEvidenceForm(case=case),
+        "payable_submit_form": (form_overrides or {}).get("payable_submit_form") or PayableSubmitForm(case=case),
+        "payable_review_form": (form_overrides or {}).get("payable_review_form") or PayableReviewForm(case=case),
+        "payable_allocation_add_form": (form_overrides or {}).get("payable_allocation_add_form") or PayableAllocationAddForm(case=case),
+        "payable_allocation_revision_form": (form_overrides or {}).get("payable_allocation_revision_form") or PayableAllocationRevisionForm(case=case),
+        "payable_claim_control_form": (form_overrides or {}).get("payable_claim_control_form") or PayableClaimControlForm(case=case),
         "payable_relationships": relationship_summary,
         "advance_correction_window": advance_correction_window(case),
         "current_print_job": current_print_job,
@@ -459,35 +483,36 @@ def case_action(request, public_id, action):
         raise Http404
     case = _case(public_id, request.user)
     forms = {
-        "certify-budget": BudgetCertificationForm,
-        "prepare-dv": VoucherPreparationForm,
-        "record-signature": SignatureReturnForm,
-        "validate-accounting": AccountingValidationForm,
-        "issue-check": CheckIssueForm,
-        "submit-checks": SubmitChecksForm,
-        "finalize-advice": BankAdviceForm,
-        "release-check": CheckReleaseForm,
-        "return": ReturnCaseForm,
-        "correct-deductions": DeductionCorrectionForm,
-        "withdraw-deduction-correction": DeductionCorrectionWithdrawalForm,
-        "cancel-check": CancelCheckForm,
-        "generate-dv": SubmitChecksForm,
-        "prepare-controlled-print": ControlledPrintPrepareForm,
-        "record-dv-printed": PrintEvidenceForm,
-        "assemble-finance-packet": FinancePacketAssemblyForm,
-        "link-tracepoint": TracePointLinkForm,
-        "amend-nonfinancial": NonFinancialAmendmentForm,
-        "reconcile-obligation": SubmitChecksForm,
-        "record-payable-evidence": PayableEvidenceForm,
-        "submit-payable": PayableSubmitForm,
-        "review-payable": PayableReviewForm,
-        "add-payable-allocation": PayableAllocationAddForm,
-        "revise-payable-allocation": PayableAllocationRevisionForm,
-        "revise-payable-claim": PayableClaimControlForm,
+        "certify-budget": ("budget_form", BudgetCertificationForm),
+        "prepare-dv": ("voucher_form", VoucherPreparationForm),
+        "record-signature": ("signature_form", SignatureReturnForm),
+        "validate-accounting": ("validation_form", AccountingValidationForm),
+        "issue-check": ("check_form", CheckIssueForm),
+        "submit-checks": ("submit_checks_form", SubmitChecksForm),
+        "finalize-advice": ("advice_form", BankAdviceForm),
+        "release-check": ("release_form", CheckReleaseForm),
+        "return": ("return_form", ReturnCaseForm),
+        "correct-deductions": ("deduction_correction_form", DeductionCorrectionForm),
+        "withdraw-deduction-correction": ("deduction_withdrawal_form", DeductionCorrectionWithdrawalForm),
+        "cancel-check": ("cancel_form", CancelCheckForm),
+        "generate-dv": ("submit_checks_form", SubmitChecksForm),
+        "prepare-controlled-print": ("controlled_print_form", ControlledPrintPrepareForm),
+        "record-dv-printed": ("print_evidence_form", PrintEvidenceForm),
+        "assemble-finance-packet": ("packet_assembly_form", FinancePacketAssemblyForm),
+        "link-tracepoint": ("tracepoint_form", TracePointLinkForm),
+        "amend-nonfinancial": ("amendment_form", NonFinancialAmendmentForm),
+        "reconcile-obligation": ("submit_checks_form", SubmitChecksForm),
+        "record-payable-evidence": ("payable_evidence_form", PayableEvidenceForm),
+        "submit-payable": ("payable_submit_form", PayableSubmitForm),
+        "review-payable": ("payable_review_form", PayableReviewForm),
+        "add-payable-allocation": ("payable_allocation_add_form", PayableAllocationAddForm),
+        "revise-payable-allocation": ("payable_allocation_revision_form", PayableAllocationRevisionForm),
+        "revise-payable-claim": ("payable_claim_control_form", PayableClaimControlForm),
     }
-    form_class = forms.get(action)
-    if not form_class:
+    form_config = forms.get(action)
+    if not form_config:
         raise Http404
+    context_key, form_class = form_config
     form_kwargs = {"case": case}
     if form_class is SignatureReturnForm:
         form_kwargs["user"] = request.user
@@ -495,21 +520,15 @@ def case_action(request, public_id, action):
     deduction_formset = _voucher_deduction_formset(case, request.POST) if action == "prepare-dv" else None
     form_valid = form.is_valid()
     deductions_valid = deduction_formset.is_valid() if deduction_formset is not None else True
-    if not form_valid or not deductions_valid:
-        if (action == "validate-accounting" and request.POST.get("consolidated")) or (action == "issue-check" and any(key.startswith("claim_payment_") for key in form.fields)):
-            return case_detail(request, public_id, form_overrides={
-                "validation_form" if action == "validate-accounting" else "check_form": form})
-        errors = [f"{field}: {', '.join(values)}" for field, values in form.errors.items()]
+    def retain_action_form():
+        overrides = {context_key: form}
         if deduction_formset is not None:
-            for index, row in enumerate(deduction_formset.errors, start=1):
-                if row:
-                    errors.append(
-                        f"deduction row {index}: "
-                        + "; ".join(f"{field}: {', '.join(values)}" for field, values in row.items())
-                    )
-            errors.extend(str(value) for value in deduction_formset.non_form_errors())
-        messages.error(request, "Correct the action form: " + "; ".join(errors))
-        return redirect(case)
+            overrides["voucher_deduction_formset"] = deduction_formset
+        return case_detail(request, public_id, form_overrides=overrides)
+
+    if not form_valid or not deductions_valid:
+        messages.error(request, "Please correct the highlighted fields. Your entries are retained below.")
+        return retain_action_form()
     data = form.cleaned_data
     common = {"case": case, "actor": request.user, "expected_version": data["state_version"], "idempotency_key": data["idempotency_key"]}
     try:
@@ -635,11 +654,10 @@ def case_action(request, public_id, action):
                 reason=data["reason"],
             )
     except ValidationError as exc:
-        if (action == "validate-accounting" and request.POST.get("consolidated")) or (action == "issue-check" and any(key.startswith("claim_payment_") for key in form.fields)):
-            form.add_error(None, exc)
-            return case_detail(request, public_id, form_overrides={
-                "validation_form" if action == "validate-accounting" else "check_form": form})
-        messages.error(request, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+        message = "; ".join(exc.messages)
+        form.add_error(None, message)
+        messages.error(request, message)
+        return retain_action_form()
     else:
         messages.success(request, "Voucher action recorded in the append-only workflow history.")
     return redirect(case)

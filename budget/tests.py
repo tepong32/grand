@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal
 import json
+import csv
+import io
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
@@ -78,6 +80,64 @@ class AnnualBudgetPreparationTests(TestCase):
         user.employeeprofile.save(update_fields=("assigned_department",))
         user.user_permissions.add(*Permission.objects.filter(content_type__app_label="budget", codename__in=permissions))
         return get_user_model().objects.get(pk=user.pk)
+
+    def test_annual_register_pages_search_and_export_share_all_matches(self):
+        call = self.make_call()
+        for index in range(1, 112):
+            item = self.make_version(call, version=index)
+            item.title = f"Retrieval proposal {index:03}"
+            item.save(update_fields=("title",))
+        self.client.force_login(self.preparer)
+        url = reverse("budget:workspace")
+        seen = []
+        for number, count in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(url, {"q": "Retrieval", "page": number, "status": BudgetVersion.DRAFT})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["page_obj"].paginator.count, 111)
+            self.assertEqual(len(response.context["versions"]), count)
+            seen.extend(item.pk for item in response.context["versions"])
+            self.assertIn("q=Retrieval", response.context["page_obj"].next_url)
+        self.assertEqual(len(set(seen)), 111)
+        self.assertContains(response, "Showing 101–111 of 111 matching records")
+        exact = self.client.get(url, {"q": "proposal 001", "page": "invalid"})
+        self.assertEqual(exact.context["page_obj"].paginator.count, 1)
+        for search, count in (("Retrieval", 111), ("proposal 001", 1), ("absent", 0)):
+            export = self.client.get(reverse("budget:annual_register_export"), {"q": search, "page": 3})
+            self.assertEqual(export.status_code, 200)
+            rows = list(csv.DictReader(io.StringIO(export.content.decode("utf-8-sig"))))
+            self.assertEqual(len(rows), count)
+            event = BudgetAuditEvent.objects.filter(action="annual_register_exported").latest("pk")
+            self.assertEqual(event.snapshot["search"], search)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"q": "Retrieval"}).context["page_obj"].paginator.count, 0)
+
+    def test_allotment_register_pages_search_and_export_share_all_matches(self):
+        authority = self.make_authorized_appropriation()
+        for index in range(1, 112):
+            self.make_allotment_order(authority, number=f"RETRIEVAL-ARO-{index:03}", total="0")
+        self.client.force_login(self.preparer)
+        url = reverse("budget:allotment_workspace")
+        seen = []
+        for number, count in ((1, 50), (2, 50), (3, 11)):
+            response = self.client.get(url, {"q": "RETRIEVAL", "page": number, "status": AllotmentReleaseOrder.DRAFT})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["page_obj"].paginator.count, 111)
+            self.assertEqual(len(response.context["orders"]), count)
+            seen.extend(item.pk for item in response.context["orders"])
+            self.assertIn("q=RETRIEVAL", response.context["page_obj"].next_url)
+        self.assertEqual(len(set(seen)), 111)
+        self.assertContains(response, "Showing 101–111 of 111 matching records")
+        for search, count in (("RETRIEVAL", 111), ("ARO-001", 1), ("absent", 0)):
+            response = self.client.get(url, {"q": search})
+            self.assertEqual(response.context["page_obj"].paginator.count, count)
+            export = self.client.get(reverse("budget:allotment_register_export"), {"q": search, "page": 3})
+            self.assertEqual(export.status_code, 200)
+            rows = list(csv.DictReader(io.StringIO(export.content.decode("utf-8-sig"))))
+            self.assertEqual(len(rows), count)
+            event = BudgetAuditEvent.objects.filter(action="allotment_register_exported").latest("pk")
+            self.assertEqual(event.snapshot["search"], search)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"q": "RETRIEVAL"}).context["page_obj"].paginator.count, 0)
 
     def make_call(self, status=BudgetCall.DRAFT):
         return BudgetCall.objects.create(
@@ -296,7 +356,8 @@ class AnnualBudgetPreparationTests(TestCase):
         self.assertContains(response, review.title)
         self.assertNotContains(response, draft.title)
         self.assertContains(response, "Independent reviewer: approve or return")
-        self.assertContains(response, "1 visible version")
+        self.assertContains(response, "1 matching version")
+        self.assertEqual(response.context["page_obj"].paginator.count, 1)
 
         response = self.client.get(reverse("budget:workspace"), {
             "status": BudgetVersion.DRAFT,
@@ -853,6 +914,75 @@ class AnnualBudgetPreparationTests(TestCase):
             request=request, appropriation_line=request.authorization.schedule_lines.get(),
             movement_type=movement, amount=Decimal(amount), remarks="Synthetic obligation schedule line.",
         )
+
+    def test_obligation_register_retrieves_beyond_100_and_exports_all_matches(self):
+        authorization = self.make_executable_authority()
+        oldest = self.make_obligation_request(authorization, reference="OLDER-OBR-TARGET")
+        for index in range(104):
+            self.make_obligation_request(authorization, reference=f"VOLUME-{index:03}")
+        self.client.force_login(self.requester)
+        url = reverse("budget:obligation_workspace")
+        seen = []
+        for number in (1, 2, 3):
+            response = self.client.get(url, {"page": number})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["page_obj"].paginator.count, 105)
+            seen.extend(item.pk for item in response.context["requests"])
+        self.assertEqual(len(set(seen)), 105)
+        self.assertEqual(seen[-1], oldest.pk)
+        found = self.client.get(url, {"q": "older-obr"})
+        self.assertEqual([item.pk for item in found.context["requests"]], [oldest.pk])
+        for invalid_page in ("nonsense", "999", "-1"):
+            self.assertEqual(self.client.get(url, {"page": invalid_page}).status_code, 200)
+        with tempfile.TemporaryDirectory() as directory, override_settings(GRAND_EXPORT_ROOT=directory):
+            exported = self.client.get(reverse("budget:obligation_register_export"), {"page": 3})
+            self.assertEqual(exported.status_code, 200)
+            import csv
+            import io
+            rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+            self.assertEqual(len(rows), 105)
+            self.assertEqual({row["request_public_id"] for row in rows}, {str(item.public_id) for item in ObligationRequest.objects.all()})
+
+    def test_obligation_retrieval_filters_deduplicate_and_preserve_export_evidence(self):
+        authorization = self.make_executable_authority()
+        target = self.make_obligation_request(authorization, reference="TARGET-REQUEST")
+        self.add_obligation_line(target, "5000")
+        self.add_obligation_line(target, "5000")
+        other = self.make_obligation_request(authorization, reference="OTHER-REQUEST")
+        self.client.force_login(self.requester)
+        query = {"q": "target", "office": self.requesting_office.pk, "fund": "GF",
+                 "date_from": "2027-01-15", "date_to": "2027-01-15"}
+        response = self.client.get(reverse("budget:obligation_workspace"), query)
+        self.assertEqual([item.pk for item in response.context["requests"]], [target.pk])
+        with tempfile.TemporaryDirectory() as directory, override_settings(GRAND_EXPORT_ROOT=directory):
+            exported = self.client.get(reverse("budget:obligation_register_export"), query)
+            self.assertContains(exported, target.request_reference)
+            self.assertNotContains(exported, other.request_reference)
+            event = BudgetAuditEvent.objects.filter(action="obligation_register_exported").latest("pk")
+            self.assertEqual(event.snapshot["retrieval_filters"]["q"], "target")
+            self.assertEqual(event.snapshot["request_count"], 1)
+
+    def test_obligation_retrieval_rejects_invalid_and_out_of_scope_filters(self):
+        authorization = self.make_executable_authority()
+        self.make_obligation_request(authorization)
+        hidden = self.make_obligation_request(authorization, reference="HIDDEN-REFERENCE")
+        hidden.requesting_department_id = self.other_office.pk
+        hidden.requesting_department_label = self.other_office.name
+        hidden.save(update_fields=("requesting_department_id", "requesting_department_label"))
+        self.client.force_login(self.requester)
+        url = reverse("budget:obligation_workspace")
+        response = self.client.get(url, {"q": "HIDDEN"})
+        self.assertEqual(response.context["page_obj"].paginator.count, 0)
+        self.assertNotContains(response, self.other_office.name)
+        for year in ("invalid", "9" * 80):
+            self.assertEqual(self.client.get(url, {"fiscal_year": year}).status_code, 404)
+            self.assertEqual(self.client.get(reverse("budget:obligation_register_export"), {"fiscal_year": year}).status_code, 404)
+        for query in ({"office": self.other_office.pk}, {"fund": "UNKNOWN"},
+                      {"date_from": "not-a-date"}, {"date_from": "2027-02-01", "date_to": "2027-01-01"}):
+            response = self.client.get(url, query)
+            self.assertTrue(response.context["retrieval_form"].errors)
+            self.assertEqual(response.context["page_obj"].paginator.count, 0)
+            self.assertEqual(self.client.get(reverse("budget:obligation_register_export"), query).status_code, 400)
 
     def test_requesting_office_submits_and_budget_certifies_exact_obligation_once(self):
         authorization = self.make_executable_authority()

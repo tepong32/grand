@@ -30,6 +30,14 @@ def review_source(*, source, actor, approve, reason):
     if _digest(source.proposal) != source.proposal_checksum:
         raise ValidationError('The retained collection/deposit proposal changed.')
     if approve:
+        from .cheque_returns import validate as validate_return
+        validate_return(source)
+        from .cheque_redemptions import validate as validate_redemption
+        validate_redemption(source)
+        from .collection_charges import validate as validate_charges
+        validate_charges(source, review=True)
+        from .bank_collections import validate as validate_bank
+        validate_bank(source, review=True)
         validate_source(source)
         if source.kind == Source.CORRECTION:
             from .collection_corrections import validate_correction
@@ -45,6 +53,8 @@ def review_source(*, source, actor, approve, reason):
             balances=remaining_receipts(source.treasury_department_id,exclude=source.pk,as_of=source.source_date)
             for row in source.proposal['allocations']:
                 receipt=Source.objects.get(public_id=row['receipt'])
+                from .collection_cheques import validate_deposit
+                validate_deposit(receipt, row['amount'])
                 entry=posted_receipt(receipt)
                 if (receipt.proposal_checksum != row['proposal_checksum'] or str(entry.public_id) != row['entry']
                         or Decimal(row['amount']) > balances.get(row['receipt'],Decimal('0'))):
@@ -93,6 +103,10 @@ def validate_collection_journal(entry):
             raise ValidationError('The correction must exactly reverse its original source journal.')
     from .advance_refunds import validate_journal
     validate_journal(entry)
+    from .cheque_returns import validate_journal as validate_return_journal
+    validate_return_journal(entry)
+    from .cheque_redemptions import validate_journal as validate_redemption_journal
+    validate_redemption_journal(entry)
 
 
 @transaction.atomic
@@ -108,10 +122,18 @@ def materialize(request,actor):
             or request.payload['proposal_checksum'] != source.proposal_checksum or request.payload['proposal'] != source.proposal
             or _digest(source.proposal) != source.proposal_checksum or _digest(request.payload) != request.payload_checksum):
         raise ValidationError('Retain the approved collection/deposit source and posting request.')
-    source_type={Source.RECEIPT:'collection',Source.DEPOSIT:'deposit',Source.CORRECTION:'collection_fix'}[source.kind]
+    source_type={Source.RECEIPT:'collection',Source.DEPOSIT:'deposit',Source.CORRECTION:'collection_fix',Source.CHEQUE_RETURN:'cheque_return'}[source.kind]
     validate_source(source)
+    from .collection_charges import validate as validate_charges
+    validate_charges(source)
+    from .bank_collections import validate as validate_bank
+    validate_bank(source)
     with transaction.atomic(using='finance'):
         fund=Fund.objects.select_for_update().get(pk=source.proposal['fund_id'],department_id=source.finance_department_id)
+        from .cheque_returns import validate as validate_return
+        validate_return(source, lock_finance=True)
+        from .cheque_redemptions import validate as validate_redemption
+        validate_redemption(source, lock_finance=True)
         existing=JournalEntry.objects.filter(source_type=source_type,source_reference=str(request.public_id)).first()
         if existing:
             verify_source_link(request,existing,source_type=source_type);validate_collection_journal(existing)
@@ -126,6 +148,8 @@ def materialize(request,actor):
                 for row in source.proposal['allocations']:
                     original=JournalEntry.objects.select_for_update().get(public_id=row['entry'])
                     receipt=Source.objects.get(public_id=row['receipt'])
+                    from .collection_cheques import validate_deposit
+                    validate_deposit(receipt, row['amount'])
                     if posted_receipt(receipt).pk != original.pk or Decimal(row['amount']) > balances.get(row['receipt'],Decimal('0')):
                         raise ValidationError('The deposit must retain its available posted collection shares.')
             period=AccountingPeriod.objects.get(department_id=source.finance_department_id,status=AccountingPeriod.OPEN,
@@ -165,7 +189,7 @@ def materialize(request,actor):
 @transaction.atomic
 def reconcile(entry,actor):
     entry=require_persisted_posting(entry,actor,source_type=entry.source_type)
-    if entry.source_type not in ('collection','deposit','collection_fix'):
+    if entry.source_type not in ('collection','deposit','collection_fix','cheque_return'):
         raise ValidationError('Choose a posted collection/deposit journal.')
     request=Request.objects.select_related('source').get(public_id=entry.source_reference)
     from .advance_refunds import lock_source_case
@@ -181,6 +205,14 @@ def reconcile(entry,actor):
     request.status,request.posted_at,request.accounting_entry_public_id=Request.POSTED,entry.posted_at,entry.public_id
     request.failure_reason='';request.save()
     source.status=Source.POSTED;source.save(update_fields=('status',))
+    if source.kind == Source.CORRECTION and source.correction_of.kind == Source.CHEQUE_RETURN:
+        original = Source.objects.select_for_update().get(pk=source.correction_of_id)
+        original.status = Source.CORRECTED
+        original.save(update_fields=('status',))
+    if source.kind == Source.CORRECTION and source.correction_of.redemption_return_id:
+        original = Source.objects.select_for_update().get(pk=source.correction_of_id)
+        original.redemption_active = False
+        original.save(update_fields=('redemption_active',))
     return source
 
 
@@ -201,7 +233,7 @@ def withdraw_unposted(*, source, actor, reason):
     requests = list(source.posting_requests.select_for_update().order_by('version'))
     if not requests or any(row.status == Request.POSTED for row in requests):
         raise ValidationError('Resolve the retained source posting before withdrawing approval.')
-    source_type = {Source.RECEIPT:'collection',Source.DEPOSIT:'deposit',Source.CORRECTION:'collection_fix'}[source.kind]
+    source_type = {Source.RECEIPT:'collection',Source.DEPOSIT:'deposit',Source.CORRECTION:'collection_fix',Source.CHEQUE_RETURN:'cheque_return'}[source.kind]
     with transaction.atomic(using='finance'):
         Fund.objects.select_for_update().get(pk=source.proposal['fund_id'],department_id=source.finance_department_id)
         for posting in requests:

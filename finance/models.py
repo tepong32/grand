@@ -388,6 +388,7 @@ class FinanceDocumentRule(models.Model):
 class FinancePostingRule(models.Model):
     COLLECTION = "collection"
     DEPOSIT = "deposit"
+    CHEQUE_RETURN = "cheque_return"
     RECOGNITION = "recognition"
     ADJUSTMENT = "adjustment"
     LIQUIDATION = "liquidation"
@@ -399,6 +400,7 @@ class FinancePostingRule(models.Model):
     EVENT_KIND_CHOICES = (
         (COLLECTION, "Record an actual Treasury collection"),
         (DEPOSIT, "Deposit previously recorded collections"),
+        (CHEQUE_RETURN, "Record an incoming cheque bank debit"),
         (RECOGNITION, "Recognize expense, asset, or payable"),
         (ADJUSTMENT, "Adjust an earlier recognition"),
         (LIQUIDATION, "Record liquidation"),
@@ -422,9 +424,11 @@ class FinancePostingRule(models.Model):
     OTHER = "other"
     COLLECTION_RECEIPT = "collection_receipt"
     COLLECTION_DEPOSIT = "collection_deposit"
+    COLLECTION_RETURN = "collection_return"
     RECOGNITION_POINT_CHOICES = (
         (COLLECTION_RECEIPT, "Actual Treasury receipt"),
         (COLLECTION_DEPOSIT, "Actual deposit of collections"),
+        (COLLECTION_RETURN, "Actual bank debit for an incoming cheque"),
         (DELIVERY_ACCEPTANCE, "Delivery / inspection acceptance"),
         (BILLING_VALIDATION, "Billing or claim validation"),
         (DV_VALIDATION, "DV Accounting validation"),
@@ -501,6 +505,7 @@ class FinancePostingRule(models.Model):
 
 
 class FinancePostingRuleLine(models.Model):
+    RETURN_RECEIVABLE = "return_receivable"
     ALLOCATION_ACCOUNTS = "allocation_accounts"
     DEDUCTION_MAPPINGS = "deduction_mappings"
     PAYABLE_MAPPING = "payable_mapping"
@@ -510,6 +515,7 @@ class FinancePostingRuleLine(models.Model):
     ADVANCE_ACCOUNT = "advance_account"
     PRIOR_ADVANCE = "prior_advance"
     ACCOUNT_SOURCE_CHOICES = (
+        (RETURN_RECEIVABLE, "Selected incoming-cheque return receivable"),
         (PRIOR_ADVANCE, "Selected original officer advance asset"),
         (ADVANCE_ACCOUNT, "Accountable officer advance asset"),
         (PRIOR_PAYABLE, "Selected prior payable claim account"),
@@ -528,7 +534,9 @@ class FinancePostingRuleLine(models.Model):
     NET = "net"
     TOTAL_DEDUCTIONS = "total_deductions"
     EVENT_AMOUNT = "event_amount"
+    ORIGINAL_CASH_COMPONENT = "original_cash_component"
     AMOUNT_SOURCE_CHOICES = (
+        (ORIGINAL_CASH_COMPONENT, "Original cheque amount for this cash-flow purpose"),
         (EACH_ALLOCATION, "Each allocation amount"),
         (EACH_DEDUCTION, "Each deduction amount"),
         (GROSS, "Voucher gross amount"),
@@ -567,6 +575,22 @@ class FinancePostingRuleLine(models.Model):
     def clean(self):
         if self.rule_id and self.rule.variant.release.status != "draft":
             raise ValidationError("Posting-rule lines can be changed only inside a draft configuration release.")
+        if self.amount_source == self.ORIGINAL_CASH_COMPONENT:
+            returning = (self.rule.event_kind == FinancePostingRule.CHEQUE_RETURN
+                and self.rule.recognition_point == FinancePostingRule.COLLECTION_RETURN
+                and self.side == self.CREDIT and self.account_source == self.BANK_MAPPING)
+            redeeming = (self.rule.event_kind == FinancePostingRule.COLLECTION
+                and self.rule.recognition_point == FinancePostingRule.COLLECTION_RECEIPT
+                and self.side == self.DEBIT and self.account_source == self.FIXED_ACCOUNT)
+            if (not (returning or redeeming) or not self.cash_flow_category
+                    or self.cash_flow_category == 'internal' or self.mapping_code.strip()):
+                raise ValidationError('Original cash components require an explicit original-purpose return bank credit or redemption collection debit.')
+        if self.account_source == self.RETURN_RECEIVABLE:
+            if (self.side != self.CREDIT or self.amount_source != self.EVENT_AMOUNT
+                    or self.rule.event_kind != FinancePostingRule.COLLECTION
+                    or self.rule.recognition_point != FinancePostingRule.COLLECTION_RECEIPT
+                    or self.mapping_code.strip() or self.ledger_account_code.strip() or self.cash_flow_category):
+                raise ValidationError("Cheque redemption credits the selected original return receivable for the actual principal receipt.")
         deposited_cash = (self.account_source == self.ALLOCATION_ACCOUNTS
             and self.cash_flow_category == 'internal' and self.side == self.CREDIT
             and self.amount_source == self.EACH_ALLOCATION
@@ -600,8 +624,11 @@ class FinancePostingRuleLine(models.Model):
             refund = (self.rule.event_kind == FinancePostingRule.COLLECTION
                 and self.rule.recognition_point == FinancePostingRule.COLLECTION_RECEIPT
                 and self.amount_source == self.EVENT_AMOUNT)
-            if self.side != self.CREDIT or self.mapping_code.strip() or not (liquidation or refund):
-                raise ValidationError("Apply an original advance by liquidation gross credit or actual refund receipt credit.")
+            bank_return = (self.rule.event_kind == FinancePostingRule.CHEQUE_RETURN
+                and self.rule.recognition_point == FinancePostingRule.COLLECTION_RETURN
+                and self.amount_source == self.EVENT_AMOUNT and self.side == self.DEBIT)
+            if self.mapping_code.strip() or not (bank_return or (self.side == self.CREDIT and (liquidation or refund))):
+                raise ValidationError("Use an original-advance liquidation/refund credit or an actual officer-cheque-return debit.")
         if self.account_source in {self.FIXED_ACCOUNT, self.ADVANCE_ACCOUNT}:
             if not self.ledger_account_code.strip():
                 raise ValidationError({"ledger_account_code": "Enter the locally confirmed posting account code."})
@@ -772,8 +799,14 @@ class FinanceTemplateVersion(models.Model):
         "GRAND_GROSS_AMOUNT", "GRAND_TOTAL_DEDUCTIONS", "GRAND_NET_AMOUNT", "GRAND_LINE_ITEMS",
         "GRAND_PREPARED_BY", "GRAND_CERTIFIED_BY", "GRAND_APPROVED_BY",
     )
+    DV_CONTEXT_NAMES = (
+        "GRAND_FUND_CODES", "GRAND_OBLIGATION_REFERENCES", "GRAND_CLAIM_REFERENCE",
+        "GRAND_PAYEE_ADDRESS", "GRAND_PAYEE_TIN",
+    )
     TEMPLATE_SCHEMAS = {
-        "disbursement-voucher": {"required": REQUIRED_NAMES, "table": "GRAND_LINE_ITEMS"},
+        "disbursement-voucher": {
+            "required": REQUIRED_NAMES, "table": "GRAND_LINE_ITEMS", "optional": DV_CONTEXT_NAMES,
+        },
         "obr": {"required": (
             "GRAND_OBR_NUMBER", "GRAND_OBR_DATE", "GRAND_PAYEE", "GRAND_PARTICULARS",
             "GRAND_FUND", "GRAND_RESPONSIBILITY_CENTER", "GRAND_ACCOUNT_CODE",

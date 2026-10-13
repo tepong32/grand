@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone as datetime_timezone
 from decimal import Decimal
 import shutil
 import tempfile
@@ -79,7 +79,8 @@ class DeductionCorrectionTests(TestCase):
             recipient_party=agency, fund_code="general-fund", bank_account_code="gf-lbp", remittance_date=date(2026, 8, 31),
             payment_method="Electronic transfer", authority_reference="Synthetic reviewed remittance", evidence_reference="Synthetic retained schedule")
 
-    def test_exact_reversal_reopens_dv_then_corrected_deduction_and_payment_reconcile(self):
+    @patch("django.utils.timezone.now", return_value=datetime(2026, 9, 15, 3, tzinfo=datetime_timezone.utc))
+    def test_exact_reversal_reopens_dv_then_corrected_deduction_and_payment_reconcile(self, scenario_clock):
         original_rows = list(self.adjustment.lines.values("account_id", "debit", "credit"))
         self.request()
         self.request()

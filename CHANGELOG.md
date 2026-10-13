@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.161] - 2026-10-14
+### Fixed
+- fix(auth): bind attempt limits to accounts and reconcile current primary
+
 ## [0.7.159] - 2026-10-14
 ### Added
 - feat(ui): polish citizen and department starting pages
@@ -8,9 +12,205 @@
 ### Fixed
 - fix(auth): separate citizen signup and employee authority
 
+## [0.7.157] - 2026-10-14
+### Fixed
+- fix(ci): distribute complete regressions across isolated workers
+
+## [0.7.156] - 2026-10-13
+### Fixed
+- fix(finance): reuse verified Form 1 evidence within each operation
+
+## [0.7.155] - 2026-10-13
+### Fixed
+- fix(finance): avoid repeated verification of joint actuals snapshots
+
+## [0.7.154] - 2026-10-13
+### Added
+- feat(finance): retain reviewed Budget actuals and source-bound Form 1 draft history
+
+## [0.7.153] - 2026-09-26
+### Added
+- feat(finance): capture coherent native Budget ledger evidence
+
+## [0.7.152] - 2026-09-25
+### Documentation
+- docs(finance): verify native Budget source attribution and coverage gaps
+
+## [0.7.151] - 2026-09-25
+### Added
+- feat(finance): retain independently adopted Budget actual certificates
+
+## [0.7.150] - 2026-09-25
+### Documentation
+- docs(finance): define authoritative Budget actuals and certification contract
+
+## [0.7.149] - 2026-09-25
+### Fixed
+- fix(finance): derive Budget actuals from explicit Accounting ownership
+
+## [0.7.148] - 2026-09-25
+### Fixed
+- fix(finance): preserve Budget expense activity through nominal closing
+
+## [0.7.147] - 2026-09-24
+### Fixed
+- fix(finance): complete personal work retrieval without changing export scope
+
+## [0.7.146] - 2026-09-24
+### Documentation
+- docs(finance): audit integrated retrieval and Budget actuals requirements
+
+## [0.7.145] - 2026-09-24
+### Fixed
+- fix(finance): complete schedule retrieval and retained statement navigation
+
+## [0.7.144] - 2026-09-24
+### Fixed
+- fix(finance): complete bank candidate and report history navigation
+
+## [0.7.143] - 2026-09-24
+### Fixed
+- fix(finance): complete Accounting history and opening row retrieval
+
+## [0.7.142] - 2026-09-24
+### Fixed
+- fix(finance): expose retained Budget and remittance history
+
+## [0.7.141] - 2026-09-24
+### Fixed
+- fix(finance): expose complete shadow cycles and review history
+
+## [0.7.140] - 2026-09-22
+### Fixed
+- fix(treasury): complete cash and remittance register pagination
+
+## [0.7.139] - 2026-09-22
+### Fixed
+- fix(accounting): paginate ledger with continuous scoped balances
+
+## [0.7.138] - 2026-09-22
+### Documentation
+- docs(finance): audit foundation requirements and remaining retrieval gaps
+
+## [0.7.137] - 2026-09-22
+### Test
+- test(finance): verify Treasury exports across release and posting
+
+## [0.7.136] - 2026-09-22
+### Fixed
+- fix(reporting): retain local payment-release dates in tax reports
+
+## [0.7.135] - 2026-09-22
+### Fixed
+- fix(reporting): align Treasury totals with local activity dates
+
+## [0.7.134] - 2026-09-22
+### Fixed
+- fix(finance): preserve particulars in populated DV starters
+
+## [0.7.133] - 2026-09-22
+### Fixed
+- fix(finance): bind optional DV context to retained sources
+
+## [0.7.132] - 2026-09-22
+### Fixed
+- fix(finance): reject omitted controlled fields in workbook print areas
+
+## [0.7.131] - 2026-09-22
+### Fixed
+- docs(finance): verify controlled signing copy browser workflow
+
+## [0.7.130] - 2026-09-22
+### Fixed
+- docs(finance): retain retrieval browser and custody validation
+
+## [0.7.129] - 2026-09-22
+### Fixed
+- fix(reporting): paginate local forms and retained report sources
+
+## [0.7.128] - 2026-09-22
+### Fixed
+- fix(accounting): paginate close and bank control registers
+
+## [0.7.127] - 2026-09-22
+### Fixed
+- fix(budget): retrieve all proposal and allotment matches
+
+## [0.7.126] - 2026-09-22
+### Fixed
+- fix(vouchers): paginate complete queue and history
+
+## [0.7.125] - 2026-09-22
+### Fixed
+- fix(accounting): retrieve all journals and source handoffs
+
+## [0.7.124] - 2026-09-22
+### Fixed
+- fix(vouchers): retain entries after action validation errors
+
+## [0.7.123] - 2026-09-21
+### Feat
+- test(finance): reconcile ordinary cross-office outputs
+
+## [0.7.122] - 2026-09-21
+### Feat
+- fix(reporting): retrieve all matching report runs
+
+## [0.7.121] - 2026-09-21
+### Feat
+- fix(finance): expose pending payable link recovery
+
+## [0.7.120] - 2026-09-18
+### Feat
+- fix(finance): connect OBR detail to scoped payable work
+
+## [0.7.119] - 2026-09-18
+### Feat
+- feat(budget): connect quarterly planning to allotment review
+
+## [0.7.118] - 2026-09-18
+### Feat
+- feat(budget): retain dated proposal planning context
+
+## [0.7.117] - 2026-09-18
+### Fixed
+- fix(finance): add scoped collection register retrieval and totals
+
+## [0.7.116] - 2026-09-18
+### Fixed
+- fix(finance): restore complete scoped OBR retrieval
+
+## [0.7.115] - 2026-09-15
+### Added
+- feat(finance): restore officer cheque returns through original advances
+
+## [0.7.114] - 2026-09-15
+### Added
+- feat(finance): retain officer cheque refund reservations through clearing
+
+## [0.7.113] - 2026-09-15
+### Added
+- feat(finance): preserve original cheque cash-purpose components
+
+## [0.7.112] - 2026-09-15
+### Added
+- feat(finance): link cheque principal redemption and internal custody
+
+## [0.7.111] - 2026-09-15
+### Added
+- feat(finance): post source-linked incoming cheque bank returns
+
+## [0.7.110] - 2026-09-15
+### Added
+- feat(finance): retain cheque presentation reports and source-linked resolution
+
 ## [0.7.109] - 2026-09-15
 ### Documentation
 - docs(finance): design modular cheque exceptions with human resolution
+
+## [0.7.108] - 2026-09-15
+### Added
+- feat(finance): retain collection payment modes, receipt fees and reviewed cheque clearing
 
 ## [0.7.107] - 2026-09-14
 ### Maintenance

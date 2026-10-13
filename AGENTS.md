@@ -19,6 +19,33 @@ Department starting-page presets and slug aliases describe office scope only;
 they never confer access. Available links reuse module permissions; unfinished
 and restricted cards are nonclickable. See [dashboard design](docs/DEPARTMENT_DASHBOARDS.md).
 
+Budget source attribution, native/adopted joint actuals and cash, office schedules,
+receipt forecasts and Form 1 drafts follow the detailed
+[Budget control boundaries](docs/FINANCE_BUDGET_CONTROL_BOUNDARIES.md) and their
+cross-linked contracts. Preserve complete signed source partitions and exact
+office/Fund/period identities; never infer source purpose, certified zero,
+government account authority or settlement coverage from labels or totals.
+Retain original attachments, independent decision actors and correction/version
+lineage. Actor/source/version-bound previews and currentness checks are distinct
+from readable immutable history, separate export grants, statutory certification,
+Chief Executive approval, issuance and cash capacity. Missing controls remain
+unknown. Source freshness observations never establish a universal posting lock.
+Native default/Finance source locks and all stated owning lock orders remain
+mandatory. Whole Form 1 office rows are candidate indexes only: verify the original
+package, actual source access and exact office scope before counting/paging.
+Migration preflights refuse invalid retained root/office evidence rather than
+repairing history. Request-local reuse hashes the actual entire envelope and pins
+the same actor/source; it never creates authority or approval. See the
+[source contract](docs/FINANCE_FORM1_SOURCE_CONTRACT.md),
+[assembly design](docs/FINANCE_FORM1_ASSEMBLY_DESIGN.md) and
+[review/delivery contract](docs/FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md).
+
+Pure Form 1 integrity reuse is limited to the outer operation and keys the complete
+actual JSON evidence, including its claimed checksums. Non-JSON/coercible inputs
+receive full uncached verification. Keep returned payloads caller-owned; never cache
+models, permissions, attachment access, currentness or financial decisions. See the
+[runtime repair evidence](docs/FINANCE_V156_RUNTIME_VALIDATION.md).
+
 Cheque exceptions (2026-09-15): user has no local procedures and authorizes public-source
 research, modular implementation and human resolution of rare cases. Missing local
 paperwork must not block ordinary Finance development. Separate reported presentation,
@@ -48,7 +75,110 @@ Posted prior-payable deductions are corrected by exact source reversal, followed
 
 Consolidated DVs retain explicit per-claim gross/deduction/net allocations for one payee and fund. Create the entire Finance reservation group atomically under sorted original-credit locks; recover only the same immutable allocation. Partial checks require explicit shares, and replacements retain the original shares. Closing a returned check retires only its independently posted shares on the actual return date, preserving other instruments and earlier-date capacity controls. See [consolidated settlement](docs/FINANCE_CONSOLIDATED_DV_2026-09-10.md).
 
+OBR-to-payable navigation reuses the existing scoped case and intake contracts.
+Retain non-primary/history allocations and interrupted bindings; GET source selection
+never creates claims or infers invoice amounts. Pending/failed intake links recover
+through the retained case and existing allocation; see [recovery scope](docs/FINANCE_PENDING_PAYABLE_RECOVERY.md). See [handoff scope](docs/FINANCE_OBR_PAYABLE_HANDOFF.md).
+
+Register pagination must partition complete scoped querysets before slicing. In the
+Voucher Workbench, older actionable cases remain in the queue rather than spilling
+into shared history; saved views recheck current scope and exports retain all matches.
+See [voucher retrieval](docs/FINANCE_VOUCHER_RETRIEVAL.md).
+
+Controlled workbook preflight must cover all required fields and detail rows in
+printable regions, including valid repeated titles; a merged field cannot be split
+across separately printed areas. Reverify before new output generation without
+rewriting historical issued files. Coverage alone does not establish legibility,
+printer pagination or local acceptance. See [print coverage](docs/FINANCE_TEMPLATE_PRINT_COVERAGE.md).
+
+DV optional context binds only names retained by that template's preflight; never
+reinterpret an existing approval after adding a recognized name. Use actual certified
+obligation references for multi-source claims and the case's pinned party version.
+Retain output context/source identities and literal text; see [source-context contract](docs/FINANCE_DV_SOURCE_CONTEXT.md).
+Controlled scalars must not overlap other fields or the detail table. Conflicting
+older templates require a reviewed correction before new generation; issued copies
+remain unchanged. See [starter layout and reproduction](docs/FINANCE_STARTER_LAYOUT.md).
+
+Treasury instrument reports must use the same active local date for database
+selection, issue/release/cancellation totals and source dates. Preserve actual
+instants and distinct issue/release evidence; see [period boundary validation](docs/FINANCE_TREASURY_REPORT_DATES.md).
+Configured payment-release tax reporting uses the same local-date conversion;
+reversals retain their own journal dates and missing releases stay pending. See
+[tax release-date validation](docs/FINANCE_TAX_RELEASE_DATES.md).
+
 ### Development state
+
+The v0.7.154 release candidate combines the intended Finance development chain
+after primary v0.7.109 with governed Budget actual/source attribution, joint source
+certification, historical schedules, forecast/account/SPA/stock/PhilHealth
+composition and immutable whole-draft internal reviews, register and complete
+PDF/ZIP/JSON delivery. Release validation/integration is recorded in
+[checkpoint evidence](docs/FINANCE_V154_RELEASE_VALIDATION.md) and CONTINUE.md;
+candidate capabilities are not master facts until integration. Latest user steering
+prioritizes the [Actions incident](docs/FINANCE_CI_INCIDENT_2026-10-12.md), then
+resumption of the Finance goal after actual verify/mysql passes. Do not expand
+dependent feature breadth while release/CI defects remain unresolved. Intake/review UI,
+representative retrieval performance, statutory signing/issuance and broader
+Finance/LGU/operational acceptance remain open. Production remains NO-GO.
+Detailed retrieval/source controls formerly listed here remain applicable in the
+[Budget control map](docs/FINANCE_BUDGET_CONTROL_BOUNDARIES.md); earlier checkpoint
+progress statements yield to current source contracts and validation.
+
+The v0.7.112 development principal-redemption checkpoint links a new receipt to the exact posted
+bank-return receivable and reserve that principal once. A replacement manager's/cashier's
+cheque stays pending until independently confirmed clearing; later dishonour selects a
+new linked return instead of reopening the original reservation. Exact receipt correction
+retires its hold only after reconciliation and preserves dated deposit history. Versioned
+internal TracePoint associations retain separate physical handovers, independent mistaken-link
+withdrawal and joint visibility for custody-bearing outputs. External delivery, combined
+penalties and officer timing remain open. See
+[current redemption scope](docs/FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md).
+
+Incoming cheque bank returns have a validated v0.7.111 development checkpoint. Reuse collection sources with
+explicit original receipt/deposit links and a generated active return identity. The
+first reviewed treatment credits only the original whole-cheque bank amount and debits
+an explicit receivable; combined deposits and earlier clearing stay intact. Source-error
+correction retires the return only after its exact reversal posts and reconciles, with
+dated replacement checks. Preserve the original cash-flow purpose; mixed-purpose returns
+need explicit component treatments. See [active scope](docs/FINANCE_CHEQUE_RETURNS_IN_PROGRESS.md).
+
+Outgoing cheque presentation reports retain original Treasury ownership, independent
+Accounting findings and immutable exports. Case-first locks and a generated active key
+serialize open reports and conflicting actions. Financial closure requires the original
+completed source; no-entry replacement issuance cannot hide an unfinished release payment.
+Never fabricate physical release or acknowledgement to close a bank finding. See the
+[v0.7.110 development checkpoint](docs/FINANCE_PAYMENT_PRESENTATIONS_IN_PROGRESS.md).
+
+Incoming cheque capture retains instrument identity and requires whole-amount
+deposit allocations. Independent bank clearing proposals pin the original posted receipt,
+whole deposit and bank evidence; correction and clearing share the Treasury lock.
+Never infer clearing from posting or create a duplicate bank credit for clearing.
+The v0.7.108 development checkpoint is locally validated; dishonour and redemption remain unfinished.
+Officer cheque refunds must not release capacity as if they were cash. See
+[current cheque scope](docs/FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md).
+
+Direct-bank collection receipts now retain explicit bank-credit references and reviewed
+bank mappings through ordinary/multi-charge capture and officer refunds. Posted bank
+credits are excluded from cash deposit capacity and selection. Preserve original advance
+locks/subsidiaries and pinned routing; never infer a legacy receipt's payment method from
+its account code. This is included in v0.7.108; initial validation had 34 SQLite tests passed/five native
+skips and all 39 native tests passed, including five races. This is not cheque lifecycle
+or form acceptance. See [bank collection scope](docs/FINANCE_BANK_COLLECTIONS_IN_PROGRESS.md).
+
+Multi-charge receipts are included in v0.7.108: combine explicit amounts from existing reviewed
+collection types only when their cash account, fund and release agree. Keep distinct
+cash-flow purposes on separate cash lines; deposit the full receipt cash once. Retain
+each recipe and one actual receipt total; review detects changed recipes and posting
+uses pinned approvals. Deposits and exact corrections reuse the original source route.
+See [scope and validation](docs/FINANCE_COLLECTION_CHARGES_IN_PROGRESS.md).
+
+Netted remittance receipts are included in development v0.7.108 after
+integrated v0.7.107: retain explicit
+reviewed gross liability allocations, deducted fee expense/evidence and actual net bank
+credit. Fee expense selection is independently reviewed and pinned; later setup changes
+cannot reroute it. Keep no-fee proposal history unchanged and reverse cash, fee and
+withholding together through the existing receipt correction. See
+[scope and current validation](docs/FINANCE_RECEIPT_FEES_IN_PROGRESS.md), D-092.
 
 The v0.7.106 returned-advance checkpoint pins new bank-return JEVs to their original payment with
 distinct purpose evidence and unchanged cash-flow meaning. Availability reads retain
@@ -123,6 +253,19 @@ Personal-handoff adapters are implemented; generic following, shared views and n
 
 ### Project validation
 
+Development CI partitions complete test discovery by whole classes across
+isolated workers. Preserve mandatory verify/mysql coverage gates, all original
+test identities and native zero skips; never share fixed native test schemas
+between concurrent local workers. The candidate's actual acceptance is recorded
+in [CI validation](docs/FINANCE_V157_CI_VALIDATION.md), not inferred from discovery.
+
+Manually owned test source factories must register their `doCleanups()` before
+calling `setUp()`, including setup-failure paths. Keep inherited scenarios on
+their original fixture rather than precreating successor/review state. Native
+ordered regression exposed a leaked calendar mock and contaminated version
+fixtures; isolated passing races did not establish suite isolation. See
+[incident and repaired validation](docs/FINANCE_CI_INCIDENT_2026-10-12.md).
+
 Use the documented Python 3.11 environment. Start with `python manage.py test <affected_app_or_test_label>`; include dependent Finance/Accounting/Budget/voucher/reporting tests when their contracts change. Preserve both test-database aliases. Finance Completion Gate, cross-cycle changes and production readiness require substantially broader regression and operational validation.
 
 Finance persistence changes require native MySQL validation as well as SQLite: SQLite does not expose all field-capacity failures, and MySQL omits conditional unique constraints. Budget and active bank matches use generated nullable keys for their required conditional identities. Preserve migration duplicate preflights; investigate historical duplicates instead of silently rewriting financial evidence. Use the fresh two-store runner in [FINANCE_NATIVE_TESTING.md](docs/FINANCE_NATIVE_TESTING.md): a prior transaction-test flush removes migration-seeded data while retaining migration records. A passing sequential suite does not establish concurrency safety for other unsupported constraints. Bank-match conflicts are reported only after the owning transaction rolls back; never implicitly replay financial actions or continue inside an aborted automatic-match batch.
@@ -139,3 +282,9 @@ Finance persistence changes require native MySQL validation as well as SQLite: S
 - Investigate failures before calling them unrelated. Fix regressions caused by the change and document evidence for pre-existing failures. A skipped test or unperformed human/operational acceptance is never a pass.
 - Keep documentation, code and validation evidence sufficient for a fresh session to resume without a conversation transcript.
 - Install additional standalone software/tooling under C:/xxx/_INSTALLS/_HERE/_xxx unless the user specifies otherwise.
+
+Required-output clarification (2026-09-21): low eGAPS reporting use reflects
+usability difficulty, not absence of reporting needs. Use the
+[working output map](docs/FINANCE_REQUIRED_OUTPUT_MAP.md), existing source controls
+and accepted local evidence; do not treat the candidate catalog as the required
+inventory or broaden scope merely to reproduce eGAPS menus.

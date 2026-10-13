@@ -5,6 +5,18 @@ from django.core.exceptions import PermissionDenied
 
 
 ACCOUNTING_PERMISSIONS = (
+    'accounting.view_native_budget_actuals', 'accounting.prepare_native_budget_actuals',
+    'accounting.review_native_budget_actuals', 'accounting.export_native_budget_actuals',
+    'accounting.view_budget_receipt_attributions', 'accounting.prepare_budget_receipt_attributions',
+    'accounting.review_budget_receipt_attributions', 'accounting.export_budget_receipt_attributions',
+    'accounting.view_budget_summary_actuals', 'accounting.prepare_budget_summary_actuals',
+    'accounting.review_budget_summary_actuals', 'accounting.export_budget_summary_actuals',
+    "accounting.view_native_budget_statements", "accounting.prepare_native_budget_statements",
+    "accounting.certify_native_budget_statements", "accounting.export_native_budget_statements",
+    "accounting.view_budget_attributions", "accounting.prepare_budget_attributions",
+    "accounting.review_budget_attributions", "accounting.export_budget_attributions",
+    "accounting.view_budget_actuals", "accounting.prepare_budget_actuals",
+    "accounting.review_budget_actuals", "accounting.export_budget_actuals",
     "accounting.view_accounting_workspace",
     "accounting.manage_accounting_setup",
     "accounting.approve_fiscal_readiness",

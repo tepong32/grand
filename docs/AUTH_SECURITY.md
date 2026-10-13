@@ -34,10 +34,22 @@ establish production/LGU acceptance.
 `AuthAttemptMiddleware` follows CSRF and authentication middleware. Every POST
 attempt shares the default-store counter for its route family, including
 `/login/`, `/accounts/login/` and `/admin/login/`. Login permits 30 network
-attempts and 10 normalized identity attempts per five-minute window; signup and
+attempts and 10 account/normalized identity attempts per five-minute window; signup and
 password-reset families permit 10 network/5 identity attempts. Root and allauth
 password-reset confirmation POSTs are included. Counts include successful and
 invalid requests and do not clear when the requester changes cookies or route.
+
+Each route reads only its actual form field: Django/admin use `username`,
+allauth login uses `login`, and reset confirmation uses its URL account UID.
+Ignored extra fields cannot select the counter. Existing usernames/email aliases
+resolve to persisted account IDs using the authentication database's collation;
+Unicode NFKC/case normalization also binds equivalent submitted identities.
+Ambiguous matches consume all candidate account counters. Unknown identities
+retain normalized submitted-value counters. Reset request and confirmation share
+the same account key even across the two UID encodings. Account lookup failures
+also fail closed. Four probes reproduced the counter bypass against the committed
+v0.7.159 middleware using isolated simulated counters. Real request regressions
+now cover those cases; the native collation check covers accent/case aliases.
 
 Counters use HMAC digests and ordinary primary-key uniqueness with conditional
 SQL increments/reset. They retain neither plaintext identities/IPs nor
@@ -105,10 +117,12 @@ and real operator acceptance require the configured deployment environment.
 
 The first full regression found 51 calendar-sensitive Finance fixture failures;
 all 51 reproduce on untouched primary with its original dependencies. The
-shared voucher fixture now anchors its business clock to September 15, 2026
-while retaining explicit historical scenario dates and all production date
-guards. This repairs the release test harness rather than weakening capacity,
-correction or stale-cash checks.
+v0.7.158 voucher fixture anchored its business clock to September 15, 2026,
+retaining all production guards. Primary subsequently advanced to v0.7.157
+during this pass with targeted period/scenario-clock repairs for those same
+failures. Integration preserves those primary repairs and removes the broader
+fixture clock, avoiding interference with newer Finance scenario dates. No
+production capacity, correction or stale-cash guard is weakened.
 
 See [platform roadmap](ROADMAP.md), [repository guide](../AGENTS.md) and
 [continuation](../CONTINUE.md).

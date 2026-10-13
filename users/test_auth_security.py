@@ -168,6 +168,36 @@ class AuthBoundaryTests(TestCase):
             response = self.client.post(reverse("login"), {"username": "target", "password": "wrong"}, REMOTE_ADDR=f"192.0.2.{index}", HTTP_X_FORWARDED_FOR=f"198.51.100.{index}")
         self.assertEqual(response.status_code, 429)
 
+    def test_ignored_login_field_cannot_change_django_target_counter(self):
+        for index in range(11):
+            response = self.client.post(reverse("login"), {"username": self.employee.username, "login": f"ignored-{index}", "password": "wrong"}, REMOTE_ADDR=f"192.0.2.{index}")
+        self.assertEqual(response.status_code, 429)
+
+    def test_login_username_and_email_aliases_share_account_counter(self):
+        self.employee.email = "employee@example.com"
+        self.employee.save()
+        EmailAddress.objects.create(user=self.employee, email=self.employee.email, verified=True)
+        for index in range(11):
+            path = reverse("login" if index % 2 else "account_login")
+            data = {"username": self.employee.username} if index % 2 else {"login": self.employee.email}
+            response = self.client.post(path, {**data, "password": "wrong"}, REMOTE_ADDR=f"192.0.2.{index}")
+        self.assertEqual(response.status_code, 429)
+
+    def test_unicode_username_normalization_shares_target_counter(self):
+        for index in range(11):
+            username = "ｅｍｐｌｏｙｅｅ" if index % 2 else self.employee.username
+            response = self.client.post(reverse("login"), {"username": username, "password": "wrong"}, REMOTE_ADDR=f"192.0.2.{index}")
+        self.assertEqual(response.status_code, 429)
+
+    def test_ignored_email_cannot_change_password_confirmation_target(self):
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
+
+        path = reverse("password_reset_confirm", kwargs={"uidb64": urlsafe_base64_encode(force_bytes(self.employee.pk)), "token": "set-password"})
+        for index in range(6):
+            response = self.client.post(path, {"email": f"ignored-{index}@example.com"}, REMOTE_ADDR=f"192.0.2.{index}")
+        self.assertEqual(response.status_code, 429)
+
     def test_password_reset_delivery_failure_remains_generic(self):
         with patch("django.contrib.auth.forms.PasswordResetForm.send_mail", side_effect=RuntimeError("smtp")):
             existing = self.client.post(reverse("password_reset"), {"email": self.citizen.email})

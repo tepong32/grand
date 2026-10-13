@@ -217,6 +217,97 @@ class FinanceWorkTaskContractTests(TestCase):
                     build_work_export(self.worker)
             self.assertEqual(FinanceAuditEvent.objects.count(), before)
 
+    def test_waiting_pages_reach_every_personal_source_and_recheck_scope(self):
+        from .models import FinanceAuditEvent
+
+        today = timezone.localdate()
+        releases = [self._release(code=f"WAIT-PAGE-{index:03}", status="submitted", effective_from=today)
+                    for index in range(105)]
+        foreign = self._release(code="A-foreign-page", status="submitted", effective_from=today)
+        foreign.department = self.budget
+        foreign.save(update_fields=("department",))
+        other = self._release(code="A-other-page", status="submitted", effective_from=today)
+        other.created_by = self.reviewer
+        other.submitted_by = self.reviewer
+        other.save(update_fields=("created_by", "submitted_by"))
+        self.client.force_login(self.worker)
+        route = reverse("finance_operations:my_work")
+        before_events = FinanceAuditEvent.objects.count()
+        found = []
+        for number, count in ((1, 50), (2, 50), (3, 5)):
+            response = self.client.get(route, {"view": "waiting", "days": "14", "page": number})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["task_count"], 105)
+            self.assertEqual(len(response.context["tasks"]), count)
+            found.extend(task["url"] for task in response.context["tasks"])
+            self.assertNotContains(response, "A-foreign-page")
+            self.assertNotContains(response, "A-other-page")
+            if number < 3:
+                self.assertContains(response, f"?view=waiting&amp;days=14&amp;page={number + 1}#work-items")
+        self.assertEqual(found, [reverse("finance:release_detail", args=[release.pk]) for release in releases])
+        self.assertEqual(self.client.get(found[-1]).status_code, 200)
+        self.assertContains(response, "Showing 101–105 of 105 matching records")
+        self.assertEqual(FinanceAuditEvent.objects.count(), before_events)
+        self.assertEqual(FinanceConfigurationRelease.objects.filter(status="submitted").count(), 107)
+        for requested, expected in (("invalid", 1), ("0", 3), ("999999", 3)):
+            page = self.client.get(route, {"view": "waiting", "page": requested})
+            self.assertEqual(page.context["task_page"].number, expected)
+        self.worker.user_permissions.remove(Permission.objects.get(
+            content_type__app_label="finance", codename="manage_finance_configuration",
+        ))
+        self.assertEqual(self.client.get(route, {"view": "waiting", "page": 3}).context["task_count"], 105)
+        self.worker.user_permissions.remove(Permission.objects.get(
+            content_type__app_label="finance", codename="view_finance_setup",
+        ))
+        self.assertEqual(self.client.get(route, {"view": "waiting", "page": 3}).context["task_count"], 0)
+        self.client.force_login(self.uat)
+        self.assertEqual(self.client.get(route, {"view": "waiting", "page": 3}).context["task_count"], 0)
+
+    def test_ready_returned_and_calendar_pages_filter_before_navigation(self):
+        today = timezone.localdate()
+        decisions = [self._decision(code=f"PAGE-{index:03}", status=FinanceDiscoveryDecision.RETURNED,
+                                    due_date=today + timedelta(days=13)) for index in range(105)]
+        self.client.force_login(self.worker)
+        route = reverse("finance_operations:my_work")
+        for view in ("ready", "returned", "upcoming"):
+            response = self.client.get(route, {"view": view, "days": "14", "page": 3})
+            self.assertEqual(response.context["task_count"], 105)
+            self.assertEqual(len(response.context["tasks"]), 5)
+            self.assertEqual([task["url"] for task in response.context["tasks"]], [
+                reverse("finance:discovery_decision_detail", args=[item.public_id]) for item in decisions[100:]
+            ])
+            self.assertContains(response, f"?view={view}&amp;days=14&amp;page=2#work-items")
+        self.assertEqual(self.client.get(route, {"view": "upcoming", "days": "7", "page": 3}).context["task_count"], 0)
+        FinanceDiscoveryDecision.objects.filter(pk__in=[item.pk for item in decisions]).update(due_date=today - timedelta(days=1))
+        response = self.client.get(route, {"view": "past_dates", "days": "30", "page": 3})
+        self.assertEqual(response.context["task_count"], 105)
+        self.assertEqual(len(response.context["tasks"]), 5)
+        self.assertContains(response, "?view=past_dates&amp;days=30&amp;page=2#work-items")
+
+    def test_completed_pages_retain_all_attributed_events_and_stable_ties(self):
+        from .models import FinanceAuditEvent
+        from .services import transition_release
+
+        today = timezone.localdate()
+        for index in range(105):
+            release = self._release(code=f"COMPLETED-PAGE-{index:03}", status="draft", effective_from=today)
+            transition_release(release, "submit", self.worker)
+        # Tied event dates must still partition by the existing stable task identity.
+        FinanceAuditEvent.objects.filter(actor=self.worker, action="submit").update(created_at=timezone.now())
+        self.client.force_login(self.worker)
+        route = reverse("finance_operations:my_work")
+        found = []
+        before_events = FinanceAuditEvent.objects.count()
+        for number, count in ((1, 50), (2, 50), (3, 5)):
+            response = self.client.get(route, {"view": "completed", "page": number})
+            self.assertEqual(response.context["task_count"], 105)
+            self.assertEqual(len(response.context["tasks"]), count)
+            found.extend(task["task_id"] for task in response.context["tasks"])
+        self.assertEqual(len(set(found)), 105)
+        self.assertEqual(found, sorted(found, reverse=True))
+        self.assertEqual(FinanceAuditEvent.objects.count(), before_events)
+        self.assertEqual(FinanceConfigurationRelease.objects.filter(status="submitted").count(), 105)
+
     def _form(self, department=None, code="task-form"):
         return FinanceLocalFormAcceptance.objects.create(
             department=department or self.accounting,

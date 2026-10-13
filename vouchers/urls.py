@@ -1,15 +1,30 @@
 from django.urls import path
 
 from . import advice_views, cash_views, collection_views, remittance_views, views
+from . import cheque_clearing_views
+from . import presentation_views
 
 app_name = "vouchers"
 
+from . import cheque_return_views
+from . import cheque_redemption_views
+from . import cheque_custody_views
+
 urlpatterns = [
+    path("collections/<uuid:public_id>/custody/", cheque_custody_views.create, name="cheque_custody_create"),
+    path("collections/<uuid:public_id>/custody/<int:link_id>/withdraw/", cheque_custody_views.withdraw, name="cheque_custody_withdraw"),
+    path("collections/<uuid:public_id>/redeem/", cheque_redemption_views.create, name="cheque_redemption_create"),
+    path("collections/<uuid:public_id>/bank-return/", cheque_return_views.create, name="cheque_return_create"),
+    path('instruments/<uuid:instrument_id>/presentations/new/', presentation_views.create, name='presentation_create'),
+    path('presentations/<uuid:public_id>/', presentation_views.detail, name='presentation_detail'),
+    path('presentations/<uuid:public_id>/export/', presentation_views.export, name='presentation_export'),
     path('collections/', collection_views.register, name='collection_register'),
     path('collections/new/', collection_views.receipt_create, name='collection_create'),
     path('collections/deposits/new/', collection_views.deposit_create, name='collection_deposit_create'),
     path('collections/export/', collection_views.export, name='collection_export'),
     path('collections/<uuid:public_id>/', collection_views.detail, name='collection_detail'),
+    path('collections/<uuid:public_id>/clearing/new/', cheque_clearing_views.create, name='cheque_clearing_create'),
+    path('collections/<uuid:public_id>/clearing/<uuid:clearance_id>/review/', cheque_clearing_views.review, name='cheque_clearing_review'),
     path('collections/<uuid:public_id>/review/', collection_views.review, name='collection_review'),
     path('collections/<uuid:public_id>/correct/', collection_views.correction_create, name='collection_correction_create'),
     path('collections/<uuid:public_id>/outputs/new/', collection_views.output_generate, name='collection_output_generate'),

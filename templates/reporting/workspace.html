@@ -51,7 +51,7 @@
         </div>
       </section>
 
-      <section class="card card-outline card-secondary">
+      <section class="card card-outline card-secondary" id="report-runs">
         <div class="card-header border-0"><h2 class="card-title font-weight-bold">Report run register</h2></div>
         <div class="card-body border-bottom">
           <form method="get" class="row align-items-end">
@@ -66,6 +66,7 @@
           </form>
           {% if run_work_spec %}<p class="small text-muted mb-1"><strong>{{ run_work_spec.title }}:</strong> {{ run_work_spec.definition }} Opening this filtered register does not generate, review, approve, supersede, or otherwise alter a report.</p>{% endif %}
           <p class="small text-muted mb-0">This register mirrors your exact visibility and filters. Open a run for its output, row-level control evidence, and reproduction receipt. The register itself is not an approved report, signed form, or filing acknowledgement.</p>
+          <p class="small mb-0 mt-2">Showing {{ run_page.start_index }}–{{ run_page.end_index }} of {{ visible_run_count }} matching runs.</p>
         </div>
         <div class="table-responsive"><table class="table table-hover mb-0">
           <thead><tr><th>Report</th><th>Period</th><th>Format</th><th>Status / next action</th><th>Created</th><th class="text-right">Output</th></tr></thead>
@@ -75,20 +76,44 @@
             <td class="text-right">{% if run.output_file and can_download %}{% if run.is_printable %}<a href="{% url 'reporting:run_print_preview' run.public_id %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary" aria-label="Print {{ run.definition.name }} PDF"><i class="fas fa-print"></i></a>{% endif %}<a href="{% url 'reporting:run_download' run.public_id %}" class="btn btn-sm btn-outline-primary" aria-label="Download {{ run.definition.name }}"><i class="fas fa-download"></i></a>{% else %}<span class="text-muted">&mdash;</span>{% endif %}</td>
           </tr>{% empty %}<tr><td colspan="6" class="text-muted text-center py-4">No report runs match this view.</td></tr>{% endfor %}</tbody>
         </table></div>
+        {% if run_page.has_other_pages %}<nav class="card-footer d-flex justify-content-between align-items-center" aria-label="Report run pages">
+          <span>{% if run_page.has_previous %}<a href="?{{ run_page_filters }}&amp;page={{ run_page.previous_page_number }}">Previous runs</a>{% endif %}</span>
+          <span>Page {{ run_page.number }} of {{ run_page.paginator.num_pages }}</span>
+          <span>{% if run_page.has_next %}<a href="?{{ run_page_filters }}&amp;page={{ run_page.next_page_number }}">Next runs</a>{% endif %}</span>
+        </nav>{% endif %}
       </section>
     </div>
     <div class="col-xl-4">
-      <section class="card card-outline card-info"><div class="card-header"><h2 class="card-title font-weight-bold">Recurring schedule</h2></div><div class="card-body p-0"><ul class="list-group list-group-flush">
-        {% for schedule in schedules %}<li class="list-group-item"><strong>{{ schedule.name }}</strong><div class="text-muted small">{{ schedule.get_frequency_display }} &middot; next run {{ schedule.next_run_at|date:"M j, Y g:i A" }}</div></li>{% empty %}<li class="list-group-item text-muted">No recurring runs scheduled.</li>{% endfor %}
-      </ul></div></section>
+      <section class="card card-outline card-info" id="report-schedules"><div class="card-header"><h2 class="card-title font-weight-bold">Recurring schedules</h2></div>
+        <form method="get" action="#report-schedules" class="card-body border-bottom">
+          {% for key, value in schedule_filters %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+          <label for="schedule-state">Schedule status</label>
+          <select name="schedules_state" id="schedule-state" class="form-control mb-2">
+            <option value="active" {% if schedule_state == 'active' %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if schedule_state == 'inactive' %}selected{% endif %}>Inactive</option>
+            <option value="all" {% if schedule_state == 'all' %}selected{% endif %}>All</option>
+          </select><button class="btn btn-sm btn-outline-primary">Show schedules</button>
+          {% if schedule_error %}<div class="text-danger small mt-2" role="alert">{{ schedule_error }}</div>{% endif %}
+        </form>
+        <div class="card-body p-0"><ul class="list-group list-group-flush">
+          {% for schedule in schedules %}<li class="list-group-item"><strong>{{ schedule.name }}</strong>
+            <div class="small">{{ schedule.definition.name }} · {% if schedule.is_active %}Active{% else %}Inactive{% endif %}</div>
+            <div class="text-muted small">{{ schedule.get_frequency_display }} &middot; {% if schedule.is_active %}next run{% else %}retained due date{% endif %} {{ schedule.next_run_at|date:"M j, Y g:i A" }}</div>
+          </li>{% empty %}<li class="list-group-item text-muted">No schedules match this selection.</li>{% endfor %}
+        </ul></div>{% include "reporting/_retrieval_pagination.html" with page=schedule_page label="Report schedules" %}
+      </section>
       <section class="card card-outline card-success"><div class="card-header"><h2 class="card-title font-weight-bold">Recently approved</h2></div><div class="card-body p-0"><ul class="list-group list-group-flush">
         {% for run in recent_approved %}<li class="list-group-item"><a href="{{ run.get_absolute_url }}" class="font-weight-bold">{{ run.definition.name }}</a><div class="text-muted small">{{ run.period_start|date:"M j" }} - {{ run.period_end|date:"M j, Y" }}</div></li>{% empty %}<li class="list-group-item text-muted">No official outputs approved yet.</li>{% endfor %}
       </ul></div></section>
-      {% if statement_mappings_enabled %}<section class="card card-outline card-info"><div class="card-header"><h2 class="card-title font-weight-bold">Statement evidence</h2></div><div class="card-body p-0"><ul class="list-group list-group-flush">
+      {% if statement_mappings_enabled %}<section class="card card-outline card-info"><div class="card-header"><h2 class="card-title font-weight-bold">Recent statement evidence</h2></div><div class="card-body p-0"><ul class="list-group list-group-flush">
         {% for item in statement_note_sets %}<li class="list-group-item"><a href="{{ item.get_absolute_url }}" class="font-weight-bold">Notes · {{ item.period_end|date:"Y" }} · v{{ item.version }}</a><div class="text-muted small">{{ item.get_status_display }}</div></li>{% endfor %}
         {% for item in reference_comparisons %}<li class="list-group-item"><a href="{{ item.get_absolute_url }}" class="font-weight-bold">Reference · {{ item.run.definition.name }}</a><div class="text-muted small">{{ item.get_comparison_result_display }} · {{ item.get_status_display }}</div></li>{% endfor %}
         {% if not statement_note_sets and not reference_comparisons %}<li class="list-group-item text-muted">No statement-note or signed-reference evidence yet.</li>{% endif %}
-      </ul></div></section>{% endif %}
+      </ul></div><div class="card-footer">
+        <a href="{% url 'reporting:statement_note_set_list' %}" class="btn btn-sm btn-outline-info">All statement notes</a>
+        <a href="#report-runs" class="btn btn-sm btn-outline-info mt-1">Find a report run</a>
+        <p class="small text-muted mt-2 mb-0">Open a report run for its complete signed-reference comparison history.</p>
+      </div></section>{% endif %}
       <div class="alert alert-light border"><i class="fas fa-shield-alt text-primary mr-2"></i><strong>Controlled by design.</strong><div class="small text-muted mt-1">Uploaded forms are references only. GRAND never runs SQL, macros, Python, or executable template content supplied by users.</div></div>
     </div>
   </div>

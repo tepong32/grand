@@ -206,14 +206,14 @@ class StatementNotesAndReferenceComparisonTests(TestCase):
             item.save()
         return note_set
 
-    def comparison(self, *, mismatch=False):
+    def comparison(self, *, mismatch=False, version=None):
         values = {
             "assets": "1251.00" if mismatch else "1250.00",
             "liabilities": "0.00", "equity": "0.00",
             "unclosed_operating_result": "1250.00", "equation_difference": "0.00",
         }
         return ReportReferenceComparison.objects.create(
-            run=self.position_run, version=(2 if mismatch else 1),
+            run=self.position_run, version=version if version is not None else (2 if mismatch else 1),
             reference_label=("Mismatched signed copy" if mismatch else "Redacted signed FY 2027 position statement"),
             reference_kind=ReportReferenceComparison.REFERENCE_PDF,
             reference_file=SimpleUploadedFile(
@@ -303,6 +303,27 @@ class StatementNotesAndReferenceComparisonTests(TestCase):
         )
         mismatch.refresh_from_db()
         self.assertEqual(mismatch.status, ReportReferenceComparison.RETURNED)
+
+    def test_recent_evidence_previews_have_complete_existing_routes(self):
+        notes = [self.make_note_set() for _ in range(7)]
+        comparisons = [self.comparison(version=number) for number in range(1,8)]
+        self.client.force_login(self.preparer)
+        workspace = self.client.get(reverse("reporting:workspace"))
+        self.assertEqual(len(workspace.context["statement_note_sets"]),5)
+        self.assertEqual(len(workspace.context["reference_comparisons"]),5)
+        self.assertContains(workspace,"Recent statement evidence")
+        self.assertContains(workspace,reverse("reporting:statement_note_set_list"))
+        complete = self.client.get(reverse("reporting:statement_note_set_list"))
+        self.assertEqual({item.pk for item in complete.context["note_sets"]},{item.pk for item in notes})
+        run_page = self.client.get(self.position_run.get_absolute_url())
+        self.assertEqual(run_page.status_code,200)
+        self.assertEqual({item.pk for item in run_page.context["reference_comparisons"]},{item.pk for item in comparisons})
+        self.assertContains(run_page,comparisons[0].get_absolute_url())
+        ReportDefinition.objects.filter(pk__in=(self.position_definition.pk,self.performance_definition.pk)).update(is_active=False)
+        historical = self.client.get(reverse("reporting:workspace"))
+        self.assertContains(historical,reverse("reporting:statement_note_set_list"))
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(reverse("reporting:statement_note_set_list")).status_code,403)
 
     def test_department_scoped_workspace_howto_and_tracesync_exports(self):
         note_set = self.make_note_set()

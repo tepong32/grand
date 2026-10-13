@@ -1,5 +1,10 @@
 # GRAND Finance modernization priorities
 
+**Current direction — 2026-09-18:** the [foundation gate](FINANCE_FOUNDATION_GATE.md)
+supersedes the order below: retrieval, Budget decision context, verified domain
+semantics, ordinary continuity, outputs, usability, then broader scenarios. Limit
+parity to purchased/used LGU Finance scope. Retain earlier evidence and deferred work.
+
 Direction accepted by the user on 2026-09-10. This is a focused work queue under the [Finance roadmap](FINANCE_ROADMAP.md), not a replacement roadmap or a production-completion claim.
 
 ## Authoritative delivery order (clarified 2026-09-10)
@@ -16,6 +21,14 @@ Finish GRAND Finance as a complete and demonstrably usable successor. eGAPS capa
 Preserve sound architecture, immutable financial history, balancing, independent approval, auditability and database/recovery boundaries. Do not expand UX, framework, collaboration, discovery, qualification, acceptance or other surrounding machinery before unresolved Finance functionality unless required to complete or validate the current priority. Native validation needed for a financial persistence change is such a prerequisite; unrelated infrastructure expansion is not. The already implemented navigation slice is retained, but further UX work follows functional completion.
 
 ## Product goal
+
+Execution checkpoint v0.7.108 adds netted receipt fees, multi-charge collections,
+direct-bank receipts and incoming cheque capture/independent clearing. The complete
+cheque lifecycle remains open. The user authorizes researched modular development and
+human resolution of rare cases; no local procedure is available or required to continue
+development. Use [the exception design](FINANCE_CHEQUE_EXCEPTION_DESIGN.md) and reviewed
+applicable posting rules. Rare cases must not indefinitely displace ordinary Finance gaps.
+See [validated scope and remaining work](FINANCE_CHEQUE_COLLECTIONS_IN_PROGRESS.md).
 
 Improve the eGAPS office experience through GRAND: familiar Budget, Accounting and Treasury registers and terminology, delivered on the web through individual accounts and current department/role permissions. Support authorized work from home without making physical custody, wet signatures or instrument release appear remote when they still require an in-office act. eGAPS remains an untouched reference; do not modify its files, records or databases or introduce a runtime dependency.
 
@@ -47,13 +60,25 @@ The evidence column records the original assessment baseline. See Current execut
 
 ## Current execution
 
-Execution reconciliation (2026-09-14): collection/deposit is implemented in the verified
-v0.7.98 development checkpoint; advance recognition, actual release, expense liquidation,
-cash refunds and governed corrections subsequently advanced through v0.7.105.
-The uncommitted [returned-advance correction](FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md),
-D-091, now demonstrates revised Budget/DV/payment under both payment policies, retained
-corrected expense/refund/deposit history and selected native races. Full-project regression
-is running. These capabilities do not establish all M03 scenarios or Finance completion.
+Execution reconciliation (2026-09-15): collection/deposit, advance recognition,
+actual release, expense liquidation, cash refunds and governed corrections through
+the [returned-advance checkpoint](FINANCE_RETURNED_ADVANCES_IN_PROGRESS.md) are
+integrated in master/v0.7.107. Its full SQLite/MySQL CI passed. Local uncommitted
+[netted remittance receipts](FINANCE_RECEIPT_FEES_IN_PROGRESS.md) and
+[multi-charge receipts](FINANCE_COLLECTION_CHARGES_IN_PROGRESS.md) have focused
+and dependent SQLite/native validation; combined full SQLite passed 1,161 tests with
+86 native-only skips (1,247 discovered). Direct-bank implementation subsequently began;
+its validation is tracked in the [bank collection record](FINANCE_BANK_COLLECTIONS_IN_PROGRESS.md).
+These capabilities do not establish all M03 scenarios or Finance completion.
+
+The user confirmed on 2026-09-15 that Treasury routinely accepts **cash, cheques
+and bank transfers**. All three are required collection scope. Prioritize explicit
+direct-bank receipt capture and correction next, using reviewed routing and actual
+transaction evidence without counting bank credits as cash awaiting deposit. Follow
+with cheque receipt, clearing and return handling. Preserve officer-refund source
+and dated-capacity controls across supported payment methods. Existing cash workflows
+and free-text references do not establish bank-transfer or cheque lifecycle coverage.
+
 Generated-history adoption, remaining collection/remittance instrument/disposition breadth
 and other explicitly open M01–M03 functions remain in the existing queue; inventory,
 ordinary-office, exact-output, usability and operational/LGU gates retain their order.

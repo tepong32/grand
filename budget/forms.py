@@ -86,6 +86,14 @@ class BudgetProposalLineForm(forms.ModelForm):
             self.fields[name].queryset = self.fields[name].queryset.filter(department_id=ledger)
 
 
+class BudgetEstimateForm(forms.Form):
+    amount = forms.DecimalField(required=False, max_digits=18, decimal_places=2, min_value=0,
+        label="Current-year second-half estimate", help_text="Enter an explicit zero when supported; leave all fields blank to mark evidence missing.")
+    as_of = forms.DateField(required=False, widget=DateInput(), label="Estimate prepared as of")
+    basis = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}),
+        label="Planning basis and evidence reference")
+
+
 class BudgetReviewCommentForm(forms.ModelForm):
     class Meta:
         model = BudgetReviewComment
@@ -94,6 +102,8 @@ class BudgetReviewCommentForm(forms.ModelForm):
 
 
 class BudgetResourceEstimateForm(forms.ModelForm):
+    expected_state_version = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
+    reason = forms.CharField(max_length=2000, widget=forms.Textarea(attrs={'rows': 2}), label='Reason for this estimate or revision')
     class Meta:
         model = BudgetResourceEstimate
         fields = ("funding_source", "description", "amount", "basis")
@@ -101,6 +111,9 @@ class BudgetResourceEstimateForm(forms.ModelForm):
 
     def __init__(self, *args, version=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.instance.version = version
+        self.instance.department_id, self.instance.department_label = version.department_id, version.department_label
+        self.fields['expected_state_version'].initial = version.state_version
         self.fields["funding_source"].queryset = self.fields["funding_source"].queryset.filter(
             department_id=version.fiscal_year.department_id,
             fiscal_year=version.fiscal_year,
@@ -146,6 +159,7 @@ class AllotmentReleaseOrderForm(forms.ModelForm):
         fields = (
             "authorization", "order_number", "kind", "release_date", "effective_date",
             "authority_reference", "evidence_reference", "purpose", "signed_control_total", "corrects",
+            "planning_deviation_basis",
         )
         widgets = {
             "release_date": DateInput(), "effective_date": DateInput(),
@@ -263,3 +277,19 @@ class ObligationRequestLineForm(forms.ModelForm):
         self.fields["movement_type"].choices = [
             choice for choice in ObligationRequestLine.MOVEMENT_CHOICES if choice[0] in allowed
         ]
+
+class QuarterlyPlanForm(forms.Form):
+    reference = forms.CharField(max_length=120, label="Plan reference")
+    prepared_on = forms.DateField(widget=DateInput(), label="Prepared as of")
+    evidence_reference = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), label="Preparation and approval-route evidence")
+    change_basis = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), label="Planning or revision basis")
+
+
+class QuarterlyPlanLineForm(forms.ModelForm):
+    class Meta:
+        from .models import QuarterlyPlanLine
+        model = QuarterlyPlanLine
+        fields = ("q1", "q2", "q3", "q4", "basis", "indicator", "target_unit", "target_q1", "target_q2", "target_q3", "target_q4")
+        widgets = {"basis": forms.Textarea(attrs={"rows": 3})}
+        labels = {"q1": "Q1 allocation", "q2": "Q2 allocation", "q3": "Q3 allocation", "q4": "Q4 allocation",
+                  "target_q1": "Q1 physical target", "target_q2": "Q2 physical target", "target_q3": "Q3 physical target", "target_q4": "Q4 physical target"}

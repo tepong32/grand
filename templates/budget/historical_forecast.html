@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title_ext %} - Historical object forecast{% endblock %}
+{% block content %}<div class="container py-4">
+<a href="{% url 'budget:version_detail' version.public_id %}">← {{ version.title }}</a>
+<h1>Historical object forecast</h1>
+<p>{{ row.fund_code }} / {{ row.center_code }} / {{ row.account_code }} — {{ row.account_title }} / {{ row.expense_class }}</p>
+<p>Forecast period: July–December {{ version.fiscal_year.year|add:'-1' }}.</p>
+<p>This current-year estimate does not create a proposed appropriation, certified actual or spending authority. Proposal-line estimates remain separate.</p>
+{% if problem %}<p class="alert alert-warning">{{ problem }}</p>{% endif %}
+{% if row.forecast_problem %}<p class="alert alert-warning">{{ row.forecast_problem }}</p>{% endif %}
+{% if stored.origin %}<p>Origin: {{ stored.origin.title }} · v{{ stored.origin.version }}</p>{% endif %}
+{% if editable %}<form method="post" class="card card-body">{% csrf_token %}{{ form.non_field_errors }}{{ form.preview }}
+<div class="mb-3">{{ form.amount.as_field_group }}</div><div class="mb-3">{{ form.as_of.as_field_group }}</div><div class="mb-3">{{ form.basis.as_field_group }}</div><div class="mb-3">{{ form.reason.as_field_group }}</div>
+{% if can_save %}<button class="btn btn-primary mt-3" name="action" value="save">Save forecast</button>{% endif %}
+{% if stored %}<button class="btn btn-outline-secondary mt-3" name="action" value="clear">Clear forecast with reason</button>{% endif %}
+</form>{% else %}<p>This proposal retains its submitted forecast. Return it before making changes.</p>{% endif %}
+</div>{% endblock %}
