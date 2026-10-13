@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.167] - 2026-10-14
+### Added
+- feat(budget): retain independent Form 1 source findings
+
 ## [0.7.166] - 2026-10-14
 ### Feat
 - feat(budget): prepare whole Form 1 from original cash and policy evidence

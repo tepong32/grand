@@ -1,5 +1,15 @@
 # Guided whole Form 1 preparation intake — 2026-10-14
 
+Release acceptance superseding the earlier pending status: installed Version
+Manager v0.7.166 / `27b3f63` is integrated/pushed with exact master/tag refs verified.
+Candidate 38464296069 and primary 38470645692 passed all 19 jobs, native 2,533 /
+zero skips and SQLite 2,335 / 198 native-only skips. Full raw logs, complete exact
+coverage and both-store cleanup verified. Candidate step API telemetry had stale
+pending entries; original logs/artifacts proved successful completion without
+rewriting the API response or weakening checks. Primary has independent raw-log/
+artifact proof in `.tmp/ci-proof-38470645692/acceptance.json` of the treatment worktree.
+Local/statutory/operational acceptance remains open; continue the existing treatment plan.
+
 Candidate checkpoint prepared for v0.7.166; local validation passes, primary acceptance pending. The accepted primary
 review implementation remains v0.7.160, documented in v0.7.164. See the
 [handoff](../CONTINUE.md), [source contract](FINANCE_FORM1_SOURCE_CONTRACT.md)

@@ -17,6 +17,74 @@ class BudgetOwnedModel(models.Model):
         abstract = True
 
 
+class Form1TreatmentProposal(BudgetOwnedModel):
+    """Immutable interpretation proposal; never a journal or spending authority."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    package = models.ForeignKey('Form1Package', on_delete=models.PROTECT, related_name='treatment_proposals')
+    predecessor = models.ForeignKey('self', null=True, on_delete=models.PROTECT, related_name='successors')
+    version = models.PositiveIntegerField()
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ('-version', '-pk')
+        constraints = [models.UniqueConstraint(fields=('package', 'version'), name='unique_form1_treatment_version')]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError('Retain the original treatment proposal; prepare a successor.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain original treatment proposals and their decisions.')
+
+
+class Form1TreatmentAttachment(models.Model):
+    proposal = models.ForeignKey(Form1TreatmentProposal, on_delete=models.PROTECT, related_name='attachments')
+    key = models.CharField(max_length=20)
+    data = models.BinaryField(editable=False)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=('proposal', 'key'), name='unique_form1_treatment_attachment')]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError('Retain original treatment authority and worksheet bytes.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain original treatment documents.')
+
+
+class Form1TreatmentDecision(models.Model):
+    proposal = models.ForeignKey(Form1TreatmentProposal, on_delete=models.PROTECT, related_name='decisions')
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    role = models.CharField(max_length=16)
+    actor_id = models.PositiveBigIntegerField()
+    actor_department_id = models.PositiveBigIntegerField()
+    approve = models.BooleanField()
+    decided_at = models.DateTimeField()
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+
+    class Meta:
+        ordering = ('decided_at', 'pk')
+        constraints = [
+            models.UniqueConstraint(fields=('proposal', 'role', 'actor_department_id'), name='unique_form1_treatment_office'),
+            models.UniqueConstraint(fields=('proposal', 'actor_id'), name='unique_form1_treatment_actor'),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError('Retain the original independent treatment decision.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain independent treatment decisions.')
+
+
 class BudgetCall(BudgetOwnedModel):
     DRAFT, FOR_REVIEW, PUBLISHED, RETURNED, CLOSED = "draft", "for_review", "published", "returned", "closed"
     STATUS_CHOICES = ((DRAFT, "Draft"), (FOR_REVIEW, "For review"), (PUBLISHED, "Published"), (RETURNED, "Returned"), (CLOSED, "Closed"))

@@ -42,6 +42,12 @@ the same actor/source; it never creates authority or approval. See the
 [assembly design](docs/FINANCE_FORM1_ASSEMBLY_DESIGN.md) and
 [review/delivery contract](docs/FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md).
 
+Source treatment findings pin every original signed PhilHealth part and original
+funding/reconciliation bytes. Independent factual review never supplies a numerical
+offset, cash availability or statutory issuance. Preserve separately granted
+source read/export access, BudgetVersion → Fund → package/proposal lock order and
+immutable successors. See [treatment checkpoint](docs/FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md).
+
 Whole-package clerk review uses explicit office findings through the existing
 immutable review service, with current original-source checks under its owning
 locks. No form input supplies statutory signing, issuance or cash authority.

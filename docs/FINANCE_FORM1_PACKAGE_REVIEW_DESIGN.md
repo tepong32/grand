@@ -1,5 +1,12 @@
 # Form 1 whole-package review and delivery contract
 
+Guided whole-package intake is now accepted in v166: candidate 38464296069 and
+primary 38470645692 passed all 19 jobs and 2,533 native tests without skips.
+The [source-findings checkpoint](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md) implements
+the versioned original-part factual proposal prerequisite below. It reuses current
+source read/export and designated reviewer grants; numerical treatment and fresh
+whole-package/statutory decisions remain separate required work.
+
 Subsequent internal review implementation is locally validated: immutable decision
 rows bind original whole packages and three office roles, explicit checks/bases,
 designation authority and exact source observations. Full internal review is derived

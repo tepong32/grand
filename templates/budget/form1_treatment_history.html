@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% block content %}<main class="container py-4">
+<a href="{% url 'budget:form1_package_detail' package.public_id %}">Original whole Form 1 draft</a>
+<h1 class="h3">Source findings history</h1>
+<p>{{ package.fund.code }} · {{ package.proposal.fiscal_year.year }} · whole draft version {{ package.version }}</p>
+<p>Each version retains original signed amounts and supporting documents. Factual review does not approve a numerical adjustment or issue Form 1.</p>
+{% if can_prepare %}<a class="btn btn-primary mb-3" href="{% url 'budget:form1_treatment_prepare' package.public_id %}">Prepare source findings</a>{% endif %}
+{% for item in page %}<section class="card card-body mb-3"><h2 class="h5"><a href="{% url 'budget:form1_treatment_detail' item.public_id %}">Findings version {{ item.version }}</a></h2><p>{{ item.status }} · {{ item.prepared_at }}</p></section>{% empty %}<p>No source findings retained yet.</p>{% endfor %}
+<nav aria-label="Findings history pages">{% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+</main>{% endblock %}

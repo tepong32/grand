@@ -110,16 +110,22 @@ dependent tests, native races and real three-office browser decisions retain
 original evidence and financial controls. Preparation intake, statutory
 signatures/issuance and LGU acceptance remain open.
 
-The development branch implements [guided first-package preparation](docs/FINANCE_FORM1_INTAKE_2026-10-14.md)
-from approved SPA sources, explicit opening cash evidence, forecast worksheet
-rows and PhilHealth partitions. Prior-base 26-case SQLite/native checks PASS.
-Published Auth/security primary is preserved; combined 74-case regression passes on both backends and updated-primary browser retention/readback PASS. Vm-commit / remote
-gates are pending; intake is not yet a released primary capability. Missing evidence
-stays unknown, with independent office reviews and statutory/LGU gates retained.
-The documentation-only v0.7.164 primary follow-up passed
-[all 19 GitHub jobs](https://github.com/tepong32/grand/actions/runs/38453244967),
-including 2,473 native tests without skips. This run covers the released review
-sources and documentation, not the uncommitted intake.
+The v0.7.166 [guided first-package preparation](docs/FINANCE_FORM1_INTAKE_2026-10-14.md)
+is integrated/pushed at `27b3f63`, preserving the published Auth/security rework.
+Its [candidate run](https://github.com/tepong32/grand/actions/runs/38464296069) and
+[resulting master run](https://github.com/tepong32/grand/actions/runs/38470645692)
+passed all 19 jobs: native 2,533 tests / zero skips; SQLite 2,335 passed / 198
+native-only skips. Raw logs, exact coverage and both-store cleanup were verified.
+Original cash/forecast/PhilHealth evidence and independent whole-package review
+remain distinct from supported numerical treatment, statutory signatures and issuance.
+
+The next bounded [original-source findings checkpoint](docs/FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
+provides retained part-level proposals, independent office decisions and history/
+original-document export. Final validation/release gates are pending; it does not
+change financial deductions or available cash. The [remaining-task list](docs/FINANCE_REMAINING_WORK_2026-10-14.md)
+records actual progress and corrects unsupported whole-project time/percentage
+estimates. Exact required outputs, local earmark semantics, ordinary office use
+and operational/LGU acceptance remain unfinished. Production remains **NO-GO**.
 
 Install the development-only audit tool when performing security maintenance:
 

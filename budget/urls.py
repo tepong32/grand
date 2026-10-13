@@ -12,11 +12,17 @@ from . import form1_account_views
 from . import form1_spa_views
 from . import form1_package_views
 from . import form1_package_intake
+from . import form1_treatment_views
 
 app_name = "budget"
 
 urlpatterns = [
     path('form1-packages/', form1_package_views.register, name='form1_packages'),
+    path('form1-packages/<uuid:public_id>/findings/', form1_treatment_views.history, name='form1_treatment_history'),
+    path('form1-packages/<uuid:public_id>/findings/prepare/', form1_treatment_views.prepare, name='form1_treatment_prepare'),
+    path('form1-findings/<uuid:public_id>/', form1_treatment_views.detail, name='form1_treatment_detail'),
+    path('form1-findings/<uuid:public_id>/review/<str:role>/', form1_treatment_views.review, name='form1_treatment_review'),
+    path('form1-findings/<uuid:public_id>/export/<str:kind>/', form1_treatment_views.export, name='form1_treatment_export'),
     path('form1-packages/prepare/<uuid:public_id>/', form1_package_intake.prepare, name='form1_package_prepare'),
     path('form1-packages/<uuid:public_id>/', form1_package_views.detail, name='form1_package_detail'),
     path('form1-packages/<uuid:public_id>/review/<str:role>/', form1_package_views.review, name='form1_package_review'),

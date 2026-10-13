@@ -1,5 +1,16 @@
 # GRAND Finance complete-cycle roadmap
 
+Latest accepted primary: v0.7.166 / `27b3f63`, including guided whole-package
+intake and published Auth/security changes. Candidate 38464296069 and primary
+38470645692 passed all 19 jobs, native 2,533 / zero skips; SQLite 2,335 / 198 native
+skips. Older entries below retain their original checkpoint scope.
+
+Continue original foundation work through [source treatment findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md),
+then only supported numerical treatment, whole-package successors and statutory
+issued outputs. No peripheral breadth or guessed earmark capacity is authorized.
+Use the [remaining-task list and estimation correction](FINANCE_REMAINING_WORK_2026-10-14.md)
+for unfinished foundation/office/operational gates. Production remains NO-GO.
+
 Current execution follows the [2026-09-18 foundation gate](FINANCE_FOUNDATION_GATE.md):
 complete existing retrieval and Budget context before broader Finance features.
 

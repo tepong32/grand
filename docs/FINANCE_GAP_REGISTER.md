@@ -1,5 +1,19 @@
 # Finance gap register
 
+Latest accepted primary v166 / `27b3f63`: guided intake is integrated/pushed.
+Candidate 38464296069 and primary 38470645692 passed security/verify/mysql and all
+workers; native 2,533 / zero skips, SQLite 2,335 / 198 native skips. Original raw
+logs and exact identities/coverage are retained. Earlier release entries below
+remain historical evidence, not current blockers.
+
+FG-03/06 remain partial. The [bounded source-findings checkpoint](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
+adds immutable original-part proposals, independent three-office factual decisions
+and source-authorized clerk/history/export routes; final local/remote gates are
+pending. Numerical treatment, statutory issuance and LGU form acceptance remain
+open. FG-05 earmark semantics remain UNKNOWN/MISSING; do not infer authority.
+See [finite remaining work and estimate correction](FINANCE_REMAINING_WORK_2026-10-14.md).
+No unresolved critical defect is waived; production remains NO-GO.
+
 Active foundation gaps FG-01–FG-10 are maintained in the [2026-09-18 foundation
 gate](FINANCE_FOUNDATION_GATE.md#living-scope-and-gap-register), including scope,
 classification, user/control impact and dependencies. Historical findings remain below.

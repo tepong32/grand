@@ -1,5 +1,12 @@
 # Required office outputs: source map and unresolved acceptance
 
+October 14 update: whole Form 1 draft assembly, guided intake, history/export and
+internal review are included in accepted primary v166; candidate and primary
+CI passed. Original-source [treatment findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
+are the next bounded checkpoint. An approved factual finding does not provide a
+numerical recipe, statutory certification or accepted official form. The output
+families and local acceptance requirements below remain the working scope.
+
 Status: development checkpoint, updated 2026-10-12. This is a source-to-output map for the
 Finance foundation gate, not an accepted inventory of mandatory LGU forms.
 

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}{% block content %}<main class="container py-4" style="overflow-wrap:anywhere">
+<a href="{% url 'budget:form1_treatment_history' package.public_id %}">Source findings history</a>
+<h1 class="h3">Prepare original-source findings</h1>
+<p>{{ package.fund.code }} · {{ package.proposal.fiscal_year.year }} · whole draft version {{ package.version }}</p>
+<p class="alert alert-info">Assess every retained PhilHealth receipt, restriction and expense part. Original signed amounts stay fixed. This step records factual findings for independent office review; numerical treatment and Form 1 issuance remain separate.</p>
+<style>.findings-form textarea,.findings-form select,.findings-form input:not([type=hidden]) { width:100%; max-width:100%; } .findings-form textarea { height:5rem; } .errorlist { color:#b02a37; }</style>
+<form class="findings-form" method="post" enctype="multipart/form-data">{% csrf_token %}
+{{ form.as_p }}
+{% for item in findings %}<section class="card card-body mb-3">
+<h2 class="h5">{{ item.entity }} · {{ item.kind|title }} · {{ item.column }}</h2>
+<p>Original signed amount: <strong>{{ item.original.amount }}</strong> · Original classification: {{ item.original_finding }}</p>
+<p>{{ item.original.basis }}</p>
+<details><summary>Original source identities</summary><p>Part {{ item.original.key }} · source {{ item.original.source }}</p>{% if item.original.counterpart %}<p>Claimed counterpart {{ item.original.counterpart }}</p>{% endif %}</details>
+{{ item.form.as_p }}
+</section>{% endfor %}
+<button class="btn btn-primary" type="submit">Retain findings for independent review</button>
+</form></main>{% endblock %}

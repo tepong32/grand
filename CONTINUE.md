@@ -4,6 +4,66 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-10-14
 
+## Current bounded Finance checkpoint — source findings
+
+Worktree: `C:/Users/Administrator/.codex/worktrees/finance-form1-treatments/grand`,
+branch `codex/finance-form1-treatments`, base published v166 / `27b3f63`.
+October 14 fetch verified master has no newer commits. Published Auth/security
+rework, Django 5.2.18 and separate default/Finance stores are preserved.
+
+The [source-findings checkpoint](docs/FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
+adds immutable original-part proposals, original authority/reconciliation bytes,
+independent Budget/Accounting/Treasury factual decisions, returns/successors,
+clerk preparation/history and complete JSON/original-document ZIP exports.
+Original package/JEVs and numerical deductions are unchanged. Existing source
+read/export grants remain independent; UAT mutation denial is retained.
+
+PASS: service/state seven-case SQLite 299.815s (six passed / one native skip),
+native 400.317s (seven passed / zero skips), actual exits 0 and both-store cleanup.
+19538/21958 are terminal. Initial HTTP four-case checks had one incorrect test
+expectation on each backend: SQLite 293.188s / native 305.880s, exit 1, cleanup.
+The test incorrectly treated revoked view access as revoked separately granted
+export access. It now verifies each distinct grant and explicit export revocation;
+no permission/financial assertion is weakened. Browser inspection also found a
+blank original-amount display caused by Django form field lookup; explicit original
+context fixes it and the HTTP test asserts every rendered original signed amount.
+Initial failed logs remain `.tmp/treatment-ui-*`; 15371/65493 are terminal.
+
+PASS: actual browser preparation and three distinct office decisions, all nine
+original parts, unchanged original package and two journals, no numerical approval.
+Desktop 1440px/mobile 390px intake and final review screenshots inspected, no page
+overflow. One CLI navigation wait elapsed after its click; server logs/readback
+confirmed the single successful POST, so it was not resubmitted. Owned rehearsal
+server 13206 is deliberately stopped and browser session `grand-form1-findings`
+is closed. Browser JSON HTTP readback returned 200 with all nine parts/three
+decisions and the archive SHA header. File downloads were canceled by the browser,
+including a fresh acceptDownloads context; no normal-browser download acceptance
+is claimed. Retain `.tmp/findings-browser-*-download*.log`; manual acceptance
+remains deferred.
+
+PASS: final 35-case affected/dependent regression on frozen application sources:
+SQLite 33 passed / two native skips, 1,436.823s; native all 35 passed / zero skips,
+1,642.254s. Actual exits 0, exact 35 identities and both-store cleanup verified by
+`.tmp/verify_treatment_local.py`. 87927/36607 are terminal; do not restart.
+Scope covers source-findings service/HTTP/races and original package, review,
+export, HTTP intake and review concurrency contracts. Full discovery is 2,544
+unique IDs (eleven new cases); `.tmp/treatment-discovery.json`. System and migration
+drift checks PASS. Installed VM preview is v167 and updates only VERSION/CHANGELOG,
+preserving historical release evidence; candidate/primary remote gates remain pending.
+
+Prior v166 candidate 38464296069 and primary 38470645692 both PASS all 19 jobs;
+native 2,533 / zero skips, SQLite 2,335 / 198 native skips. Independent primary
+raw logs, exact coverage and both-store cleanup verified in
+`.tmp/ci-proof-38470645692/acceptance.json`. Local operator DB hashes remain
+unchanged; no operator migration, grant, environment upgrade or eGAPS action.
+
+The [remaining-task list](docs/FINANCE_REMAINING_WORK_2026-10-14.md) withdraws the
+unsupported 80–140-hour total and percentage precision, retaining actual elapsed
+validation baselines. Continue supported numerical treatment/fresh whole-package
+and statutory issued outputs, named ordinary cross-office outputs/source chains,
+confirmed local earmark semantics and final operational/LGU gates. Unknown rules
+are deferred, not invented or dropped. Production remains NO-GO.
+
 ## Authentication review and dashboard pass — 2026-10-14
 
 The user explicitly requested a separate security branch, employee/public signup
