@@ -4,6 +4,18 @@ Active foundation gaps FG-01–FG-10 are maintained in the [2026-09-18 foundatio
 gate](FINANCE_FOUNDATION_GATE.md#living-scope-and-gap-register), including scope,
 classification, user/control impact and dependencies. Historical findings remain below.
 
+October 14 FG-03/FG-06 development progress: [guided whole-package intake](FINANCE_FORM1_INTAKE_2026-10-14.md)
+is locally validated as the candidate prepared for v0.7.166; primary acceptance pending. It reuses exact approved SPA/flow,
+original actual cash choices, evidenced cash timing/restriction worksheets and
+explicit PhilHealth signed partitions/coverage. Prior-base 26-case dependent
+SQLite/native suites PASS, native zero skips including three races. Published
+Auth primary c503 was preserved, including security patches; combined 74-case
+SQLite/native suites PASS, native zero skips. Updated-primary browser retention/readback,
+original bytes/net figures, unchanged history/journals and desktop/mobile proof
+PASS. Missing evidence remains unknown. Required VM/candidate/primary gates remain;
+reviewed overlap recipes, statutory/issued output and local clerk/printer acceptance
+remain OPEN. This does not close FG-03/06 or Finance production NO-GO.
+
 ## FIN-GAP-038 - Security and native regression release gate
 
 - Engineering status: **RESOLVED / GO for the next Finance checkpoint**.

@@ -137,6 +137,83 @@ complete final SQLite/native CI coverage gates in PR #115; Finance production
 acceptance remains NO-GO. Preserve its source/runtime/operational boundaries.
 
 
+## Current Finance checkpoint — guided whole Form 1 intake
+
+The 17 intended intake paths are preserved on `codex/finance-budget-attribution`.
+Published Auth primary `c5036fff861227ef5960255c044ed699150df523` (PR #115)
+was integrated by fast-forward; source tree exactly matches its tested candidate
+`81ee30f`. Only README needed documentation conflict reconciliation; retain both
+Auth boundaries above and Finance evidence below. Original WIP bytes and stash
+remain retained under ignored `.tmp/intake-pre-primary-preservation`. No unfinished
+Auth branch or operator database was imported or changed.
+
+PASS on prior v164 / Django 5.2.17: final dependent SQLite 26 cases / 1119.611s,
+25 passed / one expected native race skip; native all 26 PASS / zero skips /
+1274.336s, including three races. Both actual exits 0 and both stores destroyed;
+exact identities/hashes retained in `.tmp/form1-intake-final-*-completion.json`.
+Launchers 81806 and 6016 are terminal; never poll or restart them. This is prior
+base evidence, not acceptance of the newly combined source/runtime.
+
+The published security patch is retained: Python 3.11, Django 5.2.18 and allauth
+65.19.7. Django's official 5.2.18 notes identify fixes including an insufficient
+5.2.17 mitigation; do not downgrade published security repairs to the older pin.
+Isolated patch packages are under
+`C:/xxx/_INSTALLS/_HERE/_xxx/grand-primary-20261014-security-patches`, ahead of the
+retained isolated dependency runtime. Operator `.venv` is untouched.
+
+PASS: updated-primary SQLite 74 cases / 1158.336s, 70 passed / four expected
+native-only skips; MySQL all 74 PASS / zero skips / 1306.670s, including review/
+counter races and native collation. Both actual exits 0, exact 74-ID sets and
+both-store cleanup verified. Launchers 48180/26309 are terminal; do not restart.
+Logs/receipts `.tmp/intake-primary-{sqlite,native}*`; local acceptance guard PASS.
+Native's 23 W036 warnings exactly match published primary; none were silenced.
+System/drift, loaded requirement pins, audit and frozen 1,261-source checks PASS.
+Only seven intended application sources differ from c503. Discovery: 2,533 IDs;
+the two published department-test renames are verified; all previous Finance
+identities remain. Discovery is not full execution.
+
+Published c503 [primary run 38457755758](https://github.com/tepong32/grand/actions/runs/38457755758)
+PASS: all 19 jobs, native 2,527 PASS / zero skips, SQLite 2,329 PASS / 198 native
+skips (original 195 plus three Auth cases). Full logs, exact identities, both-store
+cleanup and twenty passing negative annotations verified. Master c503 verified
+when acceptance receipt was written. This run excludes the six new intake cases.
+
+Intake is the locally validated candidate prepared for v0.7.166; primary acceptance remains pending. The existing source/cash/forecast/PhilHealth
+services and signed one-hour previews retain exact original worksheet bytes,
+source/actor/version checks and explicit missing/unresolved choices. Normal form
+preview requires file reattachment; no provisional record or file cache exists.
+Earlier synthetic browser successor v2 passed original bytes/net figures, unchanged
+history/two journals and no financial authority. Updated-primary disposable browser
+rehearsal PASS with exact original bytes/net figures and unchanged history/two
+journals; source preview starts unresolved. Final desktop/mobile screenshots were
+visually inspected. Both owned browsers/servers are now closed; ports 8798/8799
+are not listening. Launchers 86856/39004 are terminal after deliberate shutdown,
+not failed application tests; do not restart them. Audit PASS (no known
+vulnerabilities) and all loaded requirement versions match published pins.
+Both canonical SQLite hashes still match the recorded originals. Preserve all
+earlier evidence and operator stores.
+
+Release scope: seven application sources, eight continuity documents and two final
+screenshots; VERSION/CHANGELOG only through installed Version Manager. Read-only
+v166 preview is historical/unexecuted, not reserved. Fresh tag allocation, adapted
+exact-current-base release guards, actual VM, complete candidate checks, primary
+integration/push and exact remote acceptance remain. Production remains NO-GO;
+GO for validated development. Statutory signatures/issuance, reviewed overlap
+recipes and LGU acceptance remain open. The v164 primary watcher completed exit 0;
+all 19 full logs/identities/cleanup were accepted; do not restart it.
+
+Documentation follow-up v0.7.164 / `1f9a5c01f1635e6cea0a4e385d39f87637bc3743`
+is integrated and pushed, with master/Finance branch/tag refs verified. It changes
+only eight acceptance notes and VERSION/CHANGELOG; application sources match the
+fully accepted v160 release below. The automatic
+[documentation primary run 38453244967](https://github.com/tepong32/grand/actions/runs/38453244967)
+completed SUCCESS on that exact SHA: all 19 jobs, native 2,473 PASS / zero skips,
+SQLite 2,278 PASS / 195 unchanged native-only skips. All full logs, exact IDs,
+both-store cleanup, security checks and twenty passing permission-denial
+annotations were verified. Receipt `.tmp/form1-review-v164-primary-acceptance.json`
+also verifies exact master/tag refs. Watcher 32136 completed exit 0; do not restart.
+Continue first-package preparation intake from this fully accepted primary.
+
 Installed Version Manager v0.7.160 / `15b079c1d78a9bc63edbd8197242ba2f15d11644` is integrated into master,
 with its tag and both exact remote refs verified. The bounded
 [whole-package internal review screen](docs/FINANCE_FORM1_REVIEW_UI_2026-10-14.md)
@@ -703,17 +780,20 @@ dependent suite. Never reuse an earlier producer's pass as latest proof.
 
 ## Next actions and release/incident boundary
 
-1. Primary run 38436008732 on exact `739e3657` passed all checks; incident
-   engineering repair and master/tag publication are complete. Preserve terminal
-   evidence, failed v154/v155/v156 records and all unrelated release tags. Do not
-   recreate this release/dispatch or poll completed watcher 2518.
-2. Release the validated internal review screen, verify its exact-SHA candidate
-   security/verify/mysql, then integrate/push and verify the primary run. Continue
-   guided whole Form 1 preparation intake using
-   original source permissions, explicit checks, immutable history and existing
-   locks. Validate affected HTTP/security cases and dependent/native contracts,
-   then use installed Version Manager for the next documented checkpoint.
-3. Update README, roadmap, gaps and feature contracts with actual outcomes.
+1. CI repair v157, internal review v160 and its v164 documentation follow-up
+   passed their exact-source remote gates. Preserve full logs/identities/cleanup,
+   failed v154/v155/v156 records and all unrelated tags; do not recreate releases
+   or restart terminal watchers. Their scope does not accept uncommitted intake.
+2. The combined 74-case intake/Auth regression passes; now scope-guard
+   the installed VM commit/tag, exact candidate security/verify/mysql, primary
+   integration/push and resulting checks. Preserve published security fixes and
+   all seven unchanged-source controls; current top section owns active handles.
+3. Continue the existing versioned PhilHealth treatment proposal and independent
+   return/rejection plan. Preserve unknown arithmetic until an applicable recipe
+   is supported and reviewed; no checkbox, guessed offset or invented JEV may
+   resolve it. Reuse original sources/locks and create fresh package successors.
+   Manual LGU applicability/signature/physical acceptance remains deferred tonight.
+4. Update README, roadmap, gaps and feature contracts with actual outcomes.
    Statutory certifiers, Chief Executive approval, issuance, representative source
    retrieval, exact local outputs and operational/LGU acceptance remain open.
 

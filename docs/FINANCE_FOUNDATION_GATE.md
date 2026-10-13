@@ -11,6 +11,11 @@ The subsequent [guided internal review screen](FINANCE_FORM1_REVIEW_UI_2026-10-1
 is integrated/pushed in v0.7.160: affected/dependent tests, native races and
 candidate/primary full 2,473-case coverage pass, with zero native skips.
 Preparation intake remains open.
+Its [guided first-package screen](FINANCE_FORM1_INTAKE_2026-10-14.md) is implemented
+as the locally validated candidate prepared for v0.7.166. Prior-base 26-case dependent suites PASS; published
+Auth/security primary is preserved and combined 74-case regression passes on both backends.
+Updated-primary browser retention/readback PASS; no release or full foundation
+acceptance is claimed. Preserve the statutory, physical and operational gates.
 This does not close FG-03/FG-06 or waive any foundation/LGU acceptance gate below.
 
 Overnight instruction, 2026-10-13: complete the pending validated vm-commit/CI

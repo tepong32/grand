@@ -145,7 +145,7 @@ This is fixture layout evidence, not accepted office formatting or a form ready 
 
 ## Clerk workflow and full delivery
 
-The whole-package register/detail route is implemented under validation. Migration
+The whole-package register/detail route is included in the accepted v157 release. Migration
 0022 supplies a package/office candidate index with unconditional uniqueness and
 original-root backfill preflight. New preparations write original scopes atomically.
 Actual source read checks and exact index equality precede derived status filtering,
@@ -153,11 +153,12 @@ counting and paging; the index never grants access. Detail retains full controls
 pending offices, original decisions and separately authorized full draft downloads.
 The focused SQLite/native test passed against 105 genuine retained versions before
 the final denial-cache refinement, which is covered by the completed full release
-regressions. Native fixture repairs pass focused and ordered follow-ups; actual
-complete remote release checks remain pending. CONTINUE.md records their results and the final three-office desktop/
+regressions. Native fixture repairs passed focused and ordered follow-ups; complete exact-source
+v157 and v160 candidate/primary regressions subsequently passed. CONTINUE.md records their results and the final three-office desktop/
 mobile read checks. Native JSON download and authenticated PDF/ZIP response checks
 passed; native PDF/ZIP browser saving remains an evidenced environment limitation.
-Intake, final review-screen validation, full delivery acceptance and representative varied-source
+Internal review-screen validation is included in accepted v160. Guided intake is
+in updated-primary validation; full delivery acceptance and representative varied-source
 performance remain required; no clerk acceptance is inferred.
 
 Connect selection of the original approved SPA/flow and original stock calendar to
@@ -182,6 +183,13 @@ earlier copies. Browser/mobile, binary downloads, pagination and physical accept
 are required checks for delivery, not inferred from service tests.
 
 ## Validation sequence
+
+The subsequent [guided preparation intake](FINANCE_FORM1_INTAKE_2026-10-14.md)
+implements original cash choices, cash worksheet rows and PhilHealth partitions
+through existing services. Its normal source-preview POST creates no provisional
+record; final retention recaptures sources and verifies the same original
+worksheet bytes and current package version. Development validation/release
+status is recorded there and in the handoff; this is not statutory acceptance.
 
 1. Exercise authorized current and stale source observations for all three offices,
    export-only denial of read/currentness, permission revocation and intact history.

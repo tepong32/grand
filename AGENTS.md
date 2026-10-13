@@ -47,6 +47,13 @@ immutable review service, with current original-source checks under its owning
 locks. No form input supplies statutory signing, issuance or cash authority.
 See [review UI checkpoint](docs/FINANCE_FORM1_REVIEW_UI_2026-10-14.md).
 
+Guided whole-package intake uses the existing actual cash, forecast, PhilHealth
+and immutable assembly/retention services. A read-only signed source preview
+requires exact original worksheet bytes again at retention; no provisional
+financial record or attachment cache supplies authority. Explicit missing and
+unresolved choices remain unknown. See [intake checkpoint](docs/FINANCE_FORM1_INTAKE_2026-10-14.md)
+and CONTINUE.md for actual validation/release status.
+
 Pure Form 1 integrity reuse is limited to the outer operation and keys the complete
 actual JSON evidence, including its claimed checksums. Non-JSON/coercible inputs
 receive full uncached verification. Keep returned payloads caller-owned; never cache

@@ -194,9 +194,14 @@ def detail_context(record,actor,form=None):
     entities={member['entity_key']:member['entity_label'] for member in body['members']}
     coverage=[dict(cell,entity_label=entities[cell['entity']],column_label=account_views.COLUMNS[cell['column']],
         subdivision_label=drafts.SUBDIVISIONS[cell['subdivision']]) for cell in body['coverage']]
+    from vouchers.roles import is_finance_uat_viewer
+    owner = department_for_user(actor)
+    current = service.is_current(record,actor) if retained['status']=='approved' else False
+    can_prepare_package = bool(current and owner and owner.pk==record.department_id
+        and has_budget_permission(actor,'prepare_form1_packages') and not is_finance_uat_viewer(actor))
     return dict(record=record,snapshot=retained,body=body,rows=rows,
         parts=parts,coverage=coverage,roles=roles,can_export=can_export,
-        form=form or Decision(),current=service.is_current(record,actor) if retained['status']=='approved' else False)
+        form=form or Decision(),current=current,can_prepare_package=can_prepare_package)
 
 
 def render_detail(request,record,form=None,status=200):

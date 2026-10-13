@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.166] - 2026-10-14
+### Feat
+- feat(budget): prepare whole Form 1 from original cash and policy evidence
+
 ## [0.7.165] - 2026-10-14
 ### Fixed
 - fix(integration): preserve primary acceptance docs alongside auth review

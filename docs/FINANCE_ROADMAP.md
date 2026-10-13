@@ -14,6 +14,16 @@ Next clerk step is guided whole Form 1
 preparation intake through existing governed services. Statutory/LGU
 acceptance and production gates remain open; no peripheral expansion is authorized.
 
+Guided [first-package intake](FINANCE_FORM1_INTAKE_2026-10-14.md) is now implemented
+as the candidate prepared for v0.7.166; local checks pass, primary acceptance pending.
+It reuses original cash/forecast/PhilHealth capture and whole-package retention;
+explicit missing sources remain unknown. Prior-base 26-case dependent suites
+PASS on both stores; published Auth/security primary is preserved. Combined
+74-case regression passes on both backends, and updated-primary browser/source readback PASS.
+The vm-commit / candidate / primary gates remain pending. This does not close
+FG-03/FG-06 or advance statutory/LGU acceptance. Next functional work after this
+bounded checkpoint follows the existing reviewed-overlap and issued-output plan.
+
 Historical October 13 execution direction: finish the current zero-skip native regression
 and validate the bounded [CI distribution repair](FINANCE_V157_CI_VALIDATION.md)
 on GitHub. If verify remains unaccepted, document the exact result and continue

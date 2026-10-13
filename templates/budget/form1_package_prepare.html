@@ -1,0 +1,33 @@
+{% extends 'base.html' %}{% load static %}{% block content %}<div class="container py-4" style="overflow-wrap:anywhere">
+<a href="{% url 'budget:form1_spa_detail' source.public_id %}">Original approved SPA source</a> · <a href="{% url 'budget:form1_packages' %}">Whole package history</a>
+<h1 class="h3">Prepare {{ source.fund.code }} whole Form 1 draft</h1>
+<p>Select original opening evidence, reconcile cash timing and partition PhilHealth sources explicitly. Missing evidence remains unknown. This draft does not certify actual cash, authorize spending or issue Form 1.</p>
+<noscript><p class="alert alert-warning">Enable JavaScript for cash worksheet rows and PhilHealth partitions.</p></noscript>
+<form method="post" enctype="multipart/form-data" id="whole-intake">{% csrf_token %}
+{{ treatment.non_field_errors }}{{ boundary.as_p }}
+<p>Current total opening references the current H1 January boundary; semester stocks are not added together. Source certification and exact currentness are checked when previewing and again when retaining.</p>
+{% for cell in openings %}<section class="card card-body mb-3 opening-cell">
+<h2 class="h5">{{ cell.entity_label }} · {{ cell.label }}</h2><p>Required opening: {{ cell.scope.balance_date }} / start of day.</p>
+{{ cell.form.non_field_errors }}
+<p>{{ cell.form.kind.label_tag }}{{ cell.form.kind }}{{ cell.form.kind.errors }}</p>
+<p>{{ cell.form.source.label_tag }}{{ cell.form.source }}{{ cell.form.source.errors }}</p>
+<details><summary>Inspect original cash certificates and restriction identities</summary>{% for original in cell.original_links %}<p><a href="{{ original.url }}" target="_blank" rel="noopener">{{ original.label }}</a></p>{% empty %}<p>No accessible source candidates for this entity and boundary.</p>{% endfor %}</details>
+<p>{{ cell.form.missing_basis.label_tag }}{{ cell.form.missing_basis }}{{ cell.form.missing_basis.errors }}</p>
+<details class="forecast-inputs"><summary>Cash forecast worksheet inputs (forecast treatment only)</summary>
+<p>Use actual dated cash movements, not budgetary flow totals. Keep original restriction identities; declare new restrictions separately. Supply the original worksheet on preview and retention.</p>
+{% for field in cell.form %}{% if field.name != 'kind' and field.name != 'source' and field.name != 'missing_basis' %}
+{% if field.is_hidden %}{{ field }}{{ field.errors }}<div class="worksheet-rows" data-input="{{ field.id_for_label }}" data-kind="{{ field.name }}"></div>
+{% else %}<p>{{ field.label_tag }}{{ field }}{{ field.errors }}</p>{% endif %}{% endif %}{% endfor %}
+</details></section>{% endfor %}
+<button class="btn btn-outline-primary mb-4" name="action" value="preview" type="submit">Preview original sources for PhilHealth treatment</button>
+{{ treatment.preview }}{{ treatment.parts }}{{ treatment.coverage }}{{ treatment.parts.errors }}{{ treatment.coverage.errors }}
+{% if editor %}<h2 class="h4">Original PhilHealth sources and signed partitions</h2>
+<p>Each original signed amount must be partitioned exactly. Treatment and coverage start unresolved or missing. Overlap claims require an explicit same-entity counterpart and remain pending independent resolution.</p>
+<div id="whole-parts"></div><h2 class="h4">Whole-source coverage</h2><div id="whole-coverage"></div>
+{% for field in treatment %}{% if not field.is_hidden %}<p>{{ field.label_tag }}{{ field }}{{ field.errors }}</p>{% endif %}{% endfor %}
+<p class="alert alert-info">Reattach the same original cash worksheets before retaining. Their bytes and original sources must match this preview. Missing PhilHealth attachments keep calculated coverage incomplete.</p>
+<button class="btn btn-primary" name="action" value="retain" type="submit">Retain draft for independent office reviews</button>
+{% endif %}</form>
+{% if editor %}{{ editor|json_script:'whole-editor-data' }}{% endif %}
+<script src="{% static 'accounting/form1-whole.js' %}" defer></script>
+</div>{% endblock %}

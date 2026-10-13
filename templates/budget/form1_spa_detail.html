@@ -3,6 +3,7 @@
 <h1 class="h3">{{ record.fund.code }} SPA subdivisions · version {{ record.version }}</h1>
 <p>{{ snapshot.status }}{% if snapshot.independently_reviewed %} · {% if current %}Current sources checked{% else %}Historical approval; latest package or sources changed{% endif %}{% endif %}</p>
 <p>This review retains source treatment. It does not authorize spending, establish statutory percentages, certify cash or issue Form 1.</p>
+{% if can_prepare_package %}<p><a class="btn btn-outline-primary" href="{% url 'budget:form1_package_prepare' record.public_id %}">Prepare whole Form 1 draft from these sources</a></p>{% endif %}
 {% if not body.spa_partition_complete %}<p class="alert alert-warning">Coverage or subdivision choices remain unresolved. Child amounts stay unknown.</p>{% endif %}
 <p>Original authority: {{ snapshot.payload.reference }} · {{ snapshot.payload.evidence.name }}</p><p>Coverage basis: {{ body.coverage_reference }}</p>
 {% if can_export %}<p><a class="btn btn-outline-primary" href="{% url 'budget:form1_spa_export' record.public_id 'json' %}">Download complete retained package</a> <a class="btn btn-outline-primary" href="{% url 'budget:form1_spa_export' record.public_id 'authority' %}">Download original SPA authority</a></p>{% endif %}

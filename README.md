@@ -110,7 +110,16 @@ dependent tests, native races and real three-office browser decisions retain
 original evidence and financial controls. Preparation intake, statutory
 signatures/issuance and LGU acceptance remain open.
 
-The combined auth/Budget tree requires PR #115's final exact coverage gates.
+The development branch implements [guided first-package preparation](docs/FINANCE_FORM1_INTAKE_2026-10-14.md)
+from approved SPA sources, explicit opening cash evidence, forecast worksheet
+rows and PhilHealth partitions. Prior-base 26-case SQLite/native checks PASS.
+Published Auth/security primary is preserved; combined 74-case regression passes on both backends and updated-primary browser retention/readback PASS. Vm-commit / remote
+gates are pending; intake is not yet a released primary capability. Missing evidence
+stays unknown, with independent office reviews and statutory/LGU gates retained.
+The documentation-only v0.7.164 primary follow-up passed
+[all 19 GitHub jobs](https://github.com/tepong32/grand/actions/runs/38453244967),
+including 2,473 native tests without skips. This run covers the released review
+sources and documentation, not the uncommitted intake.
 
 Install the development-only audit tool when performing security maintenance:
 
