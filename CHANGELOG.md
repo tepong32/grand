@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.165] - 2026-10-14
+### Fixed
+- fix(integration): preserve primary acceptance docs alongside auth review
+
+## [0.7.164] - 2026-10-14
+### Documentation
+- docs(finance): record accepted whole Form 1 review checkpoint
+
 ## [0.7.163] - 2026-10-14
 ### Fixed
 - fix(integration): reconcile auth with published Budget review checkpoint

@@ -28,8 +28,15 @@ classification, user/control impact and dependencies. Historical findings remain
   alerts, but exact released pins are outside every returned affected range;
   actual primary audit is clean. Provider refresh remains OPEN; nothing was
   manually dismissed or downgraded. Do not describe deployment/acceptance as safe.
+  After accepted v160 primary CI, a fresh provider SBOM still reports PyJWT
+  2.13.0, pypdf 6.16.1 and urllib3 2.7.0. Released requirements retain 2.15.1,
+  6.19.0 and 2.8.0 respectively; none is within the 24 returned affected ranges.
+  This directly establishes outdated provider graph versions. Refresh remains
+  an external unresolved finding; no dependency-submission evidence was fabricated.
 - Finance progress resumed with the bounded
-  [internal review screen](FINANCE_FORM1_REVIEW_UI_2026-10-14.md). Preparation
+  [internal review screen](FINANCE_FORM1_REVIEW_UI_2026-10-14.md), now integrated
+  in v0.7.160 with both candidate/primary security/verify/mysql and all 2,473
+  native tests PASS / zero skips. Preparation
   intake is the following clerk step; manual statutory/LGU acceptance stays
   deferred. See [incident findings](FINANCE_CI_INCIDENT_2026-10-12.md) and
   [complete CI evidence](FINANCE_V157_CI_VALIDATION.md).

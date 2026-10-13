@@ -29,6 +29,12 @@ local and candidate security/verify/mysql validation passed; master/tag refs
 are verified at `739e3657`. Resulting primary security/verify/mysql passed. See
 [complete evidence](FINANCE_V157_CI_VALIDATION.md).
 
+The subsequent [v0.7.160 review UI checkpoint](FINANCE_FORM1_REVIEW_UI_2026-10-14.md)
+retains every original identity and adds five HTTP cases. Candidate and primary
+CI both passed all 2,473 native tests with zero skips; SQLite passed 2,278 with
+the same 195 native-only skips. Full logs/identities and both-store cleanup are
+verified; this does not satisfy statutory, physical or LGU acceptance.
+
 Test lifecycle isolation is part of native proof. A manually instantiated source
 factory does not receive the outer test's cleanup automatically: register its
 `doCleanups()` before calling `setUp()` and propagate cleanup failures. Restore

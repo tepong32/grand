@@ -8,7 +8,9 @@ and runtime repairs are retained in the
 [incident](FINANCE_CI_INCIDENT_2026-10-12.md) and
 [gap register](FINANCE_GAP_REGISTER.md#fin-gap-038---security-and-native-regression-release-gate).
 The subsequent [guided internal review screen](FINANCE_FORM1_REVIEW_UI_2026-10-14.md)
-is under affected/dependent validation; preparation intake remains open.
+is integrated/pushed in v0.7.160: affected/dependent tests, native races and
+candidate/primary full 2,473-case coverage pass, with zero native skips.
+Preparation intake remains open.
 This does not close FG-03/FG-06 or waive any foundation/LGU acceptance gate below.
 
 Overnight instruction, 2026-10-13: complete the pending validated vm-commit/CI

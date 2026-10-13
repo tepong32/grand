@@ -8,7 +8,9 @@ candidate security/verify/mysql and all 2,468 native tests PASS, zero skips.
 Resulting primary run 38436008732 passed security/verify/mysql; see [CI evidence](FINANCE_V157_CI_VALIDATION.md).
 The bounded internal review screen now passes 20 affected/dependent cases on
 both backends, native races and actual three-office browser decisions; its
-remote release checks remain pending. Next clerk step is guided whole Form 1
+v0.7.160 / `15b079c1` candidate and primary security/verify/mysql passed all
+2,473 cases, zero native skips, and exact master/tag refs are verified.
+Next clerk step is guided whole Form 1
 preparation intake through existing governed services. Statutory/LGU
 acceptance and production gates remain open; no peripheral expansion is authorized.
 
