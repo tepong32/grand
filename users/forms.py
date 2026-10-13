@@ -23,11 +23,11 @@ class UserRegisterForm(UserCreationForm):
 
 
 class UserUpdateForm(forms.ModelForm):
-	email = forms.EmailField() # to make sure they will be using a valid email address format
-
 	class Meta:
 		model = User 
-		fields = ["email", "first_name", "middle_name", "last_name", "ext_name"] # main identifier(username) should not be changeable by the user so, it's not included here
+		# Recovery email is a credential. HR profile authority must not confer
+		# account takeover through password reset; owners use allauth verification.
+		fields = ["first_name", "middle_name", "last_name", "ext_name"]
 
 
 class EmployeeRegisterForm(UserRegisterForm):

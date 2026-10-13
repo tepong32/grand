@@ -78,6 +78,58 @@ class AuthBoundaryTests(TestCase):
         response = self.client.get(reverse("profile-edit", args=[self.employee.username]))
         self.assertEqual(response.status_code, 403)
 
+    def test_hr_profile_permission_cannot_change_another_accounts_recovery_email(self):
+        self.employee.user_permissions.add(Permission.objects.get(content_type__app_label="profiles", codename="change_employeeprofile"))
+        target = get_user_model().objects.create_user(username="protected-approver", email="approver@example.gov", password="Valid-Passphrase-2026")
+        self.client.force_login(self.employee)
+        response = self.client.post(reverse("profile-edit", args=[target.username]), {"user-email": "takeover@example.com", "user-first_name": "Updated name"})
+        self.assertEqual(response.status_code, 302)
+        target.refresh_from_db()
+        self.assertEqual(target.first_name, "Updated name")
+        self.assertEqual(target.email, "approver@example.gov")
+        self.client.logout()
+        mail.outbox.clear()
+        self.client.post(reverse("password_reset"), {"email": "takeover@example.com"})
+        self.assertEqual(mail.outbox, [])
+
+    def test_profile_owner_uses_verified_email_management_instead_of_raw_email_update(self):
+        self.client.force_login(self.citizen)
+        response = self.client.post(reverse("profile-edit", args=[self.citizen.username]), {"user-email": "unverified@example.com", "user-first_name": "Updated citizen", "citizen-contact_number": "09123456789", "citizen-address": "Synthetic citizen address"})
+        self.assertEqual(response.status_code, 302)
+        self.citizen.refresh_from_db()
+        self.assertEqual(self.citizen.first_name, "Updated citizen")
+        self.assertEqual(self.citizen.email, "citizen@example.com")
+        self.assertContains(self.client.get(reverse("profile-edit", args=[self.citizen.username])), reverse("account_email"))
+
+    def test_unverified_email_cannot_replace_primary_recovery_address(self):
+        EmailAddress.objects.create(user=self.citizen, email=self.citizen.email, verified=True, primary=True)
+        candidate = EmailAddress.objects.create(user=self.citizen, email="unverified@example.com", verified=False)
+        self.client.force_login(self.citizen)
+        self.assertEqual(self.client.get(reverse("account_email")).status_code, 200)
+        self.client.post(reverse("account_reauthenticate"), {"password": "Valid-Passphrase-2026"})
+        response = self.client.post(reverse("account_email"), {"action_primary": "", "email": candidate.email})
+        self.assertRedirects(response, reverse("account_email"))
+        self.citizen.refresh_from_db()
+        candidate.refresh_from_db()
+        self.assertEqual(self.citizen.email, "citizen@example.com")
+        self.assertFalse(candidate.primary)
+
+    def test_email_mutation_requires_recent_authentication(self):
+        self.client.force_login(self.citizen)
+        response = self.client.post(reverse("account_email"), {"action_add": "", "email": "candidate@example.com"})
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(reverse("account_reauthenticate")))
+        self.assertFalse(EmailAddress.objects.filter(user=self.citizen, email="candidate@example.com").exists())
+
+    def test_current_password_guesses_share_authenticated_target_counter(self):
+        self.client.force_login(self.employee)
+        routes = ("password_change", "admin:password_change", "account_change_password", "account_reauthenticate")
+        for index in range(11):
+            response = self.client.post(reverse(routes[index % len(routes)]), {"username": f"ignored-{index}", "login": f"ignored-{index}", "old_password": "wrong", "oldpassword": "wrong", "password": "wrong", "new_password1": "Valid-New-Passphrase-2026", "new_password2": "Valid-New-Passphrase-2026", "password1": "Valid-New-Passphrase-2026", "password2": "Valid-New-Passphrase-2026"}, REMOTE_ADDR=f"192.0.2.{index}")
+        self.assertEqual(response.status_code, 429)
+        self.employee.refresh_from_db()
+        self.assertTrue(self.employee.check_password("Valid-Passphrase-2026"))
+
     def test_citizen_cannot_enumerate_other_profiles(self):
         self.client.force_login(self.citizen)
         self.assertEqual(self.client.get(reverse("profile", args=[self.employee.username])).status_code, 404)

@@ -12,6 +12,10 @@
     <!-- User Basic Info (shared) -->
     <fieldset class="form-group border p-3 rounded">
       <legend>User Info</legend>
+      <p class="text-muted">Sign-in and recovery email are managed separately from profile details.</p>
+      {% if is_owner %}
+        <p><a href="{% url 'account_email' %}">Manage and verify your email addresses</a></p>
+      {% endif %}
       {% for field in u_form %}
         <div class="form-group">
           {{ field.label_tag }} {{ field }}

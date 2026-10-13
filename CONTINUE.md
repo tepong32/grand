@@ -96,6 +96,26 @@ schema names. The committed CI equivalents are `python manage.py test
 `python scripts/run_mysql_tests.py --ci-shard`; the PR's final `verify` / `mysql`
 jobs enforce exact complete coverage and zero native skips before integration.
 
+The final credential review found that ordinary profile forms could change
+another employee's recovery email under HR profile authority. The committed
+v0.7.161 form reproduced the overwrite on an isolated unsaved user. Profile
+forms now contain names only; owners use allauth email management with recent
+authentication, and trusted account administrators retain separate account
+tools. Current-password guesses across Django/admin password change and allauth
+password change/reauthentication use the same persisted login account counter.
+The obsolete v161 CI run 38442355330 and incomplete local full run were cancelled
+after this finding; neither establishes complete passing coverage. PASS: final
+SQLite identity/profile/home/department/leave regression, 145/145 (73.212s),
+`python .tmp/sqlite_run.py users.test_auth_security profiles users.tests home
+departments leave_mgt`. An initial new citizen fixture omitted its required
+contact/address and failed; valid synthetic fields fixed that fixture without
+relaxing production validation. PASS: native affected regression 419/419 with
+zero skips (196.750s), using the same department/user/profile/home/leave,
+assistance/social-welfare/reporting/records/TracePoint/Finance-operation labels
+in `python .tmp/native_auth.py`. System checks and migration drift pass on the
+final settings. The PR's final complete backend gates remain authoritative for
+integration; obsolete runs are not substitutes for those gates.
+
 ## Finance foundation validation retained from v0.7.157
 
 The following Finance evidence retains the candidate state supplied by primary

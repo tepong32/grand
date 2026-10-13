@@ -19,6 +19,15 @@ establish production/LGU acceptance.
 - Editing another employee's HR fields requires HR directory authority and
   `profiles.change_employeeprofile`. Owners can edit their basic/contact fields;
   client-supplied department, permissions and staff flags are ignored.
+- Profile forms never change recovery/login email, including when an HR editor
+  edits another employee. HR profile permission must not permit password-reset
+  takeover. Owners manage addresses through allauth's verified email flow;
+  trusted account administrators retain Django admin's separate account tools.
+  Unverified addresses cannot replace an existing verified primary address.
+  Email mutation requires recent authentication. Current-password verification
+  at Django/admin password change and allauth password change/reauthentication
+  shares the login family's persisted account counter; submitted extra identity
+  fields cannot select a different target.
 - `/dashboard/` derives the office from the authenticated employee profile,
   never request parameters. Employees without an assignment see the pending
   assignment page. Citizens go to `/citizen/dashboard/`, with public services

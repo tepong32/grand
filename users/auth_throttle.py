@@ -16,6 +16,8 @@ from .models import AuthAttemptBucket
 
 logger = logging.getLogger(__name__)
 
+CURRENT_PASSWORD_ROUTES = {"password_change", "admin:password_change", "account_change_password", "account_reauthenticate"}
+
 
 def consume_attempt(scope, value, *, limit, window=300):
     now = timezone.now()
@@ -39,13 +41,15 @@ def network_identity(request):
         return "unknown"
 
 
-def attempt_identities(route, post, kwargs):
+def attempt_identities(route, post, kwargs, user=None):
     """Use the actual form field, then bind aliases to the persisted account.
 
     Database matching deliberately uses the authentication store's collation:
     case/accent aliases that authenticate as one user must share its counter.
     Ambiguous email/username matches consume every candidate's counter.
     """
+    if route in CURRENT_PASSWORD_ROUTES:
+        return [f"account:{user.pk}"] if user and user.is_authenticated else []
     if route in {"password_reset_confirm", "account_reset_password_from_key"}:
         raw = kwargs.get("uidb64", "") if route == "password_reset_confirm" else kwargs.get("uidb36", "")
         try:
@@ -91,7 +95,7 @@ class AuthAttemptMiddleware:
         if request.method != "POST":
             return None
         route = request.resolver_match.view_name
-        if route in {"login", "account_login", "admin:login"}:
+        if route in {"login", "account_login", "admin:login"} | CURRENT_PASSWORD_ROUTES:
             family, ip_limit, key_limit = "login", 30, 10
         elif route in {"password_reset", "password_reset_confirm", "account_reset_password", "account_reset_password_from_key"}:
             family, ip_limit, key_limit = "reset", 10, 5
@@ -102,7 +106,7 @@ class AuthAttemptMiddleware:
         try:
             allowed = consume_attempt(f"{family}:network", network_identity(request), limit=ip_limit)
             if allowed:
-                for identity in attempt_identities(route, request.POST, view_kwargs):
+                for identity in attempt_identities(route, request.POST, view_kwargs, user):
                     if not consume_attempt(f"{family}:identity", identity, limit=key_limit):
                         allowed = False
                         break

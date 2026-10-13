@@ -10,7 +10,9 @@ Identity security (2026-10-14): public password/Google signup creates only a
 citizen identity; password sign-in requires its verified email. Employee
 provisioning requires HR directory authority plus `users.add_user`, explicit
 department assignment, and separate module grants. Staff flags alone are not
-HR authority. Derive dashboards from the current employee profile; never from
+HR authority. Profile editors cannot change recovery/login email; owners use
+verified email management with recent authentication. Derive dashboards from the
+current employee profile; never from
 URL parameters. Quarantine conflicting legacy employee/citizen profiles for
 human identity review without deleting evidence. Shared default-store attempt
 counters cover Django/allauth/admin login, signup and reset; deploy users/0002

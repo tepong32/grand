@@ -177,6 +177,7 @@ ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_REAUTHENTICATION_REQUIRED = True
 
 from django.urls import reverse_lazy
 LOGIN_REDIRECT_URL = reverse_lazy('department_dashboard')

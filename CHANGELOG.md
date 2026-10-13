@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.162] - 2026-10-14
+### Fixed
+- fix(auth): protect recovery email from profile editors
+
 ## [0.7.161] - 2026-10-14
 ### Fixed
 - fix(auth): bind attempt limits to accounts and reconcile current primary
