@@ -17,6 +17,7 @@ app_name = "budget"
 urlpatterns = [
     path('form1-packages/', form1_package_views.register, name='form1_packages'),
     path('form1-packages/<uuid:public_id>/', form1_package_views.detail, name='form1_package_detail'),
+    path('form1-packages/<uuid:public_id>/review/<str:role>/', form1_package_views.review, name='form1_package_review'),
     path('form1-packages/<uuid:public_id>/export/<str:kind>/', form1_package_views.export, name='form1_package_export'),
     path('spa-reviews/', form1_spa_views.register, name='form1_spas'),
     path('spa-reviews/prepare/<uuid:public_id>/', form1_spa_views.prepare, name='form1_spa_prepare'),

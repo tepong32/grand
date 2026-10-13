@@ -3,7 +3,16 @@
 Current execution follows the [2026-09-18 foundation gate](FINANCE_FOUNDATION_GATE.md):
 complete existing retrieval and Budget context before broader Finance features.
 
-October 13 execution direction: finish the current zero-skip native regression
+October 14 checkpoint: v0.7.157 is integrated/pushed at exact `739e3657`, with
+candidate security/verify/mysql and all 2,468 native tests PASS, zero skips.
+Resulting primary run 38436008732 passed security/verify/mysql; see [CI evidence](FINANCE_V157_CI_VALIDATION.md).
+The bounded internal review screen now passes 20 affected/dependent cases on
+both backends, native races and actual three-office browser decisions; its
+remote release checks remain pending. Next clerk step is guided whole Form 1
+preparation intake through existing governed services. Statutory/LGU
+acceptance and production gates remain open; no peripheral expansion is authorized.
+
+Historical October 13 execution direction: finish the current zero-skip native regression
 and validate the bounded [CI distribution repair](FINANCE_V157_CI_VALIDATION.md)
 on GitHub. If verify remains unaccepted, document the exact result and continue
 independently validated Finance development toward guided whole Form 1 intake

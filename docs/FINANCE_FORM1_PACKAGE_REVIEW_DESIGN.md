@@ -9,7 +9,12 @@ Complete non-overlap controls can be internally approved; missing evidence and
 pending overlap/SHF treatments remain blocked and can be returned. The evidenced
 overlap-recipe route below remains required. CONTINUE.md records the actual SQLite/native outcomes and three native races.
 
-Development boundary, 2026-10-12; local and unpublished. This contract records internal review implementation and remaining delivery gates;
+The v157 source/services are integrated and candidate CI is green; resulting
+primary security/verify/mysql passed. The subsequent
+[guided internal review screen](FINANCE_FORM1_REVIEW_UI_2026-10-14.md) passed 20 affected/dependent cases on SQLite/native, three native races and
+actual three-office browser decisions. Its own remote release checks remain
+pending. Whole preparation intake remains the next clerk
+step. This contract records internal review implementation and remaining delivery gates;
 statutory signatures are not implemented.
 Continue the [source contract](FINANCE_FORM1_SOURCE_CONTRACT.md),
 [assembly boundary](FINANCE_FORM1_ASSEMBLY_DESIGN.md) and
@@ -151,7 +156,7 @@ regressions. Native fixture repairs pass focused and ordered follow-ups; actual
 complete remote release checks remain pending. CONTINUE.md records their results and the final three-office desktop/
 mobile read checks. Native JSON download and authenticated PDF/ZIP response checks
 passed; native PDF/ZIP browser saving remains an evidenced environment limitation.
-Intake, review actions, full delivery acceptance and representative varied-source
+Intake, final review-screen validation, full delivery acceptance and representative varied-source
 performance remain required; no clerk acceptance is inferred.
 
 Connect selection of the original approved SPA/flow and original stock calendar to

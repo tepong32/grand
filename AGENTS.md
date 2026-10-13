@@ -42,6 +42,11 @@ the same actor/source; it never creates authority or approval. See the
 [assembly design](docs/FINANCE_FORM1_ASSEMBLY_DESIGN.md) and
 [review/delivery contract](docs/FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md).
 
+Whole-package clerk review uses explicit office findings through the existing
+immutable review service, with current original-source checks under its owning
+locks. No form input supplies statutory signing, issuance or cash authority.
+See [review UI checkpoint](docs/FINANCE_FORM1_REVIEW_UI_2026-10-14.md).
+
 Pure Form 1 integrity reuse is limited to the outer operation and keys the complete
 actual JSON evidence, including its claimed checksums. Non-JSON/coercible inputs
 receive full uncached verification. Keep returned payloads caller-owned; never cache

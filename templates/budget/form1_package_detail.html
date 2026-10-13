@@ -2,11 +2,20 @@
 <a href="{% url 'budget:form1_packages' %}">Whole draft history</a>
 <h1 class="h3">{{ record.fund.code }} · {{ record.proposal.fiscal_year.year }} · whole draft version {{ record.version }}</h1>
 <p>{{ status }} · Prepared {{ record.prepared_at }}</p>
-<p class="alert alert-info">Incomplete draft. This retained history does not certify current sources, authorize cash, supply statutory signatures or issue Form 1.</p>
+<p class="alert alert-info">Draft history. This retained history does not certify current sources, authorize cash, supply statutory signatures or issue Form 1.</p>
 {% if not complete %}<p class="alert alert-warning">Resolve missing source coverage or policy evidence before internal approval. Unknown amounts remain unknown.</p>{% endif %}
+{% if decision_errors %}<div class="alert alert-danger" role="alert">{{ decision_errors }}</div>{% endif %}
 {% if state.status == 'returned' %}<p>Budget must prepare a successor that resolves the recorded return. This original version and its decisions stay retained.</p>
 {% elif state.status == 'reviewed' %}<p>Internal reviews are complete. Statutory certification, Chief Executive approval and issued delivery remain required.</p>
 {% else %}<h2 class="h5">Pending independent reviews</h2><ul>{% for item in pending %}<li>{{ item.role|title }} · designated office {{ item.department_id }}</li>{% endfor %}</ul>{% endif %}
+{% for item in decision_forms %}<section class="card card-body mb-3">
+<h2 class="h5">Your {{ item.role|title }} internal review</h2>
+<p>Inspect the original sources and record a finding and evidence basis for every check. Approval requires complete current sources and every check verified. Returning retains this version and any earlier decisions.</p>
+<form method="post" action="{% url 'budget:form1_package_review' record.public_id item.role %}">{% csrf_token %}
+{{ item.form.as_p }}
+<button class="btn btn-primary" type="submit" name="action" value="approve">Approve internally as {{ item.role|title }}</button>
+<button class="btn btn-outline-danger" type="submit" name="action" value="return">Return with findings</button>
+</form></section>{% endfor %}
 {% if can_export %}<p><a download class="btn btn-outline-primary" href="{% url 'budget:form1_package_export' record.public_id 'pdf' %}">Download complete draft PDF</a>
 <a download class="btn btn-outline-primary" href="{% url 'budget:form1_package_export' record.public_id 'zip' %}">Download original documents and complete evidence</a>
 <a download class="btn btn-outline-primary" href="{% url 'budget:form1_package_export' record.public_id 'json' %}">Download complete data</a></p>{% endif %}

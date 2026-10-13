@@ -6,36 +6,33 @@ classification, user/control impact and dependencies. Historical findings remain
 
 ## FIN-GAP-038 - Security and native regression release gate
 
-- October 13 user direction: after the current full native validation and bounded
-  remote repair attempt, an unaccepted verify result must be documented rather
-  than consume further speculative optimization. Independently validated Finance
-  development may continue; required primary checks and unresolved critical
-  dependency/production findings remain explicit blockers to promotion/acceptance.
-- Latest bounded repair: [complete CI workload distribution](FINANCE_V157_CI_VALIDATION.md),
-  complete local validation PASS; actual remote validation pending. All 2,468 original application
-  IDs remain; six explicit coverage-runner checks pass. No assertion, native
-  constraint, security check or existing timeout is weakened. CRITICAL primary
-  dependency and HIGH runtime findings remain OPEN; dependent implementation
-  and primary promotion remain NO-GO.
-- Complete MySQL rehearsal PASS: all 2,468 tests without skips, including all
-  195 SQLite-skipped identities. Complete SQLite and security/system/migration
-  preflight PASS; exact coverage, source/log hashes and two-store cleanup verified.
-  Candidate publication GO only; this does not close the remote release blocker.
-- Actual v156 MySQL outcome is now terminal CANCELLED at its unchanged 60-minute
-  limit, completed 14:59:30 UTC October 13. Complete log/all nine annotations
-  retained: 1,108 distinct expected named starts, no suite summary or unittest
-  failure markers. Six permission annotations map to five completed passing
-  negative cases. Both v156 jobs are unaccepted; the CI workload repair requires
-  full local shard proof and actual new-candidate verify/mysql passes.
-
-- Severity/status: **CRITICAL - OPEN PRIMARY RELEASE BLOCKER**. GitHub's actual
-  default-branch alerts include Critical PyJWT GHSA-ffc3-869f-jxw9 in the old pin.
-  Candidate 2.15.1 is outside its affected range and all 24 returned alert ranges;
-  local audit passes, but actual candidate/master CI and integration are pending.
-  The original scheduled Actions
-  failures and candidate regression defects are documented in the
-  [incident record](FINANCE_CI_INCIDENT_2026-10-12.md); primary integration and dependent
-  implementation are NO-GO until repaired checks and both resulting remote jobs pass.
+- Engineering status: **RESOLVED / GO for the next Finance checkpoint**.
+  Installed Version Manager v0.7.157 / `739e3657` is integrated into master and
+  its tag pushed, with exact refs verified. Both
+  [candidate](https://github.com/tepong32/grand/actions/runs/38431327925) and
+  [resulting primary](https://github.com/tepong32/grand/actions/runs/38436008732)
+  runs passed security, verify, mysql and all sixteen workers. Production remains
+  **NO-GO** under the separate Finance/operational/LGU gates.
+- Original severity: dependency finding **CRITICAL — REMEDIATED ON PRIMARY**;
+  application/test regression and runtime findings **HIGH — REPAIRED AND VERIFIED**.
+  Three patched pins, deterministic historical fixtures/cleanup, scoped pure
+  integrity reuse and complete CI workload distribution preserve all financial
+  guards, assertions, constraints, security gates and original job limits.
+- Actual candidate, primary and local validation: all 2,468 native tests PASS,
+  zero skips, including all 195 exact SQLite-skipped identities. SQLite 2,273
+  PASS / 195 unchanged native-only skips; audit, runner, system/drift, dependency
+  consistency and Telegram checks PASS. Complete raw logs/IDs/hashes/cleanup
+  retained. All twelve primary failure-level annotations map to passing negative
+  permission tests. Historical failed evidence remains unchanged below.
+- Separate provider status: accepted-primary Dependabot still returns 24 OPEN
+  alerts, but exact released pins are outside every returned affected range;
+  actual primary audit is clean. Provider refresh remains OPEN; nothing was
+  manually dismissed or downgraded. Do not describe deployment/acceptance as safe.
+- Finance progress resumed with the bounded
+  [internal review screen](FINANCE_FORM1_REVIEW_UI_2026-10-14.md). Preparation
+  intake is the following clerk step; manual statutory/LGU acceptance stays
+  deferred. See [incident findings](FINANCE_CI_INCIDENT_2026-10-12.md) and
+  [complete CI evidence](FINANCE_V157_CI_VALIDATION.md).
 - Original incident is pre-existing: failed runs 139/138 and passing run 136 use
   the same master SHA. Dependency advisories and calendar-sensitive synthetic
   fixtures are distinct causes; neither job failed from a timeout or service startup.

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.163] - 2026-10-14
+### Fixed
+- fix(integration): reconcile auth with published Budget review checkpoint
+
 ## [0.7.162] - 2026-10-14
 ### Fixed
 - fix(auth): protect recovery email from profile editors
@@ -7,6 +11,10 @@
 ## [0.7.161] - 2026-10-14
 ### Fixed
 - fix(auth): bind attempt limits to accounts and reconcile current primary
+
+## [0.7.160] - 2026-10-14
+### Feat
+- feat(budget): expose independent whole Form 1 reviews
 
 ## [0.7.159] - 2026-10-14
 ### Added

@@ -5,8 +5,8 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, render
-from django.views.decorators.http import require_GET
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_GET, require_POST
 from src.export_archive import archive_export
 from .access import department_for_user, has_budget_permission
 from .models import Form1Package
@@ -15,6 +15,7 @@ from . import form1_packages as packages, form1_package_reviews as reviews
 from .form1_flows import COLUMNS
 from accounting.cash_classifications import checksum
 from .services import record_event
+from .form1_package_forms import PackageDecision
 
 STATUSES={'prepared':'Awaiting internal reviews','partially_reviewed':'Some internal reviews recorded',
     'reviewed':'Internal reviews complete','returned':'Returned for a successor'}
@@ -80,10 +81,7 @@ def register(request):
         statuses=STATUSES.items(),params=params.urlencode()))
 
 
-@login_required
-@require_GET
-def detail(request,public_id):
-    record=get_object_or_404(candidates(request.user),public_id=public_id)
+def render_detail(request,record,*,decision_role=None,decision_form=None,status=200):
     try:
         record=packages._read(record,request.user)
         body=record.payload['assembly']['payload'];packages.verify_office_index(record,body)
@@ -112,11 +110,55 @@ def detail(request,public_id):
         for item in state['decisions']}
     for item in state['required_reviews']:
         if (item['role'],item['department_id']) not in completed:pending.append(item)
+    from vouchers.roles import is_finance_uat_viewer
+    owner=department_for_user(request.user)
+    decision_forms=[]
+    if (state['status'] not in ('reviewed','returned') and record.prepared_by_id!=request.user.pk
+        and not is_finance_uat_viewer(request.user)
+        and not any(item['payload']['identity']['actor_id']==request.user.pk for item in state['decisions'])):
+        for item in pending:
+            role=item['role']
+            if owner.pk==item['department_id'] and has_budget_permission(request.user,'review_form1_package_'+role):
+                decision_forms.append(dict(role=role,form=decision_form if role==decision_role else PackageDecision(role)))
     params=request.GET.copy();params.pop('page',None)
     return render(request,'budget/form1_package_detail.html',dict(record=record,state=state,
         status=STATUSES[state['status']],pending=pending,can_export=can_export,
-        complete=body['calculation_coverage_complete'],
-        page=Paginator(rows,50).get_page(request.GET.get('page')),params=params.urlencode()))
+        complete=body['calculation_coverage_complete'],decision_forms=decision_forms,
+        decision_errors=decision_form.non_field_errors() if decision_form is not None and not any(
+            item['role']==decision_role for item in decision_forms) else None,
+        page=Paginator(rows,50).get_page(request.GET.get('page')),params=params.urlencode()),status=status)
+
+
+@login_required
+@require_GET
+def detail(request,public_id):
+    record=get_object_or_404(candidates(request.user),public_id=public_id)
+    return render_detail(request,record)
+
+
+@login_required
+@require_POST
+def review(request,public_id,role):
+    if role not in reviews.CHECKS:
+        return HttpResponse('Choose Budget, Accounting or Treasury internal review.',status=400)
+    from vouchers.roles import is_finance_uat_viewer
+    if is_finance_uat_viewer(request.user) or not has_budget_permission(request.user,'review_form1_package_'+role):
+        raise PermissionDenied('Use your independently designated whole-package review permission.')
+    record=get_object_or_404(candidates(request.user),public_id=public_id)
+    if request.POST.get('action') not in ('approve','return'):
+        return HttpResponse('Choose internal approval or return.',status=400)
+    form=PackageDecision(role,request.POST)
+    try:
+        # Reading authority is required even for a malformed submission; role
+        # grants alone must not reveal or decide another officer's source evidence.
+        record=packages._read(record,request.user)
+        if form.is_valid():
+            reviews.review(record,request.user,role=role,approve=request.POST['action']=='approve',
+                checks=form.checks(),authority=form.cleaned_data['authority'],note=form.cleaned_data['note'])
+            return redirect('budget:form1_package_detail',public_id=record.public_id)
+    except ValidationError as error:
+        form.add_error(None,error)
+    return render_detail(request,record,decision_role=role,decision_form=form,status=409)
 
 
 @login_required
