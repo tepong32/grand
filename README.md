@@ -79,6 +79,9 @@ The reporting seed command is idempotent: it creates or preserves the five MSWD 
 
 ## Verification
 
+See [department starting pages](docs/DEPARTMENT_DASHBOARDS.md) for the employee,
+citizen and department-specific dashboard layouts.
+
 See [authentication and account provisioning](docs/AUTH_SECURITY.md) for citizen
 signup, authorized employee creation, dashboard routing, URL access boundaries,
 attempt-counter deployment and the read-only legacy identity review.

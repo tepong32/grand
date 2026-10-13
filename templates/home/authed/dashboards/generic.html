@@ -1,153 +1,178 @@
 {% extends "base.html" %}
-
-{% block title_ext %} - {{ department.name|default:"Department" }} Dashboard{% endblock %}
-
+{% block title_ext %} · {{ department.name|default:"Department" }} dashboard{% endblock %}
 {% block content %}
-<div class="container-fluid pb-4">
-  <div class="row align-items-xl-center mb-4">
-    <div class="col-xl-9">
-      <p class="text-uppercase text-muted small font-weight-bold mb-1">Department workspace</p>
-      <h1 class="mb-1">{{ department.name }}</h1>
-      <p class="text-muted mb-0">
-        {% if department.description %}{{ department.description }}{% else %}A shared view of your office team, workload, and priorities.{% endif %}
-      </p>
-    </div>
-    <div class="col-xl-3 mt-3 mt-xl-0 text-xl-right">
-      <div class="font-weight-bold">Welcome, {{ request.user.get_full_name|default:request.user.username }}</div>
-      {% if department.deptHead_or_oic %}
-        <small class="text-muted">Department head/OIC: {{ department.deptHead_or_oic.get_full_name|default:department.deptHead_or_oic.username }}</small>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="row">
-    {% for metric in dashboard_metrics %}
-      <div class="col-6 col-xl-3">
-        <div class="gov-metric-card">
-          <span class="gov-metric-icon gov-metric-{{ metric.color }}"><i class="fas {{ metric.icon }}"></i></span>
-          <div><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong></div>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-
-  <div class="row">
-    <div class="col-xl-8">
-      <div class="card card-outline card-primary">
-        <div class="card-header border-0">
-          <h3 class="card-title font-weight-bold">Office workspace</h3>
-          <span class="float-right text-muted small">Modules can be connected as each office workflow is built</span>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            {% for section in dashboard_sections %}
-              <div class="col-md-6 mb-3">
-                <div class="border rounded h-100 p-3">
-                  <div class="d-flex justify-content-between align-items-start">
-                    <i class="fas {{ section.icon }} fa-2x text-primary mb-3"></i>
-                    <span class="badge {% if section.status == 'Available' %}badge-success{% else %}badge-secondary{% endif %}">{{ section.status }}</span>
-                  </div>
-                  <h5>{{ section.title }}</h5>
-                  <p class="text-muted">{{ section.description }}</p>
-                  {% if section.summary_items %}
-                    <div class="row no-gutters border rounded bg-light mb-3" aria-label="{{ section.title }} summary">
-                      {% for item in section.summary_items %}
-                        <div class="col text-center p-2{% if not forloop.last %} border-right{% endif %}">
-                          <div class="h5 mb-0">{{ item.value }}</div>
-                          <small class="text-muted">{{ item.label }}</small>
-                        </div>
-                      {% endfor %}
-                    </div>
-                  {% endif %}
-                  {% if section.url_name %}
-                    {% url section.url_name as section_url %}
-                    <a href="{{ section_url }}" class="btn btn-sm btn-outline-primary">
-                      {{ section.action_label|default:"Open module" }}
-                    </a>
-                  {% elif section.url %}
-                    <a href="{{ section.url }}" class="btn btn-sm btn-outline-primary">
-                      {{ section.action_label|default:"Open module" }}
-                    </a>
-                  {% endif %}
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-
-      {% if upcoming_social_welfare_activities %}
-        <div class="card card-outline card-success">
-          <div class="card-header border-0">
-            <h3 class="card-title font-weight-bold">Upcoming social welfare activities</h3>
-            <a href="{% url 'social_welfare:program_list' %}" class="btn btn-sm btn-outline-success float-right">View full schedule</a>
-          </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-hover mb-0">
-                <thead>
-                  <tr><th>Activity</th><th>Program</th><th>Schedule</th><th>Venue</th></tr>
-                </thead>
-                <tbody>
-                  {% for activity in upcoming_social_welfare_activities %}
-                    <tr>
-                      <td class="font-weight-bold">{{ activity.title }}</td>
-                      <td>{{ activity.program.name }}</td>
-                      <td>{{ activity.starts_at|date:"M j, Y · g:i A" }}</td>
-                      <td>{{ activity.venue }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      {% endif %}
-    </div>
-
-    <div class="col-xl-4">
-      <div class="card card-outline card-info">
-        <div class="card-header"><h3 class="card-title font-weight-bold">Department team</h3></div>
-        <div class="card-body p-0">
-          <ul class="list-group list-group-flush">
-            {% for member in team_members %}
-              <li class="list-group-item">
-                <strong>{{ member.user.get_full_name|default:member.user.username }}</strong>
-                <div class="text-muted small">{{ member.position_title|default:"Position not yet recorded" }}</div>
-              </li>
-            {% empty %}
-              <li class="list-group-item text-muted">No employees have been assigned to this department yet.</li>
-            {% endfor %}
-          </ul>
-        </div>
-        {% if team_member_count > 6 %}<div class="card-footer text-muted small">Showing 6 of {{ team_member_count }} team members.</div>{% endif %}
-      </div>
-
-      <div class="card card-outline card-secondary">
-        <div class="card-header"><h3 class="card-title font-weight-bold">Internal announcements</h3></div>
-        <div class="card-body p-0">
-          <ul class="list-group list-group-flush">
-            {% for announcement in recent_announcements %}
-              <li class="list-group-item">
-                <a href="{{ announcement.get_absolute_url }}">{{ announcement.title }}</a>
-                <div class="text-muted small">{{ announcement.created_at|date:"M j, Y" }}</div>
-              </li>
-            {% empty %}
-              <li class="list-group-item text-muted">No internal announcements have been published.</li>
-            {% endfor %}
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {% if department.email or department.phone %}
-    <div class="alert alert-light border text-dark mt-2 mb-0">
-      <strong>Office contact:</strong>
-      {% if department.email %}<a href="mailto:{{ department.email }}">{{ department.email }}</a>{% endif %}
-      {% if department.email and department.phone %}<span class="mx-2">&middot;</span>{% endif %}
-      {% if department.phone %}{{ department.phone }}{% endif %}
-    </div>
-  {% endif %}
+{% include "home/authed/dashboard_styles.html" %}
+<main class="grand-dashboard" aria-labelledby="workspace-title">
+  <header class="workspace-hero">
+    <div>
+<p class="workspace-eyebrow">Your office · GRAND</p>
+<h1 id="workspace-title">{{ department.name|default:"Department workspace" }}</h1>
+<p>{{ department.description|default:"Choose your next task, find your office workspaces, and stay connected with your team." }}</p>
 </div>
-{% endblock content %}
+    <div class="workspace-person">
+<span>Welcome back</span>
+<strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+<span>
+{% if is_department_head %}Department head / OIC{% else %}Employee workspace{% endif %}
+</span>
+</div>
+  </header>
+  <nav class="workspace-quick-links" aria-label="Your everyday tasks">
+    <a href="{% url 'profile' request.user.username %}">
+<i class="fas fa-id-card" aria-hidden="true">
+</i>My profile</a>
+    <a href="{% url 'leave_list' %}">
+<i class="fas fa-calendar-check" aria-hidden="true">
+</i>My leave</a>
+    <a href="{% url 'announcements-list' %}">
+<i class="fas fa-bullhorn" aria-hidden="true">
+</i>Announcements</a>
+    {% if can_create_employee_accounts %}
+<a href="{% url 'employee-register' %}">
+<i class="fas fa-user-plus" aria-hidden="true">
+</i>Create employee account</a>
+{% endif %}
+  </nav>
+  <div class="workspace-metrics" aria-label="Office overview">
+    {% for metric in dashboard_metrics %}
+<div class="workspace-metric">
+<i class="fas {{ metric.icon }}" aria-hidden="true">
+</i>
+<div>
+<strong>{{ metric.value }}</strong>
+<span>{{ metric.label }}</span>
+</div>
+</div>
+{% endfor %}
+  </div>
+  <div class="workspace-layout">
+    <div>
+      <div class="workspace-heading">
+<h2>Office workspace</h2>
+<p>Where would you like to go next?</p>
+</div>
+      <div class="workspace-grid">
+        {% for section in dashboard_sections %}
+        <article class="workspace-module">
+          <div class="workspace-module-top">
+<span class="workspace-module-icon">
+<i class="fas {{ section.icon }}" aria-hidden="true">
+</i>
+</span>
+<span class="workspace-status {% if section.status == 'Available' %}available{% elif section.status == 'Restricted' %}restricted{% endif %}">
+{% if section.status == 'Restricted' %}Permission required{% else %}{{ section.status }}{% endif %}
+</span>
+</div>
+          <h3>{{ section.title }}</h3>
+<p>{{ section.description }}</p>
+          {% if section.summary_items %}
+<div class="workspace-summary" aria-label="{{ section.title }} summary">
+{% for item in section.summary_items %}
+<div>
+<strong>{{ item.value }}</strong>
+<span>{{ item.label }}</span>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+          {% if section.status == 'Available' and section.url_name %}{% url section.url_name as section_url %}
+<a class="workspace-action" href="{{ section_url }}" aria-label="{{ section.action_label|default:'Open workspace' }}: {{ section.title }}">{{ section.action_label|default:"Open workspace" }}<i class="fas fa-arrow-right" aria-hidden="true">
+</i>
+</a>
+          {% elif section.status == 'Available' and section.url %}
+<a class="workspace-action" href="{{ section.url }}">{{ section.action_label|default:"Open workspace" }}<i class="fas fa-arrow-right" aria-hidden="true">
+</i>
+</a>
+          {% elif section.status == 'Restricted' %}
+<span class="workspace-placeholder">Ask your administrator about the access needed for your role.</span>
+          {% else %}
+<span class="workspace-placeholder">Planned office workspace · not yet connected</span>
+{% endif %}
+        </article>
+        {% empty %}
+<div class="workspace-panel">
+<p class="workspace-note">Your office workspaces will appear here after your department is assigned.</p>
+</div>
+{% endfor %}
+      </div>
+      {% if upcoming_social_welfare_activities %}
+      <div class="workspace-panel mt-4">
+<div class="workspace-heading">
+<h2>Upcoming social welfare activities</h2>
+<a href="{% url 'social_welfare:program_list' %}">View full schedule</a>
+</div>
+<div class="workspace-table">
+<table>
+<thead>
+<tr>
+<th>Activity</th>
+<th>Program</th>
+<th>Schedule</th>
+<th>Venue</th>
+</tr>
+</thead>
+<tbody>
+{% for activity in upcoming_social_welfare_activities %}
+<tr>
+<td>{{ activity.title }}</td>
+<td>{{ activity.program.name }}</td>
+<td>{{ activity.starts_at|date:"M j, Y · g:i A" }}</td>
+<td>{{ activity.venue }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+      {% endif %}
+    </div>
+    <aside aria-label="Office information">
+      <div class="workspace-panel">
+<h2>Department team</h2>
+<ul class="workspace-list">
+{% for member in team_members %}
+<li>
+<strong>{{ member.user.get_full_name|default:member.user.username }}</strong>
+<small>{{ member.position_title|default:"Position not yet recorded" }}</small>
+</li>
+{% empty %}
+<li class="workspace-note">No team members have been assigned yet.</li>
+{% endfor %}
+</ul>
+{% if team_member_count > 6 %}
+<p class="workspace-note mt-3 mb-0">Showing 6 of {{ team_member_count }} team members.</p>
+{% endif %}{% if department.deptHead_or_oic %}
+<p class="workspace-note mt-3 mb-0">Head / OIC: {{ department.deptHead_or_oic.get_full_name|default:department.deptHead_or_oic.username }}</p>
+{% endif %}
+</div>
+      <div class="workspace-panel">
+<h2>Internal announcements</h2>
+<ul class="workspace-list">
+{% for announcement in recent_announcements %}
+<li>
+<a href="{{ announcement.get_absolute_url }}">{{ announcement.title }}</a>
+<br>
+<small>{{ announcement.created_at|date:"M j, Y" }}</small>
+</li>
+{% empty %}
+<li class="workspace-note">No internal announcements have been published.</li>
+{% endfor %}
+</ul>
+</div>
+      <div class="workspace-panel">
+<h2>Getting started</h2>
+<p class="workspace-note mb-0">Open an available workspace to continue your work. Planned cards show the intended scope of your office. Access is assigned to your role by an administrator.</p>
+</div>
+    </aside>
+  </div>
+  {% if department.email or department.phone %}
+<div class="workspace-help">
+<strong>Contact your office</strong>
+<p class="workspace-note mb-0">
+{% if department.email %}
+<a href="mailto:{{ department.email }}">{{ department.email }}</a>
+{% endif %}{% if department.email and department.phone %} · {% endif %}{{ department.phone|default:"" }}</p>
+</div>
+{% endif %}
+</main>
+{% endblock %}

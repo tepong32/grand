@@ -37,9 +37,34 @@ clock; production financial date/capacity checks are unchanged. An initial
 September 12 clock left two September 13 corrections in the future; corrected.
 PASS: all 51 repaired scenarios on fresh native stores (87.206s). Final full
 SQLite regression passed 1,231 discovered / 1,145 passed / 86 native/environmental
-skips; skipped checks are not passes. The successful runner exited 0. Version
-Manager security checkpoint and dashboard presentation follow; integration is
-subject to the final full CI checks.
+skips (619.814s); skipped checks are not passes. The successful runner exited 0.
+Version Manager security checkpoint v0.7.158 is published. The security and
+subsequent presentation releases use
+[PR #115](https://github.com/tepong32/grand/pull/115); its merge state and final
+`verify` / `mysql` results are the authoritative primary integration evidence.
+
+Dashboard presentation now shares the configured GRAND theme across citizen,
+employee, signup/sign-in and assignment-pending pages. Twenty office presets
+provide relevant next steps; aliases select descriptions without granting roles,
+unknown offices retain the generic fallback, and unavailable cards are
+nonclickable. Existing module helpers govern available links. See
+[dashboard scope](docs/DEPARTMENT_DASHBOARDS.md).
+
+PASS: affected UI/auth/integration SQLite 384 discovered / 381 passed / 3 skips
+(118.549s), covering departments/users/profiles/home/leave, assistance, social
+welfare, reporting, records, TracePoint and `finance.test_operations`. An initial
+run used a nonexistent namespace as a test label and a stale generic-Planning
+expectation; both were corrected, with a separate unknown-office fallback check.
+Desktop/mobile browser checks of citizen and Planning dashboards show no
+horizontal overflow at 390px. HR provisioning/leave links and invalid login
+errors were checked with synthetic accounts. The old broken password-reset link,
+a Windows UTF-8 copy issue and new public-button contrast were repaired. No
+external OAuth/email flow is claimed as tested. Native UI/auth checks passed
+52/52 (29.298s); a final display-state check distinguishes implemented Finance
+cards requiring permissions from unfinished work passed 6/6 on fresh native
+stores (1.012s). System checks, migration drift and whitespace checks pass.
+Final full SQLite/MySQL CI is required before PR integration; consult PR #115
+for the completed run and publishing state. No deployment approval is implied.
 
 Tests use disposable SQLite stores and dedicated fresh MySQL schemas
 `test_grand_auth_ci_default` / `test_grand_auth_ci_finance`. The pre-existing

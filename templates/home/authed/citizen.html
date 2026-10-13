@@ -1,15 +1,92 @@
 {% extends "base.html" %}
 {% block title_ext %} · Citizen dashboard{% endblock %}
 {% block content %}
-<div class="container py-4">
-  <p class="text-uppercase text-muted small">Public services</p>
-  <h1>Your citizen dashboard</h1>
-  <p class="text-muted">Welcome, {{ request.user.get_full_name|default:request.user.username }}. Choose a service to get started.</p>
-  <div class="row">
-    <div class="col-md-6 mb-3"><div class="card h-100"><div class="card-body"><h2 class="h4">Assistance and request tracking</h2><p>Apply for assistance or track an existing request with the codes you received.</p><a class="btn btn-primary" href="{% url 'assistance:assistance_landing' %}">Open assistance services</a></div></div></div>
-    <div class="col-md-6 mb-3"><div class="card h-100"><div class="card-body"><h2 class="h4">Your profile</h2><p>Keep your contact details current.</p><a class="btn btn-outline-primary" href="{% url 'profile' request.user.username %}">View your profile</a></div></div></div>
-  </div>
-  <a href="{% url 'announcements-list' %}" class="btn btn-outline-primary">Public announcements</a>
-  <a href="{% url 'unauthedhome' %}" class="btn btn-outline-primary">Services and office contacts</a>
+{% include "home/authed/dashboard_styles.html" %}
+<main class="grand-dashboard" aria-labelledby="workspace-title">
+  <header class="workspace-hero">
+<div>
+<p class="workspace-eyebrow">Public services · GRAND</p>
+<h1 id="workspace-title">Your citizen dashboard</h1>
+<p>Find a service, follow your requests, and keep your information up to date.</p>
 </div>
+<div class="workspace-person">
+<span>Welcome back</span>
+<strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+<span>Citizen account</span>
+</div>
+</header>
+  <nav class="workspace-quick-links" aria-label="Your service shortcuts">
+<a href="{% url 'profile' request.user.username %}">
+<i class="fas fa-id-card" aria-hidden="true">
+</i>My profile</a>
+<a href="{% url 'announcements-list' %}">
+<i class="fas fa-bullhorn" aria-hidden="true">
+</i>Public announcements</a>
+<a href="{% url 'unauthedhome' %}#contact-us">
+<i class="fas fa-building" aria-hidden="true">
+</i>Office contacts</a>
+</nav>
+  <div class="workspace-layout">
+<section aria-labelledby="services-heading">
+<div class="workspace-heading">
+<h2 id="services-heading">How can we help?</h2>
+<p>Choose a service to get started.</p>
+</div>
+<div class="workspace-grid">
+    <article class="workspace-module">
+<span class="workspace-module-icon">
+<i class="fas fa-hands-helping" aria-hidden="true">
+</i>
+</span>
+<h3>Assistance and request tracking</h3>
+<p>Apply for assistance or track an existing request with the codes you received.</p>
+<a class="workspace-action" href="{% url 'assistance:assistance_landing' %}">Open assistance services <i class="fas fa-arrow-right" aria-hidden="true">
+</i>
+</a>
+</article>
+    <article class="workspace-module">
+<span class="workspace-module-icon">
+<i class="fas fa-id-card" aria-hidden="true">
+</i>
+</span>
+<h3>Your profile</h3>
+<p>Review your account and keep your contact details current.</p>
+<a class="workspace-action" href="{% url 'profile' request.user.username %}">View your profile <i class="fas fa-arrow-right" aria-hidden="true">
+</i>
+</a>
+</article>
+    {% for shortcut in public_service_shortcuts %}
+<article class="workspace-module">
+<h3>{{ shortcut.title }}</h3>
+<p>{{ shortcut.description }}</p>
+<a class="workspace-action" href="{{ shortcut.link_url }}">{{ shortcut.link_label }} <i class="fas fa-arrow-right" aria-hidden="true">
+</i>
+</a>
+</article>
+{% endfor %}
+    <article class="workspace-module">
+<span class="workspace-module-icon">
+<i class="fas fa-building" aria-hidden="true">
+</i>
+</span>
+<h3>Services and office contacts</h3>
+<p>Find public service information and the office that can help with your inquiry.</p>
+<a class="workspace-action" href="{% url 'unauthedhome' %}#services">Browse public services <i class="fas fa-arrow-right" aria-hidden="true">
+</i>
+</a>
+</article>
+  </div>
+</section>
+<aside aria-label="Getting started">
+<div class="workspace-panel">
+<h2>Keep your request codes</h2>
+<p class="workspace-note mb-0">Use the tracking and verification codes supplied with your application to check its progress.</p>
+</div>
+<div class="workspace-panel">
+<h2>Working for the municipality?</h2>
+<p class="workspace-note mb-0">Your HR office creates employee accounts and assigns the appropriate department. Contact HR if you need access for your work.</p>
+</div>
+</aside>
+</div>
+</main>
 {% endblock %}

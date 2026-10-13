@@ -15,6 +15,9 @@ URL parameters. Quarantine conflicting legacy employee/citizen profiles for
 human identity review without deleting evidence. Shared default-store attempt
 counters cover Django/allauth/admin login, signup and reset; deploy users/0002
 before serving and prune expired counters daily. See [auth security](docs/AUTH_SECURITY.md).
+Department starting-page presets and slug aliases describe office scope only;
+they never confer access. Available links reuse module permissions; unfinished
+and restricted cards are nonclickable. See [dashboard design](docs/DEPARTMENT_DASHBOARDS.md).
 
 Cheque exceptions (2026-09-15): user has no local procedures and authorizes public-source
 research, modular implementation and human resolution of rare cases. Missing local

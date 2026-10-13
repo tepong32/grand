@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.159] - 2026-10-14
+### Added
+- feat(ui): polish citizen and department starting pages
+
 ## [0.7.158] - 2026-10-14
 ### Fixed
 - fix(auth): separate citizen signup and employee authority

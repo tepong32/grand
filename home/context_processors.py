@@ -11,6 +11,8 @@ from .models import ServiceShortcut, SiteConfiguration
 
 
 def site_ui(request):
+    from users.access import can_manage_employee_accounts
+
     configuration = SiteConfiguration.objects.first() or SiteConfiguration()
     profile = getattr(request.user, "employeeprofile", None) if request.user.is_authenticated else None
     department = getattr(profile, "assigned_department", None)
@@ -26,6 +28,7 @@ def site_ui(request):
             is_active=True,
         ) if profile else ServiceShortcut.objects.none(),
         "is_employee_account": bool(profile),
+        "can_create_employee_accounts": can_manage_employee_accounts(request.user),
         "employee_department": department,
         "can_view_user_directory": bool(request.user.is_authenticated and (request.user.is_superuser or is_hr)),
         "can_access_citizen_reviews": can_access_citizen_reviews(request.user),

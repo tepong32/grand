@@ -19,7 +19,7 @@ def department_index(request):
     Keeps app behavior minimal while providing a stable place for future extensions.
     """
     departments = Department.objects.all().order_by("name")
-    return render(request, "home/authed/dashboards/generic.html", {"department_rows": departments})
+    return render(request, "departments/index.html", {"department_rows": departments})
 
 
 def department_detail(request, slug: str):

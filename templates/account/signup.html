@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags socialaccount %}
+{% block title_ext %} · Create citizen account{% endblock %}
+{% block content %}
+{% include "home/authed/dashboard_styles.html" %}
+<main class="grand-dashboard" aria-labelledby="account-title">
+<header class="workspace-hero">
+<div>
+<p class="workspace-eyebrow">Public services · GRAND</p>
+<h1 id="account-title">Create citizen account</h1>
+<p>Use your email to create an account for public services. Verify your email to finish setting up.</p>
+</div>
+</header>
+<div class="workspace-layout">
+<section class="workspace-panel">
+<h2>Your citizen account</h2>
+<form method="post" action="{% url 'account_signup' %}">
+{% csrf_token %}{{ form|crispy }}{% if redirect_field_value %}
+<input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+{% endif %}
+<button type="submit" class="btn btn-primary px-4">Create account</button>
+</form>
+<div class="mt-3">
+<a href="{% url 'account_login' %}">Already registered? Sign in</a>
+</div>
+</section>
+<aside>
+<div class="workspace-panel">
+<h2>Continue with Google</h2>
+<p class="workspace-note">You can also use a Google account for citizen access.</p>
+<a class="workspace-action" href="{% provider_login_url 'google' process='login' %}">
+<i class="fab fa-google" aria-hidden="true">
+</i>Continue with Google</a>
+</div>
+<div class="workspace-panel">
+<h2>Municipal employees</h2>
+<p class="workspace-note">HR creates and assigns accounts for office work.</p>
+<a class="workspace-action" href="{% url 'login' %}">Employee sign in</a>
+</div>
+</aside>
+</div>
+</main>
+{% endblock %}

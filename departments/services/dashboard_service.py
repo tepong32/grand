@@ -8,6 +8,7 @@ from profiles.models import EmployeeProfile
 from leave_mgt.models import LeaveRequest
 
 from ..models import Department
+from .workspace_presets import ADDITIONAL_PRESETS, PRESET_ALIASES
 
 DEFAULT_DASHBOARD_TEMPLATE = "home/authed/dashboards/generic.html"
 
@@ -178,8 +179,39 @@ def _department_employees(department: Department) -> QuerySet[EmployeeProfile]:
 
 def _workspace_sections(department: Department, user=None) -> list[dict]:
     slug = (department.slug or "").strip().lower()
-    sections = DEPARTMENT_WORKSPACE_PRESETS.get(slug, DEFAULT_WORKSPACE_SECTIONS)
+    preset_slug = PRESET_ALIASES.get(slug, slug)
+    sections = DEPARTMENT_WORKSPACE_PRESETS.get(preset_slug, ADDITIONAL_PRESETS.get(preset_slug, DEFAULT_WORKSPACE_SECTIONS))
     result = deepcopy(list(sections))
+    from users.services.query_service import can_access_users_directory
+    from leave_mgt.services.policy_service import can_manage_leave_credits
+    if preset_slug == "hr":
+        for item, allowed, destination in (
+            (result[0], can_access_users_directory(user), "users-list"),
+            (result[1], can_manage_leave_credits(user), "leave_manage"),
+        ):
+            item.pop("url", None)
+            item.update(status="Available" if allowed else "Restricted")
+            if allowed:
+                item["url_name"] = destination
+    from accounting.access import can_view_accounting
+    from budget.access import can_view as can_view_budget
+    from vouchers.access import can_view_collections
+    for title, icon, description, allowed, destination in (
+        ("Ledgers and journals", "fa-book", "Review source journals, posting queues and accounting records.", can_view_accounting(user), "accounting:workspace"),
+        ("Obligation control", "fa-chart-pie", "Review budget certification, obligations and remaining authorized balances.", can_view_budget(user), "budget:obligation_workspace"),
+        ("Collections and deposits", "fa-receipt", "Record receipts, deposit allocations and independently reviewed posting.", can_view_collections(user), "vouchers:collection_register"),
+    ):
+        item = next((row for row in result if row["title"].lower() == title.lower()), None)
+        if allowed:
+            if item is None:
+                item = {}
+                result.append(item)
+            item.update(title=title, icon=icon, description=description, status="Available", url_name=destination)
+        elif item is not None:
+            item["status"] = "Restricted"
+    from reporting.access import can_view_reporting
+    if slug != "mswd" and can_view_reporting(user, department):
+        result.append(dict(title="Reports and official outputs", icon="fa-chart-bar", description="Prepare authorized office reports and retrieve retained outputs.", status="Available", url_name="reporting:workspace"))
     from tracepoint.access import can_view_workspace
     if can_view_workspace(user, department):
         from tracepoint.models import PacketDiscrepancy, TrackedPacket
@@ -259,6 +291,7 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
                 "disbursement queue", "voucher and disbursement workbench",
                 "budget voucher workspace", "accounting disbursement workspace",
                 "treasury disbursement workspace", "voucher and disbursement overview",
+                "payment and release queue",
             }
         ), None)
         if voucher_section is None:
@@ -394,7 +427,8 @@ def get_department_dashboard_context(department: Department, user) -> dict:
             status=ProgramActivity.STATUS_PLANNED,
         ).select_related("program").order_by("starts_at")[:5]
 
-    if (department.slug or "").strip().lower() == "hr":
+    from leave_mgt.services.policy_service import can_manage_leave_credits
+    if (department.slug or "").strip().lower() == "hr" and can_manage_leave_credits(user):
         context.update(
             {
                 "employees": _query_employees().all(),

@@ -1,0 +1,56 @@
+<style>
+.grand-dashboard { max-width:1440px; margin:auto; padding:24px 12px 48px; color:#17324d; }
+.grand-dashboard * { box-sizing:border-box; }
+.grand-dashboard h1,.grand-dashboard h2,.grand-dashboard h3 { font-weight:650; }
+.grand-dashboard .workspace-eyebrow { font-size:.75rem; font-weight:600; letter-spacing:.12em; text-transform:uppercase; margin-bottom:10px; }
+.grand-dashboard .workspace-hero { display:flex; justify-content:space-between; gap:28px; align-items:center; background:var(--gov-primary,#123b66); color:white; padding:32px; border-radius:16px; margin-bottom:24px; }
+.grand-dashboard .workspace-hero h1 { font-size:clamp(1.7rem,3vw,2.65rem); margin:0 0 10px; line-height:1.2; }
+.grand-dashboard .workspace-hero p { max-width:760px; line-height:1.65; margin-bottom:0; }
+.grand-dashboard .workspace-hero .workspace-eyebrow { color:#e2eaf4; margin-bottom:12px; }
+.grand-dashboard .workspace-person { flex:0 0 auto; padding:16px 20px; border:1px solid #ffffff45; border-radius:12px; max-width:300px; }
+.grand-dashboard .workspace-person strong { display:block; overflow-wrap:anywhere; }
+.grand-dashboard .workspace-person span { font-size:.8rem; color:#e2eaf4; }
+.grand-dashboard .workspace-quick-links { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:24px; }
+.grand-dashboard .workspace-quick-links a { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:10px 16px; border:1px solid #d5dfe9; border-radius:9px; background:white; font-size:.9rem; color:var(--gov-primary,#123b66); font-weight:600; }
+.grand-dashboard a:hover { text-decoration:underline; }
+.grand-dashboard a:focus-visible { outline:3px solid var(--gov-accent,#d59b2d); outline-offset:3px; }
+.grand-dashboard .workspace-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:28px; }
+.grand-dashboard .workspace-metric { display:flex; align-items:center; gap:14px; padding:18px; border:1px solid #e0e7ef; background:white; border-radius:12px; }
+.grand-dashboard .workspace-metric i { color:var(--gov-primary,#123b66); font-size:1.2rem; }
+.grand-dashboard .workspace-metric strong { display:block; font-size:1.65rem; line-height:1.2; }
+.grand-dashboard .workspace-metric span { font-size:.8rem; color:#596b7d; }
+.grand-dashboard .workspace-layout { display:grid; grid-template-columns:minmax(0,2.3fr) minmax(250px,1fr); gap:26px; }
+.grand-dashboard .workspace-heading { display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:16px; }
+.grand-dashboard .workspace-heading h2 { font-size:1.25rem; margin:0; }
+.grand-dashboard .workspace-heading p { font-size:.85rem; color:#596b7d; margin:0; }
+.grand-dashboard .workspace-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.grand-dashboard .workspace-module { background:white; border:1px solid #dbe4ed; border-radius:12px; padding:22px; display:flex; flex-direction:column; min-width:0; }
+.grand-dashboard .workspace-module-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:18px; }
+.grand-dashboard .workspace-module-icon { width:44px; height:44px; border-radius:10px; background:#edf3f9; display:flex; align-items:center; justify-content:center; color:var(--gov-primary,#123b66); font-size:1.2rem; }
+.grand-dashboard .workspace-status { font-size:.73rem; font-weight:600; border-radius:20px; padding:5px 10px; background:#f0f3f6; color:#526274; }
+.grand-dashboard .workspace-status.available { background:#e9f5ed; color:#216549; }
+.grand-dashboard .workspace-status.restricted { background:#fff2d9; color:#79521b; }
+.grand-dashboard .workspace-module h3 { font-size:1.05rem; line-height:1.4; margin:0 0 9px; }
+.grand-dashboard .workspace-module p { font-size:.87rem; line-height:1.65; color:#596b7d; margin:0 0 18px; }
+.grand-dashboard .workspace-summary { display:flex; gap:12px; flex-wrap:wrap; border-top:1px solid #e7edf3; padding-top:12px; margin-bottom:16px; }
+.grand-dashboard .workspace-summary div { flex:1; min-width:60px; }
+.grand-dashboard .workspace-summary strong { display:block; font-size:1.05rem; }
+.grand-dashboard .workspace-summary span { font-size:.73rem; color:#596b7d; }
+.grand-dashboard .workspace-action { display:inline-flex; align-items:center; justify-content:center; gap:10px; min-height:44px; padding:10px 14px; border:1px solid #c9d8e7; border-radius:8px; color:var(--gov-primary,#123b66); font-size:.87rem; font-weight:600; margin-top:auto; }
+.grand-dashboard .workspace-placeholder { margin-top:auto; padding-top:10px; font-size:.8rem; color:#697887; }
+.grand-dashboard .workspace-panel { background:white; border:1px solid #dbe4ed; border-radius:12px; padding:22px; margin-bottom:18px; min-height:0; }
+.grand-dashboard .workspace-panel h2 { font-size:1.05rem; margin:0 0 16px; }
+.grand-dashboard .workspace-list { list-style:none; padding:0; margin:0; }
+.grand-dashboard .workspace-list li { padding:12px 0; border-bottom:1px solid #e7edf3; }
+.grand-dashboard .workspace-list li:first-child { padding-top:0; }
+.grand-dashboard .workspace-list li:last-child { border-bottom:0; padding-bottom:0; }
+.grand-dashboard .workspace-list strong { display:block; font-size:.9rem; }
+.grand-dashboard .workspace-list small { color:#596b7d; }
+.grand-dashboard .workspace-note { font-size:.82rem; color:#596b7d; line-height:1.65; }
+.grand-dashboard .workspace-help { padding:18px 22px; border-left:3px solid var(--gov-accent,#d59b2d); background:#f1f5fa; border-radius:0 10px 10px 0; margin-top:24px; }
+.grand-dashboard .workspace-table { overflow:auto; }
+.grand-dashboard .workspace-table table { width:100%; font-size:.85rem; }
+.grand-dashboard .workspace-table th,.grand-dashboard .workspace-table td { padding:12px 8px; border-bottom:1px solid #e7edf3; white-space:normal; }
+@media(max-width:1000px) { .grand-dashboard .workspace-layout { grid-template-columns:1fr; } .grand-dashboard .workspace-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .grand-dashboard { padding:16px 0 32px; } .grand-dashboard .workspace-hero { padding:24px 20px; flex-direction:column; align-items:stretch; gap:18px; } .grand-dashboard .workspace-person { max-width:none; padding:12px 16px; } .grand-dashboard .workspace-grid { grid-template-columns:1fr; } .grand-dashboard .workspace-heading { display:block; } .grand-dashboard .workspace-heading p { margin-top:6px; } .grand-dashboard .workspace-metric { padding:14px; gap:10px; } .grand-dashboard .workspace-quick-links a { flex:1 1 auto; } }
+</style>

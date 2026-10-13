@@ -1,5 +1,21 @@
 {% extends "base.html" %}
-{% block title_ext %} · Employee account{% endblock %}
+{% block title_ext %} · Department assignment pending{% endblock %}
 {% block content %}
-<div class="container py-4"><p class="text-uppercase text-muted small">Employee account</p><h1>Your office assignment is pending</h1><p>Contact Human Resources or your administrator to confirm your department and work permissions.</p><a class="btn btn-primary" href="{% url 'profile' request.user.username %}">View your profile</a></div>
+{% include "home/authed/dashboard_styles.html" %}
+<main class="grand-dashboard" aria-labelledby="workspace-title">
+<header class="workspace-hero">
+<div>
+<p class="workspace-eyebrow">Employee account · GRAND</p>
+<h1 id="workspace-title">Department assignment pending</h1>
+<p>Your account is ready. Contact HR to confirm your office assignment and work permissions.</p>
+</div>
+</header>
+<section class="workspace-panel">
+<h2>While you wait</h2>
+<p class="workspace-note">Review your personal information so HR can complete your setup.</p>
+<a class="workspace-action" href="{% url 'profile' request.user.username %}">View your profile <i class="fas fa-arrow-right" aria-hidden="true">
+</i>
+</a>
+</section>
+</main>
 {% endblock %}
