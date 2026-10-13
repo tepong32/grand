@@ -1,9 +1,14 @@
 # Whole Form 1 internal review screen
 
-Locally validated v0.7.160 candidate, following the fully accepted v0.7.157 release. Independent Budget, Accounting
+Accepted installed Version Manager v0.7.160 / `15b079c1d78a9bc63edbd8197242ba2f15d11644`, following the fully accepted v0.7.157 release. Independent Budget, Accounting
 and Treasury officers can now review the retained whole package through its
 existing detail page. Preparation intake and statutory issuance remain open.
-Release/primary acceptance is recorded in [CONTINUE.md](../CONTINUE.md).
+Release, exact master/tag refs and both [candidate run 38442773424](https://github.com/tepong32/grand/actions/runs/38442773424) and [primary run 38447621668](https://github.com/tepong32/grand/actions/runs/38447621668) are verified.
+All nineteen jobs passed on each run: security, verify, mysql and sixteen
+workers. Native passed all 2,473 cases without skips; SQLite passed 2,278 with
+the same 195 native-only skips. Full logs, exact identities, cleanup and
+20 primary failure-level annotations mapped to passing permission-denial tests
+were verified. See [CONTINUE.md](../CONTINUE.md) for the next bounded step.
 
 ## Change and control boundary
 
@@ -90,18 +95,23 @@ synthetic UI verification, not LGU acceptance.
 
 ## Remaining gates and next step
 
-GO/NO-GO: local development publication **GO**; new-candidate remote/primary
-acceptance PENDING; production **NO-GO**. Complete the new exact-SHA remote
-checks before primary promotion. No broad
+GO/NO-GO: local and exact-release candidate/primary acceptance **GO**; production **NO-GO**.
+Both aggregate gates passed complete discovery before promotion; resulting
+primary checks also passed. No broad
 new framework or peripheral domain is introduced. Full 2,473-case local reruns
 are NOT RUN — OUT OF SCOPE for five isolated UI/test sources with no changes to
 shared financial services, models, settings or migrations; affected/dependent
 20-case suites and native races pass, and the complete prior-source local and
-candidate/primary suites passed. New-candidate CI must execute full discovery. Whole-package preparation
+candidate/primary suites passed. Candidate and primary CI executed and verified all 2,473 discovered cases. Whole-package preparation
 intake is the next bounded part of the existing clerk route. Statutory certifiers,
 Chief Executive approval, issuance, exact local outputs, representative varied
 source performance and human/physical acceptance remain open. Manual local
 decisions are deferred for tonight; missing evidence stays unknown.
+
+The separate provider graph still lists older dependency versions despite the
+patched released pins and clean actual audits; its 24 open alerts remain tracked
+in the [gap register](FINANCE_GAP_REGISTER.md#fin-gap-038---security-and-native-regression-release-gate).
+No alert was dismissed and this checkpoint does not authorize production use.
 
 See [review/delivery contract](FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md),
 [source contract](FINANCE_FORM1_SOURCE_CONTRACT.md),

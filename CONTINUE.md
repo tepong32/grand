@@ -6,19 +6,29 @@ Last updated: 2026-10-14
 
 ## Current checkpoint - Finance foundation release
 
-Following the green v157 candidate and verified master/tag push, the bounded
+Installed Version Manager v0.7.160 / `15b079c1d78a9bc63edbd8197242ba2f15d11644` is integrated into master,
+with its tag and both exact remote refs verified. The bounded
 [whole-package internal review screen](docs/FINANCE_FORM1_REVIEW_UI_2026-10-14.md)
-is implemented in the development checkout. Five new HTTP cases pass on SQLite
-and fresh MySQL; three real browser office decisions preserve original evidence
-and journals. Final dependent SQLite passed 20 tests / 1503.432s with one
-native-only race skip; native passed all 20 / 1716.625s, zero skips, including
-three decision/return/successor races. Both handles 83198/90413 are terminal exit 0;
-do not poll/restart them. Raw logs, exact identities, two-store cleanup and the
-1,138-source fingerprint match. System/drift and current audit pass. Complete
-local publication gate PASS. Installed Version Manager preview/scope guard selects
-v160 (18 intended files plus VERSION/CHANGELOG), preserving the separate v158/v159
-releases. Release execution and new exact-SHA CI remain pending. Preparation
-intake, statutory signatures/issuance and LGU acceptance remain open.
+passed [candidate run 38442773424](https://github.com/tepong32/grand/actions/runs/38442773424) and [primary run 38447621668](https://github.com/tepong32/grand/actions/runs/38447621668): security, verify, mysql and all sixteen workers.
+All 2,473 identities completed exactly once on each backend: native 2,473 PASS /
+zero skips; SQLite 2,278 PASS / 195 unchanged native-only skips. Full terminal
+logs, identity sets, two-store cleanup and passing permission-denial annotations
+were independently verified. Local 20-case dependent suites, three native races,
+real three-office browser decisions, system/drift and audit also passed.
+GO for continued Finance development; production remains NO-GO. The next bounded
+clerk step is whole Form 1 preparation intake through existing governed services.
+Intake must support the first package with original SPA/flow sources, exact cash
+anchors and explicit cash-forecast/PhilHealth evidence. Reuse the existing
+capture/prepare services; clerks must not construct JSON. Missing controls
+remain unknown and treatment choices remain explicit.
+Statutory signatures/issuance and LGU acceptance remain open/deferred tonight.
+
+Fresh accepted-primary security evidence: Dependabot still reports 24 OPEN alerts
+(one Critical, 15 High, eight Medium), but all released pins are outside their
+affected ranges and both actual security audits pass. GitHub's current SBOM still
+lists the previous PyJWT 2.13.0 / pypdf 6.16.1 / urllib3 2.7.0, confirming an
+outdated provider graph. Preserve the separate unresolved provider-status finding;
+do not dismiss alerts or treat the production gate as accepted.
 
 Installed Version Manager previews v158/v159 are historical, unexecuted previews:
 both numbers were concurrently taken by unrelated authorized authentication/UI

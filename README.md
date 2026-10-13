@@ -79,7 +79,7 @@ The reporting seed command is idempotent: it creates or preserves the five MSWD 
 
 ## Verification
 
-Release status, October 14: v0.7.157 / `739e3657` is integrated and pushed to
+CI repair checkpoint, October 14: v0.7.157 / `739e3657` is integrated and pushed to
 master with its tag. Finance retrieval and retained Form 1 sources, internal
 review services, register and draft outputs are included. Guided whole-package
 intake/review, statutory issuance and LGU acceptance remain open. See
@@ -96,14 +96,13 @@ Finance production remains **NO-GO** pending functional completion, operational
 scrutiny, critical-gap verification and LGU acceptance. See the
 [incident findings](docs/FINANCE_CI_INCIDENT_2026-10-12.md).
 
-The next development checkpoint adds the
-[whole-package internal review screen](docs/FINANCE_FORM1_REVIEW_UI_2026-10-14.md)
-through the existing governed service. Five new HTTP cases passed on both
-backends and three actual browser office decisions retained original evidence.
-Final affected/dependent validation passed 20 cases on both backends (one
-native-only race skipped on SQLite; MySQL zero skips), including original evidence,
-exports and three native races. This v160 candidate awaits its own remote
-release checks; it is not part of v0.7.157. Preparation intake remains open.
+The v0.7.160 [whole-package internal review screen](docs/FINANCE_FORM1_REVIEW_UI_2026-10-14.md)
+is integrated/pushed at `15b079c1`. Both [candidate run 38442773424](https://github.com/tepong32/grand/actions/runs/38442773424) and [primary run 38447621668](https://github.com/tepong32/grand/actions/runs/38447621668)
+passed security, verify, mysql and all sixteen workers: 2,473 native tests PASS
+without skips; SQLite 2,278 PASS / 195 unchanged native-only skips. Local
+dependent tests, native races and real three-office browser decisions retain
+original evidence and financial controls. Preparation intake, statutory
+signatures/issuance and LGU acceptance remain open.
 
 Install the development-only audit tool when performing security maintenance:
 

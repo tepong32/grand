@@ -12,8 +12,9 @@ overlap-recipe route below remains required. CONTINUE.md records the actual SQLi
 The v157 source/services are integrated and candidate CI is green; resulting
 primary security/verify/mysql passed. The subsequent
 [guided internal review screen](FINANCE_FORM1_REVIEW_UI_2026-10-14.md) passed 20 affected/dependent cases on SQLite/native, three native races and
-actual three-office browser decisions. Its own remote release checks remain
-pending. Whole preparation intake remains the next clerk
+actual three-office browser decisions. Its v0.7.160 candidate and primary
+security/verify/mysql passed all 2,473 cases, with zero native skips; exact
+master/tag refs are verified. Whole preparation intake remains the next clerk
 step. This contract records internal review implementation and remaining delivery gates;
 statutory signatures are not implemented.
 Continue the [source contract](FINANCE_FORM1_SOURCE_CONTRACT.md),

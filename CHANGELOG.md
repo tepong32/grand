@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.164] - 2026-10-14
+### Documentation
+- docs(finance): record accepted whole Form 1 review checkpoint
+
 ## [0.7.160] - 2026-10-14
 ### Feat
 - feat(budget): expose independent whole Form 1 reviews
